@@ -1,6 +1,7 @@
 # NeuralNetDiffEq
 
 [![Build Status](https://travis-ci.org/JuliaDiffEq/NeuralNetDiffEq.jl.svg?branch=master)](https://travis-ci.org/JuliaDiffEq/NeuralNetDiffEq.jl)
+[![Build status](https://ci.appveyor.com/api/projects/status/v0eop301bx105av4?svg=true)](https://ci.appveyor.com/project/ChrisRackauckas/neuralnetdiffeq-jl)
 [![Coverage Status](https://coveralls.io/repos/JuliaDiffEq/NeuralNetDiffEq.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaDiffEq/NeuralNetDiffEq.jl?branch=master)
 [![codecov.io](http://codecov.io/github/JuliaDiffEq/NeuralNetDiffEq.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaDiffEq/NeuralNetDiffEq.jl?branch=master)
 
