@@ -1,3 +1,5 @@
+__precompile__()
+
 module NeuralNetDiffEq
 
 # package code goes here
