@@ -16,6 +16,12 @@ nnode(;hl_width=10) = nnode(hl_width)
 
 export nnode
 # package code goes here
+
+#constant functions
+z(P,i,x) = P[1][i]*x + P[2][i]
+sig_der(x) = sigm(x)*(1-sigm(x))
+
+
 function solve(
   prob::AbstractODEProblem,
   alg::NeuralNetDiffEqAlgorithm;
@@ -29,9 +35,6 @@ function solve(
     dt = 1/100
   end
 
-  #constant functions
-  const z(P,i,x) = P[1][i]*x + P[2][i]
-  const sig_der(x) = sigm(x)*(1-sigm(x))
 
   #The phi trial solution
   phi(P,x) = u0 + x*(predict(P,x))
@@ -81,5 +84,5 @@ function solve(
 end #solve
 
 include("training_utils.jl")
-include("interface.jl")
+#include("interface.jl")
 end # module
