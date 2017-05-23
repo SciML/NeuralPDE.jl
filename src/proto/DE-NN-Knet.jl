@@ -18,18 +18,18 @@ phi(P,x) = 1 + x*(predict(P,x))
 #The Differential Equation function for Example 1
 f(P,x) = x^3 + 2*x + (x^2)*((1+3*(x^2))/(1+x+(x^3))) - (phi(P,x))*(x + ((1+3*(x^2))/(1+x+x^3)))
 
- x_tr = linspace(0.0,1,100)
- x_tst = linspace(0.1,1,100)
+ x_tr = linspace(0.0,1,10)
+ x_tst = linspace(0.1,1,10)
 
 
-function train(P, prms, data; epochs =10, iters=1000)
+function train(P, prms, data; epochs =100, iters=10000)
     #print(size(P),size(g),size(prms))
       for epoch=1:epochs
       	      #i = 0
         for (x,y) in data
 
           #i = i+1
-	        g = lossgradient(P, x, y)
+	        g = lossgradient(P, x,y)
           #print(size(P),size(g),size(prms))
           update!(P, g, prms)
           #println(P[1][1],P[2][1],P[3][1],P[4][1])
@@ -49,10 +49,16 @@ function predict(P,x)
 end
 
 
-function loss(P,x,ygold)
-    dNx = sum([P[3][i]*P[1][i]*sig_der(P[1][i]*x + P[2][i]) for i = 1:10])
-    to_minimize = (predict(P,x) + (x*dNx) - f(P,x))[1]
+# function loss(P,x)
+#
+#     dNx = sum([P[3][i]*P[1][i]*sig_der(P[1][i]*x + P[2][i]) for i = 1:10])
+#     ((predict(P,x) + (x*dNx) - f(P,x))[1])^2
+# end
+
+function loss(w,x,ygold)
+    sumabs2(ygold - predict(w,x)) / size(ygold,2)
 end
+
 
 lossgradient = grad(loss)
 
@@ -69,19 +75,16 @@ function init_params(;ftype=Float32,atype=KnetArray)
 end
 
 function accuracy(w, dtst, pred=predict)
-    ncorrect = ninstance = nloss = 0
-    for (x, ygold) in dtst
-        ypred = pred(w, x)
-        #println(x,ygold,ypred)
-        ynorm = ypred .- log(sum(exp(ypred),1))
-        nloss += -sum(ygold .* ynorm)
-        ncorrect += sum(ygold .* (ypred .== maximum(ypred,1)))
-        ninstance += size(ygold,2)
-        #println("Correct:",ncorrect,"Loss:",nloss,"Instance:",ninstance)
-    end
-    println("a1:",ncorrect/ninstance,"a2",nloss/ninstance)
-    return (ncorrect/ninstance, nloss/ninstance)
+  ninstance = nerror = 0
+  for (x, ygold) in dtst
+      ypred = pred(w, x)[1]
+      #println(" X: ",x," Prediction: ",ypred[1]," True: ",ygold)
+      nerror += abs(ygold - ypred[1])
+      ninstance += 1
+  end
+  return (nerror/ninstance)
 end
+
 
 function params(ws, o)
 	prms = Any[]
@@ -113,7 +116,7 @@ function batch(x, y, batchsize; atype=Array{Float32})
     data = Any[]
     x_ = convert(atype,x)
     y_ = convert(atype,y)
-    for i=1:100
+    for i=1:10
         push!(data, (x_[i],y_[i]))
     end
     return data
@@ -169,7 +172,7 @@ function main(args=ARGS)
 
     @time for epoch=1:o[:epochs]
 
-	    train(w, prms, dtrn; epochs=10, iters=1000)
+	    train(w, prms, dtrn; epochs=100, iters=1000)
 	    report(epoch)
       # println(w[1][1])
       # println(w[2][1])
