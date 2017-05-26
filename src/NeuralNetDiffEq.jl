@@ -9,10 +9,12 @@ import DiffEqBase: solve
 @compat abstract type NeuralNetDiffEqAlgorithm <: AbstractODEAlgorithm end
 
 # DAE Algorithms
-immutable nnode <: NeuralNetDiffEqAlgorithm end
+immutable nnode <: NeuralNetDiffEqAlgorithm
+  hl_width::Int
+end
 
 
-nnode(;hl_width=10) = nnode(hl_width)
+#nnode(;hl_width=10) = nnode(hl_width)
 
 export nnode
 # package code goes here
@@ -29,7 +31,7 @@ function solve(
 
   u0 = prob.u0
   tspan = prob.tspan
-  DE = prob.f
+  global f = prob.f
 
   if dt == nothing
     dt = 1/100
@@ -42,10 +44,14 @@ function solve(
 
   #train and test points generation
   dtrn = generate_data(tspan[1],tspan[2],dt)
-  dtst =
+  #dtst =
+  #println(dtrn)
 
   #initialization of weights and bias
   w = init_params()
+  # println(w[1])
+  # println(w[2])
+  # println(w[3])
 
   #initialization of optimization parameters
   lr_ = 0.1
@@ -60,18 +66,21 @@ function solve(
   end
 
   #flag to choose the loss
-  regFlag = false
+  regFlag = true
+
+  #iters = 1000
 
   #reporting the accuracy
-  report(epoch)=println((:epoch,epoch,:trn,accuracy(w,dtrn,predict),:tst,accuracy(w,dtst,predict)))
-  report(0)
+  #report(epoch)=println((:epoch,epoch,:trn,accuracy(w,dtrn,predict),:tst,accuracy(w,dtst,predict)))
+  #report(epoch)=println((:epoch,epoch,:trn,loss_trial(w,dtrn)))
+  #report(0)
   #P_tuned = train(w,prms,dtrn,regFlag; epochs=100, iters=1000)
-  epochs = 100
+  epochs = 20
   @time for epoch=1:epochs
 
-    train(w, prms, dtrn; epochs=100, iters=1000)
-    report(epoch)
-    (iters -= length(dtrn)) <= 0 && break
+    train(w, prms, dtrn; epochs=20)
+    #report(epoch)
+    #(iters -= length(dtrn)) <= 0 && break
   end
 
   # for t in log; println(t); end
