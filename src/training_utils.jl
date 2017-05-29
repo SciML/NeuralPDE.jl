@@ -12,22 +12,24 @@ end
 #     sumabs2(ygold - predict(w,x)) / size(ygold,2)
 # end
 
-function loss_trial(P,x,f)
-    dNx = sum([P[3][i]*P[1][i]*sig_der(P[1][i]*x .+ P[2][i]) for i = 1:10])
-    ((predict(P,x)+(x*dNx)-f(P,x))[1])^2
+function loss_trial(P,t,timepoints,f,phi,hl_width)
+    dN_dt(P,t) = sum([P[3][i]*P[1][i]*sig_der(P[1][i]*t .+ P[2][i]) for i = 1:hl_width])
+    dPhi_dt(P,t) = predict(P,t)+t*dN_dt(P,t)
+    sum([dPhi_dt(P,t) - f(t,phi(P,t)) for t in timepoints])[1]^2
+
 end
 
 lossgradient = grad(loss_trial)
 
-function train(P, prms, data, f; maxiters =100)
+function train(P, prms, timepoints, f, phi, hl_width; maxiters =100)
     #print(size(P),size(g),size(prms))
 
 
 
     for iter=1:maxiters
         #println("epoch no.",epoch)
-        for x in data
-            g = lossgradient(P,x,f)
+        for x in timepoints
+            g = lossgradient(P,x,timepoints,f,phi,hl_width)
           #print(size(P),size(g),size(prms))
           update!(P, g, prms)
           #println(P[1][1],P[2][1],P[3][1],P[4][1])

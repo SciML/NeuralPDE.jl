@@ -33,6 +33,7 @@ function solve(
     u0 = prob.u0
     tspan = prob.tspan
     f = prob.f
+    t0 = tspan[1]
 
     if dt == nothing
         error("dt must be set.")
@@ -48,7 +49,7 @@ function solve(
     hl_width = alg.hl_width
 
     #The phi trial solution
-    phi(P,x) = u0 + x*predict(P,x)
+    phi(P,t) = u0 + (t-t0)*predict(P,t)
 
 
     #train points generation
@@ -84,7 +85,7 @@ function solve(
     #report(0)
     #P_tuned = train(w,prms,dtrn,regFlag; epochs=100, iters=1000)
     #@time for epoch=1:epochs
-    train(w, prms, dtrn, f; maxiters=maxiters_)
+    train(w, prms, dtrn, f, phi, hl_width; maxiters=maxiters_)
         #report(epoch)
     #end
 
