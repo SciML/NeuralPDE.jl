@@ -13,9 +13,10 @@ end
 # end
 
 function loss_trial(P,t,timepoints,f,phi,hl_width)
-    dN_dt(P,t) = sum([P[3][i]*P[1][i]*sig_der(P[1][i]*t .+ P[2][i]) for i = 1:hl_width])
+    w,b,v = P
+    dN_dt(P,t) = sum([v[i]*w[i]*sig_der(w[i]*t .+ b[i]) for i = 1:hl_width])
     dPhi_dt(P,t) = predict(P,t)+t*dN_dt(P,t)
-    sum([dPhi_dt(P,t) - f(t,phi(P,t)) for t in timepoints])[1]^2
+    sumabs2([dPhi_dt(P,t) - f(t,phi(P,t)) for t in timepoints][1])
 
 end
 
@@ -40,15 +41,13 @@ function train(P, prms, timepoints, f, phi, hl_width; maxiters =100)
     return P
 end
 
-function accuracy(w, dtst, pred=predict)
-    ncorrect = ninstance = nerror = 0
-    for (x, ygold) in dtst
-        ypred = pred(w, x)[1]
-        #println(" X: ",x," Prediction: ",ypred[1]," True: ",ygold)
-        nerror += abs(ygold - ypred[1])
-        ninstance += 1
+function test(P,timepoints,f,phi,hl_width)
+    sumloss = numloss = 0
+    for t in timepoints
+        sumloss += loss_trial(P,t,timepoints,f,phi,hl_width)
+        numloss += 1
     end
-    return (nerror/ninstance)
+    return sumloss/numloss
 end
 
 

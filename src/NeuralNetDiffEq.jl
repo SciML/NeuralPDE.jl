@@ -56,7 +56,7 @@ function solve(
     dtrn = generate_data(tspan[1],tspan[2],dt,atype=tType)
 
     #iterations
-    maxiters_ = iterations
+    _maxiters = iterations
 
     #initialization of weights and bias
     w = init_params(uElType,hl_width)
@@ -85,9 +85,15 @@ function solve(
     #report(0)
     #P_tuned = train(w,prms,dtrn,regFlag; epochs=100, iters=1000)
     #@time for epoch=1:epochs
-    train(w, prms, dtrn, f, phi, hl_width; maxiters=maxiters_)
+    #@time train(w, prms, dtrn, f, phi, hl_width; maxiters=_maxiters)
         #report(epoch)
     #end
+
+    @time for iters=1:_maxiters
+            train(w, prms, dtrn, f, phi, hl_width; maxiters=1)
+            println((:epoch,iters,:loss,test(w,dtrn,f,phi,hl_width)))
+            gradcheck(loss_trial, w, dtrn, first(dtrn), f, phi, hl_width...; gcheck=10, verbose=true)
+        end
 
     # for t in log; println(t); end
     # return w
