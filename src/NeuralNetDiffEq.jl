@@ -19,7 +19,7 @@ nnode(;hl_width=10) = nnode(hl_width)
 export nnode
 
 #constant functions
-z(P,i,x) = P[1][i]*x + P[2][i]
+#z(P,i,x) = P[1][i]*x + P[2][i]
 sig_der(x) = sigm(x)*(1-sigm(x))
 
 
@@ -92,7 +92,8 @@ function solve(
     @time for iters=1:_maxiters
             train(w, prms, dtrn, f, phi, hl_width; maxiters=1)
             println((:epoch,iters,:loss,test(w,dtrn,f,phi,hl_width)))
-            gradcheck(loss_trial, w, dtrn, first(dtrn), f, phi, hl_width...; gcheck=10, verbose=true)
+            #gradcheck(loss_trial, w, dtrn, f, phi, hl_width...; gcheck=10, verbose=true)
+            check_Phi_gradient(w,dtrn,hl_width)
         end
 
     # for t in log; println(t); end
