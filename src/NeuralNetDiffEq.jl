@@ -2,7 +2,7 @@ __precompile__()
 
 module NeuralNetDiffEq
 #dependencies
-using Knet, DiffEqBase, Compat
+using Knet, DiffEqBase, Compat, ForwardDiff
 import DiffEqBase: solve
 
 # Abstract Types
@@ -91,9 +91,15 @@ function solve(
 
     @time for iters=1:_maxiters
             train(w, prms, dtrn, f, phi, hl_width; maxiters=1)
-            println((:epoch,iters,:loss,test(w,dtrn,f,phi,hl_width)))
+            loss = test(w,dtrn,f,phi,hl_width)
+            if mod(iters,100) == 0
+                println((:iteration,iters,:loss,loss))
+            end
             #gradcheck(loss_trial, w, dtrn, f, phi, hl_width...; gcheck=10, verbose=true)
-            check_Phi_gradient(w,dtrn,hl_width)
+            #check_Phi_gradient(w,dtrn,hl_width)
+            if loss < 10^(-8.0)
+                break
+            end
         end
 
     # for t in log; println(t); end

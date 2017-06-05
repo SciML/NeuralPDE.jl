@@ -20,16 +20,17 @@ function check_Phi_gradient(P,timepoints,hl_width)
     dN_dt(t) = sum([v[i]*w[i]*sig_der(w[i]*t .+ b[i]) for i = 1:hl_width])
     dPhi_dt(t) = predict(P,t)+(t-t0)*dN_dt(t)
     for t in timepoints
-        gradcheck(Phi,t; verbose=true)
-        println(:numerical,dPhi_dt(t))
+        println(:ForwardDiff,gradient(x->Phi(x),t))
+        println(:analytical_grad,dPhi_dt(t))
     end
 end
 
 function loss_trial(P,timepoints,f,phi,hl_width)
     w,b,v = P
-    dN_dt(P,t) = sum([v[i]*w[i]*sig_der(w[i]*t .+ b[i]) for i = 1:hl_width])
-    dPhi_dt(P,t) = predict(P,t)+t*dN_dt(P,t)
-    sumabs2([dPhi_dt(P,t) - f(t,phi(P,t)) for t in timepoints][1])
+    t0 = timepoints[1]
+    dN_dt(t) = sum([v[i]*w[i]*sig_der(w[i]*t .+ b[i]) for i = 1:hl_width])
+    #dPhi_dt(t) = predict(P,t)+(t-t0)*dN_dt(t)
+    sumabs2([gradient(x->phi(P,x),t) - f(t,phi(P,t)) for t in timepoints][1])
 
 end
 
