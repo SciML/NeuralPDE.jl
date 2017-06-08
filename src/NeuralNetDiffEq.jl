@@ -2,7 +2,10 @@ __precompile__()
 
 module NeuralNetDiffEq
 #dependencies
-using Knet, DiffEqBase, Compat, ForwardDiff
+
+using Reexport
+@reexport using DiffEqBase
+using Knet, Compat, ForwardDiff
 import DiffEqBase: solve
 
 # Abstract Types
