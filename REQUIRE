@@ -2,3 +2,4 @@ julia 0.5
 DiffEqBase
 Knet
 Compat 0.17.0
+Reexport
