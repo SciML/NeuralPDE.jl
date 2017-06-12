@@ -60,12 +60,9 @@ function solve(
 
     #initialization of weights and bias
     w = init_params(uElType,hl_width)
-    # println(w[1])
-    # println(w[2])
-    # println(w[3])
 
     #initialization of optimization parameters (Adam by default for now)
-    lr_ = 0.1
+    lr_ = 0.06
     beta1_ = 0.9
     beta2_ = 0.95
     eps_ = 1e-6
@@ -73,37 +70,24 @@ function solve(
 
     for i=1:length(w)
     prm = Adam(lr=lr_, beta1=beta1_, beta2=beta2_, eps=eps_)
+    #prm = Sgd(;lr=lr_)
     push!(prms, prm)
     end
 
-
-    #iters = 1000
-
-    #reporting the accuracy
-    #report(epoch)=println((:epoch,epoch,:trn,accuracy(w,dtrn,predict),:tst,accuracy(w,dtst,predict)))
-    #report(epoch)=println((:epoch,epoch,:trn,loss_trial(w,dtrn)))
-    #report(0)
-    #P_tuned = train(w,prms,dtrn,regFlag; epochs=100, iters=1000)
-    #@time for epoch=1:epochs
-    #@time train(w, prms, dtrn, f, phi, hl_width; maxiters=_maxiters)
-        #report(epoch)
-    #end
-
     @time for iters=1:_maxiters
             train(w, prms, dtrn, f, phi, hl_width; maxiters=1)
-            loss = test(w,dtrn,f,phi,hl_width)
+            loss = loss_trial(w,dtrn,f,phi,hl_width)
             if mod(iters,100) == 0
                 println((:iteration,iters,:loss,loss))
             end
             #gradcheck(loss_trial, w, dtrn, f, phi, hl_width...; gcheck=10, verbose=true)
             #check_Phi_gradient(w,dtrn,hl_width)
-            if loss < 10^(-8.0)
+            if loss < 10^(-15.0)
+                print(:loss,loss)
                 break
             end
         end
 
-    # for t in log; println(t); end
-    # return w
 
     #solutions at timepoints
     u = [phi(w,x) for x in dtrn]
@@ -116,5 +100,4 @@ function solve(
 end #solve
 
 include("training_utils.jl")
-#include("interface.jl")
 end # module
