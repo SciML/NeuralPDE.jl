@@ -14,7 +14,11 @@ immutable nnode <: NeuralNetDiffEqAlgorithm
 end
 
 
+
 nnode(;hl_width=10) = nnode(hl_width)
+#nnode(hl_width::Integer) = nnode([hl_width])
+
+
 
 export nnode
 
@@ -28,7 +32,8 @@ function solve(
     alg::NeuralNetDiffEqAlgorithm;
     dt = nothing,
     timeseries_errors = true,
-    iterations = 50)
+    iterations = 50,
+    kwargs...)
 
     u0 = prob.u0
     tspan = prob.tspan
@@ -45,12 +50,15 @@ function solve(
     outdim = length(u0)
 
 
-    #hidden layer
+    #hidden layer(s)
     hl_width = alg.hl_width
 
     #The phi trial solution
-    phi(P,t) = u0 + (t-t0)*predict(P,t)
-
+    trial_funcs = Array{Function}(outdim)
+    for i = 1:outdim
+        phi(P,t) = u0[i] + (t .- t0).*predict(P,t)[1]
+        trial_funcs[i] = phi
+    end
 
     #train points generation
     dtrn = generate_data(tspan[1],tspan[2],dt,atype=tType)
@@ -59,7 +67,12 @@ function solve(
     _maxiters = iterations
 
     #initialization of weights and bias
-    w = init_params(uElType,hl_width)
+    NNs = Array{Any}(outdim)
+    for i = 1:outdim
+        w = init_params(uElType,hl_width)
+        NNs[i] = w
+    end
+    #w = init_params(uElType,hl_width)
 
     #initialization of optimization parameters (Adam by default for now)
     lr_ = 0.06
@@ -68,21 +81,23 @@ function solve(
     eps_ = 1e-6
     prms = Any[]
 
-    for i=1:length(w)
+    for i=1:length(NNs[1])
     prm = Adam(lr=lr_, beta1=beta1_, beta2=beta2_, eps=eps_)
     #prm = Sgd(;lr=lr_)
     push!(prms, prm)
     end
 
+    #println(length(NNs),outdim)
+
     @time for iters=1:_maxiters
-            train(w, prms, dtrn, f, phi, hl_width; maxiters=1)
-            loss = loss_trial(w,dtrn,f,phi,hl_width)
+            train(NNs, prms, dtrn, f, trial_funcs, hl_width; maxiters=1)
+            losses = [loss_trial(NNs[i],dtrn,f,trial_funcs,i,hl_width) for i in length(trial_funcs)]
             if mod(iters,100) == 0
-                println((:iteration,iters,:loss,loss))
+                println((:iteration,iters,:losses,losses))
             end
             #gradcheck(loss_trial, w, dtrn, f, phi, hl_width...; gcheck=10, verbose=true)
             #check_Phi_gradient(w,dtrn,hl_width)
-            if loss < 10^(-15.0)
+            if maximum(losses) < 10^(-15.0)
                 print(:loss,loss)
                 break
             end
@@ -90,7 +105,7 @@ function solve(
 
 
     #solutions at timepoints
-    u = [phi(w,x) for x in dtrn]
+    u = [get_trial_sols(trial_funcs,NNs,x) for x in dtrn]
 
 
     build_solution(prob,alg,dtrn,u,

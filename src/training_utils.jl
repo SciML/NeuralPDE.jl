@@ -6,23 +6,34 @@ function predict(P,x)
     return w2 * h
 end
 
+function get_trial_sols(trial_funcs,NNs,t)
+    trial_sols = Array{Any}(length(NNs))
+    #println(length(NNs))
+    for i = 1:length(NNs)
+        #println(length(NNs))
+        #println(i)
+        T = trial_funcs[i](NNs[i],t)
+        trial_sols[i] = T
+    end
+    #T1 = trial_sols[1](NNs[1],t)
+    #T2 = trial_sols[2](P,t)
+    trial_sols
+end
 
-function loss_trial(P,timepoints,f,phi,hl_width)
-    w,b,v = P
-    t0 = timepoints[1]
-    sumabs2([gradient(x->phi(P,x),t) - f(t,phi(P,t)) for t in timepoints])[1]
+function loss_trial(P,timepoints,f,trial_funcs,func_num,hl_width)
+    sumabs2([gradient(x->trial_funcs[func_num](P,x),t) .- f(t,[trial_func(P,t) for trial_func in trial_funcs])[func_num]  for t in timepoints])
 end
 
 lossgradient = grad(loss_trial)
 
-function train(P, prms, timepoints, f, phi, hl_width; maxiters =100)
-    for iter=1:maxiters
+function train(NNs, prms, timepoints, f, trial_funcs, hl_width; maxiters =1)
         for x in timepoints
-            g = lossgradient(P,timepoints,f,phi,hl_width)
-            update!(P, g, prms)
+            for i = 1:length(NNs)
+                g = lossgradient(NNs[i],timepoints,f,trial_funcs,i,hl_width)
+                update!(NNs[i], g, prms)
+            end
         end
-    end
-    return P
+    return NNs
 end
 
 
@@ -40,7 +51,7 @@ end
 
 
 function generate_data(low, high, dt; atype=KnetArray{Float32})
-    num_points = 1/dt
-    x = linspace(low,high,num_points+1)
+    num_points = (high-low)/dt
+    x = linspace(low,high,num_points)
     return x
 end
