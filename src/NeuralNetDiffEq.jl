@@ -80,24 +80,28 @@ function solve(
     beta2_ = 0.95
     eps_ = 1e-6
     prms = Any[]
-
+    Params = Array{Any}(outdim)
     for i=1:length(NNs[1])
-    prm = Adam(lr=lr_, beta1=beta1_, beta2=beta2_, eps=eps_)
-    #prm = Sgd(;lr=lr_)
-    push!(prms, prm)
+        prm = Adam(lr=lr_, beta1=beta1_, beta2=beta2_, eps=eps_)
+        #prm = Sgd(;lr=lr_)
+        push!(prms, prm)
     end
 
+    for i=1:length(NNs)
+        Params[i] = copy(prms)
+    end
     #println(length(NNs),outdim)
 
     @time for iters=1:_maxiters
-            train(NNs, prms, dtrn, f, trial_funcs, hl_width; maxiters=1)
-            losses = [loss_trial(NNs[i],dtrn,f,trial_funcs,i,hl_width) for i = 1:length(trial_funcs)]
+            train(NNs, Params, dtrn, f, trial_funcs, hl_width; maxiters=1)
+            #losses = [loss_trial(NNs[i],dtrn,f,trial_funcs,hl_width) for i = 1:length(trial_funcs)]
+            loss = loss_trial(NNs,dtrn,f,trial_funcs,hl_width)
             if mod(iters,100) == 0
-                println((:iteration,iters,:losses,losses))
+                println((:iteration,iters,:loss,loss))
             end
             #gradcheck(loss_trial, w, dtrn, f, phi, hl_width...; gcheck=10, verbose=true)
             #check_Phi_gradient(w,dtrn,hl_width)
-            if maximum(losses) < 10^(-15.0)
+            if maximum(loss) < 10^(-15.0)
                 print(:loss,loss)
                 break
             end

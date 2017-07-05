@@ -20,18 +20,18 @@ function get_trial_sols(trial_funcs,NNs,t)
     trial_sols
 end
 
-function loss_trial(P,timepoints,f,trial_funcs,func_num,hl_width)
-    sumabs2([gradient(x->trial_funcs[func_num](P,x),t) .- f(t,[trial_func(P,t) for trial_func in trial_funcs])[func_num]  for t in timepoints])
+function loss_trial(NNs,timepoints,f,trial_funcs,hl_width)
+    sum([sumabs2([gradient(x->trial_funcs[i](NNs[i],x),t) .- f(t,[trial_func(NNs[i],t) for trial_func in trial_funcs])[i]  for t in timepoints]) for i =1:length(NNs)])
 end
 
 lossgradient = grad(loss_trial)
 
 function train(NNs, prms, timepoints, f, trial_funcs, hl_width; maxiters =1)
         for x in timepoints
-            for i = 1:length(NNs)
-                g = lossgradient(NNs[i],timepoints,f,trial_funcs,i,hl_width)
-                update!(NNs[i], g, prms)
-            end
+            #for i = 1:length(NNs)
+                g = lossgradient(NNs,timepoints,f,trial_funcs,hl_width)
+                update!(NNs, g, prms)
+            #end
         end
     return NNs
 end
