@@ -91,7 +91,7 @@ function solve(
 
     @time for iters=1:_maxiters
             train(NNs, prms, dtrn, f, trial_funcs, hl_width; maxiters=1)
-            losses = [loss_trial(NNs[i],dtrn,f,trial_funcs,i,hl_width) for i in length(trial_funcs)]
+            losses = [loss_trial(NNs[i],dtrn,f,trial_funcs,i,hl_width) for i = 1:length(trial_funcs)]
             if mod(iters,100) == 0
                 println((:iteration,iters,:losses,losses))
             end
