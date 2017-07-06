@@ -8,15 +8,9 @@ end
 
 function get_trial_sols(trial_funcs,NNs,t)
     trial_sols = Array{Any}(length(NNs))
-    #println(length(NNs))
     for i = 1:length(NNs)
-        #println(length(NNs))
-        #println(i)
-        T = trial_funcs[i](NNs[i],t)
-        trial_sols[i] = T
+        trial_sols[i] = trial_funcs[i](NNs[i],t)
     end
-    #T1 = trial_sols[1](NNs[1],t)
-    #T2 = trial_sols[2](P,t)
     trial_sols
 end
 
