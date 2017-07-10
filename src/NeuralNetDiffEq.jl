@@ -54,7 +54,8 @@ function solve(
     #The trial solutions (one for each NN or ODE)
     trial_solutions = Array{Function}(outdim)
     for i = 1:outdim
-        trial_solutions[i](P,t) = u0[i] + (t .- t0).*predict(P,t)[1]
+        u(P,t) = u0[i] + (t .- t0).*predict(P,t)[1]
+        trial_solutions[i] = u
     end
 
     #train points generation
@@ -70,15 +71,15 @@ function solve(
     end
 
     #initialization of optimization parameters (Adam by default for now)
-    lr_ = 0.5
+    lr_ = 0.1
     beta1_ = 0.9
     beta2_ = 0.95
     eps_ = 1e-6
     prms = Any[]
     Params = Array{Any}(outdim)
     for i=1:length(NNs[1])
-        #prm = Adam(lr=lr_, beta1=beta1_, beta2=beta2_, eps=eps_)
-        prm = Sgd(;lr=lr_)
+        prm = Adam(lr=lr_, beta1=beta1_, beta2=beta2_, eps=eps_)
+        #prm = Sgd(;lr=lr_)
         push!(prms, prm)
     end
 
@@ -86,11 +87,9 @@ function solve(
         Params[i] = copy(prms)
     end
 
-    println(NNs)
 
     @time for iters=1:_maxiters
             train(NNs, Params, dtrn, f, trial_solutions, hl_width; maxiters=1)
-            println(NNs)
 
             loss = loss_trial(NNs,dtrn,f,trial_solutions,hl_width)
             if mod(iters,100) == 0
