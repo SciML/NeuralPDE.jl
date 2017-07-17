@@ -32,11 +32,17 @@ sig_der(x) = sigm(x)*(1-sigm(x))
 
 function NN_interpolation(t,id,idxs,deriv)
 
-    if idxs != nothing || deriv != Val{0}
+    #if idxs != nothing || deriv != Val{0}
+    if deriv != Val{0}
         error("No use of idxs and derivative in single ODE")
     end
+    if idxs != nothing
+        return [id.trial_solutions[idx](id.NN[idx],t) for idx in idxs]
 
-    return get_trial_sol_values(id.trial_solutions,id.NNs,t)
+    else
+        [get_trial_sol_values(id.trial_solutions,id.NNs,t)]
+    end
+
 end
 
 
