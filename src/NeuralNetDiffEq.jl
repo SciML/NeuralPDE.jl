@@ -25,6 +25,16 @@ export nnode
 sig_der(x) = sigm(x)*(1-sigm(x))
 
 
+function NN_interpolation(t,idxs,deriv)
+    if idxs != nothing || deriv != Val{0}
+        error("No use of idxs and derivative in single ODE")
+    end
+
+    return [get_trial_sol_values(trial_solutions,NNs,t)]
+end
+
+(sol::ODESolution)(t,deriv::Type=Val{0};idxs=nothing) = sol.interp(t,idxs,deriv)
+
 function solve(
     prob::AbstractODEProblem,
     alg::NeuralNetDiffEqAlgorithm;
@@ -52,7 +62,7 @@ function solve(
     hl_width = alg.hl_width
 
     #The trial solutions (one for each NN or ODE)
-    trial_solutions = Array{Function}(outdim)
+    global trial_solutions = Array{Function}(outdim)
     for i = 1:outdim
         u(P,t) = u0[i] + (t .- t0).*predict(P,t)[1]
         trial_solutions[i] = u
@@ -65,7 +75,7 @@ function solve(
     _maxiters = iterations
 
     #initialization of weights and bias
-    NNs = Array{Any}(outdim) #Array of Neural Nets each with w1, b1 and w2
+    global NNs = Array{Any}(outdim) #Array of Neural Nets each with w1, b1 and w2
     for i = 1:outdim
         NNs[i] = init_weights_and_biases(uElType,hl_width)
     end
@@ -108,6 +118,7 @@ function solve(
 
     build_solution(prob,alg,dtrn,u,
                timeseries_errors = timeseries_errors,
+               interp = NN_interpolation,
                retcode = :Success)
 
 end #solve
