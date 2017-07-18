@@ -25,10 +25,14 @@ immutable NeuralNetworkInterpolation{T1,T2}
 end
 
 (id::NeuralNetworkInterpolation)(t,idxs,deriv) = NN_interpolation(t,id,idxs,deriv)
+(id::NeuralNetworkInterpolation)(ts::AbstractVector,idxs,deriv) = NN_interpolation(ts::AbstractVector,id,idxs,deriv)
 
 #constant functions
 sig_der(x) = sigm(x)*(1-sigm(x))
 
+function NN_interpolation(ts::AbstractVector,id,idxs,deriv)
+    return    [get_trial_sol_values(id.trial_solutions,id.NNs,t) for t in ts]
+end
 
 function NN_interpolation(t,id,idxs,deriv)
 
@@ -36,11 +40,12 @@ function NN_interpolation(t,id,idxs,deriv)
     if deriv != Val{0}
         error("No use of idxs and derivative in single ODE")
     end
+
     if idxs != nothing
         return [id.trial_solutions[idx](id.NN[idx],t) for idx in idxs]
 
     else
-        [get_trial_sol_values(id.trial_solutions,id.NNs,t)]
+        return get_trial_sol_values(id.trial_solutions,id.NNs,t)
     end
 
 end
