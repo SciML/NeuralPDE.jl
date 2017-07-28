@@ -10,11 +10,14 @@ import DiffEqBase: solve
 
 # DAE Algorithms
 immutable nnode <: NeuralNetDiffEqAlgorithm
-    hl_width::Int
+    hl_widths::Vector{Int}
 end
 
+function nnode(;hl_width=10)
+    nnode(hl_width)
+end
 
-nnode(;hl_width=10) = nnode(hl_width)
+nnode(hl_width::Integer) = nnode([hl_width])
 
 export nnode
 
@@ -77,7 +80,7 @@ function solve(
 
 
     #hidden layer(s)
-    hl_width = alg.hl_width
+    hl_widths = alg.hl_widths
 
     #The trial solutions (one for each NN or ODE)
     trial_solutions = Array{Function}(outdim)
@@ -95,7 +98,7 @@ function solve(
     #initialization of weights and bias
     NNs = Array{Any}(outdim) #Array of Neural Nets each with w1, b1 and w2
     for i = 1:outdim
-        NNs[i] = init_weights_and_biases(uElType,hl_width)
+        NNs[i] = init_weights_and_biases(uElType,hl_widths,outdim)
     end
 
     #initialization of optimization parameters (Adam by default for now)
@@ -117,9 +120,9 @@ function solve(
 
 
     @time for iters=1:_maxiters
-            train(NNs, Params, dtrn, f, trial_solutions, hl_width; maxiters=1)
+            train(NNs, Params, dtrn, f, trial_solutions, hl_widths; maxiters=1)
 
-            loss = loss_trial(NNs,dtrn,f,trial_solutions,hl_width)
+            loss = loss_trial(NNs,dtrn,f,trial_solutions,hl_widths)
             if mod(iters,100) == 0
                 println((:iteration,iters,:loss,loss))
             end

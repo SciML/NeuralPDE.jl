@@ -1,8 +1,14 @@
 #Utility functions for solver
 
-function predict(P,x)
-    w1, b1, w2 = P
-    return w2*sigm(w1 * x .+ b1)
+function predict(w,x)
+    #println(typeof(w),typeof(x))
+    for i=1:2:(length(w)-1)
+        x = w[i]*x .+ w[i+1]
+        if i<length(w)-1
+            x = sigm(x) # max(0,x)
+        end
+    end
+    return w[length(w)]*x
 end
 
 function get_trial_sol_values(trial_solutions,NNs,t)
@@ -28,11 +34,19 @@ function train(NNs, prms, timepoints, f, trial_solutions, hl_width; maxiters =1)
 end
 
 
-function init_weights_and_biases(ftype,hl_width;atype=KnetArray{Float32})
-    P = Array{Any}(3) #Constant layers and parameters for now
-    P[1] = randn(ftype,hl_width,1)*(0.01^2)  #To reduce variance
-    P[2] = zeros(ftype,hl_width,1)
-    P[3] = randn(ftype,1,hl_width)*(0.01^2)  #To reduce variance
+function init_weights_and_biases(ftype,hl_width,outdim;atype=KnetArray{Float32})
+    weights_and_bias = 2*length(hl_width) + 1
+    P = Array{Any}(weights_and_bias) #Constant layers and parameters for now
+    hidden_layer = 1
+    #println(size(hl_width))
+    for i = 1:2:(weights_and_bias-1)
+        #println(typeof(hl_width),hidden_layer,weights_and_bias,i)
+        P[i] = randn(ftype,hl_width[hidden_layer],hidden_layer > 1 ? hl_width[hidden_layer-1] : 1)*(0.01^2)  #To reduce variance
+        P[i+1] = zeros(ftype,hl_width[hidden_layer],1)
+        hidden_layer = hidden_layer + 1
+
+    end
+    P[weights_and_bias] = randn(ftype,outdim,hl_width[hidden_layer-1])*(0.01^2)  #To reduce variance
     return P
 end
 
