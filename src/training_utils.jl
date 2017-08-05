@@ -8,45 +8,45 @@ function predict(w,x)
             x = sigm(x) # max(0,x)
         end
     end
-    return w[length(w)]*x
+    return w[end]*x
 end
 
-function get_trial_sol_values(trial_solutions,NNs,t)
-    trial_sol_values = Array{Any}(length(NNs))
-    for i = 1:length(NNs)
-        trial_sol_values[i] = trial_solutions[i](NNs[i],t)
+function get_trial_sol_values(trial_solutions,NN,t)
+    trial_sol_values = Array{Any}(length(trial_solutions))
+    for i = 1:length(trial_solutions)
+        trial_sol_values[i] = trial_solutions[i](NN,t)
     end
     trial_sol_values
 end
 
-function loss_trial(NNs,timepoints,f,trial_solutions,hl_width)
-    sum([sumabs2([gradient(x->trial_solutions[i](NNs[i],x),t) .- f(t,[trial_func(NNs[i],t) for trial_func in trial_solutions])[i]  for t in timepoints]) for i =1:length(NNs)])
+function loss_trial(NN,timepoints,f,trial_solutions,hl_width,outdim)
+    sum([sumabs2([gradient(x->trial_solutions[i](NN,x),t) .- f(t,[trial_func(NN,t) for trial_func in trial_solutions])[i]  for t in timepoints]) for i =1:outdim])
 end
 
 lossgradient = grad(loss_trial)
 
-function train(NNs, prms, timepoints, f, trial_solutions, hl_width; maxiters =1)
+function train(NN, prms, timepoints, f, trial_solutions, hl_width,outdim; maxiters =1)
         for x in timepoints
-                g = lossgradient(NNs,timepoints,f,trial_solutions,hl_width)
-                update!(NNs, g, prms)
+                g = lossgradient(NN,timepoints,f,trial_solutions,hl_width,outdim)
+                update!(NN, g, prms)
         end
-    return NNs
+    return NN
 end
 
 
 function init_weights_and_biases(ftype,hl_width,outdim;atype=KnetArray{Float32})
-    weights_and_bias = 2*length(hl_width) + 1
-    P = Array{Any}(weights_and_bias) #Constant layers and parameters for now
+    num_weights_and_bias = 2*length(hl_width) + 1
+    P = Array{Any}(num_weights_and_bias) #Constant layers and parameters for now
     hidden_layer = 1
     #println(size(hl_width))
-    for i = 1:2:(weights_and_bias-1)
-        #println(typeof(hl_width),hidden_layer,weights_and_bias,i)
+    for i = 1:2:(num_weights_and_bias-1)
+        #println(typeof(hl_width),hidden_layer,num_weights_and_bias,i)
         P[i] = randn(ftype,hl_width[hidden_layer],hidden_layer > 1 ? hl_width[hidden_layer-1] : 1)*(0.01^2)  #To reduce variance
         P[i+1] = zeros(ftype,hl_width[hidden_layer],1)
         hidden_layer = hidden_layer + 1
 
     end
-    P[weights_and_bias] = randn(ftype,outdim,hl_width[hidden_layer-1])*(0.01^2)  #To reduce variance
+    P[num_weights_and_bias] = randn(ftype,outdim,hl_width[end])*(0.01^2)  #To reduce variance
     return P
 end
 
