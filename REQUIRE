@@ -3,6 +3,7 @@ DiffEqBase
 Plots
 ParameterizedFunctions
 ForwardDiff
+DiffEqProblemLibrary
 Knet
 Compat 0.17.0
 Reexport
