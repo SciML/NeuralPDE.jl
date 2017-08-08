@@ -1,5 +1,8 @@
 julia 0.5
 DiffEqBase
+Plots
+ParameterizedFunctions
+ForwardDiff
 Knet
 Compat 0.17.0
 Reexport
