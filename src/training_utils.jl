@@ -20,7 +20,7 @@ function get_trial_sol_values(trial_solutions,NN,t)
 end
 
 function loss_trial(NN,timepoints,f,trial_solutions,hl_width,outdim)
-    sum([sumabs2([gradient(x->trial_solutions[i](NN,x),t) .- f(t,[trial_func(NN,t) for trial_func in trial_solutions])[i]  for t in timepoints]) for i =1:outdim])
+    sum([sumabs2([(gradient(x->trial_solutions[i](NN,x),t) .- f(t,[trial_func(NN,t) for trial_func in trial_solutions])[i])*(2*length(timepoints)-t) for t in timepoints]) for i =1:outdim])
 end
 
 lossgradient = grad(loss_trial)
