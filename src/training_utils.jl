@@ -1,19 +1,5 @@
 #Utility functions for solver
 
-function tr_sin(x::Any)
-    y = Array{Any}(length(x))
-    for i=1:length(x)
-        if x[i]<(-pi/2)
-            y[i] = 0
-        elseif -pi/2 <= x[i] <= pi/2
-            y[i] = sin(x[i])
-        else
-            y[i] = 1
-        end
-    end
-    return y
-end
-
 
 
 function predict(w,x)
@@ -21,7 +7,7 @@ function predict(w,x)
     for i=1:2:(length(w)-1)
         x = w[i]*x .+ w[i+1]
         if i<length(w)-1
-            x = tanh(x) # max(0,x)
+            x = sin(x) # max(0,x)
         end
     end
     return w[end]*x
