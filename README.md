@@ -12,3 +12,5 @@
 The repository is for the development of neural network solvers of differential equations. It is based on the work of:
 
 [Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.](https://arxiv.org/pdf/physics/9705023.pdf)
+
+Link to the experiments and examples with the package [NeuralNetDiffEq Gists](https://gist.github.com/akaysh/43c9db281b0bd3224114084c44263c13).
