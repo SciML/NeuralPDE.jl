@@ -1,72 +1,58 @@
 __precompile__()
 
 module NeuralNetDiffEq
-#dependencies
 
+#dependencies
 using Reexport
 @reexport using DiffEqBase
 using Knet, Compat, ForwardDiff
 import DiffEqBase: solve
 
 # Abstract Types
-@compat abstract type NeuralNetDiffEqAlgorithm <: AbstractODEAlgorithm end
+abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 
 # DAE Algorithms
-immutable nnode <: NeuralNetDiffEqAlgorithm
+struct nnode <: NeuralNetDiffEqAlgorithm
     hl_width::Int
 end
 
-
 nnode(;hl_width=10) = nnode(hl_width)
-
 export nnode
 
-#constant functions
-#z(P,i,x) = P[1][i]*x + P[2][i]
-sig_der(x) = sigm(x)*(1-sigm(x))
-
-
-function solve(
-    prob::AbstractODEProblem,
-    alg::NeuralNetDiffEqAlgorithm;
-    dt = nothing,
+function DiffEqBase.solve(
+    prob::DiffEqBase.AbstractODEProblem,
+    alg::NeuralNetDiffEqAlgorithm,
+    args...;
+    dt = error("dt must be set."),
     timeseries_errors = true,
-    iterations = 50)
+    save_everystep=true,
+    adaptive=false,
+    iterations = 100)
 
     u0 = prob.u0
     tspan = prob.tspan
     f = prob.f
+    p = prob.p
     t0 = tspan[1]
-
-    if dt == nothing
-        error("dt must be set.")
-    end
 
     #types and dimensions
     uElType = eltype(u0)
     tType = typeof(tspan[1])
     outdim = length(u0)
 
-
     #hidden layer
     hl_width = alg.hl_width
 
-    #The phi trial solution
-    phi(P,t) = u0 + (t-t0)*predict(P,t)
-
-
     #train points generation
     dtrn = generate_data(tspan[1],tspan[2],dt,atype=tType)
+    #The phi trial solution
+    phi(P,t) = (u0 .+ t*predict(P,t))[1]
 
     #iterations
     _maxiters = iterations
 
     #initialization of weights and bias
     w = init_params(uElType,hl_width)
-    # println(w[1])
-    # println(w[2])
-    # println(w[3])
-
     #initialization of optimization parameters (Adam by default for now)
     lr_ = 0.1
     beta1_ = 0.9
@@ -79,45 +65,25 @@ function solve(
     push!(prms, prm)
     end
 
-
-    #iters = 1000
-
-    #reporting the accuracy
-    #report(epoch)=println((:epoch,epoch,:trn,accuracy(w,dtrn,predict),:tst,accuracy(w,dtst,predict)))
-    #report(epoch)=println((:epoch,epoch,:trn,loss_trial(w,dtrn)))
-    #report(0)
-    #P_tuned = train(w,prms,dtrn,regFlag; epochs=100, iters=1000)
-    #@time for epoch=1:epochs
-    #@time train(w, prms, dtrn, f, phi, hl_width; maxiters=_maxiters)
-        #report(epoch)
-    #end
-
     @time for iters=1:_maxiters
-            train(w, prms, dtrn, f, phi, hl_width; maxiters=1)
-            loss = test(w,dtrn,f,phi,hl_width)
+            train(w, prms, dtrn, f, p,phi)
+            loss = test(w,dtrn,f,p,phi)
             if mod(iters,100) == 0
                 println((:iteration,iters,:loss,loss))
             end
-            #gradcheck(loss_trial, w, dtrn, f, phi, hl_width...; gcheck=10, verbose=true)
-            #check_Phi_gradient(w,dtrn,hl_width)
+
             if loss < 10^(-8.0)
                 break
             end
         end
 
-    # for t in log; println(t); end
-    # return w
-
     #solutions at timepoints
     u = [phi(w,x) for x in dtrn]
 
-
-    build_solution(prob,alg,dtrn,u,
-               timeseries_errors = timeseries_errors,
-               retcode = :Success)
-
+    sol = DiffEqBase.build_solution(prob,alg,dtrn,u,calculate_error = false)
+    DiffEqBase.has_analytic(prob.f) && DiffEqBase.calculate_solution_errors!(sol;timeseries_errors=true,dense_errors=false)
+    sol
 end #solve
 
 include("training_utils.jl")
-#include("interface.jl")
 end # module
