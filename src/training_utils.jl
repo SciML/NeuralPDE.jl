@@ -1,5 +1,3 @@
-using ForwardDiff, Knet
-
 sigm(x) =  1 ./ (1 .+ exp.(.-x))
 
 function predict(P, x)
