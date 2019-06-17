@@ -4,6 +4,6 @@ Plots
 ParameterizedFunctions
 ForwardDiff
 DiffEqProblemLibrary
-Knet
+Flux
 Compat 0.17.0
 Reexport
