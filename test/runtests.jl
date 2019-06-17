@@ -1,4 +1,4 @@
-using Test
+using NeuralNetDiffEq, Test
 using DiffEqDevTools
 
 # Run a solve
