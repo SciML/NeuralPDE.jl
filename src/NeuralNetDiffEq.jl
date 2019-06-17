@@ -2,7 +2,7 @@ module NeuralNetDiffEq
 
 using Reexport
 @reexport using DiffEqBase
-using Knet, ForwardDiff
+using Flux
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 struct nnode <: NeuralNetDiffEqAlgorithm
