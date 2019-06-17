@@ -5,8 +5,7 @@ version = "0.0.1"
 
 [deps]
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-Knet = "1902f260-5fb4-5aff-8c31-6271790ab950"
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 
 [compat]
