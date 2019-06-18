@@ -9,10 +9,9 @@ struct nnode{C,O} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
 end
-nnode(chain,opt=Adam(0.01)) = nnode(chain,opt)
+nnode(chain;opt=Flux.ADAM(0.1)) = nnode(chain,opt)
 export nnode
 
 include("solve.jl")
-include("training_utils.jl")
 
 end # module
