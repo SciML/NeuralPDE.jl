@@ -4,10 +4,10 @@ using DiffEqDevTools
 # Run a solve
 linear = (u,p,t) -> [cos(2pi*t)]
 tspan = (0.0f0,1.0f0)
-u0 = 0.0f0
+u0 = [0.0f0]
 prob = ODEProblem(linear, u0 ,tspan)
 chain = Flux.Chain(Dense(1,5,σ),Dense(5,1))
-sol = solve(prob, NeuralNetDiffEq.nnode(chain), dt=1/20, abstol=1e-10, maxiters=300)
+sol = solve(prob, NeuralNetDiffEq.nnode(chain), dt=1/20f0, abstol=1e-10, maxiters=300)
 # println(sol)
 #plot(sol)
 #plot!(sol.t, t -> sin(2pi*t) / (2*pi), lw=3,ls=:dash,label="True Solution!")

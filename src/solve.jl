@@ -6,7 +6,7 @@ function DiffEqBase.solve(
     timeseries_errors = true,
     save_everystep=true,
     adaptive=false,
-    abstol = 1e-6,
+    abstol = 1f-6,
     maxiters = 100)
 
     u0 = prob.u0
@@ -45,7 +45,7 @@ function DiffEqBase.solve(
     end
 
     #solutions at timepoints
-    u = [phi(t)[1].data for i in t]
+    u = [phi(t).data for t in ts]
 
     sol = DiffEqBase.build_solution(prob,alg,x,u,calculate_error = false)
     DiffEqBase.has_analytic(prob.f) && DiffEqBase.calculate_solution_errors!(sol;timeseries_errors=true,dense_errors=false)
