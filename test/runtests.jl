@@ -1,4 +1,4 @@
-using Test, Flux
+using NeuralNetDiffEq, Test, Flux
 using DiffEqDevTools
 
 # Run a solve
