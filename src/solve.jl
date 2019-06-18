@@ -6,6 +6,7 @@ function DiffEqBase.solve(
     timeseries_errors = true,
     save_everystep=true,
     adaptive=false,
+    abstol = 1e-6,
     maxiters = 100)
 
     u0 = prob.u0
@@ -24,13 +25,13 @@ function DiffEqBase.solve(
     ts = tspan[1]:dt:tspan[2]
 
     #The phi trial solution
-    phi(t) = u0 .+ x.*chain(t)
+    phi(t) = u0 .+ x.*chain([t])
 
     #derivatives of a function f
-    dfdx(t) = Tracker.gradient(t -> sum(chain(t)), Flux.params(ts); nest = true)
+    dfdx(t) = Tracker.gradient(t -> chain([t]), t; nest = true)
 
     #loss function for training
-    loss() = sum(abs2, dfdx(t)[i] - f(phi(t),p,t) for t in ts)
+    loss() = sum(abs2, dfdx(t) - f(phi(t),p,t) for t in ts)
 
     @time for iters=1:maxiters
         Flux.train!(loss, ps, data, opt)
