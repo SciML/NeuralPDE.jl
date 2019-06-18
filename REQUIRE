@@ -1,8 +1,0 @@
-julia 0.5
-DiffEqBase
-Plots
-ParameterizedFunctions
-DiffEqProblemLibrary
-Flux
-Compat 0.17.0
-Reexport

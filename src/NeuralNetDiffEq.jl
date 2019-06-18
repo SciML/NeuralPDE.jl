@@ -5,10 +5,11 @@ using Reexport
 using Flux
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
-struct nnode <: NeuralNetDiffEqAlgorithm
-    hl_width::Int
+struct nnode{C,O} <: NeuralNetDiffEqAlgorithm
+    chain::C
+    opt::O
 end
-nnode(;hl_width=10) = nnode(hl_width)
+nnode(chain,opt=Adam(0.01)) = nnode(chain,opt)
 export nnode
 
 include("solve.jl")
