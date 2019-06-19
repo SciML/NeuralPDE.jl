@@ -26,7 +26,7 @@ sim = test_convergence(dts, prob, NeuralNetDiffEq.nnode(chain, opt))
 #Example 2
 linear = (u,p,t) -> @. -u/5 + exp(-t/5).*cos(t)
 linear_analytic = (u0,p,t) ->  @. exp(-t/5)*(u0 + sin(t))
-prob = ODEProblem(ODEFunction(linear,analytic=linear_analytic),0.0,(0.0,1.0))
+prob = ODEProblem(ODEFunction(linear,analytic=linear_analytic),0.0f0,(0.0f0,1.0f0))
 sim = test_convergence(dts, prob, NeuralNetDiffEq.nnode(chain, opt))
 @test abs(sim.𝒪est[:l2]) < 0.5
 @test minimum(sim.errors[:l2]) < 0.1
