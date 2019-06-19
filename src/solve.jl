@@ -2,11 +2,15 @@ function DiffEqBase.solve(
     prob::DiffEqBase.AbstractODEProblem,
     alg::NeuralNetDiffEqAlgorithm,
     args...;
-    dt = error("dt must be set."),
+    dt,
     timeseries_errors = true,
     save_everystep=true,
     adaptive=false,
+    abstol = 1f-6,
+    verbose = false,
     maxiters = 100)
+
+    DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
 
     u0 = prob.u0
     tspan = prob.tspan
@@ -14,54 +18,44 @@ function DiffEqBase.solve(
     p = prob.p
     t0 = tspan[1]
 
-    #types and dimensions
-    # uElType = eltype(u0)
-    # tType = typeof(tspan[1])
-    # outdim = length(u0)
-
     #hidden layer
-    hl_width = alg.hl_width
-
-    #initialization of weights and bias
-    P = init_params(hl_width)
-
-    #The phi trial solution
-    phi(P,x) = u0 .+ x.*predict(P,x)
+    chain  = alg.chain
+    opt    = alg.opt
+    ps     = Flux.params(chain)
+    data   = Iterators.repeated((), maxiters)
 
     #train points generation
-    x = generate_data(tspan[1],tspan[2],dt)
-    y = [f(phi(P, i)[1].data, p, i) for i in x]
-    px =Flux.param(x)
-    data = [(px, y)]
+    ts = tspan[1]:dt:tspan[2]
 
-    #initialization of optimization parameters (ADAM by default for now)
-    η = 0.1
-    β1 = 0.9
-    β2 = 0.95
-    opt = Flux.ADAM(η, (β1, β2))
+    #The phi trial solution
+    phi(t) = u0 .+ (t .- tspan[1]).*chain(Tracker.collect([t]))
 
-    ps = Flux.Params(P)
-
-    #derivatives of a function f
-    dfdx(i) = Tracker.gradient(() -> sum(phi(P,i)), Flux.params(i); nest = true)
-    #loss function for training
-    loss(x, y) = sum(abs2, [dfdx(i)[i] for i in x] .- y)
-
-    @time for iters=1:maxiters
-        Flux.train!(loss, ps, data, opt)
-        if mod(iters,50) == 0
-            loss_value = loss(px,y).data
-            println((:iteration,iters,:loss,loss_value))
-            if loss_value < 10^(-6.0)
-                break
-            end
-        end
+    if u0 isa Number
+        dfdx = t -> Tracker.gradient(t -> sum(phi(t)), t; nest = true)[1]
+        loss = () -> sum(abs2,sum(abs2,dfdx(t) .- f(phi(t)[1],p,t)[1]) for t in ts)
+    else
+        dfdx = t -> (phi(t+sqrt(eps(typeof(dt)))) - phi(t)) / sqrt(eps(typeof(dt)))
+        #dfdx(t) = Flux.Tracker.forwarddiff(phi,t)
+        #dfdx(t) = Tracker.collect([Flux.Tracker.gradient(t->phi(t)[i],t, nest=true) for i in 1:length(u0)])
+        #loss function for training
+        loss = () -> sum(abs2,sum(abs2,dfdx(t) - f(phi(t),p,t)) for t in ts)
     end
 
-    #solutions at timepoints
-    u = [phi(P,i)[1].data for i in x]
+    cb = function ()
+        l = loss()
+        verbose && println("Current loss is: $l")
+        l < abstol && Flux.stop()
+    end
+    Flux.train!(loss, ps, data, opt; cb = cb)
 
-    sol = DiffEqBase.build_solution(prob,alg,x,u,calculate_error = false)
+    #solutions at timepoints
+    if u0 isa Number
+        u = [phi(t)[1].data for t in ts]
+    else
+        u = [phi(t).data for t in ts]
+    end
+
+    sol = DiffEqBase.build_solution(prob,alg,ts,u,calculate_error = false)
     DiffEqBase.has_analytic(prob.f) && DiffEqBase.calculate_solution_errors!(sol;timeseries_errors=true,dense_errors=false)
     sol
 end #solve
