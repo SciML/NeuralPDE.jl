@@ -27,9 +27,9 @@ linear_analytic = (u0,p,t) -> [exp(-(t^2)/2)/(1+t+t^3) + t^2]
 prob = ODEProblem(ODEFunction(linear,analytic=linear_analytic),[1f0],(0.0f0,1.0f0))
 chain = Flux.Chain(Dense(1,5,σ),Dense(5,1))
 opt = Flux.ADAM(0.1, (0.9, 0.95))
-sol  = solve(prob,NeuralNetDiffEq.nnode(chain,opt),dt=1/5f0)
+sol  = solve(prob,NeuralNetDiffEq.nnode(chain,opt),verbose = true, dt=1/5f0)
 err = sol.errors[:l2]
-sol  = solve(prob,NeuralNetDiffEq.nnode(chain,opt),dt=1/20f0)
+sol  = solve(prob,NeuralNetDiffEq.nnode(chain,opt),verbose = true, dt=1/20f0)
 sol.errors[:l2]/err < 0.5
 
 #=
@@ -45,9 +45,9 @@ linear_analytic = (u0,p,t) ->  exp(-t/5)*(u0 + sin(t))
 prob = ODEProblem(ODEFunction(linear,analytic=linear_analytic),0.0f0,(0.0f0,1.0f0))
 chain = Flux.Chain(Dense(1,5,σ),Dense(5,1))
 opt = Flux.ADAM(0.1, (0.9, 0.95))
-sol  = solve(prob,NeuralNetDiffEq.nnode(chain,opt),dt=1/5f0)
+sol  = solve(prob,NeuralNetDiffEq.nnode(chain,opt),verbose = true, dt=1/5f0)
 err = sol.errors[:l2]
-sol  = solve(prob,NeuralNetDiffEq.nnode(chain,opt),dt=1/20f0)
+sol  = solve(prob,NeuralNetDiffEq.nnode(chain,opt),verbose = true, dt=1/20f0)
 sol.errors[:l2]/err < 0.5
 
 #=
