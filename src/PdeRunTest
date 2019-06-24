@@ -1,0 +1,34 @@
+using Flux, DiffEqBase
+include("NeuralNetDiffEq.jl")
+include("PdeSolve.jl")
+
+# one-dimensional heat eqution
+x0 = 2
+xn = 3
+dx = 0.1
+t0 = 0
+tn = 1
+dt = 0.1
+d = 1 #dimention
+grid = (x0, xn, dx, t0, tn, dt, d)
+
+
+g(x) = x.^2 .+ d*tn
+U0(x) = x.^2
+f(x,t) = 0
+μ(x,t) = 0
+σ(x,t) = 1
+prob = (g, U0, f, μ, σ)
+
+sol = pde_solve(prob, grid, verbose = true, abstol=1e-8, maxiters = 1000)
+
+u_analytical(x,t) =  x.^2 .+ d*t
+ans = sol[1]
+x = sol[2]
+t = sol[3]
+len =length(x)
+
+for i = 1 : len
+    err = sum(abs, ans[i] - u_analytical(x, t[i])) / len
+    println(err)
+end
