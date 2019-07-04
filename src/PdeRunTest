@@ -1,34 +1,74 @@
 using Flux, DiffEqBase
-include("NeuralNetDiffEq.jl")
 include("PdeSolve.jl")
 
 # one-dimensional heat eqution
-x0 = 2
-xn = 3
-dx = 0.1
+x0 = 12
 t0 = 0
-tn = 1
-dt = 0.1
-d = 1 #dimention
-grid = (x0, xn, dx, t0, tn, dt, d)
+tn = 3
+T = tn
+dt = 0.4
+d = 1 # number of dimensions
+m = 200 # number of trajectories (batch size)
+grid = (x0, t0, tn, dt, d, m)
 
-
-g(x) = x.^2 .+ d*tn
-U0(x) = x.^2
+g(x) = x^2
 f(x,t) = 0
 μ(x,t) = 0
 σ(x,t) = 1
-prob = (g, U0, f, μ, σ)
+prob = (g, f, μ, σ)
 
-sol = pde_solve(prob, grid, verbose = true, abstol=1e-8, maxiters = 1000)
+hide_layer_size  = 10
+opt = Flux.ADAM(0.1)
+getNeuranNetwork(hide_layer_size, d) = Flux.Chain(
+                                            Dense(d,hide_layer_size,relu),
+                                            Dense(hide_layer_size,hide_layer_size,relu),
+                                            Dense(hide_layer_size,hide_layer_size,relu),
+                                            Dense(hide_layer_size,d))
+
+neurNetParam = (hide_layer_size, opt, getNeuranNetwork)
+
+ans = pde_solve(prob, grid, neurNetParam, verbose = true, abstol=1e-8, maxiters = 150)
 
 u_analytical(x,t) =  x.^2 .+ d*t
-ans = sol[1]
-x = sol[2]
-t = sol[3]
-len =length(x)
+analytical_ans = u_analytical(x0, T)
+error = abs(ans - analytical_ans)
 
-for i = 1 : len
-    err = sum(abs, ans[i] - u_analytical(x, t[i])) / len
-    println(err)
-end
+println("numerical = ", ans)
+println("analytical = " ,analytical_ans)
+println("error = ", error)
+
+
+
+# one-dimensional test case
+# x0 = -2
+# t0 = 0
+# tn = 2
+# T = tn
+# dt = 0.4
+# d = 1 #dimention
+# m = 100 #count of trajectories
+# grid = (x0, t0, tn, dt, d, m)
+#
+# g(x) = cos(x)
+# f(x,t) = (cos(x)*(exp((T-t)/2) + (σ(x,t)^2)/2) + µ(x,t)*sin(x))*exp((T-t)/2) - 1/2*(sin(x)*cos(x)*exp(T-t))^2
+# μ(x,t) = 0
+# σ(x,t) = 1
+# prob = (g, f, μ, σ)
+#
+# ans = pde_solve(prob, grid, verbose = true, abstol=1e-8, maxiters = 200)
+# anlitical_solution(x,t)  = exp((T -t)/2)*cos(x)
+# println(ans, " " , anlitical_solution(x0, t0), " ", anlitical_solution(x0, T))
+
+
+# Allen-Cahn Equation
+# x0 = 0
+# t0 = 0
+# tn = 0.3
+# T = tn
+# dt = 0.4
+# d = 1 #dimention
+# m = 100 #count of trajectories
+# grid = (x0, t0, tn, dt, d, m)
+# g(x) = 1.0/(2.0 + 0.4*sum(x^2)
+
+#Hamilton Jacobi Bellman Equation

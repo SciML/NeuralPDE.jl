@@ -1,9 +1,9 @@
-using Flux
 
 #  one-dimensional deep bsde pde solver
 function pde_solve(
     prob,
-    grid;
+    grid,
+    neuralNetworkParams;
     timeseries_errors = true,
     save_everystep=true,
     adaptive=false,
@@ -12,54 +12,56 @@ function pde_solve(
     maxiters = 100)
 
 
-    # grid = (x0, xn, dx, t0, tn, dt, d)
     x0 = grid[1]
-    xn = grid[2]
-    dx = grid[3]
-    t0 = grid[4]
-    tn = grid[5]
-    dt = grid[6]
-    d = grid[7] #dimention
+    t0 = grid[2]
+    tn = grid[3]
+    dt = grid[4]
+    d  = grid[5] # number of dimensions
+    m =  grid[6] # number of trajectories (batch size)
 
-    # prob = (g, U0, f, μ, σ)
-    g(x) = prob[1](x) #x.^2 .+ d*tn
-    U0(x) = prob[2](x) #x.^2
-    f(x,t) = prob[3](x,t) #0
-    μ(x, t) = prob[4](x,t) #0
-    σ(x,t) = prob[5](x,t)  #1
+    g(x) = prob[1](x)
+    f(x,t) = prob[2](x,t)
+    μ(x,t) = prob[3](x,t)
+    σ(x,t) = prob[4](x,t)
+
+
+    data = Iterators.repeated((), maxiters)
+    ts = t0:dt:tn
+
 
     #hidden layer
-    hide_layer_size =d+10
-    chain = Flux.Chain(Dense(d,hide_layer_size,relu),Dense(hide_layer_size,hide_layer_size,relu),
-                Dense(hide_layer_size,hide_layer_size,relu),Dense(hide_layer_size,d))
-    opt = Flux.ADAM(0.1, (0.9, 0.95))
-    ps = Flux.params(chain)
-    data = Iterators.repeated((), maxiters)
+    hide_layer_size =neuralNetworkParams[1]
+    opt = neuralNetworkParams[2]
+    getNeuranNetwork(hide_layer_size, d) = neuralNetworkParams[3](hide_layer_size, d)
+    chains = [getNeuranNetwork(hide_layer_size, d) for i=1:length(ts)]
+    chainU = getNeuranNetwork(hide_layer_size, d)
+    ps = Flux.params(chainU, chains...)
 
 
-    ts = t0:dt:tn
-    xd = x0:dx:xn
     dw(dt) = sqrt(dt) * randn()
-    x_sde(x_prev,t) = x_prev .+ μ(x_prev, t)*dt .+ σ(x_prev,t)*dw(dt)
-    N(x) = chain(x)
-    reduceN(x_cur)  =  [N([x])[1] for x in x_cur]
+    x_sde(x,t,dwa) = x + μ(x, t)*dt + σ(x,t)*dwa
+    reduceN(x_cur, l, dwA) = [chains[l]([x_cur[i]])[1]*dwA[i] for i=1:length(x_cur)]
+    x_0 = [x0 for i = 1: m]
+    
 
-    x_0 = [x for x in xd]
-    U_0 = U0.(x_0)
-
-    function Un()
-        U = U_0
-        x_prev = x_0
-        for t in ts
-            x_cur = x_sde(x_prev,t)
-            # println(dw(dt))
-            U = U .- f(x_prev,t)*dt .+ reduceN(x_cur)*(dt)
-            x_prev = x_cur
+    function sol()
+        x_cur = x_0
+        U = [chainU([x])[1] for x in x_0]
+        global x_cur
+        for l =1:length(ts) #t in ts
+            dwA = [dw(dt) for i= 1:length(x_cur)]
+            fa = [f(x,ts[l]) for x in x_cur]
+            U = U - fa*dt + reduceN(x_cur, l, dwA)
+            x_cur = [x_sde(x_cur[i], ts[l] , dwA[i]) for i=1:length(x_cur)]  #for xi in x_cur]
         end
-        U
+        (U, x_cur)
     end
 
-    loss = () -> sum(abs2, g(x_0) - Un())
+    function loss()
+        U0, x_cur = sol()
+        return sum(abs2, g.(x_cur) - U0)
+    end
+
 
     cb = function ()
         l = loss()
@@ -69,11 +71,6 @@ function pde_solve(
 
     Flux.train!(loss, ps, data, opt; cb = cb)
 
-    U = U0.(x_0)
-    ans  = []
-    for t in ts
-        U = U .- f(x_0,t)*dt + reduceN(x_0)*dt
-        push!(ans, U)
-    end
-    (ans, x_0, ts)
+    ans = chainU([x0])[1]
+    ans
 end#solver
