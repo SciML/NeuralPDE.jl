@@ -28,38 +28,40 @@ function pde_solve(
     data = Iterators.repeated((), maxiters)
     ts = t0:dt:tn
 
-
     #hidden layer
-    hide_layer_size =neuralNetworkParams[1]
+    hide_layer_size = neuralNetworkParams[1]
     opt = neuralNetworkParams[2]
     getNeuranNetwork(hide_layer_size, d) = neuralNetworkParams[3](hide_layer_size, d)
+
+
     chains = [getNeuranNetwork(hide_layer_size, d) for i=1:length(ts)]
     chainU = getNeuranNetwork(hide_layer_size, d)
     ps = Flux.params(chainU, chains...)
 
 
     dw(dt) = sqrt(dt) * randn()
-    x_sde(x,t,dwa) = x + μ(x, t)*dt + σ(x,t)*dwa
-    reduceN(x_cur, l, dwA) = [chains[l]([x_cur[i]])[1]*dwA[i] for i=1:length(x_cur)]
+    x_sde(x_cur,t,dwa) = [x + μ(x, t)*dt + σ(x,t)*dwa for x in x_cur]
+    get_x_sde(x_cur,l,dwA) =[x_sde(x_cur[i], ts[l] , dwA[i]) for i=1:length(x_cur)]
+    reduceN(x_cur, l, dwA) = [chains[l](x_cur[i])[1]*dwA[i] for i=1:length(x_cur)]
     x_0 = [x0 for i = 1: m]
-    
 
     function sol()
         x_cur = x_0
-        U = [chainU([x])[1] for x in x_0]
+        U = [chainU(x)[1] for x in x_0]
         global x_cur
-        for l =1:length(ts) #t in ts
+        for l = 1:length(ts)
+
             dwA = [dw(dt) for i= 1:length(x_cur)]
             fa = [f(x,ts[l]) for x in x_cur]
             U = U - fa*dt + reduceN(x_cur, l, dwA)
-            x_cur = [x_sde(x_cur[i], ts[l] , dwA[i]) for i=1:length(x_cur)]  #for xi in x_cur]
+            x_cur = get_x_sde(x_cur,l,dwA)
         end
         (U, x_cur)
     end
 
     function loss()
         U0, x_cur = sol()
-        return sum(abs2, g.(x_cur) - U0)
+        return sum(abs2, g.(x_cur) .- U0)
     end
 
 
@@ -71,6 +73,6 @@ function pde_solve(
 
     Flux.train!(loss, ps, data, opt; cb = cb)
 
-    ans = chainU([x0])[1]
+    ans = chainU(x0)[1]
     ans
 end#solver
