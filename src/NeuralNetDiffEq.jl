@@ -12,6 +12,9 @@ end
 nnode(chain;opt=Flux.ADAM(0.1)) = nnode(chain,opt)
 export nnode
 
+
 include("solve.jl")
+include("PdeSolve.jl")
+
 
 end # module
