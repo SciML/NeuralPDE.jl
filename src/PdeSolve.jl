@@ -34,13 +34,13 @@ function pde_solve(
 
     function sol()
         map(1:m) do j
-            u = u0(X0)
+            u = u0(X0)[1]
             X = X0
             for i in 1:length(ts)-1
                 t = ts[i]
                 _σᵀ∇u = σᵀ∇u[i](X)
                 dW = sqrt(dt)*randn(d)
-                u = u .- f(t, X, u, _σᵀ∇u)*dt .+ _σᵀ∇u'*dW
+                u = u - f(t, X, u, _σᵀ∇u)*dt + _σᵀ∇u'*dW
                 X  = X .+ μ(t,X)*dt .+ σ(t,X)*dW
             end
             X,u
@@ -48,7 +48,7 @@ function pde_solve(
     end
 
     function loss()
-        mean(sum(abs2,g(X) .- u) for (X,u) in sol())
+        mean(sum(abs2,g(X) - u) for (X,u) in sol())
     end
 
 
