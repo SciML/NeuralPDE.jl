@@ -9,20 +9,17 @@ function pde_solve(
     verbose = false,
     maxiters = 100)
 
-
-    x0 = grid[1] #initial points
+    X0 = grid[1] #initial points
     t0 = grid[2] #initial time
     tn = grid[3] #terminal time
     dt = grid[4] #time step
     d  = grid[5] # number of dimensions
     m =  grid[6] # number of trajectories (batch size)
 
-
-    g(x) = prob[1](x)
-    f(t,x,Y,Z)  = prob[2](t,x,Y,Z)
-    μ(t,x) = prob[3](t,x)
-    σ(t,x) = prob[4](t,x)
-
+    g = prob[1]
+    f = prob[2]
+    μ = prob[3]
+    σ = prob[4]
 
     data = Iterators.repeated((), maxiters)
     ts = t0:dt:tn
@@ -31,41 +28,27 @@ function pde_solve(
     hide_layer_size = neuralNetworkParams[1]
     opt = neuralNetworkParams[2]
 
-    U0(hide_layer_size, d) = neuralNetworkParams[3](hide_layer_size, d)
-    gradU(hide_layer_size, d) = neuralNetworkParams[4](hide_layer_size, d)
-
-    chains = [gradU(hide_layer_size, d) for i=1:length(ts)]
-    chainU = U0(hide_layer_size, d)
-    ps = Flux.params(chainU, chains...)
-
-    # brownian motion
-    dw(dt) = sqrt(dt) * randn()
-    # the Euler-Maruyama scheme
-    x_sde(x_dim,t,dwa) = [x_dim[i] + μ(t,x_dim[i])*dt + σ(t,x_dim[i])*dwa[i] for i = 1: d]
-
-    get_x_sde(x_cur,l,dwA) = [x_sde(x_cur[i], ts[l] , dwA[i]) for i = 1: m]
-    reduceN(x_dim, l, dwA) = sum([gradU*dwA[i] for (i, gradU) in enumerate(chains[l](x_dim))])
-    getN(x_cur, l, dwA) = [reduceN(x_cur[i], l, dwA[i]) for i = 1: m]
-
-    x_0 = [x0 for i = 1: m]
+    u0 = neuralNetworkParams[3](hide_layer_size, d)
+    σᵀ∇u = [neuralNetworkParams[4](hide_layer_size, d) for i=1:length(ts)]
+    ps = Flux.params(u0, ∇u...)
 
     function sol()
-        x_cur = x_0
-        U = [chainU(x)[1] for x in x_0]
-        global x_prev
-        for l = 1 : length(ts)
-            x_prev = x_cur
-            dwA = [[dw(dt) for _=1:d] for _=1:m]
-            fa = [f(ts[l], x_cur[i], U[i], chains[l](x_cur[i])) for i= 1 : m]
-            U = U - fa*dt + getN(x_cur, l, dwA)
-            x_cur = get_x_sde(x_cur,l,dwA)
+        map(1:m) do
+            u = u0(X0)
+            X = X0
+            for i in 1:length(ts)-1
+                t = ts[i]
+                _σᵀ∇u = σᵀ∇u[i](X)
+                dW = sqrt(dt)*randn(d)
+                u = u - f(t, X, u, _σᵀ∇u)*dt + _σᵀ∇u*dW
+                X  = X + μ(t,X)*dt + σ(t,X)*dW
+            end
+            X,u
         end
-        (U, x_prev)
     end
 
     function loss()
-        U0, x_cur = sol()
-        return sum(abs2, g.(x_cur) .- U0) / m
+        mean(sum(abs2,g(X) - u) for (X,u) in sol())
     end
 
 
@@ -77,6 +60,5 @@ function pde_solve(
 
     Flux.train!(loss, ps, data, opt; cb = cb)
 
-    ans = chainU(x0)[1]
-    ans
+    u0(X0)
 end #pde_solve
