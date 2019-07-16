@@ -113,12 +113,12 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                 Dense(hls,hls,relu),
                 Dense(hls,hls,relu),
                 Dense(hls,1))
-σᵀ∇u = Flux.Chain(Dense(d,hls,relu),
+σᵀ∇u = [Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,hls,relu),
                   Dense(hls,hls,relu),
-                  Dense(hls,d))
+                  Dense(hls,d)) for i in 1:5]
 
-neuralNetParam = (u0, σᵀ∇u)
+neuralNetParam = (opt, u0, σᵀ∇u)
 
 ans = NeuralNetDiffEq.pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 250)
 
