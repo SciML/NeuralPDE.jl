@@ -30,25 +30,25 @@ function pde_solve(
 
     u0 = neuralNetworkParams[3](hide_layer_size, d)
     σᵀ∇u = [neuralNetworkParams[4](hide_layer_size, d) for i=1:length(ts)]
-    ps = Flux.params(u0, ∇u...)
+    ps = Flux.params(u0, σᵀ∇u...)
 
     function sol()
-        map(1:m) do
+        map(1:m) do j
             u = u0(X0)
             X = X0
             for i in 1:length(ts)-1
                 t = ts[i]
                 _σᵀ∇u = σᵀ∇u[i](X)
                 dW = sqrt(dt)*randn(d)
-                u = u - f(t, X, u, _σᵀ∇u)*dt + _σᵀ∇u*dW
-                X  = X + μ(t,X)*dt + σ(t,X)*dW
+                u = u .- f(t, X, u, _σᵀ∇u)*dt .+ _σᵀ∇u'*dW
+                X  = X .+ μ(t,X)*dt .+ σ(t,X)*dW
             end
             X,u
         end
     end
 
     function loss()
-        mean(sum(abs2,g(X) - u) for (X,u) in sol())
+        mean(sum(abs2,g(X) .- u) for (X,u) in sol())
     end
 
 
@@ -60,5 +60,5 @@ function pde_solve(
 
     Flux.train!(loss, ps, data, opt; cb = cb)
 
-    u0(X0)
+    u0(X0)[1].data
 end #pde_solve

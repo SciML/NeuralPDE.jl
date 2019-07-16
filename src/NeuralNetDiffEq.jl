@@ -1,6 +1,6 @@
 module NeuralNetDiffEq
 
-using Reexport
+using Reexport, Statistics
 @reexport using DiffEqBase
 using Flux
 

@@ -1,8 +1,8 @@
 using Flux, Test
-using NeuralNetDiffEq
+using NeuralNetDiffEq, LinearAlgebra
 
 # one-dimensional heat equation
-x0 = [11]  # initial points
+x0 = [11.0]  # initial points
 t0 = 0     # initial time
 T = 5      # terminal time
 dt = 0.5   # time step
@@ -11,28 +11,27 @@ m = 50     # number of trajectories (batch size)
 grid = (x0, t0, T, dt, d, m)
 
 g(x) = sum(x.^2)   # terminal condition
-f(t, x, Y, Z) = 0  # function from solved equation
-μ(t,x) = 0
-σ(t,x) = 1
+f(t, x, Y, Z) = 0.0  # function from solved equation
+μ(t,x) = 0.0
+σ(t,x) = 1.0
 prob = (g, f, μ, σ)
 
 
 hls = 10 + d #hidden layer size
 opt = Flux.ADAM(0.005)  #optimizer
 #sub-neural network approximating solutions at the desired point
-U0(hls, d) = Flux.Chain(Dense(d,hls,relu),
-                                    Dense(hls,hls,relu),
-                                    Dense(hls,1))
+u0(hls, d) = Flux.Chain(Dense(d,hls,relu),
+                              Dense(hls,hls,relu),
+                              Dense(hls,1))
 # sub-neural network approximating the spatial gradients at time point
-gradU(hls, d) = Flux.Chain(Dense(d,hls,relu),
-                                       Dense(hls,hls,relu),
-                                       Dense(hls,d))
+σᵀ∇u(hls, d) = Flux.Chain(Dense(d,hls,relu),
+                          Dense(hls,hls,relu),
+                          Dense(hls,d))
 
 # hide_layer_size
-neuralNetParam = (hls, opt, U0, gradU)
+neuralNetParam = (hls, opt, u0, σᵀ∇u)
 
-
-ans = pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 300)
+ans = NeuralNetDiffEq.pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 300)
 
 u_analytical(x,t) = sum(x.^2) .+ d*t
 analytical_ans = u_analytical(x0, T)
@@ -65,9 +64,9 @@ prob = (g, f, μ, σ)
 
 hls = 10 + d #hidden layer size
 # hide_layer_size
-neuralNetParam = (hls, opt, U0, gradU)
+neuralNetParam = (hls, opt, u0, σᵀ∇u)
 
-ans = pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 400)
+ans = NeuralNetDiffEq.pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 400)
 
 u_analytical(x,t) = sum(x.^2) .+ d*t
 analytical_ans = u_analytical(x0, T)
@@ -93,31 +92,31 @@ grid = (x0, t0, T, dt, d, m)
 
 r = 0.05
 sigma_max = 0.4
-f(t, x, Y, Z) = r * (Y - sum(x.*Z)) # M x 1
+f(t, x, Y, Z) = r * (Y .- sum(x.*Z)) # M x 1
 g(x) = sum(x.^2)  # M x D
-μ(t, x) = 0
-σ(t, x) = sigma_max*x
+μ(t, x) = 0.0
+σ(t, x) = Diagonal(sigma_max*x)
 prob = (g, f, μ, σ)
 
 hls  = 10 + d #hide layer size
 opt = Flux.ADAM(0.001)
-U0(hide_layer_size, d) = Flux.Chain(Dense(d,hls,relu),
+u0(hide_layer_size, d) = Flux.Chain(Dense(d,hls,relu),
                                     Dense(hls,hls,relu),
                                     Dense(hls,hls,relu),
                                     Dense(hls,1))
-gradU(hide_layer_size, d) = Flux.Chain(Dense(d,hls,relu),
+σᵀ∇u(hide_layer_size, d) = Flux.Chain(Dense(d,hls,relu),
                                        Dense(hls,hls,relu),
                                        Dense(hls,hls,relu),
                                        Dense(hls,d))
 
-neuralNetParam = (hls, opt, U0, gradU)
+neuralNetParam = (hls, opt, u0, σᵀ∇u)
 
-ans = pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 250)
+ans = NeuralNetDiffEq.pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 250)
 
 u_analytical(x, t) = exp((r + sigma_max^2).*(T .- t)).*sum(x.^2)
 analytical_ans = u_analytical(x0, t0)
 # error = abs(ans - analytical_ans)
-error_l2 = sqrt((ans - analytical_ans)^2/ans^2)
+error_l2 = sqrt((ans .- analytical_ans)^2/ans^2)
 
 # println("Black Scholes Barenblatt equation")
 # println("numerical ans= ", ans)
@@ -145,7 +144,7 @@ println("error_l2 = ", error_l2, "\n")
 # σ(t, x) = 1 #sigma_max*x
 # prob = (g, f, μ, σ)
 #
-# ans = pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 300)
+# ans = NeuralNetDiffEq.pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 300)
 #
 # prob_ans = 0.30879
 # error = abs(ans - analytical_ans)
@@ -170,7 +169,7 @@ println("error_l2 = ", error_l2, "\n")
 # σ(t, x) = sqrt(2) #sigma_max*x
 # prob = (g, f, μ, σ)
 #
-# ans = pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 300)
+# ans = NeuralNetDiffEq.pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 300)
 
 #W =?
 # u_analytical(x, t) = log(mean(exp(-g(x + srt(2.0*abs(T-t)*W )))))
