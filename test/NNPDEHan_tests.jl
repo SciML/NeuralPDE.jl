@@ -97,7 +97,7 @@ sigma_max = 0.4
 f(X,Y,Z,p,t) = r * (Y .- sum(X.*Z)) # M x 1
 g(X) = sum(X.^2)  # M x D
 μ(X,p,t) = 0.0
-σ(X,p,t) = Diagonal(sigma_max*x)
+σ(X,p,t) = Diagonal(sigma_max*X)
 prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 
 hls  = 10 + d #hide layer size
