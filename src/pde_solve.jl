@@ -36,7 +36,7 @@ function DiffEqBase.solve(
     adaptive=false,
     abstol = 1f-6,
     verbose = false,
-    maxiters = 100,
+    maxiters = 300,
     dt,
     trajectories)
 
