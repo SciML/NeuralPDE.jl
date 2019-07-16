@@ -5,16 +5,10 @@ using Reexport, Statistics
 using Flux
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
-struct nnode{C,O} <: NeuralNetDiffEqAlgorithm
-    chain::C
-    opt::O
-end
-nnode(chain;opt=Flux.ADAM(0.1)) = nnode(chain,opt)
-export nnode
 
+include("ode_solve.jl")
+include("pde_solve.jl")
 
-include("solve.jl")
-include("PdeSolve.jl")
-
+export NNODE, TerminalPDEProblem, NNPDEHan
 
 end # module

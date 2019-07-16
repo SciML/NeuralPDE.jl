@@ -1,3 +1,9 @@
+struct NNODE{C,O} <: NeuralNetDiffEqAlgorithm
+    chain::C
+    opt::O
+end
+NNODE(chain;opt=Flux.ADAM(0.1)) = NNODE(chain,opt)
+
 function DiffEqBase.solve(
     prob::DiffEqBase.AbstractODEProblem,
     alg::NeuralNetDiffEqAlgorithm,
