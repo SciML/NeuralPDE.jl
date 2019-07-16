@@ -20,16 +20,16 @@ prob = (g, f, μ, σ)
 hls = 10 + d #hidden layer size
 opt = Flux.ADAM(0.005)  #optimizer
 #sub-neural network approximating solutions at the desired point
-u0(hls, d) = Flux.Chain(Dense(d,hls,relu),
-                              Dense(hls,hls,relu),
-                              Dense(hls,1))
+u0 = Flux.Chain(Dense(d,hls,relu),
+                Dense(hls,hls,relu),
+                Dense(hls,1))
 # sub-neural network approximating the spatial gradients at time point
-σᵀ∇u(hls, d) = Flux.Chain(Dense(d,hls,relu),
-                          Dense(hls,hls,relu),
-                          Dense(hls,d))
+σᵀ∇u = [Flux.Chain(Dense(d,hls,relu),
+                  Dense(hls,hls,relu),
+                  Dense(hls,d)) for i in 1:11]
 
 # hide_layer_size
-neuralNetParam = (hls, opt, u0, σᵀ∇u)
+neuralNetParam = (opt, u0, σᵀ∇u)
 
 ans = NeuralNetDiffEq.pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 300)
 
@@ -64,7 +64,16 @@ prob = (g, f, μ, σ)
 
 hls = 10 + d #hidden layer size
 # hide_layer_size
-neuralNetParam = (hls, opt, u0, σᵀ∇u)
+#sub-neural network approximating solutions at the desired point
+u0 = Flux.Chain(Dense(d,hls,relu),
+                Dense(hls,hls,relu),
+                Dense(hls,1))
+# sub-neural network approximating the spatial gradients at time point
+σᵀ∇u = [Flux.Chain(Dense(d,hls,relu),
+                  Dense(hls,hls,relu),
+                  Dense(hls,d)) for i in 1:11]
+
+neuralNetParam = (opt, u0, σᵀ∇u)
 
 ans = NeuralNetDiffEq.pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 400)
 
@@ -100,16 +109,16 @@ prob = (g, f, μ, σ)
 
 hls  = 10 + d #hide layer size
 opt = Flux.ADAM(0.001)
-u0(hide_layer_size, d) = Flux.Chain(Dense(d,hls,relu),
-                                    Dense(hls,hls,relu),
-                                    Dense(hls,hls,relu),
-                                    Dense(hls,1))
-σᵀ∇u(hide_layer_size, d) = Flux.Chain(Dense(d,hls,relu),
-                                       Dense(hls,hls,relu),
-                                       Dense(hls,hls,relu),
-                                       Dense(hls,d))
+u0 = Flux.Chain(Dense(d,hls,relu),
+                Dense(hls,hls,relu),
+                Dense(hls,hls,relu),
+                Dense(hls,1))
+σᵀ∇u = Flux.Chain(Dense(d,hls,relu),
+                  Dense(hls,hls,relu),
+                  Dense(hls,hls,relu),
+                  Dense(hls,d))
 
-neuralNetParam = (hls, opt, u0, σᵀ∇u)
+neuralNetParam = (u0, σᵀ∇u)
 
 ans = NeuralNetDiffEq.pde_solve(prob, grid, neuralNetParam, verbose = true, abstol=1e-8, maxiters = 250)
 

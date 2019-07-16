@@ -25,11 +25,9 @@ function pde_solve(
     ts = t0:dt:tn
 
     #hidden layer
-    hide_layer_size = neuralNetworkParams[1]
-    opt = neuralNetworkParams[2]
-
-    u0 = neuralNetworkParams[3](hide_layer_size, d)
-    σᵀ∇u = [neuralNetworkParams[4](hide_layer_size, d) for i=1:length(ts)]
+    opt = neuralNetworkParams[1]
+    u0 = neuralNetworkParams[2]
+    σᵀ∇u = neuralNetworkParams[3]
     ps = Flux.params(u0, σᵀ∇u...)
 
     function sol()
