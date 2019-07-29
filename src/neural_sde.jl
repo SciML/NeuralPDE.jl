@@ -3,7 +3,6 @@ d = 3
 hls = 10 + d
 # _u0 = Flux.data(u0(x0)[1])
 
-
 datasize = 5
 tspan = (0.0f0,1.0f0)
 t = range(tspan[1],tspan[2],length=datasize)
@@ -24,7 +23,7 @@ g(X) = sum(X.^2)
 function trueODEfunc(dh,h,p,t)
     u =  h[end]
     X =  h[1:end-1]
-    _σᵀ∇u = σᵀ∇u(X)
+    _σᵀ∇u = σᵀ∇u(X) #TODO tracked σᵀ∇u
     dh[end] = Flux.data(f(X, u, _σᵀ∇u, p, t))
     dh[1:end-1] .= μ(X,p,t)
     dh
@@ -33,7 +32,7 @@ end
 function true_noise_func(dh,h,p,t)
     X = h[1:end-1]
     _σᵀ∇u = Flux.data(σᵀ∇u(X))
-    dh[end] = sum(_σᵀ∇u) # TODO  make _σᵀ∇u*dW nondioganal
+    dh[end] = sum(_σᵀ∇u) # TODO _σᵀ∇u*dW nondioganal
     dh[1:end-1] .= σ(X,p,t)
     dh
 end
@@ -54,7 +53,7 @@ init_cond = fill(1.0 , d+1)
 
 function predict_n_sde()
     _u0 = Flux.data(u0(x0)[1])
-    init_cond[d+1] =_u0
+    init_cond[d+1] =_u0 #TODO tracked u0
     ans = n_sde(init_cond)
 end
 
