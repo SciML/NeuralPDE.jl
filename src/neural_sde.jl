@@ -26,18 +26,20 @@ function F(h, p, t)
     X =  h[1:end-1]
     _σᵀ∇u = σᵀ∇u([X;t])
     _f = -f(X, u, _σᵀ∇u, p, t)
-    [Float32[μ(x,p,t) for x in X]; Flux.Tracker.collect([_f])]
+    Flux.Tracker.collect([Float32[μ(x,p,t) for x in X]; [_f]])
 end
 
 function G(h, p, t)
-    X = h[1:end-1]
-    _σᵀ∇u = σᵀ∇u([X;t])
-    [Float32[σ(x,p,t) for x in X]; Flux.Tracker.collect([sum(_σᵀ∇u)])] ## TODO _σᵀ∇u*dW nondioganal
+    # X = h[1:end-1]
+    # _σᵀ∇u = σᵀ∇u([X;t])
+    # [Float32[σ(x,p,t) for x in X]; _σᵀ∇u))] ## TODO _σᵀ∇u*dW nondioganal
+    Flux.Tracker.collect(zeros(Float32, d+1,2))
 end
 
 trajectories = 50
 function neural_sde(init_cond, F, G, tspan, args...; kwargs...)
-    prob = SDEProblem(F, G, init_cond, tspan, nothing) #TODO add noise_rate_prototype=zeros(2,d)
+    noise = Flux.Tracker.collect(zeros(Float32,d+1,2))
+    prob = SDEProblem(F, G, init_cond, tspan, noise_rate_prototype=noise) #TODO add noise_rate_prototype=zeros(2,d)
     map(1:trajectories) do j #TODO add Ensemble Simulation
         predict_ans = solve(prob,  args...; kwargs...)[end]
         (X,u) = (predict_ans[1:end-1], predict_ans[end])
