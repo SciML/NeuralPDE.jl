@@ -21,6 +21,7 @@ function DiffEqBase.solve(
     trajectories)
 
     X0 = prob.X0
+    tspan = prob.tspan
     ts = prob.tspan[1]:dt:prob.tspan[2]
     d  = length(X0)
     g,f,μ,σ,p = prob.g,prob.f,prob.μ,prob.σ,prob.p
