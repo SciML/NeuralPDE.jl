@@ -11,6 +11,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
 DiffEqFlux = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"
 DiffEqOperators = "9fdde737-9c7f-55bf-ade8-46b3f136cc48"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [compat]
 DiffEqBase = ">= 5.0.0"
