@@ -10,15 +10,12 @@ NNPDENS(u0,σᵀ∇u;opt=Flux.ADAM(0.1),sde_algorithm=EM()) = NNPDENS(u0,σᵀ�
 function DiffEqBase.solve(
     prob::TerminalPDEProblem,
     alg::NNPDENS;
-    timeseries_errors = true,
-    save_everystep=true,
-    adaptive=false,
     abstol = 1f-6,
     reltol = 1f-5,
     verbose = false,
     maxiters = 300,
-    dt,
-    trajectories)
+    dt = 0.1f0,
+    trajectories = 100)
 
     X0 = prob.X0
     tspan = prob.tspan
@@ -34,20 +31,20 @@ function DiffEqBase.solve(
     u0 = alg.u0
     σᵀ∇u = alg.σᵀ∇u
     sde_algorithm = alg.sde_algorithm
-    ps = Flux.params(u0, σᵀ∇u...)
+    ps = Flux.params(u0, σᵀ∇u)
 
     function F(h, p, t)
         u =  h[end]
-        X =  h[1:end-1].data
+        X =  h[1:end-1]
         _σᵀ∇u = σᵀ∇u([X;t])
         _f = -f(X, u, _σᵀ∇u, p, t)
-        Flux.Tracker.collect([μ(X,p,t);[_f]])
+        Flux.Tracker.collect(vcat(μ(X,p,t),[_f]))
     end
 
     function G(h, p, t)
-        X = h[1:end-1].data
+        X = h[1:end-1]
         _σᵀ∇u = σᵀ∇u([X;t])'
-        Flux.Tracker.collect([σ(X,p,t);_σᵀ∇u])
+        Flux.Tracker.collect(vcat(σ(X,p,t),_σᵀ∇u))
     end
 
     function neural_sde(init_cond, F, G, tspan, args...; kwargs...)

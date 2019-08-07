@@ -93,7 +93,7 @@ sigma_max = 0.4f0
 f(X,u,σᵀ∇u,p,t) = r * (u .- sum(X.*σᵀ∇u))
 g(X) = sum(X.^2)
 μ(X,p,t) = zero(X) #Vector d x 1
-σ(X,p,t) = Diagonal(sigma_max*X) #Matrix d x d
+σ(X,p,t) = Diagonal(sigma_max*X.data) #Matrix d x d
 prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 
 hls  = 10 + d #hide layer size
@@ -108,7 +108,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
 sde_algorithm = EM()
 alg = NNPDENS(u0, σᵀ∇u, opt=opt, sde_algorithm=sde_algorithm)
 
-ans = solve(prob, alg, verbose = true, abstol=1e-8, reltol=1e-7, maxiters = 200, dt=dt, trajectories=m)
+ans = solve(prob, alg, verbose = true, abstol=1e-8, reltol=1e-7, maxiters = 150, dt=dt, trajectories=m)
 
 u_analytical(x, t) = exp((r + sigma_max^2).*(tspan[end] .- tspan[1])).*sum(x.^2)
 analytical_ans = u_analytical(x0, tspan[1])
@@ -147,7 +147,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
 sde_algorithm = EM()
 alg = NNPDENS(u0, σᵀ∇u, opt=opt, sde_algorithm=sde_algorithm)
 
-ans = solve(prob, alg, verbose = true, abstol=1e-8, reltol=1e-7, maxiters = 300, dt=dt, trajectories=m)
+ans = solve(prob, alg, verbose = true, abstol=1e-8, reltol=1e-7, maxiters = 150, dt=dt, trajectories=m)
 
 prob_ans = 0.30879
 error_l2 = sqrt((ans - prob_ans)^2/ans^2)
@@ -184,7 +184,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
 sde_algorithm = EM()
 alg = NNPDENS(u0, σᵀ∇u, opt=opt, sde_algorithm=sde_algorithm)
 
-ans = solve(prob, alg, verbose = true, abstol=1e-8, reltol=1e-7, maxiters = 400, dt=dt, trajectories=m)
+ans = solve(prob, alg, verbose = true, abstol=1e-8, reltol=1e-7, maxiters = 100, dt=dt, trajectories=m)
 
 ts = tspan[1]:dt:tspan[2]
 T = tspan[2]

@@ -1,11 +1,3 @@
-Base.summary(prob::TerminalPDEProblem) = string(nameof(typeof(prob)))
-
-function Base.show(io::IO, A::TerminalPDEProblem)
-  println(io,summary(A))
-  print(io,"timespan: ")
-  show(io,A.tspan)
-end
-
 struct NNPDEHan{C1,C2,O} <: NeuralNetDiffEqAlgorithm
     u0::C1
     σᵀ∇u::C2
@@ -16,9 +8,6 @@ NNPDEHan(u0,σᵀ∇u;opt=Flux.ADAM(0.1)) = NNPDEHan(u0,σᵀ∇u,opt)
 function DiffEqBase.solve(
     prob::TerminalPDEProblem,
     alg::NNPDEHan;
-    timeseries_errors = true,
-    save_everystep=true,
-    adaptive=false,
     abstol = 1f-6,
     verbose = false,
     maxiters = 300,
