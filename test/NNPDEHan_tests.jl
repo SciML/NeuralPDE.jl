@@ -151,7 +151,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
 
 alg = NNPDEHan(u0, σᵀ∇u, opt = opt)
 
-ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 150, dt=dt, trajectories=m)
+ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 200, dt=dt, trajectories=m)
 
 prob_ans = 0.30879
 error_l2 = sqrt((ans - prob_ans)^2/ans^2)
