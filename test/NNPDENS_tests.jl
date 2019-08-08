@@ -146,7 +146,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 alg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
-ans = solve(prob, alg, verbose=true, maxiters=150, trajectories=m,
+ans = solve(prob, alg, verbose=true, maxiters=200, trajectories=m,
                             sde_algorithm=EM(), dt=dt, abstol = 1f-6, reltol = 1f-5)
 
 prob_ans = 0.30879
