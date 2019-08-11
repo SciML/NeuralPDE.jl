@@ -16,6 +16,7 @@ function DiffEqBase.solve(
     dt = 0.1f0,
     abstol = 1f-6,
     reltol = 1f-5,
+    save_steps = false,
     kwargs...)
 
     X0 = prob.X0
@@ -69,7 +70,10 @@ function DiffEqBase.solve(
         mean(sum(abs2, g(X.data) - u) for (X,u) in predict_n_sde())
     end
 
+    iters = eltype(X0)[]
+
     cb = function ()
+        save_steps && push!(iters, u0(X0)[1].data)
         l = loss_n_sde()
         verbose && println("Current loss is: $l")
         l < abstol && Flux.stop()
@@ -77,5 +81,5 @@ function DiffEqBase.solve(
 
     Flux.train!(loss_n_sde, ps, data, opt; cb = cb)
 
-    u0(X0)[1].data
+    save_steps ? iters : u0(X0)[1].data
 end #pde_solve_ns

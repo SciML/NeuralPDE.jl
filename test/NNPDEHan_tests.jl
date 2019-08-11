@@ -2,8 +2,8 @@ using Flux, LinearAlgebra, Statistics
 using Test, NeuralNetDiffEq
 
 # one-dimensional heat equation
-x0 = [11.0]  # initial points
-tspan = (0.0,5.0)
+x0 = [11.0f0]  # initial points
+tspan = (0.0f0,5.0f0)
 dt = 0.5   # time step
 time_steps = div(tspan[2]-tspan[1],dt)
 d = 1      # number of dimensions
@@ -44,8 +44,8 @@ println("error_l2 = ", error_l2, "\n")
 
 # high-dimensional heat equation
 d = 100 # number of dimensions
-x0 = fill(8,d)
-tspan = (0.0,2.0)
+x0 = fill(8.0f0,d)
+tspan = (0.0f0,2.0f0)
 dt = 0.5
 time_steps = div(tspan[2]-tspan[1],dt)
 m = 100 # number of trajectories (batch size)
@@ -84,8 +84,8 @@ println("error_l2 = ", error_l2, "\n")
 
 #Black-Scholes-Barenblatt equation
 d = 100 # number of dimensions
-x0 = repeat([1, 0.5], div(d,2))
-tspan = (0.0,1.0)
+x0 = repeat([1.0f0, 0.5f0], div(d,2))
+tspan = (0.0f0,1.0f0)
 dt = 0.25
 time_steps = div(tspan[2]-tspan[1],dt)
 m = 100 # number of trajectories (batch size)
@@ -125,8 +125,8 @@ println("error_l2 = ", error_l2, "\n")
 
 # Allen-Cahn Equation
 d = 20 # number of dimensions
-x0 = fill(0,d)
-tspan = (0.0,0.3)
+x0 = fill(0.0f0,d)
+tspan = (0.0f0,0.3f0)
 dt = 0.015 # time step
 time_steps = div(tspan[2]-tspan[1], dt)
 m = 100 # number of trajectories (batch size)
@@ -165,8 +165,8 @@ println("error_l2 = ", error_l2, "\n")
 
 #Hamilton Jacobi Bellman Equation
 d = 100 # number of dimensions
-x0 = fill(0,d)
-tspan = (0.0, 1.0)
+x0 = fill(0.0f0,d)
+tspan = (0.0f0, 1.0f0)
 dt = 0.2
 ts = tspan[1]:dt:tspan[2]
 time_steps = length(ts)-1
