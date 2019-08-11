@@ -70,7 +70,7 @@ function DiffEqBase.solve(
         mean(sum(abs2, g(X.data) - u) for (X,u) in predict_n_sde())
     end
 
-    iters = Float32[]
+    iters = eltype(X0)[]
 
     cb = function ()
         save_steps && push!(iters, u0(X0)[1].data)
