@@ -1,4 +1,4 @@
-using Flux, DiffEqFlux, StochasticDiffEq
+using Flux, StochasticDiffEq
 using LinearAlgebra, Statistics
 using Test, NeuralNetDiffEq
 
