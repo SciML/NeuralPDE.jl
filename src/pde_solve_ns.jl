@@ -19,7 +19,6 @@ function DiffEqBase.solve(
 
     X0 = prob.X0
     tspan = prob.tspan
-    ts = prob.tspan[1]:dt:prob.tspan[2]
     d  = length(X0)
     g,f,μ,σ,p = prob.g,prob.f,prob.μ,prob.σ,prob.p
 
@@ -55,8 +54,7 @@ function DiffEqBase.solve(
         end
     end
 
-    n_sde = init_cond->neural_sde(init_cond,F,G,tspan,alg, dt=dt,
-                                    saveat=ts, kwargs...)
+    n_sde = init_cond->neural_sde(init_cond,F,G,tspan,alg;kwargs...)
 
     function predict_n_sde()
         _u0 = u0(X0)
