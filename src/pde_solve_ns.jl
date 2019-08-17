@@ -8,15 +8,13 @@ NNPDENS(u0,σᵀ∇u;opt=Flux.ADAM(0.1)) = NNPDENS(u0,σᵀ∇u,opt)
 
 function DiffEqBase.solve(
     prob::TerminalPDEProblem,
-    alg::NNPDENS;
+    pdealg::NNPDENS;
     verbose = false,
     maxiters = 300,
     trajectories = 100,
-    sde_algorithm=EM(),
-    dt = 0.1f0,
-    abstol = 1f-6,
-    reltol = 1f-5,
-    save_steps = false,
+    alg,
+    pabstol = 1f-6,
+    save_everystep = false,
     kwargs...)
 
     X0 = prob.X0
@@ -29,9 +27,9 @@ function DiffEqBase.solve(
 
 
     #hidden layer
-    opt = alg.opt
-    u0 = alg.u0
-    σᵀ∇u = alg.σᵀ∇u
+    opt = pdealg.opt
+    u0 = pdealg.u0
+    σᵀ∇u = pdealg.σᵀ∇u
     ps = Flux.params(u0, σᵀ∇u)
 
     function F(h, p, t)
@@ -57,8 +55,8 @@ function DiffEqBase.solve(
         end
     end
 
-    n_sde = init_cond->neural_sde(init_cond,F,G,tspan,sde_algorithm, dt=dt,
-                                    saveat=ts,abstol=abstol,reltol=reltol, kwargs...)
+    n_sde = init_cond->neural_sde(init_cond,F,G,tspan,alg, dt=dt,
+                                    saveat=ts, kwargs...)
 
     function predict_n_sde()
         _u0 = u0(X0)
@@ -73,13 +71,13 @@ function DiffEqBase.solve(
     iters = eltype(X0)[]
 
     cb = function ()
-        save_steps && push!(iters, u0(X0)[1].data)
+        save_everystep && push!(iters, u0(X0)[1].data)
         l = loss_n_sde()
         verbose && println("Current loss is: $l")
-        l < abstol && Flux.stop()
+        l < pabstol && Flux.stop()
     end
 
     Flux.train!(loss_n_sde, ps, data, opt; cb = cb)
 
-    save_steps ? iters : u0(X0)[1].data
+    save_everystep ? iters : u0(X0)[1].data
 end #pde_solve_ns
