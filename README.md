@@ -169,7 +169,7 @@ output. `opt` is a Flux.jl optimizer.
 
 Each of these methods has a special keyword argument `pabstol` which specifies
 an absolute tolerance on the PDE's solution, and will exit early if the loss
-reaches this value. Its defualt value is `1f-6`.
+reaches this value. Its default value is `1f-6`.
 
 ## Solving ODEs with Neural Networks
 
