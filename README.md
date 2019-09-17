@@ -32,7 +32,7 @@ To solve it using the `TerminalPDEProblem`, we write:
 
 ```julia
 d = 100 # number of dimensions
-x0 = repeat([1.0f0, 0.5f0], div(d,2))
+X0 = repeat([1.0f0, 0.5f0], div(d,2)) # initial value of stochastic state
 tspan = (0.0f0,1.0f0)
 r = 0.05f0
 sigma = 0.4f0
@@ -40,7 +40,7 @@ f(X,u,σᵀ∇u,p,t) = r * (u - sum(X.*σᵀ∇u))
 g(X) = sum(X.^2)
 μ(X,p,t) = zero(X) #Vector d x 1
 σ(X,p,t) = Diagonal(sigma*X.data) #Matrix d x d
-prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
+prob = TerminalPDEProblem(g, f, μ, σ, X0, tspan)
 ```
 
 As described in the API docs, we now need to define our `NNPDENS` algorithm
@@ -87,7 +87,7 @@ using the `TerminalPDEProblem`, we write:
 
 ```julia
 d = 100 # number of dimensions
-x0 = fill(0.0f0,d)
+X0 = fill(0.0f0,d) # initial value of stochastic control process
 tspan = (0.0f0, 1.0f0)
 λ = 1.0f0
 
@@ -95,7 +95,7 @@ g(X) = log(0.5f0 + 0.5f0*sum(X.^2))
 f(X,u,σᵀ∇u,p,t) = -λ*sum(σᵀ∇u.^2)
 μ(X,p,t) = zero(X)  #Vector d x 1 λ
 σ(X,p,t) = Diagonal(sqrt(2.0f0)*ones(Float32,d)) #Matrix d x d
-prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
+prob = TerminalPDEProblem(g, f, μ, σ, X0, tspan)
 ```
 
 As described in the API docs, we now need to define our `NNPDENS` algorithm
@@ -147,7 +147,7 @@ which describes the semilinear parabolic PDE of the form:
 with terminating condition `u(tspan[2],x) = g(x)`. These methods solve the PDE in
 reverse, satisfying the terminal equation and giving a point estimate at
 `u(tspan[1],X0)`. The dimensionality of the PDE is determined by the choice
-of `X0`.
+of `X0`, which is the initial stochastic state. 
 
 To solve this PDE problem, there exists two algorithms:
 
