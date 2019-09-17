@@ -28,17 +28,17 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
-ans = solve(prob, pdealg, verbose=true, maxiters=200, trajectories=m,
+sol = solve(prob, pdealg, verbose=true, maxiters=200, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-6)
 
 u_analytical(x,t) = sum(x.^2) .+ d*t
-analytical_ans = u_analytical(x0, tspan[end])
+analytical_sol = u_analytical(x0, tspan[end])
 
-error_l2 = sqrt((ans-analytical_ans)^2/ans^2)
+error_l2 = sqrt((sol-analytical_sol)^2/sol^2)
 
 println("one-dimensional heat equation")
-# println("numerical = ", ans)
-# println("analytical = " ,analytical_ans)
+# println("numerical = ", sol)
+# println("analytical = " ,analytical_sol)
 println("error_l2 = ", error_l2, "\n")
 @test error_l2 < 0.1
 
@@ -67,16 +67,16 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
-ans = solve(prob, pdealg, verbose=true, maxiters=250, trajectories=m,
+sol = solve(prob, pdealg, verbose=true, maxiters=250, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-6)
 
 u_analytical(x,t) = sum(x.^2) .+ d*t
-analytical_ans = u_analytical(x0, tspan[end])
-error_l2 = sqrt((ans - analytical_ans)^2/ans^2)
+analytical_sol = u_analytical(x0, tspan[end])
+error_l2 = sqrt((sol - analytical_sol)^2/sol^2)
 
 println("high-dimensional heat equation")
-# println("numerical = ", ans)
-# println("analytical = " ,analytical_ans)
+# println("numerical = ", sol)
+# println("analytical = " ,analytical_sol)
 println("error_l2 = ", error_l2, "\n")
 @test error_l2 < 0.1
 
@@ -107,16 +107,16 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
-ans = solve(prob, pdealg, verbose=true, maxiters=150, trajectories=m,
+sol = solve(prob, pdealg, verbose=true, maxiters=150, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-6)
 
 u_analytical(x, t) = exp((r + sigma^2).*(tspan[end] .- tspan[1])).*sum(x.^2)
-analytical_ans = u_analytical(x0, tspan[1])
-error_l2 = sqrt((ans .- analytical_ans)^2/ans^2)
+analytical_sol = u_analytical(x0, tspan[1])
+error_l2 = sqrt((sol .- analytical_sol)^2/sol^2)
 
 println("Black Scholes Barenblatt equation")
-# println("numerical ans= ", ans)
-# println("analytical ans = " , analytical_ans)
+# println("numerical sol= ", sol)
+# println("analytical sol = " , analytical_sol)
 println("error_l2 = ", error_l2, "\n")
 @test error_l2 < 0.1
 
@@ -146,15 +146,15 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
-ans = solve(prob, pdealg, verbose=true, maxiters=200, trajectories=m,
+sol = solve(prob, pdealg, verbose=true, maxiters=200, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-6)
 
-prob_ans = 0.30879
-error_l2 = sqrt((ans - prob_ans)^2/ans^2)
+prob_sol = 0.30879
+error_l2 = sqrt((sol - prob_sol)^2/sol^2)
 
 println("Allen-Cahn equation")
-# println("numerical = ", ans)
-# println("prob_ans = " , prob_ans)
+# println("numerical = ", sol)
+# println("prob = " , prob_sol)
 println("error_l2 = ", error_l2, "\n")
 @test error_l2 < 0.1
 
@@ -186,20 +186,20 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 #
-@time ans = solve(prob, pdealg, verbose=true, maxiters=100, trajectories=m,
+@time sol = solve(prob, pdealg, verbose=true, maxiters=100, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-2)
 
 T = tspan[2]
 MC = 10^5
 W() = randn(d,1)
 u_analytical(x, t) = -(1/λ)*log(mean(exp(-λ*g(x .+ sqrt(2.0)*abs.(T-t).*W())) for _ = 1:MC))
-analytical_ans = u_analytical(x0, tspan[1])
+analytical_sol = u_analytical(x0, tspan[1])
 
-error_l2 = sqrt((ans - analytical_ans)^2/ans^2)
+error_l2 = sqrt((sol - analytical_sol)^2/sol^2)
 
 println("Hamilton Jacobi Bellman Equation")
-# println("numerical = ", ans)
-# println("analytical = " , analytical_ans)
+# println("numerical = ", sol)
+# println("analytical = " , analytical_sol)
 println("error_l2 = ", error_l2, "\n")
 @test error_l2 < 0.2
 
@@ -252,14 +252,14 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
-@time ans = solve(prob, pdealg, verbose=true, maxiters=100, trajectories=m,
+@time sol = solve(prob, pdealg, verbose=true, maxiters=100, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-6)
 
-prob_ans = 57.3
-error_l2 = sqrt((ans - prob_ans)^2/ans^2)
+prob_sol = 57.3
+error_l2 = sqrt((sol - prob_sol)^2/sol^2)
 
 println("Nonlinear Black-Scholes Equation with Default Risk")
-# println("numerical = ", ans)
-# println("prob_ans = " , prob_ans)
+# println("numerical = ", sol)
+# println("prob = " , prob_sol)
 println("error_l2 = ", error_l2, "\n")
 @test error_l2 < 0.1
