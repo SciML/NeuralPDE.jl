@@ -194,7 +194,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
 
 alg = NNPDEHan(u0, σᵀ∇u, opt = opt)
 
-ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 100, dt=dt, trajectories=m)
+ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 150, dt=dt, trajectories=m)
 
 T = tspan[2]
 MC = 10^5
@@ -241,7 +241,7 @@ end
 µc = 0.02f0
 σc = 0.2f0
 
-μ(X,p,t) = µc*X #µc*X.data#*X.data #Vector d x 1
+μ(X,p,t) = µc*X #Vector d x 1
 σ(X,p,t) = σc*Diagonal(X) #Matrix d x d
 prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 
