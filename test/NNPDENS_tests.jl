@@ -93,7 +93,7 @@ sigma = 0.4f0
 f(X,u,σᵀ∇u,p,t) = r * (u - sum(X.*σᵀ∇u))
 g(X) = sum(X.^2)
 μ(X,p,t) = zero(X) #Vector d x 1
-σ(X,p,t) = Diagonal(sigma*X.data) #Matrix d x d
+σ(X,p,t) = Diagonal(sigma*X) #Matrix d x d
 prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 
 hls  = 10 + d #hide layer size
@@ -186,7 +186,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 #
-@time ans = solve(prob, pdealg, verbose=true, maxiters=100, trajectories=m,
+@time ans = solve(prob, pdealg, verbose=true, maxiters=150, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-2)
 
 T = tspan[2]
@@ -234,8 +234,8 @@ end
 µc = 0.02f0
 σc = 0.2f0
 
-μ(X,p,t) = µc*X.data #Vector d x 1
-σ(X,p,t) = σc*Diagonal(X.data) #Matrix d x d
+μ(X,p,t) = µc*X #Vector d x 1
+σ(X,p,t) = σc*Diagonal(X) #Matrix d x d
 prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 
 hls = 10 + d #hidden layer size

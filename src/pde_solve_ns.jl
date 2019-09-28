@@ -33,14 +33,14 @@ function DiffEqBase.solve(
 
     function F(h, p, t)
         u =  h[end]
-        X =  h[1:end-1]
+        X =  h[1:end-1].data
         _σᵀ∇u = σᵀ∇u([X;t])
         _f = -f(X, u, _σᵀ∇u, p, t)
         Flux.Tracker.collect(vcat(μ(X,p,t),[_f]))
     end
 
     function G(h, p, t)
-        X = h[1:end-1]
+        X = h[1:end-1].data
         _σᵀ∇u = σᵀ∇u([X;t])'
         Flux.Tracker.collect(vcat(σ(X,p,t),_σᵀ∇u))
     end
