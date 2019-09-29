@@ -2,7 +2,7 @@ module NeuralNetDiffEq
 
 using Reexport, Statistics
 @reexport using DiffEqBase
-using Flux
+using Flux, Zygote
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 
