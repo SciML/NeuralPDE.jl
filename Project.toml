@@ -11,7 +11,7 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
-Zygote = "621f4979-c628-5d54-868e-fcf4e3e8185c"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 DiffEqBase = "6"
