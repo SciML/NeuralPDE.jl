@@ -13,8 +13,11 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
 
 [compat]
-DiffEqBase = ">= 5.0.0"
 StochasticDiffEq = "6.13"
+Flux = "0.9"
+DiffEqBase = "6"
+DiffEqFlux = "0.8"
+Reexport = "0.2"
 julia = "1"
 
 [extras]
