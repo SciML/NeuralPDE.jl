@@ -194,7 +194,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
 
 alg = NNPDEHan(u0, σᵀ∇u, opt = opt)
 
-ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 1000, dt=dt, trajectories=m)
+ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 300, dt=dt, trajectories=m)
 
 T = tspan[2]
 MC = 10^5
