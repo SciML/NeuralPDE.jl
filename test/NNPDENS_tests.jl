@@ -186,7 +186,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 #
-@time ans = solve(prob, pdealg, verbose=true, maxiters=1000, trajectories=m,
+@time ans = solve(prob, pdealg, verbose=true, maxiters=300, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-2)
 
 T = tspan[2]
