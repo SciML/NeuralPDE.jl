@@ -1,4 +1,4 @@
-truct NNRODE{C,O} <: NeuralNetDiffEqAlgorithm
+struct NNRODE{C,O} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
 end
