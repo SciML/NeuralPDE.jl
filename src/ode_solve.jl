@@ -38,13 +38,13 @@ function DiffEqBase.solve(
 
     if u0 isa Number
         dfdx = t -> Tracker.gradient(t -> sum(phi(t)), t; nest = true)[1]
-        loss = () -> sum(abs2,sum(abs2,dfdx(t) .- f(phi(t)[1],p,t)[1]) for t in ts)
+        loss = () -> sum(abs2,sum(abs2,dfdx(t) .- f(phi(t)[1].data,p,t)[1]) for t in ts)
     else
         dfdx = t -> (phi(t+sqrt(eps(typeof(dt)))) - phi(t)) / sqrt(eps(typeof(dt)))
         #dfdx(t) = Flux.Tracker.forwarddiff(phi,t)
         #dfdx(t) = Tracker.collect([Flux.Tracker.gradient(t->phi(t)[i],t, nest=true) for i in 1:length(u0)])
         #loss function for training
-        loss = () -> sum(abs2,sum(abs2,dfdx(t) - f(phi(t),p,t)) for t in ts)
+        loss = () -> sum(abs2,sum(abs2,dfdx(t) - f(phi(t).data,p,t)) for t in ts)
     end
 
     cb = function ()
