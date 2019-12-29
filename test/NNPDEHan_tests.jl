@@ -180,7 +180,7 @@ f(X,u,σᵀ∇u,p,t) = -λ*sum(σᵀ∇u.^2)
 prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 
 hls = 10 + d #hidden layer size
-opt = Flux.ADAM(0.01)  #optimizer
+opt = Flux.ADAM(0.03)  #optimizer
 #sub-neural network approximating solutions at the desired point
 u0 = Flux.Chain(Dense(d,hls,relu),
                 Dense(hls,hls,relu),
@@ -194,7 +194,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
 
 alg = NNPDEHan(u0, σᵀ∇u, opt = opt)
 
-ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 300, dt=dt, trajectories=m)
+ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 500, dt=dt, trajectories=m)
 
 T = tspan[2]
 MC = 10^5
