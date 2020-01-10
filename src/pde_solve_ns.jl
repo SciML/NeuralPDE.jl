@@ -55,6 +55,20 @@ function DiffEqBase.solve(
         vcat(σ(X,_p,t),_σᵀ∇u)
     end
 
+    function F(h::Tracker.TrackedArray, p, t)
+        u =  h[end]
+        X =  h[1:end-1].data
+        _σᵀ∇u = σᵀ∇u([X;t])
+        _f = -f(X, u, _σᵀ∇u, p, t)
+        Tracker.collect(vcat(μ(X,p,t),[_f]))
+    end
+
+    function G(h::Tracker.TrackedArray, p, t)
+        X = h[1:end-1].data
+        _σᵀ∇u = σᵀ∇u([X;t])'
+        Tracker.collect(vcat(σ(X,p,t),_σᵀ∇u))
+    end
+
     noise = zeros(Float32,d+1,d)
     prob = SDEProblem{false}(F, G, [X0;0f0], tspan, p3, noise_rate_prototype=noise)
 
