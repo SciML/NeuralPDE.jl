@@ -51,7 +51,7 @@ function DiffEqBase.solve(
     iters = eltype(X0)[]
 
     cb = function ()
-        save_everystep && push!(iters, u0(X0)[1].data)
+        save_everystep && push!(iters, u0(X0)[1])
         l = loss()
         verbose && println("Current loss is: $l")
         l < abstol && Flux.stop()
@@ -59,5 +59,5 @@ function DiffEqBase.solve(
 
     Flux.train!(loss, ps, data, opt; cb = cb)
 
-    save_everystep ? iters : u0(X0)[1].data
+    save_everystep ? iters : u0(X0)[1]
 end #pde_solve

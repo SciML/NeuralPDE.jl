@@ -20,7 +20,8 @@ function DiffEqBase.solve(
     X0 = prob.X0
     tspan = prob.tspan
     d  = length(X0)
-    g,f,μ,σ,p = prob.g,prob.f,prob.μ,prob.σ,prob.p
+    g,f,μ,σ = prob.g,prob.f,prob.μ,prob.σ
+    p = prob.p isa AbstractArray ? prob.p : Float32[]
 
     data = Iterators.repeated((), maxiters)
 
@@ -29,47 +30,57 @@ function DiffEqBase.solve(
     opt = pdealg.opt
     u0 = pdealg.u0
     σᵀ∇u = pdealg.σᵀ∇u
-    ps = Flux.params(u0, σᵀ∇u)
+    p1,_re1 = Flux.destructure(u0)
+    p2,_re2 = Flux.destructure(σᵀ∇u)
+    p3 = [p1;p2;p]
+    ps = Flux.params(p3)
+
+    re1 = p -> _re1(p[1:length(p1)])
+    re2 = p -> _re2(p[(length(p1)+1):(length(p1)+length(p2))])
+    re3 = p -> p[(length(p1)+length(p2)+1):end]
 
     function F(h, p, t)
         u =  h[end]
-        X =  h[1:end-1].data
-        _σᵀ∇u = σᵀ∇u([X;t])
-        _f = -f(X, u, _σᵀ∇u, p, t)
-        Flux.Tracker.collect(vcat(μ(X,p,t),[_f]))
+        X =  h[1:end-1]
+        _σᵀ∇u = re2(p)([X;t])
+        _p = re3(p)
+        _f = -f(X, u, _σᵀ∇u, _p, t)
+        vcat(μ(X,_p,t),[_f])
     end
 
     function G(h, p, t)
-        X = h[1:end-1].data
-        _σᵀ∇u = σᵀ∇u([X;t])'
-        Flux.Tracker.collect(vcat(σ(X,p,t),_σᵀ∇u))
+        X = h[1:end-1]
+        _p = re3(p)
+        _σᵀ∇u = re2(p)([X;t])'
+        vcat(σ(X,_p,t),_σᵀ∇u)
     end
 
-    function neural_sde(init_cond, F, G, tspan, args...; kwargs...)
-        noise = Flux.Tracker.collect(zeros(Float32,d+1,d))
-        prob = SDEProblem(F, G, init_cond, tspan, noise_rate_prototype=noise)
+    function neural_sde(init_cond)
+        noise = zeros(Float32,d+1,d)
+        prob = SDEProblem{false}(F, G, init_cond, tspan, p3, noise_rate_prototype=noise)
         map(1:trajectories) do j #TODO add Ensemble Simulation
-            predict_ans = solve(prob,  args...; kwargs...)[end]
-            (X,u) = (predict_ans[1:end-1], predict_ans[end])
+            predict_ans = Array(concrete_solve(prob, alg, init_cond, p3;
+                                         save_everystep=false,
+                                         sensealg=TrackerAdjoint(),kwargs...))[:,end]
+            (X,u) = (predict_ans[1:(end-1)], predict_ans[end])
         end
     end
 
-    n_sde = init_cond->neural_sde(init_cond,F,G,tspan,alg;kwargs...)
-
     function predict_n_sde()
-        _u0 = u0(X0)
-        init_cond = Flux.Tracker.collect([X0;_u0])
-        n_sde(init_cond)
+        println([p3[1],p3[end]])
+        _u0 = re1(p3)(X0)
+        init_cond = [X0;_u0]
+        neural_sde(init_cond)
     end
 
     function loss_n_sde()
-        mean(sum(abs2, g(X.data) - u) for (X,u) in predict_n_sde())
+        mean(sum(abs2, g(X) - u) for (X,u) in predict_n_sde())
     end
 
     iters = eltype(X0)[]
 
     cb = function ()
-        save_everystep && push!(iters, u0(X0)[1].data)
+        save_everystep && push!(iters, u0(X0)[1])
         l = loss_n_sde()
         verbose && println("Current loss is: $l")
         l < pabstol && Flux.stop()
@@ -77,5 +88,5 @@ function DiffEqBase.solve(
 
     Flux.train!(loss_n_sde, ps, data, opt; cb = cb)
 
-    save_everystep ? iters : u0(X0)[1].data
+    save_everystep ? iters : u0(X0)[1]
 end #pde_solve_ns
