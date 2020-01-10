@@ -55,9 +55,10 @@ function DiffEqBase.solve(
         vcat(σ(X,_p,t),_σᵀ∇u)
     end
 
+    noise = zeros(Float32,d+1,d)
+    prob = SDEProblem{false}(F, G, [X0;0f0], tspan, p3, noise_rate_prototype=noise)
+
     function neural_sde(init_cond)
-        noise = zeros(Float32,d+1,d)
-        prob = SDEProblem{false}(F, G, init_cond, tspan, p3, noise_rate_prototype=noise)
         map(1:trajectories) do j #TODO add Ensemble Simulation
             predict_ans = Array(concrete_solve(prob, alg, init_cond, p3;
                                          save_everystep=false,
@@ -67,7 +68,6 @@ function DiffEqBase.solve(
     end
 
     function predict_n_sde()
-        println([p3[1],p3[end]])
         _u0 = re1(p3)(X0)
         init_cond = [X0;_u0]
         neural_sde(init_cond)
@@ -88,5 +88,5 @@ function DiffEqBase.solve(
 
     Flux.train!(loss_n_sde, ps, data, opt; cb = cb)
 
-    save_everystep ? iters : u0(X0)[1]
+    save_everystep ? iters : re1(p3)(X0)[1]
 end #pde_solve_ns
