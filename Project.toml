@@ -14,7 +14,7 @@ StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
 
 [compat]
 DiffEqBase = "6"
-DiffEqFlux = "0.8, 0.9, 0.10"
+DiffEqFlux = "0.8, 0.9, 0.10, 1.0"
 Flux = "0.9"
 Reexport = "0.2"
 StochasticDiffEq = "6.13"
