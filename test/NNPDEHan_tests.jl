@@ -1,4 +1,4 @@
-using Flux, LinearAlgebra, Statistics
+using Flux, Zygote, LinearAlgebra, Statistics
 using Test, NeuralNetDiffEq
 
 # one-dimensional heat equation
