@@ -20,6 +20,7 @@ DiffEqSensitivity = "6.5"
 Flux = "0.10.1"
 Reexport = "0.2"
 StochasticDiffEq = "6.13"
+Tracker = "0.2"
 julia = "1"
 
 [extras]
