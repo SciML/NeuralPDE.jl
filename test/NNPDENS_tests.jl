@@ -2,7 +2,7 @@ using Flux, Zygote, StochasticDiffEq
 using LinearAlgebra, Statistics
 using Test, NeuralNetDiffEq
 
-# one-dimensional heat equation
+println("one-dimensional heat equation")
 x0 = Float32[11.] # initial points
 tspan = (0.0f0,5.0f0)
 dt = 0.5 # time step
@@ -43,7 +43,7 @@ println("error_l2 = ", error_l2, "\n")
 @test error_l2 < 0.1
 
 
-# high-dimensional heat equation
+println("high-dimensional heat equation")
 d = 100 # number of dimensions
 x0 = fill(8.0f0,d)
 tspan = (0.0f0,2.0f0)
@@ -80,8 +80,7 @@ println("high-dimensional heat equation")
 println("error_l2 = ", error_l2, "\n")
 @test error_l2 < 0.1
 
-
-# Black-Scholes-Barenblatt equation
+println("Black-Scholes-Barenblatt equation")
 d = 100 # number of dimensions
 x0 = repeat([1.0f0, 0.5f0], div(d,2))
 tspan = (0.0f0,1.0f0)
