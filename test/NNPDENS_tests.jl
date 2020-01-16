@@ -7,7 +7,7 @@ x0 = Float32[11.] # initial points
 tspan = (0.0f0,5.0f0)
 dt = 0.5 # time step
 d = 1 # number of dimensions
-m = 5 # number of trajectories (batch size)
+m = 10 # number of trajectories (batch size)
 
 g(X) = sum(X.^2)   # terminal condition
 f(X,u,σᵀ∇u,p,t) = Float32(0.0)
@@ -48,7 +48,7 @@ d = 100 # number of dimensions
 x0 = fill(8.0f0,d)
 tspan = (0.0f0,2.0f0)
 dt = 0.5
-m = 10 # number of trajectories (batch size)
+m = 20 # number of trajectories (batch size)
 
 g(X) = sum(X.^2)
 f(X,u,σᵀ∇u,p,t) = Float32(0.0)
@@ -85,7 +85,7 @@ d = 100 # number of dimensions
 x0 = repeat([1.0f0, 0.5f0], div(d,2))
 tspan = (0.0f0,1.0f0)
 dt = 0.2
-m = 10 # number of trajectories (batch size)
+m = 20 # number of trajectories (batch size)
 
 r = 0.05f0
 sigma = 0.4f0
@@ -124,7 +124,7 @@ d = 20 # number of dimensions
 x0 = fill(0.0f0,d)
 tspan = (0.3f0,0.6f0)
 dt = 0.015 # time step
-m = 10 # number of trajectories (batch size)
+m = 20 # number of trajectories (batch size)
 
 g(X) = 1.0 / (2.0 + 0.4*sum(X.^2))
 f(X,u,σᵀ∇u,p,t) = u .- u.^3
@@ -163,7 +163,7 @@ d = 100 # number of dimensions
 x0 = fill(0.0f0,d)
 tspan = (0.0f0, 1.0f0)
 dt = 0.2
-m = 10 # number of trajectories (batch size)
+m = 20 # number of trajectories (batch size)
 λ = 1.0f0
 #
 g(X) = log(0.5f0 + 0.5f0*sum(X.^2))
@@ -208,7 +208,7 @@ d = 100 # number of dimensions
 x0 = fill(100.0f0,d)
 tspan = (0.0f0,1.0f0)
 dt = 0.2 # time step
-m = 10 # number of trajectories (batch size)
+m = 20 # number of trajectories (batch size)
 
 g(X) = minimum(X)
 δ = 2.0f0/3
