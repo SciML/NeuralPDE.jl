@@ -7,7 +7,7 @@ x0 = Float32[11.] # initial points
 tspan = (0.0f0,5.0f0)
 dt = 0.5 # time step
 d = 1 # number of dimensions
-m = 20 # number of trajectories (batch size)
+m =  # number of trajectories (batch size)
 
 g(X) = sum(X.^2)   # terminal condition
 f(X,u,σᵀ∇u,p,t) = Float32(0.0)
