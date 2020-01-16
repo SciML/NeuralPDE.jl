@@ -7,7 +7,7 @@ tspan = (0.0f0,5.0f0)
 dt = 0.5   # time step
 time_steps = div(tspan[2]-tspan[1],dt)
 d = 1      # number of dimensions
-m = 50     # number of trajectories (batch size)
+m = 10     # number of trajectories (batch size)
 
 g(X) = sum(X.^2)   # terminal condition
 f(X,u,σᵀ∇u,p,t) = 0.0  # function from solved equation
@@ -48,7 +48,7 @@ x0 = fill(8.0f0,d)
 tspan = (0.0f0,2.0f0)
 dt = 0.5
 time_steps = div(tspan[2]-tspan[1],dt)
-m = 100 # number of trajectories (batch size)
+m = 10 # number of trajectories (batch size)
 
 g(X) = sum(X.^2)
 f(X,u,σᵀ∇u,p,t) = 0.0
@@ -88,7 +88,7 @@ x0 = repeat([1.0f0, 0.5f0], div(d,2))
 tspan = (0.0f0,1.0f0)
 dt = 0.25
 time_steps = div(tspan[2]-tspan[1],dt)
-m = 100 # number of trajectories (batch size)
+m = 10 # number of trajectories (batch size)
 
 r = 0.05
 sigma = 0.4
@@ -129,7 +129,7 @@ x0 = fill(0.0f0,d)
 tspan = (0.3f0,0.6f0)
 dt = 0.015 # time step
 time_steps = div(tspan[2]-tspan[1], dt)
-m = 100 # number of trajectories (batch size)
+m = 10 # number of trajectories (batch size)
 
 g(X) = 1.0 / (2.0 + 0.4*sum(X.^2))
 f(X,u,σᵀ∇u,p,t) = u .- u.^3
@@ -170,7 +170,7 @@ tspan = (0.0f0, 1.0f0)
 dt = 0.2
 ts = tspan[1]:dt:tspan[2]
 time_steps = length(ts)-1
-m = 100 # number of trajectories (batch size)
+m = 10 # number of trajectories (batch size)
 λ = 1.0f0
 
 g(X) = log(0.5 + 0.5*sum(X.^2))
@@ -215,7 +215,7 @@ d = 100 # number of dimensions
 x0 = fill(100.0f0,d)
 tspan = (0.0f0,1.0f0)
 dt = 0.125 # time step
-m = 100 # number of trajectories (batch size)
+m = 10 # number of trajectories (batch size)
 time_steps = div(tspan[2]-tspan[1],dt)
 
 g(X) = minimum(X)
