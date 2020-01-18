@@ -124,7 +124,7 @@ d = 20 # number of dimensions
 x0 = fill(0.0f0,d)
 tspan = (0.3f0,0.6f0)
 dt = 0.015 # time step
-m = 40 # number of trajectories (batch size)
+m = 100 # number of trajectories (batch size)
 
 g(X) = 1.0 / (2.0 + 0.4*sum(X.^2))
 f(X,u,σᵀ∇u,p,t) = u .- u.^3
@@ -163,7 +163,7 @@ d = 100 # number of dimensions
 x0 = fill(0.0f0,d)
 tspan = (0.0f0, 1.0f0)
 dt = 0.2
-m = 40 # number of trajectories (batch size)
+m = 100 # number of trajectories (batch size)
 λ = 1.0f0
 #
 g(X) = log(0.5f0 + 0.5f0*sum(X.^2))
@@ -208,7 +208,7 @@ d = 100 # number of dimensions
 x0 = fill(100.0f0,d)
 tspan = (0.0f0,1.0f0)
 dt = 0.2 # time step
-m = 20 # number of trajectories (batch size)
+m = 50 # number of trajectories (batch size)
 
 g(X) = minimum(X)
 δ = 2.0f0/3
