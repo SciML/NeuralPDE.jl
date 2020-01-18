@@ -132,7 +132,7 @@ f(X,u,σᵀ∇u,p,t) = u .- u.^3
 σ(X,p,t) = Diagonal(ones(Float32,d)) #Matrix d x d
 prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 
-hls = 10 + d #hidden layer size
+hls = 20 + d #hidden layer size
 opt = Flux.ADAM(5^-4)  #optimizer
 #sub-neural network approximating solutions at the desired point
 u0 = Flux.Chain(Dense(d,hls,relu),
