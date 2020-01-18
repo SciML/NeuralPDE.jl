@@ -67,7 +67,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
-ans = solve(prob, pdealg, verbose=true, maxiters=250, trajectories=m,
+ans = solve(prob, pdealg, verbose=true, maxiters=350, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-6)
 
 u_analytical(x,t) = sum(x.^2) .+ d*t
@@ -106,7 +106,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
-ans = solve(prob, pdealg, verbose=true, maxiters=150, trajectories=m,
+ans = solve(prob, pdealg, verbose=true, maxiters=250, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-6)
 
 u_analytical(x, t) = exp((r + sigma^2).*(tspan[end] .- tspan[1])).*sum(x.^2)
@@ -145,7 +145,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
-ans = solve(prob, pdealg, verbose=true, maxiters=200, trajectories=m,
+ans = solve(prob, pdealg, verbose=true, maxiters=300, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-6)
 
 prob_ans = 0.30879
@@ -185,7 +185,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 #
-@time ans = solve(prob, pdealg, verbose=true, maxiters=350, trajectories=m,
+@time ans = solve(prob, pdealg, verbose=true, maxiters=450, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-2)
 
 T = tspan[2]
@@ -251,7 +251,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
-@time ans = solve(prob, pdealg, verbose=true, maxiters=100, trajectories=m,
+@time ans = solve(prob, pdealg, verbose=true, maxiters=200, trajectories=m,
                             alg=EM(), dt=dt, pabstol = 1f-6)
 
 prob_ans = 57.3
