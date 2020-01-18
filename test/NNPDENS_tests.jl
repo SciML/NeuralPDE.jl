@@ -163,7 +163,7 @@ d = 100 # number of dimensions
 x0 = fill(0.0f0,d)
 tspan = (0.0f0, 1.0f0)
 dt = 0.2
-m = 100 # number of trajectories (batch size)
+m = 50 # number of trajectories (batch size)
 λ = 1.0f0
 #
 g(X) = log(0.5f0 + 0.5f0*sum(X.^2))
@@ -185,8 +185,8 @@ u0 = Flux.Chain(Dense(d,hls,relu),
                   Dense(hls,d))
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 #
-@time ans = solve(prob, pdealg, verbose=true, maxiters=450, trajectories=m,
-                            alg=EM(), dt=dt, pabstol = 1f-2)
+@time ans = solve(prob, pdealg, verbose=true, maxiters=550, trajectories=m,
+                            alg=EM(), dt=dt, pabstol = 1f-4)
 
 T = tspan[2]
 MC = 10^5
