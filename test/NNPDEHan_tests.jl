@@ -69,7 +69,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
 
 alg = NNPDEHan(u0, σᵀ∇u, opt = opt)
 
-ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 250, dt=dt, trajectories=m)
+ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 150, dt=dt, trajectories=m)
 
 u_analytical(x,t) = sum(x.^2) .+ d*t
 analytical_ans = u_analytical(x0, tspan[end])
