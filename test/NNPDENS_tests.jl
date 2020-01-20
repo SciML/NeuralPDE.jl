@@ -172,14 +172,16 @@ f(X,u,σᵀ∇u,p,t) = -λ*sum(σᵀ∇u.^2)
 σ(X,p,t) = Diagonal(sqrt(2.0f0)*ones(Float32,d)) #Matrix d x d
 prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 
-hls = 156 + d #hidden layer size
+hls = 256 #hidden layer size
 opt = Flux.ADAM(0.1)  #optimizer
 #sub-neural network approximating solutions at the desired point
 u0 = Flux.Chain(Dense(d,hls,relu),
                 Dense(hls,hls,relu),
+                Dense(hls,hls,relu),
                 Dense(hls,1))
 # sub-neural network approximating the spatial gradients at time point
 σᵀ∇u = Flux.Chain(Dense(d+1,hls,relu),
+                  Dense(hls,hls,relu),
                   Dense(hls,hls,relu),
                   Dense(hls,hls,relu),
                   Dense(hls,d))
@@ -237,7 +239,7 @@ end
 σ(X,p,t) = σc*Diagonal(X) #Matrix d x d
 prob = TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 
-hls = 10 + d #hidden layer size
+hls = 256 #hidden layer size
 opt = Flux.ADAM(0.008)  #optimizer
 #sub-neural network approximating solutions at the desired point
 u0 = Flux.Chain(Dense(d,hls,relu),
