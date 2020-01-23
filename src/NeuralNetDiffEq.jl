@@ -33,8 +33,9 @@ end
 include("ode_solve.jl")
 include("pde_solve.jl")
 include("pde_solve_ns.jl")
+include("second_ode_solve.jl")
 
 
-export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS
+export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNODE2
 
 end # module
