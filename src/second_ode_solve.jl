@@ -31,17 +31,18 @@ function DiffEqBase.solve(
     data   = Iterators.repeated((), maxiters)
 
     #train points generation
-    ts  = tspan[1]:dt:tspan[2]
+    cnt = 0.0f0
+    ts  = tspan[1][1]:dt:tspan[2][1]
     
     #Initial Value Problem
-    phi(t) = (u0 .+ du0 .* (t .- tspan[1]) .+ (t .- tspan[1]) .^ 2 .* chain([t]))[1]
+    phi(t) = (u0 .+ du0 .* (t .- tspan[1]) .+ (t .- tspan[1]) .^ 2 .* chain([t])[1])[1]
 
 
     dfdx = t -> (phi(t+sqrt(eps(Float32))) - phi(t)) / sqrt(eps(Float32))
     epsilon(t) = cbrt(eps(Float32))
     #second order central
     d2fdx2(t) = (phi(t+epsilon(t)) - 2phi(t) + phi(t-epsilon(t)))/epsilon(t)^2
-    loss = () -> sum(abs2,sum(abs2,d2fdx2(t) .- f(phi'(t),phi(t),p,t)[1]) for t in ts)
+    loss = () -> sum(abs2,sum(abs2,d2fdx2(t) .- f(dfdx(t), phi(t),p,t)[1]) for t in ts)
 
     cb = function ()
         l = loss()
