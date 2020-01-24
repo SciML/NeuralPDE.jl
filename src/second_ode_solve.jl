@@ -35,7 +35,7 @@ function DiffEqBase.solve(
     ts  = tspan[1]:dt:tspan[2]
     
     #Initial Value Problem
-    phi(t) = (u0 .+ du0 .* (t .- tspan[1]) .+ (t .- tspan[1]) .^ 2 .* chain([t])[1])[1]
+    phi(t) = (u0 .+ du0 .* (t .- tspan[1]) .+ (t .- tspan[1]) .^ 2 .* chain([t]))[1]
 
 
     dfdx = t -> (phi(t+sqrt(eps(Float32))) - phi(t)) / sqrt(eps(Float32))
