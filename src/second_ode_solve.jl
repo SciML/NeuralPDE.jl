@@ -23,7 +23,6 @@ function DiffEqBase.solve(
     tspan = prob.tspan
     f = prob.f
     p = prob.p
-    t0 = tspan[1]
 
     #hidden layer
     chain  = alg.chain
@@ -32,13 +31,18 @@ function DiffEqBase.solve(
     data   = Iterators.repeated((), maxiters)
 
     #train points generation
-    ts = tspan[1]:dt:tspan[2]
+    ts = []
+    cnt = 0.0f0
+    for ii in 1:Int((tspan[2]-tspan[1])/dt[1]+1)
+        push!(ts, cnt)
+        cnt += dt[1]
+    end
     
     #Initial Value Problem
     phi(t) = (u0 .+ du0 .* (t .- tspan[1]) .+ (t .- tspan[1]) .^ 2 .* chain([t]))[1]
 
 
-    dfdx = t -> (phi(t+sqrt(eps(typeof(dt)))) - phi(t)) / sqrt(eps(typeof(dt)))
+    dfdx = t -> (phi(t+sqrt(eps(typeof(dt[1])))) - phi(t)) / sqrt(eps(typeof(dt[1])))
     g(tp) = sum(dfdx(tp))
     d2fdx2 = tp -> g'(tp)[1]
     loss = () -> sum(abs2,sum(abs2,d2fdx2(t) .- f(phi(t), phi'(t),p,t)[1]) for t in ts)

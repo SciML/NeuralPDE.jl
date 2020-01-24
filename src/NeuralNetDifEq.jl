@@ -15,11 +15,8 @@ struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P} <: DiffEqBase.DEProblem
     X0::X
     tspan::Tuple{T,T}
     p::P
-    TerminalPDEProblem(g,f,μ,σ,X0,tspan,p=nothing) = new{typeof(g),typeof(f),
-                                                         typeof(μ),typeof(σ),
-                                                         typeof(X0),eltype(tspan),
-                                                         typeof(p)}(
-                                                         g,f,μ,σ,X0,tspan,p)
+    TerminalPDEProblem(g,f,μ,σ,X0,tspan,p=nothing) = new{typeof(g),typeof(f),typeof(μ),typeof(σ),typeof(X0),eltype(tspan),
+    typeof(p)}(g,f,μ,σ,X0,tspan,p)
 end
 
 Base.summary(prob::TerminalPDEProblem) = string(nameof(typeof(prob)))
