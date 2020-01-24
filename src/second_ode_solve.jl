@@ -32,7 +32,7 @@ function DiffEqBase.solve(
 
     #train points generation
     cnt = 0.0f0
-    ts  = tspan[1][1]:dt:tspan[2][1]
+    ts  = tspan[1]:dt:tspan[2]
     
     #Initial Value Problem
     phi(t) = (u0 .+ du0 .* (t .- tspan[1]) .+ (t .- tspan[1]) .^ 2 .* chain([t])[1])[1]
