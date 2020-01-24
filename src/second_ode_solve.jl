@@ -42,8 +42,8 @@ function DiffEqBase.solve(
     phi(t) = (u0 .+ du0 .* (t .- tspan[1]) .+ (t .- tspan[1]) .^ 2 .* chain([t]))[1]
 
 
-    dfdx = t -> (phi(t+sqrt(eps(typeof(dt[1])))) - phi(t)) / sqrt(eps(typeof(dt[1])))
-    epsilon(t) = cbrt(eps(real(t-t0)))
+    dfdx = t -> (phi(t+sqrt(eps(Float32))) - phi(t)) / sqrt(eps(Float32))
+    epsilon(t) = cbrt(eps(Float32))
     #second order central
     d2fdx2(t) = (phi(t+epsilon(t)) - 2phi(t) + phi(t-epsilon(t)))/epsilon(t)^2
     loss = () -> sum(abs2,sum(abs2,d2fdx2(t) .- f(phi(t), phi'(t),p,t)[1]) for t in ts)
