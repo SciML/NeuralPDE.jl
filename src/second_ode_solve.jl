@@ -31,12 +31,7 @@ function DiffEqBase.solve(
     data   = Iterators.repeated((), maxiters)
 
     #train points generation
-    ts = []
-    cnt = 0.0f0
-    for ii in 1:Int((tspan[2]-tspan[1])/dt[1]+1)
-        push!(ts, cnt)
-        cnt += dt[1]
-    end
+    ts  = tspan[1]:dt:tspan[2]
     
     #Initial Value Problem
     phi(t) = (u0 .+ du0 .* (t .- tspan[1]) .+ (t .- tspan[1]) .^ 2 .* chain([t]))[1]
