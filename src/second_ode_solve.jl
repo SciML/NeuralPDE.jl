@@ -1,4 +1,3 @@
-using Flux
 struct NNODE2{C,O} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
