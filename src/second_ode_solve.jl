@@ -20,7 +20,7 @@ function DiffEqBase.solve(
 
     u0, du0 = prob.u0
     tspan = prob.tspan
-    f = prob.f
+    f = prob.f.f1
     p = prob.p
     t0 = tspan[1]
 
