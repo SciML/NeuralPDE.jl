@@ -1,6 +1,7 @@
 using Test, Flux
 using Plots
 using DiffEqDevTools
+using DiffEqBase, NeuralNetDiffEq
 
 # Homogeneous
 f(du, u, p, t) = -du+6*u
