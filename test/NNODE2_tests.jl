@@ -5,7 +5,7 @@ using DiffEqBase, NeuralNetDiffEq
 
 # Homogeneous
 f(du, u, p, t) = -du+6*u
-tspan = ([0.0f0], [2.0f0])
+tspan = (0.0f0, 2.0f0)
 u0 = [1.0f0]
 du0 = [0.0f0]
 dt = 1/20f0
