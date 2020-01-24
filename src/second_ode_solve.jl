@@ -42,8 +42,9 @@ function DiffEqBase.solve(
 
 
     dfdx = t -> (phi(t+sqrt(eps(typeof(dt[1])))) - phi(t)) / sqrt(eps(typeof(dt[1])))
-    g(tp) = sum(dfdx(tp))
-    d2fdx2 = tp -> g'(tp)[1]
+    epsilon(t) = cbrt(eps(real(t)))
+    #second order central
+    d2fdx2(t) = (phi(t+epsilon(t)) - 2phi(t) + phi(t-epsilon(t)))/epsilon(t)^2
     loss = () -> sum(abs2,sum(abs2,d2fdx2(t) .- f(phi(t), phi'(t),p,t)[1]) for t in ts)
 
     cb = function ()
