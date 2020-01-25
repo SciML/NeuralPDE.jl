@@ -28,14 +28,31 @@ chain = Chain(Dense(1,5,σ),Dense(5,1))
   Dense(128, 64, tanh), 
   Dense(64, 1))
 =#
-
 opt = ADAM(1e-04, (0.9, 0.95))
 sol = solve(prob, NeuralNetDiffEq.NNODE2(chain,opt), dt=dt, verbose = true, abstol=1e-10, maxiters = 200)
 
 t = tspan[1]:dt:tspan[2]
 an_sol = @. 1/5 * exp(-3*t) *(3*exp(5*t)+2.0)
-
 plot((t, an_sol), title="Second Order Linear ODE", label="Analytical", lw=3)
+plot!((t, sol.u), label ="Numerical", lw=3)
+xlabel!("t")
+ylabel!("y(t)")
+
+
+
+#Example 2
+(du, u, p, t) = -2*du-5*u+5*t^2+12
+tspan = (0.0f0, 2.0f0)
+u0 = [1.0f0]
+du0 = [0.0f0]
+dt = 1/20f0
+prob = SecondOrderODEProblem(f, u0, du0, tspan)
+chain = Chain(Dense(1,5,σ),Dense(5,1))
+opt = ADAM(1e-04, (0.9, 0.95))
+sol = solve(prob, NeuralNetDiffEq.NNODE2(chain,opt), dt=dt, verbose = true, abstol=1e-10, maxiters = 200)
+t = tspan[1]:dt:tspan[2]
+an_sol = @. y(t) = 1/50 * exp(-t) * (2*exp(t) * (25*t^2 - 20*t + 58) - 13*sin(2*t) - 66*cos(2*t))
+plot((t, an_sol), title="Second Order Linear ODE", label="Analytical", lw=3, reuse=false)
 plot!((t, sol.u), label ="Numerical", lw=3)
 xlabel!("t")
 ylabel!("y(t)")
