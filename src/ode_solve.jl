@@ -34,18 +34,14 @@ function DiffEqBase.solve(
     ts = tspan[1]:dt:tspan[2]
 
     #The phi trial solution
-    phi(t) = u0 .+ (t .- tspan[1]).*chain([t])
-
     if u0 isa Number
-        dfdx = t -> (phi(t+sqrt(eps(typeof(dt)))) - phi(t)) / sqrt(eps(typeof(dt)))[1]
-        # ForwardDiff.gradient(t -> sum(phi(t)), t)[1]
-        loss = () -> sum(abs2,sum(abs2,dfdx(t) .- f(phi(t)[1],p,t)[1]) for t in ts)
+        phi = t -> u0 + (t - tspan[1])*first(chain([t]))
     else
-        dfdx = t -> (phi(t+sqrt(eps(typeof(dt)))) - phi(t)) / sqrt(eps(typeof(dt)))
-        # ForwardDiff.jacobian(t -> sum(phi(t)), t)[1]
-        #loss function for training
-        loss = () -> sum(abs2,sum(abs2,dfdx(t) - f(phi(t),p,t)) for t in ts)
+        phi = t -> u0 + (t - tspan[1])*chain([t])
     end
+
+    dfdx(t) = ForwardDiff.derivative(phi,t)
+    loss() = sum(abs2,sum(abs2,dfdx(t) - f(phi(t),p,t)) for t in ts)
 
     cb = function ()
         l = loss()
@@ -56,7 +52,7 @@ function DiffEqBase.solve(
 
     #solutions at timepoints
     if u0 isa Number
-        u = [phi(t)[1] for t in ts]
+        u = [first(phi(t)) for t in ts]
     else
         u = [phi(t) for t in ts]
     end
