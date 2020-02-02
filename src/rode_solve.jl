@@ -1,4 +1,3 @@
-using Tracker
 struct NNRODE{C,O} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
