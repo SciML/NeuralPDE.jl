@@ -34,15 +34,9 @@ function DiffEqBase.solve(
     ts = tspan[1]:dt:tspan[2]
 
     #The phi trial solution
-<<<<<<< HEAD
     ϕ(t,W) = u0 .- (t.-tspan[1]).*chain(Zygote.collect([t,W]))
     
     dfdx = (t,W) -> Zygote.gradient((t,W) -> sum(ϕ(t,W)), t,W)[1]
-=======
-    ϕ(t,W) = u0 .- (t.-tspan[1]).*v(Tracker.collect([t,W]))
-    
-    dfdx = (t,W) -> Tracker.gradient((t,W) -> sum(ϕ(t,W)), t,W; nest = true)[1]
->>>>>>> initialized Neural RODE
     loss = () -> sum(abs2,sum(abs2,dfdx(t,W).-f(ϕ(t,W)[1],p,t,W)[1]) for (t,W) in zip(ts,randn(length(ts))))
 
     cb = function ()
