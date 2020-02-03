@@ -6,7 +6,7 @@ NNODE2(chain;opt=Flux.ADAM(0.1)) = NNODE2(chain,opt)
 
 function DiffEqBase.solve(
     prob::DiffEqBase.AbstractODEProblem,
-    alg::NeuralNetDiffEqAlgorithm,
+    alg::NNODE2,
     args...;
     dt,
     timeseries_errors = true,
