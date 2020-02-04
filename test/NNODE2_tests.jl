@@ -17,9 +17,9 @@ chain = Chain(Dense(1,5,σ),Dense(5,1))
 opt = ADAM(1e-04, (0.9, 0.95))
 sol = solve(prob, NeuralNetDiffEq.NNODE2(chain,opt), dt=dt, verbose = true, maxiters = 200)
 #println(sol)
-err = sol.errors[:12]
+err = sol.errors[:l2]
 sol = solve(prob, NeuralNetDiffEq.NNODE2(chain,opt), dt=1/20f0, verbose = true, maxiters = 200)
-sol.errors[:12]/err<0.5
+sol.errors[:l2]/err<0.5
 
 #=
 dts = 1f0 ./ 2f0 .^ (6:-1:2)
@@ -30,7 +30,7 @@ sim = test_convergence(dts, prob, NeuralNetDiffEq.NNODE2(chain, opt))
 
 
 #Example 2
-f(du, u, p, t) = -2*du-5*u+5*t^2+12
+f(du, u, p, t) = -2*du-5*u+5*t^2+l2
 tspan = (0.0f0, 1.0f0)
 u0 = [1.0f0]
 du0 = [0.0f0]
@@ -43,7 +43,7 @@ chain = Chain(Dense(1,5,σ),Dense(5,1))
 opt = ADAM(1e-04, (0.9, 0.95))
 sol = solve(prob, NeuralNetDiffEq.NNODE2(chain,opt), dt=dt, verbose = true, maxiters = 200)
 #println(sol)
-err = sol.errors[:12]
+err = sol.errors[:l2]
 sol = solve(prob, NeuralNetDiffEq.NNODE2(chain,opt), dt=1/20f0, verbose = true, maxiters = 200)
 sol.errors[:l2]/err < 0.5
 
