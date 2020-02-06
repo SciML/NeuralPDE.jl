@@ -1,5 +1,8 @@
 # Documentation: http://docs.travis-ci.com/user/languages/julia/
 language: julia
+branches:
+  only:
+    - master
 os:
   - linux
 julia:
@@ -8,8 +11,9 @@ julia:
 #  allow_failures:
 #    - julia: nightly
 env:
-  - GROUP=Test1
-  - GROUP=Test2
+  - GROUP=NNODE
+  - GROUP=NNPDEHan
+  - GROUP=NNPDENS
 notifications:
   email: false
 # uncomment the following lines to override the default test script
