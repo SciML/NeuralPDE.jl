@@ -32,11 +32,7 @@ function DiffEqBase.solve(
     ts  = tspan[1]:dt:tspan[2]
     
     #Initial Value Problem
-    if u0 isa Number && du0 isa Number
-        phi(t) = (u0 + du0 * (t - tspan[1]) + (t - tspan[1]) ^ 2 .* chain([t]))[1]
-    else
-        phi(t) = (u0 .+ du0 .* (t - tspan[1]) .+ (t - tspan[1]) .^ 2 .* chain([t]))
-    end
+    phi(t) = (u0 isa Number && du0 isa Number) ? ((u0 + du0 * (t - tspan[1]) + (t - tspan[1]) ^ 2 .* chain([t])[1])[1]) : (phi(t) = (u0 .+ du0 .* (t - tspan[1]) .+ (t - tspan[1]) .^ 2 .* chain([t])))
     dfdx = t -> (phi(t+sqrt(eps(typeof(dt)))) .- phi(t)) / sqrt(eps(typeof(dt)))
     epsilon(t) = cbrt(eps(typeof(dt)))
     #second order central
