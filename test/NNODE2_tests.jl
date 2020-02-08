@@ -3,11 +3,11 @@ using Plots
 using DiffEqDevTools
 using DiffEqBase, NeuralNetDiffEq
 
-# Homogeneous
+# Homogeneous on scalar
 f(du, u, p, t) = -du+6*u
 tspan = (0.0f0, 1.0f0)
-u0 = [1.0f0]
-du0 = [0.0f0]
+u0 = 1.0f0
+du0 = 0.0f0
 dt = 1/5f0
 function an_sol(du0, u0, p, t)
   [1/5 * exp(-3*t) *(3*exp(5*t)+2.0)]
@@ -29,7 +29,7 @@ sim = test_convergence(dts, prob, NeuralNetDiffEq.NNODE2(chain, opt))
 =#
 
 
-#Example 2
+#Example 2: Test on vector
 f(du, u, p, t) = -2*du-5*u+5*t^2+l2
 tspan = (0.0f0, 1.0f0)
 u0 = [1.0f0]
