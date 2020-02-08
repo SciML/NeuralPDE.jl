@@ -16,7 +16,7 @@ du0 = [2.0f0, 0.0f0]
 prob = SecondOrderODEProblem{false}(f, [u0], [du0], (0.0f0, 3.0f0), p)
 dt = 1/20f0
 opt = ADAM(1e-03)
-chain = Chain(Dense(1,5,σ),Dense(5,1))
+chain = Chain(Dense(1,5,σ),Dense(5,2))
 #=
 chain = Chain(
     x -> reshape(x, length(x), 1, 1), 
