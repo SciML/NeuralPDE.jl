@@ -3,7 +3,7 @@ using Test, Flux
 using DiffEqDevTools
 using DiffEqBase, NeuralNetDiffEq
 
-function f(ddu, du, u, p, t) #maybe turn to arrays too
+function f(ddu, du, u, p, t)
 	ddu[1] = (-p[3]*u[1]-p[4]*(u[1]-u[2]))/p[1]
 	ddu[2] = (-p[4]*(u[2]-u[1]))/p[2]
 end
