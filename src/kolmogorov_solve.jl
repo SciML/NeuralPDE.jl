@@ -18,6 +18,8 @@ function DiffEqBase.solve(
     tspan = prob.tspan
     phi = prob.phi
     xspan = prob.xspan
+    sigma = prob.sigma
+    μ = prob.μ
     d = prob.d
     T = tspan[2]
     #hidden layer
@@ -27,7 +29,7 @@ function DiffEqBase.solve(
     ps     = Flux.params(chain)
     xi     = rand(Uniform(xspan[1] , xspan[2]), d , maxiters )
     N = Normal(0 , sqrt(2. *T ))
-    x_sde = pdf.(N , xi)
+    x_sde = xi + μ(xi)*T + sigma(xi)*rand(N , d , maxiters)
     y = phi(x_sde)
     data   = Iterators.repeated((xi , y), maxiters)
    

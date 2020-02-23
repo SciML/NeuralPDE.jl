@@ -30,13 +30,15 @@ function Base.show(io::IO, A::TerminalPDEProblem)
   show(io,A.tspan)
 end
 
-struct KolmogorovPDEProblem{ Phi, X , T , D ,P} <: DiffEqBase.DEProblem
+struct KolmogorovPDEProblem{ Mu, Sigma, Phi, X , T , D ,P} <: DiffEqBase.DEProblem
+    μ::Mu
+    sigma::Sigma
     phi::Phi
     xspan::Tuple{X,X}
     tspan::Tuple{T,T}
     d::D
     p::P
-    KolmogorovPDEProblem( phi , xspan , tspan , d, p=nothing) = new{typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p)}(phi,xspan,tspan,d,p)
+    KolmogorovPDEProblem( μ, sigma, phi , xspan , tspan , d, p=nothing) = new{typeof(μ),typeof(sigma),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p)}(μ,sigma,phi,xspan,tspan,d,p)
 end
  
 Base.summary(prob::KolmogorovPDEProblem) = string(nameof(typeof(prob)))
@@ -46,7 +48,10 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io,A.tspan)
   print(io,"xspan: ")
   show(io,A.xspan)
-  show(io , A.u0)
+  println(io , "μ")
+  show(io , A.μ)
+  println(io,"Sigma")
+  show(io , A.sigma)
 end
  
 include("ode_solve.jl")
