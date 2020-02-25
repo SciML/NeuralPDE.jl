@@ -21,18 +21,23 @@ function DiffEqBase.solve(
     sigma = prob.sigma
     μ = prob.μ
     d = prob.d
+    ts = tspan[1]:dt:tspan[2]
+    N = size(ts)
     T = tspan[2]
     #hidden layer
     chain  = alg.chain
     opt    = alg.opt
 
     ps     = Flux.params(chain)
-    xi     = rand(Uniform(xspan[1] , xspan[2]), d , maxiters )
-    N = Normal(0 , sqrt(2. *T ))
-    x_sde = xi + μ(xi)*T + sigma(xi)*rand(N , d , maxiters)
+    xi     = rand(Uniform(xspan[1] , xspan[2]), d , N[1] )
+    #Finding Solution to the SDE having initial condition xi. Y = Phi(S(X , T))
+    sdeproblem = SDEProblem(μ,sigma,xi,tspan)
+    sol = solve(sdeproblem,EM(),dt=dt , saveat = T)
+    x_sde = sol[1]
+    println(x_sde)
     y = phi(x_sde)
     data   = Iterators.repeated((xi , y), maxiters)
-   
+
     #MSE Loss Function
     loss(x , y) =Flux.mse(chain(x), y)
  
