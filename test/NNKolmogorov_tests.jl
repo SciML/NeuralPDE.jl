@@ -1,4 +1,4 @@
-using Test, Flux, NeuralNetDiffEq
+using Test, Flux, NeuralNetDiffEq , StochasticDiffEq
 using DiffEqDevTools
 #Initial case for u(0 , x)
 function phi(xi)
@@ -16,12 +16,13 @@ tspan = (0.0 , 1.0)
 g(u , p , t) = 0.5
 f(u , p , t) = 0.5*0.25*u
 d = 1
+sdealg = EM()
 prob = KolmogorovPDEProblem(f , g, phi , tspan , xspan, d)
 opt = Flux.Descent(0.1)
 chain = Flux.Chain(Dense(1,128,tanh),Dense(128,256 ,tanh ) , Dense(256,128 ,tanh) ,
          Dense(128 , 1) )
-sol = solve(prob, NeuralNetDiffEq.NNKolmogorov(chain,opt), verbose = true, dt = 0.1,
-            abstol=1e-6, maxiters = 12)
+sol = solve(prob, NeuralNetDiffEq.NNKolmogorov(chain,opt , sdealg), verbose = true, dt = 0.1,
+            abstol=1e-6, maxiters = 8)
 
 function analytical(xi)
     y = Float64[]
