@@ -33,8 +33,7 @@ function DiffEqBase.solve(
     #Finding Solution to the SDE having initial condition xi. Y = Phi(S(X , T))
     sdeproblem = SDEProblem(μ,sigma,xi,tspan)
     sol = solve(sdeproblem,EM(),dt=dt , saveat = T)
-    x_sde = sol[1]
-    println(x_sde)
+    x_sde = sol[2]
     y = phi(x_sde)
     data   = Iterators.repeated((xi , y), maxiters)
 
@@ -48,5 +47,5 @@ function DiffEqBase.solve(
     end
     
     Flux.train!(loss, ps, data, opt; cb = cb)
-    chain(xi)
+    
  end #solve
