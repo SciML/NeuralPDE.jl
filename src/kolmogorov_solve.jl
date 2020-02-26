@@ -7,7 +7,7 @@ NNKolmogorov(chain  ; opt=Flux.ADAM(0.1)) = NNKolmogorov(chain , opt)
  
 function DiffEqBase.solve(
     prob::KolmogorovPDEProblem,
-    alg::NNKolmogorov;
+    alg::NeuralNetDiffEqAlgorithm;
     abstol = 1f-6,
     verbose = false,
     maxiters = 300,
@@ -47,5 +47,5 @@ function DiffEqBase.solve(
     end
     
     Flux.train!(loss, ps, data, opt; cb = cb)
-    
+    xi , chain(xi) 
  end #solve
