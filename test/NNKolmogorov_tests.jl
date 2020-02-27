@@ -37,7 +37,7 @@ end
 real_sol = analytical(sol[1])
 err = 0
 for (r , s) in zip(real_sol , sol[2] )
-    err  = ((r - s)^2 / s^2) + err
+    global err  = ((r - s)^2 / s^2) + err
 end
 errorl2 = err/size(sol[2])[2]
 println("error_l2 = ", errorl2, "\n")
