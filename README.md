@@ -201,7 +201,11 @@ Another was of defining a KolmogorovPDE is using the `KolmogorovPDEProblem`.
 KolmogorovPDEProblem(μ,σ,phi,tspan,xspan,d)
 ```
 
+<<<<<<< HEAD
 Here `phi` is the initial condition on u(t,x) when t = 0. `μ` and `σ` are obtained from the SDE for the stochastic process above. `d` represents the dimenstions of `x`.
+=======
+Here `phi` is the initial condition on u(t,x) when t = 0. `μ` and `σ` are obtained from the Feynman-Kac solution for the pde. `d` represents the dimenstion of uniformly distributed `x`
+>>>>>>> Improved Documentation
 
 To solve this problem use,
 
