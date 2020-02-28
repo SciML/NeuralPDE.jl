@@ -180,6 +180,22 @@ is parallel. It is based on the work of:
 
 [Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.](https://arxiv.org/pdf/physics/9705023.pdf)
 
+## Solving Kolmogorov Equations with Neural Networks
+
+For Kolmogorov Equations, a new equation can be defined using the `KolmogorovPDEProblem` with constructor 
+
+```julia
+KolmogorovPDEProblem(μ,σ,phi,tspan,xspan,d)
+```
+
+Here phi is the initial condition on u(t,x) when t = 0
+
+To solve this problem use,
+
+- `NNKolmogorov(chain, opt , sdealg)`: Uses a neural network to realise a regression function which is the solution for the linear Kolmogorov Equation.
+
+ Here, `chain` is a Flux.jl chain with `d` dimensional input and 1 dimensional output.`opt` is a Flux.jl optimizer. And `sdealg` is a high-order algorithm to calculate the solution for the SDE, which is used to define the learning data for the problem. Its default value is the classic Euler-Maruyama algorithm.
+
 ## Related Packages
 
 - [ReservoirComputing.jl](https://github.com/MartinuzziFrancesco/ReservoirComputing.jl) has an implementation of the [Echo State Network method](https://arxiv.org/pdf/1710.07313.pdf) for learning the attractor properties of a chaotic system.
