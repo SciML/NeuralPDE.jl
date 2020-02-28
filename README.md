@@ -188,7 +188,7 @@ For Kolmogorov Equations, a new equation can be defined using the `KolmogorovPDE
 KolmogorovPDEProblem(μ,σ,phi,tspan,xspan,d)
 ```
 
-Here phi is the initial condition on u(t,x) when t = 0
+Here `phi` is the initial condition on u(t,x) when t = 0. `μ` and `σ` are obtained from the Feynman-Kac solution for the pde. `d` represents the dimenstion of uniformly distributed `x`
 
 To solve this problem use,
 
