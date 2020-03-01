@@ -27,34 +27,32 @@ function DiffEqBase.solve(
     #hidden layer
     chain  = alg.chain
     opt    = alg.opt
-    ps     = Flux.params(chain)
-    data   = Iterators.repeated((), maxiters)
+    θ,re  = Flux.destructure(chain)
 
     #train points generation
     ts = tspan[1]:dt:tspan[2]
 
     #The phi trial solution
     if u0 isa Number
-        phi = t -> u0 + (t - tspan[1])*first(chain([t]))
+        phi = (t,θ) -> u0 + (t - tspan[1])*first(re(θ)([t]))
     else
-        phi = t -> u0 + (t - tspan[1])*chain([t])
+        phi = (t,θ) -> u0 + (t - tspan[1])*re(θ)([t])
     end
 
-    dfdx(t) = ForwardDiff.derivative(phi,t)
-    loss() = sum(abs2,sum(abs2,dfdx(t) - f(phi(t),p,t)) for t in ts)
+    dfdx(t,θ) = ForwardDiff.derivative(t->phi(t,θ),t)
+    loss(θ) = sum(abs2,sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t)) for t in ts)
 
-    cb = function ()
-        l = loss()
+    cb = function (p,l)
         verbose && println("Current loss is: $l")
-        l < abstol && Flux.stop()
+        l < abstol
     end
-    Flux.train!(loss, ps, data, opt; cb = cb)
+    res = DiffEqFlux.sciml_train(loss, θ, opt; cb = cb, maxiters=maxiters)
 
     #solutions at timepoints
     if u0 isa Number
-        u = [first(phi(t)) for t in ts]
+        u = [first(phi(t,res.minimizer)) for t in ts]
     else
-        u = [phi(t) for t in ts]
+        u = [phi(t,res.minimizer) for t in ts]
     end
 
     sol = DiffEqBase.build_solution(prob,alg,ts,u,calculate_error = false)
