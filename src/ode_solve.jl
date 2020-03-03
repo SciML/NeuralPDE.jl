@@ -1,8 +1,9 @@
 struct NNODE{C,O} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
+    autodiff::Bool
 end
-NNODE(chain;opt=Flux.ADAM(0.1)) = NNODE(chain,opt)
+NNODE(chain,opt=Flux.ADAM(0.1);autodiff=false) = NNODE(chain,opt,autodiff)
 
 function DiffEqBase.solve(
     prob::DiffEqBase.AbstractODEProblem,
@@ -27,19 +28,35 @@ function DiffEqBase.solve(
     #hidden layer
     chain  = alg.chain
     opt    = alg.opt
-    θ,re  = Flux.destructure(chain)
+    autodiff = alg.autodiff
 
     #train points generation
     ts = tspan[1]:dt:tspan[2]
 
-    #The phi trial solution
-    if u0 isa Number
-        phi = (t,θ) -> u0 + (t - tspan[1])*first(re(θ)([t]))
+    if chain isa FastChain
+        θ = DiffEqFlux.initial_params(chain)
+        #The phi trial solution
+        if u0 isa Number
+            phi = (t,θ) -> u0 + (t - tspan[1])*first(chain([t],θ))
+        else
+            phi = (t,θ) -> u0 + (t - tspan[1])*chain([t],θ)
+        end
     else
-        phi = (t,θ) -> u0 + (t - tspan[1])*re(θ)([t])
+        θ,re  = Flux.destructure(chain)
+        #The phi trial solution
+        if u0 isa Number
+            phi = (t,θ) -> u0 + (t - tspan[1])*first(re(θ)([t]))
+        else
+            phi = (t,θ) -> u0 + (t - tspan[1])*re(θ)([t])
+        end
     end
 
-    dfdx(t,θ) = ForwardDiff.derivative(t->phi(t,θ),t)
+    if autodiff
+        dfdx = (t,θ) -> ForwardDiff.derivative(t->phi(t,θ),t)
+    else
+        dfdx = (t,θ) -> (phi(t+sqrt(eps(t)),θ) - phi(t,θ))/(sqrt(eps(t)))
+    end
+
     loss(θ) = sum(abs2,sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t)) for t in ts)
 
     cb = function (p,l)
