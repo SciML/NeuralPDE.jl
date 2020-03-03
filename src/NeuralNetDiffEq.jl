@@ -4,7 +4,7 @@ using Reexport, Statistics
 @reexport using DiffEqBase
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff
 using DiffEqFlux
-import Tracker
+import Tracker, Optim
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 

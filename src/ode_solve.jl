@@ -3,7 +3,7 @@ struct NNODE{C,O} <: NeuralNetDiffEqAlgorithm
     opt::O
     autodiff::Bool
 end
-NNODE(chain,opt=Flux.ADAM(0.1);autodiff=false) = NNODE(chain,opt,autodiff)
+NNODE(chain,opt=Optim.BFGS();autodiff=false) = NNODE(chain,opt,autodiff)
 
 function DiffEqBase.solve(
     prob::DiffEqBase.AbstractODEProblem,
@@ -39,7 +39,7 @@ function DiffEqBase.solve(
         if u0 isa Number
             phi = (t,θ) -> u0 + (t - tspan[1])*first(chain([t],θ))
         else
-            phi = (t,θ) -> u0 + (t - tspan[1])*chain([t],θ)
+            phi = (t,θ) -> chain([t],θ)
         end
     else
         θ,re  = Flux.destructure(chain)
@@ -54,16 +54,23 @@ function DiffEqBase.solve(
     if autodiff
         dfdx = (t,θ) -> ForwardDiff.derivative(t->phi(t,θ),t)
     else
-        dfdx = (t,θ) -> (phi(t+sqrt(eps(t)),θ) - phi(t,θ))/(sqrt(eps(t)))
+        dfdx = (t,θ) -> (phi(t+sqrt(eps(t)),θ) - phi(t,θ))/sqrt(eps(t))
     end
 
-    loss(θ) = sum(abs2,sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t)) for t in ts)
+    function inner_loss(t,θ)
+        sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t))
+    end
+
+    loss(θ) = sum(abs2,phi(tspan[1],θ) - u0) + sum(abs2,inner_loss(t,θ) for t in ts)
 
     cb = function (p,l)
         verbose && println("Current loss is: $l")
         l < abstol
     end
     res = DiffEqFlux.sciml_train(loss, θ, opt; cb = cb, maxiters=maxiters)
+
+    @show phi(tspan[1],res.minimizer)
+    @show sum(abs2,phi(tspan[1],res.minimizer) - u0)
 
     #solutions at timepoints
     if u0 isa Number
