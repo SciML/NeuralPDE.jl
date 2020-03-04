@@ -1,6 +1,7 @@
 using Test, Flux, NeuralNetDiffEq, Optim
 using DiffEqDevTools
-
+using Random
+Random.seed!(100)
 # Run a solve on scalars
 linear = (u,p,t) -> cos(2pi*t)
 tspan = (0.0f0, 1.0f0)
@@ -29,7 +30,7 @@ sol = solve(prob, NeuralNetDiffEq.NNODE(chain,opt), dt=1/20f0, abstol=1e-10,
 linear = (u,p,t) -> @. t^3 + 2*t + (t^2)*((1+3*(t^2))/(1+t+(t^3))) - u*(t + ((1+3*(t^2))/(1+t+t^3)))
 linear_analytic = (u0,p,t) -> [exp(-(t^2)/2)/(1+t+t^3) + t^2]
 prob = ODEProblem(ODEFunction(linear,analytic=linear_analytic),[1f0],(0.0f0,1.0f0))
-chain = Flux.Chain(Dense(1,128,σ),Dense(128,1))
+chain = Flux.Chain(Dense(1,32,σ),Dense(32,1))
 opt = BFGS()
 sol  = solve(prob,NeuralNetDiffEq.NNODE(chain,opt),verbose = true, dt=1/5f0, maxiters=200)
 err = sol.errors[:l2]
@@ -51,7 +52,7 @@ chain = Flux.Chain(Dense(1,5,σ),Dense(5,1))
 opt = BFGS()
 sol  = solve(prob,NeuralNetDiffEq.NNODE(chain,opt),verbose = true, dt=1/5f0)
 err = sol.errors[:l2]
-sol  = solve(prob,NeuralNetDiffEq.NNODE(chain,opt),verbose = true, dt=1/20f0)
+sol  = solve(prob,NeuralNetDiffEq.NNODE(chain,opt),verbose = true, dt=1/50f0)
 @test sol.errors[:l2]/err < 0.5
 
 #=
