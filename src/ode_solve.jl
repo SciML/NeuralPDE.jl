@@ -1,10 +1,22 @@
-struct NNODE{C,O,K} <: NeuralNetDiffEqAlgorithm
+struct NNODE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
+    initθ::P
     autodiff::Bool
     kwargs::K
 end
-NNODE(chain,opt=Optim.BFGS();autodiff=false,kwargs...) = NNODE(chain,opt,autodiff,kwargs)
+function NNODE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
+    if init_params === nothing
+        if chain isa FastChain
+            initθ = DiffEqFlux.initial_params(chain)
+        else
+            initθ,re  = Flux.destructure(chain)
+        end
+    else
+        initθ = init_params
+    end
+    NNODE(chain,opt,initθ,autodiff,kwargs)
+end
 
 function DiffEqBase.solve(
     prob::DiffEqBase.AbstractODEProblem,
@@ -33,22 +45,22 @@ function DiffEqBase.solve(
 
     #train points generation
     ts = tspan[1]:dt:tspan[2]
+    initθ = alg.initθ
 
     if chain isa FastChain
-        initθ = DiffEqFlux.initial_params(chain)
         #The phi trial solution
         if u0 isa Number
-            phi = (t,θ) -> u0 + (t-tspan[1])*first(chain([t],θ))
+            phi = (t,θ) -> u0 + (t-tspan[1])*first(chain(adapt(typeof(θ),[t]),θ))
         else
-            phi = (t,θ) -> u0 + (t-tspan[1])*chain([t],θ)
+            phi = (t,θ) -> u0 + (t-tspan[1])*chain(adapt(typeof(θ),[t]),θ)
         end
     else
-        initθ,re  = Flux.destructure(chain)
+        _,re  = Flux.destructure(chain)
         #The phi trial solution
         if u0 isa Number
-            phi = (t,θ) -> u0 + (t-tspan[1])*first(re(θ)([t]))
+            phi = (t,θ) -> u0 + (t-tspan[1])*first(re(θ)(adapt(typeof(θ),[t])))
         else
-            phi = (t,θ) -> u0 + (t-tspan[1])*re(θ)([t])
+            phi = (t,θ) -> u0 + (t-tspan[1])*re(θ)(adapt(typeof(θ),[t]))
         end
     end
 
