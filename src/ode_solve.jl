@@ -69,15 +69,7 @@ function DiffEqBase.solve(
     else
         dfdx = (t,θ) -> (phi(t+sqrt(eps(t)),θ) - phi(t,θ))/sqrt(eps(t))
     end
-
-    #=
-    square_square(x) = x.^2
-    function loss(θ)
-        _dfdx_diff = square_square.(dfdx.(ts,(θ,)) .- f.(phi.(ts,(θ,)),(p,),ts))
-        sum(sum(_dfdx_diff))
-    end
-    =#
-
+    
     function inner_loss(t,θ)
         sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t))
     end
