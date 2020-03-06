@@ -20,6 +20,7 @@ Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
+Adapt = "1.0"
 DiffEqBase = "6"
 DiffEqFlux = "1.5"
 DiffEqSensitivity = "6.5"
