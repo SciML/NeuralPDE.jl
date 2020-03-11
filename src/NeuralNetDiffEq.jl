@@ -2,8 +2,10 @@ module NeuralNetDiffEq
 
 using Reexport, Statistics
 @reexport using DiffEqBase
-using Flux, Zygote, DiffEqSensitivity, Random
-import Tracker
+
+using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random
+using DiffEqFlux, Adapt
+import Tracker, Optim
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 
