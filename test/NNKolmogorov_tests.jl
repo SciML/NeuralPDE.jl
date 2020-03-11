@@ -13,16 +13,16 @@ end
 xspan = (-6.0 , 6.0)
 tspan = (0.0 , 1.0)
 #f = mu and g  = sigma
-g(u , p , t) = 0.5
+g(u , p , t) = 0.5*u
 f(u , p , t) = 0.5*0.25*u
 d = 1
 sdealg = EM()
-prob = KolmogorovPDEProblem(f , g, phi , tspan , xspan, d)
-opt = Flux.Descent(0.1)
-chain = Flux.Chain(Dense(1,128,tanh),Dense(128,256 ,tanh ) , Dense(256,128 ,tanh) ,
-         Dense(128 , 1) )
-sol = solve(prob, NeuralNetDiffEq.NNKolmogorov(chain,opt , sdealg), verbose = true, dt = 0.1,
-            abstol=1e-6, maxiters = 8)
+prob = KolmogorovPDEProblem(f , g, phi , xspan , tspan, d)
+opt = Flux.ADAM(0.01)
+m = Chain(Dense(1, 512, elu) , Dense(512 , 1024 , elu),Dense(1024 , 512 , elu), Dense(512 , 1))
+sol = solve(prob, NeuralNetDiffEq.NNKolmogorov(m,opt , sdealg), verbose = true, dt = 0.001,
+            abstol=1e-6, maxiters = 250)
+
 
 function analytical(xi)
     y = Float64[]
@@ -33,12 +33,9 @@ function analytical(xi)
     end
     y = reshape(y , size(xi)[1] , size(xi)[2] )
     return y
-end               
-real_sol = analytical(sol[1])
-err = 0
-for (r , s) in zip(real_sol , sol[2] )
-    global err  = ((r - s)^2 / s^2) + err
 end
-errorl2 = err/size(sol[2])[2]
+xs = xspan[1]:0.001:xspan[2]
+x_val = rand(xs , d , 50)
+errorl2 = Flux.mse(analytical(x_val) , m(x_val))
 println("error_l2 = ", errorl2, "\n")
-@test errorl2 < 0.5
+@test errorl2 < 0.3

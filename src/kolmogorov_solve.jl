@@ -2,7 +2,6 @@ struct NNKolmogorov{C,O,S} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
     sdealg::S
-   
 end
 NNKolmogorov(chain  ; opt=Flux.ADAM(0.1) , sdealg = EM()) = NNKolmogorov(chain , opt , sdealg)
  
@@ -35,7 +34,7 @@ function DiffEqBase.solve(
     xi     = rand(xs , d , N[1])
     #Finding Solution to the SDE having initial condition xi. Y = Phi(S(X , T))
     sdeproblem = SDEProblem(μ,sigma,xi,tspan)
-    sol = solve(sdeproblem, sdealg ,dt=dt , save_everystep=false , kwargs...)
+    sol = solve(sdeproblem, sdealg ,dt=0.01 , save_everystep=false , kwargs...)
     x_sde = sol[end]
     y = phi(x_sde)
     data   = Iterators.repeated((xi , y), maxiters)
