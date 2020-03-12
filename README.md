@@ -38,9 +38,9 @@ r = 0.05f0
 sigma = 0.4f0
 f(X,u,σᵀ∇u,p,t) = r * (u - sum(X.*σᵀ∇u))
 g(X) = sum(X.^2)
-μ(X,p,t) = zero(X) #Vector d x 1
-σ(X,p,t) = Diagonal(sigma*X.data) #Matrix d x d
-prob = TerminalPDEProblem(g, f, μ, σ, X0, tspan)
+μ_f(X,p,t) = zero(X) #Vector d x 1
+σ_f(X,p,t) = Diagonal(sigma*X.data) #Matrix d x d
+prob = TerminalPDEProblem(g, f, μ_f, σ_f, X0, tspan)
 ```
 
 As described in the API docs, we now need to define our `NNPDENS` algorithm
@@ -93,9 +93,9 @@ tspan = (0.0f0, 1.0f0)
 
 g(X) = log(0.5f0 + 0.5f0*sum(X.^2))
 f(X,u,σᵀ∇u,p,t) = -λ*sum(σᵀ∇u.^2)
-μ(X,p,t) = zero(X)  #Vector d x 1 λ
-σ(X,p,t) = Diagonal(sqrt(2.0f0)*ones(Float32,d)) #Matrix d x d
-prob = TerminalPDEProblem(g, f, μ, σ, X0, tspan)
+μ_f(X,p,t) = zero(X)  #Vector d x 1 λ
+σ_f(X,p,t) = Diagonal(sqrt(2.0f0)*ones(Float32,d)) #Matrix d x d
+prob = TerminalPDEProblem(g, f, μ_f, σ_f, X0, tspan)
 ```
 
 As described in the API docs, we now need to define our `NNPDENS` algorithm
@@ -137,7 +137,7 @@ To solve high dimensional PDEs, first one should describe the PDE in terms of
 the `TerminalPDEProblem` with constructor:
 
 ```julia
-TerminalPDEProblem(g,f,μ,σ,X0,tspan,p=nothing)
+TerminalPDEProblem(g,f,μ_f,σ_f,X0,tspan,p=nothing)
 ```
 
 which describes the semilinear parabolic PDE of the form:
@@ -158,7 +158,7 @@ To solve this PDE problem, there exists two algorithms:
   to the SDE solver.
 - `NNPDEHan(u0,σᵀ∇u;opt=Flux.ADAM(0.1))`: Uses the stochastic RNN algorithm
   [from Han](https://www.pnas.org/content/115/34/8505). Only applicable when
-  `μ` and `σ` result in a non-stiff SDE where low order non-adaptive time
+  `μ_f` and `σ_f` result in a non-stiff SDE where low order non-adaptive time
   stepping is applicable.
 
 Here, `u0` is a Flux.jl chain with `d` dimensional input and 1 dimensional output.
@@ -179,3 +179,7 @@ and optimizer to solve an ODE. This method is not particularly efficient, but
 is parallel. It is based on the work of:
 
 [Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.](https://arxiv.org/pdf/physics/9705023.pdf)
+
+## Related Packages
+
+- [ReservoirComputing.jl](https://github.com/MartinuzziFrancesco/ReservoirComputing.jl) has an implementation of the [Echo State Network method](https://arxiv.org/pdf/1710.07313.pdf) for learning the attractor properties of a chaotic system.

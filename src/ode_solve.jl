@@ -1,8 +1,22 @@
-struct NNODE{C,O} <: NeuralNetDiffEqAlgorithm
+struct NNODE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
+    initθ::P
+    autodiff::Bool
+    kwargs::K
 end
-NNODE(chain;opt=Flux.ADAM(0.1)) = NNODE(chain,opt)
+function NNODE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
+    if init_params === nothing
+        if chain isa FastChain
+            initθ = DiffEqFlux.initial_params(chain)
+        else
+            initθ,re  = Flux.destructure(chain)
+        end
+    else
+        initθ = init_params
+    end
+    NNODE(chain,opt,initθ,autodiff,kwargs)
+end
 
 function DiffEqBase.solve(
     prob::DiffEqBase.AbstractODEProblem,
@@ -27,38 +41,51 @@ function DiffEqBase.solve(
     #hidden layer
     chain  = alg.chain
     opt    = alg.opt
-    ps     = Flux.params(chain)
-    data   = Iterators.repeated((), maxiters)
+    autodiff = alg.autodiff
 
     #train points generation
     ts = tspan[1]:dt:tspan[2]
+    initθ = alg.initθ
 
-    #The phi trial solution
-    phi(t) = u0 .+ (t .- tspan[1]).*chain([t])
-
-    if u0 isa Number
-        dfdx = t -> (phi(t+sqrt(eps(typeof(dt)))) - phi(t)) / sqrt(eps(typeof(dt)))[1]
-        # ForwardDiff.gradient(t -> sum(phi(t)), t)[1]
-        loss = () -> sum(abs2,sum(abs2,dfdx(t) .- f(phi(t)[1],p,t)[1]) for t in ts)
+    if chain isa FastChain
+        #The phi trial solution
+        if u0 isa Number
+            phi = (t,θ) -> u0 + (t-tspan[1])*first(chain(adapt(typeof(θ),[t]),θ))
+        else
+            phi = (t,θ) -> u0 + (t-tspan[1])*chain(adapt(typeof(θ),[t]),θ)
+        end
     else
-        dfdx = t -> (phi(t+sqrt(eps(typeof(dt)))) - phi(t)) / sqrt(eps(typeof(dt)))
-        # ForwardDiff.jacobian(t -> sum(phi(t)), t)[1]
-        #loss function for training
-        loss = () -> sum(abs2,sum(abs2,dfdx(t) - f(phi(t),p,t)) for t in ts)
+        _,re  = Flux.destructure(chain)
+        #The phi trial solution
+        if u0 isa Number
+            phi = (t,θ) -> u0 + (t-tspan[1])*first(re(θ)(adapt(typeof(θ),[t])))
+        else
+            phi = (t,θ) -> u0 + (t-tspan[1])*re(θ)(adapt(typeof(θ),[t]))
+        end
     end
 
-    cb = function ()
-        l = loss()
-        verbose && println("Current loss is: $l")
-        l < abstol && Flux.stop()
+    if autodiff
+        dfdx = (t,θ) -> ForwardDiff.derivative(t->phi(t,θ),t)
+    else
+        dfdx = (t,θ) -> (phi(t+sqrt(eps(t)),θ) - phi(t,θ))/sqrt(eps(t))
     end
-    Flux.train!(loss, ps, data, opt; cb = cb)
+    
+    function inner_loss(t,θ)
+        sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t))
+    end
+    loss(θ) = sum(abs2,inner_loss(t,θ) for t in ts) # sum(abs2,phi(tspan[1],θ) - u0)
+
+    cb = function (p,l)
+        verbose && println("Current loss is: $l")
+        l < abstol
+    end
+    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters, alg.kwargs...)
 
     #solutions at timepoints
     if u0 isa Number
-        u = [phi(t)[1] for t in ts]
+        u = [first(phi(t,res.minimizer)) for t in ts]
     else
-        u = [phi(t) for t in ts]
+        u = [phi(t,res.minimizer) for t in ts]
     end
 
     sol = DiffEqBase.build_solution(prob,alg,ts,u,calculate_error = false)
