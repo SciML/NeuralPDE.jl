@@ -36,6 +36,7 @@ err2 = sqrt(sum((sol.u - [f_analytic(t)[1] for t in tspan[1]:1/20f0:tspan[2]]).^
 @test err2/err1 < 0.5
 
 
+#Example 3: Test on system of 2nd order ODEs
 function f(ddu, du, u, p, t)
 	ddu[1] = (-p[3]*u[1]-p[4]*(u[1]-u[2]))/p[1]
 	ddu[2] = (-p[4]*(u[2]-u[1]))/p[2]
