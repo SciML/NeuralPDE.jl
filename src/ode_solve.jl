@@ -40,7 +40,7 @@ function DiffEqBase.solve(
     verbose = false,
     maxiters = 100,
     do_growing_dt = false
-    do_random_kick = true
+    do_random_kick = true)
 
     DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
 
