@@ -77,7 +77,6 @@ function DiffEqBase.solve(
     end
     res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters, alg.kwargs...)
 
-    solutions at timepoints
     if u0 isa Number
         u = [first(phi(t,W.u,res.minimizer)) for (t , W) in zip(ts , Wg)]
     else
