@@ -14,7 +14,7 @@ chain = Chain(Dense(1,5,σ),Dense(5,1))
 opt = ADAM(1, (0.9, 0.95))
 sol = solve(prob, NeuralNetDiffEq.NNODE2(chain,opt), dt=dt, verbose = true, maxiters = 200)
 err = sqrt(sum((sol.u - [f_analytic(t)[1] for t in tspan[1]:dt:tspan[2]]).^2)[1])
-@test err< 0.1
+@test err< 0.5
 
 
 #Example 2: Test on vector
@@ -29,7 +29,7 @@ chain = Chain(Dense(1,5,σ),Dense(5,1))
 opt = ADAM(0.1, (0.9, 0.95))
 sol = solve(prob, NeuralNetDiffEq.NNODE2(chain,opt), dt=dt, verbose = true, maxiters = 300)
 err = sqrt(sum((sol.u - [f_analytic(t)[1] for t in tspan[1]:dt:tspan[2]]).^2)[1])
-@test err < 0.1
+@test err < 0.5
 
 
 #Example 3: Test on system of 2nd order ODEs
