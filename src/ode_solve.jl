@@ -74,7 +74,7 @@ function DiffEqBase.solve(
         sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t))
     end
     function loss(θ)
-        include_frac = .75
+        include_frac = .50
         sizeof = size(ts)[1]
         total = 0
         for t in 1:round(include_frac*sizeof, digits=0)
