@@ -69,11 +69,21 @@ function DiffEqBase.solve(
     else
         dfdx = (t,θ) -> (phi(t+sqrt(eps(t)),θ) - phi(t,θ))/sqrt(eps(t))
     end
-    
+
     function inner_loss(t,θ)
         sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t))
     end
-    loss(θ) = sum(abs2,inner_loss(t,θ) for t in ts) # sum(abs2,phi(tspan[1],θ) - u0)
+    function loss(θ)
+        include_frac = .75
+        sizeof = size(ts)[1]
+        total = 0
+        for t in 1:round(include_frac*sizeof, digits=0)
+            elem = convert(Int64, round(sizeof*rand(1)[1] + 0.5, digits=0))
+            total += inner_loss(ts[elem],θ)^2
+        end
+        return total
+    end
+
 
     cb = function (p,l)
         verbose && println("Current loss is: $l")
