@@ -14,7 +14,7 @@ sol = solve(prob, NeuralNetDiffEq.NNODE(chain,opt), dt=1/20f0, verbose = true,
 
 opt = BFGS()
 sol = solve(prob, NeuralNetDiffEq.NNODE(chain,opt), dt=1/20f0, verbose = true,
-            abstol=1e-10, maxiters = 200)
+            abstol=1e-10, maxiters = 200, stochastic_loss = false)
 
 # Run a solve on vectors
 linear = (u,p,t) -> [cos(2pi*t)]
