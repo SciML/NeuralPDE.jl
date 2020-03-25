@@ -4,7 +4,7 @@ using Reexport, Statistics
 @reexport using DiffEqBase
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random
-using DiffEqFlux, Adapt
+using DiffEqFlux, Adapt, DifferentialEquations, BlackBoxOptim
 import Tracker, Optim
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
@@ -42,7 +42,7 @@ struct KolmogorovPDEProblem{ Mu, Sigma, Phi, X , T , D ,P} <: DiffEqBase.DEProbl
     p::P
     KolmogorovPDEProblem( μ, sigma, phi , xspan , tspan , d, p=nothing) = new{typeof(μ),typeof(sigma),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p)}(μ,sigma,phi,xspan,tspan,d,p)
 end
- 
+
 Base.summary(prob::KolmogorovPDEProblem) = string(nameof(typeof(prob)))
 function Base.show(io::IO, A::KolmogorovPDEProblem)
   println(io,summary(A))
@@ -55,7 +55,7 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   println(io,"Sigma")
   show(io , A.sigma)
 end
- 
+
 include("ode_solve.jl")
 include("pde_solve.jl")
 include("pde_solve_ns.jl")

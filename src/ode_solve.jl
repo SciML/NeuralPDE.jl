@@ -1,3 +1,4 @@
+using DifferentialEquations, BlackBoxOptim
 struct NNODE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
@@ -28,7 +29,8 @@ function DiffEqBase.solve(
     adaptive=false,
     abstol = 1f-6,
     verbose = false,
-    maxiters = 100)
+    maxiters = 100,
+    blackbox = false)
 
     DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
 
@@ -73,23 +75,25 @@ function DiffEqBase.solve(
     function inner_loss(t,θ)
         sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t))
     end
-    function loss(θ)
-        include_frac = .50
-        sizeof = size(ts)[1]
-        total = 0
-        for t in 1:round(include_frac*sizeof, digits=0)
-            elem = convert(Int64, round(sizeof*rand(1)[1] + 0.5, digits=0))
-            total += inner_loss(ts[elem],θ)^2
-        end
-        return total
-    end
+    loss(θ) = sum(abs2,inner_loss(t,θ) for t in ts) # sum(abs2,phi(tspan[1],θ) - u0)
 
+    function predict_rd(p)
+      Array(concrete_solve(prob,Tsit5(),u0,p,saveat=0.1,reltol=1e-4))
+    end
+    function loss_rd(p)
+      convert(Float64, sum(abs2,x-1 for x in predict_rd(p)))
+    end
 
     cb = function (p,l)
         verbose && println("Current loss is: $l")
         l < abstol
     end
-    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters, alg.kwargs...)
+
+    if blackbox
+        res = DiffEqFlux.sciml_train(loss_rd, :adaptive_de_rand_1_bin, lower_bounds = [0.0 for i in 1:4], upper_bounds = [5.0 for i in 1:4], cb = cb)
+    else
+        res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters, alg.kwargs...)
+    end
 
     #solutions at timepoints
     if u0 isa Number
