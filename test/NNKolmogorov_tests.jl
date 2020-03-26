@@ -2,30 +2,74 @@ using Test, Flux, NeuralNetDiffEq , StochasticDiffEq
 using DiffEqDevTools
 using Distributions
 
-u0 = 0
-xspan = (-1.0 , 1.0)
+
+##Using SDEProblem for the Algorithm.
+#For a diract delta take u0 = Normal(0 , sigma) where sigma --> 0
+u0 = Normal(0 , 1)
+xspan = (-10.0 , 10.0)
 tspan = (0.0 , 1.0)
 g(u , p , t) = 1
 f(u , p , t) = 0
 d = 1
 sdealg = EM()
 prob = SDEProblem(f , g , u0 , (0.0 , 1.0) ; xspan = xspan , d = d)
-opt = Flux.ADAM(0.01)
-m = Chain(Dense(1, 512, elu) , Dense(512 , 1024 , elu),Dense(1024 , 512 , elu), Dense(512 , 1))
+opt = Flux.ADAM(0.0001)
+m = Chain(Dense(1, 256, elu) ,Dense(256 , 512 , elu), Dense(512 , 1))
 sol = solve(prob, NeuralNetDiffEq.NNKolmogorov(m,opt , sdealg), verbose = true, dt = 0.001,
-            abstol=1e-6, maxiters = 6)
-T = tspan[2]
-function analytical(xi)
+            abstol=1e-6, maxiters = 1600)
+using Plots
+xs = xspan[1]:0.001:xspan[2]
+x_val = collect(xs)
+x_val= reshape(x_val , 1 , size(x_val)[1])
+y_val = m(x_val)
+y_val = reshape(y_val , 20001 , 1)
+x_val = collect(xs)
+plot(x_val , y_val)
+plot!(x_val , analytical(x_val))
+## The solution is obtained taking the Fourier Transform.
+analytical(xi) = pdf.(Normal(0 , 1.414) , xi)
+##Validation
+x_1 = rand(xs , 1 , 1000)
+err_l2 = Flux.mse(analytical(x_1) , m(x_1))
+@test err_l2 < 0.01
+##
+
+##Using the KolmogorovPDEProblem.
+function phi(xi)
     y = Float64[]
-    div = 1/sqrt(2*pi)
     for x in xi
-        y = push!(y , div*(exp(-(x^2)/2)))
+        y = push!(y , 1.77*x -0.015*x^3)
     end
     y = reshape(y , size(xi)[1] , size(xi)[2] )
     return y
 end
-xs = xspan[1]:0.001:xspan[2]
-x_val = rand(xs , d , 50)
-errorl2 = Flux.mse(analytical(x_val) , m(x_val))
+
+xspan2 = (-6.0 , 6.0)
+tspan2 = (0.0 , 1.0)
+#f = mu and g  = sigma
+g2(u , p , t) = 0.5*u
+f2(u , p , t) = 0.5*0.25*u
+d2 = 1
+sdealg2 = EM()
+prob2 = KolmogorovPDEProblem(f2 , g2, phi , xspan2 , tspan2, d2)
+opt2 = Flux.ADAM(0.01)
+m2 = Chain(Dense(1, 512, elu) , Dense(512 , 1024 , elu),Dense(1024 , 512 , elu), Dense(512 , 1))
+sol = solve(prob2, NeuralNetDiffEq.NNKolmogorov(m2,opt2 , sdealg2), verbose = true, dt = 0.001,
+            abstol=1e-6, maxiters = 270)
+
+
+function analytical2(xi)
+    y = Float64[]
+    a = 1.77*exp(0.5*(0.5)^2*1.0)
+    b = -0.015*exp(0.5*(0.5*3)^2*1.0)
+    for x in xi
+        y = push!(y , a*x + b*x^3)
+    end
+    y = reshape(y , size(xi)[1] , size(xi)[2] )
+    return y
+end
+xs2 = xspan2[1]:0.001:xspan2[2]
+x_val2 = rand(xs2 , d2 , 50)
+errorl2 = Flux.mse(analytical2(x_val2) , m2(x_val2))
 println("error_l2 = ", errorl2, "\n")
 @test errorl2 < 0.3
