@@ -110,11 +110,11 @@ function DiffEqBase.solve(
     else
         dfdt = (x,t,θ) -> (phi(x,t+cbrt(eps(t)),θ) - phi(x,t,θ))/cbrt(eps(t))
         dfdx = (x,t,θ) -> (phi(x+cbrt(eps(x)),t,θ) - phi(x,t,θ))/cbrt(eps(x))
+        epsilon(dv) = cbrt(eps(typeof(dv)))
+        #second order central
+        dfdtt = (x,t,θ) -> (phi(x,t+epsilon(dt),θ) - 2phi(x,t,θ) + phi(x,t-epsilon(dt),θ))/epsilon(dt)^2
+        dfdxx = (x,t,θ) -> (phi(x+epsilon(dx),t,θ) - 2phi(x,t,θ) + phi(x-epsilon(dx),t,θ))/epsilon(dx)^2
     end
-
-    #numerical second order
-    dfdtt= (x,t,θ) -> (phi(x,t+cbrt(eps(t)),θ) - 2phi(x,t,θ) + phi(x,t-cbrt(eps(t)),θ))/cbrt(eps(t))^2
-    dfdxx = (x,t,θ) -> (phi(x+cbrt(eps(x)),t,θ) - 2phi(x,t,θ) + phi(x-cbrt(eps(x)),t,θ))/cbrt(eps(x))^2
 
     #loss function for pde equation
     function inner_loss_domain(x,t,θ)
