@@ -2,18 +2,24 @@ using Test, Flux,Optim#, NeuralNetDiffEq
 using DiffEqDevTools
 using Random
 using DiffEqFlux
-# using ModelingToolkit, DiffEqOperators, DiffEqBase, LinearAlgebra
-using Plots
 
-Random.seed!(100)
+using Plots
+using Adapt
 
 dfdt = (x,t,θ) -> (phi(x,t+sqrt(eps(t)),θ) - phi(x,t,θ))/sqrt(eps(t))
 dfdx = (x,t,θ) -> (phi(x+sqrt(eps(x)),t,θ) - phi(x,t,θ))/sqrt(eps(x))
-phi = (x,t,θ) -> first(chain([x;t],θ))
+# epsilon(val) = cbrt(eps(val))
+dfdtt= (x,t,θ) -> (phi(x,t+cbrt(eps(t)),θ) - 2phi(x,t,θ) + phi(x,t-cbrt(eps(t)),θ))/cbrt(eps(t))^2
+dfdxx = (x,t,θ) -> (phi(x+cbrt(eps(x)),t,θ) - 2phi(x,t,θ) + phi(x-cbrt(eps(x)),t,θ))/cbrt(eps(x))^2
 
-Example 1  du/dt = -3du/dx
-tspan =(0.f0,2.0f0)
-xspan = (0.0f0,2.0f0)
+# initθ,re  = Flux.destructure(chain)
+# phi = (x,t,θ) -> first(re(θ)(adapt(typeof(θ),collect([x;t]))))
+initθ = DiffEqFlux.initial_params(chain)
+phi = (x,t,θ) -> first(chain(adapt(typeof(θ),collect([x;t])),θ))
+
+## Example 1  du/dt = -3du/dx
+tspan =(0.f0,1.0f0)
+xspan = (0.0f0,1.0f0)
 dt= 0.2f0
 dx =0.1f0
 xs = xspan[1]:dx:xspan[end]
@@ -26,31 +32,29 @@ end
 linear_analytic(x,t) = (x - 3*t)*exp(-(x-3*t)^2)
 boundary_cond_func(x) = x*exp(-x^2) #u(0,x)
 
-opt = Flux.ADAM(0.1)
-# chain = Chain(Dense(2,16,Flux.σ),Dense(16,1))
-chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,1))
+opt = BFGS()
+# opt = Flux.ADAM(0.1)
+# chain = Chain(Dense(2,32,Flux.tanh),Dense(32,1))
+chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-u_0 = @. boundary_cond_func(xs)
-un = @. linear_analytic(xs,ts[end])
-boundary_conditions = [u_0, un]
+boundary_conditions = boundary_cond_func.(xs)
+initial_conditions = [linear_analytic.(xs[1],ts), linear_analytic.(xs[end],ts)]
 
-prob = NeuralNetDiffEq.GeneranNNPDEProblem(pde_func,boundary_conditions,tspan, xspan, dt, dx)
+prob = NeuralNetDiffEq.GeneranNNPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan, xspan, dt, dx)
 alg = NeuralNetDiffEq.NNGeneralPDE(chain,opt,autodiff=false)
-u  = NeuralNetDiffEq.solve(prob,alg,verbose = true, maxiters=5000)
+u, phi ,res = NeuralNetDiffEq.solve(prob,alg,verbose = true, maxiters=20000)
 
 u_real = [[linear_analytic(x,t)  for x in xs ] for t in ts ]
 
 x_plot = [x for x in xs]
 plot(x_plot ,u)
 plot!(x_plot ,u_real)
-plot!(x_plot ,u_0)
 
-
-# #exmaple 2 t*du/dx + x du/dt = 0
-tspan =(0.f0,2.0f0)
+##exmaple 2 t*du/dx + x du/dt = 0
+tspan =(0.f0,0.5f0)
 xspan = (0.f0,2.0f0)
-dt= 1.0f0
-dx =0.1f0
+dt= 0.1f0
+dx =0.2f0
 xs = xspan[1]:dx:xspan[end]
 ts = tspan[1]:dt:tspan[end]
 
@@ -60,33 +64,33 @@ end
 
 linear_analytic(x,t) = x^2 +t^2
 boundary_cond_func(x) = x^2 #u(0,x)
+initial_condition_func(t) = t^2
 
-opt = Flux.ADAM(0.1)
-# chain = Chain(Dense(2,16,Flux.σ),Dense(16,1))
-chain = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
+# opt = BFGS()
+opt = Flux.ADAM(0.01)
+# chain = Chain(Dense(2,32,Flux.σ),Dense(32,1))
+chain = FastChain(FastDense(2,32,Flux.σ),FastDense(32,32,Flux.σ),FastDense(32,1))
 
-u_0 = @. boundary_cond_func(xs)
-un = @. linear_analytic(xs,ts[end])
-boundary_conditions = [u_0, un]
+boundary_conditions = boundary_cond_func.(xs)
+initial_conditions = [linear_analytic.(xs[1],ts) , linear_analytic.(xs[end],ts)]
 
-prob = NeuralNetDiffEq.GeneranNNPDEProblem(pde_func,boundary_conditions,tspan, xspan, dt, dx)
+prob = NeuralNetDiffEq.GeneranNNPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan, xspan, dt, dx)
 alg = NeuralNetDiffEq.NNGeneralPDE(chain,opt,autodiff=false)
-u  = NeuralNetDiffEq.solve(prob,alg,verbose = true, maxiters=5000)
-
+u, phi ,res = NeuralNetDiffEq.solve(prob,alg,verbose = true, abstol = 1f-7, maxiters=10000)
 u_real = [[linear_analytic(x,t)  for x in xs ] for t in ts ]
 
 x_plot = [x for x in xs]
 plot(x_plot ,u)
 plot!(x_plot ,u_real)
 
-
-#example 3
+##example 3  5*du/dt + du/dx = x
 tspan =(0.f0,1.0f0)
-xspan = (0.f0,2.0f0)
-dt= 0.5f0
-dx =0.1f0
+xspan = (0.f0,1.5f0)
+dt= 0.2f0
+dx =0.075f0
 xs = xspan[1]:dx:xspan[end]
 ts = tspan[1]:dt:tspan[end]
+
 p = [5.0f0]
 function pde_func(x,t,θ)
     5.0f0 * dfdt(x,t,θ) + dfdx(x,t,θ) - x
@@ -95,21 +99,80 @@ end
 linear_analytic(x,t) = x^2/2 +sin(2pi*(5x -t)/5) - (5*x-t)^2/50
 boundary_cond_func(x) = sin(2pi*x) #u(0,x)
 
-
-opt = Flux.ADAM(0.1)
+# opt = BFGS()
+opt = Flux.ADAM(0.01)
 # chain = Chain(Dense(2,16,Flux.σ),Dense(16,1))
-chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,1))
+chain = FastChain(FastDense(2,32,Flux.σ),FastDense(32,32,Flux.σ),FastDense(32,1))
 
-u_0 = @. boundary_cond_func(xs)
-un = @. linear_analytic(xs,ts[end])
-boundary_conditions = [u_0, un]
+boundary_conditions = boundary_cond_func.(xs)
+initial_conditions = [linear_analytic.(xs[1],ts) , linear_analytic.(xs[end],ts)]
 
-prob = NeuralNetDiffEq.GeneranNNPDEProblem(pde_func,boundary_conditions,tspan, xspan, dt, dx)
+prob = NeuralNetDiffEq.GeneranNNPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan, xspan, dt, dx)
 alg = NeuralNetDiffEq.NNGeneralPDE(chain,opt,autodiff=false)
-u  = NeuralNetDiffEq.solve(prob,alg,verbose = true, maxiters=5000)
+u,phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, abstol=1f-20, maxiters=4000)
 
 u_real = [[linear_analytic(x,t)  for x in xs ] for t in ts ]
 
 x_plot = [x for x in xs]
 plot(x_plot ,u)
 plot!(x_plot ,u_real)
+
+
+##example 4 second order
+# tspan =(0.f0,0.2f0)
+# xspan = (0.f0,1.0f0)
+# dt= 0.1f0
+# dx =0.1f0
+# xs = xspan[1]:dx:xspan[end]
+# ts = tspan[1]:dt:tspan[end]
+#
+# function pde_func(x,t,θ)
+#     1.1f0*dfdt(x,t,θ) - dfdxx(x,t,θ)
+# end
+#
+# boundary_cond_func(x) = -x * (x-1) * sin(x)
+#
+# # opt = BFGS()
+# opt = Flux.ADAM(0.1)
+# # chain = Chain(Dense(2,32,Flux.σ),Dense(32,1))
+# chain = FastChain(FastDense(2,32,Flux.σ),FastDense(32,1))
+#
+# boundary_conditions = boundary_cond_func.(xs)
+# initial_conditions = [fill(0.0f0, length(ts)), fill(0.0f0, length(ts))] #u(t,0) ~ 0, u(t,1) ~ 0
+#
+# prob_NN = NeuralNetDiffEq.GeneranNNPDEProblem(pde_func,
+#                                               boundary_conditions,
+#                                               initial_conditions,
+#                                               tspan, xspan, dt, dx)
+# alg = NeuralNetDiffEq.NNGeneralPDE(chain,opt,autodiff=false)
+# u_nn,phi,res  = NeuralNetDiffEq.solve(prob_NN,alg,verbose = true,abstol=1f-20, maxiters=1000)
+# x_plot = [x for x in xs]
+# plot(x_plot, u_nn[1])
+# plot!(x_plot, u_nn[2])
+# plot!(x_plot, u_nn[3])
+# plot!(x_plot, u_nn[4])
+#
+# using ModelingToolkit, DiffEqOperators, DiffEqBase, LinearAlgebra
+# # Define some variables
+# @parameters t x
+# @variables u(..)
+# @derivatives Dt'~t
+# @derivatives Dxx''~x
+# eq  = Dt(u(t,x)) ~ Dxx(u(t,x))
+# bcs = [u(0,x) ~ - x * (x-1) * sin(x),
+#            u(t,0) ~ 0, u(t,1) ~ 0]
+#
+# domains = [t ∈ IntervalDomain(0.0,1.0),
+#            x ∈ IntervalDomain(0.0,1.0)]
+#
+# pdesys = PDESystem(eq,bcs,domains,[t,x],[u])
+# discretization = MOLFiniteDifference(0.1)
+# prob = discretize(pdesys,discretization) # This gives an ODEProblem since it's time-dependent
+#
+# using OrdinaryDiffEq
+# sol = solve(prob,Tsit5(),saveat=0.25)
+#
+# plot!(prob.space,Array(prob.extrapolation*sol[1]))
+# plot!(prob.space,Array(prob.extrapolation*sol[2]))
+# plot!(prob.space,Array(prob.extrapolation*sol[3]))
+# plot!(prob.space,Array(prob.extrapolation*sol[4]))

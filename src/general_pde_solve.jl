@@ -52,7 +52,7 @@ function DiffEqBase.solve(
     pde_func = prob.pde_func
     p = prob.p
     boundary_conditions = prob.boundary_conditions
-
+    initial_conditions = prob.initial_conditions
 
     #hidden layer
     chain  = alg.chain
@@ -65,30 +65,40 @@ function DiffEqBase.solve(
     ts = tspan[1]:dt:tspan[2]
     xs = xspan[1]:dx:xspan[2]
 
-    #domain points
-    dom_ts = ts[2:end-1]
+    dom_ts = ts[2:end]
+    dom_xs = xs[2:end-1]
+
+    #boundary points
+    bound_ts = fill(ts[1],length(xs))
     #initial points
-    bound_ts = [ts[1];ts[end]]
+    init_xs = [fill(xs[1],length(ts)),fill(xs[end],length(ts))]
+
+    #train sets
+    train_bound_set = [(x, bound_t,bound_cond) for (x,bound_t,bound_cond) in zip(xs,bound_ts,boundary_conditions)]
+    train_domain_set = [(x,t) for x in dom_ts for t in dom_ts]
+    train_initial_set1 = [(init_x, t,  init_cond) for (init_x, t, init_cond)  in zip(init_xs[1], ts, initial_conditions[1])][2:end]
+    train_initial_set2 = [(init_x, t, init_cond) for (init_x, t, init_cond)  in zip(init_xs[2], ts, initial_conditions[2])][2:end]
 
     # coefficients for loss function
-    τb = length(boundary_conditions)
-    τf = length(ts)*length(xs)
+    τb = length(train_bound_set)
+    τi = length(train_initial_set1)+length(train_initial_set2)
+    τf = length(train_domain_set)
 
     if chain isa FastChain
         initθ = DiffEqFlux.initial_params(chain)
         #The phi trial solution
         if isuinplace
-            phi = (x,t,θ) -> first(chain([x;t],θ))
+            phi = (x,t,θ) -> first(chain(adapt(typeof(θ),collect([x;t])),θ))
         else
-            phi = (x,t,θ) -> chain([x;t],θ)
+            phi = (x,t,θ) -> chain(adapt(typeof(θ),collect([x;t])),θ)
         end
     else
         initθ,re  = Flux.destructure(chain)
         #The phi trial solution
         if isuinplace
-            phi = (x,t,θ) -> first(re(θ)([x;t]))
+            phi = (x,t,θ) -> first(re(θ)(adapt(typeof(θ),collect([x;t]))))
         else
-            phi = (x,t,θ) -> re(θ)([x;t])
+            phi = (x,t,θ) -> re(θ)(adapt(typeof(θ),collect([x;t])))
         end
     end
 
@@ -98,35 +108,43 @@ function DiffEqBase.solve(
         # dfdt = (x,t,θ;xt=[x, t]) -> ForwardDiff.gradient(xt->phi(xt[1],xt[2],θ),xt)[2]
         # dfdx = (x,t,θ;xt=[x, t]) -> ForwardDiff.gradient(xt->phi(xt[1],xt[2],θ),xt)[1]
     else
-        dfdt = (x,t,θ) -> (phi(x,t+sqrt(eps(t)),θ) - phi(x,t,θ))/sqrt(eps(t))
-        dfdx = (x,t,θ) -> (phi(x+sqrt(eps(x)),t,θ) - phi(x,t,θ))/sqrt(eps(x))
+        dfdt = (x,t,θ) -> (phi(x,t+cbrt(eps(t)),θ) - phi(x,t,θ))/cbrt(eps(t))
+        dfdx = (x,t,θ) -> (phi(x+cbrt(eps(x)),t,θ) - phi(x,t,θ))/cbrt(eps(x))
     end
 
     #numerical second order
-    dfdtt= (x,t,θ) -> (phi(x,t+epsilon(t),θ) .- 2phi(x,t,θ) .+ phi(x,t-epsilon(t),θ))/epsilon(t)^2
-    dfdxx = (x,t,θ) -> (phi(x+epsilon(x),t,θ) .- 2phi(x,t,θ) .+ phi(x-epsilon(x),t,θ))/epsilon(x)^2
+    dfdtt= (x,t,θ) -> (phi(x,t+cbrt(eps(t)),θ) - 2phi(x,t,θ) + phi(x,t-cbrt(eps(t)),θ))/cbrt(eps(t))^2
+    dfdxx = (x,t,θ) -> (phi(x+cbrt(eps(x)),t,θ) - 2phi(x,t,θ) + phi(x-cbrt(eps(x)),t,θ))/cbrt(eps(x))^2
 
     #loss function for pde equation
     function inner_loss_domain(x,t,θ)
         sum(abs2,pde_func(x,t,θ))
     end
+    # rxs = collect(rand(xs[1]:dx:xs[end],length(xs)))
+    # rts = collect(rand(ts[1]:dt:ts[end],length(ts)))
 
     function loss_domain(θ)
-        sum(abs2,inner_loss_domain(x,t,θ) for x in xs for t in ts)
+        sum(abs2,inner_loss_domain(x,t,θ) for x in dom_xs, t in dom_ts)
+    end
+
+    #Dirichlet boundary
+    function inner_loss(x,t,θ,cond)
+        sum(abs2,phi(x,t,θ) - cond)
     end
 
     #loss function for boundary condiiton
-    #Dirichlet boundary
-    function inner_loss_boundary(x,t,θ,bc)
-        sum(abs2, phi(x,t,θ) - bc)
-    end
     function loss_boundary(θ)
-       loss_one_boundary(bound_t,bound_cond) = sum(abs2,inner_loss_boundary(x, bound_t, θ, bc) for (x, bc) in zip(xs,bound_cond))
-       sum(abs2,loss_one_boundary(bound_t,bound_cond) for (bound_t, bound_cond) in zip(bound_ts,boundary_conditions))
+       sum(abs2,inner_loss(x, bound_t,θ,bound_cond) for (x,bound_t,bound_cond) in train_bound_set)
+    end
+
+    #loss function for initial condiiton
+    function loss_initial(θ)
+        (sum(abs2,inner_loss(init_x,t,θ,init_cond) for (init_x,t,init_cond) in train_initial_set1)+
+        sum(abs2,inner_loss(init_x,t,θ,init_cond) for (init_x,t,init_cond) in train_initial_set2))
     end
 
     #loss function for training
-    loss(θ) = 1/τb * loss_boundary(θ) + 1/τf * loss_domain(θ)
+    loss(θ) = 1.0f0/τf * loss_domain(θ) + 1.0f0/τb * loss_boundary(θ) + 1.0f0/τi * loss_initial(θ)
 
     cb = function (p,l)
         verbose && println("Current loss is: $l")
@@ -144,5 +162,5 @@ function DiffEqBase.solve(
     # sol = DiffEqBase.build_solution(prob,alg,ts,u,calculate_error = false)
     # DiffEqBase.has_analytic(prob.f) && DiffEqBase.calculate_solution_errors!(sol;timeseries_errors=true,dense_errors=false)
     # sol
-    u
+    u, phi ,res
 end #solve

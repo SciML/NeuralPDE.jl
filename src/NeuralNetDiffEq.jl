@@ -56,20 +56,22 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.sigma)
 end
 
-struct GeneranNNPDEProblem{PF,BC,T,X,DT,DX,P} <:DiffEqBase.DEProblem
+struct GeneranNNPDEProblem{PF,BC,IC,T,X,DT,DX,P} <:DiffEqBase.DEProblem
   pde_func::PF
   boundary_conditions::BC
+  initial_conditions::IC
   tspan::Tuple{T,T}
   xspan::Tuple{X,X}
   dt::DT
   dx::DX
   p::P
-  GeneranNNPDEProblem(pde_func,boundary_conditions,tspan,xspan,dt,dx,p=nothing) = new{
-                                                       typeof(pde_func),typeof(boundary_conditions),
+  GeneranNNPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan,xspan,dt,dx,p=nothing) = new{
+                                                       typeof(pde_func),
+                                                       typeof(boundary_conditions),typeof(initial_conditions),
                                                        eltype(tspan), eltype(xspan),
                                                        typeof(dt),typeof(dx),
                                                        typeof(p)}(
-                                                       pde_func,boundary_conditions,tspan,xspan,dt,dx,p)
+                                                       pde_func,boundary_conditions,initial_conditions,tspan,xspan,dt,dx,p)
 end
 Base.summary(prob::GeneranNNPDEProblem) = string(nameof(typeof(prob)))
 
@@ -87,9 +89,9 @@ include("general_ode_solve.jl")
 include("general_pde_solve.jl")
 
 
-export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, 
+export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
         KolmogorovPDEProblem, NNKolmogorov, NNGenODE, NNGeneralPDE, GeneranNNPDEProblem
 
-       
+
 
 end # module
