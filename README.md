@@ -147,7 +147,7 @@ which describes the semilinear parabolic PDE of the form:
 with terminating condition `u(tspan[2],x) = g(x)`. These methods solve the PDE in
 reverse, satisfying the terminal equation and giving a point estimate at
 `u(tspan[1],X0)`. The dimensionality of the PDE is determined by the choice
-of `X0`, which is the initial stochastic state. 
+of `X0`, which is the initial stochastic state.
 
 To solve this PDE problem, there exists two algorithms:
 
@@ -182,6 +182,7 @@ is parallel. It is based on the work of:
 
 ## Solving Kolmogorov Equations with Neural Networks
 
+<<<<<<< HEAD
 A Kolmogorov PDE is of the form :
 ![](https://raw.githubusercontent.com/ashutosh-b-b/Kolmogorv-Equations-Notebook/master/KolmogorovPDEImages/KolmogorovPDE.png)
 Considering S  be a solution process to the SDE
@@ -206,6 +207,22 @@ Here `phi` is the initial condition on u(t,x) when t = 0. `μ` and `σ` are obta
 =======
 Here `phi` is the initial condition on u(t,x) when t = 0. `μ` and `σ` are obtained from the Feynman-Kac solution for the pde. `d` represents the dimenstion of uniformly distributed `x`
 >>>>>>> Improved Documentation
+=======
+For Kolmogorov Equations, a new equation can be defined using the `KolmogorovPDEProblem` with constructor
+```julia
+SDEProblem(f , g , u0 , tspan ; xspan = xspan , d = d)
+```
+Here `u0` is a distribution. That can be defined using the package `Distributions.jl`.
+```julia
+u0 = Normal(μ_i,σ_i)
+```
+`f` and `g` are obtained from the Feynman-Kac solution for the pde. `d` represents the dimenstions of x.
+or using the standard `KolmogorovPDEProblem`
+```julia
+KolmogorovPDEProblem(μ,σ,phi,tspan,xspan,d)
+```
+Here `phi` is the initial condition on u(t,x) when t = 0.
+>>>>>>> Changed readme to include SDEProblem
 
 To solve this problem use,
 
