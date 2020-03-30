@@ -17,8 +17,9 @@ opt = Flux.ADAM(0.0001)
 m = Chain(Dense(1, 256, elu) ,Dense(256 , 512 , elu), Dense(512 , 1))
 sol = solve(prob, NeuralNetDiffEq.NNKolmogorov(m,opt , sdealg), verbose = true, dt = 0.001,
             abstol=1e-6, maxiters = 1600)
+
+xs = xspan[1]:0.001:xspan[2]
 # using Plots
-# xs = xspan[1]:0.001:xspan[2]
 # x_val = collect(xs)
 # x_val= reshape(x_val , 1 , size(x_val)[1])
 # y_val = m(x_val)
