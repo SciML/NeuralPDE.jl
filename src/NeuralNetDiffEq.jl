@@ -42,7 +42,7 @@ struct KolmogorovPDEProblem{ Mu, Sigma, Phi, X , T , D ,P} <: DiffEqBase.DEProbl
     p::P
     KolmogorovPDEProblem( μ, sigma, phi , xspan , tspan , d, p=nothing) = new{typeof(μ),typeof(sigma),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p)}(μ,sigma,phi,xspan,tspan,d,p)
 end
- 
+
 Base.summary(prob::KolmogorovPDEProblem) = string(nameof(typeof(prob)))
 function Base.show(io::IO, A::KolmogorovPDEProblem)
   println(io,summary(A))
@@ -80,6 +80,32 @@ function Base.show(io::IO, A::GeneranNNPDEProblem)
   print(io,"timespan: ")
   show(io,A.tspan)
 end
+struct GeneranNNTwoDimPDEProblem{PF,BC,IC,T,X,Y,DT,DX,DY,P} <:DiffEqBase.DEProblem
+  pde_func::PF
+  boundary_conditions::BC
+  initial_conditions::IC
+  tspan::Tuple{T,T}
+  xspan::Tuple{X,X}
+  yspan::Tuple{Y,Y}
+  dt::DT
+  dx::DX
+  dy::DX
+  p::P
+  GeneranNNTwoDimPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan,xspan,yspan,dt,dx,dy,p=nothing) = new{
+                                                       typeof(pde_func),
+                                                       typeof(boundary_conditions),typeof(initial_conditions),
+                                                       eltype(tspan), eltype(xspan),eltype(yspan),
+                                                       typeof(dt),typeof(dx),typeof(dy),
+                                                       typeof(p)}(
+                                                       pde_func,boundary_conditions,initial_conditions,tspan,xspan,yspan,dt,dx,dy,p)
+end
+Base.summary(prob::GeneranNNTwoDimPDEProblem) = string(nameof(typeof(prob)))
+
+function Base.show(io::IO, A::GeneranNNTwoDimPDEProblem)
+  println(io,summary(A))
+  print(io,"timespan: ")
+  show(io,A.tspan)
+end
 
 include("ode_solve.jl")
 include("pde_solve.jl")
@@ -87,10 +113,11 @@ include("pde_solve_ns.jl")
 include("kolmogorov_solve.jl")
 include("general_ode_solve.jl")
 include("general_pde_solve.jl")
+include("general_two_dim_pde_solve.jl")
 
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
-        KolmogorovPDEProblem, NNKolmogorov, NNGenODE, NNGeneralPDE, GeneranNNPDEProblem
+        KolmogorovPDEProblem, NNKolmogorov, NNGenODE, NNGeneralPDE, GeneranNNPDEProblem, GeneranNNTwoDimPDEProblem
 
 
 
