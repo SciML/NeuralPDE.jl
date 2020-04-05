@@ -42,7 +42,7 @@ function DiffEqBase.solve(
     ps     = Flux.params(chain)
     xi     = rand(xs ,d ,N[1])
     #Finding Solution to the SDE having initial condition xi. Y = Phi(S(X , T))
-    sdeproblem = SDEProblem(μ,sigma,xi,tspan,noise_rate_prototype)
+    sdeproblem = SDEProblem(μ,sigma,xi,tspan,noise_rate_prototype = noise_rate_prototype)
     sol = solve(sdeproblem, sdealg ,dt=0.01 , save_everystep=false , kwargs...)
     x_sde = sol[end]
     y = phi(x_sde)
