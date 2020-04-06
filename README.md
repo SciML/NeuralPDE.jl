@@ -39,7 +39,7 @@ sigma = 0.4f0
 f(X,u,σᵀ∇u,p,t) = r * (u - sum(X.*σᵀ∇u))
 g(X) = sum(X.^2)
 μ_f(X,p,t) = zero(X) #Vector d x 1
-σ_f(X,p,t) = Diagonal(sigma*X.data) #Matrix d x d
+σ_f(X,p,t) = Diagonal(sigma*X) #Matrix d x d
 prob = TerminalPDEProblem(g, f, μ_f, σ_f, X0, tspan)
 ```
 
