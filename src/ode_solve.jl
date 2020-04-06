@@ -1,4 +1,3 @@
-using DifferentialEquations, BlackBoxOptim
 struct NNODE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
@@ -30,7 +29,7 @@ function DiffEqBase.solve(
     abstol = 1f-6,
     verbose = false,
     maxiters = 100,
-    blackbox = false)
+    bounds = [-100.0,100.0])
 
     DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
 
@@ -48,6 +47,12 @@ function DiffEqBase.solve(
     #train points generation
     ts = tspan[1]:dt:tspan[2]
     initθ = alg.initθ
+
+    #BlackBoxOptim requires Float64s
+    !(typeof(bounds) == Array{Float64,1}) && error("bounds must be type Array{Float64,1}.")
+    lbound = [bounds[1] for i in 1:size(initθ)[1]]
+    ubound = [bounds[2] for i in 1:size(initθ)[1]]
+
 
     if chain isa FastChain
         #The phi trial solution
@@ -77,23 +82,12 @@ function DiffEqBase.solve(
     end
     loss(θ) = sum(abs2,inner_loss(t,θ) for t in ts) # sum(abs2,phi(tspan[1],θ) - u0)
 
-    function predict_rd(p)
-      Array(concrete_solve(prob,Tsit5(),u0,p,saveat=0.1,reltol=1e-4))
-    end
-    function loss_rd(p)
-      convert(Float64, sum(abs2,x-1 for x in predict_rd(p)))
-    end
-
     cb = function (p,l)
         verbose && println("Current loss is: $l")
         l < abstol
     end
 
-    if blackbox
-        res = DiffEqFlux.sciml_train(loss_rd, :adaptive_de_rand_1_bin, lower_bounds = [0.0 for i in 1:4], upper_bounds = [5.0 for i in 1:4], cb = cb)
-    else
-        res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters, alg.kwargs...)
-    end
+    res = DiffEqFlux.sciml_train(loss, initθ, opt; lower_bounds = lbound, upper_bounds = ubound, cb = cb, maxiters=maxiters, alg.kwargs...)
 
     #solutions at timepoints
     if u0 isa Number
@@ -105,4 +99,6 @@ function DiffEqBase.solve(
     sol = DiffEqBase.build_solution(prob,alg,ts,u,calculate_error = false)
     DiffEqBase.has_analytic(prob.f) && DiffEqBase.calculate_solution_errors!(sol;timeseries_errors=true,dense_errors=false)
     sol
+
+
 end #solve
