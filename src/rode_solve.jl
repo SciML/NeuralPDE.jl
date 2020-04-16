@@ -43,7 +43,7 @@ function DiffEqBase.solve(
     chain  = alg.chain
     opt    = alg.opt
     autodiff = alg.autodiff
-    W = alg.W
+    Wg = alg.W
     #train points generation
     ts = tspan[1]:dt:tspan[2]
     initθ = alg.initθ
@@ -74,23 +74,32 @@ function DiffEqBase.solve(
     function inner_loss(t,W,θ)
         sum(abs,dfdx(t,W,θ) - f(phi(t,W,θ),p,t,W))
     end
-    loss(θ) = sum(abs2,inner_loss(ts[i],W.W[i],θ) for i in 1:length(ts)) # sum(abs2,phi(tspan[1],θ) - u0)
+    Wprob = NoiseProblem(Wg,tspan)
+    Wsol = solve(Wprob;dt=dt)
+    W  = NoiseGrid(ts , Wsol.W)
+    function loss(θ)
+        sum(abs2,inner_loss(ts[i],W.W[i],θ) for i in 1:length(ts)) # sum(abs2,phi(tspan[1],θ) - u0)
+    end
 
     cb = function (p,l)
+        Wprob = NoiseProblem(Wg,tspan)
+        Wsol = solve(Wprob;dt=dt)
+        W  = NoiseGrid(ts , Wsol.W)
         verbose && println("Current loss is: $l")
         l < abstol
     end
     res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters, alg.kwargs...)
 
     #solutions at timepoints
-
+    noiseproblem = NoiseProblem(Wg,tspan)
+    W = solve(noiseproblem;dt=dt)
     if u0 isa Number
         u = [(phi(ts[i],W.W[i],res.minimizer)) for i in 1:length(ts)]
     else
         u = [(phi(ts[i],W.W[i],res.minimizer)) for i in 1:length(ts)]
     end
 
-    sol = DiffEqBase.build_solution(prob,alg,ts,u,W,calculate_error = false)
+    sol = DiffEqBase.build_solution(prob,alg,ts,u,W = W,calculate_error = false)
     DiffEqBase.has_analytic(prob.f) && DiffEqBase.calculate_solution_errors!(sol;timeseries_errors=true,dense_errors=false)
     sol
 end #solve
