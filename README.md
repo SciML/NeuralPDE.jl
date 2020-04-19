@@ -183,13 +183,19 @@ is parallel. It is based on the work of:
 ## Solving Kolmogorov Equations with Neural Networks
 
 A Kolmogorov PDE is of the form :
+
 ![](https://raw.githubusercontent.com/ashutosh-b-b/Kolmogorv-Equations-Notebook/master/KolmogorovPDEImages/KolmogorovPDE.png)
-Considering S  be a solution process to the SDE
+
+Considering S be a solution process to the SDE:
+
 ![](https://raw.githubusercontent.com/ashutosh-b-b/Kolmogorv-Equations-Notebook/master/KolmogorovPDEImages/StochasticP.png)
-Then the solution to the Kolmogorov PDE is given as 
+
+then the solution to the Kolmogorov PDE is given as:
+
 ![](https://raw.githubusercontent.com/ashutosh-b-b/Kolmogorv-Equations-Notebook/master/KolmogorovPDEImages/Solution.png)
 
-A Kolmogorov PDE Problem can be defined using a `SDEProblem`
+A Kolmogorov PDE Problem can be defined using a `SDEProblem`:
+
 ```julia
 SDEProblem(μ,σ,u0,tspan,xspan,d)
 ```
