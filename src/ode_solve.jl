@@ -52,7 +52,7 @@ function DiffEqBase.solve(
         if u0 isa Number
             phi = (t,θ) -> u0 + (t-tspan[1])*first(chain(adapt(typeof(θ),[t]),θ))
         else
-            phi = (t,θ) -> u0 .+ (t-tspan[1]) .* chain(adapt(typeof(θ),[t]),θ)
+            phi = (t,θ) -> u0 + (t-tspan[1]) * chain(adapt(typeof(θ),[t]),θ)
         end
     else
         _,re  = Flux.destructure(chain)
