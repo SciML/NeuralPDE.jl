@@ -60,7 +60,7 @@ function DiffEqBase.solve(
         if u0 isa Number
             phi = (t,θ) -> u0 + (t-tspan[1])*first(re(θ)(adapt(typeof(θ),[t])))
         else
-            phi = (t,θ) -> u0 .+ (t-tspan[1]) .* re(θ)(adapt(typeof(θ),[t]))
+            phi = (t,θ) -> u0 + (t-tspan[1]) * re(θ)(adapt(typeof(θ),[t]))
         end
     end
 
