@@ -56,19 +56,20 @@ function DiffEqBase.solve(
         end
     else
         _,re  = Flux.destructure(chain)
-        try
-            u0 + t0*chain([t0])
-        catch err
-            if isa(err , DimensionMismatch)
-                throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
-            else
-                throw(err)
-            end
-        end
+        #The phi trial solution
         if u0 isa Number
             phi = (t,θ) -> u0 + (t-tspan[1])*first(re(θ)(adapt(typeof(θ),[t])))
         else
             phi = (t,θ) -> u0 + (t-tspan[1]) * re(θ)(adapt(typeof(θ),[t]))
+        end
+    end
+    try
+        phi(t0 , initθ)
+    catch err
+        if isa(err , DimensionMismatch)
+            throw( throw(DimensionMismatch("Dimensions of the initial u0 and chain should match")))
+        else
+            throw(err)
         end
     end
 
