@@ -63,13 +63,22 @@ function DiffEqBase.solve(
             phi = (t,θ) -> u0 + (t-tspan[1]) * re(θ)(adapt(typeof(θ),[t]))
         end
     end
+    try
+        phi(t0 , initθ)
+    catch err
+        if isa(err , DimensionMismatch)
+            throw( throw(DimensionMismatch("Dimensions of the initial u0 and chain should match")))
+        else
+            throw(err)
+        end
+    end
 
     if autodiff
         dfdx = (t,θ) -> ForwardDiff.derivative(t->phi(t,θ),t)
     else
         dfdx = (t,θ) -> (phi(t+sqrt(eps(t)),θ) - phi(t,θ))/sqrt(eps(t))
     end
-    
+
     function inner_loss(t,θ)
         sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t))
     end
