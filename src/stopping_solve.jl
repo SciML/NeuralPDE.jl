@@ -37,24 +37,33 @@ function DiffEqBase.solve(
 
     ##Using the factorisation lemma
     function Un(n , X)
-        if(n == 1)return chain(X[1])[1]
-        else
-            return max(first(chain(X[n])[n]) , n + 1 - N)*(1 - sum(Un(i , X) for i in 1:n-1))
-        end
+      if(n == 1)return m(X[1])[1]
+      else
+          return max(first(m(X[n])[n]) , n + 1 - N)*(1 - sum(Un(i , X) for i in 1:n-1))
+      end
     end
-
-    data   = Iterators.repeated((), maxiters)
 
     function loss()
-        return sum(Un(i , X)*g(ts[i] , X[i]) for i in 1 : N) / N
+        return sum(Un(i , X)*g(ts[i] , X[i]) for i in 1 : N)
     end
 
+    dataset = Iterators.repeated(() , maxiters)
+    epoch = 0
+    opt = ADAM(-0.1)
     cb = function ()
-        l = loss(xi, y)
-        verbose && println("Current loss is: $l")
-        # l < abstol && Flux.stop()
+      l = loss()
+      epoch = epoch + 1
+      epoch%20 == 0 && println("Current loss is: $l")
     end
-
-    Flux.train!(loss, ps, data, opt; cb = cb)
-
+    Flux.train!(loss, Flux.params(m), dataset, opt; cb = cb)
+    Usum = 0
+    time = 0
+    for i in 1:N
+        global Usum = Usum + Un(i , X)
+        if Usum >= 1 - Un(i , X)
+            time = i
+        break
+    end
+  end
+  g(ts[time] , X[time]) , time
  end #solve
