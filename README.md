@@ -6,70 +6,14 @@
 [![Coverage Status](https://coveralls.io/repos/JuliaDiffEq/NeuralNetDiffEq.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaDiffEq/NeuralNetDiffEq.jl?branch=master)
 [![codecov.io](http://codecov.io/github/JuliaDiffEq/NeuralNetDiffEq.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaDiffEq/NeuralNetDiffEq.jl?branch=master)
 
-The repository is for the development of neural network solvers of differential equations.
-It utilizes techniques like neural stochastic differential equations to make it
-practical to solve high dimensional PDEs of the form:
-
-![](https://user-images.githubusercontent.com/1814174/63212617-48980480-c0d5-11e9-9fec-0776117464c7.PNG)
-
-Additionally it utilizes neural networks as universal function approximators to
-solve ODEs. These are techniques of a field becoming known as Scientific Machine
-Learning (Scientific ML), encapsulated in a maintained repository.
+The repository is for the development of neural network solvers of differential equations such as physics-informed
+neural networks (PINNs) and deep BSDE solvers. It utilizes techniques like deep neural networks and neural 
+stochastic differential equations to make it practical to solve high dimensional PDEs efficiently through the
+likes of scientific machine learning (SciML).
 
 # Examples
 
-## Solving the 100 dimensional Black-Scholes-Barenblatt Equation
-
-In this example we will solve a Black-Scholes-Barenblatt equation of 100 dimensions.
-The Black-Scholes-Barenblatt equation is a nonlinear extension to the Black-Scholes
-equation which models uncertain volatility and interest rates derived from the
-Black-Scholes equation. This model results in a nonlinear PDE whose dimension
-is the number of assets in the portfolio. The PDE is of the form:
-
-![PDEFORM]()
-
-To solve it using the `TerminalPDEProblem`, we write:
-
-```julia
-d = 100 # number of dimensions
-X0 = repeat([1.0f0, 0.5f0], div(d,2)) # initial value of stochastic state
-tspan = (0.0f0,1.0f0)
-r = 0.05f0
-sigma = 0.4f0
-f(X,u,σᵀ∇u,p,t) = r * (u - sum(X.*σᵀ∇u))
-g(X) = sum(X.^2)
-μ_f(X,p,t) = zero(X) #Vector d x 1
-σ_f(X,p,t) = Diagonal(sigma*X) #Matrix d x d
-prob = TerminalPDEProblem(g, f, μ_f, σ_f, X0, tspan)
-```
-
-As described in the API docs, we now need to define our `NNPDENS` algorithm
-by giving it the Flux.jl chains we want it to use for the neural networks.
-`u0` needs to be a `d` dimensional -> 1 dimensional chain, while `σᵀ∇u`
-needs to be `d+1` dimensional to `d` dimensions. Thus we define the following:
-
-```julia
-hls  = 10 + d #hide layer size
-opt = Flux.ADAM(0.001)
-u0 = Flux.Chain(Dense(d,hls,relu),
-                Dense(hls,hls,relu),
-                Dense(hls,1))
-σᵀ∇u = Flux.Chain(Dense(d+1,hls,relu),
-                  Dense(hls,hls,relu),
-                  Dense(hls,hls,relu),
-                  Dense(hls,d))
-pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
-```
-
-And now we solve the PDE. Here we say we want to solve the underlying neural
-SDE using the Euler-Maruyama SDE solver with our chosen `dt=0.2`, do at most
-150 iterations of the optimizer, 100 SDE solves per loss evaluation (for averaging),
-and stop if the loss ever goes below `1f-6`.
-
-```julia
-ans = solve(prob, pdealg, verbose=true, maxiters=150, trajectories=100,
-                            alg=EM(), dt=0.2, pabstol = 1f-6)
-```
+## DeepBSDE Solver
 
 ## Solving a 100 dimensional Hamilton-Jacobi-Bellman Equation
 
@@ -127,6 +71,57 @@ and stop if the loss ever goes below `1f-2`.
 @time ans = solve(prob, pdealg, verbose=true, maxiters=100, trajectories=100,
                             alg=EM(), dt=0.2, pabstol = 1f-2)
 
+```
+
+## Solving the 100 dimensional Black-Scholes-Barenblatt Equation
+
+In this example we will solve a Black-Scholes-Barenblatt equation of 100 dimensions.
+The Black-Scholes-Barenblatt equation is a nonlinear extension to the Black-Scholes
+equation which models uncertain volatility and interest rates derived from the
+Black-Scholes equation. This model results in a nonlinear PDE whose dimension
+is the number of assets in the portfolio. 
+
+To solve it using the `TerminalPDEProblem`, we write:
+
+```julia
+d = 100 # number of dimensions
+X0 = repeat([1.0f0, 0.5f0], div(d,2)) # initial value of stochastic state
+tspan = (0.0f0,1.0f0)
+r = 0.05f0
+sigma = 0.4f0
+f(X,u,σᵀ∇u,p,t) = r * (u - sum(X.*σᵀ∇u))
+g(X) = sum(X.^2)
+μ_f(X,p,t) = zero(X) #Vector d x 1
+σ_f(X,p,t) = Diagonal(sigma*X) #Matrix d x d
+prob = TerminalPDEProblem(g, f, μ_f, σ_f, X0, tspan)
+```
+
+As described in the API docs, we now need to define our `NNPDENS` algorithm
+by giving it the Flux.jl chains we want it to use for the neural networks.
+`u0` needs to be a `d` dimensional -> 1 dimensional chain, while `σᵀ∇u`
+needs to be `d+1` dimensional to `d` dimensions. Thus we define the following:
+
+```julia
+hls  = 10 + d #hide layer size
+opt = Flux.ADAM(0.001)
+u0 = Flux.Chain(Dense(d,hls,relu),
+                Dense(hls,hls,relu),
+                Dense(hls,1))
+σᵀ∇u = Flux.Chain(Dense(d+1,hls,relu),
+                  Dense(hls,hls,relu),
+                  Dense(hls,hls,relu),
+                  Dense(hls,d))
+pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
+```
+
+And now we solve the PDE. Here we say we want to solve the underlying neural
+SDE using the Euler-Maruyama SDE solver with our chosen `dt=0.2`, do at most
+150 iterations of the optimizer, 100 SDE solves per loss evaluation (for averaging),
+and stop if the loss ever goes below `1f-6`.
+
+```julia
+ans = solve(prob, pdealg, verbose=true, maxiters=150, trajectories=100,
+                            alg=EM(), dt=0.2, pabstol = 1f-6)
 ```
 
 # API Documentation
