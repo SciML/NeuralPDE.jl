@@ -1,15 +1,14 @@
 using Test, Flux, NeuralNetDiffEq , StochasticDiffEq , LinearAlgebra
 using DiffEqDevTools
 d = 1
-r = 0.04
-delta = 0.0
-beta = 0.2
+r = 0.04f0
+beta = 0.2f0
 T = 1
 u0 = fill(90.00 , d , 1)
 sdealg = EM()
 ensemblealg = EnsembleThreads()
-f(u,p,t) = (r-delta)*u
-sigma(u,p,t)  = beta*u
+f(du,u,p,t) = (du .= r*u)
+sigma(du,u,p,t)  = (du .= Diagonal(beta*u))
 tspan = (0.0 , 1.0)
 N = 50
 dt = tspan[2]/49
@@ -20,6 +19,27 @@ end
 
 prob  = OptimalStoppingProblem(f , sigma  , g , u0 , tspan)
 opt = Flux.ADAM(0.1)
-m = Chain(Dense(d , 32, sigmoid), Dense(32, 32 , sigmoid)  , Dense(32 , N ), softmax)
+m = Chain(Dense(d , 5, tanh), Dense(5, 32 , tanh)  , Dense(32 , N ), softmax)
 sol = solve(prob, NeuralNetDiffEq.NNStopping( m,opt , sdealg , ensemblealg), verbose = true, dt = dt,
-            abstol=1e-6, maxiters = 50 , trajectories = 100)
+            abstol=1e-6, maxiters = 50 , trajectories = 20)
+
+##Analytical Binomial Tree approach for American Options
+function BinomialTreeAM1D(S0 , N , r , beta)
+  V = zeros(N+1)
+  dT = T/N
+  u = exp(beta*sqrt(dT))
+  d = 1/u
+  S_T = [S0*(u^j)* (d^(N-j)) for j in 0:N]
+  a = exp(r*dT)
+  p = (a - d)/(u - d)
+  q = 1.0 - p
+  V = [max(K - x , 0) for x in S_T]
+  for i in N-1:-1:0
+    V[1:end-1] = exp(-r*dT).*(p*V[2:end] + q*V[1:end-1])
+    S_T = S_T*u
+    V = [max(K - S_T[i] , V[i]) for i in 1:size(S_T)[1]]
+  end
+  return V[1]
+end
+
+BinomialTreeAM1D(u0[1] , N , r , beta)
