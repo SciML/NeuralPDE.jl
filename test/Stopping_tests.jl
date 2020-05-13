@@ -4,7 +4,7 @@ d = 1
 r = 0.04f0
 beta = 0.2f0
 T = 1
-u0 = fill(90.00 , d , 1)
+u0 = fill(120.00 , d , 1)
 sdealg = EM()
 ensemblealg = EnsembleThreads()
 f(du,u,p,t) = (du .= r*u)
@@ -21,7 +21,7 @@ prob  = OptimalStoppingProblem(f , sigma  , g , u0 , tspan)
 opt = Flux.ADAM(0.1)
 m = Chain(Dense(d , 5, tanh), Dense(5, 32 , tanh)  , Dense(32 , N ), softmax)
 sol = solve(prob, NeuralNetDiffEq.NNStopping( m,opt , sdealg , ensemblealg), verbose = true, dt = dt,
-            abstol=1e-6, maxiters = 50 , trajectories = 20)
+            abstol=1e-6, maxiters = 50 , trajectories = 250)
 
 ##Analytical Binomial Tree approach for American Options
 function BinomialTreeAM1D(S0 , N , r , beta)
@@ -41,5 +41,6 @@ function BinomialTreeAM1D(S0 , N , r , beta)
   end
   return V[1]
 end
-
-BinomialTreeAM1D(u0[1] , N , r , beta)
+real_sol = BinomialTreeAM1D(u0[1] , N , r , beta)
+error = abs(sol - real_sol)
+@test error < 1.00
