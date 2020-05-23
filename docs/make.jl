@@ -13,7 +13,7 @@ makedocs(
     pages=[
         "Home" => "index.md",
         "Tutorials" => Any[
-            "examples/Relationship_between_SDE and PDE.md"
+            "examples/Relationship_between_SDE_and_PDE.md"
         ],
     ]
 )
