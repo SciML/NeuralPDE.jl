@@ -30,7 +30,7 @@ However, with a bunch of analysis one can derive an appropriate calculus on SDEs
 dx = f(x,t)dt + \sum_{i=1}^{n}g_{i}(x,t)dW_{i}
 ```
 
-where ``W_{i}(t)`` is a standard Brownian motion. It0's Rules (the stochastic Chain) rule could be interpreted as:
+where ``W_{i}(t)`` is a standard Brownian motion. Ito's Rules (the stochastic Chain) rule could be interpreted as:
 ```math
 dt\times dt = 0
 ```
@@ -59,7 +59,7 @@ where, if we plug in ``dx``, we get
 dy=d\psi(x,t)=\left(\frac{\partial\psi}{\partial t}+f(x,t)\frac{\partial\psi}{\partial x}+\frac{1}{2}\sum_{i=1}^{n}g_{i}^{2}(x,t)\frac{\partial^{2}\psi}{\partial x^{2}}\right)dt+\frac{\partial\psi}{\partial x}\sum_{i=1}^{n}g_{i}(x,t)dW_{i}
 ```
 
-Notice that this is the same as the normal chain rule formula, but now there is a seconf order correction to the main variable. The soltuion is given by the integral form:
+Notice that this is the same as the normal chain rule formula, but now there is a seconf order correction to the main variable. The solution is given by the integral form:
 
 ```math
 x(t)=x(0)+\int_{0}^{t}f(x(s))ds+\int_{0}^{t}\sum_{i=1}^{m}g_{i}(x(s))dW_{i}.
