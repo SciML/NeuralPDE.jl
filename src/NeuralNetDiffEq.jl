@@ -56,28 +56,7 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   println(io,"Sigma")
   show(io , A.sigma)
 end
-struct OptimalStoppingProblem{ Mu, Sigma, G , U0 , T ,P} <: DiffEqBase.DEProblem
-    mu::Mu
-    sigma::Sigma
-    g::G
-    u0::U0
-    tspan::Tuple{T,T}
-    p::P
-    OptimalStoppingProblem( mu, sigma, g , u0 , tspan , p=nothing) = new{typeof(mu),typeof(sigma),typeof(g),typeof(u0),eltype(tspan),typeof(p),}( mu, sigma, g , u0 , tspan , p)
-end
 
-Base.summary(prob::OptimalStoppingProblem) = string(nameof(typeof(prob)))
-function Base.show(io::IO, A::OptimalStoppingProblem)
-  println(io,summary(A))
-  print(io,"timespan: ")
-  show(io,A.tspan)
-  print(io,"g: ")
-  show(io,A.g)
-  println(io , "μ")
-  show(io , A.mu)
-  println(io,"Sigma")
-  show(io , A.sigma)
-end
 include("ode_solve.jl")
 include("pde_solve.jl")
 include("pde_solve_ns.jl")
@@ -85,6 +64,6 @@ include("kolmogorov_solve.jl")
 include("stopping_solve.jl")
 
 
-export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, KolmogorovPDEProblem, NNKolmogorov, OptimalStoppingProblem, NNStopping
+export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, KolmogorovPDEProblem, NNKolmogorov, NNStopping
 
 end # module
