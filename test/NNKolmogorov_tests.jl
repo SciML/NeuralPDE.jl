@@ -3,8 +3,8 @@ using DiffEqDevTools
 using Distributions
 
 
-##Using SDEProblem for the Algorithm.
-#For a diract delta take u0 = Normal(0 , sigma) where sigma --> 0
+#Using SDEProblem for the Algorithm.
+# For a diract delta take u0 = Normal(0 , sigma) where sigma --> 0
 u0 = Normal(0 , 1)
 xspan = (-10.0 , 10.0)
 tspan = (0.0 , 1.0)
@@ -17,8 +17,6 @@ opt = Flux.ADAM(0.0001)
 m = Chain(Dense(1, 256, elu) ,Dense(256 , 512 , elu), Dense(512 , 1))
 sol = solve(prob, NeuralNetDiffEq.NNKolmogorov(m,opt , sdealg), verbose = true, dt = 0.001,
             abstol=1e-6, maxiters = 1600)
-
-xs = xspan[1]:0.001:xspan[2]
 # using Plots
 # x_val = collect(xs)
 # x_val= reshape(x_val , 1 , size(x_val)[1])
@@ -73,4 +71,30 @@ xs2 = xspan2[1]:0.001:xspan2[2]
 x_val2 = rand(xs2 , d2 , 50)
 errorl2 = Flux.mse(analytical2(x_val2) , m2(x_val2))
 println("error_l2 = ", errorl2, "\n")
-@test errorl2 < 0.3
+@test errorl2 < 0.4
+
+
+##Non-Diagonal Test
+f_noise = (du,u,p,t) -> du.=1.01u
+g_noise = function (du,u,p,t)
+  du[1,1] = 0.3u[1]
+  du[1,2] = 0.6u[1]
+  du[1,3] = 0.9u[1]
+  du[1,4] = 0.12u[2]
+  du[2,1] = 1.2u[1]
+  du[2,2] = 0.2u[2]
+  du[2,3] = 0.3u[2]
+  du[2,4] = 1.8u[2]
+end
+Σ = [1.0 0.3 ; 0.3  1.0]
+uo3 = MvNormal([0.0 ; 0.0], Σ)
+sdealg3= EM()
+xspan3 = (-10.0 , 10.0)
+tspan3 = (0.0 , 1.0)
+d3 = 2
+prob = SDEProblem(f_noise , g_noise , uo3 , (0.0 , 1.0) ; xspan = xspan3 , d = d3 , noise_rate_prototype=zeros(2,4))
+opt = Flux.ADAM(0.0001)
+m3 = Chain(Dense(d3, 256, elu) ,Dense(256 , 512 , elu), Dense(512 , 1))
+sol3 = solve(prob, NeuralNetDiffEq.NNKolmogorov(m3,opt , sdealg3 , EnsembleThreads()), verbose = true, dt = 0.001,
+            abstol=1e-6, maxiters = 1000)
+println("Non-Diagonal test working.")
