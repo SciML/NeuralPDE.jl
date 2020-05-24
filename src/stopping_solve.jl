@@ -94,7 +94,7 @@ function DiffEqBase.solve(
         times = vcat(times, ti)
         iter = iter + 1
         # println("SUM : $sump")
-        println("TIME : $ti")
+        # println("TIME : $ti")
     end
     sum(payoff)/size(payoff)[1]
  end #solve
