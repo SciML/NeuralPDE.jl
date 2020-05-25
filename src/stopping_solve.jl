@@ -66,13 +66,11 @@ function DiffEqBase.solve(
         return 10000 - reward
     end
     dataset = Iterators.repeated(() , maxiters)
-    epoch = 0
-    epoch  = 0
+    
     cb = function ()
         l = loss()
         un = []
-        epoch = epoch + 1
-        epoch%5 == 0 && println("Current loss is: $l")
+        println("Current loss is: $l")
     end
     Flux.train!(loss, Flux.params(m), dataset, opt; cb = cb)
 
