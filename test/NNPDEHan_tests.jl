@@ -1,4 +1,5 @@
 using Flux, Zygote, LinearAlgebra, Statistics
+println("NNPDEHAN_tests")
 using Test, NeuralNetDiffEq
 
 # one-dimensional heat equation
