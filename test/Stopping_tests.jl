@@ -1,5 +1,6 @@
-using Test, Flux, NeuralNetDiffEq , StochasticDiffEq , LinearAlgebra
-using DiffEqDevTools
+using Test, Flux , StochasticDiffEq , LinearAlgebra
+println("Optimal Stopping Time Test")
+using NeuralNetDiffEq
 d = 1
 r = 0.04f0
 beta = 0.2f0
