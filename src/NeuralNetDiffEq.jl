@@ -32,7 +32,7 @@ function Base.show(io::IO, A::TerminalPDEProblem)
   show(io,A.tspan)
 end
 
-struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P, U0} <: DiffEqBase.DEProblem
+struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, ND} <: DiffEqBase.DEProblem
     f::F
     g::G
     phi::Phi
@@ -41,7 +41,8 @@ struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P, U0} <: DiffEqBase.DEProble
     d::D
     p::P
     u0::U0
-    KolmogorovPDEProblem( f, g, phi , xspan , tspan , d, p=nothing, u0=0) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p),typeof(u0)}(f,g,phi,xspan,tspan,d,p,u0)
+    noise_rate_prototype::ND
+    KolmogorovPDEProblem( f, g, phi , xspan , tspan , d, p=nothing, u0=0 , noise_rate_prototype= nothing) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p),typeof(u0),typeof(noise_rate_prototype)}(f,g,phi,xspan,tspan,d,p,u0,noise_rate_prototype)
 end
 
 Base.summary(prob::KolmogorovPDEProblem) = string(nameof(typeof(prob)))
