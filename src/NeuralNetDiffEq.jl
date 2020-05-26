@@ -61,8 +61,9 @@ include("ode_solve.jl")
 include("pde_solve.jl")
 include("pde_solve_ns.jl")
 include("kolmogorov_solve.jl")
+include("stopping_solve.jl")
 
 
-export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, KolmogorovPDEProblem, NNKolmogorov
+export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, KolmogorovPDEProblem, NNKolmogorov, NNStopping
 
 end # module
