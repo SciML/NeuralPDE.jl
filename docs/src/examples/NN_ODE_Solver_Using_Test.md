@@ -1,38 +1,8 @@
 ## Solving ODEs with Neural Networks
 
-For ODEs, [see the DifferentialEquations.jl documentation](http://docs.juliadiffeq.org/dev/solvers/ode_solve#NeuralNetDiffEq.jl-1) for the `nnode(chain,opt=ADAM(0.1))` algorithm, which takes in a `Flux.jl` chain and optimizer to solve an ODE. This method is not particularly efficient, but is parallel. It is based on the work of:
-
-[Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.](https://arxiv.org/pdf/physics/9705023.pdf)
-
-- `nnode(chain, opt=ADAM(0.1))` - Defines a Neural Network solver which utilizes a Flux.jl `chain` under the hood which must be supplied by the user. Defaults to using the ADAM optimization method, but the user can pass any Flux.jl optimizer. 
-
 Now let's get to our first true SciML application: solving Ordinary Differential Equations with Neural Networks.
 
-[This is a result due to Lagaris et. al from 1998.](https://arxiv.org/pdf/physics/9705023.pdf) The idea is to solve differential equations using neural networks by representing the solution by a neural network and training the resulting network to satisfy the conditions required by the differential equation.
-
-Let's say we want to solve a system of ordinary differential equations
-```math
-u' = f(u,t)
-```
-with `t \in [0,1]` and a known initial condition `u(0)=u_0`. To solve this, we approximate the solution by a neural network:
-
-```math
-NN(t) \approx u(t)
-```
-
-If `NN(t)` was the true solution, then it would hold that `NN'(t) = f(NN(t),t)` for all `t`. Thus we turn this condition into our loss function. This motivates the loss function:
-
-```math
-L(p) = \sum_i \left(\frac{dNN(t_i)}{dt} - f(NN(t_i),t_i) \right)^2
-```
-
-The choice of `t_i` could be done in many ways: it can be random, it can be a grid, etc. Anyways, when this loss function is minimized (gradients computed with standard reverse-mode automatic differentiation), then we have that `\frac{dNN(t_i)}{dt} \approx f(NN(t_i),t_i)` and thus `NN(t)` approximately solves the differential equation. 
-
-## Quick Question for Understanding: What is an effective way to compute dN/dt?
-
-If you thought reverse-mode automatic differentiation, go back and think about why that is incorrect! Hint: what is the dimensionality of the input and the output?
-
-Note that we still have to handle the initial condition. One simple way to do this is to add an initial condition term to the cost function. While that would work, it can be more efficient to encode the initial condition into the function itself so that it's trivially satisfied for any possible set of parameters. For example, instead of directly using a neural network, we can use:
+We will handle the initial condition. One simple way to do this is to add an initial condition term to the cost function. While that would work, it can be more efficient to encode the initial condition into the function itself so that it's trivially satisfied for any possible set of parameters. For example, instead of directly using a neural network, we can use:
 
 ```math
 g(t) = u_0 + tNN(t)
