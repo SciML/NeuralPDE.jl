@@ -1,5 +1,6 @@
-using Test, Flux, NeuralNetDiffEq, Optim
-using DiffEqDevTools
+using Test, Flux, Optim
+println("NNODE Tests")
+using DiffEqDevTools , NeuralNetDiffEq
 using Random
 Random.seed!(100)
 # Run a solve on scalars

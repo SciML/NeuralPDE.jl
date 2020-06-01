@@ -52,7 +52,7 @@ function DiffEqBase.solve(
         if u0 isa Number
             phi = (t,θ) -> u0 + (t-tspan[1])*first(chain(adapt(typeof(θ),[t]),θ))
         else
-            phi = (t,θ) -> u0 + (t-tspan[1])*chain(adapt(typeof(θ),[t]),θ)
+            phi = (t,θ) -> u0 + (t-tspan[1]) * chain(adapt(typeof(θ),[t]),θ)
         end
     else
         _,re  = Flux.destructure(chain)
@@ -60,7 +60,16 @@ function DiffEqBase.solve(
         if u0 isa Number
             phi = (t,θ) -> u0 + (t-tspan[1])*first(re(θ)(adapt(typeof(θ),[t])))
         else
-            phi = (t,θ) -> u0 + (t-tspan[1])*re(θ)(adapt(typeof(θ),[t]))
+            phi = (t,θ) -> u0 + (t-tspan[1]) * re(θ)(adapt(typeof(θ),[t]))
+        end
+    end
+    try
+        phi(t0 , initθ)
+    catch err
+        if isa(err , DimensionMismatch)
+            throw( throw(DimensionMismatch("Dimensions of the initial u0 and chain should match")))
+        else
+            throw(err)
         end
     end
 
@@ -69,7 +78,7 @@ function DiffEqBase.solve(
     else
         dfdx = (t,θ) -> (phi(t+sqrt(eps(t)),θ) - phi(t,θ))/sqrt(eps(t))
     end
-    
+
     function inner_loss(t,θ)
         sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t))
     end

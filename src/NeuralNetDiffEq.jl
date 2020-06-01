@@ -3,7 +3,7 @@ module NeuralNetDiffEq
 using Reexport, Statistics
 @reexport using DiffEqBase
 
-using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random
+using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt
 import Tracker, Optim
 
@@ -32,15 +32,17 @@ function Base.show(io::IO, A::TerminalPDEProblem)
   show(io,A.tspan)
 end
 
-struct KolmogorovPDEProblem{ Mu, Sigma, Phi, X , T , D ,P} <: DiffEqBase.DEProblem
-    μ::Mu
-    sigma::Sigma
+struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, ND} <: DiffEqBase.DEProblem
+    f::F
+    g::G
     phi::Phi
     xspan::Tuple{X,X}
     tspan::Tuple{T,T}
     d::D
     p::P
-    KolmogorovPDEProblem( μ, sigma, phi , xspan , tspan , d, p=nothing) = new{typeof(μ),typeof(sigma),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p)}(μ,sigma,phi,xspan,tspan,d,p)
+    u0::U0
+    noise_rate_prototype::ND
+    KolmogorovPDEProblem( f, g, phi , xspan , tspan , d, p=nothing, u0=0 , noise_rate_prototype= nothing) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p),typeof(u0),typeof(noise_rate_prototype)}(f,g,phi,xspan,tspan,d,p,u0,noise_rate_prototype)
 end
 
 Base.summary(prob::KolmogorovPDEProblem) = string(nameof(typeof(prob)))
@@ -111,14 +113,13 @@ include("ode_solve.jl")
 include("pde_solve.jl")
 include("pde_solve_ns.jl")
 include("kolmogorov_solve.jl")
+include("stopping_solve.jl")
 include("general_ode_solve.jl")
 include("general_pde_solve.jl")
 include("general_two_dim_pde_solve.jl")
 
-
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
-        KolmogorovPDEProblem, NNKolmogorov, NNGenODE, NNGeneralPDE, GeneranNNPDEProblem, GeneranNNTwoDimPDEProblem
-
-
+       KolmogorovPDEProblem, NNKolmogorov, NNStopping,
+       NNGenODE, NNGeneralPDE, GeneranNNPDEProblem, GeneranNNTwoDimPDEProblem
 
 end # module
