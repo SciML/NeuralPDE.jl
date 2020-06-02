@@ -19,22 +19,20 @@ m = Chain(Dense(1, 5, elu),Dense(5, 5, elu) , Dense(5 , 5 , elu) , Dense(5 , 1))
 ensemblealg = EnsembleThreads()
 sol = solve(prob, NNKolmogorov(m,opt , sdealg,ensemblealg) , verbose = true, dt = 0.01,
             abstol=1e-10, trajectories = 100000 ,  maxiters = 500)
-
-
-using Plots
-
-xs = -2:0.00001:6
-x_val = collect(xs)
-x_val= reshape(x_val , 1 , size(x_val)[1])
-y_val = m(x_val)
-y_val = reshape(y_val , 800001 , 1)
-x_val = collect(xs)
-plot(x_val , y_val,linewidth=3,title="Solution to the linear ODE with a thick line",
-     xaxis="Time (t)",yaxis="u(t) (in μm)",label="My Thick Line!")
-# plot(x_val , y_val)
-plot!(x_val , analytical(x_val),linewidth=3,title="Solution to the linear ODE with a thick line",
-     xaxis="Time (t)",yaxis="u(t) (in μm)",label="My Thick Line!")
-
+# using Plots
+#
+# xs = -2:0.00001:6
+# x_val = collect(xs)
+# x_val= reshape(x_val , 1 , size(x_val)[1])
+# y_val = m(x_val)
+# y_val = reshape(y_val , 800001 , 1)
+# x_val = collect(xs)
+# plot(x_val , y_val,linewidth=3,title="Solution to the linear ODE with a thick line",
+#      xaxis="Time (t)",yaxis="u(t) (in μm)",label="My Thick Line!")
+# # plot(x_val , y_val)
+# plot!(x_val , analytical(x_val),linewidth=3,title="Solution to the linear ODE with a thick line",
+#      xaxis="Time (t)",yaxis="u(t) (in μm)",label="My Thick Line!")
+#
 
 ## The solution is obtained taking the Fourier Transform.
 analytical(xi) = pdf.(Normal(3 , sqrt(1.0 + 5.00)) , xi)
