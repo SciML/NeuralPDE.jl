@@ -1,32 +1,43 @@
-using Test, Flux, NeuralNetDiffEq , StochasticDiffEq
-using DiffEqDevTools
+using Test, Flux, StochasticDiffEq
+println("Kolmogorov Tests")
+using DiffEqDevTools , NeuralNetDiffEq
 using Distributions
 
 
 #Using SDEProblem for the Algorithm.
 # For a diract delta take u0 = Normal(0 , sigma) where sigma --> 0
-u0 = Normal(0 , 1)
-xspan = (-10.0 , 10.0)
+u0 = Normal(1.00 , 1.00)
+xspan = (-2.0 , 6.0)
 tspan = (0.0 , 1.0)
-g(u , p , t) = 1
-f(u , p , t) = 0
+g(u , p , t) = 2.00
+f(u , p , t) = -2.00
 d = 1
 sdealg = EM()
 prob = SDEProblem(f , g , u0 , (0.0 , 1.0) ; xspan = xspan , d = d)
-opt = Flux.ADAM(0.0001)
-m = Chain(Dense(1, 256, elu) ,Dense(256 , 512 , elu), Dense(512 , 1))
-sol = solve(prob, NeuralNetDiffEq.NNKolmogorov(m,opt , sdealg), verbose = true, dt = 0.001,
-            abstol=1e-6, maxiters = 1600)
-# using Plots
-# x_val = collect(xs)
-# x_val= reshape(x_val , 1 , size(x_val)[1])
-# y_val = m(x_val)
-# y_val = reshape(y_val , 20001 , 1)
-# x_val = collect(xs)
+opt = Flux.ADAM(0.01)
+m = Chain(Dense(1, 5, elu),Dense(5, 5, elu) , Dense(5 , 5 , elu) , Dense(5 , 1))
+ensemblealg = EnsembleThreads()
+sol = solve(prob, NNKolmogorov(m,opt , sdealg,ensemblealg) , verbose = true, dt = 0.01,
+            abstol=1e-10, trajectories = 100000 ,  maxiters = 500)
+
+
+using Plots
+
+xs = -2:0.00001:6
+x_val = collect(xs)
+x_val= reshape(x_val , 1 , size(x_val)[1])
+y_val = m(x_val)
+y_val = reshape(y_val , 800001 , 1)
+x_val = collect(xs)
+plot(x_val , y_val,linewidth=3,title="Solution to the linear ODE with a thick line",
+     xaxis="Time (t)",yaxis="u(t) (in μm)",label="My Thick Line!")
 # plot(x_val , y_val)
-# plot!(x_val , analytical(x_val))
+plot!(x_val , analytical(x_val),linewidth=3,title="Solution to the linear ODE with a thick line",
+     xaxis="Time (t)",yaxis="u(t) (in μm)",label="My Thick Line!")
+
+
 ## The solution is obtained taking the Fourier Transform.
-analytical(xi) = pdf.(Normal(0 , 1.414) , xi)
+analytical(xi) = pdf.(Normal(3 , sqrt(1.0 + 5.00)) , xi)
 ##Validation
 x_1 = rand(xs , 1 , 1000)
 err_l2 = Flux.mse(analytical(x_1) , m(x_1))
@@ -52,9 +63,9 @@ d2 = 1
 sdealg2 = EM()
 prob2 = KolmogorovPDEProblem(f2 , g2, phi , xspan2 , tspan2, d2)
 opt2 = Flux.ADAM(0.01)
-m2 = Chain(Dense(1, 512, elu) , Dense(512 , 1024 , elu),Dense(1024 , 512 , elu), Dense(512 , 1))
-sol = solve(prob2, NeuralNetDiffEq.NNKolmogorov(m2,opt2 , sdealg2), verbose = true, dt = 0.001,
-            abstol=1e-6, maxiters = 270)
+m2 = Chain(Dense(1, 16, elu) , Dense(16 , 32 , elu),Dense(32 , 16 , elu), Dense(16 , 1))
+sol = solve(prob2, NeuralNetDiffEq.NNKolmogorov(m2,opt2 , sdealg2, ensemblealg), verbose = true, dt = 0.01,
+            trajectories = 1000 , abstol=1e-6, maxiters = 300)
 
 
 function analytical2(xi)
@@ -67,7 +78,7 @@ function analytical2(xi)
     y = reshape(y , size(xi)[1] , size(xi)[2] )
     return y
 end
-xs2 = xspan2[1]:0.001:xspan2[2]
+xs2 = -5.00:0.01:5.00
 x_val2 = rand(xs2 , d2 , 50)
 errorl2 = Flux.mse(analytical2(x_val2) , m2(x_val2))
 println("error_l2 = ", errorl2, "\n")
@@ -93,8 +104,8 @@ xspan3 = (-10.0 , 10.0)
 tspan3 = (0.0 , 1.0)
 d3 = 2
 prob = SDEProblem(f_noise , g_noise , uo3 , (0.0 , 1.0) ; xspan = xspan3 , d = d3 , noise_rate_prototype=zeros(2,4))
-opt = Flux.ADAM(0.0001)
-m3 = Chain(Dense(d3, 256, elu) ,Dense(256 , 512 , elu), Dense(512 , 1))
+opt = Flux.ADAM(0.01)
+m3 = Chain(Dense(d3, 32, elu) ,Dense(32 , 64 , elu), Dense(64 , 1))
 sol3 = solve(prob, NeuralNetDiffEq.NNKolmogorov(m3,opt , sdealg3 , EnsembleThreads()), verbose = true, dt = 0.001,
-            abstol=1e-6, maxiters = 1000)
+            abstol=1e-6, trajectories = 10000,maxiters = 200)
 println("Non-Diagonal test working.")

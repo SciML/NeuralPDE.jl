@@ -53,9 +53,9 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   print(io,"xspan: ")
   show(io,A.xspan)
   println(io , "μ")
-  show(io , A.μ)
+  show(io , A.f)
   println(io,"Sigma")
-  show(io , A.sigma)
+  show(io , A.g)
 end
 
 include("ode_solve.jl")
