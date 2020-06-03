@@ -18,10 +18,10 @@ opt = Flux.ADAM(0.01)
 m = Chain(Dense(1, 5, elu),Dense(5, 5, elu) , Dense(5 , 5 , elu) , Dense(5 , 1))
 ensemblealg = EnsembleThreads()
 sol = solve(prob, NNKolmogorov(m,opt , sdealg,ensemblealg) , verbose = true, dt = 0.01,
-            abstol=1e-10, trajectories = 100000 ,  maxiters = 500)
+            abstol=1e-10, dx = 0.0001 , trajectories = 100000 ,  maxiters = 500)
 # using Plots
 #
-# xs = -2:0.00001:6
+
 # x_val = collect(xs)
 # x_val= reshape(x_val , 1 , size(x_val)[1])
 # y_val = m(x_val)
@@ -37,6 +37,7 @@ sol = solve(prob, NNKolmogorov(m,opt , sdealg,ensemblealg) , verbose = true, dt 
 ## The solution is obtained taking the Fourier Transform.
 analytical(xi) = pdf.(Normal(3 , sqrt(1.0 + 5.00)) , xi)
 ##Validation
+xs = -5:0.00001:5
 x_1 = rand(xs , 1 , 1000)
 err_l2 = Flux.mse(analytical(x_1) , m(x_1))
 @test err_l2 < 0.01
@@ -63,7 +64,7 @@ prob2 = KolmogorovPDEProblem(f2 , g2, phi , xspan2 , tspan2, d2)
 opt2 = Flux.ADAM(0.01)
 m2 = Chain(Dense(1, 16, elu) , Dense(16 , 32 , elu),Dense(32 , 16 , elu), Dense(16 , 1))
 sol = solve(prob2, NeuralNetDiffEq.NNKolmogorov(m2,opt2 , sdealg2, ensemblealg), verbose = true, dt = 0.01,
-            trajectories = 1000 , abstol=1e-6, maxiters = 300)
+            dx = 0.0001 , trajectories = 1000 , abstol=1e-6, maxiters = 300)
 
 
 function analytical2(xi)
@@ -105,5 +106,5 @@ prob = SDEProblem(f_noise , g_noise , uo3 , (0.0 , 1.0) ; xspan = xspan3 , d = d
 opt = Flux.ADAM(0.01)
 m3 = Chain(Dense(d3, 32, elu) ,Dense(32 , 64 , elu), Dense(64 , 1))
 sol3 = solve(prob, NeuralNetDiffEq.NNKolmogorov(m3,opt , sdealg3 , EnsembleThreads()), verbose = true, dt = 0.001,
-            abstol=1e-6, trajectories = 10000,maxiters = 200)
+            abstol=1e-6, dx = 0.001, trajectories = 1000,maxiters = 200)
 println("Non-Diagonal test working.")

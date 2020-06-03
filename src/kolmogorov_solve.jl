@@ -15,6 +15,7 @@ function DiffEqBase.solve(
     trajectories = 1000,
     save_everystep = false,
     dt,
+    dx,
     kwargs...
     )
 
@@ -33,7 +34,7 @@ function DiffEqBase.solve(
         phi = prob.phi
     end
     ts = tspan[1]:dt:tspan[2]
-    xs = xspan[1]:0.0001:xspan[2]
+    xs = xspan[1]:dx:xspan[2]
     N = size(ts)
     T = tspan[2]
 
