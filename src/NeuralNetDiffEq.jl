@@ -82,18 +82,18 @@ function Base.show(io::IO, A::GeneranNNPDEProblem)
   print(io,"timespan: ")
   show(io,A.tspan)
 end
-struct GeneranNNTwoDimPDEProblem{PF,BC,IC,T,X,Y,DT,DX,DY,P} <:DiffEqBase.DEProblem
+struct GeneranNN3DimPDEProblem{PF,BC,IC,T,X,Y,DT,DX,DY,P} <:DiffEqBase.DEProblem
   pde_func::PF
-  boundary_conditions::BC
+  boundary_conditions::BC #TODO boundary_funcs
   initial_conditions::IC
-  tspan::Tuple{T,T}
+  tspan::Tuple{T,T} #TODO sparse = {tspan,xspan,yspan,dt,dx,dy}
   xspan::Tuple{X,X}
   yspan::Tuple{Y,Y}
   dt::DT
   dx::DX
-  dy::DX
+  dy::DX #TODO dim eq
   p::P
-  GeneranNNTwoDimPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan,xspan,yspan,dt,dx,dy,p=nothing) = new{
+  GeneranNN3DimPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan,xspan,yspan,dt,dx,dy,p=nothing) = new{
                                                        typeof(pde_func),
                                                        typeof(boundary_conditions),typeof(initial_conditions),
                                                        eltype(tspan), eltype(xspan),eltype(yspan),
@@ -101,9 +101,9 @@ struct GeneranNNTwoDimPDEProblem{PF,BC,IC,T,X,Y,DT,DX,DY,P} <:DiffEqBase.DEProbl
                                                        typeof(p)}(
                                                        pde_func,boundary_conditions,initial_conditions,tspan,xspan,yspan,dt,dx,dy,p)
 end
-Base.summary(prob::GeneranNNTwoDimPDEProblem) = string(nameof(typeof(prob)))
+Base.summary(prob::GeneranNN3DimPDEProblem) = string(nameof(typeof(prob)))
 
-function Base.show(io::IO, A::GeneranNNTwoDimPDEProblem)
+function Base.show(io::IO, A::GeneranNN3DimPDEProblem)
   println(io,summary(A))
   print(io,"timespan: ")
   show(io,A.tspan)
@@ -116,10 +116,10 @@ include("kolmogorov_solve.jl")
 include("stopping_solve.jl")
 include("general_ode_solve.jl")
 include("general_pde_solve.jl")
-include("general_two_dim_pde_solve.jl")
+include("general_3_dim_pde_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       NNGenODE, NNGeneralPDE, GeneranNNPDEProblem, GeneranNNTwoDimPDEProblem
+       NNGenODE, NNGeneralPDE, GeneranNNPDEProblem, GeneranNN3DimPDEProblem
 
 end # module
