@@ -59,8 +59,8 @@ u_predict,phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1500)
 
 u_real = [reshape([linear_analytic_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
 
-p1 =plot(xs, ys, u_predict[5], st=:surface);
-p2 = plot(xs, ys, u_real[5], st=:surface);
+p1 =plot(xs, ys, u_predict[2], st=:surface);
+p2 = plot(xs, ys, u_real[2], st=:surface);
 plot(p1,p2)
 
 # Example 2  3dim Poisson equation du2/dx2 + du2/dy2+ du2/dt2 = -sin(pi*x)*sin(pi*y)*sin(pi*t)

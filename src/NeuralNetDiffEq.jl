@@ -58,7 +58,7 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.sigma)
 end
 
-struct GeneranNNPDEProblem{PF,BC,IC,T,X,DT,DX,P} <:DiffEqBase.DEProblem
+struct GeneranNN2DimPDEProblem{PF,BC,IC,T,X,DT,DX,P} <:DiffEqBase.DEProblem
   pde_func::PF
   boundary_conditions::BC
   initial_conditions::IC
@@ -67,7 +67,7 @@ struct GeneranNNPDEProblem{PF,BC,IC,T,X,DT,DX,P} <:DiffEqBase.DEProblem
   dt::DT
   dx::DX
   p::P
-  GeneranNNPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan,xspan,dt,dx,p=nothing) = new{
+  GeneranNN2DimPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan,xspan,dt,dx,p=nothing) = new{
                                                        typeof(pde_func),
                                                        typeof(boundary_conditions),typeof(initial_conditions),
                                                        eltype(tspan), eltype(xspan),
@@ -75,9 +75,9 @@ struct GeneranNNPDEProblem{PF,BC,IC,T,X,DT,DX,P} <:DiffEqBase.DEProblem
                                                        typeof(p)}(
                                                        pde_func,boundary_conditions,initial_conditions,tspan,xspan,dt,dx,p)
 end
-Base.summary(prob::GeneranNNPDEProblem) = string(nameof(typeof(prob)))
+Base.summary(prob::GeneranNN2DimPDEProblem) = string(nameof(typeof(prob)))
 
-function Base.show(io::IO, A::GeneranNNPDEProblem)
+function Base.show(io::IO, A::GeneranNN2DimPDEProblem)
   println(io,summary(A))
   print(io,"timespan: ")
   show(io,A.tspan)
@@ -109,17 +109,44 @@ function Base.show(io::IO, A::GeneranNN3DimPDEProblem)
   show(io,A.tspan)
 end
 
+struct GeneranNNPDEProblem{PF,BF,S,D,P} <:DiffEqBase.DEProblem
+  pde_func::PF
+  bound_funcs::BF
+  space ::S
+  dim::D
+  p::P
+  GeneranNNPDEProblem(pde_func,bound_funcs,space,dim,p=nothing) = new{
+                                                       typeof(pde_func),
+                                                       typeof(bound_funcs),
+                                                       typeof(space),
+                                                       typeof(dim),
+                                                       typeof(p)
+                                                       }(
+                                                       pde_func,bound_funcs,space,dim,p)
+end
+Base.summary(prob::GeneranNNPDEProblem) = string(nameof(typeof(prob)))
+
+function Base.show(io::IO, A::GeneranNNPDEProblem)
+  println(io,summary(A))
+  show(io,A.space)
+end
+
 include("ode_solve.jl")
 include("pde_solve.jl")
 include("pde_solve_ns.jl")
 include("kolmogorov_solve.jl")
 include("stopping_solve.jl")
+include("general_nn_pde_solve.jl")
+
 include("general_ode_solve.jl")
-include("general_pde_solve.jl")
+include("general_2_dim_pde_solve.jl")
 include("general_3_dim_pde_solve.jl")
+
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       NNGenODE, NNGeneralPDE, GeneranNNPDEProblem, GeneranNN3DimPDEProblem
+       NNGeneralPDE, GeneranNNPDEProblem, Spaces, Discretization,
+
+       NNGenODE, GeneranNN2DimPDEProblem, GeneranNN3DimPDEProblem
 
 end # module
