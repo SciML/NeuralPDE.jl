@@ -58,10 +58,10 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.sigma)
 end
 
-struct GeneranNNPDEProblem{PF,BF,S,D,P} <:DiffEqBase.DEProblem
+struct GeneranNNPDEProblem{PF,BF,SP,D,P} <:DiffEqBase.DEProblem
   pde_func::PF
   bound_funcs::BF
-  space ::S
+  space ::SP
   dim::D
   p::P
   GeneranNNPDEProblem(pde_func,bound_funcs,space,dim,p=nothing) = new{
@@ -77,6 +77,11 @@ Base.summary(prob::GeneranNNPDEProblem) = string(nameof(typeof(prob)))
 
 function Base.show(io::IO, A::GeneranNNPDEProblem)
   println(io,summary(A))
+  print(io,"pde_func: ")
+  show(io,A.pde_func)
+  print(io,"bound_funcs: ")
+  show(io,A.bound_funcs)
+  print(io,"space: ")
   show(io,A.space)
 end
 
