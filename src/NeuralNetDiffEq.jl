@@ -58,57 +58,6 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.sigma)
 end
 
-struct GeneranNN2DimPDEProblem{PF,BC,IC,T,X,DT,DX,P} <:DiffEqBase.DEProblem
-  pde_func::PF
-  boundary_conditions::BC
-  initial_conditions::IC
-  tspan::Tuple{T,T}
-  xspan::Tuple{X,X}
-  dt::DT
-  dx::DX
-  p::P
-  GeneranNN2DimPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan,xspan,dt,dx,p=nothing) = new{
-                                                       typeof(pde_func),
-                                                       typeof(boundary_conditions),typeof(initial_conditions),
-                                                       eltype(tspan), eltype(xspan),
-                                                       typeof(dt),typeof(dx),
-                                                       typeof(p)}(
-                                                       pde_func,boundary_conditions,initial_conditions,tspan,xspan,dt,dx,p)
-end
-Base.summary(prob::GeneranNN2DimPDEProblem) = string(nameof(typeof(prob)))
-
-function Base.show(io::IO, A::GeneranNN2DimPDEProblem)
-  println(io,summary(A))
-  print(io,"timespan: ")
-  show(io,A.tspan)
-end
-struct GeneranNN3DimPDEProblem{PF,BC,IC,T,X,Y,DT,DX,DY,P} <:DiffEqBase.DEProblem
-  pde_func::PF
-  boundary_conditions::BC #TODO boundary_funcs
-  initial_conditions::IC
-  tspan::Tuple{T,T} #TODO sparse = {tspan,xspan,yspan,dt,dx,dy}
-  xspan::Tuple{X,X}
-  yspan::Tuple{Y,Y}
-  dt::DT
-  dx::DX
-  dy::DX #TODO dim eq
-  p::P
-  GeneranNN3DimPDEProblem(pde_func,boundary_conditions,initial_conditions,tspan,xspan,yspan,dt,dx,dy,p=nothing) = new{
-                                                       typeof(pde_func),
-                                                       typeof(boundary_conditions),typeof(initial_conditions),
-                                                       eltype(tspan), eltype(xspan),eltype(yspan),
-                                                       typeof(dt),typeof(dx),typeof(dy),
-                                                       typeof(p)}(
-                                                       pde_func,boundary_conditions,initial_conditions,tspan,xspan,yspan,dt,dx,dy,p)
-end
-Base.summary(prob::GeneranNN3DimPDEProblem) = string(nameof(typeof(prob)))
-
-function Base.show(io::IO, A::GeneranNN3DimPDEProblem)
-  println(io,summary(A))
-  print(io,"timespan: ")
-  show(io,A.tspan)
-end
-
 struct GeneranNNPDEProblem{PF,BF,S,D,P} <:DiffEqBase.DEProblem
   pde_func::PF
   bound_funcs::BF
@@ -138,15 +87,10 @@ include("kolmogorov_solve.jl")
 include("stopping_solve.jl")
 include("general_nn_pde_solve.jl")
 
-include("general_ode_solve.jl")
-include("general_2_dim_pde_solve.jl")
-include("general_3_dim_pde_solve.jl")
 
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       NNGeneralPDE, GeneranNNPDEProblem, Spaces, Discretization,
-
-       NNGenODE, GeneranNN2DimPDEProblem, GeneranNN3DimPDEProblem
+       NNGeneralPDE, GeneranNNPDEProblem, Spaces, Discretization
 
 end # module
