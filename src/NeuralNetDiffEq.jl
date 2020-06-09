@@ -58,13 +58,13 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.sigma)
 end
 
-struct GeneranNNPDEProblem{PF,BF,SP,D,P} <:DiffEqBase.DEProblem
+struct GeneralNNPDEProblem{PF,BF,SP,D,P} <:DiffEqBase.DEProblem
   pde_func::PF
   bound_funcs::BF
   space ::SP
   dim::D
   p::P
-  GeneranNNPDEProblem(pde_func,bound_funcs,space,dim,p=nothing) = new{
+  GeneralNNPDEProblem(pde_func,bound_funcs,space,dim,p=nothing) = new{
                                                        typeof(pde_func),
                                                        typeof(bound_funcs),
                                                        typeof(space),
@@ -73,9 +73,9 @@ struct GeneranNNPDEProblem{PF,BF,SP,D,P} <:DiffEqBase.DEProblem
                                                        }(
                                                        pde_func,bound_funcs,space,dim,p)
 end
-Base.summary(prob::GeneranNNPDEProblem) = string(nameof(typeof(prob)))
+Base.summary(prob::GeneralNNPDEProblem) = string(nameof(typeof(prob)))
 
-function Base.show(io::IO, A::GeneranNNPDEProblem)
+function Base.show(io::IO, A::GeneralNNPDEProblem)
   println(io,summary(A))
   print(io,"pde_func: ")
   show(io,A.pde_func)
@@ -96,6 +96,6 @@ include("general_nn_pde_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       NNGeneralPDE, GeneranNNPDEProblem, Spaces, Discretization
+       NNGeneralPDE, GeneralNNPDEProblem, Spaces, Discretization
 
 end # module

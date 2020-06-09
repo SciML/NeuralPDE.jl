@@ -46,7 +46,7 @@ dim = length(domains)
 opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(dim,12,Flux.σ),FastDense(12,1))
 
-prob = NeuralNetDiffEq.GeneranNNPDEProblem(pde_func,bound_cond_funcs, spaces, dim)
+prob = NeuralNetDiffEq.GeneralNNPDEProblem(pde_func,bound_cond_funcs, spaces, dim)
 alg = NeuralNetDiffEq.NNGeneralPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1000)
 
@@ -83,7 +83,7 @@ dim = length(domains)
 opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-prob = NeuralNetDiffEq.GeneranNNPDEProblem(pde_func,bound_cond_funcs, spaces, dim)
+prob = NeuralNetDiffEq.GeneralNNPDEProblem(pde_func,bound_cond_funcs, spaces, dim)
 alg = NeuralNetDiffEq.NNGeneralPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=500)
 
@@ -114,7 +114,7 @@ dim = length(domains)
 opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-prob = NeuralNetDiffEq.GeneranNNPDEProblem(pde_func,bound_cond_funcs, spaces, dim)
+prob = NeuralNetDiffEq.GeneralNNPDEProblem(pde_func,bound_cond_funcs, spaces, dim)
 alg = NeuralNetDiffEq.NNGeneralPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=500)
 

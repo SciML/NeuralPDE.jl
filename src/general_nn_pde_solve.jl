@@ -21,7 +21,7 @@ end
 Discretization(dxs=0.1) = Discretization(dxs)
 
 function DiffEqBase.solve(
-    prob::GeneranNNPDEProblem,
+    prob::GeneralNNPDEProblem,
     alg::NNGeneralPDE,
     args...;
     timeseries_errors = true,
