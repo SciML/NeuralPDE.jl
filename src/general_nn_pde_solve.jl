@@ -1,11 +1,11 @@
-struct NNGeneralPDE{C,O,K} <: NeuralNetDiffEqAlgorithm
+struct NNPDE{C,O,K} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
     autodiff::Bool
     kwargs::K
 end
 
-NNGeneralPDE(chain,opt=Optim.BFGS();autodiff=false,kwargs...) = NNGeneralPDE(chain,opt,autodiff,kwargs)
+NNPDE(chain,opt=Optim.BFGS();autodiff=false,kwargs...) = NNPDE(chain,opt,autodiff,kwargs)
 
 # TODO overload struct for high dim case
 struct Spaces{DIS}
@@ -22,7 +22,7 @@ Discretization(dxs=0.1) = Discretization(dxs)
 
 function DiffEqBase.solve(
     prob::GeneralNNPDEProblem,
-    alg::NNGeneralPDE,
+    alg::NNPDE,
     args...;
     timeseries_errors = true,
     save_everystep=true,
@@ -52,8 +52,8 @@ function DiffEqBase.solve(
 
     isuinplace = dx isa Number
 
-    dom_spans = [(domain.domain.lower:discretization.dxs:domain.domain.upper)[2:end-1] for domain in domains]
-    spans = [domain.domain.lower:discretization.dxs:domain.domain.upper for domain in domains]
+    dom_spans = [(d.domain.lower:discretization.dxs:d.domain.upper)[2:end-1] for d in domains]
+    spans = [d.domain.lower:discretization.dxs:d.domain.upper for d in domains]
 
     #TODO get more generally points generator avoiding if_else case
     #TODO add residual_points_generator

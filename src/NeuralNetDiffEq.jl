@@ -96,6 +96,6 @@ include("general_nn_pde_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       NNGeneralPDE, GeneralNNPDEProblem, Spaces, Discretization
+       NNPDE, GeneralNNPDEProblem, Spaces, Discretization
 
 end # module

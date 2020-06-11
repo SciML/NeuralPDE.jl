@@ -47,7 +47,7 @@ opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(dim,12,Flux.σ),FastDense(12,1))
 
 prob = NeuralNetDiffEq.GeneralNNPDEProblem(pde_func,bound_cond_funcs, spaces, dim)
-alg = NeuralNetDiffEq.NNGeneralPDE(chain,opt,autodiff=false)
+alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1000)
 
 ts = [domain.domain.lower:discretization.dxs/10:domain.domain.upper for domain in domains][1]
@@ -58,6 +58,8 @@ u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 t_plot = collect(ts)
 plot(t_plot ,u_real)
 plot!(t_plot ,u_predict)
+
+#TODO add convergence tests
 
 ## Example 2 2d Poisson equation du2/dx2 + du2/dy2 =  1
 @parameters x y
@@ -84,7 +86,7 @@ opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
 prob = NeuralNetDiffEq.GeneralNNPDEProblem(pde_func,bound_cond_funcs, spaces, dim)
-alg = NeuralNetDiffEq.NNGeneralPDE(chain,opt,autodiff=false)
+alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=500)
 
 xs,ys = [domain.domain.lower:discretization.dxs:domain.domain.upper for domain in domains]
@@ -115,7 +117,7 @@ opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
 prob = NeuralNetDiffEq.GeneralNNPDEProblem(pde_func,bound_cond_funcs, spaces, dim)
-alg = NeuralNetDiffEq.NNGeneralPDE(chain,opt,autodiff=false)
+alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=500)
 
 xs,ys,ts = [domain.domain.lower:discretization.dxs:domain.domain.upper for domain in domains]
