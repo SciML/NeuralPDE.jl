@@ -72,5 +72,6 @@ function DiffEqBase.solve(
     end
 
     Flux.train!(loss, ps, data, opt; cb = cb)
-    xi , chain(xi)
+    chainout = chain(cu(xi)) |> cpu
+    xi , chainout
  end #solve
