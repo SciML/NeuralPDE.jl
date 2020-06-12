@@ -59,11 +59,11 @@ function DiffEqBase.solve(
     for u in sim.u
         x_sde = hcat(x_sde , u)
     end
-    y = phi(x_sde)
-    data   = Iterators.repeated((xi , y), maxiters)
+    y = phi(x_sde) |> gpu
+    data   = Iterators.repeated((xi , y), maxiters) |> gpu
 
     #MSE Loss Function
-    loss(x , y) =Flux.mse(chain(x), y)
+    loss(x , y) =Flux.mse(chain(cu(x)), y)
 
     cb = function ()
         l = loss(xi, y)
