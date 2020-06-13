@@ -1,11 +1,24 @@
-struct NNPDE{C,O,K} <: NeuralNetDiffEqAlgorithm
+#TODO generic version with NNODE
+struct NNPDE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O
+    initθ::P
     autodiff::Bool
     kwargs::K
 end
+function NNPDE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
+    if init_params === nothing
+        if chain isa FastChain
+            initθ = DiffEqFlux.initial_params(chain)
+        else
+            initθ,re  = Flux.destructure(chain)
+        end
+    else
+        initθ = init_params
+    end
+    NNPDE(chain,opt,initθ,autodiff,kwargs)
+end
 
-NNPDE(chain,opt=Optim.BFGS();autodiff=false,kwargs...) = NNPDE(chain,opt,autodiff,kwargs)
 
 # TODO overload struct for high dim case
 struct Spaces{DIS}
@@ -20,8 +33,29 @@ struct Discretization{}
 end
 Discretization(dxs=0.1) = Discretization(dxs)
 
+# function extract_eq(bcs,dim)
+#     ...
+# end
+
+function extract_bc(bcs,dim)
+    bc_fs = []
+    # TODO extract args form bcs
+    args =  dim == 1 ? :(t)  : (dim ==2 ? :(x,y) : :(x,y,t))
+    for i =1:length(bcs)
+        if isa(bcs[i].rhs,ModelingToolkit.Operation)
+            expr =Expr(bcs[i].rhs)
+            _f = eval(:(($args) -> $expr))
+            f = (args...) -> @eval $_f($args...)
+        elseif isa(bcs[i].rhs,ModelingToolkit.Constant)
+            f = (args...) -> bcs[i].rhs.value
+        end
+        push!(bc_fs, f)
+    end
+    return bc_fs
+end
+
 function DiffEqBase.solve(
-    prob::GeneralNNPDEProblem,
+    prob::NNPDEProblem,
     alg::NNPDE,
     args...;
     timeseries_errors = true,
@@ -33,7 +67,7 @@ function DiffEqBase.solve(
 
     # DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
     pde_func = prob.pde_func
-    bound_funcs = prob.bound_funcs
+    bcs = prob.bound_conditions
     domains =  prob.space.domains
     discretization =  prob.space.discretization
     dx = discretization.dxs
@@ -44,46 +78,46 @@ function DiffEqBase.solve(
     chain  = alg.chain
     opt    = alg.opt
     autodiff = alg.autodiff
-
-    #hidden layer
-    chain  = alg.chain
-    opt    = alg.opt
-    autodiff = alg.autodiff
+    initθ = alg.initθ
 
     isuinplace = dx isa Number
 
     dom_spans = [(d.domain.lower:discretization.dxs:d.domain.upper)[2:end-1] for d in domains]
     spans = [d.domain.lower:discretization.dxs:d.domain.upper for d in domains]
 
+    bc_fs = extract_bc(bcs,dim)
+    get_train_bound_set(xs,ys,ts,b_f) = [([x,y,t],b_f(x,y,t)) for x in xs for y in ys for t in ts]
     #TODO get more generally points generator avoiding if_else case
     #TODO add residual_points_generator
-    get_train_bound_set() = nothing
     if dim == 1
-        get_train_bound_set(xs,bound_funcs) = [([x],bound_funcs(x))  for x in xs]
         xs = spans[1]
         dom_xs = dom_spans[1]
-        train_bound_set = [([xs[1]], bound_funcs(xs[1])), ([xs[2]], bound_funcs(xs[2]))]
+        train_bound_set = [([xs[1]], bc_fs[1](xs[1])), ([xs[end]], bc_fs[2](xs[end]))]
         train_domain_set = [[x]  for x in dom_xs]
     elseif dim == 2
-        get_train_bound_set(xs,ys,bound_funcs) = [([x,y],bound_funcs(x,y))  for x in xs for y in ys]
+        get_train_bound_set(xs,ys,b_f) = [([x,y],b_f(x,y)) for x in xs for y in ys]
         xs,ys = spans
         dom_xs,dom_ys = dom_spans
         #square boundary condition
-        train_bound_set = [get_train_bound_set(xs,ys[1],bound_funcs); get_train_bound_set(xs,ys[end],bound_funcs);
-                           get_train_bound_set(xs[1],dom_ys,bound_funcs); get_train_bound_set(xs[end],dom_ys,bound_funcs)]
+        #TODO   list =[(xs,ys[1],bc_fs[1]),(xs,ys[end],bc_fs[2]),...]
+        # train_bound_set = [get_train_bound_set(l) for l in list]
+        train_bound_set = [get_train_bound_set(xs,ys[1],bc_fs[1]);
+                           get_train_bound_set(xs,ys[end],bc_fs[2]);
+                           get_train_bound_set(xs[1],dom_ys,bc_fs[3]);
+                           get_train_bound_set(xs[end],dom_ys,bc_fs[4])]
 
         train_domain_set = [[x,y]  for x in dom_xs for y in dom_ys]
-    else # dim == 3
-        get_train_bound_set(xs,ys,ts,bound_funcs) = [([x,y,t],bound_funcs(x,y,t)) for x in xs for y in ys for t in ts]
+    elseif dim == 3
+        get_train_bound_set(xs,ys,ts,b_f) = [([x,y,t],b_f(x,y,t)) for x in xs for y in ys for t in ts]
         xs,ys,ts = spans
         dom_xs,dom_ys,dom_ts = dom_spans
 
-        train_bound_set = [get_train_bound_set(xs,ys,ts[1],bound_funcs);
-                           get_train_bound_set(xs,ys,ts[end],bound_funcs);
-                           get_train_bound_set(xs[1],ys,dom_ts,bound_funcs);
-                           get_train_bound_set(xs[end],ys,dom_ts,bound_funcs);
-                           get_train_bound_set(dom_xs,ys[1],dom_ts,bound_funcs);
-                           get_train_bound_set(dom_xs,ys[end],dom_ts,bound_funcs)]
+        train_bound_set = [get_train_bound_set(xs,ys,ts[1],bc_fs[1]);
+                           get_train_bound_set(xs,ys,ts[end],bc_fs[2]);
+                           get_train_bound_set(xs[1],ys,dom_ts,bc_fs[3]);
+                           get_train_bound_set(xs[end],ys,dom_ts,bc_fs[4]);
+                           get_train_bound_set(dom_xs,ys[1],dom_ts,bc_fs[5]);
+                           get_train_bound_set(dom_xs,ys[end],dom_ts,bc_fs[6])]
         #train sets
         train_domain_set = [[x,y,t]  for x in dom_xs for y in dom_ys for t in dom_ts]
     end
@@ -93,7 +127,6 @@ function DiffEqBase.solve(
     τf = length(train_domain_set)
 
     if chain isa FastChain
-        initθ = DiffEqFlux.initial_params(chain)
         #The phi trial solution
         if isuinplace
             phi = (x,θ) -> first(chain(adapt(typeof(θ),x),θ))
@@ -101,7 +134,7 @@ function DiffEqBase.solve(
             phi = (x,θ) -> chain(adapt(typeof(θ),x),θ)
         end
     else
-        initθ,re  = Flux.destructure(chain)
+        _,re  = Flux.destructure(chain)
         #The phi trial solution
         if isuinplace
             phi = (x,θ) -> first(re(θ)(adapt(typeof(θ),x)))
@@ -109,22 +142,30 @@ function DiffEqBase.solve(
             phi = (x,θ) -> re(θ)(adapt(typeof(θ),x))
         end
     end
-
-    #TODO find another way avoid Mutating arrays
-    epsilon(dx) = cbrt(eps(typeof(dx)))
-    e = epsilon(dx)
-    eps_masks = [
-             [[e]],
-             [[e, 0.0], [0.0,e]],
-             [[e,0.0,0.0], [0.0,e,0.0],[0.0,0.0,e]]
-             ]
+    # try
+    #     phi(train_domain_set[1] , initθ)
+    # catch err
+    #     if isa(err , DimensionMismatch)
+    #         throw( throw(DimensionMismatch("Dimensions of the initial u0 and chain should match")))
+    #     else
+    #         throw(err)
+    #     end
+    # end
 
     if autodiff
-        u = (x,θ) -> phi(x,θ)
+        # uf = (x,θ) -> phi(x,θ)
         du = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
         # du2 = ...
     else
-        u = (x,θ) -> phi(x,θ)
+        #TODO find another way avoid Mutating arrays
+        epsilon(dx) = cbrt(eps(typeof(dx)))
+        e = epsilon(dx)
+        eps_masks = [
+                 [[e]],
+                 [[e, 0.0], [0.0,e]],
+                 [[e,0.0,0.0], [0.0,e,0.0],[0.0,0.0,e]]
+                 ]
+        # uf = (x,θ) -> phi(x,θ)
         du = (x,θ,n) -> (phi(collect(x+eps_masks[dim][n]),θ) - phi(x,θ))/epsilon(dx)
         du2 = (x,θ,n) -> (phi(x+eps_masks[dim][n],θ) - 2phi(x,θ) + phi(x-eps_masks[dim][n],θ))/epsilon(dx)^2
     end

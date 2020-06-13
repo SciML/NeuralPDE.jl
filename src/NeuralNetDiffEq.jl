@@ -5,6 +5,7 @@ using Reexport, Statistics
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt
+using ModelingToolkit
 import Tracker, Optim
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
@@ -58,29 +59,29 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.sigma)
 end
 
-struct GeneralNNPDEProblem{PF,BF,SP,D,P} <:DiffEqBase.DEProblem
+struct NNPDEProblem{PF,BC,SP,D,P} <:DiffEqBase.DEProblem
   pde_func::PF
-  bound_funcs::BF
+  bound_conditions::BC #Array{Equation,1}
   space ::SP
   dim::D
   p::P
-  GeneralNNPDEProblem(pde_func,bound_funcs,space,dim,p=nothing) = new{
+  NNPDEProblem(pde_func,bound_conditions,space,dim,p=nothing) = new{
                                                        typeof(pde_func),
-                                                       typeof(bound_funcs),
+                                                       typeof(bound_conditions),
                                                        typeof(space),
                                                        typeof(dim),
                                                        typeof(p)
                                                        }(
-                                                       pde_func,bound_funcs,space,dim,p)
+                                                       pde_func,bound_conditions,space,dim,p)
 end
-Base.summary(prob::GeneralNNPDEProblem) = string(nameof(typeof(prob)))
+Base.summary(prob::NNPDEProblem) = string(nameof(typeof(prob)))
 
-function Base.show(io::IO, A::GeneralNNPDEProblem)
+function Base.show(io::IO, A::NNPDEProblem)
   println(io,summary(A))
   print(io,"pde_func: ")
   show(io,A.pde_func)
-  print(io,"bound_funcs: ")
-  show(io,A.bound_funcs)
+  print(io,"bound_conditions: ")
+  show(io,A.bound_conditions)
   print(io,"space: ")
   show(io,A.space)
 end
@@ -90,12 +91,12 @@ include("pde_solve.jl")
 include("pde_solve_ns.jl")
 include("kolmogorov_solve.jl")
 include("stopping_solve.jl")
-include("general_nn_pde_solve.jl")
+include("pinns_pde_solve.jl")
 
 
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       NNPDE, GeneralNNPDEProblem, Spaces, Discretization
+       NNPDE, NNPDEProblem, Spaces, Discretization
 
 end # module
