@@ -22,7 +22,7 @@ prob  = SDEProblem(f , sigma , u0 , tspan ; g = g)
 opt = Flux.ADAM(0.1)
 m = Chain(Dense(d , 5, tanh), Dense(5, 16 , tanh)  , Dense(16 , N ), softmax)
 sol = solve(prob, NeuralNetDiffEq.NNStopping( m, opt , sdealg , ensemblealg), verbose = true, dt = dt,
-            abstol=1e-6, maxiters = 15 , trajectories = 150)
+            abstol=1e-6, maxiters = 20 , trajectories = 200)
 
 ##Analytical Binomial Tree approach for American Options
 function BinomialTreeAM1D(S0 , N , r , beta)
