@@ -13,13 +13,14 @@ function DiffEqBase.solve(
     maxiters = 300,
     save_everystep = false,
     dt,
+    give_limit = false,
     trajectories)
 
     X0 = prob.X0
     ts = prob.tspan[1]:dt:prob.tspan[2]
     d  = length(X0)
     g,f,μ,σ,p = prob.g,prob.f,prob.μ,prob.σ,prob.p
-
+    A = prob.kwargs.data.A
     data = Iterators.repeated((), maxiters)
 
 
@@ -60,4 +61,32 @@ function DiffEqBase.solve(
     Flux.train!(loss, ps, data, opt; cb = cb)
 
     save_everystep ? iters : u0(X0)[1]
+    if give_limit = true
+        function f_leg(X, σᵀ∇u ,a , t)
+            return maximum( a*u .- f(X,u,σᵀ∇u,a,t)  for u in -1:0.01:1)
+        end
+        m2 = 1000
+        function sol_low()
+            p = nothing
+            map(1:m2) do j
+                u = u0(x0)[1]
+                X = x0
+                I = 0.0
+                Q = 0.0
+                for i in 1:length(ts)-1
+                    t = ts[i]
+                    _σᵀ∇u = σᵀ∇u[i](X)
+                    dW = sqrt(dt)*randn(d)
+                    u = u - f(X, u, _σᵀ∇u, p, t)*dt + _σᵀ∇u'*dW
+                    X  = X .+ μ_f(X,p,t)*dt .+ σ_f(X,p,t)*dW
+                    a_ = A[findmax(collect(A).*u - collect(f_leg(X , _σᵀ∇u, a, t ) for a in A))[2]]
+                    I = I + a_*dt
+                    Q = Q + exp(I)*f_leg(X, _σᵀ∇u, a_, t)
+                end
+                I , Q ,X
+            end
+        end
+
+        u_low = sum(exp(I)*g(X) - Q for (I ,Q , X) in sol_low())/(m2)
+    end
 end #pde_solve
