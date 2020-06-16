@@ -59,9 +59,9 @@ function DiffEqBase.solve(
     end
 
     Flux.train!(loss, ps, data, opt; cb = cb)
-
-    save_everystep ? iters : u0(X0)[1]
-    if give_limit = true
+    if give_limit == false
+        save_everystep ? iters : u0(X0)[1]
+    else
         function f_leg(X, σᵀ∇u ,a , t)
             return maximum( a*u .- f(X,u,σᵀ∇u,a,t)  for u in -1:0.01:1)
         end
@@ -69,8 +69,8 @@ function DiffEqBase.solve(
         function sol_low()
             p = nothing
             map(1:m2) do j
-                u = u0(x0)[1]
-                X = x0
+                u = u0(X0)[1]
+                X = X0
                 I = 0.0
                 Q = 0.0
                 for i in 1:length(ts)-1
@@ -78,7 +78,7 @@ function DiffEqBase.solve(
                     _σᵀ∇u = σᵀ∇u[i](X)
                     dW = sqrt(dt)*randn(d)
                     u = u - f(X, u, _σᵀ∇u, p, t)*dt + _σᵀ∇u'*dW
-                    X  = X .+ μ_f(X,p,t)*dt .+ σ_f(X,p,t)*dW
+                    X  = X .+ μ(X,p,t)*dt .+ σ(X,p,t)*dW
                     a_ = A[findmax(collect(A).*u - collect(f_leg(X , _σᵀ∇u, a, t ) for a in A))[2]]
                     I = I + a_*dt
                     Q = Q + exp(I)*f_leg(X, _σᵀ∇u, a_, t)
@@ -86,7 +86,8 @@ function DiffEqBase.solve(
                 I , Q ,X
             end
         end
-
         u_low = sum(exp(I)*g(X) - Q for (I ,Q , X) in sol_low())/(m2)
+        save_everystep ? iters : u0(X0)[1] , u_low
     end
+
 end #pde_solve

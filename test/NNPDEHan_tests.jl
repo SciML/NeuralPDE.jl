@@ -269,3 +269,31 @@ println("Nonlinear Black-Scholes Equation with Default Risk")
 # println("prob_ans = " , prob_ans)
 println("error_l2 = ", error_l2, "\n")
 @test error_l2 < 1.0
+
+d = 1
+x0 = fill(1.0f0,d)
+tspan = (0.0,1.0)
+dt = 0.01
+ts = tspan[1]:dt:tspan[2]
+time_steps = length(ts)-1
+m = 500
+g(X) = sum(1 - 2*(x > 1.00 ? 1.00 : 0.00) for x in X)
+β = 0.03
+f(X,u,σᵀ∇u,p,t) = β*max(u, 0)
+μ_f(X,p,t) = 0.0
+σ_f(X,p,t) = Diagonal(0.2*X)
+prob = TerminalPDEProblem(g, f, μ_f, σ_f, x0, tspan ; A = 0.00:0.001:0.03)
+hls = 2 + d
+opt = Flux.ADAM(0.01)
+
+u0 = Flux.Chain(Dense(d,hls,relu),
+                Dense(hls,hls,relu),
+                Dense(hls,1))
+
+σᵀ∇u = [Flux.Chain(Dense(d,hls,relu),
+                  Dense(hls,hls+2,relu),
+                  Dense(hls+2,d)) for i in 1:(time_steps)]
+
+alg = NNPDEHan(u0, σᵀ∇u, opt = opt)
+
+ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 40, dt=dt, trajectories=m , give_limit = true)
