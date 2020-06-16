@@ -9,7 +9,7 @@ import Tracker, Optim
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 
-struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P} <: DiffEqBase.DEProblem
+struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,K} <: DiffEqBase.DEProblem
     g::G
     f::F
     μ::Mu
@@ -17,11 +17,12 @@ struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P} <: DiffEqBase.DEProblem
     X0::X
     tspan::Tuple{T,T}
     p::P
-    TerminalPDEProblem(g,f,μ,σ,X0,tspan,p=nothing) = new{typeof(g),typeof(f),
+    kwargs::K
+    TerminalPDEProblem(g,f,μ,σ,X0,tspan,p=nothing;kwargs...) = new{typeof(g),typeof(f),
                                                          typeof(μ),typeof(σ),
                                                          typeof(X0),eltype(tspan),
-                                                         typeof(p)}(
-                                                         g,f,μ,σ,X0,tspan,p)
+                                                         typeof(p),typeof(kwargs)}(
+                                                         g,f,μ,σ,X0,tspan,p,kwargs)
 end
 
 Base.summary(prob::TerminalPDEProblem) = string(nameof(typeof(prob)))
