@@ -14,6 +14,7 @@ function DiffEqBase.solve(
     maxiters = 300,
     trajectories = 1000,
     save_everystep = false,
+    use_gpu = false,
     dt,
     dx,
     kwargs...
@@ -59,11 +60,18 @@ function DiffEqBase.solve(
     for u in sim.u
         x_sde = hcat(x_sde , u)
     end
-    y = phi(x_sde) |> gpu
-    data   = Iterators.repeated((xi , y), maxiters) |> gpu
+    y = phi(x_sde)
+    if use_gpu == true
+        y = y |>gpu
+        xi = xi |> gpu
+    end
+    data   = Iterators.repeated((xi , y), maxiters)
+    if use_gpu == true
+        data = data |>gpu
+    end
 
     #MSE Loss Function
-    loss(x , y) =Flux.mse(chain(cu(x)), y)
+    loss(x , y) =Flux.mse(chain(x), y)
 
     cb = function ()
         l = loss(xi, y)
@@ -72,6 +80,6 @@ function DiffEqBase.solve(
     end
 
     Flux.train!(loss, ps, data, opt; cb = cb)
-    chainout = chain(cu(xi)) |> cpu
+    chainout = chain(xi)
     xi , chainout
  end #solve
