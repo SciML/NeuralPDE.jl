@@ -23,6 +23,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 Adapt = "1.0, 2.0"
+CuArrays = "2.2"
 DiffEqBase = "6"
 DiffEqFlux = "1.5"
 DiffEqSensitivity = "6.5"
