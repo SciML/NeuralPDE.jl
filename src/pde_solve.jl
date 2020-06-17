@@ -87,7 +87,30 @@ function DiffEqBase.solve(
             end
         end
         u_low = sum(exp(I)*g(X) - Q for (I ,Q , X) in sol_low())/(m2)
-        save_everystep ? iters : u0(X0)[1] , u_low
+        sdeProb = SDEProblem(μ , σ , X0 , tspan)
+        ensembleprob = EnsembleProblem(sdeProb)
+        sim = solve(ensembleprob, EM(), EnsembleThreads(), dt=dt,trajectories=800,adaptive=false)
+        function sol_high()
+            Uo = []
+            p = nothing
+            for u in sim.u
+                xsde = u.u
+                U = g(xsde[end])
+                u = u0(x0)[1]
+                for i in length(ts)-1:-1:1
+                    t = ts[i]
+                    _σᵀ∇u = σᵀ∇u[i](xsde[i])
+                    dW = sqrt(dt)*randn(d)
+                    U = U .+ f(xsde[i], u, _σᵀ∇u, p, t)*dt .- _σᵀ∇u'*dW
+                end
+                Uo = vcat(Uo , U)
+            end
+            Uo
+        end
+        loss_() = sum(sol_high())/800
+        Flux.train!(loss, ps, data, opt; cb = cb)
+        u_high = loss_()
+        save_everystep ? iters : u0(X0)[1] , u_low , u_high
     end
 
 end #pde_solve
