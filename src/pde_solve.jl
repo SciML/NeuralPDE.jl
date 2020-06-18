@@ -65,7 +65,7 @@ function DiffEqBase.solve(
         function f_leg(X, σᵀ∇u ,a , t)
             return maximum( a*u .- f(X,u,σᵀ∇u,a,t)  for u in -1:0.01:1)
         end
-        m2 = 1000
+        m2 = 2500
         function sol_low()
             p = nothing
             map(1:m2) do j
@@ -108,7 +108,8 @@ function DiffEqBase.solve(
             Uo
         end
         loss_() = sum(sol_high())/800
-        Flux.train!(loss, ps, data, opt; cb = cb)
+        data = Iterators.repeated((), 20)
+        Flux.train!(loss, ps, dataset, opt; cb = cb)
         u_high = loss_()
         save_everystep ? iters : u0(X0)[1] , u_low , u_high
     end
