@@ -62,10 +62,11 @@ function DiffEqBase.solve(
     if give_limit == false
         save_everystep ? iters : u0(X0)[1]
     else
+        println(u0(X0)[1])
         function f_leg(X, σᵀ∇u ,a , t)
             return maximum( a*u .- f(X,u,σᵀ∇u,a,t)  for u in -1:0.01:1)
         end
-        m2 = 2500
+        m2 = 1000
         function sol_low()
             p = nothing
             map(1:m2) do j
@@ -87,6 +88,7 @@ function DiffEqBase.solve(
             end
         end
         u_low = sum(exp(I)*g(X) - Q for (I ,Q , X) in sol_low())/(m2)
+        println(u_low)
         sdeProb = SDEProblem(μ , σ , X0 , tspan)
         ensembleprob = EnsembleProblem(sdeProb)
         sim = solve(ensembleprob, EM(), EnsembleThreads(), dt=dt,trajectories=800,adaptive=false)
