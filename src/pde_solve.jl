@@ -89,7 +89,7 @@ function DiffEqBase.solve(
         end
         u_low = sum(exp(I)*g(X) - Q for (I ,Q , X) in sol_low())/(m2)
         println(u_low)
-        sdeProb = SDEProblem(μ , σ , X0 , tspan)
+        sdeProb = SDEProblem(μ , σ , X0 , prob.tspan)
         ensembleprob = EnsembleProblem(sdeProb)
         sim = solve(ensembleprob, EM(), EnsembleThreads(), dt=dt,trajectories=800,adaptive=false)
         function sol_high()
