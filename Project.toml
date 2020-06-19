@@ -34,7 +34,7 @@ Optim = "0.20, 0.21"
 Reexport = "0.2"
 StochasticDiffEq = "6.13"
 Tracker = "0.2"
-Zygote = "0.4"
+Zygote = "0.4, 0.5"
 julia = "1.3"
 
 [extras]
