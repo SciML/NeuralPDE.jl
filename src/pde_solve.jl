@@ -101,7 +101,7 @@ function DiffEqBase.solve(
                 I , Q ,X
             end
         end
-        u_low = sum(exp(I)*g(X) - Q for (I ,Q , X) in sol())/(m2)
+        u_low = sum(exp(I)*g(X) - Q for (I ,Q , X) in sol_low())/(m2)
         println(u_low)
         sdeProb = SDEProblem(μ , σ , X0 , prob.tspan)
         ensembleprob = EnsembleProblem(sdeProb)
