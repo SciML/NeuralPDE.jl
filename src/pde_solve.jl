@@ -59,19 +59,32 @@ function DiffEqBase.solve(
     end
 
     Flux.train!(loss, ps, data, opt; cb = cb)
+
+
     if give_limit == false
         save_everystep ? iters : u0(X0)[1]
     else
+        u_domain = -100:0.1:100
         println(u0(X0)[1])
-        function f_leg(X, σᵀ∇u ,a , t)
-            return maximum( a*u .- f(X,u,σᵀ∇u,a,t)  for u in -1:0.01:1)
+        function give_f_matrix(X,urange,σᵀ∇u,p,t)
+            a = []
+            for u in urange
+                a = vcat(a , f(X,u,σᵀ∇u,p,t))
+            end
+            return a
         end
+
+        function legendre_transform(f_matrix , a , urange)
+            le = a.*(collect(urange)) .- f_matrix
+            return maximum(le)
+        end
+
         m2 = 1000
         function sol_low()
             p = nothing
             map(1:m2) do j
-                u = u0(X0)[1]
-                X = X0
+                u = u0(x0)[1]
+                X = x0
                 I = 0.0
                 Q = 0.0
                 for i in 1:length(ts)-1
@@ -79,15 +92,16 @@ function DiffEqBase.solve(
                     _σᵀ∇u = σᵀ∇u[i](X)
                     dW = sqrt(dt)*randn(d)
                     u = u - f(X, u, _σᵀ∇u, p, t)*dt + _σᵀ∇u'*dW
-                    X  = X .+ μ(X,p,t)*dt .+ σ(X,p,t)*dW
-                    a_ = A[findmax(collect(A).*u - collect(f_leg(X , _σᵀ∇u, a, t ) for a in A))[2]]
+                    X  = X .+ μ_f(X,p,t)*dt .+ σ_f(X,p,t)*dW
+                    f_matrix = give_f_matrix(X , u_domain, _σᵀ∇u, nothing, ts[i])
+                    a_ = A[findmax(collect(A).*u .- collect(legendre_transform(f_matrix, a, u_domain) for a in A))[2]]
                     I = I + a_*dt
-                    Q = Q + exp(I)*f_leg(X, _σᵀ∇u, a_, t)
+                    Q = Q + exp(I)*legendre_transform(f_matrix, a_, u_domain)
                 end
                 I , Q ,X
             end
         end
-        u_low = sum(exp(I)*g(X) - Q for (I ,Q , X) in sol_low())/(m2)
+        u_low = sum(exp(I)*g(X) - Q for (I ,Q , X) in sol())/(m2)
         println(u_low)
         sdeProb = SDEProblem(μ , σ , X0 , prob.tspan)
         ensembleprob = EnsembleProblem(sdeProb)
