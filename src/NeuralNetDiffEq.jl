@@ -59,31 +59,24 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.sigma)
 end
 
-struct NNPDEProblem{PF,BC,SP,D,P} <:DiffEqBase.DEProblem
-  pde_func::PF
-  bound_conditions::BC #Array{Equation,1}
-  space ::SP
-  dim::D
+struct NNPDEProblem{PDESystem,MOLFiniteDifference,P} <:DiffEqBase.DEProblem
+  pde_system::PDESystem
+  discretization ::MOLFiniteDifference
   p::P
-  NNPDEProblem(pde_func,bound_conditions,space,dim,p=nothing) = new{
-                                                       typeof(pde_func),
-                                                       typeof(bound_conditions),
-                                                       typeof(space),
-                                                       typeof(dim),
+  NNPDEProblem(pde_system,discretization,p=nothing) = new{
+                                                       typeof(pde_system),
+                                                       typeof(discretization),
                                                        typeof(p)
-                                                       }(
-                                                       pde_func,bound_conditions,space,dim,p)
+                                                       }(pde_system,discretization,p)
 end
 Base.summary(prob::NNPDEProblem) = string(nameof(typeof(prob)))
 
 function Base.show(io::IO, A::NNPDEProblem)
   println(io,summary(A))
-  print(io,"pde_func: ")
-  show(io,A.pde_func)
-  print(io,"bound_conditions: ")
-  show(io,A.bound_conditions)
-  print(io,"space: ")
-  show(io,A.space)
+  print(io,"pde_system: ")
+  show(io,A.pde_system)
+  print(io,"discretization: ")
+  show(io,A.discretization)
 end
 
 include("ode_solve.jl")

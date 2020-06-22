@@ -7,138 +7,142 @@ using Adapt
 using ModelingToolkit
 using DiffEqOperators, DiffEqBase, LinearAlgebra
 
-#TODO avoid dependence in pde_func from u, du and du2
-dim =1
-dx= 0.1
-chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+@variables derivative(..) second_order_derivative(..)
 
-initθ = DiffEqFlux.initial_params(chain)
-phi = (x,θ) -> first(chain(adapt(typeof(θ),x),θ))
-epsilon(dx) = cbrt(eps(typeof(dx)))
-e = epsilon(dx)
-eps_masks = [
-         [[e]],
-         [[e, 0.0], [0.0,e]],
-         [[e,0.0,0.0], [0.0,e,0.0],[0.0,0.0,e]]
-         ]
-uf = (x,θ) -> phi(x,θ)
-du = (x,θ,n) -> (phi(collect(x+eps_masks[dim][n]),θ) - phi(x,θ))/epsilon(dx)
-du2 = (x,θ,n) -> (phi(x+eps_masks[dim][n],θ) - 2phi(x,θ) + phi(x-eps_masks[dim][n],θ))/epsilon(dx)^2
-
-
-## Example 1  1-dim ode
-@parameters t
+## Example 1, 1D ode
+#TODO avoid dependence on θ
+@parameters t θ
 @variables u(..)
+# @derivativesNN Dt'~t,θ
 # @derivatives Dt'~t
-#
-# eq  =  Dt(u(t)) ~ t^3 + 2*t + (t^2)*((1+3*(t^2))/(1+t+(t^3))) - u(t)*(t + ((1+3*(t^2))/(1+t+t^3)))
-function pde_func(cord,θ) #TODO addp ,u
-    t = cord[1]
-    -du(cord,θ,1) + t^3 + 2*t + (t^2)*((1+3*(t^2))/(1+t+(t^3))) - phi(cord,θ)*(t + ((1+3*(t^2))/(1+t+t^3)))
-end
 
-bcs = [u(0) ~ 1.0 , u(1) ~ 1.202]
+# 1D ODE and boundary conditions
+Dt_u =derivative(:u,t,1,θ)
+eq  = Dt_u~ t^3 + 2*t + (t^2)*((1+3*(t^2))/(1+t+(t^3))) - u(t,θ)*(t + ((1+3*(t^2))/(1+t+t^3)))
+bcs = [u(0.) ~ 1.0 , u(1.) ~ 1.202]
+
+# Space and time domains
 domains = [t ∈ IntervalDomain(0.0,1.0)]
-discretization = NeuralNetDiffEq.Discretization(0.1)
-# dx = 0.1
-# order = 2
-# discretization = MOLFiniteDifference(dx,order)
-spaces = NeuralNetDiffEq.Spaces(domains,discretization)
-dim = length(domains)
 
+# Method of lines discretization
+dx = 0.1
+order = 1
+discretization = MOLFiniteDifference(dx,order)
+
+# neural network nad optimizer
 opt = Flux.ADAM(0.1)
-chain = FastChain(FastDense(dim,12,Flux.σ),FastDense(12,1))
+chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 
-prob = NeuralNetDiffEq.NNPDEProblem(pde_func,bcs, spaces, dim)
+pde_system = PDESystem(eq,bcs,domains,[t,θ],[u])
+
+prob = NeuralNetDiffEq.NNPDEProblem(pde_system,discretization)
 alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1000)
 
-linear_analytic_func(t) =  exp(-(t^2)/2)/(1+t+t^3) + t^2
-ts = [domain.domain.lower:discretization.dxs/100:domain.domain.upper for domain in domains][1]
-u_real  = [linear_analytic_func(t) for t in ts]
+analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
+ts = [domain.domain.lower:discretization.dxs/10:domain.domain.upper for domain in domains][1]
+u_real  = [analytic_sol_func(t) for t in ts]
 u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
-t_plot = collect(ts)
-plot(t_plot ,u_real)
-plot!(t_plot ,u_predict)
+@test u_predict ≈ u_real atol = 0.1
 
-# TODO add convergence tests
+# t_plot = collect(ts)
+# plot(t_plot ,u_real)
+# plot!(t_plot ,u_predict)
 
-## Example 2 2d Poisson equation du2/dx2 + du2/dy2 =  1
-@parameters x y
+
+## Example 2, 2D Poisson equation du2/dx2 + du2/dy2 = -1
+@parameters x y θ
 @variables u(..)
 # @derivatives Dxx''~x
 # @derivatives Dyy''~y
 
-# eq  = Dtt(u(t,x)) + Dxx(u(t,x)) ~ -1
-function pde_func(x,θ)
-    du2(x,θ,1) + du2(x,θ,2) + 1
-end
-
+# 1D PDE and boundary conditions
+Dxx_u =second_order_derivative(:u, x, y, 1, θ)
+Dyy_u= second_order_derivative(:u, x, y, 2 ,θ)
+eq  = Dxx_u + Dyy_u ~ -1.
+# eq  = Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ sin(pi*x)*sin(pi*y)
 bcs = [u(x,0) ~ 0.f0, u(x,1) ~ 0.f0,
        u(0,y) ~ 0.f0, u(1,y) ~ 0.f0]
 
 domains = [x ∈ IntervalDomain(0.0,1.0),
            y ∈ IntervalDomain(0.0,1.0)]
 
-discretization = NeuralNetDiffEq.Discretization(0.1)
-spaces = NeuralNetDiffEq.Spaces(domains,discretization)
-dim = length(domains)
+dx = 0.1
+order = 2
+discretization = MOLFiniteDifference(dx,order)
 
 opt = Flux.ADAM(0.1)
-chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-prob = NeuralNetDiffEq.NNPDEProblem(pde_func, bcs, spaces, dim)
+pde_system = PDESystem(eq,bcs,domains,[x,y,θ],[u])
+prob = NeuralNetDiffEq.NNPDEProblem(pde_system,discretization)
 alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=500)
 
 xs,ys = [domain.domain.lower:discretization.dxs:domain.domain.upper for domain in domains]
-u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-#TODO u_real = ...
-plot(xs, ys, u_predict, st=:surface)
-#plot(xs, ys, u_real, st=:surface)
+analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/((2pi)^2)
 
+u_real = [analytic_sol_func(x,y) for x in xs for y in ys]
+u_predict = [first(phi([x,y],res.minimizer)) for x in xs  for y in ys]
 
-## Example 3  3dim Poisson equation du2/dx2 + du2/dy2+ du2/dt2 = -sin(pi*x)*sin(pi*y)*sin(pi*t)
-@parameters x y t
+@test u_predict ≈ u_real atol = 5.0
+
+# u_predict_plot = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+# u_real_plot = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+# p1 =plot(xs, ys, u_predict_plot, st=:surface);
+# p2 = plot(xs, ys, u_real_plot, st=:surface);
+# plot(p1,p2)
+
+## Example 3
+@parameters x y t θ
 @variables u(..)
 # @derivatives Dxx''~x
 # @derivatives Dyy''~y
 # @derivatives Dtt''~t
-#
-# eq  = Dtt(u(x,y,t)) + Dxx(u(x,y,t)) + Dyy(u(x,y,t)) ~ sin(pi*x)*sin(pi*y)*sin(pi*t)
-function pde_func(cord,θ)
-    x,y,t = cord
-    du2(cord,θ,3) + du2(cord,θ,1) + du2(cord,θ,2) + sin(pi*x)*sin(pi*y)*sin(pi*t)
-end
 
-bound_cond_func = (x,y,t) ->  sin(pi*x)*sin(pi*y)*sin(pi*t)/(3pi^2) #
-bcs = [u(x,y,0) ~ bound_cond_func(x,y,0),
-       u(x,y,0.5) ~ bound_cond_func(x,y,0.5),
-       u(0,y,t) ~ bound_cond_func(0,y,t),
-       u(1,y,t) ~ bound_cond_func(1,y,t),
-       u(x,0,t) ~ bound_cond_func(x,0,t),
-       u(x,1,t) ~ bound_cond_func(x,1,t)]
+# 2D PDE and boundary conditions
+Dt_u = derivative(:u, x, y, t, 3, θ)
+Dxx_u = second_order_derivative(:u, x, y, t, 1, θ)
+Dyy_u = second_order_derivative(:u, x, y, t, 2, θ)
 
-domains = [x ∈ IntervalDomain(0.0,1.0),
-           y ∈ IntervalDomain(0.0,1.0),
-           t ∈ IntervalDomain(0.0,0.5)]
+eq  = Dt_u ~ Dxx_u + Dyy_u
 
-discretization = NeuralNetDiffEq.Discretization(0.1)
-spaces = NeuralNetDiffEq.Spaces(domains,discretization)
-dim = length(domains)
+bound_func(x,y,t) = exp(x+y)*cos(x+y+4t)
+
+bcs = [u(x,y,0) ~ exp(x+y)*cos(x+y) ,
+       u(x,y,2) ~ exp(x+y)*cos(x+y+4*2) ,
+       u(0,y,t) ~ exp(y)*cos(y+4t),
+       u(2,y,t) ~ exp(2+y)*cos(2+y+4t) ,
+       u(x,0,t) ~ exp(x)*cos(x+4t),
+       u(x,2,t) ~ exp(x+2)*cos(x+2+4t)]
+
+domains = [x ∈ IntervalDomain(0.0,2.0),
+           y ∈ IntervalDomain(0.0,2.0),
+           t ∈ IntervalDomain(0.0,2.0)]
+
+dx = 0.5
+order = 3
+discretization = MOLFiniteDifference(dx,order)
 
 opt = Flux.ADAM(0.1)
-chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-prob = NeuralNetDiffEq.NNPDEProblem(pde_func,bcs,spaces,dim)
+pde_system = PDESystem(eq,bcs,domains,[x,y,t,θ],[u])
+prob = NeuralNetDiffEq.NNPDEProblem(pde_system,discretization)
 alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1000)
 
 xs,ys,ts = [domain.domain.lower:discretization.dxs:domain.domain.upper for domain in domains]
-linear_analytic_func(x,y,t) = sin(pi*x)*sin(pi*y)*sin(pi*t)/(3pi^2)
-u_real = [reshape([linear_analytic_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-p1 =plot(xs, ys, u_predict[3], st=:surface);
-p2 = plot(xs, ys, u_real[3], st=:surface);
-plot(p1,p2)
+analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
+
+u_real = [analytic_sol_func(x,y,t) for x in xs for y in ys for t in ts]
+u_predict = [first(phi([x,y,t],res.minimizer)) for x in xs for y in ys for t in ts]
+@test u_predict ≈ u_real atol = 100.0
+
+# u_real_plot = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
+# u_predict_plot = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
+#
+# p1 =plot(xs, ys, u_predict_plot[end], st=:surface);
+# p2 = plot(xs, ys, u_real_plot[end], st=:surface);
+# plot(p1,p2)
