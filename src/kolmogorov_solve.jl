@@ -8,12 +8,15 @@ NNKolmogorov(chain  ; opt=Flux.ADAM(0.1) , sdealg = EM() , ensemblealg = Ensembl
 
 function DiffEqBase.solve(
     prob::Union{KolmogorovPDEProblem,SDEProblem},
-    alg::NeuralNetDiffEqAlgorithm;
+    alg::NNKolmogorov;
     abstol = 1f-6,
     verbose = false,
     maxiters = 300,
+    trajectories = 1000,
     save_everystep = false,
+    use_gpu = false,
     dt,
+    dx,
     kwargs...
     )
 
@@ -32,7 +35,7 @@ function DiffEqBase.solve(
         phi = prob.phi
     end
     ts = tspan[1]:dt:tspan[2]
-    xs = xspan[1]:0.001:xspan[2]
+    xs = xspan[1]:dx:xspan[2]
     N = size(ts)
     T = tspan[2]
 
@@ -42,7 +45,7 @@ function DiffEqBase.solve(
     sdealg = alg.sdealg
     ensemblealg = alg.ensemblealg
     ps     = Flux.params(chain)
-    xi     = rand(xs ,d ,N[1])
+    xi     = rand(xs ,d ,trajectories)
     #Finding Solution to the SDE having initial condition xi. Y = Phi(S(X , T))
     sdeproblem = SDEProblem(μ,sigma,xi,tspan,noise_rate_prototype = noise_rate_prototype)
     function prob_func(prob,i,repeat)
@@ -50,7 +53,7 @@ function DiffEqBase.solve(
     end
     output_func(sol,i) = (sol[end],false)
     ensembleprob = EnsembleProblem(sdeproblem , prob_func = prob_func , output_func = output_func)
-    sim = solve(ensembleprob, sdealg, ensemblealg , dt=0.01,trajectories=N[1],adaptive=false)
+    sim = solve(ensembleprob, sdealg, ensemblealg , dt=dt, trajectories=trajectories,adaptive=false)
     x_sde  = reshape([],d,0)
     # sol = solve(sdeproblem, sdealg ,dt=0.01 , save_everystep=false , kwargs...)
     # x_sde = sol[end]
@@ -58,7 +61,14 @@ function DiffEqBase.solve(
         x_sde = hcat(x_sde , u)
     end
     y = phi(x_sde)
+    if use_gpu == true
+        y = y |>gpu
+        xi = xi |> gpu
+    end
     data   = Iterators.repeated((xi , y), maxiters)
+    if use_gpu == true
+        data = data |>gpu
+    end
 
     #MSE Loss Function
     loss(x , y) =Flux.mse(chain(x), y)
@@ -70,5 +80,6 @@ function DiffEqBase.solve(
     end
 
     Flux.train!(loss, ps, data, opt; cb = cb)
-    xi , chain(xi)
+    chainout = chain(xi)
+    xi , chainout
  end #solve

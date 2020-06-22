@@ -26,5 +26,6 @@ const is_TRAVIS = haskey(ENV,"TRAVIS")
   if GROUP == "All" || GROUP == "NNSTOPPINGTIME"
       @time @safetestset "NNStopping" begin include("Stopping_tests.jl") end
   end
-
+  if !is_APPVEYOR && GROUP == "GPU"
+  end
 end

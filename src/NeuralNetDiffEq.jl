@@ -4,8 +4,9 @@ using Reexport, Statistics
 @reexport using DiffEqBase
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
-using DiffEqFlux, Adapt
+using DiffEqFlux, Adapt,CuArrays, ModelingToolkit
 using ModelingToolkit
+
 import Tracker, Optim
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
@@ -54,9 +55,9 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   print(io,"xspan: ")
   show(io,A.xspan)
   println(io , "μ")
-  show(io , A.μ)
+  show(io , A.f)
   println(io,"Sigma")
-  show(io , A.sigma)
+  show(io , A.g)
 end
 
 struct NNPDEProblem{PDESystem,MOLFiniteDifference,P} <:DiffEqBase.DEProblem

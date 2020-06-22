@@ -8,7 +8,7 @@ NNStopping(chain  ; opt=Flux.ADAM(0.1) , sdealg = EM() , ensemblealg = EnsembleT
 
 function DiffEqBase.solve(
     prob::SDEProblem,
-    alg::NeuralNetDiffEqAlgorithm;
+    alg::NNStopping;
     abstol = 1f-6,
     verbose = false,
     maxiters = 300,
@@ -66,7 +66,7 @@ function DiffEqBase.solve(
         return 10000 - reward
     end
     dataset = Iterators.repeated(() , maxiters)
-    
+
     cb = function ()
         l = loss()
         un = []
