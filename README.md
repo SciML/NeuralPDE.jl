@@ -7,15 +7,21 @@
 [![codecov.io](http://codecov.io/github/JuliaDiffEq/NeuralNetDiffEq.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaDiffEq/NeuralNetDiffEq.jl?branch=master)
 
 The repository is for the development of neural network solvers of differential equations such as physics-informed
-neural networks (PINNs) and deep BSDE solvers. It utilizes techniques like deep neural networks and neural 
+neural networks (PINNs) and deep BSDE solvers. It utilizes techniques like deep neural networks and neural
 stochastic differential equations to make it practical to solve high dimensional PDEs efficiently through the
 likes of scientific machine learning (SciML).
 
-# Examples
+## Installation
 
-## DeepBSDE Solver
+```bash
+julia ./install.jl
+```
 
-## Solving a 100 dimensional Hamilton-Jacobi-Bellman Equation
+## Examples
+
+### DeepBSDE Solver
+
+### Solving a 100 dimensional Hamilton-Jacobi-Bellman Equation
 
 In this example we will solve a Hamilton-Jacobi-Bellman equation of 100 dimensions.
 The Hamilton-Jacobi-Bellman equation is the solution to a stochastic optimal
@@ -73,13 +79,13 @@ and stop if the loss ever goes below `1f-2`.
 
 ```
 
-## Solving the 100 dimensional Black-Scholes-Barenblatt Equation
+### Solving the 100 dimensional Black-Scholes-Barenblatt Equation
 
 In this example we will solve a Black-Scholes-Barenblatt equation of 100 dimensions.
 The Black-Scholes-Barenblatt equation is a nonlinear extension to the Black-Scholes
 equation which models uncertain volatility and interest rates derived from the
 Black-Scholes equation. This model results in a nonlinear PDE whose dimension
-is the number of assets in the portfolio. 
+is the number of assets in the portfolio.
 
 To solve it using the `TerminalPDEProblem`, we write:
 
@@ -190,7 +196,7 @@ phi,res  = solve(prob,alg,verbose=true, maxiters=5000)
 
 # API Documentation
 
-## Solving High Dimensional PDEs with Neural Networks
+### Solving High Dimensional PDEs with Neural Networks
 
 To solve high dimensional PDEs, first one should describe the PDE in terms of
 the `TerminalPDEProblem` with constructor:
@@ -206,7 +212,7 @@ which describes the semilinear parabolic PDE of the form:
 with terminating condition `u(tspan[2],x) = g(x)`. These methods solve the PDE in
 reverse, satisfying the terminal equation and giving a point estimate at
 `u(tspan[1],X0)`. The dimensionality of the PDE is determined by the choice
-of `X0`, which is the initial stochastic state. 
+of `X0`, which is the initial stochastic state.
 
 To solve this PDE problem, there exists two algorithms:
 
@@ -230,7 +236,7 @@ Each of these methods has a special keyword argument `pabstol` which specifies
 an absolute tolerance on the PDE's solution, and will exit early if the loss
 reaches this value. Its defualt value is `1f-6`.
 
-## Solving ODEs with Neural Networks
+### Solving ODEs with Neural Networks
 
 For ODEs, [see the DifferentialEquations.jl documentation](http://docs.juliadiffeq.org/dev/solvers/ode_solve#NeuralNetDiffEq.jl-1)
 for the `nnode(chain,opt=ADAM(0.1))` algorithm, which takes in a Flux.jl chain
@@ -239,7 +245,7 @@ is parallel. It is based on the work of:
 
 [Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.](https://arxiv.org/pdf/physics/9705023.pdf)
 
-## Solving Kolmogorov Equations with Neural Networks
+### Solving Kolmogorov Equations with Neural Networks
 
 A Kolmogorov PDE is of the form :
 
@@ -258,10 +264,12 @@ A Kolmogorov PDE Problem can be defined using a `SDEProblem`:
 ```julia
 SDEProblem(μ,σ,u0,tspan,xspan,d)
 ```
-Here `u0` is the initial distribution of x. Here we define `u(0,x)` as the probability density function of `u0`.`μ` and `σ` are obtained from the SDE for the stochastic process above.  `d` represents the dimenstions of `x`.
+
+Here `u0` is the initial distribution of x. Here we define `u(0,x)` as the probability density function of `u0`.`μ` and `σ` are obtained from the SDE for the stochastic process above. `d` represents the dimenstions of `x`.
 `u0` can be defined using `Distributions.jl`.
 
-Another was of defining a KolmogorovPDE is using the `KolmogorovPDEProblem`. 
+Another was of defining a KolmogorovPDE is using the `KolmogorovPDEProblem`.
+
 ```julia
 KolmogorovPDEProblem(μ,σ,phi,tspan,xspan,d)
 ```
@@ -272,7 +280,7 @@ To solve this problem use,
 
 - `NNKolmogorov(chain, opt , sdealg)`: Uses a neural network to realise a regression function which is the solution for the linear Kolmogorov Equation.
 
- Here, `chain` is a Flux.jl chain with `d` dimensional input and 1 dimensional output.`opt` is a Flux.jl optimizer. And `sdealg` is a high-order algorithm to calculate the solution for the SDE, which is used to define the learning data for the problem. Its default value is the classic Euler-Maruyama algorithm.
+Here, `chain` is a Flux.jl chain with `d` dimensional input and 1 dimensional output.`opt` is a Flux.jl optimizer. And `sdealg` is a high-order algorithm to calculate the solution for the SDE, which is used to define the learning data for the problem. Its default value is the classic Euler-Maruyama algorithm.
 
 ## Solving PDEs using PINNs solver
 Using PINNs solver, we might solve general nonlinear PDEs:
