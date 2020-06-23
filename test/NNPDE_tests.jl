@@ -1,8 +1,8 @@
-using Test, Flux,Optim#, NeuralNetDiffEq
+using Test, Flux,Optim, NeuralNetDiffEq
 using DiffEqDevTools
 using Random
 using DiffEqFlux
-using Plots
+# using Plots
 using Adapt
 using ModelingToolkit
 using DiffEqOperators, DiffEqBase, LinearAlgebra
