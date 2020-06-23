@@ -1,11 +1,9 @@
-using Test, Flux,Optim, NeuralNetDiffEq
-using DiffEqDevTools
-using Random
+using Flux
 using DiffEqFlux
-# using Plots
-using Adapt
 using ModelingToolkit
-using DiffEqOperators, DiffEqBase, LinearAlgebra
+using DiffEqBase, DiffEqOperators
+println("NNPDE_tests")
+using Test, NeuralNetDiffEq
 
 @variables derivative(..) second_order_derivative(..)
 

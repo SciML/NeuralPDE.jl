@@ -91,6 +91,6 @@ include("pinns_pde_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       NNPDE, NNPDEProblem, Spaces, Discretization
+       NNPDE, NNPDEProblem
 
 end # module
