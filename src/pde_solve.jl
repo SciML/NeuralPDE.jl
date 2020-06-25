@@ -97,7 +97,7 @@ function DiffEqBase.solve(
             Uo
         end
         loss_() = sum(sol_high())/m1
-        data = Iterators.repeated((), maxiters_upper)
+        dataset = Iterators.repeated((), maxiters_upper)
         Flux.train!(loss, ps, dataset, opt; cb = cb)
         u_high = loss_()
         println(u_high)
