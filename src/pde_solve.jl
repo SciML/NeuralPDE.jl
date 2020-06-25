@@ -85,7 +85,7 @@ function DiffEqBase.solve(
             for u in sim.u
                 xsde = u.u
                 U = g(xsde[end])
-                u = u0(x0)[1]
+                u = u0(X0)[1]
                 for i in length(ts)-1:-1:1
                     t = ts[i]
                     _σᵀ∇u = σᵀ∇u[i](xsde[i])
