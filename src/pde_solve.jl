@@ -14,13 +14,17 @@ function DiffEqBase.solve(
     save_everystep = false,
     dt,
     give_limit = false,
-    trajectories)
+    trajectories,
+    trajectories_upper,
+    trajectories_lower,
+    maxiters_upper,
+    )
 
     X0 = prob.X0
     ts = prob.tspan[1]:dt:prob.tspan[2]
     d  = length(X0)
     g,f,μ,σ,p = prob.g,prob.f,prob.μ,prob.σ,prob.p
-    A = prob.kwargs.data.A
+
     data = Iterators.repeated((), maxiters)
 
 
@@ -64,10 +68,15 @@ function DiffEqBase.solve(
     if give_limit == false
         save_everystep ? iters : u0(X0)[1]
     else
+        A = prob.kwargs.data.A
+        u_domain = prob.kwargs.data.u_domain
+
         ## UPPER LIMIT
+        m1 = trajectories_upper
         sdeProb = SDEProblem(μ , σ , X0 , prob.tspan)
         ensembleprob = EnsembleProblem(sdeProb)
-        sim = solve(ensembleprob, EM(), EnsembleThreads(), dt=dt,trajectories=800,adaptive=false)
+        sim = solve(ensembleprob, EM(), EnsembleThreads(), dt=dt,trajectories=m1,adaptive=false)
+
         function sol_high()
             Uo = []
             p = nothing
@@ -85,15 +94,16 @@ function DiffEqBase.solve(
             end
             Uo
         end
-        loss_() = sum(sol_high())/800
-        data = Iterators.repeated((), 20)
+        loss_() = sum(sol_high())/m1
+        data = Iterators.repeated((), maxiters_upper)
         Flux.train!(loss, ps, dataset, opt; cb = cb)
         u_high = loss_()
         println(u_high)
 
         ##Lower Limit
-        u_domain = -100:0.1:100
+
         println(u0(X0)[1])
+        ## Function to precalculate the f values over the domain
         function give_f_matrix(X,urange,σᵀ∇u,p,t)
             a = []
             for u in urange
@@ -101,13 +111,13 @@ function DiffEqBase.solve(
             end
             return a
         end
-
+        #The legendre transform that uses the precalculated f values.
         function legendre_transform(f_matrix , a , urange)
             le = a.*(collect(urange)) .- f_matrix
             return maximum(le)
         end
 
-        m2 = 1000
+        m2 = trajectories_lower
         function sol_low()
             p = nothing
             map(1:m2) do j
