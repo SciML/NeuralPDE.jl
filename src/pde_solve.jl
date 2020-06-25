@@ -15,6 +15,8 @@ function DiffEqBase.solve(
     dt,
     give_limit = false,
     trajectories,
+    sdealg,
+    ensemblealg,
     trajectories_upper,
     trajectories_lower,
     maxiters_upper,
