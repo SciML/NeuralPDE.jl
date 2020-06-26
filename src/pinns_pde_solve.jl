@@ -19,40 +19,33 @@ function NNPDE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwarg
     NNPDE(chain,opt,initθ,autodiff,kwargs)
 end
 
-# function _simplified_expr(O::Operation)
-#     # for arg in  O.args:
-#     if O.op isa Differential
-#         return :(derivative($(_simplified_expr(O.args[1])),$(ModelingToolkit.simplified_expr(O.op.x)),$(ModelingToolkit.simplified_expr(O.op.θ))))
-#     elseif O.op isa Variable
-#         isempty(O.args) && return O.op.name
-#         return Expr(:call, Symbol(O.op), simplified_expr.(O.args)...)
-#     end
-# end
-
 function extract_eq(eq,indvars,depvars)
-    vars = :($(Expr.(indvars)...),$([d.name for d in depvars]...), derivative,second_order_derivative)
-    left_expr = simplified_expr(eq.lhs)
-    right_expr = simplified_expr(eq.rhs)
+    vars = :($([d.name for d in depvars]...), $(Expr.(indvars)...), θ, derivative,second_order_derivative)
+    left_expr = ModelingToolkit.simplified_expr(eq.lhs)
+    right_expr = ModelingToolkit.simplified_expr(eq.rhs)
     _f = eval(:(($vars) -> $left_expr - $right_expr))
     return _f
 end
 
-function extract_bc(bcs,indvars,depvars,dim)
-    bc_fs = []
-    vars = :($(Expr.(indvars[1:end-1])...),)
+function extract_bc(bcs,indvars,depvars)
+    output= []
+    vars = Expr.(indvars)
+    vars_expr = :($(Expr.(indvars)...),)
     for i =1:length(bcs)
-        # bcs[1].rhs isa ModelingToolkit.Operation
+        bcs_args = simplified_expr(bcs[i].lhs.args)
+        bc_vars = bcs_args[typeof.(bcs_args) .== Symbol]
+        bc_point_var = first(filter(x -> !(x in bcs_args), vars))
+        bc_point = first(bcs_args[typeof.(bcs_args) .!= Symbol])
         if isa(bcs[i].rhs,ModelingToolkit.Operation)
             expr =Expr(bcs[i].rhs)
-            _f = eval(:(($vars) -> $expr))
-            f = (vars...) -> @eval $_f($vars...)
-        # bcs[i].rhs isa ModelingToolkit.Constant
+            _f = eval(:(($vars_expr) -> $expr))
+            f = (vars_expr...) -> @eval $_f($vars_expr...)
         elseif isa(bcs[i].rhs,ModelingToolkit.Constant)
-            f = (vars...) -> bcs[i].rhs.value
+            f = (vars_expr...) -> bcs[i].rhs.value
         end
-        push!(bc_fs, f)
+        push!(output, (bc_point,bc_point_var,f))
     end
-    return bc_fs
+    return output
 end
 
 function DiffEqBase.solve(
@@ -78,6 +71,8 @@ function DiffEqBase.solve(
     dim = discretization.order
     p = prob.p
 
+    dim > 3 && error("While only dimensionality no more than 3")
+
     # hidden layer
     chain  = alg.chain
     opt    = alg.opt
@@ -85,6 +80,8 @@ function DiffEqBase.solve(
     initθ = alg.initθ
 
     isuinplace = dx isa Number
+
+    dict_indvars = Dict( [Symbol(v) .=> i for (i,v) in enumerate(indvars)])
 
     # The phi trial solution
     if chain isa FastChain
@@ -108,15 +105,12 @@ function DiffEqBase.solve(
         # second_order_derivative = ...
     else
         #TODO find another way avoid Mutating arrays
-        #TODO support array and tuple of variables
         epsilon(dx) = cbrt(eps(typeof(dx)))
         e = epsilon(dx)
         eps_dx = epsilon(dx)
         eps_masks = [[[e]],
                     [[e,0.0], [0.0,e]],
                     [[e,0.0,0.0], [0.0,e,0.0],[0.0,0.0,e]]]
-
-        dict_indvars = Dict( [string(v) .=> i for (i,v) in enumerate(indvars[1:end-1])])
 
         derivative = (_x...) ->
         begin
@@ -141,50 +135,30 @@ function DiffEqBase.solve(
     # pde equation
     _u= (_x...; x = collect(_x[1:end-1]),θ = _x[end]) -> phi(x,θ)
     _pde_func = extract_eq(eq,indvars,depvars)
-    pde_func = (_x,θ) -> _pde_func(_x...,θ,_u,derivative,second_order_derivative)
+    pde_func = (_x,θ) -> _pde_func(_u,_x...,θ,derivative,second_order_derivative)
 
-    # extract boundary conditions function
-    bc_fs = extract_bc(bcs,indvars,depvars,dim)
+    # extract boundary conditions
+    bound_data  = extract_bc(bcs,indvars,depvars)
 
-    # boundary conditions
+    # generate training sets
     dom_spans = [(d.domain.lower:discretization.dxs:d.domain.upper)[2:end-1] for d in domains]
     spans = [d.domain.lower:discretization.dxs:d.domain.upper for d in domains]
 
-    #TODO get more generally points generator avoiding if_else case
-    #TODO add residual_points_generator
-    get_train_bound() =0
-    if dim == 1
-        get_train_bound(x,b_f) = ([x],b_f(x))
-        xs = spans[1]
-        dom_xs = dom_spans[1]
-        train_bound_set = [get_train_bound(xs[1],bc_fs[1]);
-                           get_train_bound(xs[end],bc_fs[2])]
-        train_domain_set = [[x] for x in dom_xs]
-    elseif dim == 2
-        get_train_bound(xs,ys,b_f) = [([x,y],b_f(x,y)) for x in xs for y in ys]
-        xs,ys = spans
-        dom_xs,dom_ys = dom_spans
+    #TODO add residual points generator
+    train_set = []
+    for points in Iterators.product(spans...)
+        push!(train_set, [points...])
+    end
 
-        #square boundary condition
-        train_bound_set = [get_train_bound(xs,ys[1],bc_fs[1]);
-                           get_train_bound(xs,ys[end],bc_fs[2]);
-                           get_train_bound(xs[1],dom_ys,bc_fs[3]);
-                           get_train_bound(xs[end],dom_ys,bc_fs[4])]
+    train_domain_set = []
+    for points in Iterators.product(dom_spans...)
+        push!(train_domain_set, [points...])
+    end
 
-        train_domain_set = [[x,y]  for x in dom_xs for y in dom_ys]
-    else# dim == 3
-        get_train_bound(xs,ys,ts,b_f) = [([x,y,t],b_f(x,y,t)) for x in xs for y in ys for t in ts]
-        xs,ys,ts = spans
-        dom_xs,dom_ys,dom_ts = dom_spans
-
-        train_bound_set = [get_train_bound(xs,ys,ts[1],bc_fs[1]);
-                           get_train_bound(xs,ys,ts[end],bc_fs[2]);
-                           get_train_bound(xs[1],ys,dom_ts,bc_fs[3]);
-                           get_train_bound(xs[end],ys,dom_ts,bc_fs[4]);
-                           get_train_bound(dom_xs,ys[1],dom_ts,bc_fs[5]);
-                           get_train_bound(dom_xs,ys[end],dom_ts,bc_fs[6])]
-        #train sets
-        train_domain_set = [[x,y,t]  for x in dom_xs for y in dom_ys for t in dom_ts]
+    train_bound_set = []
+    for (point,symb,bc_f) in bound_data
+        b_set = [(points, bc_f(points...)) for points in train_set if points[dict_indvars[symb]] == point]
+        push!(train_bound_set, b_set...)
     end
 
     # coefficients for loss function
@@ -216,7 +190,7 @@ function DiffEqBase.solve(
        sum(abs2,inner_loss(x,θ,bound) for (x,bound) in train_bound_set)
     end
 
-    #loss function for training
+    #loss function
     loss(θ) = 1.0f0/τf * loss_domain(θ) + 1.0f0/τb * loss_boundary(θ) #+ 1.0f0/τc * custom_loss(θ)
 
     cb = function (p,l)

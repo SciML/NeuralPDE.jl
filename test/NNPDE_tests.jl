@@ -31,8 +31,7 @@ discretization = MOLFiniteDifference(dx,order)
 opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 
-pde_system = PDESystem(eq,bcs,domains,[t,θ],[u])
-
+pde_system = PDESystem(eq,bcs,domains,[t],[u])
 prob = NeuralNetDiffEq.NNPDEProblem(pde_system,discretization)
 alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1000)
@@ -43,11 +42,6 @@ u_real  = [analytic_sol_func(t) for t in ts]
 u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
 @test u_predict ≈ u_real atol = 0.1
-
-# t_plot = collect(ts)
-# plot(t_plot ,u_real)
-# plot!(t_plot ,u_predict)
-
 
 ## Example 2, 2D Poisson equation du2/dx2 + du2/dy2 = -1
 @parameters x y θ
@@ -73,24 +67,18 @@ discretization = MOLFiniteDifference(dx,order)
 opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-pde_system = PDESystem(eq,bcs,domains,[x,y,θ],[u])
+pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralNetDiffEq.NNPDEProblem(pde_system,discretization)
 alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
-phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=500)
+phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=600)
 
 xs,ys = [domain.domain.lower:discretization.dxs:domain.domain.upper for domain in domains]
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/((2pi)^2)
 
-u_real = [analytic_sol_func(x,y) for x in xs for y in ys]
-u_predict = [first(phi([x,y],res.minimizer)) for x in xs  for y in ys]
+u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 
-@test u_predict ≈ u_real atol = 5.0
-
-# u_predict_plot = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-# u_real_plot = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
-# p1 =plot(xs, ys, u_predict_plot, st=:surface);
-# p2 = plot(xs, ys, u_real_plot, st=:surface);
-# plot(p1,p2)
+@test u_predict ≈ u_real atol = 1.0
 
 ## Example 3
 @parameters x y t θ
@@ -106,8 +94,6 @@ Dyy_u = second_order_derivative(:u, x, y, t, 2, θ)
 
 eq  = Dt_u ~ Dxx_u + Dyy_u
 
-bound_func(x,y,t) = exp(x+y)*cos(x+y+4t)
-
 bcs = [u(x,y,0) ~ exp(x+y)*cos(x+y) ,
        u(x,y,2) ~ exp(x+y)*cos(x+y+4*2) ,
        u(0,y,t) ~ exp(y)*cos(y+4t),
@@ -119,14 +105,15 @@ domains = [x ∈ IntervalDomain(0.0,2.0),
            y ∈ IntervalDomain(0.0,2.0),
            t ∈ IntervalDomain(0.0,2.0)]
 
-dx = 0.5
+dx = 0.4
 order = 3
 discretization = MOLFiniteDifference(dx,order)
 
 opt = Flux.ADAM(0.1)
+# opt = BFGS()
 chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-pde_system = PDESystem(eq,bcs,domains,[x,y,t,θ],[u])
+pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralNetDiffEq.NNPDEProblem(pde_system,discretization)
 alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1000)
@@ -134,13 +121,6 @@ phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1000)
 xs,ys,ts = [domain.domain.lower:discretization.dxs:domain.domain.upper for domain in domains]
 analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
 
-u_real = [analytic_sol_func(x,y,t) for x in xs for y in ys for t in ts]
-u_predict = [first(phi([x,y,t],res.minimizer)) for x in xs for y in ys for t in ts]
+u_real = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
+u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
 @test u_predict ≈ u_real atol = 100.0
-
-# u_real_plot = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-# u_predict_plot = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-#
-# p1 =plot(xs, ys, u_predict_plot[end], st=:surface);
-# p2 = plot(xs, ys, u_real_plot[end], st=:surface);
-# plot(p1,p2)

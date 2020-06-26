@@ -5,7 +5,7 @@ using Reexport, Statistics
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt,CuArrays, ModelingToolkit
-using ModelingToolkit
+using ModelingToolkit, DiffEqOperators
 
 import Tracker, Optim
 
