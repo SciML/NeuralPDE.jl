@@ -15,7 +15,7 @@ using Test, NeuralNetDiffEq
 # @derivatives Dt'~t
 
 # 1D ODE and boundary conditions
-Dt_u =derivative(:u,t,1,θ)
+Dt_u = derivative(:u,t,1,θ)
 eq  = Dt_u~ t^3 + 2*t + (t^2)*((1+3*(t^2))/(1+t+(t^3))) - u(t,θ)*(t + ((1+3*(t^2))/(1+t+t^3)))
 bcs = [u(0.) ~ 1.0 , u(1.) ~ 1.202]
 
@@ -33,7 +33,7 @@ chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
 prob = NeuralNetDiffEq.NNPDEProblem(pde_system,discretization)
-alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
+alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1000)
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -69,7 +69,7 @@ chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralNetDiffEq.NNPDEProblem(pde_system,discretization)
-alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
+alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=600)
 
 xs,ys = [domain.domain.lower:discretization.dxs:domain.domain.upper for domain in domains]
@@ -115,7 +115,7 @@ chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralNetDiffEq.NNPDEProblem(pde_system,discretization)
-alg = NeuralNetDiffEq.NNPDE(chain,opt,autodiff=false)
+alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1000)
 
 xs,ys,ts = [domain.domain.lower:discretization.dxs:domain.domain.upper for domain in domains]
@@ -123,4 +123,4 @@ analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
 
 u_real = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
 u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-@test u_predict ≈ u_real atol = 100.0
+@test u_predict ≈ u_real atol = 200.0

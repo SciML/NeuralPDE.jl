@@ -80,6 +80,27 @@ function Base.show(io::IO, A::NNPDEProblem)
   show(io,A.discretization)
 end
 
+struct NNDE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
+    chain::C
+    opt::O
+    initθ::P
+    autodiff::Bool
+    kwargs::K
+end
+function NNDE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
+    if init_params === nothing
+        if chain isa FastChain
+            initθ = DiffEqFlux.initial_params(chain)
+        else
+            initθ,re  = Flux.destructure(chain)
+        end
+    else
+        initθ = init_params
+    end
+    NNDE(chain,opt,initθ,autodiff,kwargs)
+end
+
+
 include("ode_solve.jl")
 include("pde_solve.jl")
 include("pde_solve_ns.jl")
@@ -89,8 +110,8 @@ include("pinns_pde_solve.jl")
 
 
 
-export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS,
+export NNDE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       NNPDE, NNPDEProblem
+       NNPDEProblem
 
 end # module

@@ -1,24 +1,3 @@
-#TODO generic version with NNODE
-struct NNPDE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
-    chain::C
-    opt::O
-    initθ::P
-    autodiff::Bool
-    kwargs::K
-end
-function NNPDE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
-    if init_params === nothing
-        if chain isa FastChain
-            initθ = DiffEqFlux.initial_params(chain)
-        else
-            initθ,re  = Flux.destructure(chain)
-        end
-    else
-        initθ = init_params
-    end
-    NNPDE(chain,opt,initθ,autodiff,kwargs)
-end
-
 function extract_eq(eq,indvars,depvars)
     vars = :($([d.name for d in depvars]...), $(Expr.(indvars)...), θ, derivative,second_order_derivative)
     left_expr = ModelingToolkit.simplified_expr(eq.lhs)
@@ -50,7 +29,7 @@ end
 
 function DiffEqBase.solve(
     prob::NNPDEProblem,
-    alg::NNPDE,
+    alg::NNDE,
     args...;
     timeseries_errors = true,
     save_everystep=true,
