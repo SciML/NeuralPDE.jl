@@ -1,7 +1,8 @@
 # NeuralNetDiffEq
 
-NeuralNetDiffEq.jl consists neural network solvers for differential equations, such as physics-informed neural networks (PINNs), and deep BSDE solvers.
-NeuralNetDiffEq utilizes techniques like deep neural networks and neural stochastic differential equations to solve high dimensional PDEs efficiently as a part of scientific machine learning (SciML).
+NeuralNetDiffEq.jl consists neural network solvers for differential equations such as physics-informed neural networks (PINNs) and deep BSDE solvers.
+It utilizes deep neural networks and neural stochastic differential equations to solve high dimensional PDEs.
+It is a package of scientific machine learning (SciML).
 
 ## Related Packages
 
