@@ -75,9 +75,9 @@ function DiffEqBase.solve(
 
         ## UPPER LIMIT
         m1 = trajectories_upper
-        sdeProb = SDEProblem(μ , σ , X0 , tspan)
+        sdeProb = SDEProblem(μ , σ , X0 , prob.tspan)
         ensembleprob = EnsembleProblem(sdeProb)
-        sim = solve(ensembleprob, EM(), EnsembleThreads(), dt=dt,trajectories=10000,adaptive=false)
+        sim = solve(ensembleprob, sdealg, ensemblealg, dt=dt,trajectories=m1,adaptive=false)
         function sol_high()
             Uo = []
             for u in sim.u
@@ -103,8 +103,9 @@ function DiffEqBase.solve(
             true && println("Current loss is: $l")
             l < 1e-6 && Flux.stop()
         end
-        dataS = Iterators.repeated((), 10)
+        dataS = Iterators.repeated((), maxiters_upper)
         Flux.train!(loss_, ps, dataS, ADAM(0.01); cb = cb)
+        u_high = loss_()
         println(u_high)
         ##Lower Limit
 
@@ -124,7 +125,6 @@ function DiffEqBase.solve(
 
         m2 = trajectories_lower
         function sol_low()
-            p = nothing
             map(1:m2) do j
                 u = u0(X0)[1]
                 X = X0
@@ -141,10 +141,10 @@ function DiffEqBase.solve(
                     I = I + a_*dt
                     Q = Q + exp(I)*legendre_transform(f_matrix, a_, u_domain)
                 end
-                I , Q ,X
+                I , Q , X
             end
         end
-        u_low = sum(exp(I)*g(X) - Q for (I ,Q , X) in sol_low())/(m2)
+        u_low = sum(exp(I)*g(X) - Q for (I ,Q ,X) in sol_low())/(m2)
         println(u_low)
         save_everystep ? iters : u0(X0)[1] , u_low , u_high
     end
