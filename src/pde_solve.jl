@@ -106,7 +106,6 @@ function DiffEqBase.solve(
         dataS = Iterators.repeated((), maxiters_upper)
         Flux.train!(loss_, ps, dataS, ADAM(0.01); cb = cb)
         u_high = loss_()
-        println(u_high)
         ##Lower Limit
 
         # Function to precalculate the f values over the domain
@@ -145,7 +144,6 @@ function DiffEqBase.solve(
             end
         end
         u_low = sum(exp(I)*g(X) - Q for (I ,Q ,X) in sol_low())/(m2)
-        println(u_low)
         save_everystep ? iters : u0(X0)[1] , u_low , u_high
     end
 
