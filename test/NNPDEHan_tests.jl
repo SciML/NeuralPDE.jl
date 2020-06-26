@@ -300,4 +300,4 @@ u0 = Flux.Chain(Dense(d,hls,relu),
 alg = NNPDEHan(u0, σᵀ∇u, opt = opt)
 
 ans = solve(prob, alg, verbose = true, abstol=1e-8, maxiters = 200, dt=dt, trajectories=m , give_limit = true,
-trajectories_upper = 10000 , trajectories_lower = 1000 , maxiters_upper = 10 , sdealg = EM() , ensemblealg = EnsembleThreads() )
+trajectories_upper = 10000 , trajectories_lower = 10 , maxiters_upper = 10 , sdealg = EM() , ensemblealg = EnsembleThreads() )
