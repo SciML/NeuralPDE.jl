@@ -15,11 +15,11 @@ function DiffEqBase.solve(
     dt,
     give_limit = false,
     trajectories,
-    sdealg,
-    ensemblealg,
-    trajectories_upper,
-    trajectories_lower,
-    maxiters_upper,
+    sdealg = EM(),
+    ensemblealg = EnsembleThreads(),
+    trajectories_upper = 1000,
+    trajectories_lower = 1000,
+    maxiters_upper = 10,
     )
 
     X0 = prob.X0
