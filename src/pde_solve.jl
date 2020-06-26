@@ -75,37 +75,40 @@ function DiffEqBase.solve(
 
         ## UPPER LIMIT
         m1 = trajectories_upper
-        sdeProb = SDEProblem(μ , σ , X0 , prob.tspan)
+        sdeProb = SDEProblem(μ , σ , x0 , tspan)
         ensembleprob = EnsembleProblem(sdeProb)
-        sim = solve(ensembleprob, sdealg, ensemblealg, dt=dt,trajectories=m1,adaptive=false)
-
+        sim = solve(ensembleprob, EM(), EnsembleThreads(), dt=dt,trajectories=10000,adaptive=false)
         function sol_high()
             Uo = []
-            p = nothing
             for u in sim.u
                 xsde = u.u
                 U = g(xsde[end])
-                u = u0(X0)[1]
-                for i in length(ts)-1:-1:1
+                u = u0(x0)[1]
+                for i in length(ts):-1:3
                     t = ts[i]
-                    _σᵀ∇u = σᵀ∇u[i](xsde[i])
+                    _σᵀ∇u = σᵀ∇u[i-1](xsde[i-1])
                     dW = sqrt(dt)*randn(d)
-                    U = U .+ f(xsde[i], u, _σᵀ∇u, p, t)*dt .- _σᵀ∇u'*dW
+                    U = U .+ f(xsde[i-1], U, _σᵀ∇u, p, t)*dt .- _σᵀ∇u'*dW
                 end
                 Uo = vcat(Uo , U)
             end
             Uo
         end
-        loss_() = sum(sol_high())/m1
-        dataset = Iterators.repeated((), maxiters_upper)
-        Flux.train!(loss, ps, dataset, opt; cb = cb)
-        u_high = loss_()
-        println(u_high)
 
+        loss_() = sum(sol_high())/m1
+
+        ps = Flux.params(u0, σᵀ∇u...)
+        cb = function ()
+            l = loss_()
+            true && println("Current loss is: $l")
+            l < 1e-6 && Flux.stop()
+        end
+        dataS = Iterators.repeated((), 10)
+        Flux.train!(loss_, ps, dataS, ADAM(0.01); cb = cb)
+        println(u_high)
         ##Lower Limit
 
-        println(u0(X0)[1])
-        ## Function to precalculate the f values over the domain
+        # Function to precalculate the f values over the domain
         function give_f_matrix(X,urange,σᵀ∇u,p,t)
             a = []
             for u in urange
@@ -132,8 +135,8 @@ function DiffEqBase.solve(
                     _σᵀ∇u = σᵀ∇u[i](X)
                     dW = sqrt(dt)*randn(d)
                     u = u - f(X, u, _σᵀ∇u, p, t)*dt + _σᵀ∇u'*dW
-                    X  = X .+ μ_f(X,p,t)*dt .+ σ_f(X,p,t)*dW
-                    f_matrix = give_f_matrix(X , u_domain, _σᵀ∇u, nothing, ts[i])
+                    X  = X .+ μ(X,p,t)*dt .+ σ(X,p,t)*dW
+                    f_matrix = give_f_matrix(X , u_domain, _σᵀ∇u, p, ts[i])
                     a_ = A[findmax(collect(A).*u .- collect(legendre_transform(f_matrix, a, u_domain) for a in A))[2]]
                     I = I + a_*dt
                     Q = Q + exp(I)*legendre_transform(f_matrix, a_, u_domain)
