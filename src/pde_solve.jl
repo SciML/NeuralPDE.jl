@@ -123,8 +123,8 @@ function DiffEqBase.solve(
         function sol_low()
             p = nothing
             map(1:m2) do j
-                u = u0(x0)[1]
-                X = x0
+                u = u0(X0)[1]
+                X = X0
                 I = 0.0
                 Q = 0.0
                 for i in 1:length(ts)-1
