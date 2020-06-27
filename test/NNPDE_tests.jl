@@ -27,7 +27,7 @@ opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
-prob = NeuralNetDiffEq.NNPDEProblem(pde_system,discretization)
+prob = discretize(pde_system,discretization)
 alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
 phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1000)
 
