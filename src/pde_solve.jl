@@ -74,13 +74,11 @@ function DiffEqBase.solve(
         u_domain = prob.kwargs.data.u_domain
 
         ## UPPER LIMIT
-        m1 = trajectories_upper
         sdeProb = SDEProblem(μ , σ , X0 , prob.tspan)
         ensembleprob = EnsembleProblem(sdeProb)
-        sim = solve(ensembleprob, sdealg, ensemblealg, dt=dt,trajectories=m1,adaptive=false)
+        sim = solve(ensembleprob, sdealg, ensemblealg, dt=dt,trajectories=trajectories_upper,adaptive=false)
         function sol_high()
-            Uo = []
-            for u in sim.u
+            map(sim.u) do u
                 xsde = u.u
                 U = g(xsde[end])
                 u = u0(X0)[1]
@@ -90,18 +88,17 @@ function DiffEqBase.solve(
                     dW = sqrt(dt)*randn(d)
                     U = U .+ f(xsde[i-1], U, _σᵀ∇u, p, t)*dt .- _σᵀ∇u'*dW
                 end
-                Uo = vcat(Uo , U)
+                U
             end
-            Uo
         end
 
-        loss_() = sum(sol_high())/m1
+        loss_() = sum(sol_high())/trajectories_upper
 
         ps = Flux.params(u0, σᵀ∇u...)
         cb = function ()
             l = loss_()
-            true && println("Current loss is: $l")
-            l < 1e-6 && Flux.stop()
+            verbose && println("Current loss is: $l")
+            l < abstol && Flux.stop()
         end
         dataS = Iterators.repeated((), maxiters_upper)
         Flux.train!(loss_, ps, dataS, ADAM(0.01); cb = cb)
@@ -110,25 +107,23 @@ function DiffEqBase.solve(
 
         # Function to precalculate the f values over the domain
         function give_f_matrix(X,urange,σᵀ∇u,p,t)
-            a = []
-            for u in urange
-                a = vcat(a , f(X,u,σᵀ∇u,p,t))
-            end
-            return a
+          map(urange) do u
+            f(X,u,σᵀ∇u,p,t)
+          end
         end
+
         #The legendre transform that uses the precalculated f values.
         function legendre_transform(f_matrix , a , urange)
             le = a.*(collect(urange)) .- f_matrix
             return maximum(le)
         end
 
-        m2 = trajectories_lower
         function sol_low()
-            map(1:m2) do j
+            map(1:trajectories_lower) do j
                 u = u0(X0)[1]
                 X = X0
-                I = 0.0
-                Q = 0.0
+                I = zero(eltype(u))
+                Q = zero(eltype(u))
                 for i in 1:length(ts)-1
                     t = ts[i]
                     _σᵀ∇u = σᵀ∇u[i](X)
@@ -143,7 +138,7 @@ function DiffEqBase.solve(
                 I , Q , X
             end
         end
-        u_low = sum(exp(I)*g(X) - Q for (I ,Q ,X) in sol_low())/(m2)
+        u_low = sum(exp(I)*g(X) - Q for (I ,Q ,X) in sol_low())/(trajectories_lower)
         save_everystep ? iters : u0(X0)[1] , u_low , u_high
     end
 
