@@ -20,7 +20,7 @@ domains = [t ∈ IntervalDomain(0.0,1.0)]
 # Method of lines discretization
 dx = 0.1
 order = 1
-discretization = MOLFiniteDifference(dx,order)
+discretization = PhysicsInformedNN(dx)
 
 # neural network and optimizer
 opt = Flux.ADAM(0.1)
