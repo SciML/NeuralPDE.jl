@@ -71,7 +71,7 @@ function DiffEqBase.solve(
         save_everystep ? iters : u0(X0)[1]
     else
         A = prob.A
-        u_domain = prob.kwargs.data.u_domain
+        u_domain = prob.u_domain
 
         ## UPPER LIMIT
         sdeProb = SDEProblem(μ , σ , X0 , prob.tspan)
