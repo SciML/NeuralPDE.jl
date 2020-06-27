@@ -4,8 +4,8 @@ using Reexport, Statistics
 @reexport using DiffEqBase
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
-using DiffEqFlux, Adapt,CuArrays, ModelingToolkit
-using ModelingToolkit, DiffEqOperators
+using DiffEqFlux, Adapt, CuArrays
+using ModelingToolkit
 
 import Tracker, Optim
 

@@ -1,7 +1,52 @@
-function extract_eq(eq,indvars,depvars)
-    vars = :($([d.name for d in depvars]...), $(Expr.(indvars)...), θ, derivative,second_order_derivative)
-    left_expr = ModelingToolkit.simplified_expr(eq.lhs)
-    right_expr = ModelingToolkit.simplified_expr(eq.rhs)
+
+get_dict_indvars(indvars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(indvars)])
+
+function count_order(_args)
+    _args[2].args[1] == :derivative ? 2 : 1
+end
+
+function simplified_derivative(ex::Expr,indvars,depvars,dict_indvars)
+    ex.args = _simplified_derivative(ex.args,indvars,depvars,dict_indvars)
+    return ex
+end
+
+function _simplified_derivative(_args,indvars,depvars,dict_indvars)
+    for (i,e) in enumerate(_args)
+        if !(e isa Expr)
+            # if autodiff
+            #     error("While autodiff not support")
+            # else
+            # end
+            if e == :derivative && _args[end] != :θ
+                order = count_order(_args)
+                vars = collect(keys(dict_indvars))
+                if order == 1
+                    _args = [:derivative, depvars..., indvars..., dict_indvars[_args[3]],:θ]
+                elseif order ==2
+                    _args = [:second_order_derivative, depvars..., indvars..., dict_indvars[_args[3]],:θ]
+                else
+                    error("While only order of derivative no more than 2nd")
+                end
+                break
+            end
+        else
+            _args[i].args = _simplified_derivative(_args[i].args,indvars,depvars,dict_indvars)
+        end
+    end
+    return _args
+end
+
+function extract_eq(eq,_indvars,_depvars,dict_indvars)
+    depvars = [d.name for d in _depvars]
+    indvars = Expr.(_indvars)
+    vars = :($(depvars...), $(indvars...), θ, derivative,second_order_derivative)
+
+    _left_expr = (ModelingToolkit.simplified_expr(eq.lhs))
+    left_expr = simplified_derivative(_left_expr,indvars,depvars,dict_indvars)
+
+    _right_expr = (ModelingToolkit.simplified_expr(eq.rhs))
+    right_expr = simplified_derivative(_right_expr,indvars,depvars,dict_indvars)
+
     _f = eval(:(($vars) -> $left_expr - $right_expr))
     return _f
 end
@@ -60,7 +105,7 @@ function DiffEqBase.solve(
 
     isuinplace = dx isa Number
 
-    dict_indvars = Dict( [Symbol(v) .=> i for (i,v) in enumerate(indvars)])
+    dict_indvars = get_dict_indvars(indvars)
 
     # The phi trial solution
     if chain isa FastChain
@@ -83,13 +128,11 @@ function DiffEqBase.solve(
         # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
         # second_order_derivative = ...
     else
-        #TODO find another way avoid Mutating arrays
         epsilon(dx) = cbrt(eps(typeof(dx)))
-        e = epsilon(dx)
-        eps_dx = epsilon(dx)
-        eps_masks = [[[e]],
-                    [[e,0.0], [0.0,e]],
-                    [[e,0.0,0.0], [0.0,e,0.0],[0.0,0.0,e]]]
+        ep = epsilon(dx)
+        eps_masks = [[[ep]],
+                    [[ep,0.0], [0.0,ep]],
+                    [[ep,0.0,0.0], [0.0,ep,0.0],[0.0,0.0,ep]]]
 
         derivative = (_x...) ->
         begin
@@ -98,7 +141,7 @@ function DiffEqBase.solve(
             der_num =_x[end-1]
             θ = _x[end]
             # n = get(dict_indvars,der_var,nothing)
-            (phi(x+eps_masks[dim][der_num], θ) - phi(x,θ))/eps_dx
+            (phi(x+eps_masks[dim][der_num], θ) - phi(x,θ))/ep
         end
         second_order_derivative = (_x...) ->
         begin
@@ -107,13 +150,13 @@ function DiffEqBase.solve(
             der_num =_x[end-1]
             θ = _x[end]
             # n = get(dict_indvars,der_var,nothing)
-            (phi(x+eps_masks[dim][der_num], θ) - 2*phi(x,θ)+ phi(x-eps_masks[dim][der_num], θ) )/(eps_dx^2)
+            (phi(x+eps_masks[dim][der_num], θ) - 2*phi(x,θ)+ phi(x-eps_masks[dim][der_num], θ) )/(ep^2)
         end
     end
 
     # pde equation
     _u= (_x...; x = collect(_x[1:end-1]),θ = _x[end]) -> phi(x,θ)
-    _pde_func = extract_eq(eq,indvars,depvars)
+    _pde_func = extract_eq(eq,indvars,depvars, dict_indvars)
     pde_func = (_x,θ) -> _pde_func(_u,_x...,θ,derivative,second_order_derivative)
 
     # extract boundary conditions
@@ -123,7 +166,6 @@ function DiffEqBase.solve(
     dom_spans = [(d.domain.lower:discretization.dxs:d.domain.upper)[2:end-1] for d in domains]
     spans = [d.domain.lower:discretization.dxs:d.domain.upper for d in domains]
 
-    #TODO add residual points generator
     train_set = []
     for points in Iterators.product(spans...)
         push!(train_set, [points...])
