@@ -284,7 +284,7 @@ f(X,u,σᵀ∇u,p,t) = 0.0  # function from solved equation
 σ_f(X,p,t) = 1.0
 u_domain = -500:0.1:500
 A = -2:0.01:2
-prob = TerminalPDEProblem(g, f, μ_f, σ_f, x0, tspan ; u_domain = u_domain , A = A )
+prob = TerminalPDEProblem(g, f, μ_f, σ_f, x0, tspan ;A = A , u_domain = u_domain)
 
 hls = 10 + d #hidden layer size
 opt = Flux.ADAM(0.005)  #optimizer

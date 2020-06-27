@@ -70,13 +70,13 @@ function DiffEqBase.solve(
     if give_limit == false
         save_everystep ? iters : u0(X0)[1]
     else
-        A = prob.kwargs.data.A
+        A = prob.A
         u_domain = prob.kwargs.data.u_domain
 
         ## UPPER LIMIT
         sdeProb = SDEProblem(μ , σ , X0 , prob.tspan)
         ensembleprob = EnsembleProblem(sdeProb)
-        sim = solve(ensembleprob, sdealg, ensemblealg, dt=dt,trajectories=trajectories_upper,adaptive=false)
+        sim = solve(ensembleprob, sdealg, ensemblealg, dt=dt,trajectories=trajectories_upper,adaptive=false,prob.kwargs...)
         function sol_high()
             map(sim.u) do u
                 xsde = u.u
