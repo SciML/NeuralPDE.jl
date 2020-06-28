@@ -76,7 +76,7 @@ function DiffEqBase.solve(
         ## UPPER LIMIT
         sdeProb = SDEProblem(μ , σ , X0 , prob.tspan)
         ensembleprob = EnsembleProblem(sdeProb)
-        sim = solve(ensembleprob, sdealg, ensemblealg, dt=dt,trajectories=trajectories_upper,adaptive=false,prob.kwargs...)
+        sim = solve(ensembleprob, EM(), ensemblealg, dt=dt, trajectories=trajectories_upper,prob.kwargs...)
         function sol_high()
             map(sim.u) do u
                 xsde = u.u
