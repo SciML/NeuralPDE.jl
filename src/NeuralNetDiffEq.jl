@@ -60,24 +60,22 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.g)
 end
 
-struct discretize{PDESystem,PhysicsInformedNN,P} <:DiffEqBase.DEProblem
-  pde_system::PDESystem
-  discretization ::PhysicsInformedNN
-  p::P
-  discretize(pde_system,discretization,p=nothing) = new{
-                                                       typeof(pde_system),
-                                                       typeof(discretization),
-                                                       typeof(p)
-                                                       }(pde_system,discretization,p)
+struct NNPDEProblem{PDEFunction,BC} <:DiffEqBase.DEProblem
+  pde_func::PDEFunction
+  train_sets ::BC
+  dim :: Int64
+  NNPDEProblem(pde_func,train_sets,dim) = new{typeof(pde_func),
+                                          typeof(train_sets)
+                                          }(pde_func,train_sets,dim)
 end
-Base.summary(prob::discretize) = string(nameof(typeof(prob)))
+Base.summary(prob::NNPDEProblem) = string(nameof(typeof(prob)))
 
-function Base.show(io::IO, A::discretize)
+function Base.show(io::IO, A::NNPDEProblem)
   println(io,summary(A))
-  print(io,"pde_system: ")
-  show(io,A.pde_system)
-  print(io,"discretization: ")
-  show(io,A.discretization)
+  print(io,"pde_func: ")
+  show(io,A.pde_func)
+  print(io,"extract_bc_data: ")
+  show(io,A.extract_bc_data)
 end
 
 struct NNDE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
@@ -112,6 +110,6 @@ include("pinns_pde_solve.jl")
 
 export NNDE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       discretize, PhysicsInformedNN
+       NNPDEProblem, PhysicsInformedNN
 
 end # module

@@ -75,97 +75,9 @@ function extract_bc(bcs,indvars,depvars)
     return output
 end
 
-function DiffEqBase.solve(
-    prob::discretize,
-    alg::NNDE,
-    args...;
-    timeseries_errors = true,
-    save_everystep=true,
-    adaptive=false,
-    abstol = 1f-6,
-    verbose = false,
-    maxiters = 100)
-
-    # DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
-    pde_system = prob.pde_system
-    eq =pde_system.eq
-    bcs = pde_system.bcs
-    domains = pde_system.domain
-    indvars = pde_system.indvars
-    depvars = pde_system.depvars
-    discretization =  prob.discretization
+function generator_training_sets(domains, discretization, bound_data, dict_indvars)
     dx = discretization.dx
-    dim = length(domains)
-    p = prob.p
 
-    dim > 3 && error("While only dimensionality no more than 3")
-
-    # hidden layer
-    chain  = alg.chain
-    opt    = alg.opt
-    autodiff = alg.autodiff
-    initθ = alg.initθ
-
-    isuinplace = dx isa Number
-
-    dict_indvars = get_dict_indvars(indvars)
-
-    # The phi trial solution
-    if chain isa FastChain
-        if isuinplace
-            phi = (x,θ) -> first(chain(adapt(typeof(θ),x),θ))
-        else
-            phi = (x,θ) -> chain(adapt(typeof(θ),x),θ)
-        end
-    else
-        _,re  = Flux.destructure(chain)
-        if isuinplace
-            phi = (x,θ) -> first(re(θ)(adapt(typeof(θ),x)))
-        else
-            phi = (x,θ) -> re(θ)(adapt(typeof(θ),x))
-        end
-    end
-
-    # derivative
-    if autodiff
-        # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
-        # second_order_derivative = ...
-    else
-        epsilon(dx) = cbrt(eps(typeof(dx)))
-        ep = epsilon(dx)
-        eps_masks = [[[ep]],
-                    [[ep,0.0], [0.0,ep]],
-                    [[ep,0.0,0.0], [0.0,ep,0.0],[0.0,0.0,ep]]]
-
-        derivative = (_x...) ->
-        begin
-            u_in = _x[1]
-            x = collect(_x[2:end-2])
-            der_num =_x[end-1]
-            θ = _x[end]
-            # n = get(dict_indvars,der_var,nothing)
-            (phi(x+eps_masks[dim][der_num], θ) - phi(x,θ))/ep
-        end
-        second_order_derivative = (_x...) ->
-        begin
-            u_in = _x[1]
-            x = collect(_x[2:end-2])
-            der_num =_x[end-1]
-            θ = _x[end]
-            # n = get(dict_indvars,der_var,nothing)
-            (phi(x+eps_masks[dim][der_num], θ) - 2*phi(x,θ)+ phi(x-eps_masks[dim][der_num], θ) )/(ep^2)
-        end
-    end
-
-    # pde equation
-    _u= (_x...; x = collect(_x[1:end-1]),θ = _x[end]) -> phi(x,θ)
-    _pde_func = extract_eq(eq,indvars,depvars, dict_indvars)
-    pde_func = (_x,θ) -> _pde_func(_u,_x...,θ,derivative,second_order_derivative)
-
-    # extract boundary conditions
-    bound_data  = extract_bc(bcs,indvars,depvars)
-
-    # generate training sets
     dom_spans = [(d.domain.lower:dx:d.domain.upper)[2:end-1] for d in domains]
     spans = [d.domain.lower:dx:d.domain.upper for d in domains]
 
@@ -185,9 +97,120 @@ function DiffEqBase.solve(
         push!(train_bound_set, b_set...)
     end
 
+    [train_domain_set,train_bound_set]
+end
+
+function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+    eq =pde_system.eq
+    bcs = pde_system.bcs
+    domains = pde_system.domain
+    indvars = pde_system.indvars
+    depvars = pde_system.depvars
+    dx = discretization.dx
+    dim = length(domains)
+
+    # dictionary indvars -> unique number
+    dict_indvars = get_dict_indvars(indvars)
+
+    # extract equation
+    _pde_func = extract_eq(eq,indvars,depvars, dict_indvars)
+
+    # extract boundary conditions
+    bound_data  = extract_bc(bcs,indvars,depvars)
+
+    # generate training sets
+    train_sets = generator_training_sets(domains, discretization, bound_data, dict_indvars)
+
+    return NNPDEProblem(_pde_func, train_sets, dim)
+end
+
+function DiffEqBase.solve(
+    prob::NNPDEProblem,
+    alg::NNDE,
+    args...;
+    timeseries_errors = true,
+    save_everystep=true,
+    adaptive=false,
+    abstol = 1f-6,
+    verbose = false,
+    maxiters = 100)
+
+    # DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
+
+    # pde function
+    _pde_func = prob.pde_func
+    # training sets
+    train_sets = prob.train_sets
+    # the points in the domain and on the boundary
+    train_domain_set, train_bound_set = train_sets
+
     # coefficients for loss function
     τb = length(train_bound_set)
     τf = length(train_domain_set)
+
+    #dimensionality of equation
+    dim = prob.dim
+
+    dim > 3 && error("While only dimensionality no more than 3")
+
+    # neural network
+    chain  = alg.chain
+    # optimizer
+    opt    = alg.opt
+    # AD flag
+    autodiff = alg.autodiff
+    # weights of NN
+    initθ = alg.initθ
+
+    # for a system of equations, not yet supported
+    isuinplace = true
+
+    # The phi trial solution
+    if chain isa FastChain
+        if isuinplace
+            phi = (x,θ) -> first(chain(adapt(typeof(θ),x),θ))
+        else
+            phi = (x,θ) -> chain(adapt(typeof(θ),x),θ)
+        end
+    else
+        _,re  = Flux.destructure(chain)
+        if isuinplace
+            phi = (x,θ) -> first(re(θ)(adapt(typeof(θ),x)))
+        else
+            phi = (x,θ) -> re(θ)(adapt(typeof(θ),x))
+        end
+    end
+
+    # calculate derivative
+    if autodiff #automatic differentiation (not implemented yet)
+        # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
+    else # numerical derivative
+        ep = cbrt(eps(Float64))
+        eps_masks = [[[ep]],
+                    [[ep,0.0], [0.0,ep]],
+                    [[ep,0.0,0.0], [0.0,ep,0.0],[0.0,0.0,ep]]]
+
+        derivative = (_x...) ->
+        begin
+            u_in = _x[1]
+            x = collect(_x[2:end-2])
+            der_num =_x[end-1]
+            θ = _x[end]
+            (phi(x+eps_masks[dim][der_num], θ) - phi(x,θ))/ep
+        end
+        second_order_derivative = (_x...) ->
+        begin
+            u_in = _x[1]
+            x = collect(_x[2:end-2])
+            der_num =_x[end-1]
+            θ = _x[end]
+            (phi(x+eps_masks[dim][der_num], θ) - 2*phi(x,θ)+ phi(x-eps_masks[dim][der_num], θ) )/(ep^2)
+        end
+    end
+
+    #represent pde function
+    _u= (_x...; x = collect(_x[1:end-1]),θ = _x[end]) -> phi(x,θ)
+    pde_func = (_x,θ) -> _pde_func(_u,_x...,θ,derivative,second_order_derivative)
 
 
     #loss function for pde equation
@@ -199,7 +222,7 @@ function DiffEqBase.solve(
         sum(abs2,inner_loss_domain(x,θ) for x in train_domain_set)
     end
 
-    #Dirichlet boundary
+    #loss function for Dirichlet boundary
     function inner_loss(x,θ,bound)
         phi(x,θ) - bound
     end
