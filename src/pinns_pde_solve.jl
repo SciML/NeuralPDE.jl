@@ -1,3 +1,6 @@
+struct PhysicsInformedNN{int}
+  dx::int
+end
 
 get_dict_indvars(indvars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(indvars)])
 
@@ -73,7 +76,7 @@ function extract_bc(bcs,indvars,depvars)
 end
 
 function DiffEqBase.solve(
-    prob::NNPDEProblem,
+    prob::discretize,
     alg::NNDE,
     args...;
     timeseries_errors = true,
@@ -91,8 +94,8 @@ function DiffEqBase.solve(
     indvars = pde_system.indvars
     depvars = pde_system.depvars
     discretization =  prob.discretization
-    dx = discretization.dxs
-    dim = discretization.order
+    dx = discretization.dx
+    dim = length(domains)
     p = prob.p
 
     dim > 3 && error("While only dimensionality no more than 3")
@@ -163,8 +166,8 @@ function DiffEqBase.solve(
     bound_data  = extract_bc(bcs,indvars,depvars)
 
     # generate training sets
-    dom_spans = [(d.domain.lower:discretization.dxs:d.domain.upper)[2:end-1] for d in domains]
-    spans = [d.domain.lower:discretization.dxs:d.domain.upper for d in domains]
+    dom_spans = [(d.domain.lower:dx:d.domain.upper)[2:end-1] for d in domains]
+    spans = [d.domain.lower:dx:d.domain.upper for d in domains]
 
     train_set = []
     for points in Iterators.product(spans...)

@@ -60,19 +60,19 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.g)
 end
 
-struct NNPDEProblem{PDESystem,MOLFiniteDifference,P} <:DiffEqBase.DEProblem
+struct discretize{PDESystem,PhysicsInformedNN,P} <:DiffEqBase.DEProblem
   pde_system::PDESystem
-  discretization ::MOLFiniteDifference
+  discretization ::PhysicsInformedNN
   p::P
-  NNPDEProblem(pde_system,discretization,p=nothing) = new{
+  discretize(pde_system,discretization,p=nothing) = new{
                                                        typeof(pde_system),
                                                        typeof(discretization),
                                                        typeof(p)
                                                        }(pde_system,discretization,p)
 end
-Base.summary(prob::NNPDEProblem) = string(nameof(typeof(prob)))
+Base.summary(prob::discretize) = string(nameof(typeof(prob)))
 
-function Base.show(io::IO, A::NNPDEProblem)
+function Base.show(io::IO, A::discretize)
   println(io,summary(A))
   print(io,"pde_system: ")
   show(io,A.pde_system)
@@ -112,6 +112,6 @@ include("pinns_pde_solve.jl")
 
 export NNDE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       NNPDEProblem
+       discretize, PhysicsInformedNN
 
 end # module
