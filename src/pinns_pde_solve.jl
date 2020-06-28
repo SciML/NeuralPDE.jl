@@ -4,6 +4,7 @@ end
 
 get_dict_indvars(indvars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(indvars)])
 
+# calculate order of derivative
 function count_order(_args)
     _args[2].args[1] == :derivative ? 2 : 1
 end
@@ -13,6 +14,7 @@ function simplified_derivative(ex::Expr,indvars,depvars,dict_indvars)
     return ex
 end
 
+# simplify the expression with derivative
 function _simplified_derivative(_args,indvars,depvars,dict_indvars)
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
@@ -39,6 +41,7 @@ function _simplified_derivative(_args,indvars,depvars,dict_indvars)
     return _args
 end
 
+# extract equation
 function extract_eq(eq,_indvars,_depvars,dict_indvars)
     depvars = [d.name for d in _depvars]
     indvars = Expr.(_indvars)
@@ -54,6 +57,7 @@ function extract_eq(eq,_indvars,_depvars,dict_indvars)
     return _f
 end
 
+#extract boundary conditions 
 function extract_bc(bcs,indvars,depvars)
     output= []
     vars = Expr.(indvars)
@@ -75,6 +79,7 @@ function extract_bc(bcs,indvars,depvars)
     return output
 end
 
+#create training set with the points in the domain and on the boundary
 function generator_training_sets(domains, discretization, bound_data, dict_indvars)
     dx = discretization.dx
 

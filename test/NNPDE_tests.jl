@@ -103,7 +103,7 @@ domains = [x ∈ IntervalDomain(0.0,2.0),
            t ∈ IntervalDomain(0.0,2.0)]
 
 # Discretization
-dx = 0.3
+dx = 0.25
 discretization = NeuralNetDiffEq.PhysicsInformedNN(dx)
 
 # Neural network and optimizer
@@ -114,14 +114,14 @@ chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralNetDiffEq.discretize(pde_system,discretization)
 alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
-phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=2000)
+phi,res  = NeuralNetDiffEq.solve(prob,alg,verbose=true, maxiters=1800)
 
 xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
 u_real = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
 u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-@test u_predict ≈ u_real atol = 100.0
+@test u_predict ≈ u_real atol = 20.0
 
-# p1 =plot(xs, ys, u_predict[4], st=:surface);
-# p2 = plot(xs, ys, u_real[4], st=:surface);
+# p1 =plot(xs, ys, u_predict, st=:surface);
+# p2 = plot(xs, ys, u_real, st=:surface);
 # plot(p1,p2)
