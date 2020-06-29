@@ -13,39 +13,10 @@ likes of scientific machine learning (SciML).
 
 ## Installation
 
-```bash
-julia ./install.jl
-```
+Open [REPL](https://docs.julialang.org/en/v1/stdlib/Pkg/index.html)
 
-## Examples
-
-### DeepBSDE Solver
-
-### Solving a 100 dimensional Hamilton-Jacobi-Bellman Equation
-
-In this example we will solve a Hamilton-Jacobi-Bellman equation of 100 dimensions.
-The Hamilton-Jacobi-Bellman equation is the solution to a stochastic optimal
-control problem. Here, we choose to solve the classical Linear Quadratic Gaussian
-(LQG) control problem of 100 dimensions, which is governed by the SDE
-`dX_t = 2sqrt(λ)c_t dt + sqrt(2)dW_t` where `c_t` is a control process. The solution
-to the optimal control is given by a PDE of the form:
-
-![HJB](https://user-images.githubusercontent.com/1814174/63213366-b1817b80-c0d9-11e9-99b2-c8c08b86d2d5.PNG)
-
-with terminating condition `g(X) = log(0.5f0 + 0.5f0*sum(X.^2))`. To solve it
-using the `TerminalPDEProblem`, we write:
-
-```julia
-d = 100 # number of dimensions
-X0 = fill(0.0f0,d) # initial value of stochastic control process
-tspan = (0.0f0, 1.0f0)
-λ = 1.0f0
-
-g(X) = log(0.5f0 + 0.5f0*sum(X.^2))
-f(X,u,σᵀ∇u,p,t) = -λ*sum(σᵀ∇u.^2)
-μ_f(X,p,t) = zero(X)  #Vector d x 1 λ
-σ_f(X,p,t) = Diagonal(sqrt(2.0f0)*ones(Float32,d)) #Matrix d x d
-prob = TerminalPDEProblem(g, f, μ_f, σ_f, X0, tspan)
+```jl
+add NeuralNetDiffEq
 ```
 
 As described in the API docs, we now need to define our `NNPDENS` algorithm
