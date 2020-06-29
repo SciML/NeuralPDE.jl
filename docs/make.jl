@@ -13,6 +13,10 @@ makedocs(
     pages=[
         "Home" => "index.md",
         "Tutorials" => Any[
+            "ode.md",
+            "hd_pde.md",
+            "100_HJB.md",
+            "k.md"
             "examples/optimal_stopping.md"
 
             "100_HJB.md"
