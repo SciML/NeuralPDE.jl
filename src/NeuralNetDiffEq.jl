@@ -4,14 +4,14 @@ using Reexport, Statistics
 @reexport using DiffEqBase
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
-using DiffEqFlux, Adapt, CuArrays, StochasticDiffEq
+using DiffEqFlux, Adapt, CuArrays
 using ModelingToolkit
 
 import Tracker, Optim
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 
-struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,A,UD,K} <: DiffEqBase.DEProblem
+struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P} <: DiffEqBase.DEProblem
     g::G
     f::F
     μ::Mu
@@ -19,14 +19,11 @@ struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,A,UD,K} <: DiffEqBase.DEProblem
     X0::X
     tspan::Tuple{T,T}
     p::P
-    A::A
-    u_domain::UD
-    kwargs::K
-    TerminalPDEProblem(g,f,μ,σ,X0,tspan,p=nothing;A=nothing,u_domain=nothing,kwargs...) = new{typeof(g),typeof(f),
+    TerminalPDEProblem(g,f,μ,σ,X0,tspan,p=nothing) = new{typeof(g),typeof(f),
                                                          typeof(μ),typeof(σ),
                                                          typeof(X0),eltype(tspan),
-                                                         typeof(p),typeof(A),typeof(u_domain),typeof(kwargs)}(
-                                                         g,f,μ,σ,X0,tspan,p,A,u_domain,kwargs)
+                                                         typeof(p)}(
+                                                         g,f,μ,σ,X0,tspan,p)
 end
 
 Base.summary(prob::TerminalPDEProblem) = string(nameof(typeof(prob)))
@@ -77,8 +74,10 @@ function Base.show(io::IO, A::NNPDEProblem)
   println(io,summary(A))
   print(io,"pde_func: ")
   show(io,A.pde_func)
-  print(io,"extract_bc_data: ")
-  show(io,A.extract_bc_data)
+  print(io,"train_sets: ")
+  show(io,A.train_sets)
+  print(io,"dimensionality: ")
+  show(io,A.dim)
 end
 
 struct NNDE{C,O,P,K} <: NeuralNetDiffEqAlgorithm

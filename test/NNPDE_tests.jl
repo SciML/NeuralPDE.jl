@@ -12,6 +12,7 @@ using Test, NeuralNetDiffEq
 
 # 1D ODE
 eq = Dt(u(t,θ)) ~ t^3 + 2*t + (t^2)*((1+3*(t^2))/(1+t+(t^3))) - u(t,θ)*(t + ((1+3*(t^2))/(1+t+t^3)))
+
 # Boundary conditions
 bcs = [u(0.) ~ 1.0 , u(1.) ~ 1.202]
 
@@ -120,7 +121,7 @@ xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
 u_real = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
 u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-@test u_predict ≈ u_real atol = 20.0
+@test u_predict ≈ u_real atol = 50.0
 
 # p1 =plot(xs, ys, u_predict, st=:surface);
 # p2 = plot(xs, ys, u_real, st=:surface);

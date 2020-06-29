@@ -2,19 +2,45 @@ struct PhysicsInformedNN{int}
   dx::int
 end
 
+"""
+Create dictionary: variable => unique number for variable
+
+# Example
+
+Dict{Symbol,Int64} with 3 entries:
+  :y => 2
+  :t => 3
+  :x => 1
+"""
 get_dict_indvars(indvars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(indvars)])
 
-# calculate order of derivative
+# Calculate an order of derivative
 function count_order(_args)
     _args[2].args[1] == :derivative ? 2 : 1
 end
-
+# Wrapper for _simplified_derivative
 function simplified_derivative(ex::Expr,indvars,depvars,dict_indvars)
     ex.args = _simplified_derivative(ex.args,indvars,depvars,dict_indvars)
     return ex
 end
 
-# simplify the expression with derivative
+"""
+Simplify the derivative expression
+
+# Examples
+
+1. First derivative of function 'u' of one variable: 'x'
+
+Take expressions in the form: `derivative(u(x,θ), x)` to `derivative(u, x, unn, θ)`,
+
+where 'unn' unique number for the variable.
+
+
+2. Second derivative of function 'u' of two variables: 'x', 'y'.
+
+Take expressions in the form: `derivative(derivative(u(x,y,θ), x), x)` to `second_order_derivative(u, x, y, unn, θ)`
+
+"""
 function _simplified_derivative(_args,indvars,depvars,dict_indvars)
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
@@ -41,7 +67,23 @@ function _simplified_derivative(_args,indvars,depvars,dict_indvars)
     return _args
 end
 
-# extract equation
+"""
+Extract ModelingToolkit PDE form to the inner representation.
+
+Example:
+
+1)  Equation: Dt(u(t,θ)) ~ t +1
+
+    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u, t, 1, θ) - (t + 1)'
+
+2)  Equation: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
+
+    Take expressions in the form:
+    'Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))'
+    to
+    '(second_order_derivative(u, x, y, 1, θ) + second_order_derivative(u, x, y, 2, θ)) - -(sin(πx)) * sin(πy)'
+
+"""
 function extract_eq(eq,_indvars,_depvars,dict_indvars)
     depvars = [d.name for d in _depvars]
     indvars = Expr.(_indvars)
@@ -57,7 +99,32 @@ function extract_eq(eq,_indvars,_depvars,dict_indvars)
     return _f
 end
 
-#extract boundary conditions 
+"""
+Extract boundary conditions expression to the inner representation.
+
+Examples:
+
+Boundary conditions: [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+                      u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+
+Take expression in form:
+
+4-element Array{Equation,1}:
+ Equation(u(0, y), ModelingToolkit.Constant(0.0f0))
+ Equation(u(1, y), -1.2246467991473532e-16 * sin(πy))
+ Equation(u(x, 0), ModelingToolkit.Constant(0.0f0))
+ Equation(u(x, 1), -(sin(πx)) * 1.2246467991473532e-16)
+
+to
+
+4-element Array{Any,1}:
+ (0, :x, '_f(x,y) = 0.0f0')
+ (1, :x, '_f(x,y) = -1.2246467991473532e-16 * sin(πy)')
+ (0, :y, '_f(x,y) = 0.0f0')
+ (1, :y, '_f(x,y) = -(sin(πx)) * 1.2246467991473532e-16')
+
+"""
+
 function extract_bc(bcs,indvars,depvars)
     output= []
     vars = Expr.(indvars)
@@ -79,7 +146,7 @@ function extract_bc(bcs,indvars,depvars)
     return output
 end
 
-#create training set with the points in the domain and on the boundary
+# Generate training set with the points in the domain and on the boundary
 function generator_training_sets(domains, discretization, bound_data, dict_indvars)
     dx = discretization.dx
 
@@ -105,6 +172,7 @@ function generator_training_sets(domains, discretization, bound_data, dict_indva
     [train_domain_set,train_bound_set]
 end
 
+# Convert a PDE problem into an PINNs problem
 function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     eq =pde_system.eq
     bcs = pde_system.bcs
@@ -114,7 +182,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     dx = discretization.dx
     dim = length(domains)
 
-    # dictionary indvars -> unique number
+    # dictionary: variable -> unique number
     dict_indvars = get_dict_indvars(indvars)
 
     # extract equation
@@ -153,7 +221,7 @@ function DiffEqBase.solve(
     τb = length(train_bound_set)
     τf = length(train_domain_set)
 
-    #dimensionality of equation
+    # dimensionality of equation
     dim = prob.dim
 
     dim > 3 && error("While only dimensionality no more than 3")
@@ -164,10 +232,10 @@ function DiffEqBase.solve(
     opt    = alg.opt
     # AD flag
     autodiff = alg.autodiff
-    # weights of NN
+    # weights of neural network
     initθ = alg.initθ
 
-    # for a system of equations, not yet supported
+    # equation/system of equations (not yet supported)
     isuinplace = true
 
     # The phi trial solution
@@ -186,10 +254,10 @@ function DiffEqBase.solve(
         end
     end
 
-    # calculate derivative
-    if autodiff #automatic differentiation (not implemented yet)
+    # Calculate derivative
+    if autodiff # automatic differentiation (not implemented yet)
         # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
-    else # numerical derivative
+    else # numerical differentiation
         ep = cbrt(eps(Float64))
         eps_masks = [[[ep]],
                     [[ep,0.0], [0.0,ep]],
@@ -213,12 +281,12 @@ function DiffEqBase.solve(
         end
     end
 
-    #represent pde function
+    # Represent pde function
     _u= (_x...; x = collect(_x[1:end-1]),θ = _x[end]) -> phi(x,θ)
     pde_func = (_x,θ) -> _pde_func(_u,_x...,θ,derivative,second_order_derivative)
 
 
-    #loss function for pde equation
+    # Loss function for pde equation
     function inner_loss_domain(x,θ)
         pde_func(x,θ)
     end
@@ -227,22 +295,22 @@ function DiffEqBase.solve(
         sum(abs2,inner_loss_domain(x,θ) for x in train_domain_set)
     end
 
-    #loss function for Dirichlet boundary
+    # Loss function for Dirichlet boundary
     function inner_loss(x,θ,bound)
         phi(x,θ) - bound
     end
 
-    # #Neumann boundary
+    # # Neumann boundary
     # function inner_neumann_loss(x,θ,num,bound)
     #     derivative(u,x,num θ) - bound
     # end
 
-    #loss function for boundary condiiton
+    # Loss function for boundary conditions
     function loss_boundary(θ)
        sum(abs2,inner_loss(x,θ,bound) for (x,bound) in train_bound_set)
     end
 
-    #loss function
+    # General loss function
     loss(θ) = 1.0f0/τf * loss_domain(θ) + 1.0f0/τb * loss_boundary(θ) #+ 1.0f0/τc * custom_loss(θ)
 
     cb = function (p,l)
