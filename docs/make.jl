@@ -13,7 +13,10 @@ makedocs(
     pages=[
         "Home" => "index.md",
         "Tutorials" => Any[
-            "100_HJB.md"
+            "ode.md",
+            "hd_pde.md",
+            "100_HJB.md",
+            "k.md"
         ],
     ]
 )
