@@ -10,11 +10,11 @@ u0 = 0.0f0
 prob = ODEProblem(linear, u0 ,tspan)
 chain = Flux.Chain(Dense(1,5,σ),Dense(5,1))
 opt = Flux.ADAM(0.1, (0.9, 0.95))
-sol = solve(prob, NeuralNetDiffEq.NNDE(chain,opt), dt=1/20f0, verbose = true,
+sol = solve(prob, NeuralNetDiffEq.NNODE(chain,opt), dt=1/20f0, verbose = true,
             abstol=1e-10, maxiters = 200)
 
 opt = BFGS()
-sol = solve(prob, NeuralNetDiffEq.NNDE(chain,opt), dt=1/20f0, verbose = true,
+sol = solve(prob, NeuralNetDiffEq.NNODE(chain,opt), dt=1/20f0, verbose = true,
             abstol=1e-10, maxiters = 200)
 
 # Run a solve on vectors
@@ -24,7 +24,7 @@ u0 = [0.0f0]
 prob = ODEProblem(linear, u0 ,tspan)
 chain = Flux.Chain(Dense(1,5,σ),Dense(5,1))
 opt = BFGS()
-sol = solve(prob, NeuralNetDiffEq.NNDE(chain,opt), dt=1/20f0, abstol=1e-10,
+sol = solve(prob, NeuralNetDiffEq.NNODE(chain,opt), dt=1/20f0, abstol=1e-10,
             verbose = true, maxiters=200)
 
 #Example 1
@@ -33,12 +33,12 @@ linear_analytic = (u0,p,t) -> [exp(-(t^2)/2)/(1+t+t^3) + t^2]
 prob = ODEProblem(ODEFunction(linear,analytic=linear_analytic),[1f0],(0.0f0,1.0f0))
 chain = Flux.Chain(Dense(1,128,σ),Dense(128,1))
 opt = ADAM(0.01)
-sol  = solve(prob,NeuralNetDiffEq.NNDE(chain,opt),verbose = true, dt=1/5f0, maxiters=200)
+sol  = solve(prob,NeuralNetDiffEq.NNODE(chain,opt),verbose = true, dt=1/5f0, maxiters=200)
 @test sol.errors[:l2] < 0.5
 
 #=
 dts = 1f0 ./ 2f0 .^ (6:-1:2)
-sim = test_convergence(dts, prob, NeuralNetDiffEq.NNDE(chain, opt))
+sim = test_convergence(dts, prob, NeuralNetDiffEq.NNODE(chain, opt))
 @test abs(sim.𝒪est[:l2]) < 0.1
 @test minimum(sim.errors[:l2]) < 0.5
 =#
@@ -49,12 +49,12 @@ linear_analytic = (u0,p,t) ->  exp(-t/5)*(u0 + sin(t))
 prob = ODEProblem(ODEFunction(linear,analytic=linear_analytic),0.0f0,(0.0f0,1.0f0))
 chain = Flux.Chain(Dense(1,5,σ),Dense(5,1))
 opt = ADAM(0.01)
-sol  = solve(prob,NeuralNetDiffEq.NNDE(chain,opt),verbose = true, dt=1/5f0)
+sol  = solve(prob,NeuralNetDiffEq.NNODE(chain,opt),verbose = true, dt=1/5f0)
 @test sol.errors[:l2] < 0.5
 
 #=
 dts = 1f0 ./ 2f0 .^ (6:-1:2)
-sim = test_convergence(dts, prob, NeuralNetDiffEq.NNDE(chain, opt))
+sim = test_convergence(dts, prob, NeuralNetDiffEq.NNODE(chain, opt))
 @test abs(sim.𝒪est[:l2]) < 0.5
 @test minimum(sim.errors[:l2]) < 0.1
 =#
