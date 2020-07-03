@@ -2,16 +2,18 @@
 Here we will aim to solve an optimal stopping problem using `NNStopping` algorithm.
 
 Let us consider a standard American options. Unlike European options , American options can be excersiced before their maturity and thus the problem reduces to finding an optimal stopping time.
-We will take the case of an American max put option with strike price `K` , constant volatility `β` and risk-free rate `r` . Intitial stock price S<sub>0</sub> = 80.00 , the maturity `T` and number of steps as `N`
+We will take the case of an American max put option with strike price `K` , constant volatility `β` and risk-free rate `r` . Intitial stock price `u0 = 80.00` , the maturity `T` and number of steps as `N`. The forcing function `f` and noise function `sigma` are defined for the type of model. [See StochasticDiffEq documentation.](https://docs.sciml.ai/v6.12/tutorials/sde_example/#Example-1:-Scalar-SDEs-1)
 ```julia
 d = 1 #Dimensions of initial stock price
 r = 0.04f0
 beta = 0.2f0
 K = 100.00
 T = 1.0
-u0 = fill(80.00 , d , 1)
+u0 = fill(80.00 , d , 1) #Initial Stock Price
+#Defining the drift (f) and diffusion(sigma)
 f(du,u,p,t) = (du .= r*u)
 sigma(du,u,p,t)  = (du .= Diagonal(beta*u))
+
 tspan = (0.0 , T)
 N = 50
 dt = tspan[2]/(N - 1)
