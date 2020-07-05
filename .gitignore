@@ -3,3 +3,4 @@
 *.jl.mem
 Manifest.toml
 *.pdf
+.vscode/settings.json
