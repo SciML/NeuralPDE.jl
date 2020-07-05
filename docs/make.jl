@@ -13,6 +13,8 @@ makedocs(
     pages=[
         "Home" => "index.md",
         "Tutorials" => Any[
+            "examples/optimal_stopping.md"
+
         ],
     ]
 )
