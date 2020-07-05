@@ -2,6 +2,23 @@
 Here we will aim to solve an optimal stopping problem using `NNStopping` algorithm.
 
 Let us consider a standard American options. Unlike European options , American options can be excersiced before their maturity and thus the problem reduces to finding an optimal stopping time.
+
+As stated above since we can execute the option at any optimal time before the maturity of the option the standard Black-Scholes model gets modified to :
+
+```math
+  \frac{∂V}{∂t} + rS\frac{∂V}{∂S} + \frac{1}{2}{\σ^2}{S^2}\frac{∂^2 V}{\∂S^2} -rV ≤ 0
+```
+And since the stock price will follow a standard geometric brownian motion given by :
+
+```math
+  dS_t = rS_tdt + σS_tdW_t
+```
+And thus our final aim will be to calculate:
+<img src="https://raw.githubusercontent.com/ashutosh-b-b/github-doc-images/master/Price%20of%20American%20Option.png">
+
+We will be using a `SDEProblem` to denote a problem of this type. Since we can define this as a `SDEProblem` and add a terminal condition `g` in order to price the American Options
+
+
 We will take the case of an American max put option with strike price `K` , constant volatility `β` and risk-free rate `r` . Intitial stock price `u0 = 80.00` , the maturity `T` and number of steps as `N`. The forcing function `f` and noise function `sigma` are defined for the type of model. [See StochasticDiffEq documentation.](https://docs.sciml.ai/v6.12/tutorials/sde_example/#Example-1:-Scalar-SDEs-1)
 ```julia
 d = 1 #Dimensions of initial stock price
@@ -19,9 +36,9 @@ N = 50
 dt = tspan[2]/(N - 1)
 ```
 The final part is the payoff function :
-<p align="center">
+
   <img src="https://raw.githubusercontent.com/ashutosh-b-b/github-doc-images/master/payoff_function.png">
-</p>
+
 The discounted payoff function is :
 
 ```julia
@@ -38,11 +55,13 @@ And finally lets build our neural network model using Flux.jl. Note that the fin
 m = Chain(Dense(d , 5, tanh), Dense(5, 16 , tanh)  , Dense(16 , N ), softmax)
 opt = Flux.ADAM(0.1)
 ```
-We add algorithms to solve the SDE and the Ensemble.
+We add algorithms to solve the SDE and the Ensemble.These are the algorithms required to solve the `SDEProblem` (we use the Euler-Maruyama algorithm in this case) and an `EnsembleProblem` to run multiple simulations. [See Ensemble Algorithms.](https://docs.sciml.ai/stable/features/ensemble/#EnsembleAlgorithms-1)
+
 ```julia
 sdealg = EM()
 ensemblealg = EnsembleThreads()
 ```
+
 And finally we call the solve function.
 ```julia
 sol = solve(prob, NeuralNetDiffEq.NNStopping( m, opt , sdealg , ensemblealg), verbose = true, dt = dt,
