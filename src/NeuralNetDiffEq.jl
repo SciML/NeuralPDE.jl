@@ -115,6 +115,6 @@ include("pinns_pde_solve.jl")
 
 export NNDE, TerminalPDEProblem, NNPDEHan, NNPDENS,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
-       NNPDEProblem, PhysicsInformedNN
+       NNPDEProblem, PhysicsInformedNN, discretize
 
 end # module
