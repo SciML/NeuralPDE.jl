@@ -1,26 +1,6 @@
-struct NNODE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
-    chain::C
-    opt::O
-    initθ::P
-    autodiff::Bool
-    kwargs::K
-end
-function NNODE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
-    if init_params === nothing
-        if chain isa FastChain
-            initθ = DiffEqFlux.initial_params(chain)
-        else
-            initθ,re  = Flux.destructure(chain)
-        end
-    else
-        initθ = init_params
-    end
-    NNODE(chain,opt,initθ,autodiff,kwargs)
-end
-
 function DiffEqBase.solve(
     prob::DiffEqBase.AbstractODEProblem,
-    alg::NeuralNetDiffEqAlgorithm,
+    alg::NNDE,
     args...;
     dt,
     timeseries_errors = true,

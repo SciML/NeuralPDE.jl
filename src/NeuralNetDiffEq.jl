@@ -5,6 +5,8 @@ using Reexport, Statistics
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt, CuArrays, StochasticDiffEq
+using ModelingToolkit
+
 import Tracker, Optim
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
@@ -61,13 +63,58 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.g)
 end
 
+struct NNPDEProblem{PDEFunction,BC} <:DiffEqBase.DEProblem
+  pde_func::PDEFunction
+  train_sets ::BC
+  dim :: Int64
+  NNPDEProblem(pde_func,train_sets,dim) = new{typeof(pde_func),
+                                          typeof(train_sets)
+                                          }(pde_func,train_sets,dim)
+end
+Base.summary(prob::NNPDEProblem) = string(nameof(typeof(prob)))
+
+function Base.show(io::IO, A::NNPDEProblem)
+  println(io,summary(A))
+  print(io,"pde_func: ")
+  show(io,A.pde_func)
+  print(io,"train_sets: ")
+  show(io,A.train_sets)
+  print(io,"dimensionality: ")
+  show(io,A.dim)
+end
+
+struct NNDE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
+    chain::C
+    opt::O
+    initθ::P
+    autodiff::Bool
+    kwargs::K
+end
+function NNDE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
+    if init_params === nothing
+        if chain isa FastChain
+            initθ = DiffEqFlux.initial_params(chain)
+        else
+            initθ,re  = Flux.destructure(chain)
+        end
+    else
+        initθ = init_params
+    end
+    NNDE(chain,opt,initθ,autodiff,kwargs)
+end
+
+
 include("ode_solve.jl")
 include("pde_solve.jl")
 include("pde_solve_ns.jl")
 include("kolmogorov_solve.jl")
 include("stopping_solve.jl")
+include("pinns_pde_solve.jl")
 
 
-export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, KolmogorovPDEProblem, NNKolmogorov, NNStopping
+
+export NNDE, TerminalPDEProblem, NNPDEHan, NNPDENS,
+       KolmogorovPDEProblem, NNKolmogorov, NNStopping,
+       NNPDEProblem, PhysicsInformedNN, discretize
 
 end # module
