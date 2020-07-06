@@ -16,6 +16,7 @@ makedocs(
             "examples/optimal_stopping.md"
 
         ],
+        "Kolmogorov On GPU" => "kolmogorov_on_gpu.md",
     ]
 )
 
