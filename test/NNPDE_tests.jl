@@ -1,8 +1,9 @@
 using Flux
+println("NNPDE_tests")
 using DiffEqFlux
+println("Starting Soon!")
 using ModelingToolkit
 using DiffEqBase
-println("NNPDE_tests")
 using Test, NeuralNetDiffEq
 
 ## Example 1, 1D ode
