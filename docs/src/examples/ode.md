@@ -24,11 +24,11 @@ ODEProblem takes a function, initial condition, and time spans.
 
 The algorithm parameter takes a NNODE object with the chain and the optimizer.
 
-### chain
+#### chain
 
 The `chain` parameter defines a chain of layers as the neural network to approximate the ODE.
 
-### opt
+#### opt
 
 The optimizer, which defaults to the [BFGS method](<https://en.wikipedia.org/wiki/Broyden%E2%80%93Fletcher%E2%80%93Goldfarb%E2%80%93Shanno_algorithm>, to use for training the neural net.
 `opt = Flux.ADAM(0.1, (0.9, 0.95))` defines an ADAM optimizer.
