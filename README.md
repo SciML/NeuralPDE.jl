@@ -131,7 +131,7 @@ ans = solve(prob, pdealg, verbose=true, maxiters=150, trajectories=100,
 
 In this example we will solve a Poisson equation of 2 dimensions:
 
-![poisson](https://user-images.githubusercontent.com/12683885/86621613-23e79c80-bfc7-11ea-8c77-7a8f894e8b6b.png)
+![poisson](https://user-images.githubusercontent.com/12683885/86838505-ee1ae480-c0a8-11ea-8d3c-7da53a9a7091.png)
 
 with boundary conditions:
 
