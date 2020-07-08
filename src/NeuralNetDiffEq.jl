@@ -36,6 +36,18 @@ function Base.show(io::IO, A::TerminalPDEProblem)
   print(io,"timespan: ")
   show(io,A.tspan)
 end
+"""
+    KolmogorovPDEProblem(f , g, phi , xspan , tspan, d, noise_rate_prototype = none)
+A standard Kolmogorov PDE Problem.
+# Arguments
+* `f` : The drift function from Feynman-Kac representation of the PDE.
+* `g` : The noise function from Feynman-Kac representation of the PDE.
+* `phi` : The terminal condition for the PDE.
+* `tspan`: The timespan for the problem.
+* `xspan`: The xspan for the problem.
+* `d`: The dimensions of the input x.
+* `noise_rate_prototype`: A prototype type instance for the noise rates, that is the output g.
+"""
 
 struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, ND} <: DiffEqBase.DEProblem
     f::F
