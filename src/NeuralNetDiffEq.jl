@@ -60,7 +60,6 @@ A standard Kolmogorov PDE Problem.
 * `d`: The dimensions of the input x.
 * `noise_rate_prototype`: A prototype type instance for the noise rates, that is the output g.
 """
-
 struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, ND} <: DiffEqBase.DEProblem
     f::F
     g::G
