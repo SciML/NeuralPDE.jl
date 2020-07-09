@@ -47,6 +47,7 @@ function Base.show(io::IO, A::TerminalPDEProblem)
   print(io,"timespan: ")
   show(io,A.tspan)
 end
+
 """
     KolmogorovPDEProblem(f , g, phi , xspan , tspan, d, noise_rate_prototype = none)
 A standard Kolmogorov PDE Problem.
