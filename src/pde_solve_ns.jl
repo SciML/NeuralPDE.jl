@@ -118,7 +118,7 @@ function DiffEqBase.solve(
     ## UPPER LIMIT
         sdeProb = SDEProblem(μ , σ , x0 , tspan , noise_rate_prototype = zeros(Float32,d,d))
         ensembleprob = EnsembleProblem(sdeProb)
-        sim = solve(ensembleprob, EM(), EnsembleThreads(), dt=dt, trajectories=trajectories_upper,kwargs...)
+        sim = solve(ensembleprob, alg, ensemblealg, dt=dt, trajectories=trajectories_upper,kwargs...)
         ts = tspan[1]:dt:tspan[2]
         function sol_high()
             map(sim.u) do u
