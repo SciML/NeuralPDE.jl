@@ -1,4 +1,5 @@
-# Optimal Stopping Problem Solver
+# Optimal Stopping Times of American Options
+
 Here we will aim to solve an optimal stopping problem using `NNStopping` algorithm.
 
 Let us consider a standard American options. Unlike European options , American options can be excersiced before their maturity and thus the problem reduces to finding an optimal stopping time.

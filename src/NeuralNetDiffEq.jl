@@ -10,7 +10,18 @@ using ModelingToolkit
 import Tracker, Optim
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
-
+"""
+    TerminalPDEProblem(g, f, μ, σ, x0, tspan)
+A semilinear parabolic PDE problem with a terminal condition.
+Consider `du/dt = l(u) + f(u)`; where l is the non linear Lipschitz function
+# Arguments
+* `g` : The terminal condition for the equation.
+* `f` : The function f(u)
+* `μ` : The drift function of X from Ito's Lemma
+* `μ` : The noise function of X from Ito's Lemma
+* `x0`: The initial X for the problem.
+* `tspan`: The timespan of the problem.
+"""
 struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,A,UD,K} <: DiffEqBase.DEProblem
     g::G
     f::F
@@ -37,6 +48,18 @@ function Base.show(io::IO, A::TerminalPDEProblem)
   show(io,A.tspan)
 end
 
+"""
+    KolmogorovPDEProblem(f , g, phi , xspan , tspan, d, noise_rate_prototype = none)
+A standard Kolmogorov PDE Problem.
+# Arguments
+* `f` : The drift function from Feynman-Kac representation of the PDE.
+* `g` : The noise function from Feynman-Kac representation of the PDE.
+* `phi` : The terminal condition for the PDE.
+* `tspan`: The timespan for the problem.
+* `xspan`: The xspan for the problem.
+* `d`: The dimensions of the input x.
+* `noise_rate_prototype`: A prototype type instance for the noise rates, that is the output g.
+"""
 struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, ND} <: DiffEqBase.DEProblem
     f::F
     g::G
