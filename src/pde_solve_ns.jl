@@ -13,7 +13,6 @@ function DiffEqBase.solve(
     maxiters = 300,
     trajectories = 100,
     alg,
-    dt ,
     pabstol = 1f-6,
     save_everystep = false,
     give_limit = false,
