@@ -117,21 +117,24 @@ function DiffEqBase.solve(
     else
     ## UPPER LIMIT
         sdeProb = SDEProblem(μ , σ , x0 , tspan , noise_rate_prototype = zeros(Float32,d,d))
-        ensembleprob = EnsembleProblem(sdeProb)
-        sim = solve(ensembleprob, alg, ensemblealg, dt=dt, trajectories=trajectories_upper,kwargs...)
-        ts = tspan[1]:dt:tspan[2]
+        output_func(sol,i) = (sol[end],false)
+        ensembleprob = EnsembleProblem(sdeProb , output_func = output_func)
+        sim_f = solve(ensembleprob, alg, ensemblealg, dt=dt, trajectories = trajectories_upper )
+        Xn = reduce( vcat ,sim_f.u )
+        Un = collect(g(X) for X in Xn)
+
+        tspan_rev = (tspan[2] , tspan[1])
+        sdeProb2 = SDEProblem(F, G, [Xn[1] ; Un[1]] ,tspan_rev, p3 ,  noise_rate_prototype=noise)
+        function prob_func(prob,i,repeat)
+          SDEProblem(prob.f , prob.g , [Xn[i] ; Un[i]] , prob.tspan , prob.p ,noise_rate_prototype = prob.noise_rate_prototype)
+        end
+
+        ensembleprob2 = EnsembleProblem(sdeProb2 , prob_func = prob_func  , output_func   = output_func)
+        sim = solve(ensembleprob2, alg, ensemblealg, dt=dt, trajectories=trajectories_upper, output_func = output_func,save_everystep = false ,sensealg=TrackerAdjoint())
+
         function sol_high()
             map(sim.u) do u
-                xsde = u.u
-                U = g(xsde[end])
-                u = u0(X0)[1]
-                for i in length(ts):-1:3
-                    t = ts[i]
-                    _σᵀ∇u = σᵀ∇u([xsde[i-1] ; 0.0f0])
-                    dW = sqrt(dt)*randn(d)
-                    U = U .+ f(xsde[i-1], U, _σᵀ∇u, p, t)*dt .- _σᵀ∇u'*dW
-                end
-                U
+                u[2]
             end
         end
 
@@ -158,7 +161,7 @@ function DiffEqBase.solve(
             le = a.*(collect(urange)) .- f_matrix
             return maximum(le)
         end
-
+        ts = tspan[1]:dt:tspan[2]
         function sol_low()
             map(1:trajectories_lower) do j
                 u = u0(X0)[1]
