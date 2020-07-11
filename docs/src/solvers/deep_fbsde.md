@@ -1,4 +1,4 @@
-# Solving High Dimensional PDEs with Neural Networks
+# Deep Forward-Backwards SDEs for Terminal Parabolic PDEs
 
 To solve high dimensional PDEs, first one should describe the PDE in terms of
 the `TerminalPDEProblem` with constructor:

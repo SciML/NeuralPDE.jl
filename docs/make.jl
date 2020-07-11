@@ -13,15 +13,19 @@ makedocs(
     pages=[
         "Home" => "index.md",
         "Tutorials" => Any[
-            "ode.md",
-            "hd_pde.md",
-            "100_HJB.md",
-            "k.md"
-            "examples/optimal_stopping.md"
-
-            "100_HJB.md"
+            "examples/ode.md",
+            "examples/2DPoisson.md",
+            "examples/100_HJB.md",
+            "examples/kolmogorovbackwards.md",
+            "examples/optimal_stopping_american.md",
         ],
-        "Kolmogorov On GPU" => "kolmogorov_on_gpu.md",
+        "Neural-Enhanced Solvers" => Any[
+            "solvers/ode.md"
+            "solvers/pinn.md",
+            "solvers/deep_fbsde.md",
+            "solvers/kolmogrovbackwards.md",
+            "solvers/optimal_stopping.md"
+        ]
     ]
 )
 
