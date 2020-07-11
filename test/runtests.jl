@@ -17,8 +17,15 @@ const is_TRAVIS = haskey(ENV,"TRAVIS")
   if GROUP == "All" || GROUP == "NNPDENS"
       @time @safetestset "NNPDENS" begin include("NNPDENS_tests.jl") end
   end
+  if GROUP == "All" || GROUP == "NNPDE"
+      @time @safetestset "NNPDE" begin include("NNPDE_tests.jl") end
+  end
   if GROUP == "All" || GROUP == "NNKOLMOGOROV"
       @time @safetestset "NNKolmogorov" begin include("NNKolmogorov_tests.jl") end
   end
-  
+  if GROUP == "All" || GROUP == "NNSTOPPINGTIME"
+      @time @safetestset "NNStopping" begin include("Stopping_tests.jl") end
+  end
+  if !is_APPVEYOR && GROUP == "GPU"
+  end
 end

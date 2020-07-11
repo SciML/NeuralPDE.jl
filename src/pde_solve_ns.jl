@@ -74,7 +74,9 @@ function DiffEqBase.solve(
 
     function neural_sde(init_cond)
         map(1:trajectories) do j #TODO add Ensemble Simulation
-            predict_ans = Array(concrete_solve(prob, alg, init_cond, p3;
+            predict_ans = Array(solve(prob, alg;
+                                         u0 = init_cond,
+                                         p = p3,
                                          save_everystep=false,
                                          sensealg=TrackerAdjoint(),kwargs...))[:,end]
             (X,u) = (predict_ans[1:(end-1)], predict_ans[end])
