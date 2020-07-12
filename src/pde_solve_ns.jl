@@ -12,6 +12,7 @@ function DiffEqBase.solve(
     verbose = false,
     maxiters = 300,
     trajectories = 100,
+    dt = eltype(prob.tspan)(0),
     alg,
     pabstol = 1f-6,
     save_everystep = false,
@@ -83,6 +84,7 @@ function DiffEqBase.solve(
     function neural_sde(init_cond)
         map(1:trajectories) do j #TODO add Ensemble Simulation
             predict_ans = Array(solve(prob, alg;
+                                         dt = dt,
                                          u0 = init_cond,
                                          p = p3,
                                          save_everystep=false,
@@ -117,6 +119,9 @@ function DiffEqBase.solve(
         save_everystep ? iters : re1(p3)(X0)[1]
     else
     ## UPPER LIMIT
+        if iszero(dt) == true
+            error("dt choice is required for upper and lower bound calculation ")
+        end
         sdeProb = SDEProblem(μ , σ , x0 , tspan , noise_rate_prototype = zeros(Float32,d,d))
         output_func(sol,i) = (sol[end],false)
         ensembleprob = EnsembleProblem(sdeProb , output_func = output_func)
