@@ -4,9 +4,8 @@ using Reexport, Statistics
 @reexport using DiffEqBase
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
-using DiffEqFlux, Adapt, CuArrays, StochasticDiffEq
+using DiffEqFlux, Adapt, DiffEqNoiseProcess, CuArrays, StochasticDiffEq
 using ModelingToolkit
-
 import Tracker, Optim
 
 abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
@@ -131,12 +130,11 @@ include("ode_solve.jl")
 include("pde_solve.jl")
 include("pde_solve_ns.jl")
 include("kolmogorov_solve.jl")
+include("rode_solve.jl")
 include("stopping_solve.jl")
 include("pinns_pde_solve.jl")
 
-
-
-export NNDE, TerminalPDEProblem, NNPDEHan, NNPDENS,
+export NNDE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
        NNPDEProblem, PhysicsInformedNN, discretize
 
