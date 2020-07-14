@@ -41,7 +41,3 @@ alg = NNRODE(chain , W , opt , init_params)
 sol = solve(prob, NeuralNetDiffEq.NNRODE(chain,W,opt), dt=dt, verbose = true,
             abstol=1e-10, maxiters = 15000)
 ```
-Now in-order to get the`W` from solution we can simply use a `NoiseWrapper` See this to know more about [Noise Wrapper](https://docs.sciml.ai/release-4.6/features/noise_process.html#Adaptive-NoiseWrapper-Example-1).
-```julia
-W2 = NoiseWrapper(sol.W)
-```
