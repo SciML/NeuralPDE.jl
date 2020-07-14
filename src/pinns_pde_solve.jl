@@ -118,9 +118,9 @@ to
 
 4-element Array{Any,1}:
  (0, :x, '_f(x,y) = 0.0f0')
- (1, :x, '_f(x,y) = -1.2246467991473532e-16 * sin(πy)')
+ (1, :x, '_f(x,y) = -1.22e-16 * sin(πy)')
  (0, :y, '_f(x,y) = 0.0f0')
- (1, :y, '_f(x,y) = -(sin(πx)) * 1.2246467991473532e-16')
+ (1, :y, '_f(x,y) = -(sin(πx)) * 1.22e-16')
 
 """
 
@@ -261,7 +261,7 @@ function DiffEqBase.solve(
         function get_ε(dim, der_num)
             ε = zeros(dim)
             ε[der_num] = epsilon
-            ε/2
+            ε
         end
 
         εs = [get_ε(dim,d) for d in 1:dim]
@@ -274,14 +274,14 @@ function DiffEqBase.solve(
             order = _x[end-1]
             θ = _x[end]
             ε = εs[der_num]
-            return _derivative(x,der_num,θ,order,ε)
+            return _derivative(x,θ,order,ε)
         end
-        _derivative = (x,der_num,θ,order,ε) ->
+        _derivative = (x,θ,order,ε) ->
         begin
             if order == 1
-                return (phi(x+ε,θ) - phi(x-ε,θ))/epsilon
+                return (phi(x+ε,θ) - phi(x,θ))/epsilon
             else
-                return (_derivative(x+ε,der_num,θ,order-1,ε) - _derivative(x-ε,der_num,θ,order-1,ε))/(2epsilon)
+                return (_derivative(x+ε,θ,order-1,ε) - _derivative(x-ε,θ,order-1,ε))/(2*epsilon)
             end
         end
     end

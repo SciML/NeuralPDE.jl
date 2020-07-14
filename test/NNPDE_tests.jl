@@ -134,33 +134,35 @@ u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys
 @derivatives Dx'''~x
 
 # ODE
-# eq = Dt(u(x,θ)) ~ 1. #TODO not owrk this example
-eq = Dx(u(x,θ)) ~ cos(pi*x)+0
+# eq = Dt(u(x,θ)) ~ 1. #TODO not work
+eq = Dx(u(x,θ)) ~ cos(pi*x)
 
 # Boundary conditions
-bcs = [u(0.) ~ -sin(pi*0)/(pi^3) , u(2.) ~ -sin(pi*2)/(pi^3)]
+bcs = [u(0.) ~ 0.0 , u(1.) ~ 0.0]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(0.0,2.0)]
+domains = [x ∈ IntervalDomain(0.0,1.0)]
 
 # Discretization
-dx = 0.1
+dx = 0.05
 discretization = NeuralNetDiffEq.PhysicsInformedNN(dx)
 
 # Neural network and optimizer
-opt = Flux.ADAM(0.1)
-chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
+opt = Flux.ADAM(0.05)
+chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralNetDiffEq.discretize(pde_system,discretization)
 alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
-phi,res = solve(prob,alg,verbose=true, maxiters=1000)
+phi,res = solve(prob,alg,verbose=true, maxiters=2000)
 
-xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains][1]
-# u_real  = [analytic_sol_func(t) for t in ts]
+analytic_sol_func(x) = -sin(pi*x)/(pi^3)
+xs = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains][1]
+u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
-x_plot = collect(xs)
-# plot(t_plot ,u_real)
-plot(x_plot ,u_predict)
-# @test u_predict ≈ u_real atol = 0.1
+@test u_predict ≈ u_real atol = 0.3
+
+# x_plot = collect(xs)
+# plot(x_plot ,u_real)
+# plot!(x_plot ,u_predict)
