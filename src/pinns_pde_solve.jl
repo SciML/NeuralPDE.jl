@@ -281,7 +281,7 @@ function DiffEqBase.solve(
             if order == 1
                 return (phi(x+ε,θ) - phi(x-ε,θ))/epsilon
             else
-                return (_derivative(x+ε,der_num,θ,order-1,ε) - _derivative(x-ε,der_num,θ,order-1,ε))/epsilon
+                return (_derivative(x+ε,der_num,θ,order-1,ε) - _derivative(x-ε,der_num,θ,order-1,ε))/(2epsilon)
             end
         end
     end
