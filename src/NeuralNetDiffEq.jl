@@ -85,9 +85,17 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.g)
 end
 
-struct NNPDEProblem{PDEFunction,BC} <:DiffEqBase.DEProblem
+"""
+    NNPDEProblem(pde_func, train_sets, dim)
+The PINNs Problem.
+# Arguments
+* `pde_func` : The PDE function
+* `train_sets`: Training sets on the domain and boundary spaces
+* `dim`: The dimensions of the problem.
+"""
+struct NNPDEProblem{PDEFunction,TS} <:DiffEqBase.DEProblem
   pde_func::PDEFunction
-  train_sets ::BC
+  train_sets ::TS
   dim :: Int64
   NNPDEProblem(pde_func,train_sets,dim) = new{typeof(pde_func),
                                           typeof(train_sets)
@@ -105,6 +113,18 @@ function Base.show(io::IO, A::NNPDEProblem)
   show(io,A.dim)
 end
 
+"""
+Algorithm for solving differential equation using neural network.
+
+```julia
+NeuralNetDiffEq.NNStopping(chain, opt, sdealg, ensemblealg )
+```
+Arguments:
+- `chain`: A Chain neural network
+- `opt`: The optimiser to train the neural network. Defaults to `BFGS()`
+- `initθ`: The initial parameter of the neural network
+- `autodiff`: The switch between automatic and numerical differentiation
+"""
 struct NNDE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
     chain::C
     opt::O

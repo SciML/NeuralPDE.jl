@@ -16,8 +16,14 @@ get_dict_indvars(indvars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(indvar
 
 # Calculate an order of derivative
 function count_order(_args)
-    _args[2].args[1] == :derivative ? 2 : 1
+    n = 0
+    while (_args[1] == :derivative)
+        n = n+1
+        _args = _args[2].args
+    end
+    return n
 end
+
 # Wrapper for _simplified_derivative
 function simplified_derivative(ex::Expr,indvars,depvars,dict_indvars)
     ex.args = _simplified_derivative(ex.args,indvars,depvars,dict_indvars)
@@ -31,14 +37,14 @@ Simplify the derivative expression
 
 1. First derivative of function 'u' of one variable: 'x'
 
-Take expressions in the form: `derivative(u(x,θ), x)` to `derivative(u, x, unn, θ)`,
+Take expressions in the form: `derivative(u(x,θ), x)` to `derivative(u, x, unn, order, θ)`,
 
-where 'unn' unique number for the variable.
-
-
-2. Second derivative of function 'u' of two variables: 'x', 'y'.
-
-Take expressions in the form: `derivative(derivative(u(x,y,θ), x), x)` to `second_order_derivative(u, x, y, unn, θ)`
+where
+ 'u' - the variable
+ 'x' - coordinates of point
+ 'unn' - unique number for the variable
+ 'order' - order of derivative
+ 'θ' - parameters of neural network
 
 """
 function _simplified_derivative(_args,indvars,depvars,dict_indvars)
@@ -50,14 +56,7 @@ function _simplified_derivative(_args,indvars,depvars,dict_indvars)
             # end
             if e == :derivative && _args[end] != :θ
                 order = count_order(_args)
-                vars = collect(keys(dict_indvars))
-                if order == 1
-                    _args = [:derivative, depvars..., indvars..., dict_indvars[_args[3]],:θ]
-                elseif order ==2
-                    _args = [:second_order_derivative, depvars..., indvars..., dict_indvars[_args[3]],:θ]
-                else
-                    error("While only order of derivative no more than 2nd")
-                end
+                _args = [:derivative,depvars..., indvars...,dict_indvars[_args[3]], order, :θ]
                 break
             end
         else
@@ -74,20 +73,20 @@ Example:
 
 1)  Equation: Dt(u(t,θ)) ~ t +1
 
-    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u, t, 1, θ) - (t + 1)'
+    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u, t, 1, 1, θ) - (t + 1)'
 
 2)  Equation: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
 
     Take expressions in the form:
     'Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))'
     to
-    '(second_order_derivative(u, x, y, 1, θ) + second_order_derivative(u, x, y, 2, θ)) - -(sin(πx)) * sin(πy)'
+    '(derivative(u, x, y, 1,,2, θ) + derivative(u, x, y, 2, 2, θ)) - -(sin(πx)) * sin(πy)'
 
 """
 function extract_eq(eq,_indvars,_depvars,dict_indvars)
     depvars = [d.name for d in _depvars]
     indvars = Expr.(_indvars)
-    vars = :($(depvars...), $(indvars...), θ, derivative,second_order_derivative)
+    vars = :($(depvars...), $(indvars...), θ, derivative)
 
     _left_expr = (ModelingToolkit.simplified_expr(eq.lhs))
     left_expr = simplified_derivative(_left_expr,indvars,depvars,dict_indvars)
@@ -258,32 +257,37 @@ function DiffEqBase.solve(
     if autodiff # automatic differentiation (not implemented yet)
         # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
     else # numerical differentiation
-        ep = cbrt(eps(Float64))
-        eps_masks = [[[ep]],
-                    [[ep,0.0], [0.0,ep]],
-                    [[ep,0.0,0.0], [0.0,ep,0.0],[0.0,0.0,ep]]]
+        epsilon = cbrt(eps(Float64))
+        function get_ε(dim, der_num)
+            ε = zeros(dim)
+            ε[der_num] = epsilon
+            ε/2
+        end
+
+        εs = [get_ε(dim,d) for d in 1:dim]
 
         derivative = (_x...) ->
         begin
             u_in = _x[1]
-            x = collect(_x[2:end-2])
-            der_num =_x[end-1]
+            x = collect(_x[2:end-3])
+            der_num =_x[end-2]
+            order = _x[end-1]
             θ = _x[end]
-            (phi(x+eps_masks[dim][der_num], θ) - phi(x,θ))/ep
+            ε = εs[der_num]
+            return _derivative(x,der_num,θ,order,ε)
         end
-        second_order_derivative = (_x...) ->
+        _derivative = (x,der_num,θ,order,ε) ->
         begin
-            u_in = _x[1]
-            x = collect(_x[2:end-2])
-            der_num =_x[end-1]
-            θ = _x[end]
-            (phi(x+eps_masks[dim][der_num], θ) - 2*phi(x,θ)+ phi(x-eps_masks[dim][der_num], θ) )/(ep^2)
+            if order == 1
+                return (phi(x+ε,θ) - phi(x-ε,θ))/epsilon
+            else
+                return (_derivative(x+ε,der_num,θ,order-1,ε) - _derivative(x-ε,der_num,θ,order-1,ε))/epsilon
+            end
         end
     end
-
     # Represent pde function
-    _u= (_x...; x = collect(_x[1:end-1]),θ = _x[end]) -> phi(x,θ)
-    pde_func = (_x,θ) -> _pde_func(_u,_x...,θ,derivative,second_order_derivative)
+    _u= (_x...; x = collect(_x[1:end-1]), θ = _x[end]) -> phi(x,θ)
+    pde_func = (_x,θ) -> _pde_func(_u,_x...,θ, derivative)
 
 
     # Loss function for pde equation
@@ -301,8 +305,8 @@ function DiffEqBase.solve(
     end
 
     # # Neumann boundary
-    # function inner_neumann_loss(x,θ,num,bound)
-    #     derivative(u,x,num θ) - bound
+    # function inner_neumann_loss(x,θ,num,order,bound)
+    #     derivative(u,x,der_num,order, θ) - bound
     # end
 
     # Loss function for boundary conditions
