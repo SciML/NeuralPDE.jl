@@ -18,6 +18,7 @@ makedocs(
             "examples/100_HJB.md",
             "examples/kolmogorovbackwards.md",
             "examples/optimal_stopping_american.md",
+            "examples/nnrode_example.md",
         ],
         "Neural-Enhanced Solvers" => Any[
             "solvers/ode.md"
