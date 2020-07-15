@@ -25,8 +25,10 @@ function count_order(_args)
 end
 
 # Wrapper for _simplified_derivative
-function simplified_derivative(ex::Expr,indvars,depvars,dict_indvars)
-    ex.args = _simplified_derivative(ex.args,indvars,depvars,dict_indvars)
+function simplified_derivative(ex,indvars,depvars,dict_indvars)
+    if ex isa Expr
+        ex.args = _simplified_derivative(ex.args,indvars,depvars,dict_indvars)
+    end
     return ex
 end
 
@@ -99,7 +101,7 @@ function extract_eq(eq,_indvars,_depvars,dict_indvars)
 end
 
 """
-Extract boundary conditions expression to the inner representation.
+Extract initial and boundary conditions expression to the inner representation.
 
 Examples:
 
@@ -130,7 +132,6 @@ function extract_bc(bcs,indvars,depvars)
     vars_expr = :($(Expr.(indvars)...),)
     for i =1:length(bcs)
         bcs_args = simplified_expr(bcs[i].lhs.args)
-        bc_vars = bcs_args[typeof.(bcs_args) .== Symbol]
         bc_point_var = first(filter(x -> !(x in bcs_args), vars))
         bc_point = first(bcs_args[typeof.(bcs_args) .!= Symbol])
         if isa(bcs[i].rhs,ModelingToolkit.Operation)
@@ -187,7 +188,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     # extract equation
     _pde_func = extract_eq(eq,indvars,depvars, dict_indvars)
 
-    # extract boundary conditions
+    # extract initial and boundary conditions
     bound_data  = extract_bc(bcs,indvars,depvars)
 
     # generate training sets
@@ -279,7 +280,9 @@ function DiffEqBase.solve(
         _derivative = (x,θ,order,ε) ->
         begin
             if order == 1
-                return (phi(x+ε,θ) - phi(x,θ))/epsilon
+                #Five-point stencil
+                # return (-phi(x+2ε,θ) + 8phi(x+ε,θ) - 8phi(x-ε,θ) + phi(x-2ε,θ))/(12*epsilon)
+                return (phi(x+ε,θ) - phi(x-ε,θ))/(2*epsilon)
             else
                 return (_derivative(x+ε,θ,order-1,ε) - _derivative(x-ε,θ,order-1,ε))/(2*epsilon)
             end
@@ -309,7 +312,7 @@ function DiffEqBase.solve(
     #     derivative(u,x,der_num,order, θ) - bound
     # end
 
-    # Loss function for boundary conditions
+    # Loss function for initial and boundary conditions
     function loss_boundary(θ)
        sum(abs2,inner_loss(x,θ,bound) for (x,bound) in train_bound_set)
     end
