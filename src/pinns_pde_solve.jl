@@ -18,7 +18,7 @@ get_dict_indvars(indvars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(indvar
 function count_order(_args)
     n = 0
     while (_args[1] == :derivative)
-        n = n+1
+        n += 1
         _args = _args[2].args
     end
     return n
