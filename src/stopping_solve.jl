@@ -9,7 +9,7 @@ Arguments:
 - `opt`: The optimiser to train the neural network. Defaults to `ADAM(0.1)`
 - `sdealg`: The algorithm used to solve the discretised SDE according to the process that X follows. Defaults to `EM()`
 - `ensemblealg`: The algorithm used to solve the Ensemble Problem that performs Ensemble simulations for the SDE. Defaults to `EnsembleThreads()`.See
-  the [Ensemble Algorithms](https://docs.sciml.ai/stable/features/ensemble/#EnsembleAlgorithms-1)
+  the [Ensemble Algorithms](https://diffeq.sciml.ai/stable/features/ensemble/#EnsembleAlgorithms-1)
   documentation for more details.
 
 [1]Becker, Sebastian, et al. "Solving high-dimensional optimal stopping problems using deep learning." arXiv preprint arXiv:1908.01602 (2019).
