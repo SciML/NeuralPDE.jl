@@ -3,9 +3,11 @@
 NeuralPDE.jl , which consists neural network solvers for differential equations such as physics-informed neural networks (PINNs) and deep BSDE solvers, is a package of scientific machine learning (SciML).
 It utilizes deep neural networks and neural stochastic differential equations to solve high dimensional PDEs.
 
-## Related Packages
+## Features
 
-- [ReservoirComputing.jl](https://github.com/MartinuzziFrancesco/ReservoirComputing.jl) has an implementation of the [Echo State Network method](https://arxiv.org/pdf/1710.07313.pdf) for learning the attractor properties of a chaotic system.
+- Physics-Informed Neural Networks for automated PDE solving
+- Forward-Backwards Stochastic Differential Equation (FBSDE) methods for parabolic PDEs
+- Deep learning based solvers for optimal stopping time and Kolmogorov backwards equations
 
 ## Citation
 
