@@ -186,7 +186,8 @@ function extract_bc(bcs,indvars,depvars)
             bc_point = first(bcs_args[typeof.(bcs_args) .!= Symbol])
             if isa(bcs[i][1].rhs,ModelingToolkit.Operation)
                 exprs =[Expr(bc.rhs) for bc in bcs[i]]
-                _f = eval(:(($vars_expr) -> [$(exprs[1]), $(exprs[2])]))
+                expr_vec = ModelingToolkit.build_expr(:vect, exprs)
+                _f = eval(:(($vars_expr) -> $expr_vec))
                 f = (vars_expr...) -> @eval $_f($vars_expr...)
             elseif isa(bcs[i][1].rhs,ModelingToolkit.Constant)
                 f = (vars_expr...) -> bcs[i].rhs.value
