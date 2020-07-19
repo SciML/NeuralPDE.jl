@@ -38,6 +38,6 @@ Now lets pass all parameters to the algorithm and then call the solver. If we al
 alg = NNRODE(chain , W , opt , init_params)
 ```
 ```julia
-sol = solve(prob, NeuralNetDiffEq.NNRODE(chain,W,opt), dt=dt, verbose = true,
+sol = solve(prob, NeuralPDE.NNRODE(chain,W,opt), dt=dt, verbose = true,
             abstol=1e-10, maxiters = 15000)
 ```

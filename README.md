@@ -1,10 +1,10 @@
-# NeuralNetDiffEq
+# NeuralPDE
 
 [![Join the chat at https://gitter.im/JuliaDiffEq/Lobby](https://badges.gitter.im/JuliaDiffEq/Lobby.svg)](https://gitter.im/JuliaDiffEq/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Build Status](https://travis-ci.com/SciML/NeuralNetDiffEq.jl.svg?branch=master)](https://travis-ci.com/SciML/NeuralNetDiffEq.jl)
-[![Build status](https://ci.appveyor.com/api/projects/status/v0eop301bx105av4?svg=true)](https://ci.appveyor.com/project/ChrisRackauckas/neuralnetdiffeq-jl)
-[![Coverage Status](https://coveralls.io/repos/JuliaDiffEq/NeuralNetDiffEq.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaDiffEq/NeuralNetDiffEq.jl?branch=master)
-[![codecov.io](http://codecov.io/github/JuliaDiffEq/NeuralNetDiffEq.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaDiffEq/NeuralNetDiffEq.jl?branch=master)
+[![Build Status](https://travis-ci.com/SciML/NeuralPDE.jl.svg?branch=master)](https://travis-ci.com/SciML/NeuralPDE.jl)
+[![Build status](https://ci.appveyor.com/api/projects/status/v0eop301bx105av4?svg=true)](https://ci.appveyor.com/project/ChrisRackauckas/NeuralPDE-jl)
+[![Coverage Status](https://coveralls.io/repos/JuliaDiffEq/NeuralPDE.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaDiffEq/NeuralPDE.jl?branch=master)
+[![codecov.io](http://codecov.io/github/JuliaDiffEq/NeuralPDE.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaDiffEq/NeuralPDE.jl?branch=master)
 
 The repository is for the development of neural network solvers of differential equations such as physics-informed
 neural networks (PINNs) and deep BSDE solvers. It utilizes techniques like deep neural networks and neural
@@ -232,7 +232,7 @@ reaches this value. Its defualt value is `1f-6`.
 
 ### Solving ODEs with Neural Networks
 
-For ODEs, [see the DifferentialEquations.jl documentation](http://docs.juliadiffeq.org/dev/solvers/ode_solve#NeuralNetDiffEq.jl-1)
+For ODEs, [see the DifferentialEquations.jl documentation](http://docs.juliadiffeq.org/dev/solvers/ode_solve#NeuralPDE.jl-1)
 for the `nnode(chain,opt=ADAM(0.1))` algorithm, which takes in a Flux.jl chain
 and optimizer to solve an ODE. This method is not particularly efficient, but
 is parallel. It is based on the work of:

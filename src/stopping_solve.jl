@@ -2,7 +2,7 @@
 Algorithm for solving Optimal Stopping Problems.
 
 ```julia
-NeuralNetDiffEq.NNStopping(chain, opt, sdealg, ensemblealg )
+NeuralPDE.NNStopping(chain, opt, sdealg, ensemblealg )
 ```
 Arguments:
 - `chain`: A Chain neural network with N dimensional output according to N stopping times and last layer a softmax function.
@@ -14,7 +14,7 @@ Arguments:
 
 [1]Becker, Sebastian, et al. "Solving high-dimensional optimal stopping problems using deep learning." arXiv preprint arXiv:1908.01602 (2019).
 """
-struct NNStopping{C,O,S,E} <: NeuralNetDiffEqAlgorithm
+struct NNStopping{C,O,S,E} <: NeuralPDEAlgorithm
     chain::C
     opt::O
     sdealg::S

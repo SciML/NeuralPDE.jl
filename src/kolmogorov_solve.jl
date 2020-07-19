@@ -2,7 +2,7 @@
 Algorithm for solving Backward Kolmogorov Equations.
 
 ```julia
-NeuralNetDiffEq.NNKolmogorov(chain, opt, sdealg, ensemblealg )
+NeuralPDE.NNKolmogorov(chain, opt, sdealg, ensemblealg )
 ```
 Arguments:
 - `chain`: A Chain neural network with d dimensional output.
@@ -17,7 +17,7 @@ Arguments:
 [1]Beck, Christian, et al. "Solving stochastic differential equations and Kolmogorov equations by means of deep learning." arXiv preprint arXiv:1806.00421 (2018).
 [2]
 """
-struct NNKolmogorov{C,O,S,E} <: NeuralNetDiffEqAlgorithm
+struct NNKolmogorov{C,O,S,E} <: NeuralPDEAlgorithm
     chain::C
     opt::O
     sdealg::S

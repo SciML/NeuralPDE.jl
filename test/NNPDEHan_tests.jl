@@ -1,6 +1,6 @@
 using Flux, Zygote, LinearAlgebra, Statistics
 println("NNPDEHAN_tests")
-using Test, NeuralNetDiffEq , StochasticDiffEq
+using Test, NeuralPDE , StochasticDiffEq
 
 # one-dimensional heat equation
 x0 = [11.0f0]  # initial points

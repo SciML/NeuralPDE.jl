@@ -65,7 +65,7 @@ ensemblealg = EnsembleThreads()
 
 And finally we call the solve function.
 ```julia
-sol = solve(prob, NeuralNetDiffEq.NNStopping( m, opt , sdealg , ensemblealg), verbose = true, dt = dt,
+sol = solve(prob, NeuralPDE.NNStopping( m, opt , sdealg , ensemblealg), verbose = true, dt = dt,
             abstol=1e-6, maxiters = 20 , trajectories = 200)
 
 ```
