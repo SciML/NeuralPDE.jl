@@ -24,7 +24,7 @@ makedocs(
             "solvers/ode.md",
             "solvers/pinn.md",
             "solvers/deep_fbsde.md",
-            "solvers/kolmogorovbackwards.md",
+            "solvers/kolmogorovbackwards_solver.md",
             "solvers/optimal_stopping.md"
         ]
     ]
