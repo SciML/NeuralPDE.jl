@@ -2,14 +2,22 @@
 
 [![Join the chat at https://gitter.im/JuliaDiffEq/Lobby](https://badges.gitter.im/JuliaDiffEq/Lobby.svg)](https://gitter.im/JuliaDiffEq/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.com/SciML/NeuralPDE.jl.svg?branch=master)](https://travis-ci.com/SciML/NeuralPDE.jl)
-[![Build status](https://ci.appveyor.com/api/projects/status/v0eop301bx105av4?svg=true)](https://ci.appveyor.com/project/ChrisRackauckas/NeuralPDE-jl)
 [![Coverage Status](https://coveralls.io/repos/JuliaDiffEq/NeuralPDE.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaDiffEq/NeuralPDE.jl?branch=master)
 [![codecov.io](http://codecov.io/github/JuliaDiffEq/NeuralPDE.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaDiffEq/NeuralPDE.jl?branch=master)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](http://neuralpde.sciml.ai/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](http://neuralpde.sciml.ai/dev/)
 
 # NeuralPDE
 
 NeuralPDE.jl , which consists neural network solvers for differential equations such as physics-informed neural networks (PINNs) and deep BSDE solvers, is a package of scientific machine learning (SciML).
 It utilizes deep neural networks and neural stochastic differential equations to solve high dimensional PDEs.
+
+## Tutorials and Documentation
+
+For information on using the package,
+[see the stable documentation](https://neuralpde.sciml.ai/stable/). Use the
+[in-development documentation](https://neuralpde.sciml.ai/dev/) for the version of
+the documentation, which contains the unreleased features.
 
 ## Features
 
