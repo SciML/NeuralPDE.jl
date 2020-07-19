@@ -7,10 +7,11 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](http://neuralpde.sciml.ai/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](http://neuralpde.sciml.ai/dev/)
 
-# NeuralPDE
-
-NeuralPDE.jl , which consists neural network solvers for differential equations such as physics-informed neural networks (PINNs) and deep BSDE solvers, is a package of scientific machine learning (SciML).
-It utilizes deep neural networks and neural stochastic differential equations to solve high dimensional PDEs.
+NeuralPDE.jl , which consists neural network solvers for differential
+equations such as physics-informed neural networks (PINNs) and deep
+BSDE solvers, is a package of scientific machine learning (SciML).
+It utilizes deep neural networks and neural stochastic differential
+equations to solve high dimensional PDEs.
 
 ## Tutorials and Documentation
 
