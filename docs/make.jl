@@ -21,7 +21,7 @@ makedocs(
             "examples/nnrode_example.md",
         ],
         "Neural-Enhanced Solvers" => Any[
-            "solvers/ode.md"
+            "solvers/ode.md",
             "solvers/pinn.md",
             "solvers/deep_fbsde.md",
             "solvers/kolmogrovbackwards.md",
