@@ -2,8 +2,8 @@
 
 [![Join the chat at https://gitter.im/JuliaDiffEq/Lobby](https://badges.gitter.im/JuliaDiffEq/Lobby.svg)](https://gitter.im/JuliaDiffEq/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.com/SciML/NeuralPDE.jl.svg?branch=master)](https://travis-ci.com/SciML/NeuralPDE.jl)
-[![Coverage Status](https://coveralls.io/repos/JuliaDiffEq/NeuralPDE.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaDiffEq/NeuralPDE.jl?branch=master)
-[![codecov.io](http://codecov.io/github/JuliaDiffEq/NeuralPDE.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaDiffEq/NeuralPDE.jl?branch=master)
+[![Coverage Status](https://coveralls.io/repos/SciML/NeuralPDE.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/SciML/NeuralPDE.jl?branch=master)
+[![codecov.io](http://codecov.io/github/SciML/NeuralPDE.jl/coverage.svg?branch=master)](http://codecov.io/github/SciML/NeuralPDE.jl?branch=master)
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](http://neuralpde.sciml.ai/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](http://neuralpde.sciml.ai/dev/)
 
