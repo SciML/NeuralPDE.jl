@@ -105,7 +105,7 @@ Base.summary(prob::NNPDEProblem) = string(nameof(typeof(prob)))
 
 function Base.show(io::IO, A::NNPDEProblem)
   println(io,summary(A))
-  print(io,"pde_func: ")
+  print(io,"pde_function: ")
   show(io,A.pde_func)
   print(io,"train_sets: ")
   show(io,A.train_sets)

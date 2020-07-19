@@ -5,14 +5,20 @@ end
 """
 Create dictionary: variable => unique number for variable
 
-# Example
+# Example 1
 
 Dict{Symbol,Int64} with 3 entries:
   :y => 2
   :t => 3
   :x => 1
+
+# Example 2
+
+ Dict{Symbol,Int64} with 2 entries:
+  :u1 => 1
+  :u2 => 2
 """
-get_dict_indvars(indvars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(indvars)])
+get_dict_vars(vars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(vars)])
 
 # Calculate an order of derivative
 function count_order(_args)
@@ -24,10 +30,17 @@ function count_order(_args)
     return n
 end
 
+function get_depvars(_args)
+    while (_args[1] == :derivative)
+        _args = _args[2].args
+    end
+    return _args[1]
+end
+
 # Wrapper for _simplified_derivative
-function simplified_derivative(ex,indvars,depvars,dict_indvars)
+function simplified_derivative(ex,indvars,depvars,dict_indvars,dict_depvars)
     if ex isa Expr
-        ex.args = _simplified_derivative(ex.args,indvars,depvars,dict_indvars)
+        ex.args = _simplified_derivative(ex.args,indvars,depvars,dict_indvars,dict_depvars)
     end
     return ex
 end
@@ -37,19 +50,18 @@ Simplify the derivative expression
 
 # Examples
 
-1. First derivative of function 'u' of one variable: 'x'
+1. First derivative of function 'u(x,y)' of one variable: 'x'
 
-Take expressions in the form: `derivative(u(x,θ), x)` to `derivative(u, x, unn, order, θ)`,
+Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(unn, x, y, xnn, order, θ)`,
 
 where
- 'u' - the variable
- 'x' - coordinates of point
- 'unn' - unique number for the variable
- 'order' - order of derivative
- 'θ' - parameters of neural network
-
+ unn - unique number for the function
+ x,y - coordinates of point
+ xnn - unique number for the variable
+ order - order of derivative
+ θ - parameters of neural network
 """
-function _simplified_derivative(_args,indvars,depvars,dict_indvars)
+function _simplified_derivative(_args,indvars,depvars,dict_indvars,dict_depvars)
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
             # if autodiff
@@ -58,11 +70,13 @@ function _simplified_derivative(_args,indvars,depvars,dict_indvars)
             # end
             if e == :derivative && _args[end] != :θ
                 order = count_order(_args)
-                _args = [:derivative,depvars..., indvars...,dict_indvars[_args[3]], order, :θ]
+                depvars = get_depvars(_args)
+                depvars_num = dict_depvars[depvars]
+                _args = [:derivative,depvars_num, indvars...,dict_indvars[_args[3]], order, :θ]
                 break
             end
         else
-            _args[i].args = _simplified_derivative(_args[i].args,indvars,depvars,dict_indvars)
+            _args[i].args = _simplified_derivative(_args[i].args,indvars,depvars,dict_indvars,dict_depvars)
         end
     end
     return _args
@@ -80,24 +94,60 @@ Example:
 2)  Equation: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
 
     Take expressions in the form:
-    'Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))'
+     Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))
     to
-    '(derivative(u, x, y, 1,,2, θ) + derivative(u, x, y, 2, 2, θ)) - -(sin(πx)) * sin(πy)'
+     (derivative(1, x, y, 1, 2, θ) + derivative(1, x, y, 2, 2, θ)) - -(sin(πx)) * sin(πy)
+
+3)  System of equation: [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
+                         Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
+
+    Take expressions in the form:
+    2-element Array{Equation,1}:
+        Equation(derivative(u1(x, y, θ), x) + 4 * derivative(u2(x, y, θ), y), ModelingToolkit.Constant(0))
+        Equation(derivative(u2(x, y, θ), x) + 9 * derivative(u1(x, y, θ), y), ModelingToolkit.Constant(0))
+    to
+      [(derivative(1, x, y, 1, 1, θ) + 4 * derivative(2, x, y, 2, 1, θ)) - 0,
+       (derivative(2, x, y, 1, 1, θ) + 9 * derivative(1, x, y, 2, 1, θ)) - 0]
 
 """
-function extract_eq(eq,_indvars,_depvars,dict_indvars)
+function extract_eq(eqs,_indvars,_depvars,dict_indvars,dict_depvars)
     depvars = [d.name for d in _depvars]
     indvars = Expr.(_indvars)
-    vars = :($(depvars...), $(indvars...), θ, derivative)
+    vars = :(phi, vec, θ, derivative)
+    if !(eqs isa Array)
+        eqs = [eqs]
+    end
+    pde_funcs= []
+    for eq in eqs
+        _left_expr = (ModelingToolkit.simplified_expr(eq.lhs))
+        left_expr = simplified_derivative(_left_expr,indvars,depvars,dict_indvars,dict_depvars)
 
-    _left_expr = (ModelingToolkit.simplified_expr(eq.lhs))
-    left_expr = simplified_derivative(_left_expr,indvars,depvars,dict_indvars)
+        _right_expr = (ModelingToolkit.simplified_expr(eq.rhs))
+        right_expr = simplified_derivative(_right_expr,indvars,depvars,dict_indvars,dict_depvars)
 
-    _right_expr = (ModelingToolkit.simplified_expr(eq.rhs))
-    right_expr = simplified_derivative(_right_expr,indvars,depvars,dict_indvars)
+        pde_func = :($left_expr - $right_expr)
+        push!(pde_funcs,pde_func)
+    end
 
-    _f = eval(:(($vars) -> $left_expr - $right_expr))
-    return _f
+    ex = Expr(:block)
+
+    us = []
+    for v in depvars
+        var_num = dict_depvars[v]
+        push!(us,:($v = ($(indvars...), θ) -> phi([$(indvars...)],θ)[$var_num]))
+    end
+    u_ex = ModelingToolkit.build_expr(:block, us)
+    push!(ex.args,  u_ex)
+
+    arg_pairs_indvars = ModelingToolkit.vars_to_pairs(:vec,_indvars)
+    left_arg_pairs, right_arg_pairs = arg_pairs_indvars
+    vars_eq = Expr(:(=), ModelingToolkit.build_expr(:tuple, left_arg_pairs),
+                            ModelingToolkit.build_expr(:tuple, right_arg_pairs))
+    let_ex = Expr(:let, vars_eq, ModelingToolkit.build_expr(:vect, pde_funcs))
+    push!(ex.args,  let_ex)
+
+    pde_func = :(($vars) -> begin $ex end)
+    return pde_func
 end
 
 """
@@ -123,25 +173,40 @@ to
  (1, :x, '_f(x,y) = -1.22e-16 * sin(πy)')
  (0, :y, '_f(x,y) = 0.0f0')
  (1, :y, '_f(x,y) = -(sin(πx)) * 1.22e-16')
-
 """
 
 function extract_bc(bcs,indvars,depvars)
     output= []
     vars = Expr.(indvars)
     vars_expr = :($(Expr.(indvars)...),)
-    for i =1:length(bcs)
-        bcs_args = simplified_expr(bcs[i].lhs.args)
-        bc_point_var = first(filter(x -> !(x in bcs_args), vars))
-        bc_point = first(bcs_args[typeof.(bcs_args) .!= Symbol])
-        if isa(bcs[i].rhs,ModelingToolkit.Operation)
-            expr =Expr(bcs[i].rhs)
-            _f = eval(:(($vars_expr) -> $expr))
-            f = (vars_expr...) -> @eval $_f($vars_expr...)
-        elseif isa(bcs[i].rhs,ModelingToolkit.Constant)
-            f = (vars_expr...) -> bcs[i].rhs.value
+    if bcs[1] isa Array
+        for i =1:length(bcs)
+            bcs_args = simplified_expr(bcs[i][1].lhs.args)
+            bc_point_var = first(filter(x -> !(x in bcs_args), vars))
+            bc_point = first(bcs_args[typeof.(bcs_args) .!= Symbol])
+            if isa(bcs[i][1].rhs,ModelingToolkit.Operation)
+                exprs =[Expr(bc.rhs) for bc in bcs[i]]
+                _f = eval(:(($vars_expr) -> [$(exprs[1]), $(exprs[2])]))
+                f = (vars_expr...) -> @eval $_f($vars_expr...)
+            elseif isa(bcs[i][1].rhs,ModelingToolkit.Constant)
+                f = (vars_expr...) -> bcs[i].rhs.value
+            end
+            push!(output, (bc_point,bc_point_var,f))
         end
-        push!(output, (bc_point,bc_point_var,f))
+    else
+        for i =1:length(bcs)
+            bcs_args = simplified_expr(bcs[i].lhs.args)
+            bc_point_var = first(filter(x -> !(x in bcs_args), vars))
+            bc_point = first(bcs_args[typeof.(bcs_args) .!= Symbol])
+            if isa(bcs[i].rhs,ModelingToolkit.Operation)
+                expr =Expr(bcs[i].rhs)
+                _f = eval(:(($vars_expr) -> $expr))
+                f = (vars_expr...) -> @eval $_f($vars_expr...)
+            elseif isa(bcs[i].rhs,ModelingToolkit.Constant)
+                f = (vars_expr...) -> bcs[i].rhs.value
+            end
+            push!(output, (bc_point,bc_point_var,f))
+        end
     end
     return output
 end
@@ -174,7 +239,7 @@ end
 
 # Convert a PDE problem into an PINNs problem
 function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    eq =pde_system.eq
+    eq = pde_system.eq
     bcs = pde_system.bcs
     domains = pde_system.domain
     indvars = pde_system.indvars
@@ -182,11 +247,12 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     dx = discretization.dx
     dim = length(domains)
 
-    # dictionary: variable -> unique number
-    dict_indvars = get_dict_indvars(indvars)
+    # dictionaries: variable -> unique number
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
 
     # extract equation
-    _pde_func = extract_eq(eq,indvars,depvars, dict_indvars)
+    _pde_func = eval(extract_eq(eq,indvars,depvars, dict_indvars,dict_depvars))
 
     # extract initial and boundary conditions
     bound_data  = extract_bc(bcs,indvars,depvars)
@@ -236,7 +302,7 @@ function DiffEqBase.solve(
     initθ = alg.initθ
 
     # equation/system of equations (not yet supported)
-    isuinplace = true
+    isuinplace = length(chain(zeros(dim),initθ)) == 1
 
     # The phi trial solution
     if chain isa FastChain
@@ -269,33 +335,37 @@ function DiffEqBase.solve(
 
         derivative = (_x...) ->
         begin
-            u_in = _x[1]
+            var_num = _x[1]
             x = collect(_x[2:end-3])
             der_num =_x[end-2]
             order = _x[end-1]
             θ = _x[end]
             ε = εs[der_num]
-            return _derivative(x,θ,order,ε)
+            return _derivative(x,θ,order,ε,der_num,var_num)
         end
-        _derivative = (x,θ,order,ε) ->
+        _derivative = (x,θ,order,ε,der_num,var_num) ->
         begin
             if order == 1
                 #Five-point stencil
                 # return (-phi(x+2ε,θ) + 8phi(x+ε,θ) - 8phi(x-ε,θ) + phi(x-2ε,θ))/(12*epsilon)
-                return (phi(x+ε,θ) - phi(x-ε,θ))/(2*epsilon)
+                if isuinplace
+                    return (phi(x+ε,θ) - phi(x-ε,θ))/(2*epsilon)
+                else
+                    return (phi(x+ε,θ)[var_num] - phi(x-ε,θ)[var_num])/(2*epsilon)
+                end
             else
-                return (_derivative(x+ε,θ,order-1,ε) - _derivative(x-ε,θ,order-1,ε))/(2*epsilon)
+                return (_derivative(x+ε,θ,order-1,ε,der_num,var_num)
+                      - _derivative(x-ε,θ,order-1,ε,der_num,var_num))/(2*epsilon)
             end
         end
     end
-    # Represent pde function
-    _u= (_x...; x = collect(_x[1:end-1]), θ = _x[end]) -> phi(x,θ)
-    pde_func = (_x,θ) -> _pde_func(_u,_x...,θ, derivative)
 
+    # Represent pde function
+    pde_func = (_x,θ) -> _pde_func(phi,_x,θ, derivative)
 
     # Loss function for pde equation
     function inner_loss_domain(x,θ)
-        pde_func(x,θ)
+        sum(pde_func(x,θ))
     end
 
     function loss_domain(θ)
@@ -304,7 +374,7 @@ function DiffEqBase.solve(
 
     # Loss function for Dirichlet boundary
     function inner_loss(x,θ,bound)
-        phi(x,θ) - bound
+        sum(phi(x,θ) - bound)
     end
 
     # # Neumann boundary

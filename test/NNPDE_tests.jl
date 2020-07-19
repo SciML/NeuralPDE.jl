@@ -165,3 +165,39 @@ u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 # x_plot = collect(xs)
 # plot(x_plot ,u_real)
 # plot!(x_plot ,u_predict)
+
+## Example 5, system of pde
+@parameters x, y, θ
+@variables u1(..), u2(..)
+@derivatives Dx'~x
+@derivatives Dy'~y
+
+# System of pde
+eqs = [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
+      Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
+
+# Initial and boundary conditions
+bcs = [[u1(x,0) ~ 2x, u2(x, 0) ~ 3x]]
+
+# Space and time domains
+domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
+
+# Discretization
+dx = 0.1
+discretization = NeuralNetDiffEq.PhysicsInformedNN(dx)
+
+# Neural network and optimizer
+opt = Flux.ADAM(0.1)
+chain = FastChain(FastDense(2,8,Flux.σ),FastDense(8,2))
+
+pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
+prob = NeuralNetDiffEq.discretize(pde_system,discretization)
+alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
+phi,res = solve(prob,alg,verbose=true, maxiters=500)
+
+analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
+xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
+u_real  = [analytic_sol_func(x,y) for x in xs  for y in ys]
+u_predict  = [phi([x,y],res.minimizer) for x in xs  for y in ys]
+
+@test u_predict ≈ u_real atol = 10.0
