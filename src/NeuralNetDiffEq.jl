@@ -1,4 +1,4 @@
-module NeuralNetDiffEq
+module NeuralPDE
 
 using Reexport, Statistics
 @reexport using DiffEqBase
@@ -8,7 +8,7 @@ using DiffEqFlux, Adapt, DiffEqNoiseProcess, CuArrays, StochasticDiffEq
 using ModelingToolkit
 import Tracker, Optim
 
-abstract type NeuralNetDiffEqAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
+abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
     TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 A semilinear parabolic PDE problem with a terminal condition.
@@ -117,7 +117,7 @@ end
 Algorithm for solving differential equation using neural network.
 
 ```julia
-NeuralNetDiffEq.NNStopping(chain, opt, sdealg, ensemblealg )
+NeuralPDE.NNStopping(chain, opt, sdealg, ensemblealg )
 ```
 Arguments:
 - `chain`: A Chain neural network
@@ -125,7 +125,7 @@ Arguments:
 - `initθ`: The initial parameter of the neural network
 - `autodiff`: The switch between automatic and numerical differentiation
 """
-struct NNDE{C,O,P,K} <: NeuralNetDiffEqAlgorithm
+struct NNDE{C,O,P,K} <: NeuralPDEAlgorithm
     chain::C
     opt::O
     initθ::P

@@ -1,4 +1,4 @@
-struct NNRODE{C,W,O,P,K} <: NeuralNetDiffEqAlgorithm
+struct NNRODE{C,W,O,P,K} <: NeuralPDEAlgorithm
     chain::C
     W::W
     opt::O
@@ -21,7 +21,7 @@ end
 
 function DiffEqBase.solve(
     prob::DiffEqBase.AbstractRODEProblem,
-    alg::NeuralNetDiffEqAlgorithm,
+    alg::NeuralPDEAlgorithm,
     args...;
     dt,
     timeseries_errors = true,

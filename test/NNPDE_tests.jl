@@ -4,7 +4,7 @@ using DiffEqFlux
 println("Starting Soon!")
 using ModelingToolkit
 using DiffEqBase
-using Test, NeuralNetDiffEq
+using Test, NeuralPDE
 
 ## Example 1, 1D ode
 @parameters t θ
@@ -22,15 +22,15 @@ domains = [t ∈ IntervalDomain(0.0,1.0)]
 
 # Discretization
 dx = 0.1
-discretization = NeuralNetDiffEq.PhysicsInformedNN(dx)
+discretization = NeuralPDE.PhysicsInformedNN(dx)
 
 # Neural network and optimizer
 opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
-prob = NeuralNetDiffEq.discretize(pde_system,discretization)
-alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
+prob = NeuralPDE.discretize(pde_system,discretization)
+alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
 phi,res = solve(prob,alg,verbose=true, maxiters=1000)
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -61,15 +61,15 @@ domains = [x ∈ IntervalDomain(0.0,1.0),
            y ∈ IntervalDomain(0.0,1.0)]
 # Discretization
 dx = 0.1
-discretization = NeuralNetDiffEq.PhysicsInformedNN(dx)
+discretization = NeuralPDE.PhysicsInformedNN(dx)
 
 # Neural network and optimizer
 opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
-prob = NeuralNetDiffEq.discretize(pde_system,discretization)
-alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
+prob = NeuralPDE.discretize(pde_system,discretization)
+alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
 phi,res  = solve(prob,alg,verbose=true, maxiters=600)
 
 xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
@@ -106,7 +106,7 @@ domains = [x ∈ IntervalDomain(0.0,2.0),
 
 # Discretization
 dx = 0.25
-discretization = NeuralNetDiffEq.PhysicsInformedNN(dx)
+discretization = NeuralPDE.PhysicsInformedNN(dx)
 
 # Neural network and optimizer
 opt = Flux.ADAM(0.1)
@@ -114,8 +114,8 @@ opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
-prob = NeuralNetDiffEq.discretize(pde_system,discretization)
-alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
+prob = NeuralPDE.discretize(pde_system,discretization)
+alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
 phi,res  = solve(prob,alg,verbose=true, maxiters=2100)
 
 xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
@@ -144,15 +144,15 @@ domains = [x ∈ IntervalDomain(0.0,1.0)]
 
 # Discretization
 dx = 0.1
-discretization = NeuralNetDiffEq.PhysicsInformedNN(dx)
+discretization = NeuralPDE.PhysicsInformedNN(dx)
 
 # Neural network and optimizer
 opt = Flux.ADAM(0.01)
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
-prob = NeuralNetDiffEq.discretize(pde_system,discretization)
-alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
+prob = NeuralPDE.discretize(pde_system,discretization)
+alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
 phi,res = solve(prob,alg,verbose=true, maxiters=1200)
 
 analytic_sol_func(x) = (0.0909939*x - 0.0909939)*x - 0.0322515*sin(π*x)

@@ -1,11 +1,11 @@
-using Documenter, NeuralNetDiffEq
+using Documenter, NeuralPDE
 
 makedocs(
-    sitename="NeuralNetDiffEq.jl",
+    sitename="NeuralPDE.jl",
     authors="#",
     clean=true,
     doctest=false,
-    modules=[NeuralNetDiffEq],
+    modules=[NeuralPDE],
 
     format=Documenter.HTML(# analytics = "",
                              assets=["assets/favicon.ico"],
@@ -31,6 +31,6 @@ makedocs(
 )
 
 deploydocs(
-   repo="github.com/SciML/NeuralNetDiffEq.jl.git";
+   repo="github.com/SciML/NeuralPDE.jl.git";
    push_preview=true
 )

@@ -1,6 +1,6 @@
 using Test, Flux, StochasticDiffEq
 println("Kolmogorov Tests")
-using DiffEqDevTools , NeuralNetDiffEq
+using DiffEqDevTools , NeuralPDE
 using Distributions
 
 
@@ -63,7 +63,7 @@ sdealg2 = EM()
 prob2 = KolmogorovPDEProblem(f2 , g2, phi , xspan2 , tspan2, d2)
 opt2 = Flux.ADAM(0.01)
 m2 = Chain(Dense(1, 16, elu) , Dense(16 , 32 , elu),Dense(32 , 16 , elu), Dense(16 , 1))
-sol = solve(prob2, NeuralNetDiffEq.NNKolmogorov(m2,opt2 , sdealg2, ensemblealg), verbose = true, dt = 0.01,
+sol = solve(prob2, NeuralPDE.NNKolmogorov(m2,opt2 , sdealg2, ensemblealg), verbose = true, dt = 0.01,
             dx = 0.0001 , trajectories = 1000 , abstol=1e-6, maxiters = 300)
 
 
@@ -105,6 +105,6 @@ d3 = 2
 prob = SDEProblem(f_noise , g_noise , uo3 , (0.0 , 1.0) ; xspan = xspan3 , d = d3 , noise_rate_prototype=zeros(2,4))
 opt = Flux.ADAM(0.01)
 m3 = Chain(Dense(d3, 32, elu) ,Dense(32 , 64 , elu), Dense(64 , 1))
-sol3 = solve(prob, NeuralNetDiffEq.NNKolmogorov(m3,opt , sdealg3 , EnsembleThreads()), verbose = true, dt = 0.001,
+sol3 = solve(prob, NeuralPDE.NNKolmogorov(m3,opt , sdealg3 , EnsembleThreads()), verbose = true, dt = 0.001,
             abstol=1e-6, dx = 0.001, trajectories = 1000,maxiters = 200)
 println("Non-Diagonal test working.")
