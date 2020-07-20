@@ -184,15 +184,15 @@ domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 
 # Discretization
 dx = 0.1
-discretization = NeuralNetDiffEq.PhysicsInformedNN(dx)
+discretization = NeuralPDE.PhysicsInformedNN(dx)
 
 # Neural network and optimizer
 opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(2,8,Flux.σ),FastDense(8,2))
 
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
-prob = NeuralNetDiffEq.discretize(pde_system,discretization)
-alg = NeuralNetDiffEq.NNDE(chain,opt,autodiff=false)
+prob = NeuralPDE.discretize(pde_system,discretization)
+alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
 phi,res = solve(prob,alg,verbose=true, maxiters=500)
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
