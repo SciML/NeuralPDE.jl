@@ -11,7 +11,7 @@ makedocs(
                              assets=["assets/favicon.ico"],
                              canonical="#"),
     pages=[
-        "Home" => "index.md",
+        "NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations" => "index.md",
         "Tutorials" => Any[
             "examples/ode.md",
             "examples/2DPoisson.md",
