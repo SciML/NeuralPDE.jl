@@ -15,7 +15,7 @@ at a greatly reduced cost and greatly increased generality compared to classical
 
 ## Citation
 
-If you use NeuralPDE.jl or are influenced by it's ideas for expanding it, please cite:
+If you use NeuralPDE.jl in your work, please cite:
 
 ```latex
 @article{DifferentialEquations.jl-2017,
