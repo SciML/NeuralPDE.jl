@@ -38,7 +38,7 @@ ts = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains][1]
 u_real  = [analytic_sol_func(t) for t in ts]
 u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
-@test u_predict ≈ u_real atol = 0.1
+@test u_predict ≈ u_real atol = 0.2
 
 # t_plot = collect(ts)
 # plot(t_plot ,u_real)
