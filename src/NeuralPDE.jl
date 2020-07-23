@@ -93,13 +93,15 @@ The PINNs Problem.
 * `train_sets`: Training sets on the domain and boundary spaces
 * `dim`: The dimensions of the problem.
 """
-struct NNPDEProblem{PDEFunction,TS} <:DiffEqBase.DEProblem
+struct NNPDEProblem{PDEFunction,Function,TS} <:DiffEqBase.DEProblem
   pde_func::PDEFunction
+  bc_func:: Array{Function}
   train_sets ::TS
   dim :: Int64
-  NNPDEProblem(pde_func,train_sets,dim) = new{typeof(pde_func),
+  NNPDEProblem(pde_func,bc_func,train_sets,dim) = new{typeof(pde_func),
+                                          eltype(bc_func),
                                           typeof(train_sets)
-                                          }(pde_func,train_sets,dim)
+                                          }(pde_func,bc_func,train_sets,dim)
 end
 Base.summary(prob::NNPDEProblem) = string(nameof(typeof(prob)))
 
@@ -107,6 +109,8 @@ function Base.show(io::IO, A::NNPDEProblem)
   println(io,summary(A))
   print(io,"pde_function: ")
   show(io,A.pde_func)
+  print(io,"bc_function: ")
+  show(io,A.bc_func)
   print(io,"train_sets: ")
   show(io,A.train_sets)
   print(io,"dimensionality: ")

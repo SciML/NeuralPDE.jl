@@ -15,7 +15,7 @@ using Test, NeuralPDE
 eq = Dt(u(t,θ)) ~ t^3 + 2*t + (t^2)*((1+3*(t^2))/(1+t+(t^3))) - u(t,θ)*(t + ((1+3*(t^2))/(1+t+t^3)))
 
 # Initial and boundary conditions
-bcs = [u(0.) ~ 1.0 , u(1.) ~ 1.202]
+bcs = [u(0.,θ) ~ 1.0 , u(1.,θ) ~ 1.202]
 
 # Space and time domains
 domains = [t ∈ IntervalDomain(0.0,1.0)]
@@ -54,8 +54,8 @@ u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 eq  = Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
 
 # Initial and boundary conditions
-bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+bcs = [u(0,y,θ) ~ 0.f0, u(1,y,θ) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0,θ) ~ 0.f0, u(x,1,θ) ~ -sin(pi*x)*sin(pi*1)]
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0),
            y ∈ IntervalDomain(0.0,1.0)]
@@ -93,12 +93,12 @@ u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),l
 # 3D PDE
 eq  = Dt(u(x,y,t,θ)) ~ Dxx(u(x,y,t,θ)) + Dyy(u(x,y,t,θ))
 # Initial and boundary conditions
-bcs = [u(x,y,0) ~ exp(x+y)*cos(x+y) ,
-       u(x,y,2) ~ exp(x+y)*cos(x+y+4*2) ,
-       u(0,y,t) ~ exp(y)*cos(y+4t),
-       u(2,y,t) ~ exp(2+y)*cos(2+y+4t) ,
-       u(x,0,t) ~ exp(x)*cos(x+4t),
-       u(x,2,t) ~ exp(x+2)*cos(x+2+4t)]
+bcs = [u(x,y,0,θ) ~ exp(x+y)*cos(x+y) ,
+       u(x,y,2,θ) ~ exp(x+y)*cos(x+y+4*2) ,
+       u(0,y,t,θ) ~ exp(y)*cos(y+4t),
+       u(2,y,t,θ) ~ exp(2+y)*cos(2+y+4t) ,
+       u(x,0,t,θ) ~ exp(x)*cos(x+4t),
+       u(x,2,t,θ) ~ exp(x+2)*cos(x+2+4t)]
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,2.0),
            y ∈ IntervalDomain(0.0,2.0),
@@ -116,7 +116,7 @@ chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
-phi,res  = solve(prob,alg,verbose=true, maxiters=2100)
+phi,res  = solve(prob,alg,verbose=true, maxiters=1000)
 
 xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
@@ -131,13 +131,18 @@ u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys
 ## Example 4, high-order ode
 @parameters x θ
 @variables u(..)
-@derivatives Dx'''~x
+@derivatives Dxxx'''~x
+@derivatives Dx'~x
 
 # ODE
-eq = Dx(u(x,θ)) ~ cos(pi*x)
+eq = Dxxx(u(x,θ)) ~ cos(pi*x)
 
 # Initial and boundary conditions
-bcs = [u(0.) ~ 0.0 , u(1.) ~ 0.0, u(0.5) ~ -0.055]
+# y(0) =0, y(1) =cos(pi)  ,y'(1)=1
+bcs = [u(0.,θ) ~ 0.0,
+       u(1.,θ) ~ cos(pi),
+       Dx(u(1.,θ)) ~ 1.0]
+# bcs = [u(0.,θ) ~ 0.0 , u(1.,θ) ~ 0.0, u(0.5,θ) ~ -0.055]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0)]
@@ -153,14 +158,16 @@ chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
-phi,res = solve(prob,alg,verbose=true, maxiters=1200)
+phi,res = solve(prob,alg,verbose=true, maxiters=2000)
 
-analytic_sol_func(x) = (0.0909939*x - 0.0909939)*x - 0.0322515*sin(π*x)
+analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
+
+# analytic_sol_func(x) = (0.0909939*x - 0.0909939)*x - 0.0322515*sin(π*x)
 xs = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
-@test u_predict ≈ u_real atol = 0.5
+@test u_predict ≈ u_real atol = 10.0
 
 # x_plot = collect(xs)
 # plot(x_plot ,u_real)
@@ -177,7 +184,7 @@ eqs = [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
       Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
 
 # Initial and boundary conditions
-bcs = [[u1(x,0) ~ 2x, u2(x, 0) ~ 3x]]
+bcs = [[u1(x,0,θ) ~ 2x, u2(x,0,θ) ~ 3x]]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
@@ -201,3 +208,48 @@ u_real  = [analytic_sol_func(x,y) for x in xs  for y in ys]
 u_predict  = [phi([x,y],res.minimizer) for x in xs  for y in ys]
 
 @test u_predict ≈ u_real atol = 10.0
+
+## Example 6, 2d wave equation neumann boundary condition
+@parameters x, t, θ
+@variables u(..)
+@derivatives Dxx''~x
+@derivatives Dtt''~t
+@derivatives Dt'~t
+
+#2D PDE
+C=1
+eq  = Dtt(u(x,t,θ)) ~ C^2*Dxx(u(x,t,θ))
+
+# Initial and boundary conditions
+bcs = [u(0,t,θ) ~ 0.,# for all t > 0
+       u(1,t,θ) ~ 0.,# for all t > 0
+       u(x,0,θ) ~ x*(1. - x), #for all 0 < x < 1
+       Dt(u(x,0,θ)) ~ 0. ] #for all  0 < x < 1]
+
+# Space and time domains
+domains = [x ∈ IntervalDomain(0.0,1.0),
+           t ∈ IntervalDomain(0.0,2.0)]
+# Discretization
+dx = 0.1
+discretization = NeuralPDE.PhysicsInformedNN(dx)
+
+# Neural network and optimizer
+opt = Flux.ADAM(0.1)
+chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+
+pde_system = PDESystem(eq,bcs,domains,[x,t],[u])
+prob = NeuralPDE.discretize(pde_system,discretization)
+alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
+phi,res  = solve(prob,alg,verbose=true, maxiters=1000)
+
+xs,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
+analytic_sol_func(x,t) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
+
+u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+
+@test u_predict ≈ u_real atol = 10.0
+
+# p1 =plot(xs, ts, u_predict, st=:surface);
+# p2 = plot(xs, ts, u_real, st=:surface);
+# plot(p1,p2)
