@@ -1,4 +1,4 @@
-struct NNPDENS{C1,C2,O} <: NeuralNetDiffEqAlgorithm
+struct NNPDENS{C1,C2,O} <: NeuralPDEAlgorithm
     u0::C1
     σᵀ∇u::C2
     opt::O
@@ -12,17 +12,26 @@ function DiffEqBase.solve(
     verbose = false,
     maxiters = 300,
     trajectories = 100,
+    dt = eltype(prob.tspan)(0),
     alg,
     pabstol = 1f-6,
     save_everystep = false,
+    give_limit = false,
+    ensemblealg = EnsembleThreads(),
+    trajectories_upper = 1000,
+    trajectories_lower = 1000,
+    maxiters_upper = 10,
     kwargs...)
 
     X0 = prob.X0
+    x0 = prob.X0
     tspan = prob.tspan
     d  = length(X0)
+    kwargs = prob.kwargs
     g,f,μ,σ = prob.g,prob.f,prob.μ,prob.σ
     p = prob.p isa AbstractArray ? prob.p : Float32[]
-
+    A = prob.A
+    u_domain = prob.u_domain
     data = Iterators.repeated((), maxiters)
 
 
@@ -74,7 +83,10 @@ function DiffEqBase.solve(
 
     function neural_sde(init_cond)
         map(1:trajectories) do j #TODO add Ensemble Simulation
-            predict_ans = Array(concrete_solve(prob, alg, init_cond, p3;
+            predict_ans = Array(solve(prob, alg;
+                                         dt = dt,
+                                         u0 = init_cond,
+                                         p = p3,
                                          save_everystep=false,
                                          sensealg=TrackerAdjoint(),kwargs...))[:,end]
             (X,u) = (predict_ans[1:(end-1)], predict_ans[end])
@@ -102,5 +114,81 @@ function DiffEqBase.solve(
 
     Flux.train!(loss_n_sde, ps, data, opt; cb = cb)
 
-    save_everystep ? iters : re1(p3)(X0)[1]
+
+    if give_limit == false
+        save_everystep ? iters : re1(p3)(X0)[1]
+    else
+    ## UPPER LIMIT
+        if iszero(dt) == true
+            error("dt choice is required for upper and lower bound calculation ")
+        end
+        sdeProb = SDEProblem(μ , σ , x0 , tspan , noise_rate_prototype = zeros(Float32,d,d))
+        output_func(sol,i) = (sol[end],false)
+        ensembleprob = EnsembleProblem(sdeProb , output_func = output_func)
+        sim_f = solve(ensembleprob, alg, ensemblealg, dt=dt, trajectories = trajectories_upper )
+        Xn = reduce( vcat ,sim_f.u )
+        Un = collect(g(X) for X in Xn)
+
+        tspan_rev = (tspan[2] , tspan[1])
+        sdeProb2 = SDEProblem(F, G, [Xn[1] ; Un[1]] ,tspan_rev, p3 ,  noise_rate_prototype=noise)
+        function prob_func(prob,i,repeat)
+          SDEProblem(prob.f , prob.g , [Xn[i] ; Un[i]] , prob.tspan , prob.p ,noise_rate_prototype = prob.noise_rate_prototype)
+        end
+
+        ensembleprob2 = EnsembleProblem(sdeProb2 , prob_func = prob_func  , output_func   = output_func)
+        sim = solve(ensembleprob2, alg, ensemblealg, dt=dt, trajectories=trajectories_upper, output_func = output_func,save_everystep = false ,sensealg=TrackerAdjoint())
+
+        function sol_high()
+            map(sim.u) do u
+                u[2]
+            end
+        end
+
+        loss_() = sum(sol_high())/trajectories_upper
+
+        ps = Flux.params(u0, σᵀ∇u...)
+        cb = function ()
+            l = loss_()
+            true && println("Current loss is: $l")
+            l < 1e-6 && Flux.stop()
+        end
+        dataS = Iterators.repeated((), maxiters_upper)
+        Flux.train!(loss_, ps, dataS, ADAM(0.01); cb = cb)
+        u_high = loss_()
+        # Function to precalculate the f values over the domain
+        function give_f_matrix(X,urange,σᵀ∇u,p,t)
+          map(urange) do u
+            f(X,u,σᵀ∇u,p,t)
+          end
+        end
+
+        #The legendre transform that uses the precalculated f values.
+        function legendre_transform(f_matrix , a , urange)
+            le = a.*(collect(urange)) .- f_matrix
+            return maximum(le)
+        end
+        ts = tspan[1]:dt:tspan[2]
+        function sol_low()
+            map(1:trajectories_lower) do j
+                u = u0(X0)[1]
+                X = X0
+                I = zero(eltype(u))
+                Q = zero(eltype(u))
+                for i in 1:length(ts)-1
+                    t = ts[i]
+                    _σᵀ∇u = σᵀ∇u([X ; 0.0f0])
+                    dW = sqrt(dt)*randn(d)
+                    u = u - f(X, u, _σᵀ∇u, p, t)*dt + _σᵀ∇u'*dW
+                    X  = X .+ μ(X,p,t)*dt .+ σ(X,p,t)*dW
+                    f_matrix = give_f_matrix(X , u_domain, _σᵀ∇u, p, ts[i])
+                    a_ = A[findmax(collect(A).*u .- collect(legendre_transform(f_matrix, a, u_domain) for a in A))[2]]
+                    I = I + a_*dt
+                    Q = Q + exp(I)*legendre_transform(f_matrix, a_, u_domain)
+                end
+                I , Q , X
+            end
+        end
+        u_low = sum(exp(I)*g(X) - Q for (I ,Q ,X) in sol_low())/(trajectories_lower)
+        save_everystep ? iters : re1(p3)(X0)[1] , u_low , u_high
+    end
 end #pde_solve_ns

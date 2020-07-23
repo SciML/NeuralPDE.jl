@@ -1,4 +1,4 @@
-struct NNPDEHan{C1,C2,O} <: NeuralNetDiffEqAlgorithm
+struct NNPDEHan{C1,C2,O} <: NeuralPDEAlgorithm
     u0::C1
     σᵀ∇u::C2
     opt::O

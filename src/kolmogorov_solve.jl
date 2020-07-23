@@ -1,4 +1,23 @@
-struct NNKolmogorov{C,O,S,E} <: NeuralNetDiffEqAlgorithm
+"""
+Algorithm for solving Backward Kolmogorov Equations.
+
+```julia
+NeuralPDE.NNKolmogorov(chain, opt, sdealg, ensemblealg )
+```
+Arguments:
+- `chain`: A Chain neural network with d dimensional output.
+- `opt`: The optimiser to train the neural network. Defaults to `ADAM(0.1)`
+- `sdealg`: The algorithm used to solve the discretised SDE according to the process that X follows. Defaults to `EM()`
+- `ensemblealg`: The algorithm used to solve the Ensemble Problem that performs Ensemble simulations for the SDE. Defaults to `EnsembleThreads()`.See
+  the [Ensemble Algorithms](https://diffeq.sciml.ai/stable/features/ensemble/#EnsembleAlgorithms-1)
+  documentation for more details.
+- - `kwargs`: Additional arguments splatted to the SDE solver. See the
+  [Common Solver Arguments](https://diffeq.sciml.ai/dev/basics/common_solver_opts/)
+  documentation for more details.
+[1]Beck, Christian, et al. "Solving stochastic differential equations and Kolmogorov equations by means of deep learning." arXiv preprint arXiv:1806.00421 (2018).
+[2]
+"""
+struct NNKolmogorov{C,O,S,E} <: NeuralPDEAlgorithm
     chain::C
     opt::O
     sdealg::S

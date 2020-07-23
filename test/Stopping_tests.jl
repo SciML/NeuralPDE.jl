@@ -1,6 +1,6 @@
 using Test, Flux , StochasticDiffEq , LinearAlgebra
 println("Optimal Stopping Time Test")
-using NeuralNetDiffEq
+using NeuralPDE
 d = 1
 r = 0.04f0
 beta = 0.2f0
@@ -21,7 +21,7 @@ end
 prob  = SDEProblem(f , sigma , u0 , tspan ; g = g)
 opt = Flux.ADAM(0.1)
 m = Chain(Dense(d , 5, tanh), Dense(5, 16 , tanh)  , Dense(16 , N ), softmax)
-sol = solve(prob, NeuralNetDiffEq.NNStopping( m, opt , sdealg , ensemblealg), verbose = true, dt = dt,
+sol = solve(prob, NeuralPDE.NNStopping( m, opt , sdealg , ensemblealg), verbose = true, dt = dt,
             abstol=1e-6, maxiters = 20 , trajectories = 200)
 
 ##Analytical Binomial Tree approach for American Options

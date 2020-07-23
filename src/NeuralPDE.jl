@@ -1,0 +1,161 @@
+module NeuralPDE
+
+using Reexport, Statistics
+@reexport using DiffEqBase
+
+using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
+using DiffEqFlux, Adapt, DiffEqNoiseProcess, CuArrays, StochasticDiffEq
+using ModelingToolkit
+import Tracker, Optim
+
+abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
+"""
+    TerminalPDEProblem(g, f, μ, σ, x0, tspan)
+A semilinear parabolic PDE problem with a terminal condition.
+Consider `du/dt = l(u) + f(u)`; where l is the non linear Lipschitz function
+# Arguments
+* `g` : The terminal condition for the equation.
+* `f` : The function f(u)
+* `μ` : The drift function of X from Ito's Lemma
+* `μ` : The noise function of X from Ito's Lemma
+* `x0`: The initial X for the problem.
+* `tspan`: The timespan of the problem.
+"""
+struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,A,UD,K} <: DiffEqBase.DEProblem
+    g::G
+    f::F
+    μ::Mu
+    σ::Sigma
+    X0::X
+    tspan::Tuple{T,T}
+    p::P
+    A::A
+    u_domain::UD
+    kwargs::K
+    TerminalPDEProblem(g,f,μ,σ,X0,tspan,p=nothing;A=nothing,u_domain=nothing,kwargs...) = new{typeof(g),typeof(f),
+                                                         typeof(μ),typeof(σ),
+                                                         typeof(X0),eltype(tspan),
+                                                         typeof(p),typeof(A),typeof(u_domain),typeof(kwargs)}(
+                                                         g,f,μ,σ,X0,tspan,p,A,u_domain,kwargs)
+end
+
+Base.summary(prob::TerminalPDEProblem) = string(nameof(typeof(prob)))
+
+function Base.show(io::IO, A::TerminalPDEProblem)
+  println(io,summary(A))
+  print(io,"timespan: ")
+  show(io,A.tspan)
+end
+
+"""
+    KolmogorovPDEProblem(f , g, phi , xspan , tspan, d, noise_rate_prototype = none)
+A standard Kolmogorov PDE Problem.
+# Arguments
+* `f` : The drift function from Feynman-Kac representation of the PDE.
+* `g` : The noise function from Feynman-Kac representation of the PDE.
+* `phi` : The terminal condition for the PDE.
+* `tspan`: The timespan for the problem.
+* `xspan`: The xspan for the problem.
+* `d`: The dimensions of the input x.
+* `noise_rate_prototype`: A prototype type instance for the noise rates, that is the output g.
+"""
+struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, ND} <: DiffEqBase.DEProblem
+    f::F
+    g::G
+    phi::Phi
+    xspan::Tuple{X,X}
+    tspan::Tuple{T,T}
+    d::D
+    p::P
+    u0::U0
+    noise_rate_prototype::ND
+    KolmogorovPDEProblem( f, g, phi , xspan , tspan , d, p=nothing, u0=0 , noise_rate_prototype= nothing) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p),typeof(u0),typeof(noise_rate_prototype)}(f,g,phi,xspan,tspan,d,p,u0,noise_rate_prototype)
+end
+
+Base.summary(prob::KolmogorovPDEProblem) = string(nameof(typeof(prob)))
+function Base.show(io::IO, A::KolmogorovPDEProblem)
+  println(io,summary(A))
+  print(io,"timespan: ")
+  show(io,A.tspan)
+  print(io,"xspan: ")
+  show(io,A.xspan)
+  println(io , "μ")
+  show(io , A.f)
+  println(io,"Sigma")
+  show(io , A.g)
+end
+
+"""
+    NNPDEProblem(pde_func, train_sets, dim)
+The PINNs Problem.
+# Arguments
+* `pde_func` : The PDE function
+* `train_sets`: Training sets on the domain and boundary spaces
+* `dim`: The dimensions of the problem.
+"""
+struct NNPDEProblem{PDEFunction,TS} <:DiffEqBase.DEProblem
+  pde_func::PDEFunction
+  train_sets ::TS
+  dim :: Int64
+  NNPDEProblem(pde_func,train_sets,dim) = new{typeof(pde_func),
+                                          typeof(train_sets)
+                                          }(pde_func,train_sets,dim)
+end
+Base.summary(prob::NNPDEProblem) = string(nameof(typeof(prob)))
+
+function Base.show(io::IO, A::NNPDEProblem)
+  println(io,summary(A))
+  print(io,"pde_function: ")
+  show(io,A.pde_func)
+  print(io,"train_sets: ")
+  show(io,A.train_sets)
+  print(io,"dimensionality: ")
+  show(io,A.dim)
+end
+
+"""
+Algorithm for solving differential equation using neural network.
+
+```julia
+NeuralPDE.NNStopping(chain, opt, sdealg, ensemblealg )
+```
+Arguments:
+- `chain`: A Chain neural network
+- `opt`: The optimiser to train the neural network. Defaults to `BFGS()`
+- `initθ`: The initial parameter of the neural network
+- `autodiff`: The switch between automatic and numerical differentiation
+"""
+struct NNDE{C,O,P,K} <: NeuralPDEAlgorithm
+    chain::C
+    opt::O
+    initθ::P
+    autodiff::Bool
+    kwargs::K
+end
+function NNDE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
+    if init_params === nothing
+        if chain isa FastChain
+            initθ = DiffEqFlux.initial_params(chain)
+        else
+            initθ,re  = Flux.destructure(chain)
+        end
+    else
+        initθ = init_params
+    end
+    NNDE(chain,opt,initθ,autodiff,kwargs)
+end
+
+
+include("ode_solve.jl")
+include("pde_solve.jl")
+include("pde_solve_ns.jl")
+include("kolmogorov_solve.jl")
+include("rode_solve.jl")
+include("stopping_solve.jl")
+include("pinns_pde_solve.jl")
+
+export NNDE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
+       KolmogorovPDEProblem, NNKolmogorov, NNStopping,
+       NNPDEProblem, PhysicsInformedNN, discretize
+
+end # module
