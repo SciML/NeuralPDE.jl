@@ -62,6 +62,25 @@ alg = NNDE(chain,opt,autodiff=false)
 phi,res  = solve(prob,alg,verbose=true, maxiters=5000)
 ```
 
+And some analysis:
+
+```julia
+xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
+analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
+
+u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+diff_u = abs.(u_predict .- u_real)
+
+using Plots
+p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
+p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
+plot(p1,p2,p3)
+```
+
+![](https://user-images.githubusercontent.com/12683885/88294196-a29d4300-cd04-11ea-8e72-18867662583d.png)
+
 ## Example: Solving a 100 Dimensional Hamilton-Jacobi-Bellman Equation
 
 ```julia
