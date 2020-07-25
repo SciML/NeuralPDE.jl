@@ -1,5 +1,8 @@
-using  NeuralPDE, Flux , StochasticDiffEq, DiffEqNoiseProcess , Optim, Test
+using  NeuralPDE
+println("RODE_tests")
+using Flux , StochasticDiffEq, DiffEqNoiseProcess , Optim, Test
 
+println("Test Case 1")
 linear = (u,p,t,W) ->   2u*sin(W)
 tspan = (0.00f0, 1.00f0)
 u0 = 1.0f0
@@ -16,6 +19,7 @@ sol2 = solve(prob1,RandomEM(),dt=dt)
 err = Flux.mse(sol.u , sol2.u)
 @test err < 0.3
 
+println("Test Case 2")
 linear = (u,p,t,W) -> t^3 + 2*t + (t^2)*((1+3*(t^2))/(1+t+(t^3))) - u*(t + ((1+3*(t^2))/(1+t+t^3))) + 5*W
 tspan = (0.00f0, 1.00f0)
 u0 = 1.0f0
