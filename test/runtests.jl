@@ -10,7 +10,6 @@ const is_TRAVIS = haskey(ENV,"TRAVIS")
 @time begin
   if GROUP == "All" || GROUP == "NNODE"
       @time @safetestset "NNODE" begin include("NNODE_tests.jl") end
-      @time @safetestset "NNRODE" begin include("NNRODE_tests.jl") end
   end
   if !is_APPVEYOR && (GROUP == "All" || GROUP == "NNPDEHan")
       @time @safetestset "NNPDEHan" begin include("NNPDEHan_tests.jl") end
@@ -27,6 +26,11 @@ const is_TRAVIS = haskey(ENV,"TRAVIS")
   if GROUP == "All" || GROUP == "NNSTOPPINGTIME"
       @time @safetestset "NNStopping" begin include("Stopping_tests.jl") end
   end
+  if GROUP == "All" || GROUP == "NNRODE"
+        @time @safetestset "NNRODE" begin include("NNRODE_tests.jl") end
+  end
+
+
   if !is_APPVEYOR && GROUP == "GPU"
   end
 end

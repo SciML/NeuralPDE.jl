@@ -17,6 +17,7 @@ env:
   - GROUP=NNPDENS
   - GROUP=NNPDE
   - GROUP=NNSTOPPINGTIME
+  - GROUP=NNRODE
 notifications:
   email: false
 # uncomment the following lines to override the default test script
