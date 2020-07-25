@@ -1,7 +1,7 @@
 println("RODE Tests")
-using  NeuralPDE
-println("RODE_tests")
 using Flux , StochasticDiffEq, DiffEqNoiseProcess , Optim, Test
+println("RODE_tests")
+using  NeuralPDE
 
 println("Test Case 1")
 linear = (u,p,t,W) ->   2u*sin(W)
