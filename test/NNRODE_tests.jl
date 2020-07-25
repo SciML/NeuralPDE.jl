@@ -1,3 +1,4 @@
+println("RODE Tests")
 using  NeuralPDE
 println("RODE_tests")
 using Flux , StochasticDiffEq, DiffEqNoiseProcess , Optim, Test
