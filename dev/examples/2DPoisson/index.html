@@ -8,8 +8,8 @@
 eq  = Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
 
 # Boundary conditions
-bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+bcs = [u(0,y,θ) ~ 0.f0, u(1,y,θ) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0,θ) ~ 0.f0, u(x,1,θ) ~ -sin(pi*x)*sin(pi*1)]
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0),
            y ∈ IntervalDomain(0.0,1.0)]
@@ -31,4 +31,4 @@ using Plots
 p1 = plot(xs, ys, u_real, linetype=:contourf,title = &quot;analytic&quot;);
 p2 = plot(xs, ys, u_predict, linetype=:contourf,title = &quot;predict&quot;);
 p3 = plot(xs, ys, diff_u,linetype=:contourf,title = &quot;error&quot;);
-plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/88294196-a29d4300-cd04-11ea-8e72-18867662583d.png" alt="image"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ode/">« Solving ODEs with Neural Networks</a><a class="docs-footer-nextpage" href="../100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 26 July 2020 04:09">Sunday 26 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/88294196-a29d4300-cd04-11ea-8e72-18867662583d.png" alt="image"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ode/">« Solving ODEs with Neural Networks</a><a class="docs-footer-nextpage" href="../100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 26 July 2020 14:58">Sunday 26 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
