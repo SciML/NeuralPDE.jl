@@ -73,4 +73,4 @@ p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
 p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 plot(p1,p2,p3)
 ```
-![image](https://user-images.githubusercontent.com/12683885/88294196-a29d4300-cd04-11ea-8e72-18867662583d.png)
+![image](https://user-images.githubusercontent.com/12683885/88482882-cbc00c80-cf6c-11ea-91bb-47a477f38af6.png)
