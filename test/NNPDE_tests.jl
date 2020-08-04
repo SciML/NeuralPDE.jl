@@ -228,7 +228,7 @@ bcs = [u(0,t,θ) ~ 0.,# for all t > 0
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0),
-           t ∈ IntervalDomain(0.0,2.0)]
+           t ∈ IntervalDomain(0.0,1.0)]
 # Discretization
 dx = 0.1
 discretization = NeuralPDE.PhysicsInformedNN(dx)
@@ -245,11 +245,13 @@ phi,res  = solve(prob,alg,verbose=true, maxiters=1000)
 xs,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(x,t) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
 
-u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+u_predict = reshape([first(phi([x,t],res.minimizer)) for x in xs for t in ts],(length(xs),length(ts)))
+u_real = reshape([analytic_sol_func(x,t) for x in xs for t in ts], (length(xs),length(ts)))
 
 @test u_predict ≈ u_real atol = 10.0
 
-# p1 =plot(xs, ts, u_predict, st=:surface);
-# p2 = plot(xs, ts, u_real, st=:surface);
-# plot(p1,p2)
+# diff_u = abs.(u_predict .- u_real)
+# p1 = plot(xs, ts, u_real, linetype=:contourf,title = "analytic");
+# p2 =plot(xs, ts, u_predict, linetype=:contourf,title = "predict");
+# p3 = plot(xs, ts, diff_u,linetype=:contourf,title = "error");
+# plot(p1,p2,p3)
