@@ -351,7 +351,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     # get loss_function
     loss_function = get_loss_function(pde_func,bc_funcs,train_sets)
 
-	return GalacticOptim.OptimizationProblem(loss_function, zeros(dim), p=nothing)
+	return GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
 end
 
 function DiffEqBase.solve(
