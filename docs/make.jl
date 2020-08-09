@@ -14,7 +14,7 @@ makedocs(
         "NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations" => "index.md",
         "Tutorials" => Any[
             "examples/ode.md",
-            "examples/2DPoisson.md",
+            "examples/pinns_example.md",
             "examples/100_HJB.md",
             "examples/kolmogorovbackwards.md",
             "examples/optimal_stopping_american.md",
