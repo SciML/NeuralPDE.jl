@@ -321,7 +321,7 @@ function get_loss_function(pde_func, bc_funcs, train_sets)
 
     # General loss function
     function loss(θ, phi, derivative)
-        1.0f0/τf * loss_domain(θ, phi, derivative) + 1.0f0/τb * loss_boundary(θ, phi, derivative) #+ 1.0f0/τc * custom_loss(θ)
+        1.0f0/τf * loss_domain(θ, phi, derivative) + 1.0f0/τb * loss_boundary(θ, phi, derivative)
     end
     return loss
 end
@@ -354,38 +354,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
 	return GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
 end
 
-function DiffEqBase.solve(
-    prob::GalacticOptim.OptimizationProblem,
-    alg::NNDE,
-    args...;
-    timeseries_errors = true,
-    save_everystep=true,
-    adaptive=false,
-    abstol = 1f-6,
-    verbose = false,
-    maxiters = 100)
-
-
-    loss_function = prob.f
-
-    # dimensionality of equation
-    dim = length(prob.x)
-
-    dim > 3 && error("While only dimensionality no more than 3")
-
-    # neural network
-    chain  = alg.chain
-    # optimizer
-    opt    = alg.opt
-    # AD flag
-    autodiff = alg.autodiff
-    # weights of neural network
-    initθ = alg.initθ
-
-    # equation/system of equations
-    isuinplace = length(chain(zeros(dim),initθ)) == 1
-
-    # The phi trial solution
+function get_phi(chain,isuinplace)
     if chain isa FastChain
         if isuinplace
             phi = (x,θ) -> first(chain(adapt(typeof(θ),x),θ))
@@ -400,8 +369,10 @@ function DiffEqBase.solve(
             phi = (x,θ) -> re(θ)(adapt(typeof(θ),x))
         end
     end
+    phi
+end
 
-    # Calculate derivative
+function get_derivative(dim,phi,autodiff,isuinplace)
     if autodiff # automatic differentiation (not implemented yet)
         # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
     else # numerical differentiation
@@ -440,6 +411,42 @@ function DiffEqBase.solve(
             end
         end
     end
+    derivative
+end
+
+function DiffEqBase.solve(
+    prob::GalacticOptim.OptimizationProblem,
+    alg::NNDE,
+    args...;
+    timeseries_errors = true,
+    save_everystep=true,
+    adaptive=false,
+    abstol = 1f-6,
+    verbose = false,
+    maxiters = 100)
+
+
+    loss_function = prob.f
+
+    # dimensionality of equation
+    dim = length(prob.x)
+
+    dim > 3 && error("While only dimensionality no more than 3")
+
+    # neural network
+    chain  = alg.chain
+    # optimizer
+    opt    = alg.opt
+    # AD flag
+    autodiff = alg.autodiff
+    # weights of neural network
+    initθ = alg.initθ
+
+    # equation/system of equations
+    isuinplace = length(chain(zeros(dim),initθ)) == 1
+    # The phi trial solution
+    phi = get_phi(chain,isuinplace)
+    derivative = get_derivative(dim,phi,autodiff,isuinplace)
 
     loss = (θ) -> loss_function(θ, phi, derivative)
 
