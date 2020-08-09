@@ -1,5 +1,5 @@
-struct PhysicsInformedNN{int}
-  dx::int
+struct PhysicsInformedNN{D}
+  dx::D
 end
 
 """
@@ -267,10 +267,15 @@ end
 
 # Generate training set with the points in the domain and on the boundary
 function generator_training_sets(domains, discretization, bound_args, dict_indvars)
-    dx = discretization.dx
+    if discretization.dx isa Array
+        dxs = discretization.dx
+    else
+        dx = discretization.dx
+        dxs = fill(dx,length(domains))
+    end
 
-    spans = [d.domain.lower:dx:d.domain.upper for d in domains]
-    dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for d in domains])
+    spans = [d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)]
+    dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
 
     train_set = []
     for points in Iterators.product(spans...)
