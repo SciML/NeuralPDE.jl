@@ -6,7 +6,6 @@ using Reexport, Statistics
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt, DiffEqNoiseProcess, CuArrays, StochasticDiffEq
 using ModelingToolkit
-using GalacticOptim
 import Tracker, Optim
 
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
