@@ -2,21 +2,6 @@ struct PhysicsInformedNN{D}
   dx::D
 end
 
-abstract type AbstractOptimizationProblem end
-
-struct OptimizationProblem{F,X,P,B,K} <: AbstractOptimizationProblem
-    f::F
-    x::X
-    p::P
-    lb::B
-    ub::B
-    kwargs::K
-    function OptimizationProblem(f, x; p=DiffEqBase.NullParameters(), lb = nothing, ub = nothing, kwargs...)
-        new{typeof(f), typeof(x), typeof(p), typeof(lb), typeof(kwargs)}(f, x, p, lb, ub, kwargs)
-    end
-end
-
-
 """
 Create dictionary: variable => unique number for variable
 
@@ -371,7 +356,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     # get loss_function
     loss_function = get_loss_function(pde_func,bc_funcs,train_sets)
 
-	return OptimizationProblem(loss_function, zeros(dim))
+	return GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
 end
 
 function get_phi(chain,isuinplace)
@@ -435,7 +420,7 @@ function get_derivative(dim,phi,autodiff,isuinplace)
 end
 
 function DiffEqBase.solve(
-    prob::OptimizationProblem,
+    prob::GalacticOptim.OptimizationProblem,
     alg::NNDE,
     args...;
     timeseries_errors = true,
