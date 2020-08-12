@@ -4,7 +4,7 @@ using Reexport, Statistics
 @reexport using DiffEqBase
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
-using DiffEqFlux, Adapt, DiffEqNoiseProcess, CuArrays, StochasticDiffEq
+using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
 using ModelingToolkit
 using GalacticOptim
 import Tracker, Optim
