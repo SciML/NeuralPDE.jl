@@ -1,5 +1,5 @@
-struct PhysicsInformedNN{int}
-  dx::int
+struct PhysicsInformedNN{D}
+  dx::D
 end
 
 """
@@ -267,10 +267,15 @@ end
 
 # Generate training set with the points in the domain and on the boundary
 function generator_training_sets(domains, discretization, bound_args, dict_indvars)
-    dx = discretization.dx
+    if discretization.dx isa Array
+        dxs = discretization.dx
+    else
+        dx = discretization.dx
+        dxs = fill(dx,length(domains))
+    end
 
-    spans = [d.domain.lower:dx:d.domain.upper for d in domains]
-    dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for d in domains])
+    spans = [d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)]
+    dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
 
     train_set = []
     for points in Iterators.product(spans...)
@@ -293,52 +298,7 @@ function generator_training_sets(domains, discretization, bound_args, dict_indva
     [train_domain_set,train_bound_set]
 end
 
-# Convert a PDE problem into an PINNs problem
-function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    eq = pde_system.eq
-    bcs = pde_system.bcs
-    domains = pde_system.domain
-    indvars = pde_system.indvars
-    depvars = pde_system.depvars
-    dx = discretization.dx
-    dim = length(domains)
-
-    # dictionaries: variable -> unique number
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
-
-    # extract pde
-    _pde_func = eval(extract_pde(eq,indvars,depvars, dict_indvars,dict_depvars))
-    # extract initial and boundary conditions
-    extract_bc_funcs, bound_args = extract_bc(bcs,indvars,depvars,dict_indvars,dict_depvars)
-
-    _bc_funcs = eval.(extract_bc_funcs)
-
-    # generate training sets
-    train_sets = generator_training_sets(domains, discretization, bound_args, dict_indvars)
-
-    return NNPDEProblem(_pde_func,_bc_funcs, train_sets, dim)
-end
-
-function DiffEqBase.solve(
-    prob::NNPDEProblem,
-    alg::NNDE,
-    args...;
-    timeseries_errors = true,
-    save_everystep=true,
-    adaptive=false,
-    abstol = 1f-6,
-    verbose = false,
-    maxiters = 100)
-
-    # DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
-
-    # pde function
-    _pde_func = prob.pde_func
-    # boundary condition function
-    _bc_funcs = prob.bc_func
-    # training sets
-    train_sets = prob.train_sets
+function get_loss_function(pde_func, bc_funcs, train_sets)
     # the points in the domain and on the boundary
     train_domain_set, train_bound_set = train_sets
 
@@ -346,24 +306,60 @@ function DiffEqBase.solve(
     τb = length(train_bound_set)
     τf = length(train_domain_set)
 
-    # dimensionality of equation
-    dim = prob.dim
+    # Loss function for pde equation
+    function inner_domain_loss(phi, x, θ, derivative)
+        sum(pde_func(phi, x, θ, derivative))
+    end
 
-    dim > 3 && error("While only dimensionality no more than 3")
+    # Loss function for initial and boundary conditions
+    function inner_bound_loss(f,phi,x,θ,derivative)
+        sum(f(phi, x, θ, derivative))
+    end
 
-    # neural network
-    chain  = alg.chain
-    # optimizer
-    opt    = alg.opt
-    # AD flag
-    autodiff = alg.autodiff
-    # weights of neural network
-    initθ = alg.initθ
+    function loss_domain(θ, phi, derivative)
+        sum(abs2,inner_domain_loss(phi, x, θ, derivative) for x in train_domain_set)
+    end
 
-    # equation/system of equations
-    isuinplace = length(chain(zeros(dim),initθ)) == 1
+    function loss_boundary(θ, phi, derivative)
+       sum(sum(abs2,inner_bound_loss(f,phi,x,θ,derivative) for x in set) for (f,set) in zip(bc_funcs,train_bound_set))
+    end
 
-    # The phi trial solution
+    # General loss function
+    function loss(θ, phi, derivative)
+        1.0f0/τf * loss_domain(θ, phi, derivative) + 1.0f0/τb * loss_boundary(θ, phi, derivative)
+    end
+    return loss
+end
+
+# Convert a PDE problem into OptimizationProblem
+function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+    eq = pde_system.eq
+    bcs = pde_system.bcs
+    domains = pde_system.domain
+    indvars = pde_system.indvars
+    depvars = pde_system.depvars
+    # dictionaries: variable -> unique number
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
+
+    dim = length(domains)
+
+    # extract pde
+    pde_func = eval(extract_pde(eq,indvars,depvars, dict_indvars,dict_depvars))
+    # extract initial and boundary conditions
+    extract_bc_funcs, bound_args = extract_bc(bcs,indvars,depvars,dict_indvars,dict_depvars)
+    bc_funcs = eval.(extract_bc_funcs)
+
+    # generate training sets
+    train_sets = generator_training_sets(domains, discretization, bound_args, dict_indvars)
+
+    # get loss_function
+    loss_function = get_loss_function(pde_func,bc_funcs,train_sets)
+
+	return GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
+end
+
+function get_phi(chain,isuinplace)
     if chain isa FastChain
         if isuinplace
             phi = (x,θ) -> first(chain(adapt(typeof(θ),x),θ))
@@ -378,8 +374,10 @@ function DiffEqBase.solve(
             phi = (x,θ) -> re(θ)(adapt(typeof(θ),x))
         end
     end
+    phi
+end
 
-    # Calculate derivative
+function get_derivative(dim,phi,autodiff,isuinplace)
     if autodiff # automatic differentiation (not implemented yet)
         # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
     else # numerical differentiation
@@ -418,36 +416,44 @@ function DiffEqBase.solve(
             end
         end
     end
+    derivative
+end
 
-    # Represent pde function
-    pde_func = (_x,θ) -> _pde_func(phi,_x,θ, derivative)
+function DiffEqBase.solve(
+    prob::GalacticOptim.OptimizationProblem,
+    alg::NNDE,
+    args...;
+    timeseries_errors = true,
+    save_everystep=true,
+    adaptive=false,
+    abstol = 1f-6,
+    verbose = false,
+    maxiters = 100)
 
-    # Represent boundary function
-    bc_funcs =[]
-    for (i, _bc_func) in  enumerate(_bc_funcs)
-        bc_func = (_x,θ) -> _bc_funcs[i](phi,_x,θ,derivative)
-        push!(bc_funcs,bc_func)
-    end
-    # Loss function for pde equation
-    function inner_loss_domain(x,θ)
-        sum(pde_func(x,θ))
-    end
 
-    function loss_domain(θ)
-        sum(abs2,inner_loss_domain(x,θ) for x in train_domain_set)
-    end
+    loss_function = prob.f
 
-    # Loss function for initial and boundary conditions
-    function inner_loss(f,x,θ)
-        sum(f(x,θ))
-    end
+    # dimensionality of equation
+    dim = length(prob.x)
 
-    function loss_boundary(θ)
-       sum(sum(abs2,inner_loss(f,x,θ) for x in set) for (f,set) in zip(bc_funcs,train_bound_set))
-    end
+    dim > 3 && error("While only dimensionality no more than 3")
 
-    # General loss function
-    loss(θ) = 1.0f0/τf * loss_domain(θ) + 1.0f0/τb * loss_boundary(θ) #+ 1.0f0/τc * custom_loss(θ)
+    # neural network
+    chain  = alg.chain
+    # optimizer
+    opt    = alg.opt
+    # AD flag
+    autodiff = alg.autodiff
+    # weights of neural network
+    initθ = alg.initθ
+
+    # equation/system of equations
+    isuinplace = length(chain(zeros(dim),initθ)) == 1
+    # The phi trial solution
+    phi = get_phi(chain,isuinplace)
+    derivative = get_derivative(dim,phi,autodiff,isuinplace)
+
+    loss = (θ) -> loss_function(θ, phi, derivative)
 
     cb = function (p,l)
         verbose && println("Current loss is: $l")
