@@ -5,6 +5,7 @@ println("Starting Soon!")
 using ModelingToolkit
 using DiffEqBase
 using Test, NeuralPDE
+using GalacticOptim
 
 ## Example 1, 1D ode
 @parameters t θ
