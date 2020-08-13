@@ -209,7 +209,8 @@ u_predict  = [phi([x,y],res.minimizer) for x in xs  for y in ys]
 
 @test u_predict ≈ u_real atol = 10.0
 
-## Example 6, 2d wave equation neumann boundary condition
+## Example 6, 2d wave equation, neumann boundary condition
+#here we use inner functions for build solution
 @parameters x, t, θ
 @variables u(..)
 @derivatives Dxx''~x
@@ -236,10 +237,20 @@ discretization = NeuralPDE.PhysicsInformedNN(dx)
 # Neural network and optimizer
 opt = Flux.ADAM(0.1)
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
-
-pde_system = PDESystem(eq,bcs,domains,[x,t],[u])
-prob = NeuralPDE.discretize(pde_system,discretization)
 alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
+
+indvars = [x,t]
+depvars = [u]
+dim = length(domains)
+
+pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars)
+bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars) for bc in bcs]
+train_sets = NeuralPDE.generate_training_sets(domains,discretization,bcs,indvars,depvars)
+loss_function = NeuralPDE.get_loss_function(eval(pde_loss_function),
+                                            eval.(bc_loss_functions),
+                                            train_sets)
+prob = GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
+
 phi,res  = solve(prob,alg,verbose=true, maxiters=1000)
 
 xs,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
