@@ -381,7 +381,7 @@ function get_derivative(dim,phi,autodiff,isuinplace)
     if autodiff # automatic differentiation (not implemented yet)
         # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
     else # numerical differentiation
-        epsilon = cbrt(eps(Float64))
+        epsilon = cbrt(eps(Float32))
         function get_ε(dim, der_num)
             ε = zeros(dim)
             ε[der_num] = epsilon
