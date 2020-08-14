@@ -231,7 +231,7 @@ chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
-phi,res = solve(prob,alg,verbose=true, maxiters=10000)
+phi,res = solve(prob,alg,verbose=true, maxiters=1000)
 ```
 
 We can plot the predicted solution of the PDE and its analytical solution.
@@ -246,4 +246,4 @@ x_plot = collect(xs)
 plot(x_plot ,u_real,label = "real" )
 plot!(x_plot ,u_predict, label = "predict")
 ```
-![hoodeplot](https://user-images.githubusercontent.com/12683885/89736787-b66ed600-da74-11ea-8bc7-d09dfff12300.png)
+![hodeplot](https://user-images.githubusercontent.com/12683885/90276340-69bc3e00-de6c-11ea-89a7-7d291123a38b.png)
