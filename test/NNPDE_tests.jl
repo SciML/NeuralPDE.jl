@@ -4,7 +4,7 @@ using DiffEqFlux
 println("Starting Soon!")
 using ModelingToolkit
 using DiffEqBase
-using Test, NeuralPDE
+using Test#, NeuralPDE
 using GalacticOptim
 
 ## Example 1, 1D ode
@@ -244,12 +244,20 @@ indvars = [x,t]
 depvars = [u]
 dim = length(domains)
 
-pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars)
-bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars) for bc in bcs]
+expr_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars)
+expr_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars) for bc in bcs]
+
 train_sets = NeuralPDE.generate_training_sets(domains,discretization,bcs,indvars,depvars)
-loss_function = NeuralPDE.get_loss_function(eval(pde_loss_function),
-                                            eval.(bc_loss_functions),
-                                            train_sets)
+
+train_domain_set, train_bound_set = train_sets
+
+pde_loss_function = NeuralPDE.get_loss_function(eval(expr_pde_loss_function),train_domain_set)
+bc_loss_function = NeuralPDE.get_loss_function(eval.(expr_bc_loss_functions),train_bound_set)
+
+function loss_function(θ, phi, derivative)
+    return pde_loss_function(θ, phi, derivative) + bc_loss_function(θ, phi, derivative)
+end
+
 prob = GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
 
 phi,res  = solve(prob,alg,verbose=true, maxiters=1000)

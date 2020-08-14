@@ -122,55 +122,6 @@ function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars)
 end
 
 """
-Example:
-
-1)  Take expressions in the form:
-
-    loss_functions = (derivative(1, x, y, 1, 2, θ) + derivative(1, x, y, 2, 2, θ)) - -(sin(πx)) * sin(πy)
-
-    to
-
-    :((phi, cord, θ, derivative)->begin
-          #= none:33 =#
-          #= none:33 =#
-          begin
-              begin
-                  u = ((x, y, θ)->begin
-                              #= none:18 =#
-                              (phi([x, y], θ))[1]
-                          end)
-              end
-              let (x, y) = (cord[1], cord[2])
-                  [(derivative(1, x, y, 1, 2, θ) + derivative(1, x, y, 2, 2, θ)) - -(sin(πx)) * sin(πy)]
-              end
-          end
-      end)
-"""
-function _build_loss_function(loss_functions,depvars,indvars,dict_depvars)
-    vars = :(phi, cord, θ, derivative)
-    ex = Expr(:block)
-    us = []
-    for v in depvars
-        var_num = dict_depvars[v]
-        push!(us,:($v = ($(indvars...), θ) -> phi([$(indvars...)],θ)[$var_num]))
-    end
-
-    u_ex = ModelingToolkit.build_expr(:block, us)
-    push!(ex.args,  u_ex)
-
-    indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(indvars)]
-    arg_pairs_indvars = indvars,indvars_ex
-
-    left_arg_pairs, right_arg_pairs = arg_pairs_indvars
-    vars_eq = Expr(:(=), ModelingToolkit.build_expr(:tuple, left_arg_pairs),
-                            ModelingToolkit.build_expr(:tuple, right_arg_pairs))
-    let_ex = Expr(:let, vars_eq, ModelingToolkit.build_expr(:vect, loss_functions))
-    push!(ex.args,  let_ex)
-
-    return :(($vars) -> begin $ex end)
-end
-
-"""
 Build loss function for pde or boundary condition
 
 # Examples: System of pde:
@@ -216,15 +167,33 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
     if !(eqs isa Array)
         eqs = [eqs]
     end
-    loss_funcs= []
+    loss_functions= []
     for eq in eqs
-        loss_func = parse_equation(eq,depvars,indvars,dict_indvars,dict_depvars)
-        push!(loss_funcs,loss_func)
+        loss_function = parse_equation(eq,depvars,indvars,dict_indvars,dict_depvars)
+        push!(loss_functions,loss_function)
     end
 
-    loss_function = _build_loss_function(loss_funcs,depvars,indvars,dict_depvars)
+    vars = :(phi, cord, θ, derivative)
+    ex = Expr(:block)
+    us = []
+    for v in depvars
+        var_num = dict_depvars[v]
+        push!(us,:($v = ($(indvars...), θ) -> phi([$(indvars...)],θ)[$var_num]))
+    end
 
-    return loss_function
+    u_ex = ModelingToolkit.build_expr(:block, us)
+    push!(ex.args,  u_ex)
+
+    indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(indvars)]
+    arg_pairs_indvars = indvars,indvars_ex
+
+    left_arg_pairs, right_arg_pairs = arg_pairs_indvars
+    vars_eq = Expr(:(=), ModelingToolkit.build_expr(:tuple, left_arg_pairs),
+                            ModelingToolkit.build_expr(:tuple, right_arg_pairs))
+    let_ex = Expr(:let, vars_eq, ModelingToolkit.build_expr(:vect, loss_functions))
+    push!(ex.args,  let_ex)
+
+    return :(($vars) -> begin $ex end)
 end
 
 # get agruments from bondary condition functions
@@ -289,35 +258,20 @@ function generate_training_sets(domains,discretization,bcs,indvars,depvars,dict_
     [train_domain_set,train_bound_set]
 end
 
-function get_loss_function(pde_loss_func, bc_loss_func, train_sets)
-    # the points in the domain and on the boundary
-    train_domain_set, train_bound_set = train_sets
+function get_loss_function(loss_function, train_set)
+    # norm coefficient for loss function
+    τ = sum(length(set) for set in train_set)
 
-    # coefficients for loss function
-    τb = sum(length(set) for set in train_bound_set)
-    τf = length(train_domain_set)
-
-    # Loss function for pde equation
-    function inner_domain_loss(phi, x, θ, derivative)
-        sum(pde_loss_func(phi, x, θ, derivative))
+    function inner_loss(loss_function,phi,x,θ,derivative)
+        sum(loss_function(phi, x, θ, derivative))
     end
 
-    # Loss function for initial and boundary conditions
-    function inner_bound_loss(f,phi,x,θ,derivative)
-        sum(f(phi, x, θ, derivative))
-    end
-
-    function loss_domain(θ, phi, derivative)
-        sum(abs2,inner_domain_loss(phi, x, θ, derivative) for x in train_domain_set)
-    end
-
-    function loss_boundary(θ, phi, derivative)
-       sum(sum(abs2,inner_bound_loss(f,phi,x,θ,derivative) for x in set) for (f,set) in zip(bc_loss_func,train_bound_set))
-    end
-
-    # General loss function
     function loss(θ, phi, derivative)
-        1.0f0/τf * loss_domain(θ, phi, derivative) + 1.0f0/τb * loss_boundary(θ, phi, derivative)
+        if (loss_function isa Array)
+            1.0f0/τ *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative) for x in set) for (l,set) in zip(loss_function,train_set))
+        else
+            1.0f0/τ *sum(abs2,inner_loss(loss_function, phi, x, θ, derivative) for x in train_set)
+        end
     end
     return loss
 end
@@ -340,16 +294,22 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     train_sets = generate_training_sets(domains,discretization,bcs,
                                         indvars,depvars,
                                         dict_indvars,dict_depvars)
+                                        
+    # the points in the domain and on the boundary
+    train_domain_set, train_bound_set = train_sets
 
-    pde_loss_function = build_loss_function(eqs,indvars,depvars,
+    expr_pde_loss_function = build_loss_function(eqs,indvars,depvars,
                                             dict_indvars,dict_depvars)
-    bc_loss_functions = [build_loss_function(bc,indvars,depvars,
+    expr_bc_loss_functions = [build_loss_function(bc,indvars,depvars,
                                              dict_indvars,dict_depvars) for bc in bcs]
 
-    # get loss_function
-    loss_function = get_loss_function(eval(pde_loss_function),
-                                      eval.(bc_loss_functions),
-                                      train_sets)
+    pde_loss_function = get_loss_function(eval(expr_pde_loss_function),train_domain_set)
+    bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),train_bound_set)
+
+    function loss_function(θ, phi, derivative)
+        return pde_loss_function(θ, phi, derivative) + bc_loss_function(θ, phi, derivative)
+    end
+
     dim = length(domains)
 
 	return GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
