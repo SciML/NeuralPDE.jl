@@ -7,6 +7,7 @@ using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
 using ModelingToolkit
 using GalacticOptim
+using Zygote: @nograd
 import Tracker, Optim
 
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end

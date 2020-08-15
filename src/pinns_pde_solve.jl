@@ -266,11 +266,27 @@ function get_loss_function(loss_function, train_set)
         sum(loss_function(phi, x, θ, derivative))
     end
 
-    function loss(θ, phi, derivative)
-        if (loss_function isa Array)
-            1.0f0/τ *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative) for x in set) for (l,set) in zip(loss_function,train_set))
+    if !(loss_function isa Array)
+        loss_function = [loss_function]
+        train_set = [train_set]
+    end
+
+    function loss(θ, phi, derivative, stochastic_loss)
+        if stochastic_loss
+            include_frac = 0.75
+            size_set = size(train_set[1])[1]
+            count_elements = convert(Int64,round(include_frac*size_set, digits=0))
+            total = 0.
+            for (j,l) in enumerate(loss_function)
+                for i in 1:count_elements
+                    index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
+                    total += inner_loss(l,phi,train_set[j][index],θ,derivative)^2
+                end
+            end
+            return (1.0f0/τ) * total
         else
-            1.0f0/τ *sum(abs2,inner_loss(loss_function, phi, x, θ, derivative) for x in train_set)
+            return (1.0f0/τ) *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative)
+                    for x in set) for (l,set) in zip(loss_function,train_set))
         end
     end
     return loss
@@ -306,11 +322,12 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     pde_loss_function = get_loss_function(eval(expr_pde_loss_function),train_domain_set)
     bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),train_bound_set)
 
-    function loss_function(θ, phi, derivative)
-        return pde_loss_function(θ, phi, derivative) + bc_loss_function(θ, phi, derivative)
-    end
-
     dim = length(domains)
+
+    function loss_function(θ, phi, derivative, stochastic_loss)
+        return pde_loss_function(θ, phi, derivative,stochastic_loss) +
+               bc_loss_function(θ, phi, derivative,stochastic_loss)
+    end
 
 	return GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
 end
@@ -381,7 +398,9 @@ function DiffEqBase.solve(
     args...;
     abstol = 1f-6,
     verbose = false,
-    maxiters = 100)
+    maxiters = 100,
+    stochastic_loss = true,
+    kwargs...)
 
 
     loss_function = prob.f
@@ -410,7 +429,7 @@ function DiffEqBase.solve(
     phi = get_phi(chain,isuinplace)
     derivative = get_derivative(dim,phi,autodiff,isuinplace)
 
-    loss = (θ) -> loss_function(θ, phi, derivative)
+    loss = (θ) -> loss_function(θ, phi, derivative, stochastic_loss)
 
     cb = function (p,l)
         verbose && println("Current loss is: $l")
