@@ -4,7 +4,7 @@ using DiffEqFlux
 println("Starting Soon!")
 using ModelingToolkit
 using DiffEqBase
-using Test#, NeuralPDE
+using Test, NeuralPDE
 using GalacticOptim
 
 ## Example 1, 1D ode
