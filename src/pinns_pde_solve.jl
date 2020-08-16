@@ -255,7 +255,7 @@ function generate_training_sets(domains,discretization,bcs,indvars,depvars,dict_
     flat_train_bound_set = collect(Iterators.flatten(train_bound_set))
     train_domain_set =  setdiff(train_set, flat_train_bound_set)
 
-    [train_domain_set,train_bound_set]
+    [train_domain_set,train_bound_set,train_set]
 end
 
 function get_loss_function(loss_function, train_set)
@@ -276,6 +276,9 @@ function get_loss_function(loss_function, train_set)
             include_frac = 0.75
             size_set = size(train_set[1])[1]
             count_elements = convert(Int64,round(include_frac*size_set, digits=0))
+            if count_elements < 4
+                count_elements = size_set
+            end    
             total = 0.
             for (j,l) in enumerate(loss_function)
                 for i in 1:count_elements
@@ -310,9 +313,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     train_sets = generate_training_sets(domains,discretization,bcs,
                                         indvars,depvars,
                                         dict_indvars,dict_depvars)
-                                        
+
     # the points in the domain and on the boundary
-    train_domain_set, train_bound_set = train_sets
+    train_domain_set,train_bound_set,train_set = train_sets
 
     expr_pde_loss_function = build_loss_function(eqs,indvars,depvars,
                                             dict_indvars,dict_depvars)
@@ -354,7 +357,7 @@ function get_derivative(dim,phi,autodiff,isuinplace)
     if autodiff # automatic differentiation (not implemented yet)
         # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
     else # numerical differentiation
-        epsilon = cbrt(eps(Float64))
+        epsilon = cbrt(eps(Float32))
         function get_ε(dim, der_num)
             ε = zeros(dim)
             ε[der_num] = epsilon

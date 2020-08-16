@@ -32,7 +32,7 @@ chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 alg = NeuralPDE.NNDE(chain,opt,autodiff=false)
-phi,res = solve(prob,alg,verbose=true, maxiters=1000)
+phi,res = solve(prob,alg,verbose=true, maxiters=1000, stochastic_loss = false)
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
 ts = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains][1]
@@ -41,6 +41,7 @@ u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
 @test u_predict ≈ u_real atol = 0.2
 
+# using Plots
 # t_plot = collect(ts)
 # plot(t_plot ,u_real)
 # plot!(t_plot ,u_predict)
@@ -123,7 +124,7 @@ xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
 u_real = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
 u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-@test u_predict ≈ u_real atol = 100.0
+@test u_predict ≈ u_real atol = 150.0
 
 # p1 =plot(xs, ys, u_predict, st=:surface);
 # p2 = plot(xs, ys, u_real, st=:surface);
@@ -139,11 +140,9 @@ u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys
 eq = Dxxx(u(x,θ)) ~ cos(pi*x)
 
 # Initial and boundary conditions
-# y(0) =0, y(1) =cos(pi)  ,y'(1)=1
 bcs = [u(0.,θ) ~ 0.0,
        u(1.,θ) ~ cos(pi),
        Dx(u(1.,θ)) ~ 1.0]
-# bcs = [u(0.,θ) ~ 0.0 , u(1.,θ) ~ 0.0, u(0.5,θ) ~ -0.055]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0)]
@@ -163,16 +162,15 @@ phi,res = solve(prob,alg,verbose=true, maxiters=2000)
 
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
 
-# analytic_sol_func(x) = (0.0909939*x - 0.0909939)*x - 0.0322515*sin(π*x)
 xs = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
 @test u_predict ≈ u_real atol = 10.0
 
-# x_plot = collect(xs)
-# plot(x_plot ,u_real)
-# plot!(x_plot ,u_predict)
+x_plot = collect(xs)
+plot(x_plot ,u_real)
+plot!(x_plot ,u_predict)
 
 ## Example 5, system of pde
 @parameters x, y, θ
@@ -205,13 +203,16 @@ phi,res = solve(prob,alg,verbose=true, maxiters=500)
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
 xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
-u_real  = [analytic_sol_func(x,y) for x in xs  for y in ys]
-u_predict  = [phi([x,y],res.minimizer) for x in xs  for y in ys]
+u_real  = [[analytic_sol_func(x,y)[i] for x in xs  for y in ys] for i in 1:2]
+u_predict  = [[phi([x,y],res.minimizer)[i] for x in xs  for y in ys] for i in 1:2]
+
+# p1 =plot(xs, ys, u_predict, st=:surface);
+# p2 = plot(xs, ys, u_real, st=:surface);
+# plot(p1,p2)
 
 @test u_predict ≈ u_real atol = 10.0
 
-## Example 6, 2d wave equation, neumann boundary condition
-#here we use inner functions for build solution
+## Example 6, 2d wave equation neumann boundary condition
 @parameters x, t, θ
 @variables u(..)
 @derivatives Dxx''~x
@@ -249,18 +250,18 @@ expr_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars) for 
 
 train_sets = NeuralPDE.generate_training_sets(domains,discretization,bcs,indvars,depvars)
 
-train_domain_set, train_bound_set = train_sets
+train_domain_set,train_bound_set,train_set= train_sets
 
 pde_loss_function = NeuralPDE.get_loss_function(eval(expr_pde_loss_function),train_domain_set)
 bc_loss_function = NeuralPDE.get_loss_function(eval.(expr_bc_loss_functions),train_bound_set)
 
-function loss_function(θ, phi, derivative)
-    return pde_loss_function(θ, phi, derivative) + bc_loss_function(θ, phi, derivative)
+function loss_function(θ, phi, derivative, stochastic_loss)
+    return pde_loss_function(θ, phi, derivative, stochastic_loss) + bc_loss_function(θ, phi, derivative, stochastic_loss)
 end
 
 prob = GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
 
-phi,res  = solve(prob,alg,verbose=true, maxiters=1000)
+phi,res  = solve(prob,alg,verbose=true, maxiters=1000, stochastic_loss = false)
 
 xs,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(x,t) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
