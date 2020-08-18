@@ -1,18 +1,20 @@
-struct PhysicsInformedNN{D,C,O,P,T,K}
+struct PhysicsInformedNN{D,C,P,PH,DER,T,K}
   dx::D
   chain::C
-  opt::O
   initθ::P
+  phi::PH
   autodiff::Bool
+  derivative::DER
   training_strategies::T
   kwargs::K
 end
 
 function PhysicsInformedNN(dx,
                            chain,
-                           opt=Flux.ADAM(0.1),
                            init_params = nothing;
+                           _phi = nothing,
                            autodiff=false,
+                           _derivative = nothing,
                            training_strategies = TrainingStrategies(),
                            kwargs...)
     if init_params === nothing
@@ -24,7 +26,22 @@ function PhysicsInformedNN(dx,
     else
         initθ = init_params
     end
-    PhysicsInformedNN(dx,chain,opt,initθ,autodiff,training_strategies, kwargs)
+    isuinplace = chain.layers[end].out == 1
+    dim = chain.layers[1].in
+
+    if _phi == nothing
+        phi = get_phi(chain,isuinplace)
+    else
+        phi = _phi
+    end
+
+    if _derivative == nothing
+        derivative = get_derivative(dim,phi,autodiff,isuinplace)
+    else
+        derivative = _derivative
+    end
+
+    PhysicsInformedNN(dx,chain,initθ,phi,autodiff,derivative, training_strategies, kwargs)
 end
 
 struct TrainingStrategies
@@ -416,7 +433,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     dx = discretization.dx
     chain = discretization.chain
     initθ = discretization.initθ
+    phi = discretization.phi
     autodiff = discretization.autodiff
+    derivative = discretization.derivative
     autodiff == true && error("Automatic differentiation is not support yet")
     training_strategies = discretization.training_strategies
 
@@ -432,12 +451,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     expr_bc_loss_functions = [build_loss_function(bc,indvars,depvars,
                                                   dict_indvars,dict_depvars) for bc in bcs]
 
-    # equation/system of equations
-    isuinplace = chain.layers[end].out == 1
-
-    phi = get_phi(chain,isuinplace)
-    derivative = get_derivative(dim,phi,autodiff,isuinplace)
-
     pde_loss_function = get_loss_function(eval(expr_pde_loss_function),
                                           train_domain_set,
                                           phi,
@@ -449,36 +462,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                          derivative,
                                          training_strategies)
 
-    function loss_function(θ)
+    function loss_function(θ,p)
         return pde_loss_function(θ) + bc_loss_function(θ)
     end
 
-    GalacticOptim.OptimizationProblem(loss_function, initθ, phi=phi, opt = discretization.opt)
+    GalacticOptim.OptimizationProblem(loss_function, initθ)
 end
-
-function DiffEqBase.solve(
-    prob::GalacticOptim.OptimizationProblem,
-    args...;
-    abstol = 1f-6,
-    verbose = false,
-    maxiters = 100,
-    kwargs...)
-
-    loss_function = prob.f
-    phi = prob.kwargs[:phi]
-    # optimizer
-    opt = prob.kwargs[:opt]
-    # weights of neural network
-    initθ = prob.x
-
-    loss = (θ) -> loss_function(θ)
-
-    cb = function (p,l)
-        verbose && println("Current loss is: $l")
-        l < abstol
-    end
-    # sol = GalacticOptim.solve(prob,BFGS())
-    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters)
-
-    phi ,res
-end #solve
