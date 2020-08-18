@@ -1,5 +1,55 @@
-struct PhysicsInformedNN{D}
+struct PhysicsInformedNN{D,C,P,PH,DER,T,K}
   dx::D
+  chain::C
+  initθ::P
+  phi::PH
+  autodiff::Bool
+  derivative::DER
+  training_strategies::T
+  kwargs::K
+end
+
+function PhysicsInformedNN(dx,
+                           chain,
+                           init_params = nothing;
+                           _phi = nothing,
+                           autodiff=false,
+                           _derivative = nothing,
+                           training_strategies = TrainingStrategies(),
+                           kwargs...)
+    if init_params === nothing
+        if chain isa FastChain
+            initθ = DiffEqFlux.initial_params(chain)
+        else
+            initθ,re  = Flux.destructure(chain)
+        end
+    else
+        initθ = init_params
+    end
+    isuinplace = chain.layers[end].out == 1
+    dim = chain.layers[1].in
+
+    if _phi == nothing
+        phi = get_phi(chain,isuinplace)
+    else
+        phi = _phi
+    end
+
+    if _derivative == nothing
+        derivative = get_derivative(dim,phi,autodiff,isuinplace)
+    else
+        derivative = _derivative
+    end
+
+    PhysicsInformedNN(dx,chain,initθ,phi,autodiff,derivative, training_strategies, kwargs)
+end
+
+struct TrainingStrategies
+    stochastic_loss::Bool
+end
+
+function TrainingStrategies(;stochastic_loss=true)
+    TrainingStrategies(stochastic_loss)
 end
 
 """
@@ -216,19 +266,18 @@ function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
     return bc_args
 end
 
-function generate_training_sets(domains,discretization,bcs,_indvars,_depvars)
+function generate_training_sets(domains,dx,bcs,_indvars,_depvars)
     indvars = Expr.(_indvars)
     depvars = [d.name for d in _depvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
-    return generate_training_sets(domains,discretization,bcs,indvars,depvars,dict_indvars,dict_depvars)
+    return generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict_depvars)
 end
 # Generate training set in the domain and on the boundary
-function generate_training_sets(domains,discretization,bcs,indvars,depvars,dict_indvars,dict_depvars)
-    if discretization.dx isa Array
-        dxs = discretization.dx
+function generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict_depvars)
+    if dx isa Array
+        dxs = dx
     else
-        dx = discretization.dx
         dxs = fill(dx,length(domains))
     end
 
@@ -255,67 +304,11 @@ function generate_training_sets(domains,discretization,bcs,indvars,depvars,dict_
     flat_train_bound_set = collect(Iterators.flatten(train_bound_set))
     train_domain_set =  setdiff(train_set, flat_train_bound_set)
 
-    [train_domain_set,train_bound_set]
-end
-
-function get_loss_function(loss_function, train_set)
-    # norm coefficient for loss function
-    τ = sum(length(set) for set in train_set)
-
-    function inner_loss(loss_function,phi,x,θ,derivative)
-        sum(loss_function(phi, x, θ, derivative))
-    end
-
-    function loss(θ, phi, derivative)
-        if (loss_function isa Array)
-            1.0f0/τ *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative) for x in set) for (l,set) in zip(loss_function,train_set))
-        else
-            1.0f0/τ *sum(abs2,inner_loss(loss_function, phi, x, θ, derivative) for x in train_set)
-        end
-    end
-    return loss
-end
-
-# Convert a PDE problem into OptimizationProblem
-function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    eqs = pde_system.eq
-    bcs = pde_system.bcs
-    if eqs isa Array
-        for bc in bcs
-            size(eqs) != size(bc) && error("PDE and Boundary conditions should have the same dimentional")
-        end
-    end
-    domains = pde_system.domain
-    depvars = [d.name for d in pde_system.depvars]
-    indvars = Expr.(pde_system.indvars)
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
-
-    train_sets = generate_training_sets(domains,discretization,bcs,
-                                        indvars,depvars,
-                                        dict_indvars,dict_depvars)
-                                        
-    # the points in the domain and on the boundary
-    train_domain_set, train_bound_set = train_sets
-
-    expr_pde_loss_function = build_loss_function(eqs,indvars,depvars,
-                                            dict_indvars,dict_depvars)
-    expr_bc_loss_functions = [build_loss_function(bc,indvars,depvars,
-                                             dict_indvars,dict_depvars) for bc in bcs]
-
-    pde_loss_function = get_loss_function(eval(expr_pde_loss_function),train_domain_set)
-    bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),train_bound_set)
-
-    function loss_function(θ, phi, derivative)
-        return pde_loss_function(θ, phi, derivative) + bc_loss_function(θ, phi, derivative)
-    end
-
-    dim = length(domains)
-
-	return GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
+    [train_domain_set,train_bound_set,train_set]
 end
 
 function get_phi(chain,isuinplace)
+    # The phi trial solution
     if chain isa FastChain
         if isuinplace
             phi = (x,θ) -> first(chain(adapt(typeof(θ),x),θ))
@@ -337,7 +330,7 @@ function get_derivative(dim,phi,autodiff,isuinplace)
     if autodiff # automatic differentiation (not implemented yet)
         # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
     else # numerical differentiation
-        epsilon = cbrt(eps(Float64))
+        epsilon = cbrt(eps(Float32))
         function get_ε(dim, der_num)
             ε = zeros(dim)
             ε[der_num] = epsilon
@@ -375,48 +368,103 @@ function get_derivative(dim,phi,autodiff,isuinplace)
     derivative
 end
 
-function DiffEqBase.solve(
-    prob::GalacticOptim.OptimizationProblem,
-    alg::NNDE,
-    args...;
-    abstol = 1f-6,
-    verbose = false,
-    maxiters = 100)
+function get_loss_function(loss_function, train_set, phi, derivative, training_strategies)
+
+    stochastic_loss = training_strategies.stochastic_loss
+
+    # norm coefficient for loss function
+    τ = sum(length(set) for set in train_set)
+
+    function inner_loss(loss_function,phi,x,θ,derivative)
+        sum(loss_function(phi, x, θ, derivative))
+    end
+
+    if !(loss_function isa Array)
+        loss_function = [loss_function]
+        train_set = [train_set]
+    end
 
 
-    loss_function = prob.f
+    function loss(θ)
+        if stochastic_loss
+            include_frac = 0.75
+            size_set = size(train_set[1])[1]
+            count_elements = convert(Int64,round(include_frac*size_set, digits=0))
+            if count_elements < 4
+                count_elements = size_set
+            end
+            total = 0.
+            for (j,l) in enumerate(loss_function)
+                for i in 1:count_elements
+                    index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
+                    total += inner_loss(l,phi,train_set[j][index],θ,derivative)^2
+                end
+            end
+            return (1.0f0/τ) * total
+        else
+            return (1.0f0/τ) *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative)
+                    for x in set) for (l,set) in zip(loss_function,train_set))
+        end
+    end
+    return loss
+end
 
+
+# Convert a PDE problem into OptimizationProblem
+function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN) #TODO #add_loss_cond=nothing)
+    eqs = pde_system.eq
+    bcs = pde_system.bcs
+    if eqs isa Array
+        for bc in bcs
+            size(eqs) != size(bc) && error("PDE and Boundary conditions should have the same size")
+        end
+    end
+
+    domains = pde_system.domain
     # dimensionality of equation
-    dim = length(prob.x)
-
+    dim = length(domains)
     dim > 3 && error("While only dimensionality no more than 3")
 
-    # neural network
-    chain  = alg.chain
-    # optimizer
-    opt    = alg.opt
-    # AD flag
-    autodiff = alg.autodiff
+    depvars = [d.name for d in pde_system.depvars]
+    indvars = Expr.(pde_system.indvars)
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
 
+    dx = discretization.dx
+    chain = discretization.chain
+    initθ = discretization.initθ
+    phi = discretization.phi
+    autodiff = discretization.autodiff
+    derivative = discretization.derivative
     autodiff == true && error("Automatic differentiation is not support yet")
+    training_strategies = discretization.training_strategies
 
-    # weights of neural network
-    initθ = alg.initθ
+    train_sets = generate_training_sets(domains,dx,bcs,
+                                        indvars,depvars,
+                                        dict_indvars,dict_depvars)
 
-    # equation/system of equations
-    isuinplace = chain.layers[end].out == 1
+    # the points in the domain and on the boundary
+    train_domain_set,train_bound_set,train_set = train_sets
 
-    # The phi trial solution
-    phi = get_phi(chain,isuinplace)
-    derivative = get_derivative(dim,phi,autodiff,isuinplace)
+    expr_pde_loss_function = build_loss_function(eqs,indvars,depvars,
+                                                 dict_indvars,dict_depvars)
+    expr_bc_loss_functions = [build_loss_function(bc,indvars,depvars,
+                                                  dict_indvars,dict_depvars) for bc in bcs]
 
-    loss = (θ) -> loss_function(θ, phi, derivative)
+    pde_loss_function = get_loss_function(eval(expr_pde_loss_function),
+                                          train_domain_set,
+                                          phi,
+                                          derivative,
+                                          training_strategies)
+    bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
+                                         train_bound_set,
+                                         phi,
+                                         derivative,
+                                         training_strategies)
 
-    cb = function (p,l)
-        verbose && println("Current loss is: $l")
-        l < abstol
+    function loss_function(θ,p)
+        return pde_loss_function(θ) + bc_loss_function(θ)
     end
-    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters, alg.kwargs...)
 
-    phi ,res
-end #solve
+    GalacticOptim.OptimizationProblem(loss_function, initθ)
+end
