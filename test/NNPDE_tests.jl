@@ -42,7 +42,7 @@ discretization = NeuralPDE.PhysicsInformedNN(dt,
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=200)
+res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=100)
 phi = discretization.phi
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -85,7 +85,7 @@ discretization = NeuralPDE.PhysicsInformedNN(dx,
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=600)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=200)
 phi = discretization.phi
 
 xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
@@ -131,7 +131,7 @@ discretization = NeuralPDE.PhysicsInformedNN(dx,
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=400)
 phi = discretization.phi
 
 xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
@@ -220,7 +220,7 @@ initθ = discretization.initθ
 p = DiffEqBase.NullParameters()
 loss = (θ) -> prob.f.f(θ,p)
 
-res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=500)
+res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=700)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
