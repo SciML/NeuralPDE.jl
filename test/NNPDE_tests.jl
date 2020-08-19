@@ -42,29 +42,20 @@ discretization = NeuralPDE.PhysicsInformedNN(dt,
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-initθ = discretization.initθ
-p = DiffEqBase.NullParameters()
-loss = (θ) -> prob.f(θ,p)
-
-res1 = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=1000)
-res2 = GalacticOptim.solve(prob,NelderMead(); cb = cb, maxiters=10000)
+res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=200)
 phi = discretization.phi
-
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
 ts = [domain.domain.lower:dt/10:domain.domain.upper for domain in domains][1]
 u_real  = [analytic_sol_func(t) for t in ts]
-u_predict1  = [first(phi(t,res1.minimizer)) for t in ts]
-u_predict2  = [first(phi(t,res2.minimizer)) for t in ts]
+u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
-@test u_predict1 ≈ u_real atol = 0.2
-@test u_predict2 ≈ u_real atol = 0.2
+@test u_predict ≈ u_real atol = 0.2
 
 # using Plots
 # t_plot = collect(ts)
 # plot(t_plot ,u_real)
-# plot!(t_plot ,u_predict1)
-# plot!(t_plot ,u_predict2)
+# plot!(t_plot ,u_predict)
 
 ## Example 2, 2D Poisson equation
 @parameters x y θ
@@ -87,18 +78,14 @@ dx = 0.1
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = NeuralPDE.PhysicsInformedNN(dx,chain,training_strategies= NeuralPDE.TrainingStrategies(stochastic_loss=true))
+discretization = NeuralPDE.PhysicsInformedNN(dx,
+                                             chain,
+                                             training_strategies= NeuralPDE.TrainingStrategies(stochastic_loss=false))
 
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-# phi,res  = solve(prob,verbose=true, maxiters=600)
-initθ = discretization.initθ
-p = DiffEqBase.NullParameters()
-loss = (θ) -> prob.f(θ,p)
-
-res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=600)
-# res = GalacticOptim.solve(prob,NelderMead(); cb = cb, maxiters=5000)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=600)
 phi = discretization.phi
 
 xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
@@ -138,22 +125,20 @@ dx = 0.25
 # Neural network
 chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = NeuralPDE.PhysicsInformedNN(dx,chain,training_strategies =NeuralPDE.TrainingStrategies(stochastic_loss=true))
+discretization = NeuralPDE.PhysicsInformedNN(dx,
+                                             chain,
+                                             training_strategies=NeuralPDE.TrainingStrategies(stochastic_loss=false))
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-initθ = discretization.initθ
-p = DiffEqBase.NullParameters()
-loss = (θ) -> prob.f(θ,p)
-res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=1000)
-# res = GalacticOptim.solve(prob, NelderMead(); cb = cb, maxiters=5000)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
 u_real = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
 u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-@test u_predict ≈ u_real atol = 200.0
+@test u_predict ≈ u_real atol = 100.0
 
 # p1 =plot(xs, ys, u_predict, st=:surface);
 # p2 = plot(xs, ys, u_real, st=:surface);
@@ -188,10 +173,9 @@ prob = NeuralPDE.discretize(pde_system,discretization)
 
 initθ = discretization.initθ
 p = DiffEqBase.NullParameters()
-loss = (θ) -> prob.f(θ,p)
+loss = (θ) -> prob.f.f(θ,p)
 
 res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=2000)
-# res = GalacticOptim.solve(prob,NelderMead(); cb = cb, maxiters=5000)
 phi = discretization.phi
 
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
@@ -234,10 +218,9 @@ prob = NeuralPDE.discretize(pde_system,discretization)
 
 initθ = discretization.initθ
 p = DiffEqBase.NullParameters()
-loss = (θ) -> prob.f(θ,p)
+loss = (θ) -> prob.f.f(θ,p)
 
 res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=500)
-# res = GalacticOptim.solve(prob,NelderMead(); cb = cb, maxiters=5000)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
@@ -316,9 +299,6 @@ end
 
 initθ = discretization.initθ
 res = DiffEqFlux.sciml_train(loss_function, initθ, Flux.ADAM(0.1); cb = cb, maxiters=1000)
-
-# prob = GalacticOptim.OptimizationProblem(loss_function,initθ)
-# res = GalacticOptim.solve(prob,NelderMead(); cb = cb, maxiters=1000)
 
 xs,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(x,t) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])

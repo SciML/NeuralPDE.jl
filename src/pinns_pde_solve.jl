@@ -388,13 +388,13 @@ function get_loss_function(loss_function, train_set, phi, derivative, training_s
     function loss(θ)
         if stochastic_loss
             include_frac = 0.75
-            size_set = size(train_set[1])[1]
-            count_elements = convert(Int64,round(include_frac*size_set, digits=0))
-            if count_elements < 4
-                count_elements = size_set
-            end
             total = 0.
             for (j,l) in enumerate(loss_function)
+                size_set = size(train_set[j])[1]
+                count_elements = convert(Int64,round(include_frac*size_set, digits=0))
+                if count_elements <= 2
+                    count_elements = size_set
+                end
                 for i in 1:count_elements
                     index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
                     total += inner_loss(l,phi,train_set[j][index],θ,derivative)^2
@@ -466,5 +466,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         return pde_loss_function(θ) + bc_loss_function(θ)
     end
 
-    GalacticOptim.OptimizationProblem(loss_function, initθ)
+    f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
+    GalacticOptim.OptimizationProblem(f, initθ)
 end
