@@ -1,10 +1,11 @@
-struct PhysicsInformedNN{D,C,P,PH,DER,T,K}
+struct PhysicsInformedNN{D,C,P,PH,DER,A,T,K}
   dx::D
   chain::C
   initθ::P
   phi::PH
   autodiff::Bool
   derivative::DER
+  additional_condtions::A
   training_strategies::T
   kwargs::K
 end
@@ -14,10 +15,11 @@ function PhysicsInformedNN(dx,
                            init_params = nothing;
                            _phi = nothing,
                            autodiff=false,
+                           additional_condtions = nothing,
                            _derivative = nothing,
                            training_strategies = TrainingStrategies(),
                            kwargs...)
-    if init_params === nothing
+    if init_params == nothing
         if chain isa FastChain
             initθ = DiffEqFlux.initial_params(chain)
         else
@@ -41,7 +43,7 @@ function PhysicsInformedNN(dx,
         derivative = _derivative
     end
 
-    PhysicsInformedNN(dx,chain,initθ,phi,autodiff,derivative, training_strategies, kwargs)
+    PhysicsInformedNN(dx,chain,initθ,phi,autodiff,derivative,additional_condtions,training_strategies, kwargs)
 end
 
 struct TrainingStrategies
@@ -368,12 +370,9 @@ function get_derivative(dim,phi,autodiff,isuinplace)
     derivative
 end
 
-function get_loss_function(loss_function, train_set, phi, derivative, training_strategies)
+function get_loss_function(loss_function, train_set, τ, phi, derivative, training_strategies)
 
     stochastic_loss = training_strategies.stochastic_loss
-
-    # norm coefficient for loss function
-    τ = sum(length(set) for set in train_set)
 
     function inner_loss(loss_function,phi,x,θ,derivative)
         sum(loss_function(phi, x, θ, derivative))
@@ -411,7 +410,7 @@ end
 
 
 # Convert a PDE problem into OptimizationProblem
-function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN) #TODO #add_loss_cond=nothing)
+function DiffEqBase.discretize(pde_system::PDESystem,discretization::PhysicsInformedNN)
     eqs = pde_system.eq
     bcs = pde_system.bcs
     if eqs isa Array
@@ -451,19 +450,41 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     expr_bc_loss_functions = [build_loss_function(bc,indvars,depvars,
                                                   dict_indvars,dict_depvars) for bc in bcs]
 
+    # norm coefficient for loss function
+    τ = sum(length(set) for set in train_domain_set)
     pde_loss_function = get_loss_function(eval(expr_pde_loss_function),
                                           train_domain_set,
+                                          τ,
                                           phi,
                                           derivative,
                                           training_strategies)
+    τ = sum(length(set) for set in train_bound_set)
     bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
                                          train_bound_set,
+                                         τ,
                                          phi,
                                          derivative,
                                          training_strategies)
 
+
+    loss_functions = [pde_loss_function, bc_loss_function]
+    additional_condtions = discretization.additional_condtions
+    if !(additional_condtions == nothing)
+        expr_add_loss_function = [build_loss_function(additional_condtion,
+                                                     indvars,depvars,
+                                                     dict_indvars,dict_depvars) for additional_condtion in additional_condtions]
+
+        add_loss_function = get_loss_function(eval.(expr_add_loss_function),
+                                              train_domain_set,
+                                              1,
+                                              phi,
+                                              derivative,
+                                              training_strategies)
+        push!(loss_functions, add_loss_function)
+    end
+
     function loss_function(θ,p)
-        return pde_loss_function(θ) + bc_loss_function(θ)
+        sum([lf(θ) for lf in loss_functions])
     end
 
     f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
