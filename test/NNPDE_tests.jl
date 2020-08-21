@@ -22,7 +22,7 @@ end
 eq = Dt(u(t,θ)) ~ t^3 + 2*t + (t^2)*((1+3*(t^2))/(1+t+(t^3))) - u(t,θ)*(t + ((1+3*(t^2))/(1+t+t^3)))
 
 # Initial and boundary conditions
-bcs = [u(0.,θ) ~ 1.0 , u(1.,θ) ~ 1.202]
+bcs = [u(0.,θ) ~ 1.0]
 
 # Space and time domains
 domains = [t ∈ IntervalDomain(0.0,1.0)]
@@ -37,6 +37,7 @@ discretization = NeuralPDE.PhysicsInformedNN(dt,
                                              phi = nothing,
                                              autodiff=false,
                                              derivative = nothing,
+                                             additional_condtions = nothing,
                                              training_strategies = NeuralPDE.TrainingStrategies(stochastic_loss=false))
 
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
@@ -211,8 +212,8 @@ dx = 0.1
 
 # Neural network
 chain = FastChain(FastDense(2,8,Flux.σ),FastDense(8,2))
-
-discretization = NeuralPDE.PhysicsInformedNN(dx,chain)
+additional_condtions = [3*u1(x,y,θ) ~ 2*u2(x,y,θ)]
+discretization = NeuralPDE.PhysicsInformedNN(dx,chain,additional_condtions=additional_condtions)
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
@@ -220,7 +221,7 @@ initθ = discretization.initθ
 p = DiffEqBase.NullParameters()
 loss = (θ) -> prob.f.f(θ,p)
 
-res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=700)
+res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=500)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
@@ -281,14 +282,18 @@ isuinplace = chain.layers[end].out == 1
 phi = discretization.phi
 autodiff = discretization.autodiff
 derivative = discretization.derivative
-
+τd = Float32(length(train_domain_set))
 pde_loss_function = NeuralPDE.get_loss_function(eval(expr_pde_loss_function),
                                       train_domain_set,
+                                      τd,
                                       phi,
                                       derivative,
                                       training_strategies)
+
+τb = Float32(length(train_bound_set[1])*length(train_bound_set))
 bc_loss_function = NeuralPDE.get_loss_function(eval.(expr_bc_loss_functions),
                                      train_bound_set,
+                                     τb,
                                      phi,
                                      derivative,
                                      training_strategies)

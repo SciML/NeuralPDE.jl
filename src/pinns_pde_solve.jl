@@ -413,11 +413,6 @@ end
 function DiffEqBase.discretize(pde_system::PDESystem,discretization::PhysicsInformedNN)
     eqs = pde_system.eq
     bcs = pde_system.bcs
-    if eqs isa Array
-        for bc in bcs
-            size(eqs) != size(bc) && error("PDE and Boundary conditions should have the same size")
-        end
-    end
 
     domains = pde_system.domain
     # dimensionality of equation
@@ -451,14 +446,15 @@ function DiffEqBase.discretize(pde_system::PDESystem,discretization::PhysicsInfo
                                                   dict_indvars,dict_depvars) for bc in bcs]
 
     # norm coefficient for loss function
-    τ = sum(length(set) for set in train_domain_set)
+    τ = Float32(length(train_domain_set))
     pde_loss_function = get_loss_function(eval(expr_pde_loss_function),
                                           train_domain_set,
                                           τ,
                                           phi,
                                           derivative,
                                           training_strategies)
-    τ = sum(length(set) for set in train_bound_set)
+
+    τ = Float32(length(train_bound_set[1])*length(train_bound_set))
     bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
                                          train_bound_set,
                                          τ,
@@ -473,10 +469,11 @@ function DiffEqBase.discretize(pde_system::PDESystem,discretization::PhysicsInfo
         expr_add_loss_function = [build_loss_function(additional_condtion,
                                                      indvars,depvars,
                                                      dict_indvars,dict_depvars) for additional_condtion in additional_condtions]
-
+        τ = Float32(length(train_set))
+        train_set_ = fill(train_set, length(expr_add_loss_function))
         add_loss_function = get_loss_function(eval.(expr_add_loss_function),
-                                              train_domain_set,
-                                              1,
+                                              train_set_,
+                                              τ,
                                               phi,
                                               derivative,
                                               training_strategies)
