@@ -30,7 +30,7 @@ the documentation, which contains the unreleased features.
 ## Example: Solving 2D Poisson Equation via Physics-Informed Neural Networks
 
 ```julia
-using NeuralPDE, ModelingToolkit
+using NeuralPDE, ModelingToolkit, GalacticOptim, Optim
 
 @parameters x y θ
 @variables u(..)
@@ -48,18 +48,26 @@ domains = [x ∈ IntervalDomain(0.0,1.0),
            y ∈ IntervalDomain(0.0,1.0)]
 # Discretization
 dx = 0.1
-discretization = PhysicsInformedNN(dx)
 
-# Neural network and optimizer
-opt = Flux.ADAM(0.02)
+# Neural network
 dim = 2 # number of dimensions
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
+training_strategies= TrainingStrategies(stochastic_loss=false)
+discretization = PhysicsInformedNN(dx,
+                                   chain,
+                                   training_strategies = training_strategies)
+
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)
-alg = NNDE(chain,opt,autodiff=false)
 
-phi,res  = solve(prob,alg,verbose=true, maxiters=5000)
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+
+res = GalacticOptim.solve(prob, Optim.BFGS(); cb = cb, maxiters=1000)
+phi = discretization.phi
 ```
 
 And some analysis:
@@ -79,7 +87,7 @@ p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 plot(p1,p2,p3)
 ```
 
-![image](https://user-images.githubusercontent.com/12683885/88482882-cbc00c80-cf6c-11ea-91bb-47a477f38af6.png)
+![image](https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png)
 
 ## Example: Solving a 100 Dimensional Hamilton-Jacobi-Bellman Equation
 
