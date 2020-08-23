@@ -89,14 +89,11 @@ end
 """
 Algorithm for solving differential equation using neural network.
 
-```julia
-NeuralPDE.NNStopping(chain, opt, sdealg, ensemblealg )
-```
 Arguments:
-- `chain`: A Chain neural network
-- `opt`: The optimiser to train the neural network. Defaults to `BFGS()`
-- `initθ`: The initial parameter of the neural network
-- `autodiff`: The switch between automatic and numerical differentiation
+* `chain`: A Chain neural network
+* `opt`: The optimiser to train the neural network. Defaults to `BFGS()`
+* `initθ`: The initial parameter of the neural network
+* `autodiff`: The switch between automatic and numerical differentiation
 """
 struct NNDE{C,O,P,K} <: NeuralPDEAlgorithm
     chain::C

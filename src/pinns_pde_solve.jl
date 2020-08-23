@@ -1,3 +1,16 @@
+"""
+Algorithm for solving Physics Informed Neural Networks problem.
+
+Arguments:
+* `dx` is discretization of grid
+* `chain` is a Flux.jl chain with d dimensional input and 1 dimensional output,
+* `init_params` is the initial parameter of the neural network,
+* `phi` is trial solution,
+* `autodiff` is a boolean variable that determines whether to use automatic, differentiation(not supported while) or numerical,
+* `derivative` is method that calculate derivative,
+* `training_strategies` is determines which training strategy will be used.
+"""
+
 struct PhysicsInformedNN{D,C,P,PH,DER,T,K}
   dx::D
   chain::C
@@ -414,11 +427,6 @@ end
 function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN) #TODO #add_loss_cond=nothing)
     eqs = pde_system.eq
     bcs = pde_system.bcs
-    if eqs isa Array
-        for bc in bcs
-            size(eqs) != size(bc) && error("PDE and Boundary conditions should have the same size")
-        end
-    end
 
     domains = pde_system.domain
     # dimensionality of equation
