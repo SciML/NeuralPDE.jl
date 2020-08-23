@@ -167,15 +167,16 @@ dx = 0.1
 # Neural network
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 
-discretization = NeuralPDE.PhysicsInformedNN(dx,chain)
+training_strategies= NeuralPDE.TrainingStrategies(stochastic_loss=false)
+discretization = NeuralPDE.PhysicsInformedNN(dx,chain,training_strategies=training_strategies)
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-initθ = discretization.initθ
-p = DiffEqBase.NullParameters()
-loss = (θ) -> prob.f.f(θ,p)
-
-res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=2000)
+# initθ = discretization.initθ
+# p = DiffEqBase.NullParameters()
+# loss = (θ) -> prob.f.f(θ,p)
+# res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=400)
 phi = discretization.phi
 
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
@@ -211,16 +212,17 @@ dx = 0.1
 
 # Neural network
 chain = FastChain(FastDense(2,8,Flux.σ),FastDense(8,2))
-
-discretization = NeuralPDE.PhysicsInformedNN(dx,chain)
+training_strategies= NeuralPDE.TrainingStrategies(stochastic_loss=false)
+discretization = NeuralPDE.PhysicsInformedNN(dx,chain,training_strategies=training_strategies)
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-initθ = discretization.initθ
-p = DiffEqBase.NullParameters()
-loss = (θ) -> prob.f.f(θ,p)
+# initθ = discretization.initθ
+# p = DiffEqBase.NullParameters()
+# loss = (θ) -> prob.f.f(θ,p)
+# res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=700)
 
-res = DiffEqFlux.sciml_train(loss, initθ, Flux.ADAM(0.1); cb = cb, maxiters=700)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=300)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
@@ -264,6 +266,10 @@ chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 training_strategies= NeuralPDE.TrainingStrategies(stochastic_loss=false)
 discretization = NeuralPDE.PhysicsInformedNN(dx,chain,training_strategies=training_strategies)
 
+phi = discretization.phi
+derivative = discretization.derivative
+initθ = discretization.initθ
+
 indvars = [x,t]
 depvars = [u]
 dim = length(domains)
@@ -274,13 +280,6 @@ expr_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars) for 
 train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
 
 train_domain_set,train_bound_set,train_set= train_sets
-
-# equation/system of equations
-isuinplace = chain.layers[end].out == 1
-
-phi = discretization.phi
-autodiff = discretization.autodiff
-derivative = discretization.derivative
 
 pde_loss_function = NeuralPDE.get_loss_function(eval(expr_pde_loss_function),
                                       train_domain_set,
@@ -293,12 +292,15 @@ bc_loss_function = NeuralPDE.get_loss_function(eval.(expr_bc_loss_functions),
                                      derivative,
                                      training_strategies)
 
-function loss_function(θ)
+function loss_function(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
 end
 
-initθ = discretization.initθ
-res = DiffEqFlux.sciml_train(loss_function, initθ, Flux.ADAM(0.1); cb = cb, maxiters=1000)
+f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
+prob = GalacticOptim.OptimizationProblem(f, initθ)
+
+# res = DiffEqFlux.sciml_train(loss_function, initθ, Flux.ADAM(0.1); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=400)
 
 xs,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(x,t) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
