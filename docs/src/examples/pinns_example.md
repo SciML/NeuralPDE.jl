@@ -461,4 +461,75 @@ plot(p1,p2,p3)
 
 ![burgers](https://user-images.githubusercontent.com/12683885/90984874-a0870800-e580-11ea-9fd4-af8a4e3c523e.png)
 
+
 ![burgers2](https://user-images.githubusercontent.com/12683885/90984856-8c430b00-e580-11ea-9206-1a88ebd24ca0.png)
+
+## Example 7 :  Kuramoto–Sivashinsky equation
+
+Let's consider Kuramoto–Sivashinsky equation with 4rd order derivative:
+
+![KS](https://user-images.githubusercontent.com/12683885/91025423-09fb2b00-e602-11ea-8f5c-61e49e4fb54e.png)
+
+with initial and boundary conditions:
+![bs](https://user-images.githubusercontent.com/12683885/91025570-3fa01400-e602-11ea-8fd7-5b0e250a67a4.png)
+
+
+```julia
+@parameters x, t, θ
+@variables u(..)
+@derivatives Dt'~t
+@derivatives Dx'~x
+@derivatives Dx2''~x
+@derivatives Dx3'''~x
+@derivatives Dx4''''~x
+
+α = 1
+β = 4
+γ = 1
+eq = Dt(u(x,t,θ)) + u(x,t,θ)*Dx(u(x,t,θ)) + α*Dx2(u(x,t,θ)) + β*Dx3(u(x,t,θ)) + γ*Dx4(u(x,t,θ)) ~ 0
+
+u_analytic(x,t;z = -x/2+t) = 11 + 15*tanh(z) -15*tanh(z)^2 - 15*tanh(z)^3
+du(x,t;z = -x/2+t) = 15/2*(tanh(z) + 1)*(3*tanh(z) - 1)*sech(z)^2
+
+bcs = [u(x,0,θ) ~ u_analytic(x,0),
+       u(-10,t,θ) ~ u_analytic(-10,t),
+       u(10,t,θ) ~ u_analytic(10,t),
+       Dx(u(-10,t,θ)) ~ du(-10,t),
+       Dx(u(10,t,θ)) ~ du(10,t)]
+
+# Space and time domains
+domains = [x ∈ IntervalDomain(-10.0,10.0),
+                 t ∈ IntervalDomain(0.0,1.0)]
+# Discretization
+dx = 0.4; dt = 0.2
+
+# Neural network
+chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+
+discretization = NeuralPDE.PhysicsInformedNN([dx,dt],
+                                             chain,
+                                             training_strategies = NeuralPDE.TrainingStrategies(stochastic_loss=false))
+pde_system = PDESystem(eq,bcs,domains,[x,t],[u])
+prob = NeuralPDE.discretize(pde_system,discretization)
+
+opt = Optim.BFGS()
+res = GalacticOptim.solve(prob,opt; cb = cb, maxiters=2000)
+phi = discretization.phi
+```
+
+And some analysis:
+
+```julia
+xs,ts = [domain.domain.lower:dx:domain.domain.upper for (domain,dx) in zip(domains,[dx/10,dt])]
+
+u_predict = [[first(phi([x,t],res.minimizer)) for x in xs] for t in ts]
+u_real = [[u_analytic(x,t) for x in xs] for t in ts]
+diff_u = [[abs(u_analytic(x,t) -first(phi([x,t],res.minimizer)))  for x in xs] for t in ts]
+
+p1 =plot(xs,u_predict,title = "predict")
+p2 =plot(xs,u_real,title = "analytic")
+p3 =plot(xs,diff_u,title = "error")
+plot(p1,p2,p3)
+```
+
+![plotks](https://user-images.githubusercontent.com/12683885/91025889-a6253200-e602-11ea-8f61-8e6e2488e025.png)
