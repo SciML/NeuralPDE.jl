@@ -8,7 +8,7 @@ Arguments:
 * `phi` is trial solution,
 * `autodiff` is a boolean variable that determines whether to use automatic, differentiation(not supported while) or numerical,
 * `derivative` is method that calculate derivative,
-* `training_strategies` is determines which training strategy will be used.
+* `strategy` is determines which training strategy will be used.
 """
 
 struct PhysicsInformedNN{D,C,P,PH,DER,T,K}
@@ -18,7 +18,7 @@ struct PhysicsInformedNN{D,C,P,PH,DER,T,K}
   phi::PH
   autodiff::Bool
   derivative::DER
-  training_strategies::T
+  strategy::T
   kwargs::K
 end
 
@@ -28,7 +28,7 @@ function PhysicsInformedNN(dx,
                            _phi = nothing,
                            autodiff=false,
                            _derivative = nothing,
-                           training_strategies = TrainingStrategies(),
+                           strategy = GridTraining(),
                            kwargs...)
     if init_params === nothing
         if chain isa FastChain
@@ -54,15 +54,18 @@ function PhysicsInformedNN(dx,
         derivative = _derivative
     end
 
-    PhysicsInformedNN(dx,chain,initθ,phi,autodiff,derivative, training_strategies, kwargs)
+    PhysicsInformedNN(dx,chain,initθ,phi,autodiff,derivative, strategy, kwargs)
 end
 
-struct TrainingStrategies
-    stochastic_loss::Bool
-end
+abstract type TrainingStrategies  end
 
-function TrainingStrategies(;stochastic_loss=true)
-    TrainingStrategies(stochastic_loss)
+struct GridTraining <: TrainingStrategies end
+
+struct StochasticTraining <:TrainingStrategies
+    include_frac::Float64
+end
+function StochasticTraining(;include_frac=0.75)
+    StochasticTraining(include_frac)
 end
 
 """
@@ -381,9 +384,7 @@ function get_derivative(dim,phi,autodiff,isuinplace)
     derivative
 end
 
-function get_loss_function(loss_function, train_set, phi, derivative, training_strategies)
-
-    stochastic_loss = training_strategies.stochastic_loss
+function get_loss_function(loss_function, train_set, phi, derivative, strategy)
 
     # norm coefficient for loss function
     τ = sum(length(set) for set in train_set)
@@ -397,34 +398,44 @@ function get_loss_function(loss_function, train_set, phi, derivative, training_s
         train_set = [train_set]
     end
 
-
-    function loss(θ)
-        if stochastic_loss
-            include_frac = 0.75
+    if strategy isa StochasticTraining
+        include_frac = strategy.include_frac
+        count_elements = []
+        sets_size = []
+        for j in 1:length(train_set)
+            size_set = size(train_set[j])[1]
+            count_element = convert(Int64,round(include_frac*size_set, digits=0))
+            if count_element <= 2
+                count_element = size_set
+            end
+            push!(sets_size,size_set)
+            push!(count_elements,count_element)
+        end
+        loss = (θ) -> begin
             total = 0.
             for (j,l) in enumerate(loss_function)
-                size_set = size(train_set[j])[1]
-                count_elements = convert(Int64,round(include_frac*size_set, digits=0))
-                if count_elements <= 2
-                    count_elements = size_set
-                end
-                for i in 1:count_elements
+                size_set = sets_size[j]
+                for i in 1:count_elements[j]
                     index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
                     total += inner_loss(l,phi,train_set[j][index],θ,derivative)^2
                 end
             end
             return (1.0f0/τ) * total
-        else
+        end
+
+    elseif strategy isa GridTraining
+        loss = (θ) -> begin
             return (1.0f0/τ) *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative)
                     for x in set) for (l,set) in zip(loss_function,train_set))
         end
+
     end
     return loss
 end
 
 
 # Convert a PDE problem into OptimizationProblem
-function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN) #TODO #add_loss_cond=nothing)
+function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     eqs = pde_system.eq
     bcs = pde_system.bcs
 
@@ -445,7 +456,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     autodiff = discretization.autodiff
     derivative = discretization.derivative
     autodiff == true && error("Automatic differentiation is not support yet")
-    training_strategies = discretization.training_strategies
+    strategy = discretization.strategy
 
     train_sets = generate_training_sets(domains,dx,bcs,
                                         indvars,depvars,
@@ -463,12 +474,12 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                           train_domain_set,
                                           phi,
                                           derivative,
-                                          training_strategies)
+                                          strategy)
     bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
                                          train_bound_set,
                                          phi,
                                          derivative,
-                                         training_strategies)
+                                         strategy)
 
     function loss_function(θ,p)
         return pde_loss_function(θ) + bc_loss_function(θ)

@@ -24,12 +24,12 @@ To solve this problem use `PhysicsInformedNN` algorithm.
 
 ```julia
 discretization = PhysicsInformedNN(dx,
-                                             chain,
-                                             init_params = nothing;
-                                             phi = nothing,
-                                             autodiff=false,
-                                             derivative = nothing,
-                                             training_strategies = TrainingStrategies(stochastic_loss=false))
+                                   chain,
+                                   init_params = nothing;
+                                   phi = nothing,
+                                   autodiff=false,
+                                   derivative = nothing,
+                                   strategy = GridTraining())
 ```
 
 Here,
@@ -39,8 +39,7 @@ Here,
 `phi` is a trial solution,
 `autodiff` is a boolean variable that determines whether to use automatic, differentiation(not supported while) or numerical,
 `derivative` is a method that calculates derivative,
-`training_strategies` determine which training strategy will be used.
-
+`strategy` determine which training strategy will be used.
 
 The method `discretize` do interpret from ModelingToolkit PDE form to the PINNs Problem.
 
@@ -56,20 +55,13 @@ Here,
 `opt` is an optimizer, `cb` is a callback function and `maxiters` is a number of iteration.
 
 
-
 ### Training strategy
 
-Determine which training strategy will be used.
+List of training strategies that are available now:
 
-```julia
-training_strategies = TrainingStrategies(...)
-
-```
-
-* Stochastic loss function:
- - `stochastic_loss=false` : Initialize points on a lattice and never change them during
+ - `GridTraining()` : Initialize points on a lattice and never change them during
 the training process.
- - `stochastic_loss=true` :  In each optimization iteration, we select randomly
+ - `StochasticTraining()` :  In each optimization iteration, we select randomly
 the subset of points from a full training set.
 
 
