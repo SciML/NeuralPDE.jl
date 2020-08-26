@@ -385,15 +385,13 @@ eq  = Dt(u(t,x,θ)) + u(t,x,θ)*Dx(u(t,x,θ)) - (0.01/pi)*Dxx(u(t,x,θ)) ~ 0
 # Initial and boundary conditions
 bcs = [u(0,x,θ) ~ -sin(pi*x),
        u(t,-1,θ) ~ 0.,
-       u(t,1,θ) ~ 0.,
-       u(t,-1,θ) ~ u(t,1,θ)]
+       u(t,1,θ) ~ 0.]
 
 # Space and time domains
 domains = [t ∈ IntervalDomain(0.0,1.0),
            x ∈ IntervalDomain(-1.0,1.0)]
 # Discretization
 dx = 0.1
-
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
@@ -408,7 +406,6 @@ expr_pde_loss_function = build_loss_function(eq,indvars,depvars)
 expr_bc_loss_functions = [build_loss_function(bc,indvars,depvars) for bc in bcs]
 
 train_sets = generate_training_sets(domains,dx,bcs,indvars,depvars)
-
 train_domain_set, train_bound_set, train_set= train_sets
 
 phi = discretization.phi
@@ -430,9 +427,7 @@ bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
 function loss_function(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
 end
-
 f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
-
 prob = GalacticOptim.OptimizationProblem(f, initθ)
 
 # optimizer
@@ -494,7 +489,7 @@ bcs = [u(x,0,θ) ~ u_analytic(x,0),
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(-10.0,10.0),
-                 t ∈ IntervalDomain(0.0,1.0)]
+           t ∈ IntervalDomain(0.0,1.0)]
 # Discretization
 dx = 0.4; dt = 0.2
 
@@ -502,8 +497,8 @@ dx = 0.4; dt = 0.2
 chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 
 discretization = PhysicsInformedNN([dx,dt],
-                                             chain,
-                                             strategy = GridTraining())
+                                    chain,
+                                    strategy = GridTraining())
 pde_system = PDESystem(eq,bcs,domains,[x,t],[u])
 prob = discretize(pde_system,discretization)
 

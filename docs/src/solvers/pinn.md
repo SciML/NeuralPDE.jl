@@ -18,7 +18,7 @@ General PDE Problem can be defined using a `PDESystem`:
 pde_system = PDESystem(eq,bcs,domains,param,var)
 ```
 
-Here, `eq` is equation, `bcs` is boundary conditions, `param` is parameter of eqution (like `[x,y]`) and var is varibles (like `[u]`).
+Here, `eq` is equation, `bcs` is boundary conditions, `param` is parameter of equation (like `[x,y]`) and `var` is varibles (like `[u]`).
 
 To solve this problem use `PhysicsInformedNN` algorithm.
 
@@ -33,13 +33,13 @@ discretization = PhysicsInformedNN(dx,
 ```
 
 Here,
-`dx` is a discretization of grid
-`chain` is a Flux.jl chain with d dimensional input and 1-dimensional output,
+`dx` is a discretization of the grid,
+`chain` is a Flux.jl chain, where the input of NN equals the number of dimensions and output equals the number of equations in the system.
 `init_params` is the initial parameter of the neural network,
 `phi` is a trial solution,
 `autodiff` is a boolean variable that determines whether to use automatic, differentiation(not supported while) or numerical,
 `derivative` is a method that calculates derivative,
-`strategy` determine which training strategy will be used.
+`strategy` determines which training strategy will be used.
 
 The method `discretize` do interpret from ModelingToolkit PDE form to the PINNs Problem.
 
