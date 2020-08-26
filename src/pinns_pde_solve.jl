@@ -1,5 +1,71 @@
-struct PhysicsInformedNN{D}
+"""
+Algorithm for solving Physics Informed Neural Networks problem.
+
+Arguments:
+* `dx` is discretization of grid
+* `chain` is a Flux.jl chain with d dimensional input and 1 dimensional output,
+* `init_params` is the initial parameter of the neural network,
+* `phi` is trial solution,
+* `autodiff` is a boolean variable that determines whether to use automatic, differentiation(not supported while) or numerical,
+* `derivative` is method that calculate derivative,
+* `strategy` is determines which training strategy will be used.
+"""
+
+struct PhysicsInformedNN{D,C,P,PH,DER,T,K}
   dx::D
+  chain::C
+  initθ::P
+  phi::PH
+  autodiff::Bool
+  derivative::DER
+  strategy::T
+  kwargs::K
+end
+
+function PhysicsInformedNN(dx,
+                           chain,
+                           init_params = nothing;
+                           _phi = nothing,
+                           autodiff=false,
+                           _derivative = nothing,
+                           strategy = GridTraining(),
+                           kwargs...)
+    if init_params === nothing
+        if chain isa FastChain
+            initθ = DiffEqFlux.initial_params(chain)
+        else
+            initθ,re  = Flux.destructure(chain)
+        end
+    else
+        initθ = init_params
+    end
+    isuinplace = chain.layers[end].out == 1
+    dim = chain.layers[1].in
+
+    if _phi == nothing
+        phi = get_phi(chain,isuinplace)
+    else
+        phi = _phi
+    end
+
+    if _derivative == nothing
+        derivative = get_derivative(dim,phi,autodiff,isuinplace)
+    else
+        derivative = _derivative
+    end
+
+    PhysicsInformedNN(dx,chain,initθ,phi,autodiff,derivative, strategy, kwargs)
+end
+
+abstract type TrainingStrategies  end
+
+struct GridTraining <: TrainingStrategies end
+
+struct StochasticTraining <:TrainingStrategies
+    include_frac::Float64
+end
+function StochasticTraining(;include_frac=0.75)
+    StochasticTraining(include_frac)
 end
 
 """
@@ -57,6 +123,7 @@ Simplify the derivative expression
 # Examples
 
 1. First derivative of function 'u(x,y)' of variables: 'x, y'
+1. First derivative of function 'u(x,y)' with respect to x
 
 Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(unn, x, y, xnn, order, θ)`,
 
@@ -70,10 +137,6 @@ where
 function _simplified_derivative(_args,indvars,depvars,dict_indvars,dict_depvars)
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
-            # if autodiff
-            #     error("While autodiff not support")
-            # else
-            # end
             if e == :derivative && _args[end] != :θ
                 order = count_order(_args)
                 depvars = get_depvars(_args)
@@ -90,14 +153,49 @@ function _simplified_derivative(_args,indvars,depvars,dict_indvars,dict_depvars)
 end
 
 """
-build loss function for pde or boundary function
+Parse ModelingToolkit equation form to the inner representation.
 
-# Examples
+Example:
+
+1)  1d ODE: Dt(u(t,θ)) ~ t +1
+
+    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u, t, 1, 1, θ) - (t + 1)'
+
+2)  2d PDE: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
+
+    Take expressions in the form:
+     Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))
+    to
+     (derivative(1, x, y, 1, 2, θ) + derivative(1, x, y, 2, 2, θ)) - -(sin(πx)) * sin(πy)
+
+3)  System of PDE: [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
+                    Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
+
+    Take expressions in the form:
+    2-element Array{Equation,1}:
+        Equation(derivative(u1(x, y, θ), x) + 4 * derivative(u2(x, y, θ), y), ModelingToolkit.Constant(0))
+        Equation(derivative(u2(x, y, θ), x) + 9 * derivative(u1(x, y, θ), y), ModelingToolkit.Constant(0))
+    to
+      [(derivative(1, x, y, 1, 1, θ) + 4 * derivative(2, x, y, 2, 1, θ)) - 0,
+       (derivative(2, x, y, 1, 1, θ) + 9 * derivative(1, x, y, 2, 1, θ)) - 0]
+"""
+function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars)
+    left_expr = simplified_derivative((ModelingToolkit.simplified_expr(eq.lhs)),
+                                      indvars,depvars,dict_indvars,dict_depvars)
+    right_expr = simplified_derivative((ModelingToolkit.simplified_expr(eq.rhs)),
+                                       indvars,depvars,dict_indvars,dict_depvars)
+    loss_func = :($left_expr - $right_expr)
+end
+
+"""
+Build loss function for pde or boundary condition
+
+# Examples: System of pde:
 
 Take expressions in the form:
-2-element Array{Equation,1}:
- Equation(derivative(u1(x, y, θ), x) + 4 * derivative(u2(x, y, θ), y), ModelingToolkit.Constant(0))
- Equation(derivative(u2(x, y, θ), x) + 9 * derivative(u1(x, y, θ), y), ModelingToolkit.Constant(0))
+
+[Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
+ Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
 
 to
 
@@ -122,9 +220,27 @@ to
           end
       end)
 """
-function build_loss_function(_funcs,vars,depvars,indvars,dict_depvars)
-    ex = Expr(:block)
+function build_loss_function(eqs,_indvars,_depvars)
+    # dictionaries: variable -> unique number
+    indvars = Expr.(_indvars)
+    depvars = [d.name for d in _depvars]
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
+    return build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
+end
 
+function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
+    if !(eqs isa Array)
+        eqs = [eqs]
+    end
+    loss_functions= []
+    for eq in eqs
+        loss_function = parse_equation(eq,depvars,indvars,dict_indvars,dict_depvars)
+        push!(loss_functions,loss_function)
+    end
+
+    vars = :(phi, cord, θ, derivative)
+    ex = Expr(:block)
     us = []
     for v in depvars
         var_num = dict_depvars[v]
@@ -134,145 +250,54 @@ function build_loss_function(_funcs,vars,depvars,indvars,dict_depvars)
     u_ex = ModelingToolkit.build_expr(:block, us)
     push!(ex.args,  u_ex)
 
-    indvars_ex = [:($:vec[$i]) for (i, u) ∈ enumerate(indvars)]
+    indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(indvars)]
     arg_pairs_indvars = indvars,indvars_ex
 
     left_arg_pairs, right_arg_pairs = arg_pairs_indvars
     vars_eq = Expr(:(=), ModelingToolkit.build_expr(:tuple, left_arg_pairs),
                             ModelingToolkit.build_expr(:tuple, right_arg_pairs))
-    let_ex = Expr(:let, vars_eq, ModelingToolkit.build_expr(:vect, _funcs))
+    let_ex = Expr(:let, vars_eq, ModelingToolkit.build_expr(:vect, loss_functions))
     push!(ex.args,  let_ex)
 
     return :(($vars) -> begin $ex end)
 end
 
-"""
-Extract ModelingToolkit PDE form to the inner representation.
-
-Example:
-
-1)  Equation: Dt(u(t,θ)) ~ t +1
-
-    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u, t, 1, 1, θ) - (t + 1)'
-
-2)  Equation: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
-
-    Take expressions in the form:
-     Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))
-    to
-     (derivative(1, x, y, 1, 2, θ) + derivative(1, x, y, 2, 2, θ)) - -(sin(πx)) * sin(πy)
-
-3)  System of equation: [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
-                         Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
-
-    Take expressions in the form:
-    2-element Array{Equation,1}:
-        Equation(derivative(u1(x, y, θ), x) + 4 * derivative(u2(x, y, θ), y), ModelingToolkit.Constant(0))
-        Equation(derivative(u2(x, y, θ), x) + 9 * derivative(u1(x, y, θ), y), ModelingToolkit.Constant(0))
-    to
-      [(derivative(1, x, y, 1, 1, θ) + 4 * derivative(2, x, y, 2, 1, θ)) - 0,
-       (derivative(2, x, y, 1, 1, θ) + 9 * derivative(1, x, y, 2, 1, θ)) - 0]
-
-"""
-function extract_pde(eqs,_indvars,_depvars,dict_indvars,dict_depvars)
-    depvars = [d.name for d in _depvars]
-    indvars = Expr.(_indvars)
-    vars = :(phi, vec, θ, derivative)
-    if !(eqs isa Array)
-        eqs = [eqs]
-    end
-    pde_funcs= []
-    for eq in eqs
-        _left_expr = (ModelingToolkit.simplified_expr(eq.lhs))
-        left_expr = simplified_derivative(_left_expr,indvars,depvars,dict_indvars,dict_depvars)
-
-        _right_expr = (ModelingToolkit.simplified_expr(eq.rhs))
-        right_expr = simplified_derivative(_right_expr,indvars,depvars,dict_indvars,dict_depvars)
-
-        pde_func = :($left_expr - $right_expr)
-        push!(pde_funcs,pde_func)
-    end
-
-    pde_func = build_loss_function(pde_funcs,vars,depvars,indvars,dict_depvars)
-    return pde_func
-end
-
 # get agruments from bondary condition functions
-function get_bc_argument(left_expr)
-    if left_expr.args[1] == :derivative
-        bcs_arg = left_expr.args[3:end-3]
-    else
-        bcs_arg = left_expr.args[2:end-1]
-    end
-    bcs_arg
-end
-
-"""
-Extract initial and boundary conditions expression to the inner representation.
-
-Examples:
-
-Boundary conditions: [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
-                      u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
-
-Take expression in form:
-
-4-element Array{Equation,1}:
- Equation(u(0, y), ModelingToolkit.Constant(0.0f0))
- Equation(u(1, y), -1.2246467991473532e-16 * sin(πy))
- Equation(u(x, 0), ModelingToolkit.Constant(0.0f0))
- Equation(u(x, 1), -(sin(πx)) * 1.2246467991473532e-16)
-
-to
- [[u(0, y, θ) - 0.0f0],
-  [u(1, y, θ) - -1.2246467991473532e-16 * sin(πy)],
-  [u(x, 0, θ) - 0.0f0],
-  [u(x, 1, θ) - -(sin(πx)) * 1.2246467991473532e-16]]
-"""
-function extract_bc(bcs,_indvars,_depvars,dict_indvars,dict_depvars)
-    depvars = [d.name for d in _depvars]
-    indvars = Expr.(_indvars)
-    vars = :(phi, vec, θ, derivative)
-
-    bc_funcs = []
+function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
     bc_args = []
-    _funcs= []
     for _bc in bcs
         if !(_bc isa Array)
             _bc = [_bc]
         end
-        _bc_funcs= []
-        for bc in _bc
-            _left_expr = (ModelingToolkit.simplified_expr(bc.lhs))
-            left_expr = simplified_derivative(_left_expr,indvars,depvars,dict_indvars,dict_depvars)
-
-            _right_expr = (ModelingToolkit.simplified_expr(bc.rhs))
-            right_expr = simplified_derivative(_right_expr,indvars,depvars,dict_indvars,dict_depvars)
-
-            _bc_func = :($left_expr - $right_expr)
-            push!(_bc_funcs,_bc_func)
+        left_expr = simplified_derivative(ModelingToolkit.simplified_expr(_bc[1].lhs),
+                                          indvars,depvars,dict_indvars,dict_depvars)
+        bc_arg = if (left_expr.args[1] == :derivative)
+            left_expr.args[3:end-3]
+        else
+            left_expr.args[2:end-1]
         end
-        bc_func = build_loss_function(_bc_funcs,vars,depvars,indvars,dict_depvars)
 
-
-        _left_expr = (ModelingToolkit.simplified_expr(_bc[1].lhs))
-        left_expr = simplified_derivative(_left_expr,indvars,depvars,dict_indvars,dict_depvars)
-        bc_arg = get_bc_argument(left_expr)
-
-        push!(bc_funcs, bc_func)
         push!(bc_args, bc_arg)
     end
-    return bc_funcs,bc_args
+    return bc_args
 end
 
-# Generate training set with the points in the domain and on the boundary
-function generator_training_sets(domains, discretization, bound_args, dict_indvars)
-    if discretization.dx isa Array
-        dxs = discretization.dx
+function generate_training_sets(domains,dx,bcs,_indvars,_depvars)
+    indvars = Expr.(_indvars)
+    depvars = [d.name for d in _depvars]
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
+    return generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict_depvars)
+end
+# Generate training set in the domain and on the boundary
+function generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict_depvars)
+    if dx isa Array
+        dxs = dx
     else
-        dx = discretization.dx
         dxs = fill(dx,length(domains))
     end
+
+    bound_args = get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
 
     spans = [d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)]
     dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
@@ -295,71 +320,11 @@ function generator_training_sets(domains, discretization, bound_args, dict_indva
     flat_train_bound_set = collect(Iterators.flatten(train_bound_set))
     train_domain_set =  setdiff(train_set, flat_train_bound_set)
 
-    [train_domain_set,train_bound_set]
-end
-
-function get_loss_function(pde_func, bc_funcs, train_sets)
-    # the points in the domain and on the boundary
-    train_domain_set, train_bound_set = train_sets
-
-    # coefficients for loss function
-    τb = length(train_bound_set)
-    τf = length(train_domain_set)
-
-    # Loss function for pde equation
-    function inner_domain_loss(phi, x, θ, derivative)
-        sum(pde_func(phi, x, θ, derivative))
-    end
-
-    # Loss function for initial and boundary conditions
-    function inner_bound_loss(f,phi,x,θ,derivative)
-        sum(f(phi, x, θ, derivative))
-    end
-
-    function loss_domain(θ, phi, derivative)
-        sum(abs2,inner_domain_loss(phi, x, θ, derivative) for x in train_domain_set)
-    end
-
-    function loss_boundary(θ, phi, derivative)
-       sum(sum(abs2,inner_bound_loss(f,phi,x,θ,derivative) for x in set) for (f,set) in zip(bc_funcs,train_bound_set))
-    end
-
-    # General loss function
-    function loss(θ, phi, derivative)
-        1.0f0/τf * loss_domain(θ, phi, derivative) + 1.0f0/τb * loss_boundary(θ, phi, derivative)
-    end
-    return loss
-end
-
-# Convert a PDE problem into OptimizationProblem
-function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    eq = pde_system.eq
-    bcs = pde_system.bcs
-    domains = pde_system.domain
-    indvars = pde_system.indvars
-    depvars = pde_system.depvars
-    # dictionaries: variable -> unique number
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
-
-    dim = length(domains)
-
-    # extract pde
-    pde_func = eval(extract_pde(eq,indvars,depvars, dict_indvars,dict_depvars))
-    # extract initial and boundary conditions
-    extract_bc_funcs, bound_args = extract_bc(bcs,indvars,depvars,dict_indvars,dict_depvars)
-    bc_funcs = eval.(extract_bc_funcs)
-
-    # generate training sets
-    train_sets = generator_training_sets(domains, discretization, bound_args, dict_indvars)
-
-    # get loss_function
-    loss_function = get_loss_function(pde_func,bc_funcs,train_sets)
-
-	return GalacticOptim.OptimizationProblem(loss_function, zeros(dim))
+    [train_domain_set,train_bound_set,train_set]
 end
 
 function get_phi(chain,isuinplace)
+    # The phi trial solution
     if chain isa FastChain
         if isuinplace
             phi = (x,θ) -> first(chain(adapt(typeof(θ),x),θ))
@@ -419,47 +384,107 @@ function get_derivative(dim,phi,autodiff,isuinplace)
     derivative
 end
 
-function DiffEqBase.solve(
-    prob::GalacticOptim.OptimizationProblem,
-    alg::NNDE,
-    args...;
-    timeseries_errors = true,
-    save_everystep=true,
-    adaptive=false,
-    abstol = 1f-6,
-    verbose = false,
-    maxiters = 100)
+function get_loss_function(loss_function, train_set, phi, derivative, strategy)
+
+    # norm coefficient for loss function
+    τ = sum(length(set) for set in train_set)
+
+    function inner_loss(loss_function,phi,x,θ,derivative)
+        sum(loss_function(phi, x, θ, derivative))
+    end
+
+    if !(loss_function isa Array)
+        loss_function = [loss_function]
+        train_set = [train_set]
+    end
+
+    if strategy isa StochasticTraining
+        include_frac = strategy.include_frac
+        count_elements = []
+        sets_size = []
+        for j in 1:length(train_set)
+            size_set = size(train_set[j])[1]
+            count_element = convert(Int64,round(include_frac*size_set, digits=0))
+            if count_element <= 2
+                count_element = size_set
+            end
+            push!(sets_size,size_set)
+            push!(count_elements,count_element)
+        end
+        loss = (θ) -> begin
+            total = 0.
+            for (j,l) in enumerate(loss_function)
+                size_set = sets_size[j]
+                for i in 1:count_elements[j]
+                    index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
+                    total += inner_loss(l,phi,train_set[j][index],θ,derivative)^2
+                end
+            end
+            return (1.0f0/τ) * total
+        end
+
+    elseif strategy isa GridTraining
+        loss = (θ) -> begin
+            return (1.0f0/τ) *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative)
+                    for x in set) for (l,set) in zip(loss_function,train_set))
+        end
+
+    end
+    return loss
+end
 
 
-    loss_function = prob.f
+# Convert a PDE problem into OptimizationProblem
+function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+    eqs = pde_system.eq
+    bcs = pde_system.bcs
 
+    domains = pde_system.domain
     # dimensionality of equation
-    dim = length(prob.x)
-
+    dim = length(domains)
     dim > 3 && error("While only dimensionality no more than 3")
 
-    # neural network
-    chain  = alg.chain
-    # optimizer
-    opt    = alg.opt
-    # AD flag
-    autodiff = alg.autodiff
-    # weights of neural network
-    initθ = alg.initθ
+    depvars = [d.name for d in pde_system.depvars]
+    indvars = Expr.(pde_system.indvars)
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
 
-    # equation/system of equations
-    isuinplace = length(chain(zeros(dim),initθ)) == 1
-    # The phi trial solution
-    phi = get_phi(chain,isuinplace)
-    derivative = get_derivative(dim,phi,autodiff,isuinplace)
+    dx = discretization.dx
+    chain = discretization.chain
+    initθ = discretization.initθ
+    phi = discretization.phi
+    autodiff = discretization.autodiff
+    derivative = discretization.derivative
+    autodiff == true && error("Automatic differentiation is not support yet")
+    strategy = discretization.strategy
 
-    loss = (θ) -> loss_function(θ, phi, derivative)
+    train_sets = generate_training_sets(domains,dx,bcs,
+                                        indvars,depvars,
+                                        dict_indvars,dict_depvars)
 
-    cb = function (p,l)
-        verbose && println("Current loss is: $l")
-        l < abstol
+    # the points in the domain and on the boundary
+    train_domain_set,train_bound_set,train_set = train_sets
+
+    expr_pde_loss_function = build_loss_function(eqs,indvars,depvars,
+                                                 dict_indvars,dict_depvars)
+    expr_bc_loss_functions = [build_loss_function(bc,indvars,depvars,
+                                                  dict_indvars,dict_depvars) for bc in bcs]
+
+    pde_loss_function = get_loss_function(eval(expr_pde_loss_function),
+                                          train_domain_set,
+                                          phi,
+                                          derivative,
+                                          strategy)
+    bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
+                                         train_bound_set,
+                                         phi,
+                                         derivative,
+                                         strategy)
+
+    function loss_function(θ,p)
+        return pde_loss_function(θ) + bc_loss_function(θ)
     end
-    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters, alg.kwargs...)
 
-    phi ,res
-end #solve
+    f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
+    GalacticOptim.OptimizationProblem(f, initθ)
+end
