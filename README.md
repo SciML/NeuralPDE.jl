@@ -53,10 +53,7 @@ dx = 0.1
 dim = 2 # number of dimensions
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-training_strategies= TrainingStrategies(stochastic_loss=false)
-discretization = PhysicsInformedNN(dx,
-                                   chain,
-                                   training_strategies = training_strategies)
+discretization = PhysicsInformedNN(dx,chain)
 
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)
