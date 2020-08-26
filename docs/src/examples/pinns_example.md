@@ -163,7 +163,7 @@ plot(p1,p2,p3)
 
 with Initial and boundary conditions:
 
-![boundary](https://user-images.githubusercontent.com/12683885/90976522-8f210a00-e546-11ea-924f-7b4cc14f340e.png)
+![boundary](https://user-images.githubusercontent.com/12683885/91332936-8c881400-e7d5-11ea-991a-39c9d61d4f24.png)
 
 on the space and time domain:
 
@@ -183,7 +183,6 @@ with grid discretization `dx = 0.25`, `dy = 0.25`, `dt = 0.25`.
 eq  = Dt(u(x,y,t,θ)) ~ Dxx(u(x,y,t,θ)) + Dyy(u(x,y,t,θ))
 # Initial and boundary conditions
 bcs = [u(x,y,0,θ) ~ exp(x+y)*cos(x+y) ,
-      u(0,y,t,θ) ~ exp(y)*cos(y+4t),
       u(2,y,t,θ) ~ exp(2+y)*cos(2+y+4t) ,
       u(x,0,t,θ) ~ exp(x)*cos(x+4t),
       u(x,2,t,θ) ~ exp(x+2)*cos(x+2+4t)]
@@ -275,7 +274,6 @@ analytic_sol_func(t,x) = [exp(-t)*sin(pi*x), exp(-t)*cos(pi*x), (1+pi^2)*exp(-t)
 u_real  = [[analytic_sol_func(t,x)[i] for t in ts for x in xs] for i in 1:3]
 u_predict  = [[phi([t,x],res.minimizer)[i] for t in ts for x in xs] for i in 1:3]
 diff_u = [abs.(u_real[i] .- u_predict[i] ) for i in 1:3]
-# @test u_predict ≈ u_real atol = 10.0
 
 for i in 1:3
     p1 = plot(xs, ts, u_real[i], st=:surface,title = "u$i, analytic");
@@ -287,7 +285,9 @@ end
 ```
 
 ![u1](https://user-images.githubusercontent.com/12683885/90981503-192e9a00-e56a-11ea-8378-8e53e9de9c3c.png)
+
 ![u2](https://user-images.githubusercontent.com/12683885/90981470-e1bfed80-e569-11ea-9210-ff606af17532.png)
+
 ![u3](https://user-images.githubusercontent.com/12683885/90981491-01571600-e56a-11ea-9143-52ced4b177c8.png)
 
 
@@ -462,6 +462,7 @@ Let's consider the Kuramoto–Sivashinsky equation which contains 4th order deri
 ![KS](https://user-images.githubusercontent.com/12683885/91025423-09fb2b00-e602-11ea-8f5c-61e49e4fb54e.png)
 
 with initial and boundary conditions:
+
 ![bs](https://user-images.githubusercontent.com/12683885/91025570-3fa01400-e602-11ea-8fd7-5b0e250a67a4.png)
 
 ```julia
