@@ -1,5 +1,9 @@
 include: https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v6.yml
 
+variables:
+  JULIA_CUDA_VERBOSE: 'true'
+  JULIA_NUM_THREADS: 8
+
 .base:
   extends:
     - .julia:1.4

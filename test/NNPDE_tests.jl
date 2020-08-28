@@ -102,52 +102,9 @@ diff_u = abs.(u_predict .- u_real)
 # p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 # plot(p1,p2,p3)
 
-## Example 3, 3D PDE
-@parameters x y t θ
-@variables u(..)
-@derivatives Dxx''~x
-@derivatives Dyy''~y
-@derivatives Dt'~t
 
-# 3D PDE
-eq  = Dt(u(x,y,t,θ)) ~ Dxx(u(x,y,t,θ)) + Dyy(u(x,y,t,θ))
-# Initial and boundary conditions
-bcs = [u(x,y,0,θ) ~ exp(x+y)*cos(x+y) ,
-      # u(x,y,2,θ) ~ exp(x+y)*cos(x+y+4*2) ,
-      u(0,y,t,θ) ~ exp(y)*cos(y+4t),
-      u(2,y,t,θ) ~ exp(2+y)*cos(2+y+4t) ,
-      u(x,0,t,θ) ~ exp(x)*cos(x+4t),
-      u(x,2,t,θ) ~ exp(x+2)*cos(x+2+4t)]
-# Space and time domains
-domains = [x ∈ IntervalDomain(0.0,2.0),
-          y ∈ IntervalDomain(0.0,2.0),
-          t ∈ IntervalDomain(0.0,2.0)]
 
-# Discretization
-dx = 0.25; dy= 0.25; dt = 0.25
-# Neural network
-chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
-
-discretization = NeuralPDE.PhysicsInformedNN([dx,dy,dt],
-                                             chain,
-                                             strategy = NeuralPDE.StochasticTraining(include_frac=0.9))
-pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
-prob = NeuralPDE.discretize(pde_system,discretization)
-
-res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=1000)
-phi = discretization.phi
-
-xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for (dx,domain) in zip([dx,dy,dt],domains)]
-analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
-u_real = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-@test u_predict ≈ u_real atol = 200.0
-
-# p1 =plot(xs, ys, u_predict, st=:surface);
-# p2 = plot(xs, ys, u_real, st=:surface);
-# plot(p1,p2)
-
-## Example 4, high-order ode
+## Example 3, high-order ode
 @parameters x θ
 @variables u(..)
 @derivatives Dxxx'''~x
@@ -189,7 +146,7 @@ u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 # plot(x_plot ,u_real)
 # plot!(x_plot ,u_predict)
 
-## Example 5, system of pde
+## Example 4, system of pde
 @parameters x, y, θ
 @variables u1(..), u2(..)
 @derivatives Dx'~x
@@ -229,7 +186,7 @@ u_predict  = [[phi([x,y],res.minimizer)[i] for x in xs  for y in ys] for i in 1:
 # p2 = plot(xs, ys, u_real, st=:surface);
 # plot(p1,p2)
 
-## Example 6, 2d wave equation, neumann boundary condition
+## Example 5, 2d wave equation, neumann boundary condition
 #here we use low level api for build solution
 @parameters x, t, θ
 @variables u(..)
