@@ -9,12 +9,6 @@ const is_TRAVIS = haskey(ENV,"TRAVIS")
 
 const is_CI = haskey(ENV,"CI")
 
-function activate_gpu_env()
-    Pkg.activate("gpu")
-    Pkg.develop(PackageSpec(path=dirname(@__DIR__)))
-    Pkg.instantiate()
-end
-
 @time begin
   if GROUP == "All" || GROUP == "NNODE"
       @time @safetestset "NNODE" begin include("NNODE_tests.jl") end
@@ -40,9 +34,6 @@ end
 
 
   if !is_APPVEYOR && GROUP == "GPU"
-     if is_CI
-         activate_gpu_env()
-     end
      @safetestset "NNPDE_gpu" begin include("NNPDE_tests_gpu.jl") end
  end
 end
