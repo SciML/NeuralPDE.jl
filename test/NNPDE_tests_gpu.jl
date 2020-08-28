@@ -42,11 +42,11 @@ chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 
 discretization = NeuralPDE.PhysicsInformedNN([dx,dy,dt],
                                              chain,
-                                             strategy = NeuralPDE.StochasticTraining(include_frac=0.87))
+                                             strategy = NeuralPDE.GridTraining())
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=1000)
 phi = discretization.phi
 
 xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for (dx,domain) in zip([dx,dy,dt],domains)]
@@ -95,13 +95,13 @@ prob = NeuralPDE.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=8000)
 phi = discretization.phi
 
-analytic_sol_func(x) = 28.022*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
+analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
 
 xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
-@test u_predict ≈ u_real atol = 100.0
+@test u_predict ≈ u_real atol = 20.0
 
 # plot(xs ,u_real, label = "analytic")
 # plot!(xs ,u_predict, label = "predict")
