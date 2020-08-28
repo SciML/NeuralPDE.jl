@@ -92,7 +92,8 @@ plot(p1,p2,p3)
 
 Let's solve this 2d wave equation:
 
-![wave](https://user-images.githubusercontent.com/12683885/89735726-3c871e80-da6d-11ea-9c0b-21b5e09a97c3.png)
+![wave](https://user-images.githubusercontent.com/12683885/91465006-ecde8a80-e895-11ea-935e-2c1d60e3d1f2.png)
+
 
 with grid discretization `dx = 0.1`.
 
@@ -183,13 +184,14 @@ with grid discretization `dx = 0.25`, `dy = 0.25`, `dt = 0.25`.
 eq  = Dt(u(x,y,t,θ)) ~ Dxx(u(x,y,t,θ)) + Dyy(u(x,y,t,θ))
 # Initial and boundary conditions
 bcs = [u(x,y,0,θ) ~ exp(x+y)*cos(x+y) ,
-      u(2,y,t,θ) ~ exp(2+y)*cos(2+y+4t) ,
-      u(x,0,t,θ) ~ exp(x)*cos(x+4t),
-      u(x,2,t,θ) ~ exp(x+2)*cos(x+2+4t)]
+       u(0,y,t,θ) ~ exp(y)*cos(y+4t)
+       u(2,y,t,θ) ~ exp(2+y)*cos(2+y+4t) ,
+       u(x,0,t,θ) ~ exp(x)*cos(x+4t),
+       u(x,2,t,θ) ~ exp(x+2)*cos(x+2+4t)]
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,2.0),
-          y ∈ IntervalDomain(0.0,2.0),
-          t ∈ IntervalDomain(0.0,2.0)]
+           y ∈ IntervalDomain(0.0,2.0),
+           t ∈ IntervalDomain(0.0,2.0)]
 
 # Discretization
 dx = 0.25; dy= 0.25; dt = 0.25
