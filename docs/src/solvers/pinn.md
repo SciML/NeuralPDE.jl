@@ -70,3 +70,7 @@ the subset of points from a full training set.
 Besides the high level of API: `discretize(pde_system, discretization)`, we can also use low-level API methods:  `build_loss_function`, `get_loss_function` ,`generate_training_sets`,`get_phi`, `get_derivative`.
 
 See how this can be used in docs examples or take a look at the tests.
+
+### GPUs
+
+Actually, it is just enough add `|>gpu` after `chain` and all will works.
