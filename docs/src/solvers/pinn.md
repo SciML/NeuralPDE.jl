@@ -73,4 +73,7 @@ See how this can be used in docs examples or take a look at the tests.
 
 ### GPUs
 
-Actually, it is just enough add `|>gpu` after `chain` and all will works.
+If the Chain is a GPU compatible chain then it's GPU accelerated. For Flux chains then this is done by doing add `|> gpu` after `chain`.
+
+For more information on using GPUs with Flux, consult [Flux GPU Support](https://fluxml.ai/Flux.jl/stable/gpu/)
+
