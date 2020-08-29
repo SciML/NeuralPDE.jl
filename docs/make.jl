@@ -16,6 +16,7 @@ makedocs(
             "examples/ode.md",
             "examples/pinns_example.md",
             "examples/100_HJB.md",
+            "examples/blackscholes.md",
             "examples/kolmogorovbackwards.md",
             "examples/optimal_stopping_american.md",
             "examples/nnrode_example.md",
