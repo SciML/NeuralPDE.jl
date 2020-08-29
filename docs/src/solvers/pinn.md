@@ -70,3 +70,10 @@ the subset of points from a full training set.
 Besides the high level of API: `discretize(pde_system, discretization)`, we can also use low-level API methods:  `build_loss_function`, `get_loss_function` ,`generate_training_sets`,`get_phi`, `get_derivative`.
 
 See how this can be used in docs examples or take a look at the tests.
+
+### GPUs
+
+If the Chain is a GPU compatible chain then it's GPU accelerated. For Flux chains then this is done by doing add `|> gpu` after `chain`.
+
+For more information on using GPUs with Flux, consult [Flux GPU Support](https://fluxml.ai/Flux.jl/stable/gpu/)
+
