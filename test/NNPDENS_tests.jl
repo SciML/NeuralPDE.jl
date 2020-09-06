@@ -3,6 +3,9 @@ using LinearAlgebra, Statistics
 println("NNPDENS_tests")
 using Test, NeuralPDE
 
+using Random
+Random.seed!(100)
+
 println("one-dimensional heat equation")
 x0 = Float32[11.] # initial points
 tspan = (0.0f0,5.0f0)

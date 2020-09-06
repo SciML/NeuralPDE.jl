@@ -8,6 +8,9 @@ using Test, NeuralPDE
 using GalacticOptim
 using Optim
 
+using Random
+Random.seed!(100)
+
 cb = function (p,l)
     println("Current loss is: $l")
     return false
