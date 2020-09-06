@@ -5,10 +5,11 @@ variables:
 
 .base:
   extends:
-    - .julia:1.4
+    - .julia:1.5
     - .test
   tags:
     - nvidia
+    - fastcpu
 
 test-GPU:
   extends: .base
