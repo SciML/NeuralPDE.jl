@@ -2,6 +2,9 @@ using Flux, Zygote, LinearAlgebra, Statistics
 println("NNPDEHAN_tests")
 using Test, NeuralPDE , StochasticDiffEq
 
+using Random
+Random.seed!(100)
+
 # one-dimensional heat equation
 x0 = [11.0f0]  # initial points
 tspan = (0.0f0,5.0f0)

@@ -3,6 +3,8 @@ println("Kolmogorov Tests")
 using DiffEqDevTools , NeuralPDE
 using Distributions
 
+using Random
+Random.seed!(100)
 
 #Using SDEProblem for the Algorithm.
 # For a diract delta take u0 = Normal(0 , sigma) where sigma --> 0

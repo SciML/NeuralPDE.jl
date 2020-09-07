@@ -1,6 +1,10 @@
 using Test, Flux , StochasticDiffEq , LinearAlgebra
 println("Optimal Stopping Time Test")
 using NeuralPDE
+
+using Random
+Random.seed!(100)
+
 d = 1
 r = 0.04f0
 beta = 0.2f0

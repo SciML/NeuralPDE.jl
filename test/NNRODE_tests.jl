@@ -3,6 +3,9 @@ using Flux , StochasticDiffEq, DiffEqNoiseProcess , Optim, Test
 println("RODE_tests")
 using  NeuralPDE
 
+using Random
+Random.seed!(100)
+
 println("Test Case 1")
 linear = (u,p,t,W) ->   2u*sin(W)
 tspan = (0.00f0, 1.00f0)
