@@ -33,13 +33,13 @@ discretization = PhysicsInformedNN(dx,
 ```
 
 Here,
-`dx` is a discretization of the grid,
-`chain` is a Flux.jl chain, where the input of NN equals the number of dimensions and output equals the number of equations in the system.
-`init_params` is the initial parameter of the neural network,
-`phi` is a trial solution,
-`autodiff` is a boolean variable that determines whether to use automatic, differentiation(not supported while) or numerical,
-`derivative` is a method that calculates derivative,
-`strategy` determines which training strategy will be used.
+- `dx` is a discretization of the grid.
+- `chain` is a Flux.jl chain, where the input of NN equals the number of dimensions and output equals the number of equations in the system.
+- `init_params` is the initial parameter of the neural network.
+- `phi` is a trial solution.
+- `autodiff` is a boolean variable that determines for the PDE operators whether to use automatic differentiation(not supported while) or numerical. The reverse mode of the loss function is always AD.
+- `derivative` is a method that calculates derivative.
+- `strategy` determines which training strategy will be used.
 
 The method `discretize` do interpret from ModelingToolkit PDE form to the PINNs Problem.
 
