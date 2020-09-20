@@ -93,7 +93,8 @@ Arguments:
 * `chain`: A Chain neural network
 * `opt`: The optimiser to train the neural network. Defaults to `BFGS()`
 * `initθ`: The initial parameter of the neural network
-* `autodiff`: The switch between automatic and numerical differentiation
+* `autodiff`: The switch between automatic and numerical differentiation for
+              the PDE operators. The reverse mode of the loss function is always AD.
 """
 struct NNDE{C,O,P,K} <: NeuralPDEAlgorithm
     chain::C

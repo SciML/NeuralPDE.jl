@@ -86,67 +86,50 @@ Dict{Symbol,Int64} with 3 entries:
 """
 get_dict_vars(vars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(vars)])
 
-# Calculate an order of derivative
-function count_order(_args)
-    n = 0
-    while (_args[1] == :derivative)
-        n += 1
-        _args = _args[2].args
-    end
-    return n
-end
-
-function get_depvars(_args)
-    while (_args[1] == :derivative)
-        _args = _args[2].args
-    end
-    return _args[1]
-end
-function get_indpvars(_args)
-    while (_args[1] == :derivative)
-        _args = _args[2].args
-    end
-    return _args[2:end-1]
-end
-
-# Wrapper for _simplified_derivative
-function simplified_derivative(ex,indvars,depvars,dict_indvars,dict_depvars)
+# Wrapper for _transform_derivative
+function transform_derivative(ex,indvars,depvars,dict_indvars,dict_depvars)
     if ex isa Expr
-        ex.args = _simplified_derivative(ex.args,indvars,depvars,dict_indvars,dict_depvars)
+        ex.args = _transform_derivative(ex.args,indvars,depvars,dict_indvars,dict_depvars)
     end
     return ex
 end
 
 """
-Simplify the derivative expression
+Transform the derivative expression to inner representation
 
 # Examples
 
-1. First derivative of function 'u(x,y)' of variables: 'x, y'
 1. First derivative of function 'u(x,y)' with respect to x
 
-Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(unn, x, y, xnn, order, θ)`,
+Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(unn, x, y, undv, order, θ)`,
 
 where
  unn - unique number for the function
  x,y - coordinates of point
- xnn - unique number for the variable
+ undv - uniqie number for derivative variables
  order - order of derivative
  θ - parameters of neural network
 """
-function _simplified_derivative(_args,indvars,depvars,dict_indvars,dict_depvars)
+function _transform_derivative(_args,indvars,depvars,dict_indvars,dict_depvars)
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
             if e == :derivative && _args[end] != :θ
-                order = count_order(_args)
-                depvars = get_depvars(_args)
-                indvars = get_indpvars(_args)
-                depvars_num = dict_depvars[depvars]
-                _args = [:derivative,depvars_num, indvars...,dict_indvars[_args[3]], order, :θ]
+                derivative_variables = []
+                order = 0
+                while (_args[1] == :derivative)
+                    order += 1
+                    push!(derivative_variables, _args[end])
+                    _args = _args[2].args
+                end
+                depvar = _args[1]
+                indvars = _args[2:end-1]
+                depvars_num = dict_depvars[depvar]
+                undv = [dict_indvars[d_p] for d_p  in derivative_variables]
+                _args = [:derivative,depvars_num, indvars...,undv, order, :θ]
                 break
             end
         else
-            _args[i].args = _simplified_derivative(_args[i].args,indvars,depvars,dict_indvars,dict_depvars)
+            _args[i].args = _transform_derivative(_args[i].args,indvars,depvars,dict_indvars,dict_depvars)
         end
     end
     return _args
@@ -166,7 +149,7 @@ Example:
     Take expressions in the form:
      Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))
     to
-     (derivative(1, x, y, 1, 2, θ) + derivative(1, x, y, 2, 2, θ)) - -(sin(πx)) * sin(πy)
+     (derivative(1, x, y, [[ε,0],[ε,0]], 2, θ) + derivative(1, x, y, [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
 
 3)  System of PDE: [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
                     Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
@@ -176,13 +159,13 @@ Example:
         Equation(derivative(u1(x, y, θ), x) + 4 * derivative(u2(x, y, θ), y), ModelingToolkit.Constant(0))
         Equation(derivative(u2(x, y, θ), x) + 9 * derivative(u1(x, y, θ), y), ModelingToolkit.Constant(0))
     to
-      [(derivative(1, x, y, 1, 1, θ) + 4 * derivative(2, x, y, 2, 1, θ)) - 0,
-       (derivative(2, x, y, 1, 1, θ) + 9 * derivative(1, x, y, 2, 1, θ)) - 0]
+      [(derivative(1, x, y, [[ε,0]], 1, θ) + 4 * derivative(2, x, y, [[0,ε]], 1, θ)) - 0,
+       (derivative(2, x, y, [[ε,0]], 1, θ) + 9 * derivative(1, x, y, [[0,ε]], 1, θ)) - 0]
 """
 function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars)
-    left_expr = simplified_derivative((ModelingToolkit.simplified_expr(eq.lhs)),
+    left_expr = transform_derivative(ModelingToolkit.simplified_expr(eq.lhs),
                                       indvars,depvars,dict_indvars,dict_depvars)
-    right_expr = simplified_derivative((ModelingToolkit.simplified_expr(eq.rhs)),
+    right_expr = transform_derivative(ModelingToolkit.simplified_expr(eq.rhs),
                                        indvars,depvars,dict_indvars,dict_depvars)
     loss_func = :($left_expr - $right_expr)
 end
@@ -214,8 +197,8 @@ to
                           end)
               end
               let (x, y) = (vec[1], vec[2])
-                  [(derivative(1, x, y, 1, 1, θ) + 4 * derivative(2, x, y, 2, 1, θ)) - 0,
-                   (derivative(2, x, y, 1, 1, θ) + 9 * derivative(1, x, y, 2, 1, θ)) - 0]
+                  [(derivative(1, x, y, [[ε,0]], 1, θ) + 4 * derivative(2, x, y, [[0,ε]], 1, θ)) - 0,
+                   (derivative(2, x, y, [[ε,0]], 1, θ) + 9 * derivative(1, x, y, [[0,ε]], 1, θ)) - 0]
               end
           end
       end)
@@ -262,21 +245,18 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
     return :(($vars) -> begin $ex end)
 end
 
-# get agruments from bondary condition functions
+# Get agruments from bondary condition functions
 function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
     bc_args = []
     for _bc in bcs
-        if !(_bc isa Array)
-            _bc = [_bc]
-        end
-        left_expr = simplified_derivative(ModelingToolkit.simplified_expr(_bc[1].lhs),
+        _bc isa Array && error("boundary conditions must be represented as a one-dimensional array")
+        left_expr = transform_derivative(ModelingToolkit.simplified_expr(_bc.lhs),
                                           indvars,depvars,dict_indvars,dict_depvars)
         bc_arg = if (left_expr.args[1] == :derivative)
             left_expr.args[3:end-3]
         else
             left_expr.args[2:end-1]
         end
-
         push!(bc_args, bc_arg)
     end
     return bc_args
@@ -343,41 +323,39 @@ function get_phi(chain,isuinplace)
 end
 
 function get_derivative(dim,phi,autodiff,isuinplace)
+    epsilon = cbrt(eps(Float32))
+     function get_ε(dim, der_num)
+         ε = zeros(dim)
+         ε[der_num] = epsilon
+         ε
+     end
+     εs = [get_ε(dim,d) for d in 1:dim]
+
     if autodiff # automatic differentiation (not implemented yet)
-        # derivative = (x,θ,n) -> ForwardDiff.gradient(x->phi(x,θ),x)[n]
+        error("automatic differentiation is not implemented yet)")
     else # numerical differentiation
-        epsilon = cbrt(eps(Float32))
-        function get_ε(dim, der_num)
-            ε = zeros(dim)
-            ε[der_num] = epsilon
-            ε
-        end
-
-        εs = [get_ε(dim,d) for d in 1:dim]
-
         derivative = (_x...) ->
         begin
             var_num = _x[1]
             x = collect(_x[2:end-3])
-            der_num =_x[end-2]
+            dnv =_x[end-2] 
             order = _x[end-1]
             θ = _x[end]
-            ε = εs[der_num]
-            return _derivative(x,θ,order,ε,der_num,var_num)
+            εs_dnv = [εs[d] for d in dnv]
+            return _derivative(x,θ,order,εs_dnv,var_num)
         end
-        _derivative = (x,θ,order,ε,der_num,var_num) ->
+        _derivative = (x,θ,order,εs_dnv,var_num) ->
         begin
+            ε = εs_dnv[order]
             if order == 1
-                #Five-point stencil
-                # return (-phi(x+2ε,θ) + 8phi(x+ε,θ) - 8phi(x-ε,θ) + phi(x-2ε,θ))/(12*epsilon)
                 if isuinplace
                     return (phi(x+ε,θ) - phi(x-ε,θ))/(2*epsilon)
                 else
                     return (phi(x+ε,θ)[var_num] - phi(x-ε,θ)[var_num])/(2*epsilon)
                 end
             else
-                return (_derivative(x+ε,θ,order-1,ε,der_num,var_num)
-                      - _derivative(x-ε,θ,order-1,ε,der_num,var_num))/(2*epsilon)
+                return (_derivative(x+ε,θ,order-1, εs_dnv, var_num)
+                      - _derivative(x-ε,θ,order-1, εs_dnv, var_num))/(2*epsilon)
             end
         end
     end

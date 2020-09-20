@@ -306,8 +306,7 @@ Also, in addition to systems, we can use the matrix form of PDEs:
 eqs  = @. [(Dxx(u_(x,y,θ)) + Dyy(u_(x,y,θ))) for u_ in u] ~ -sin(pi*x)*sin(pi*y)*[0 1; 0 1]
 
 # Initial and boundary conditions
-bcs = [[u[1](x,0,θ) ~ x u[2](x,0,θ) ~ 2;
-        u[3](x,0,θ) ~ 3 u[4](x,0,θ) ~ 4]]
+bcs = [u[1](x,0,θ) ~ x, u[2](x,0,θ) ~ 2, u[3](x,0,θ) ~ 3, u[4](x,0,θ) ~ 4]
 ```
 
 ## Example 5 : Solving ODE with 3rd order derivative
