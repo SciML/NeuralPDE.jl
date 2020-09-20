@@ -161,7 +161,7 @@ eqs = [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
       3*u1(x,0,θ) ~ 2*u2(x,0,θ)]
 
 # Initial and boundary conditions
-bcs = [[u1(x,0,θ) ~ 2x, u2(x,0,θ) ~ 3x]]
+bcs = [u1(x,0,θ) ~ 2x, u2(x,0,θ) ~ 3x]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
@@ -265,4 +265,49 @@ u_real = reshape([analytic_sol_func(x,t) for x in xs for t in ts], (length(xs),l
 # p1 = plot(xs, ts, u_real, linetype=:contourf,title = "analytic");
 # p2 =plot(xs, ts, u_predict, linetype=:contourf,title = "predict");
 # p3 = plot(xs, ts, diff_u,linetype=:contourf,title = "error");
+# plot(p1,p2,p3)
+
+
+## Example 6, pde with mixed derivative
+@parameters x y θ
+@variables u(..)
+@derivatives Dxx''~x
+@derivatives Dyy''~y
+@derivatives Dy'~y
+@derivatives Dx'~x
+
+eq = Dxx(u(x,y,θ)) + Dx(Dy(u(x,y,θ))) - 2*Dyy(u(x,y,θ)) ~  -1.
+
+# Initial and boundary conditions
+bcs = [u(x,0,θ) ~ x,
+       Dy(u(x,0,θ)) ~ x,
+       u(x,0,θ) ~ Dy(u(x,0,θ))]
+
+# Space and time domains
+domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
+
+# Discretization
+dx = 0.1
+
+# Neural network
+chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+discretization = NeuralPDE.PhysicsInformedNN(dx,chain)
+pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+prob = NeuralPDE.discretize(pde_system,discretization)
+
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=200)
+phi = discretization.phi
+
+analytic_sol_func(x,y) = x + x*y +y^2/2
+xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
+
+u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+diff_u = abs.(u_predict .- u_real)
+
+@test u_predict ≈ u_real atol = 1.0
+
+# p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+# p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
+# p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 # plot(p1,p2,p3)
