@@ -7,6 +7,7 @@ using DiffEqBase
 using Test, NeuralPDE
 using GalacticOptim
 using Optim
+using Quadrature
 
 using Random
 Random.seed!(100)
