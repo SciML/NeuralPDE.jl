@@ -68,6 +68,17 @@ function StochasticTraining(;include_frac=0.75)
     StochasticTraining(include_frac)
 end
 
+struct QuadratureTraining <: TrainingStrategies
+    algorithm::DiffEqBase.AbstractQuadratureAlgorithm
+    reltol::Float64
+    abstol::Float64
+end
+function QuadratureTraining(;algorithm=HCubatureJL(),reltol=1e-2,abstol=1e-2)
+    QuadratureTraining(algorithm,reltol,abstol)
+end
+
+struct AdaptiveMonteCarloTraning <: TrainingStrategies end
+
 """
 Create dictionary: variable => unique number for variable
 
@@ -338,7 +349,7 @@ function get_derivative(dim,phi,autodiff,isuinplace)
         begin
             var_num = _x[1]
             x = collect(_x[2:end-3])
-            dnv =_x[end-2] 
+            dnv =_x[end-2]
             order = _x[end-1]
             θ = _x[end]
             εs_dnv = [εs[d] for d in dnv]
@@ -362,8 +373,7 @@ function get_derivative(dim,phi,autodiff,isuinplace)
     derivative
 end
 
-function get_loss_function(loss_function, train_set, phi, derivative, strategy)
-
+function get_loss_function(loss_function, train_set, domains, phi, derivative, strategy)
     # norm coefficient for loss function
     τ = sum(length(set) for set in train_set)
 
@@ -406,11 +416,17 @@ function get_loss_function(loss_function, train_set, phi, derivative, strategy)
             return (1.0f0/τ) *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative)
                     for x in set) for (l,set) in zip(loss_function,train_set))
         end
-
+    elseif strategy isa QuadratureTraining
+        lb = [domain.domain.lower for domain in domains]
+        ub = [domain.domain.upper  for domain in domains]
+        _loss = (x,θ) -> sum(abs2,[inner_loss(lf, phi, x, θ, derivative)  for lf in  loss_function])
+        loss = (θ) -> begin
+            prob = QuadratureProblem(_loss,lb,ub,θ)
+            (1.0f0/τ)*solve(prob,strategy.algorithm,strategy.reltol,strategy.abstol)[1]
+        end
     end
     return loss
 end
-
 
 # Convert a PDE problem into OptimizationProblem
 function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
@@ -450,11 +466,13 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
 
     pde_loss_function = get_loss_function(eval(expr_pde_loss_function),
                                           train_domain_set,
+                                          domains,
                                           phi,
                                           derivative,
                                           strategy)
     bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
                                          train_bound_set,
+                                         domains,
                                          phi,
                                          derivative,
                                          strategy)

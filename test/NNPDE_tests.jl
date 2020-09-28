@@ -40,12 +40,12 @@ discretization = NeuralPDE.PhysicsInformedNN(dt,
                                              phi = nothing,
                                              autodiff=false,
                                              derivative = nothing,
-                                             strategy = NeuralPDE.GridTraining())
+                                             strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol=1e-2,abstol=1e-2))
 
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=1500)
+res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=500)
 phi = discretization.phi
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -82,8 +82,8 @@ dx = 0.05
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
 discretization = NeuralPDE.PhysicsInformedNN(dx,
-                                             chain,
-                                             strategy = NeuralPDE.StochasticTraining(include_frac = 0.4))
+                                             chain)
+
 
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
@@ -235,11 +235,13 @@ train_domain_set,train_bound_set,train_set= train_sets
 
 pde_loss_function = NeuralPDE.get_loss_function(eval(expr_pde_loss_function),
                                       train_domain_set,
+                                      domains,
                                       phi,
                                       derivative,
                                       strategy)
 bc_loss_function = NeuralPDE.get_loss_function(eval.(expr_bc_loss_functions),
                                      train_bound_set,
+                                     domains,
                                      phi,
                                      derivative,
                                      strategy)
