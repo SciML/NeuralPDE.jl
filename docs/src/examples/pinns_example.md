@@ -19,6 +19,7 @@ with grid discretization `dx = 0.1`.
 The ModelingToolkit PDE interface for this example looks like this:
 
 ```julia
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
 @parameters x y θ
 @variables u(..)
 @derivatives Dxx''~x
