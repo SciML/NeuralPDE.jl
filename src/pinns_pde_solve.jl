@@ -39,9 +39,7 @@ function PhysicsInformedNN(dx,
     else
         initθ = init_params
     end
-
     isuinplace = chain.layers[end].out == 1
-    dim = chain.layers[1].in
 
     if _phi == nothing
         phi = get_phi(chain)
@@ -109,10 +107,10 @@ Transform the derivative expression to inner representation
 
 1. First derivative of function 'u(x,y)' with respect to x
 
-Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(u,unn, [x, y], εs, order, θ)`,
+Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(u, unn, [x, y], εs, order, θ)`,
 
 where
- u - function
+ u - derived function
  unn - unique number for the function
  x,y - coordinates of point
  εs - epsilon mask
@@ -137,7 +135,7 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
                 depvars_num = dict_depvars[depvar]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
-                _args = [:derivative,  :phi, depvars_num, :([$(indvars...)]), εs_dnv, order, :θ]
+                _args = [:derivative, :phi, depvars_num, :([$(indvars...)]), εs_dnv, order, :θ]
                 break
             end
         else
@@ -413,7 +411,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     # dimensionality of equation
     dim = length(domains)
     dim > 3 && error("While only dimensionality no more than 3")
-
 
     depvars = [d.name for d in pde_system.depvars]
     indvars = Expr.(pde_system.indvars)
