@@ -456,6 +456,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         return pde_loss_function(θ) + bc_loss_function(θ)
     end
 
-    f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
+    f = GalacticOptim.OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, initθ)
 end
