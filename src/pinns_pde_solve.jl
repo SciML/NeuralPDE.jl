@@ -294,24 +294,23 @@ function generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict
     spans = [d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)]
     dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
 
-    train_set = Array{Float32,1}[]
+    train_set = []
     for points in Iterators.product(spans...)
-        push!(train_set, Float32[points...])
+        push!(train_set, [points...])
     end
 
-    train_bound_set =  Array{Array{Float32,1}}[]
+    train_bound_set = []
     for bt in bound_args
-        _set = Array{Float32}[]
+        _set = []
         span = [get(dict_var_span, b, b) for b in bt]
         for points in Iterators.product(span...)
-            push!(_set, Float32[points...])
+            push!(_set, [points...])
         end
         push!(train_bound_set, _set)
     end
 
     flat_train_bound_set = collect(Iterators.flatten(train_bound_set))
     train_domain_set =  setdiff(train_set, flat_train_bound_set)
-
 
     [train_domain_set,train_bound_set,train_set]
 end
