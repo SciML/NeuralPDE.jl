@@ -429,7 +429,7 @@ bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
 function loss_function(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
 end
-f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
+f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f, initθ)
 
 # optimizer
