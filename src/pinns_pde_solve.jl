@@ -338,7 +338,7 @@ function get_derivative(dim,phi,autodiff,isuinplace)
         begin
             var_num = _x[1]
             x = collect(_x[2:end-3])
-            dnv =_x[end-2] 
+            dnv =_x[end-2]
             order = _x[end-1]
             θ = _x[end]
             εs_dnv = [εs[d] for d in dnv]
@@ -463,6 +463,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         return pde_loss_function(θ) + bc_loss_function(θ)
     end
 
-    f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
+    f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, initθ)
 end
