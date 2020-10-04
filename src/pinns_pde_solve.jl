@@ -264,7 +264,6 @@ function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
         left_expr = transform_derivative(ModelingToolkit.simplified_expr(_bc.lhs),
                                          dict_indvars,dict_depvars)
         bc_arg = if (left_expr.args[1] == :derivative)
-            # left_expr.args[3:end-3]
             left_expr.args[4].args
         else
             left_expr.args[2:end-1]
@@ -357,7 +356,7 @@ function get_loss_function(loss_function, train_set, phi, derivative, strategy)
     τ = sum(length(set) for set in train_set)
 
     function inner_loss(loss_function,phi,x,θ,derivative)
-        sum(abs2,loss_function(phi, x, θ, derivative))
+        sum(loss_function(phi, x, θ, derivative))
     end
 
     if !(loss_function isa Array)
@@ -384,7 +383,7 @@ function get_loss_function(loss_function, train_set, phi, derivative, strategy)
                 size_set = sets_size[j]
                 for i in 1:count_elements[j]
                     index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
-                    total += inner_loss(l,phi,train_set[j][index],θ,derivative)
+                    total += inner_loss(l,phi,train_set[j][index],θ,derivative)^2
                 end
             end
             return (1.0f0/τ) * total
@@ -392,7 +391,7 @@ function get_loss_function(loss_function, train_set, phi, derivative, strategy)
 
     elseif strategy isa GridTraining
         loss = (θ) -> begin
-            return (1.0f0/τ) *sum(sum(inner_loss(l,phi,x,θ,derivative)
+            return (1.0f0/τ) *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative)
                     for x in set) for (l,set) in zip(loss_function,train_set))
         end
 
