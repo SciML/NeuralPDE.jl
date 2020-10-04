@@ -296,7 +296,7 @@ function generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict
     train_set = map(points -> [points...], Iterators.product(spans...))
 
     train_bound_set = map(bound_args) do bt
-        span = map(b -> get(dict_var_span, b, b), bt)
+        span = map(b -> get(dict_var_span, b, [b]), bt)
         _set = map(points -> [points...], Iterators.product(span...))
     end
 
@@ -361,7 +361,7 @@ function get_loss_function(loss_function, train_set, phi, derivative, strategy)
         count_elements = []
         sets_size = []
         for j in 1:length(train_set)
-            size_set = length(train_set[j])[1]
+            size_set = size(train_set[j])[1]
             count_element = convert(Int64,round(include_frac*size_set, digits=0))
             if count_element <= 2
                 count_element = size_set
