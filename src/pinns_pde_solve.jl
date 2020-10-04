@@ -31,15 +31,10 @@ function PhysicsInformedNN(dx,
                            strategy = GridTraining(),
                            kwargs...)
     if init_params === nothing
-        if chain isa FastChain
-            initθ = DiffEqFlux.initial_params(chain)
-        else
-            initθ,re  = Flux.destructure(chain)
-        end
+        initθ = DiffEqFlux.initial_params(chain)
     else
         initθ = init_params
     end
-    isuinplace = chain.layers[end].out == 1
 
     if _phi == nothing
         phi = get_phi(chain)
@@ -48,7 +43,7 @@ function PhysicsInformedNN(dx,
     end
 
     if _derivative == nothing
-        derivative = get_derivative(autodiff,isuinplace)
+        derivative = get_derivative(autodiff)
     else
         derivative = _derivative
     end
@@ -293,11 +288,11 @@ function generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict
     spans = [d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)]
     dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
 
-    train_set = map(points -> [points...], Iterators.product(spans...))
+    train_set = map(points -> collect(points), Iterators.product(spans...))
 
     train_bound_set = map(bound_args) do bt
         span = map(b -> get(dict_var_span, b, [b]), bt)
-        _set = map(points -> [points...], Iterators.product(span...))
+        _set = map(points -> collect(points), Iterators.product(span...))
     end
 
     flat_train_bound_set = map(x -> x, Iterators.flatten(train_bound_set))
@@ -307,19 +302,18 @@ function generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict
 end
 
 function get_phi(chain)
-    chain isa Chain && "Chain deprecated, use FastChain"
-    isuinplace = chain.layers[end].out == 1
     # The phi trial solution
-    if isuinplace
-        phi = (x,θ) -> first(chain(adapt(typeof(θ),x),θ))
-    else
+    if chain isa FastChain
         phi = (x,θ) -> chain(adapt(typeof(θ),x),θ)
+    else
+        _,re  = Flux.destructure(chain)
+        phi = (x,θ) -> re(θ)(adapt(typeof(θ),x))
     end
     phi
 end
 
 # the method  calculate derivative
-function get_derivative(autodiff, isuinplace)
+function get_derivative(autodiff)
     epsilon = cbrt(eps(Float32))
     if autodiff # automatic differentiation (not implemented yet)
         error("automatic differentiation is not implemented yet)")
@@ -328,11 +322,7 @@ function get_derivative(autodiff, isuinplace)
         begin
             ε = εs[order]
             if order == 1
-                if isuinplace
-                    return (u(x+ε,θ) - u(x-ε,θ))/(2*epsilon)
-                else
-                    return (u(x+ε,θ)[var_num] - u(x-ε,θ)[var_num])/(2*epsilon)
-                end
+                return (u(x+ε,θ)[var_num] - u(x-ε,θ)[var_num])/(2*epsilon)
             else
                 return (derivative(u,var_num,x+ε,εs,order-1,θ)
                       - derivative(u,var_num,x-ε,εs,order-1,θ))/(2*epsilon)
@@ -416,8 +406,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     autodiff == true && error("Automatic differentiation is not support yet")
     strategy = discretization.strategy
 
-    length(domains) != chain.layers[1].in && error("the input of chain should equal the length of domains according to the dimensionality of the task")
-    length(depvars) != chain.layers[end].out && error("the output of chain should equal the number of variables")
+    # length(domains) != chain.layers[1].in && error("the input of chain should equal the length of domains according to the dimensionality of the task")
+    # length(depvars) != chain.layers[end].out && error("the output of chain should equal the number of variables")
 
     train_sets = generate_training_sets(domains,dx,bcs,
                                         indvars,depvars,
