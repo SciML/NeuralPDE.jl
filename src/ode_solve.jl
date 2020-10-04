@@ -1,6 +1,6 @@
 function DiffEqBase.solve(
     prob::DiffEqBase.AbstractODEProblem,
-    alg::NNDE,
+    alg::NNODE,
     args...;
     dt,
     timeseries_errors = true,
