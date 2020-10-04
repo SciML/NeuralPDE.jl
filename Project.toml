@@ -1,7 +1,7 @@
 name = "NeuralPDE"
 uuid = "315f7962-48a3-4962-8226-d0f33b1235f0"
 authors = ["Chris Rackauckas <accounts@chrisrackauckas.com>"]
-version = "2.3.0"
+version = "2.4.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -26,7 +26,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 Adapt = "2.0"
-CUDA = "1.2"
+CUDA = "1.2, 2.0"
 DiffEqBase = "6"
 DiffEqFlux = "1.21"
 DiffEqNoiseProcess = "5.1"
@@ -34,7 +34,7 @@ DiffEqSensitivity = "6.5"
 Distributions = "0.23"
 Flux = "0.10.1, 0.11"
 ForwardDiff = "0.10"
-GalacticOptim = "0.1.1, 0.2"
+GalacticOptim = "0.3"
 ModelingToolkit = "3.11"
 Optim = "1.0"
 Reexport = "0.2"
