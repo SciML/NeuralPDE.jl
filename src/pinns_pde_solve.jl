@@ -336,26 +336,26 @@ function get_derivative(autodiff)
     derivative
 end
 
-function get_loss_function(loss_function, train_set, phi, derivative, strategy)
+function get_loss_function(loss_functions, train_sets, phi, derivative, strategy)
 
     # norm coefficient for loss function
-    τ = sum(length(set) for set in train_set)
+    τ = sum(length(set) for set in train_sets)
 
-    function inner_loss(loss_function,phi,x,θ,derivative)
-        sum(loss_function(phi, x, θ, derivative))
+    function inner_loss(loss_functions,phi,x,θ,derivative)
+        sum(loss_functions(phi, x, θ, derivative))
     end
 
-    if !(loss_function isa Array)
-        loss_function = [loss_function]
-        train_set = [train_set]
+    if !(loss_functions isa Array)
+        loss_functions = [loss_functions]
+        train_sets = [train_sets]
     end
 
     if strategy isa StochasticTraining
         include_frac = strategy.include_frac
         count_elements = []
         sets_size = []
-        for j in 1:length(train_set)
-            size_set = size(train_set[j])[1]
+        for j in 1:length(train_sets)
+            size_set = size(train_sets[j])[1]
             count_element = convert(Int64,round(include_frac*size_set, digits=0))
             if count_element <= 2
                 count_element = size_set
@@ -365,22 +365,19 @@ function get_loss_function(loss_function, train_set, phi, derivative, strategy)
         end
         loss = (θ) -> begin
             total = 0.
-            for (j,l) in enumerate(loss_function)
+            for (j,l) in enumerate(loss_functions)
                 size_set = sets_size[j]
                 for i in 1:count_elements[j]
                     index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
-                    total += inner_loss(l,phi,train_set[j][index],θ,derivative)^2
+                    total += inner_loss(l,phi,train_sets[j][index],θ,derivative)^2
                 end
             end
             return (1.0f0/τ) * total
         end
 
     elseif strategy isa GridTraining
-        loss = (θ) -> begin
-            return (1.0f0/τ) *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative)
-                    for x in set) for (l,set) in zip(loss_function,train_set))
-        end
-
+        f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,phi,x,θ,derivative) for x in train_set])
+        loss = (θ) ->  (1.0f0/τ) * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
     end
     return loss
 end
