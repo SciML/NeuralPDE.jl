@@ -31,11 +31,7 @@ function PhysicsInformedNN(dx,
                            strategy = GridTraining(),
                            kwargs...)
     if init_params === nothing
-        if chain isa FastChain
-            initθ = DiffEqFlux.initial_params(chain)
-        else
-            initθ,re  = Flux.destructure(chain)
-        end
+        initθ = DiffEqFlux.initial_params(chain)
     else
         initθ = init_params
     end
@@ -339,7 +335,7 @@ end
 function get_loss_function(loss_functions, train_sets, phi, derivative, strategy)
 
     # norm coefficient for loss function
-    τ = sum(length(set) for set in train_sets)
+    τ = sum(length(train_set) for train_set in train_sets)
 
     function inner_loss(loss_functions,phi,x,θ,derivative)
         sum(loss_functions(phi, x, θ, derivative))
