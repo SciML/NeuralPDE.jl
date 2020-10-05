@@ -31,7 +31,11 @@ function PhysicsInformedNN(dx,
                            strategy = GridTraining(),
                            kwargs...)
     if init_params === nothing
-        initθ = DiffEqFlux.initial_params(chain)
+        if chain isa FastChain
+            initθ = DiffEqFlux.initial_params(chain)
+        else
+            initθ,re  = Flux.destructure(chain)
+        end
     else
         initθ = init_params
     end
