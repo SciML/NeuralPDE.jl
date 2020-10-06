@@ -102,11 +102,10 @@ Transform the derivative expression to inner representation
 
 1. First derivative of function 'u(x,y)' with respect to x
 
-Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(u, unn, [x, y], εs, order, θ)`,
+Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(u, [x, y], εs, order, θ)`,
 
 where
- u - derived function
- unn - unique number for the function
+ u_d - derived function
  x,y - coordinates of point
  εs - epsilon mask
  order - order of derivative
@@ -146,14 +145,14 @@ Example:
 
 1)  1d ODE: Dt(u(t,θ)) ~ t +1
 
-    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u, t, 1, 1, θ) - (t + 1)'
+    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u_d, [t], [[ε]], 1, θ) - (t + 1)'
 
 2)  2d PDE: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
 
     Take expressions in the form:
      Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))
     to
-     (derivative(phi, 1, [x, y], [[ε,0],[ε,0]], 2, θ) + derivative(phi, 1, [x, y], [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
+     (derivative(u_d, [x, y], [[ε,0],[ε,0]], 2, θ) + derivative(u_d, [x, y], [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
 
 3)  System of PDE: [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
                     Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
@@ -163,8 +162,8 @@ Example:
         Equation(derivative(u1(x, y, θ), x) + 4 * derivative(u2(x, y, θ), y), ModelingToolkit.Constant(0))
         Equation(derivative(u2(x, y, θ), x) + 9 * derivative(u1(x, y, θ), y), ModelingToolkit.Constant(0))
     to
-      [(derivative(phi, 1, [x, y], [[ε,0]], 1, θ) + 4 * derivative(phi, 2, [x, y], [[0,ε]], 1, θ)) - 0,
-       (derivative(phi, 2, [x, y], [[ε,0]], 1, θ) + 9 * derivative(phi, 1, [x, y], [[0,ε]], 1, θ)) - 0]
+      [(derivative(u1_d, [x, y], [[ε,0]], 1, θ) + 4 * derivative(u2_d, [x, y], [[0,ε]], 1, θ)) - 0,
+       (derivative(u2_d, [x, y], [[ε,0]], 1, θ) + 9 * derivative(u1_d, [x, y], [[0,ε]], 1, θ)) - 0]
 """
 function parse_equation(eq,dict_indvars,dict_depvars)
     left_expr = transform_derivative(ModelingToolkit.simplified_expr(eq.lhs),
@@ -186,23 +185,31 @@ Take expressions in the form:
 
 to
 
-:((phi, vec, θ, derivative)->begin
-          #= none:33 =#
-          #= none:33 =#
+:((phi, cord, θ, derivative)->begin
+          #= none:35 =#
+          #= none:35 =#
           begin
               begin
                   u1 = ((x, y, θ)->begin
-                              #= none:18 =#
+                              #= none:16 =#
                               (phi([x, y], θ))[1]
                           end)
                   u2 = ((x, y, θ)->begin
-                              #= none:18 =#
+                              #= none:16 =#
                               (phi([x, y], θ))[2]
                           end)
+                  u1_d = ((cord, θ)->begin
+                              #= none:20 =#
+                              (phi(cord, θ))[1]
+                          end)
+                  u2_d = ((cord, θ)->begin
+                              #= none:20 =#
+                              (phi(cord, θ))[2]
+                          end)
               end
-              let (x, y) = (vec[1], vec[2])
-                  [(derivative(phi, 1, [x, y], [[ε,0]], 1, θ) + 4 * derivative(phi, 2, [x, y], [[0,ε]], 1, θ)) - 0,
-                   (derivative(phi, 2, [x, y], [[ε,0]], 1, θ) + 9 * derivative(phi, 1, [x, y], [[0,ε]], 1, θ)) - 0]
+              let (x, y) = (cord[1], cord[2])
+                  [(derivative(u1_d, [x, y], [[ε, 0]], 1, θ) + 4 * derivative(u2_d, [x, y], [[0, ε]], 1, θ)) - 0,
+                   (derivative(u2_d, [x, y], [[ε, 0]], 1, θ) + 9 * derivative(u1_d, [x, y], [[0, ε]], 1, θ)) - 0]
               end
           end
       end)
