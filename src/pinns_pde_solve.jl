@@ -321,11 +321,11 @@ function get_derivative(autodiff)
         derivative = (u,var_num,x,εs,order,θ) ->
         begin
             ε = εs[order]
-            if order == 1
-                return (u(x+ε,θ)[var_num] - u(x-ε,θ)[var_num])/epsilon
-            else
+            if order > 1
                 return (derivative(u,var_num,x+ε,εs,order-1,θ)
                       - derivative(u,var_num,x-ε,εs,order-1,θ))/epsilon
+            else
+                return (u(x+ε,θ)[var_num] - u(x-ε,θ)[var_num])/epsilon
             end
         end
     end
