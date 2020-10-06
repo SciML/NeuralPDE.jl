@@ -72,9 +72,10 @@ struct QuadratureTraining <: TrainingStrategies
     algorithm::DiffEqBase.AbstractQuadratureAlgorithm
     reltol::Float64
     abstol::Float64
+    maxiters::Int64
 end
-function QuadratureTraining(;algorithm=HCubatureJL(),reltol=1e-2,abstol=1e-2)
-    QuadratureTraining(algorithm,reltol,abstol)
+function QuadratureTraining(;algorithm=HCubatureJL(),reltol=1e-2,abstol=1e-2,maxiters=3)
+    QuadratureTraining(algorithm,reltol,abstol,maxiters)
 end
 
 struct AdaptiveMonteCarloTraning <: TrainingStrategies end
@@ -419,11 +420,16 @@ function get_loss_function(loss_function, train_set, domains, phi, derivative, s
     elseif strategy isa QuadratureTraining
         lb = [domain.domain.lower for domain in domains]
         ub = [domain.domain.upper  for domain in domains]
-        _loss = (x,θ) -> sum(abs2,[inner_loss(lf, phi, x, θ, derivative)  for lf in  loss_function])
-        loss = (θ) -> begin
+        f = (lb,ub,loss_,θ) -> begin
+            _loss = (x,θ) -> sum(abs2,inner_loss(loss_, phi, x, θ, derivative))
             prob = QuadratureProblem(_loss,lb,ub,θ)
-            (1.0f0/τ)*solve(prob,strategy.algorithm,strategy.reltol,strategy.abstol)[1]
+            solve(prob,
+                  strategy.algorithm,
+                  reltol = strategy.reltol,
+                  abstol = strategy.abstol,
+                  maxiters = strategy.maxiters)[1]
         end
+        loss = (θ) -> (1.0f0/τ)*sum(f(lb,ub,loss_,θ) for loss_ in loss_function)
     end
     return loss
 end
@@ -481,6 +487,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         return pde_loss_function(θ) + bc_loss_function(θ)
     end
 
-    f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
+    f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, initθ)
 end

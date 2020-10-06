@@ -129,7 +129,7 @@ include("pinns_pde_solve.jl")
 export NNDE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
        PhysicsInformedNN, discretize,
-       GridTraining, StochasticTraining,
+       GridTraining, StochasticTraining, QuadratureTraining
        build_loss_function, get_loss_function, generate_training_sets,
        get_phi, get_derivative
 

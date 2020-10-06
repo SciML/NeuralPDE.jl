@@ -5,6 +5,7 @@ println("Starting Soon!")
 using ModelingToolkit
 using DiffEqBase
 using Test, NeuralPDE
+println("Starting Soon!")
 using GalacticOptim
 using Optim
 using Quadrature
@@ -35,13 +36,14 @@ dt = 0.1
 # Neural network
 chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 
+strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol=1e-1,abstol=1e-1,maxiters=1)
 discretization = NeuralPDE.PhysicsInformedNN(dt,
                                              chain,
                                              init_params = nothing;
                                              phi = nothing,
                                              autodiff=false,
                                              derivative = nothing,
-                                             strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol=1e-2,abstol=1e-2))
+                                             strategy=strategy)
 
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
@@ -232,14 +234,17 @@ expr_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars) for 
 
 train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
 
-train_domain_set,train_bound_set,train_set= train_sets
+train_domain_set,train_bound_set,train_set = train_sets
+
+qstrategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol=1e-1,abstol=1e-1,maxiters=2)
 
 pde_loss_function = NeuralPDE.get_loss_function(eval(expr_pde_loss_function),
                                       train_domain_set,
                                       domains,
                                       phi,
                                       derivative,
-                                      strategy)
+                                      qstrategy)
+strategy = NeuralPDE.GridTraining()
 bc_loss_function = NeuralPDE.get_loss_function(eval.(expr_bc_loss_functions),
                                      train_bound_set,
                                      domains,
@@ -251,7 +256,7 @@ function loss_function(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
 end
 
-f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
+f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f, initθ)
 
 res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=400)
