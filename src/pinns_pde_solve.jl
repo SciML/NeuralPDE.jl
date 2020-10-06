@@ -127,10 +127,9 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
                 end
                 depvar = _args[1]
                 indvars = _args[2:end-1]
-                depvars_num = dict_depvars[depvar]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
-                _args = [:derivative, :phi, depvars_num, :([$(indvars...)]), εs_dnv, order, :θ]
+                _args = [:derivative, Symbol(:($depvar),:_d), :([$(indvars...)]), εs_dnv, order, :θ]
                 break
             end
         else
@@ -234,7 +233,10 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
         var_num = dict_depvars[v]
         push!(us,:($v = ($(indvars...), θ) -> phi([$(indvars...)],θ)[$var_num]))
     end
-    # push!(us,:(u_ = (x, θ) -> phi(x,θ)))
+    for v in depvars
+        var_num = dict_depvars[v]
+        push!(us,:($(Symbol(:($v),:_d)) = (cord, θ) -> phi(cord,θ)[$var_num]))
+    end
 
     u_ex = ModelingToolkit.build_expr(:block, us)
     push!(ex.args,  u_ex)
@@ -259,7 +261,7 @@ function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
         left_expr = transform_derivative(ModelingToolkit.simplified_expr(_bc.lhs),
                                          dict_indvars,dict_depvars)
         bc_arg = if (left_expr.args[1] == :derivative)
-            left_expr.args[4].args
+            left_expr.args[3].args
         else
             left_expr.args[2:end-1]
         end
@@ -318,14 +320,14 @@ function get_derivative(autodiff)
     if autodiff # automatic differentiation (not implemented yet)
         error("automatic differentiation is not implemented yet)")
     else # numerical differentiation
-        derivative = (u,var_num,x,εs,order,θ) ->
+        derivative = (u,x,εs,order,θ) ->
         begin
             ε = εs[order]
             if order > 1
-                return (derivative(u,var_num,x+ε,εs,order-1,θ)
-                      - derivative(u,var_num,x-ε,εs,order-1,θ))/epsilon
+                return (derivative(u,x+ε,εs,order-1,θ)
+                      - derivative(u,x-ε,εs,order-1,θ))/epsilon
             else
-                return (u(x+ε,θ)[var_num] - u(x-ε,θ)[var_num])/epsilon
+                return (u(x+ε,θ) - u(x-ε,θ))/epsilon
             end
         end
     end
