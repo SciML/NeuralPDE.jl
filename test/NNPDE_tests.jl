@@ -79,26 +79,29 @@ domains = [x ∈ IntervalDomain(0.0,1.0),
 dx = 0.05
 
 # Neural network
-chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+fastchain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+fluxchain = Chain(Dense(2,16,Flux.σ),Dense(16,16,Flux.σ),Dense(16,1))
+chains = [fluxchain,fastchain]
+for chain in chains
+    discretization = NeuralPDE.PhysicsInformedNN(dx,
+                                                 chain,
+                                                 strategy = NeuralPDE.GridTraining())
 
-discretization = NeuralPDE.PhysicsInformedNN(dx,
-                                             chain,
-                                             strategy = NeuralPDE.StochasticTraining(include_frac = 0.4))
+    pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+    prob = NeuralPDE.discretize(pde_system,discretization)
 
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
-prob = NeuralPDE.discretize(pde_system,discretization)
+    res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=700)
+    phi = discretization.phi
 
-res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=700)
-phi = discretization.phi
+    xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
+    analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
 
-xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
-analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
+    u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+    u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+    diff_u = abs.(u_predict .- u_real)
 
-u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
-diff_u = abs.(u_predict .- u_real)
-
-@test u_predict ≈ u_real atol = 3.0
+    @test u_predict ≈ u_real atol = 3.0
+end
 
 # p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
 # p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");

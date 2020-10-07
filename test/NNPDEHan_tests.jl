@@ -1,6 +1,8 @@
 using Flux, Zygote, LinearAlgebra, Statistics
 println("NNPDEHAN_tests")
-using Test, NeuralPDE , StochasticDiffEq
+using Test, StochasticDiffEq
+println("Starting Soon!")
+using NeuralPDE
 
 using Random
 Random.seed!(100)
