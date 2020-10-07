@@ -1,6 +1,6 @@
 function DiffEqBase.solve(
     prob::DiffEqBase.AbstractODEProblem,
-    alg::NNDE,
+    alg::NNODE,
     args...;
     dt,
     timeseries_errors = true,
@@ -62,7 +62,7 @@ function DiffEqBase.solve(
     function inner_loss(t,θ)
         sum(abs2,dfdx(t,θ) - f(phi(t,θ),p,t))
     end
-    loss(θ) = sum(abs2,inner_loss(t,θ) for t in ts) # sum(abs2,phi(tspan[1],θ) - u0)
+    loss(θ) = sum(abs2,[inner_loss(t,θ) for t in ts]) # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
 
     cb = function (p,l)
         verbose && println("Current loss is: $l")

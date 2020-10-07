@@ -31,25 +31,19 @@ function PhysicsInformedNN(dx,
                            strategy = GridTraining(),
                            kwargs...)
     if init_params === nothing
-        if chain isa FastChain
-            initθ = DiffEqFlux.initial_params(chain)
-        else
-            initθ,re  = Flux.destructure(chain)
-        end
+        initθ = DiffEqFlux.initial_params(chain)
     else
         initθ = init_params
     end
-    isuinplace = chain.layers[end].out == 1
-    dim = chain.layers[1].in
 
     if _phi == nothing
-        phi = get_phi(chain,isuinplace)
+        phi = get_phi(chain)
     else
         phi = _phi
     end
 
     if _derivative == nothing
-        derivative = get_derivative(dim,phi,autodiff,isuinplace)
+        derivative = get_derivative(autodiff)
     else
         derivative = _derivative
     end
@@ -99,11 +93,18 @@ Dict{Symbol,Int64} with 3 entries:
 get_dict_vars(vars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(vars)])
 
 # Wrapper for _transform_derivative
-function transform_derivative(ex,indvars,depvars,dict_indvars,dict_depvars)
+function transform_derivative(ex,dict_indvars,dict_depvars)
     if ex isa Expr
-        ex.args = _transform_derivative(ex.args,indvars,depvars,dict_indvars,dict_depvars)
+        ex.args = _transform_derivative(ex.args,dict_indvars,dict_depvars)
     end
     return ex
+end
+
+function get_ε(dim, der_num)
+    epsilon = cbrt(eps(Float32))
+    ε = zeros(Float32, dim)
+    ε[der_num] = epsilon
+    ε
 end
 
 """
@@ -113,20 +114,22 @@ Transform the derivative expression to inner representation
 
 1. First derivative of function 'u(x,y)' with respect to x
 
-Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(unn, x, y, undv, order, θ)`,
+Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(u, [x, y], εs, order, θ)`,
 
 where
- unn - unique number for the function
+ u_d - derived function
  x,y - coordinates of point
- undv - uniqie number for derivative variables
+ εs - epsilon mask
  order - order of derivative
  θ - parameters of neural network
 """
-function _transform_derivative(_args,indvars,depvars,dict_indvars,dict_depvars)
+function _transform_derivative(_args,dict_indvars,dict_depvars)
+    dim = length(dict_indvars)
+    εs = [get_ε(dim,d) for d in 1:dim]
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
             if e == :derivative && _args[end] != :θ
-                derivative_variables = []
+                derivative_variables = Symbol[]
                 order = 0
                 while (_args[1] == :derivative)
                     order += 1
@@ -135,13 +138,13 @@ function _transform_derivative(_args,indvars,depvars,dict_indvars,dict_depvars)
                 end
                 depvar = _args[1]
                 indvars = _args[2:end-1]
-                depvars_num = dict_depvars[depvar]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
-                _args = [:derivative,depvars_num, indvars...,undv, order, :θ]
+                εs_dnv = [εs[d] for d in undv]
+                _args = [:derivative, Symbol(:($depvar),:_d), :([$(indvars...)]), εs_dnv, order, :θ]
                 break
             end
         else
-            _args[i].args = _transform_derivative(_args[i].args,indvars,depvars,dict_indvars,dict_depvars)
+            _args[i].args = _transform_derivative(_args[i].args,dict_indvars,dict_depvars)
         end
     end
     return _args
@@ -154,14 +157,14 @@ Example:
 
 1)  1d ODE: Dt(u(t,θ)) ~ t +1
 
-    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u, t, 1, 1, θ) - (t + 1)'
+    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u_d, [t], [[ε]], 1, θ) - (t + 1)'
 
 2)  2d PDE: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
 
     Take expressions in the form:
      Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))
     to
-     (derivative(1, x, y, [[ε,0],[ε,0]], 2, θ) + derivative(1, x, y, [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
+     (derivative(u_d, [x, y], [[ε,0],[ε,0]], 2, θ) + derivative(u_d, [x, y], [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
 
 3)  System of PDE: [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
                     Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
@@ -171,14 +174,14 @@ Example:
         Equation(derivative(u1(x, y, θ), x) + 4 * derivative(u2(x, y, θ), y), ModelingToolkit.Constant(0))
         Equation(derivative(u2(x, y, θ), x) + 9 * derivative(u1(x, y, θ), y), ModelingToolkit.Constant(0))
     to
-      [(derivative(1, x, y, [[ε,0]], 1, θ) + 4 * derivative(2, x, y, [[0,ε]], 1, θ)) - 0,
-       (derivative(2, x, y, [[ε,0]], 1, θ) + 9 * derivative(1, x, y, [[0,ε]], 1, θ)) - 0]
+      [(derivative(u1_d, [x, y], [[ε,0]], 1, θ) + 4 * derivative(u2_d, [x, y], [[0,ε]], 1, θ)) - 0,
+       (derivative(u2_d, [x, y], [[ε,0]], 1, θ) + 9 * derivative(u1_d, [x, y], [[0,ε]], 1, θ)) - 0]
 """
-function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars)
+function parse_equation(eq,dict_indvars,dict_depvars)
     left_expr = transform_derivative(ModelingToolkit.simplified_expr(eq.lhs),
-                                      indvars,depvars,dict_indvars,dict_depvars)
+                                     dict_indvars,dict_depvars)
     right_expr = transform_derivative(ModelingToolkit.simplified_expr(eq.rhs),
-                                       indvars,depvars,dict_indvars,dict_depvars)
+                                     dict_indvars,dict_depvars)
     loss_func = :($left_expr - $right_expr)
 end
 
@@ -194,23 +197,31 @@ Take expressions in the form:
 
 to
 
-:((phi, vec, θ, derivative)->begin
-          #= none:33 =#
-          #= none:33 =#
+:((phi, cord, θ, derivative)->begin
+          #= none:35 =#
+          #= none:35 =#
           begin
               begin
                   u1 = ((x, y, θ)->begin
-                              #= none:18 =#
+                              #= none:16 =#
                               (phi([x, y], θ))[1]
                           end)
                   u2 = ((x, y, θ)->begin
-                              #= none:18 =#
+                              #= none:16 =#
                               (phi([x, y], θ))[2]
                           end)
+                  u1_d = ((cord, θ)->begin
+                              #= none:20 =#
+                              (phi(cord, θ))[1]
+                          end)
+                  u2_d = ((cord, θ)->begin
+                              #= none:20 =#
+                              (phi(cord, θ))[2]
+                          end)
               end
-              let (x, y) = (vec[1], vec[2])
-                  [(derivative(1, x, y, [[ε,0]], 1, θ) + 4 * derivative(2, x, y, [[0,ε]], 1, θ)) - 0,
-                   (derivative(2, x, y, [[ε,0]], 1, θ) + 9 * derivative(1, x, y, [[0,ε]], 1, θ)) - 0]
+              let (x, y) = (cord[1], cord[2])
+                  [(derivative(u1_d, [x, y], [[ε, 0]], 1, θ) + 4 * derivative(u2_d, [x, y], [[0, ε]], 1, θ)) - 0,
+                   (derivative(u2_d, [x, y], [[ε, 0]], 1, θ) + 9 * derivative(u1_d, [x, y], [[0, ε]], 1, θ)) - 0]
               end
           end
       end)
@@ -230,7 +241,7 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
     end
     loss_functions= []
     for eq in eqs
-        loss_function = parse_equation(eq,depvars,indvars,dict_indvars,dict_depvars)
+        loss_function = parse_equation(eq,dict_indvars,dict_depvars)
         push!(loss_functions,loss_function)
     end
 
@@ -240,6 +251,10 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
     for v in depvars
         var_num = dict_depvars[v]
         push!(us,:($v = ($(indvars...), θ) -> phi([$(indvars...)],θ)[$var_num]))
+    end
+    for v in depvars
+        var_num = dict_depvars[v]
+        push!(us,:($(Symbol(:($v),:_d)) = (cord, θ) -> phi(cord,θ)[$var_num]))
     end
 
     u_ex = ModelingToolkit.build_expr(:block, us)
@@ -263,9 +278,9 @@ function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
     for _bc in bcs
         _bc isa Array && error("boundary conditions must be represented as a one-dimensional array")
         left_expr = transform_derivative(ModelingToolkit.simplified_expr(_bc.lhs),
-                                          indvars,depvars,dict_indvars,dict_depvars)
+                                         dict_indvars,dict_depvars)
         bc_arg = if (left_expr.args[1] == :derivative)
-            left_expr.args[3:end-3]
+            left_expr.args[3].args
         else
             left_expr.args[2:end-1]
         end
@@ -294,105 +309,70 @@ function generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict
     spans = [d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)]
     dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
 
-    train_set = []
-    for points in Iterators.product(spans...)
-        push!(train_set, [points...])
+    train_set = map(points -> collect(points), Iterators.product(spans...))
+
+    train_bound_set = map(bound_args) do bt
+        span = map(b -> get(dict_var_span, b, [b]), bt)
+        _set = map(points -> collect(points), Iterators.product(span...))
     end
 
-    train_bound_set = []
-    for bt in bound_args
-        _set = []
-        span = [get(dict_var_span, b, b) for b in bt]
-        for points in Iterators.product(span...)
-            push!(_set, [points...])
-        end
-        push!(train_bound_set, _set)
-    end
-
-    flat_train_bound_set = collect(Iterators.flatten(train_bound_set))
+    flat_train_bound_set = map(x -> x, Iterators.flatten(train_bound_set))
     train_domain_set =  setdiff(train_set, flat_train_bound_set)
 
     [train_domain_set,train_bound_set,train_set]
 end
 
-function get_phi(chain,isuinplace)
+function get_phi(chain)
     # The phi trial solution
     if chain isa FastChain
-        if isuinplace
-            phi = (x,θ) -> first(chain(adapt(typeof(θ),x),θ))
-        else
-            phi = (x,θ) -> chain(adapt(typeof(θ),x),θ)
-        end
+        phi = (x,θ) -> chain(adapt(typeof(θ),x),θ)
     else
         _,re  = Flux.destructure(chain)
-        if isuinplace
-            phi = (x,θ) -> first(re(θ)(adapt(typeof(θ),x)))
-        else
-            phi = (x,θ) -> re(θ)(adapt(typeof(θ),x))
-        end
+        phi = (x,θ) -> re(θ)(adapt(typeof(θ),x))
     end
     phi
 end
 
-function get_derivative(dim,phi,autodiff,isuinplace)
-    epsilon = cbrt(eps(Float32))
-     function get_ε(dim, der_num)
-         ε = zeros(dim)
-         ε[der_num] = epsilon
-         ε
-     end
-     εs = [get_ε(dim,d) for d in 1:dim]
-
+# the method  calculate derivative
+function get_derivative(autodiff)
+    epsilon = 2*cbrt(eps(Float32))
     if autodiff # automatic differentiation (not implemented yet)
         error("automatic differentiation is not implemented yet)")
     else # numerical differentiation
-        derivative = (_x...) ->
+        derivative = (u,x,εs,order,θ) ->
         begin
-            var_num = _x[1]
-            x = collect(_x[2:end-3])
-            dnv =_x[end-2]
-            order = _x[end-1]
-            θ = _x[end]
-            εs_dnv = [εs[d] for d in dnv]
-            return _derivative(x,θ,order,εs_dnv,var_num)
-        end
-        _derivative = (x,θ,order,εs_dnv,var_num) ->
-        begin
-            ε = εs_dnv[order]
-            if order == 1
-                if isuinplace
-                    return (phi(x+ε,θ) - phi(x-ε,θ))/(2*epsilon)
-                else
-                    return (phi(x+ε,θ)[var_num] - phi(x-ε,θ)[var_num])/(2*epsilon)
-                end
+            ε = εs[order]
+            if order > 1
+                return (derivative(u,x+ε,εs,order-1,θ)
+                      - derivative(u,x-ε,εs,order-1,θ))/epsilon
             else
-                return (_derivative(x+ε,θ,order-1, εs_dnv, var_num)
-                      - _derivative(x-ε,θ,order-1, εs_dnv, var_num))/(2*epsilon)
+                return (u(x+ε,θ) - u(x-ε,θ))/epsilon
             end
         end
     end
     derivative
 end
 
-function get_loss_function(loss_function, train_set, domains, phi, derivative, strategy)
+function get_loss_function(loss_functions, train_sets, phi, derivative, strategy)
+  
     # norm coefficient for loss function
-    τ = sum(length(set) for set in train_set)
+    τ = sum(length(train_set) for train_set in train_sets)
 
-    function inner_loss(loss_function,phi,x,θ,derivative)
-        sum(loss_function(phi, x, θ, derivative))
+    function inner_loss(loss_functions,phi,x,θ,derivative)
+        sum(loss_functions(phi, x, θ, derivative))
     end
 
-    if !(loss_function isa Array)
-        loss_function = [loss_function]
-        train_set = [train_set]
+    if !(loss_functions isa Array)
+        loss_functions = [loss_functions]
+        train_sets = [train_sets]
     end
 
     if strategy isa StochasticTraining
         include_frac = strategy.include_frac
         count_elements = []
         sets_size = []
-        for j in 1:length(train_set)
-            size_set = size(train_set[j])[1]
+        for j in 1:length(train_sets)
+            size_set = size(train_sets[j])[1]
             count_element = convert(Int64,round(include_frac*size_set, digits=0))
             if count_element <= 2
                 count_element = size_set
@@ -402,21 +382,19 @@ function get_loss_function(loss_function, train_set, domains, phi, derivative, s
         end
         loss = (θ) -> begin
             total = 0.
-            for (j,l) in enumerate(loss_function)
+            for (j,l) in enumerate(loss_functions)
                 size_set = sets_size[j]
                 for i in 1:count_elements[j]
                     index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
-                    total += inner_loss(l,phi,train_set[j][index],θ,derivative)^2
+                    total += inner_loss(l,phi,train_sets[j][index],θ,derivative)^2
                 end
             end
             return (1.0f0/τ) * total
         end
 
     elseif strategy isa GridTraining
-        loss = (θ) -> begin
-            return (1.0f0/τ) *sum(sum(abs2,inner_loss(l,phi,x,θ,derivative)
-                    for x in set) for (l,set) in zip(loss_function,train_set))
-        end
+        f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,phi,x,θ,derivative) for x in train_set])
+        loss = (θ) ->  (1.0f0/τ) * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
     elseif strategy isa QuadratureTraining
         lb = [domain.domain.lower for domain in domains]
         ub = [domain.domain.upper  for domain in domains]
@@ -457,6 +435,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     derivative = discretization.derivative
     autodiff == true && error("Automatic differentiation is not support yet")
     strategy = discretization.strategy
+
+    # length(domains) != chain.layers[1].in && error("the input of chain should equal the length of domains according to the dimensionality of the task")
+    # length(depvars) != chain.layers[end].out && error("the output of chain should equal the number of variables")
 
     train_sets = generate_training_sets(domains,dx,bcs,
                                         indvars,depvars,

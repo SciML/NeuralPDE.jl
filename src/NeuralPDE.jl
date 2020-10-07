@@ -97,14 +97,14 @@ Arguments:
 * `autodiff`: The switch between automatic and numerical differentiation for
               the PDE operators. The reverse mode of the loss function is always AD.
 """
-struct NNDE{C,O,P,K} <: NeuralPDEAlgorithm
+struct NNODE{C,O,P,K} <: NeuralPDEAlgorithm
     chain::C
     opt::O
     initθ::P
     autodiff::Bool
     kwargs::K
 end
-function NNDE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
+function NNODE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
     if init_params === nothing
         if chain isa FastChain
             initθ = DiffEqFlux.initial_params(chain)
@@ -114,7 +114,7 @@ function NNDE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs
     else
         initθ = init_params
     end
-    NNDE(chain,opt,initθ,autodiff,kwargs)
+    NNODE(chain,opt,initθ,autodiff,kwargs)
 end
 
 
@@ -126,7 +126,7 @@ include("rode_solve.jl")
 include("stopping_solve.jl")
 include("pinns_pde_solve.jl")
 
-export NNDE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
+export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining

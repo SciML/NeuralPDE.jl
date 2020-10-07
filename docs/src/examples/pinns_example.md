@@ -19,6 +19,7 @@ with grid discretization `dx = 0.1`.
 The ModelingToolkit PDE interface for this example looks like this:
 
 ```julia
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
 @parameters x y θ
 @variables u(..)
 @derivatives Dxx''~x
@@ -428,7 +429,7 @@ bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
 function loss_function(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
 end
-f = OptimizationFunction(loss_function, initθ, GalacticOptim.AutoZygote())
+f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f, initθ)
 
 # optimizer
