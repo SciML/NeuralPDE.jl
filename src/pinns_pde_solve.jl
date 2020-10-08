@@ -353,13 +353,13 @@ function get_derivative(autodiff)
     derivative
 end
 
-function get_loss_function(loss_functions, train_sets, phi, derivative, strategy)
-  
+function get_loss_function(loss_functions, train_sets, domains, phi, derivative, strategy)
+
     # norm coefficient for loss function
     τ = sum(length(train_set) for train_set in train_sets)
 
-    function inner_loss(loss_functions,phi,x,θ,derivative)
-        sum(loss_functions(phi, x, θ, derivative))
+    function inner_loss(loss_function,phi,x,θ,derivative)
+        sum(loss_function(phi, x, θ, derivative))
     end
 
     if !(loss_functions isa Array)
@@ -407,7 +407,7 @@ function get_loss_function(loss_functions, train_sets, phi, derivative, strategy
                   abstol = strategy.abstol,
                   maxiters = strategy.maxiters)[1]
         end
-        loss = (θ) -> (1.0f0/τ)*sum(f(lb,ub,loss_,θ) for loss_ in loss_function)
+        loss = (θ) -> (1.0f0/τ)*sum(f(lb,ub,loss_,θ) for loss_ in loss_functions)
     end
     return loss
 end
