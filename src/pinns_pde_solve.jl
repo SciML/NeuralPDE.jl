@@ -326,7 +326,7 @@ function generate_training_sets(domains,dx,bcs,dict_indvars::Dict,dict_depvars::
     spans = [d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)]
     dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
 
-    dif = [Int[] for i=1:size(domains)[1]]
+    dif = [Float64[] for i=1:size(domains)[1]]
     for _args in bound_args
         for (i,x) in enumerate(_args)
             if x isa Number
