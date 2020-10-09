@@ -68,7 +68,8 @@ struct QuadratureTraining <: TrainingStrategies
     abstol::Float64
     maxiters::Int64
 end
-function QuadratureTraining(;algorithm=HCubatureJL(),reltol=1e-2,abstol=1e-2,maxiters=3)
+
+function QuadratureTraining(;algorithm=HCubatureJL(),reltol=1e-3,abstol=1e-3,maxiters=10)
     QuadratureTraining(algorithm,reltol,abstol,maxiters)
 end
 
@@ -226,16 +227,17 @@ to
           end
       end)
 """
-function build_loss_function(eqs,_indvars,_depvars)
+function build_loss_function(eqs,_indvars,_depvars;bc_indvars=nothing)
     # dictionaries: variable -> unique number
     indvars = Expr.(_indvars)
     depvars = [d.name for d in _depvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
-    return build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
+    bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
+    return build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars,bc_indvars = bc_indvars)
 end
 
-function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
+function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars; bc_indvars = indvars)
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -244,6 +246,7 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
         loss_function = parse_equation(eq,dict_indvars,dict_depvars)
         push!(loss_functions,loss_function)
     end
+    # loss_functions = map(eq ->parse_equation(eq,dict_indvars,dict_depvars), eqs )
 
     vars = :(phi, cord, θ, derivative)
     ex = Expr(:block)
@@ -260,10 +263,9 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
     u_ex = ModelingToolkit.build_expr(:block, us)
     push!(ex.args,  u_ex)
 
-    indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(indvars)]
-    arg_pairs_indvars = indvars,indvars_ex
+    indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(bc_indvars)]
+    left_arg_pairs, right_arg_pairs = bc_indvars,indvars_ex
 
-    left_arg_pairs, right_arg_pairs = arg_pairs_indvars
     vars_eq = Expr(:(=), ModelingToolkit.build_expr(:tuple, left_arg_pairs),
                             ModelingToolkit.build_expr(:tuple, right_arg_pairs))
     let_ex = Expr(:let, vars_eq, ModelingToolkit.build_expr(:vect, loss_functions))
@@ -273,7 +275,7 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
 end
 
 # Get agruments from bondary condition functions
-function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
+function get_bc_argument(bcs,dict_indvars,dict_depvars)
     bc_args = []
     for _bc in bcs
         _bc isa Array && error("boundary conditions must be represented as a one-dimensional array")
@@ -286,38 +288,64 @@ function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
         end
         push!(bc_args, bc_arg)
     end
+
     return bc_args
 end
 
-function generate_training_sets(domains,dx,bcs,_indvars,_depvars)
+function get_bc_varibles(bcs,_indvars::Array,_depvars::Array)
     indvars = Expr.(_indvars)
     depvars = [d.name for d in _depvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
-    return generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict_depvars)
+    return get_bc_varibles(bcs,dict_indvars,dict_depvars)
+end
+
+function get_bc_varibles(bcs,dict_indvars,dict_depvars)
+    bc_args = get_bc_argument(bcs,dict_indvars,dict_depvars)
+    return map(barg -> filter(x -> x isa Symbol, barg), bc_args)
+end
+
+function generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
+    indvars = Expr.(_indvars)
+    depvars = [d.name for d in _depvars]
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
+    return generate_training_sets(domains,dx,bcs,dict_indvars,dict_depvars)
 end
 # Generate training set in the domain and on the boundary
-function generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict_depvars)
+function generate_training_sets(domains,dx,bcs,dict_indvars::Dict,dict_depvars::Dict)
     if dx isa Array
         dxs = dx
     else
         dxs = fill(dx,length(domains))
     end
 
-    bound_args = get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
+    bound_args = get_bc_argument(bcs,dict_indvars,dict_depvars)
+    bound_vars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
 
     spans = [d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)]
     dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
 
-    train_set = map(points -> collect(points), Iterators.product(spans...))
-
-    train_bound_set = map(bound_args) do bt
-        span = map(b -> get(dict_var_span, b, [b]), bt)
-        _set = map(points -> collect(points), Iterators.product(span...))
+    dif = [Int[] for i=1:size(domains)[1]]
+    for _args in bound_args
+        for (i,x) in enumerate(_args)
+            if x isa Number
+                push!(dif[i],x)
+            end
+        end
+    end
+    collect_spans = collect.(spans)
+    bc_data = map(zip(dif,collect_spans)) do (d,c)
+        setdiff(c, d)
     end
 
-    flat_train_bound_set = map(x -> x, Iterators.flatten(train_bound_set))
-    train_domain_set =  setdiff(train_set, flat_train_bound_set)
+    train_set = vec(map(points -> collect(points), Iterators.product(spans...)))
+    train_domain_set = vec(map(points -> collect(points), Iterators.product(bc_data...)))
+
+    train_bound_set = map(bound_vars) do bt
+        span = map(b -> dict_var_span[b], bt)
+        _set = vec(map(points -> collect(points), Iterators.product(span...)))
+    end
 
     [train_domain_set,train_bound_set,train_set]
 end
@@ -353,7 +381,7 @@ function get_derivative(autodiff)
     derivative
 end
 
-function get_loss_function(loss_functions, train_sets, domains, phi, derivative, strategy)
+function get_loss_function(loss_functions, train_sets, phi, derivative, strategy)
 
     # norm coefficient for loss function
     τ = sum(length(train_set) for train_set in train_sets)
@@ -396,8 +424,8 @@ function get_loss_function(loss_functions, train_sets, domains, phi, derivative,
         f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,phi,x,θ,derivative) for x in train_set])
         loss = (θ) ->  (1.0f0/τ) * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
     elseif strategy isa QuadratureTraining
-        lb = [domain.domain.lower for domain in domains]
-        ub = [domain.domain.upper  for domain in domains]
+        lbs = [ts[1] for ts in train_sets]
+        ubs = [ts[end] for ts in train_sets]
         f = (lb,ub,loss_,θ) -> begin
             _loss = (x,θ) -> sum(abs2,inner_loss(loss_, phi, x, θ, derivative))
             prob = QuadratureProblem(_loss,lb,ub,θ)
@@ -407,7 +435,7 @@ function get_loss_function(loss_functions, train_sets, domains, phi, derivative,
                   abstol = strategy.abstol,
                   maxiters = strategy.maxiters)[1]
         end
-        loss = (θ) -> (1.0f0/τ)*sum(f(lb,ub,loss_,θ) for loss_ in loss_functions)
+        loss = (θ) -> (1.0f0/τ)*sum(f(lb,ub,loss_,θ) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
     end
     return loss
 end
@@ -440,7 +468,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     # length(depvars) != chain.layers[end].out && error("the output of chain should equal the number of variables")
 
     train_sets = generate_training_sets(domains,dx,bcs,
-                                        indvars,depvars,
                                         dict_indvars,dict_depvars)
 
     # the points in the domain and on the boundary
@@ -448,18 +475,21 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
 
     expr_pde_loss_function = build_loss_function(eqs,indvars,depvars,
                                                  dict_indvars,dict_depvars)
+
+    bc_indvars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
     expr_bc_loss_functions = [build_loss_function(bc,indvars,depvars,
-                                                  dict_indvars,dict_depvars) for bc in bcs]
+                                                  dict_indvars,dict_depvars;
+                                                  bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
     pde_loss_function = get_loss_function(eval(expr_pde_loss_function),
                                           train_domain_set,
-                                          domains,
                                           phi,
                                           derivative,
                                           strategy)
+
+    strategy = isempty(bc_indvars[1]) ? GridTraining() : strategy
     bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
                                          train_bound_set,
-                                         domains,
                                          phi,
                                          derivative,
                                          strategy)
