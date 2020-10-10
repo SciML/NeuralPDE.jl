@@ -363,10 +363,8 @@ end
 
 # the method  calculate derivative
 function get_derivative(autodiff)
-    epsilon = 2*cbrt(eps(Float32))
-    if autodiff # automatic differentiation (not implemented yet)
-        error("automatic differentiation is not implemented yet)")
-    else # numerical differentiation
+    if !autodiff # numerical differentiation
+        epsilon = 2*cbrt(eps(Float32))
         derivative = (u,x,εs,order,θ) ->
         begin
             ε = εs[order]
@@ -377,6 +375,8 @@ function get_derivative(autodiff)
                 return (u(x+ε,θ) - u(x-ε,θ))/epsilon
             end
         end
+    else # automatic differentiation (not implemented yet)
+        error("automatic differentiation is not implemented yet)")
     end
     derivative
 end
