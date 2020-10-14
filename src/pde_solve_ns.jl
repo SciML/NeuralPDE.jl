@@ -162,7 +162,7 @@ function DiffEqBase.solve(
           end
         end
 
-        #The legendre transform that uses the precalculated f values.
+        #The Legendre transform that uses the precalculated f values.
         function legendre_transform(f_matrix , a , urange)
             le = a.*(collect(urange)) .- f_matrix
             return maximum(le)

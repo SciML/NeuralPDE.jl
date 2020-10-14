@@ -1,14 +1,14 @@
 """
-Algorithm for solving Physics Informed Neural Networks problem.
+Algorithm for solving Physics-Informed Neural Networks problems.
 
 Arguments:
-* `dx` is discretization of grid
-* `chain` is a Flux.jl chain with d dimensional input and 1 dimensional output,
+* `dx` is the discretization of the grid
+* `chain` is a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
 * `init_params` is the initial parameter of the neural network,
-* `phi` is trial solution,
-* `autodiff` is a boolean variable that determines whether to use automatic, differentiation(not supported while) or numerical,
-* `derivative` is method that calculate derivative,
-* `strategy` is determines which training strategy will be used.
+* `phi` is a trial solution,
+* `autodiff` is a boolean variable that determines whether to use automatic, differentiation (not supported while) or numerical,
+* `derivative` is method that calculates the derivative,
+* `strategy` determines which training strategy will be used.
 """
 
 struct PhysicsInformedNN{D,C,P,PH,DER,T,K}
@@ -100,7 +100,7 @@ Transform the derivative expression to inner representation
 
 # Examples
 
-1. First derivative of function 'u(x,y)' with respect to x
+1. First compute the derivative of function 'u(x,y)' with respect to x.
 
 Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(u, [x, y], εs, order, θ)`,
 
@@ -143,18 +143,18 @@ Parse ModelingToolkit equation form to the inner representation.
 
 Example:
 
-1)  1d ODE: Dt(u(t,θ)) ~ t +1
+1)  1-D ODE: Dt(u(t,θ)) ~ t +1
 
     Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u_d, [t], [[ε]], 1, θ) - (t + 1)'
 
-2)  2d PDE: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
+2)  2-D PDE: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
 
     Take expressions in the form:
      Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))
     to
      (derivative(u_d, [x, y], [[ε,0],[ε,0]], 2, θ) + derivative(u_d, [x, y], [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
 
-3)  System of PDE: [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
+3)  System of PDEs: [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
                     Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
 
     Take expressions in the form:
@@ -174,9 +174,9 @@ function parse_equation(eq,dict_indvars,dict_depvars)
 end
 
 """
-Build loss function for pde or boundary condition
+Build a loss function for a PDE or a boundary condition
 
-# Examples: System of pde:
+# Examples: System of PDEs:
 
 Take expressions in the form:
 
@@ -260,7 +260,7 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
     return :(($vars) -> begin $ex end)
 end
 
-# Get agruments from bondary condition functions
+# Get arguments from boundary condition functions
 function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
     bc_args = []
     for _bc in bcs
@@ -321,7 +321,7 @@ function get_phi(chain)
     phi
 end
 
-# the method  calculate derivative
+# the method to calculate the derivative
 function get_derivative(autodiff)
     epsilon = 2*cbrt(eps(Float32))
     if autodiff # automatic differentiation (not implemented yet)
@@ -388,7 +388,7 @@ function get_loss_function(loss_functions, train_sets, phi, derivative, strategy
 end
 
 
-# Convert a PDE problem into OptimizationProblem
+# Convert a PDE problem into an OptimizationProblem
 function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     eqs = pde_system.eq
     bcs = pde_system.bcs
