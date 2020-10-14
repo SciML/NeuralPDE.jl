@@ -2,11 +2,11 @@
 
 ## Example 1: Solving the 2-dimensional Poisson Equation
 
-In this example we will solve a Poisson equation of 2 dimensions:
+In this example, we will solve a Poisson equation of 2 dimensions:
 
 ![poisson](https://user-images.githubusercontent.com/12683885/86838505-ee1ae480-c0a8-11ea-8d3c-7da53a9a7091.png)
 
-with boundary conditions:
+with the boundary conditions:
 
 ![boundary](https://user-images.githubusercontent.com/12683885/86621678-437ec500-bfc7-11ea-8fe7-23a46a524cbe.png)
 
@@ -44,7 +44,7 @@ dim = 2 # number of dimensions
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 ```
 
-Here we build PhysicsInformedNN algorithm where `dx` is step of discretization, `strategy` stores information for choosing a training strategy.
+Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretization and `strategy` stores information for choosing a training strategy.
 ```julia
 # Discretization
 dx = 0.05
@@ -53,14 +53,15 @@ discretization = PhysicsInformedNN(dx,
                                    strategy = GridTraining())
 ```
 
-As described in the API docs, we now need to define `PDESystem` and create PINNs problem using `discretize` method.
+As described in the API docs, we now need to define the `PDESystem` and create PINNs problem using the `discretize` method.
 
 ```julia
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)
 ```
 
-Here we define callback function and optimizer. And now we can solve the PDE using PINNs. At do a number of epochs `maxiters=1000`.
+Here, we define the callback function and the optimizer. And now we can solve the PDE using PINNs
+(with the number of epochs `maxiters=1000`).
 
 ```julia
 cb = function (p,l)
@@ -91,7 +92,7 @@ plot(p1,p2,p3)
 
 ## Example 2 : Solving the 2-dimensional Wave Equation with Neumann boundary condition
 
-Let's solve this 2d wave equation:
+Let's solve this 2-dimensional wave equation:
 
 ![wave](https://user-images.githubusercontent.com/12683885/91465006-ecde8a80-e895-11ea-935e-2c1d60e3d1f2.png)
 
@@ -158,12 +159,12 @@ plot(p1,p2,p3)
 
 
 
-## Example 3 : Solving the 3-D PDE
+## Example 3 : Solving the 3-dimensional PDE
 
-3-dimentional pde:
+the 3-dimensional PDE:
 ![3dpde](https://user-images.githubusercontent.com/12683885/90976452-d2c74400-e545-11ea-8361-288603d9ddbc.png)
 
-with Initial and boundary conditions:
+with the initial and boundary conditions:
 
 ![boundary](https://user-images.githubusercontent.com/12683885/91332936-8c881400-e7d5-11ea-991a-39c9d61d4f24.png)
 
@@ -209,17 +210,17 @@ res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=3
 phi = discretization.phi
 ```
 
-## Example 4 : Solving PDE System
+## Example 4 : Solving a PDE System
 
-In this example we will solve the PDE system:
+In this example, we will solve the PDE system:
 
 ![pdesystem](https://user-images.githubusercontent.com/12683885/90978370-22157080-e556-11ea-92b3-d65cb9aa3115.png)
 
-with Initial conditions:
+with the initial conditions:
 
 ![Initial](https://user-images.githubusercontent.com/12683885/90978670-322e4f80-e558-11ea-8157-a0b6ec84e121.png)
 
-and boundary conditions:
+and the boundary conditions:
 
 ![boundary](https://user-images.githubusercontent.com/12683885/90978689-4c682d80-e558-11ea-8e51-080bd02a1856.png)
 
@@ -310,9 +311,9 @@ eqs  = @. [(Dxx(u_(x,y,θ)) + Dyy(u_(x,y,θ))) for u_ in u] ~ -sin(pi*x)*sin(pi*
 bcs = [u[1](x,0,θ) ~ x, u[2](x,0,θ) ~ 2, u[3](x,0,θ) ~ 3, u[4](x,0,θ) ~ 4]
 ```
 
-## Example 5 : Solving ODE with 3rd order derivative
+## Example 5 : Solving an ODE with a 3rd-order derivative
 
-Let's consider ODE with 3rd order derivative:
+Let's consider the ODE with a 3rd-order derivative:
 
 ![hdode](https://user-images.githubusercontent.com/12683885/89736407-dc46ab80-da71-11ea-9c6e-5964488642bd.png)
 
@@ -366,13 +367,13 @@ plot!(x_plot ,u_predict,title = "predict")
 ```
 ![hodeplot](https://user-images.githubusercontent.com/12683885/90276340-69bc3e00-de6c-11ea-89a7-7d291123a38b.png)
 
-## Example 6 : 2D Burgers equation, low-level API
+## Example 6 : 2-D Burgers' equation, low-level API
 
-Let consider the Burgers’equation:
+Let's consider the Burgers’ equation:
 
 ![burgers](https://user-images.githubusercontent.com/12683885/90985032-b6e19380-e581-11ea-89ee-cdfdc4ecf075.png)
 
-Here is the example where using the low-level API:
+Here is an example of using the low-level API:
 
 ```julia
 @parameters t, x, θ
@@ -459,11 +460,11 @@ plot(p1,p2,p3)
 
 ## Example 7 :  Kuramoto–Sivashinsky equation
 
-Let's consider the Kuramoto–Sivashinsky equation which contains 4th order derivative:
+Let's consider the Kuramoto–Sivashinsky equation, which contains a 4th-order derivative:
 
 ![KS](https://user-images.githubusercontent.com/12683885/91025423-09fb2b00-e602-11ea-8f5c-61e49e4fb54e.png)
 
-with initial and boundary conditions:
+with the initial and boundary conditions:
 
 ![bs](https://user-images.githubusercontent.com/12683885/91025570-3fa01400-e602-11ea-8fd7-5b0e250a67a4.png)
 
@@ -529,22 +530,22 @@ plot(p1,p2,p3)
 
 ## Example 8 : Fokker-Planck equation with GPU acceleration
 
-Let's consider Fokker-Planck equation:
+Let's consider the Fokker-Planck equation:
 
 ![fke](https://user-images.githubusercontent.com/12683885/91547965-58c00200-e92d-11ea-8d7b-f20ba79ed7c1.png)
 
-which must satisfies the normalization condition:
+which must satisfy the normalization condition:
 
 ![nc](https://user-images.githubusercontent.com/12683885/91548028-74c3a380-e92d-11ea-8ee4-ac2a1c780808.png)
 
-with boundary conditions:
+with the boundary conditions:
 
 ![bc](https://user-images.githubusercontent.com/12683885/91548102-902eae80-e92d-11ea-8956-736a54e9591e.png)
 
-Actually, it is just enough add `|>gpu` after `chain` and all will works.
+Actually, it is just enough to add `|>gpu` after `chain` and everything will work.
 
 ```julia
-# the example took from this article https://arxiv.org/abs/1910.10503
+# the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x θ
 @variables p(..)
 @derivatives Dx'~x
@@ -556,7 +557,7 @@ Actually, it is just enough add `|>gpu` after `chain` and all will works.
 _σ = 0.5
 # Discretization
 dx = 0.05
-# here we use normalization condition: dx*p(x,θ) ~ 1, in order to get non-zero solution.
+# here we use normalization condition: dx*p(x,θ) ~ 1 in order to get a non-zero solution.
 eq  = [(α - 3*β*x^2)*p(x,θ) + (α*x - β*x^3)*Dx(p(x,θ)) ~ (_σ^2/2)*Dxx(p(x,θ)),
        dx*p(x,θ) ~ 1.]
 

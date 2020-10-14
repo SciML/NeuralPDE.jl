@@ -7,12 +7,12 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](http://neuralpde.sciml.ai/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](http://neuralpde.sciml.ai/dev/)
 
-NeuralPDE.jl is a solver package which consists neural network solvers for 
+NeuralPDE.jl is a solver package which consists of neural network solvers for
 partial differential equations using scientific machine learning (SciML)
 techniques such as physics-informed neural networks (PINNs) and deep
-BSDE solvers. This package utilizes deep neural networks and 
-neural stochastic differential equations to solve high dimensional PDEs
-at a greatly reduced cost and greatly increased generality compared to classical methods.
+BSDE solvers. This package utilizes deep neural networks and
+neural stochastic differential equations to solve high-dimensional PDEs
+at a greatly reduced cost and greatly increased generality compared with classical methods.
 
 ## Tutorials and Documentation
 
@@ -25,7 +25,7 @@ the documentation, which contains the unreleased features.
 
 - Physics-Informed Neural Networks for automated PDE solving
 - Forward-Backwards Stochastic Differential Equation (FBSDE) methods for parabolic PDEs
-- Deep learning based solvers for optimal stopping time and Kolmogorov backwards equations
+- Deep-learning-based solvers for optimal stopping time and Kolmogorov backwards equations
 
 ## Example: Solving 2D Poisson Equation via Physics-Informed Neural Networks
 
@@ -86,7 +86,7 @@ plot(p1,p2,p3)
 
 ![image](https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png)
 
-## Example: Solving a 100 Dimensional Hamilton-Jacobi-Bellman Equation
+## Example: Solving a 100-Dimensional Hamilton-Jacobi-Bellman Equation
 
 ```julia
 using NeuralPDE

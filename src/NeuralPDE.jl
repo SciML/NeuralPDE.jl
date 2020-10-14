@@ -13,7 +13,7 @@ abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
     TerminalPDEProblem(g, f, μ, σ, x0, tspan)
 A semilinear parabolic PDE problem with a terminal condition.
-Consider `du/dt = l(u) + f(u)`; where l is the non linear Lipschitz function
+Consider `du/dt = l(u) + f(u)`; where l is the nonlinear Lipschitz function
 # Arguments
 * `g` : The terminal condition for the equation.
 * `f` : The function f(u)
@@ -87,12 +87,12 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
 end
 
 """
-Algorithm for solving differential equation using neural network.
+Algorithm for solving differential equation using a neural network.
 
 Arguments:
 * `chain`: A Chain neural network
-* `opt`: The optimiser to train the neural network. Defaults to `BFGS()`
-* `initθ`: The initial parameter of the neural network
+* `opt`: The optimizer to train the neural network. Defaults to `BFGS()`.
+* `initθ`: The initial parameter of the neural network.
 * `autodiff`: The switch between automatic and numerical differentiation for
               the PDE operators. The reverse mode of the loss function is always AD.
 """

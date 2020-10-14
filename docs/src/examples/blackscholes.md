@@ -1,10 +1,10 @@
-# Solving the 100 dimensional Black-Scholes-Barenblatt Equation
+# Solving the 100-dimensional Black-Scholes-Barenblatt Equation
 
 Black Scholes equation is a model for stock option price.
 In 1973, Black and Scholes transformed their formula on option pricing and corporate liabilities into a PDE model, which is widely used in financing engineering for computing the option price over time. [1.]
-In this example we will solve a Black-Scholes-Barenblatt equation of 100 dimensions.
+In this example, we will solve a Black-Scholes-Barenblatt equation of 100 dimensions.
 The Black-Scholes-Barenblatt equation is a nonlinear extension to the Black-Scholes
-equation which models uncertain volatility and interest rates derived from the
+equation, which models uncertain volatility and interest rates derived from the
 Black-Scholes equation. This model results in a nonlinear PDE whose dimension
 is the number of assets in the portfolio.
 
@@ -25,8 +25,8 @@ prob = TerminalPDEProblem(g, f, μ_f, σ_f, X0, tspan)
 
 As described in the API docs, we now need to define our `NNPDENS` algorithm
 by giving it the Flux.jl chains we want it to use for the neural networks.
-`u0` needs to be a `d` dimensional -> 1 dimensional chain, while `σᵀ∇u`
-needs to be `d+1` dimensional to `d` dimensions. Thus we define the following:
+`u0` needs to be a `d`-dimensional -> 1-dimensional chain, while `σᵀ∇u`
+needs to be `d+1`-dimensional to `d` dimensions. Thus we define the following:
 
 ```julia
 hls  = 10 + d #hide layer size
@@ -41,7 +41,7 @@ u0 = Flux.Chain(Dense(d,hls,relu),
 pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 ```
 
-And now we solve the PDE. Here we say we want to solve the underlying neural
+And now we solve the PDE. Here, we say we want to solve the underlying neural
 SDE using the Euler-Maruyama SDE solver with our chosen `dt=0.2`, do at most
 150 iterations of the optimizer, 100 SDE solves per loss evaluation (for averaging),
 and stop if the loss ever goes below `1f-6`.

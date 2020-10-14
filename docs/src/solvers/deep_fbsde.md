@@ -1,6 +1,6 @@
 # Deep Forward-Backwards SDEs for Terminal Parabolic PDEs
 
-To solve high dimensional PDEs, first one should describe the PDE in terms of
+To solve high-dimensional PDEs, one should first describe the PDE in terms of
 the `TerminalPDEProblem` with constructor:
 
 ```julia
@@ -16,10 +16,10 @@ reverse, satisfying the terminal equation and giving a point estimate at
 `u(tspan[1],X0)`. The dimensionality of the PDE is determined by the choice
 of `X0`, which is the initial stochastic state.
 
-To solve this PDE problem, there exists two algorithms:
+To solve this PDE problem, there exist two algorithms:
 
 - `NNPDENS(u0,σᵀ∇u;opt=Flux.ADAM(0.1))`: Uses a neural stochastic differential
-  equation which is then solved by the methods available in DifferentialEquations.jl
+  equation, which is then solved by the methods available in DifferentialEquations.jl.
   The `alg` keyword is required for specifying the SDE solver algorithm that
   will be used on the internal SDE. All of the other keyword arguments are passed
   to the SDE solver.
@@ -28,12 +28,12 @@ To solve this PDE problem, there exists two algorithms:
   `μ_f` and `σ_f` result in a non-stiff SDE where low order non-adaptive time
   stepping is applicable.
 
-Here, `u0` is a Flux.jl chain with `d` dimensional input and 1 dimensional output.
-For `NNPDEHan`, `σᵀ∇u` is an array of `M` chains with `d` dimensional input and
-`d` dimensional output, where `M` is the total number of timesteps. For `NNPDENS`
-it is a `d+1` dimensional input (where the final value is time) and `d` dimensional
+Here, `u0` is a Flux.jl chain with a `d`-dimensional input and a 1-dimensional output.
+For `NNPDEHan`, `σᵀ∇u` is an array of `M` chains with a `d`-dimensional input and a
+`d`-dimensional output, where `M` is the total number of timesteps. For `NNPDENS`
+it is a `d+1`-dimensional input (where the final value is time) and a `d`-dimensional
 output. `opt` is a Flux.jl optimizer.
 
-Each of these methods has a special keyword argument `pabstol` which specifies
+Each of these methods has a special keyword argument `pabstol`, which specifies
 an absolute tolerance on the PDE's solution, and will exit early if the loss
-reaches this value. Its defualt value is `1f-6`.
+reaches this value. Its default value is `1f-6`.
