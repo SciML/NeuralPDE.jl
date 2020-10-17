@@ -1,10 +1,10 @@
-# ODE-Specialized Physics Informed Neural Solver
+# ODE-Specialized Physics-Informed Neural Solver
 
 The ODE-specialized physics-informed neural network (PINN) solver is a
 method for the [DifferentialEquations.jl common interface](https://diffeq.sciml.ai/latest/)
-of `ODEProblem` which generates the solution via a neural network.
+of `ODEProblem`, which generates the solution via a neural network.
 Thus the standard [ODEProblem](https://diffeq.sciml.ai/latest/types/ode_types/)
-is used, but a new algorithm, `NNODE` is utilized to solve the problem.
+is used, but a new algorithm, `NNODE`, is used to solve the problem.
 
 The algorithm type is:
 
@@ -12,7 +12,7 @@ The algorithm type is:
 nnode(chain,opt)
 ```
 
-where `chain` is a DiffEqFlux `sciml_train` compatible Chain or FastChain
+where `chain` is a DiffEqFlux `sciml_train`-compatible Chain or FastChain
 representing a neural network, and `opt` is an optimization method
 for `sciml_train`. For more details, see [the DiffEqFlux documentation
 on `sciml_train`](https://diffeqflux.sciml.ai/dev/).

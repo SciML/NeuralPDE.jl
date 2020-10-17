@@ -4,7 +4,7 @@ A Kolmogorov PDE is of the form :
 
 ![](https://raw.githubusercontent.com/ashutosh-b-b/Kolmogorv-Equations-Notebook/master/KolmogorovPDEImages/KolmogorovPDE.png)
 
-Considering S be a solution process to the SDE:
+Considering S to be a solution process to the SDE:
 
 ![](https://raw.githubusercontent.com/ashutosh-b-b/Kolmogorv-Equations-Notebook/master/KolmogorovPDEImages/StochasticP.png)
 
@@ -18,33 +18,34 @@ A Kolmogorov PDE Problem can be defined using a `SDEProblem`:
 SDEProblem(μ,σ,u0,tspan,xspan,d)
 ```
 
-Here `u0` is the initial distribution of x. Here we define `u(0,x)` as the probability density function of `u0`.`μ` and `σ` are obtained from the SDE for the stochastic process above. `d` represents the dimenstions of `x`.
+Here, `u0` is the initial distribution of x. Here, we define `u(0,x)` as the probability density function of `u0`.`μ` and `σ` are obtained from the SDE for the stochastic process above. `d` represents the dimensions of `x`.
 `u0` can be defined using `Distributions.jl`.
 
-Another was of defining a KolmogorovPDE is using the `KolmogorovPDEProblem`.
+Another way of defining a KolmogorovPDE is to use the `KolmogorovPDEProblem`.
 
 ```julia
 KolmogorovPDEProblem(μ,σ,phi,tspan,xspan,d)
 ```
 
-Here `phi` is the initial condition on u(t,x) when t = 0. `μ` and `σ` are obtained from the SDE for the stochastic process above. `d` represents the dimenstions of `x`.
+Here, `phi` is the initial condition on u(t,x) when t = 0. `μ` and `σ` are obtained from the SDE for the stochastic process above. `d` represents the dimensions of `x`.
 
-To solve this problem use,
+To solve this problem use:
 
-- `NNKolmogorov(chain, opt , sdealg)`: Uses a neural network to realise a regression function which is the solution for the linear Kolmogorov Equation.
+- `NNKolmogorov(chain, opt , sdealg)`: Uses a neural network to realize a regression function which is the solution for the linear Kolmogorov Equation.
 
-Here, `chain` is a Flux.jl chain with `d` dimensional input and 1 dimensional output.`opt` is a Flux.jl optimizer. And `sdealg` is a high-order algorithm to calculate the solution for the SDE, which is used to define the learning data for the problem. Its default value is the classic Euler-Maruyama algorithm.
+Here, `chain` is a Flux.jl chain with a `d`-dimensional input and a 1-dimensional output.`opt` is a Flux.jl optimizer. And `sdealg` is a high-order algorithm to calculate the solution for the SDE, which is used to define the learning data for the problem. Its default value is the classic Euler-Maruyama algorithm.
 
 ## Using GPU for Kolmogorov Equations
 
-For running Kolmogorov Equations on a GPU there are somethings that are needed to be taken care of :
+For running Kolmogorov Equations on a GPU, there are certain aspects that are need to be taken care of:
 
-Convert the model parameters to `CuArrays` using the `fmap` function given by Flux.jl
+Convert the model parameters to `CuArrays` using the `fmap` function given by Flux.jl:
 ```julia
 m = Chain(Dense(1, 64, σ), Dense(64, 64, σ) , Dense(5, 2))
 m = fmap(cu, m)
 ```
-Unlike other solver we need to specify explicitly to the solver to run on the GPU. This can be done by passing the `use_gpu = true`  into the solver.
+Unlike other solvers, we need to specify explicitly that the solver is to run
+on the GPU. This can be done by passing the `use_gpu = true` into the solver.
 
 ```julia
 solve(prob, NeuralPDE.NNKolmogorov(m, opt, sdealg, ensemblealg), use_gpu = true,  verbose = true, dt = dt, dx = dx , trajectories = trajectories , abstol=1e-6, maxiters = 1000)
