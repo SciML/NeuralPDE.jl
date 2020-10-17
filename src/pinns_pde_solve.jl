@@ -481,14 +481,14 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                   dict_indvars,dict_depvars;
                                                   bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
-    pde_loss_function = get_loss_function(eval(expr_pde_loss_function),
+    pde_loss_function = get_loss_function(runtime_eval(expr_pde_loss_function),
                                           train_domain_set,
                                           phi,
                                           derivative,
                                           strategy)
 
     strategy = isempty(bc_indvars[1]) ? GridTraining() : strategy
-    bc_loss_function = get_loss_function(eval.(expr_bc_loss_functions),
+    bc_loss_function = get_loss_function(runtime_eval.(expr_bc_loss_functions),
                                          train_bound_set,
                                          phi,
                                          derivative,

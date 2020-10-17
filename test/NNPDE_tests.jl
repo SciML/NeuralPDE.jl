@@ -68,50 +68,27 @@ u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 # plot!(t_plot ,u_predict)
 
 ## Example 2, 2D Poisson equation
-@parameters x y θ
-@variables u(..)
-@derivatives Dxx''~x
-@derivatives Dyy''~y
+function test_2d_poisson_equation(chain, strategy)
+    @parameters x y θ
+    @variables u(..)
+    @derivatives Dxx''~x
+    @derivatives Dyy''~y
 
-# 2D PDE
-eq  = Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
+    # 2D PDE
+    eq  = Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
 
-# Initial and boundary conditions
-bcs = [u(0,y,θ) ~ 0.f0, u(1,y,θ) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0,θ) ~ 0.f0, u(x,1,θ) ~ -sin(pi*x)*sin(pi*1)]
-# Space and time domains
-domains = [x ∈ IntervalDomain(0.0,1.0),
-           y ∈ IntervalDomain(0.0,1.0)]
-# Discretization
-dx = 0.1
+    # Initial and boundary conditions
+    bcs = [u(0,y,θ) ~ 0.f0, u(1,y,θ) ~ -sin(pi*1)*sin(pi*y),
+           u(x,0,θ) ~ 0.f0, u(x,1,θ) ~ -sin(pi*x)*sin(pi*1)]
+    # Space and time domains
+    domains = [x ∈ IntervalDomain(0.0,1.0),
+               y ∈ IntervalDomain(0.0,1.0)]
+    # Discretization
+    dx = 0.1
 
-# Neural network
-chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
-fluxchain = Chain(Dense(2,12,Flux.σ),Dense(12,12,Flux.σ),Dense(12,1))
-chains = [fluxchain,chain]
-for chain in chains
-    discretization = NeuralPDE.PhysicsInformedNN(dx,
-                                                 chain,
-                                                 strategy = NeuralPDE.GridTraining())
+    # chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+    # strategy = NeuralPDE.GridTraining()
 
-    pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
-    prob = NeuralPDE.discretize(pde_system,discretization)
-
-    res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=400)
-    phi = discretization.phi
-
-    xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
-    analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
-
-    u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-    u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
-    diff_u = abs.(u_predict .- u_real)
-
-    @test u_predict ≈ u_real atol = 3.0
-end
-
-strategies = [stochastic_strategy, quadrature_strategy]
-for strategy in strategies
     discretization = NeuralPDE.PhysicsInformedNN(dx,
                                                  chain,
                                                  strategy = strategy)
@@ -119,7 +96,7 @@ for strategy in strategies
     pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
     prob = NeuralPDE.discretize(pde_system,discretization)
 
-    res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=400)
+    res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=500)
     phi = discretization.phi
 
     xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
@@ -130,13 +107,24 @@ for strategy in strategies
     diff_u = abs.(u_predict .- u_real)
 
     @test u_predict ≈ u_real atol = 3.0
+
+    # p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+    # p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
+    # p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
+    # plot(p1,p2,p3)
 end
 
-# p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-# p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-# p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-# plot(p1,p2,p3)
+fastchain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+fluxchain = Chain(Dense(2,12,Flux.σ),Dense(12,12,Flux.σ),Dense(12,1))
+chains = [fluxchain, fastchain]
+for chain in chains
+    test_2d_poisson_equation(chain, quadrature_strategy)
+end
 
+strategies = [stochastic_strategy, quadrature_strategy]
+for strategy in strategies
+    test_2d_poisson_equation(fastchain, strategy)
+end
 
 
 ## Example 3, high-order ode

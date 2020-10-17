@@ -8,7 +8,7 @@ using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
 using ModelingToolkit
 using GalacticOptim
 using Quadrature
-using RuntimeGeneratedFunctions
+using GeneralizedGenerated
 import Tracker, Optim
 
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
