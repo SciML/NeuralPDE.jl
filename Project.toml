@@ -25,7 +25,6 @@ Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 Quadrature = "67601950-bd08-11e9-3c89-fd23fb4432d2"
 RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
-GeneralizedGenerated = "6b9d7cbe-bcb9-11e9-073f-15a7a543e2eb"
 
 [compat]
 Adapt = "2.0"
@@ -46,7 +45,6 @@ Tracker = "0.2"
 Zygote = "0.5"
 Quadrature = "1.5"
 RuntimeGeneratedFunctions = "0.4"
-GeneralizedGenerated = "0.2.7"
 julia = "1.3"
 
 [extras]

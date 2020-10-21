@@ -129,7 +129,9 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
     εs = [get_ε(dim,d) for d in 1:dim]
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
-            if e == :derivative && _args[end] != :θ
+            if e in keys(dict_depvars)
+                push!(_args, :phi)
+            elseif e == :derivative && _args[end] != :θ
                 derivative_variables = Symbol[]
                 order = 0
                 while (_args[1] == :derivative)
@@ -141,7 +143,7 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
                 indvars = _args[2:end-1]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
-                _args = [:derivative, Symbol(:($depvar),:_d), :([$(indvars...)]), εs_dnv, order, :θ]
+                _args = [:derivative, :phi, Symbol(:($depvar),:_d), :([$(indvars...)]), εs_dnv, order, :θ]
                 break
             end
         else
@@ -227,43 +229,53 @@ to
           end
       end)
 """
-function build_loss_function(eqs,_indvars,_depvars;bc_indvars=nothing)
+function build_loss_function(eqs,_indvars,_depvars, phi, derivative;bc_indvars=nothing)
+
     # dictionaries: variable -> unique number
     indvars = Expr.(_indvars)
     depvars = [d.name for d in _depvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
-    return build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars,bc_indvars = bc_indvars)
+    return build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi, derivative,bc_indvars = bc_indvars)
 end
 
-function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars; bc_indvars = indvars)
+function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi, derivative;
+                             bc_indvars = indvars)
+    RuntimeGeneratedFunctions.init(@__MODULE__)
     if !(eqs isa Array)
         eqs = [eqs]
     end
-    loss_functions= []
+    loss_functions= Expr[]
     for eq in eqs
-        loss_function = parse_equation(eq,dict_indvars,dict_depvars)
-        push!(loss_functions,loss_function)
+        push!(loss_functions,parse_equation(eq,dict_indvars,dict_depvars))
     end
-    # loss_functions = map(eq ->parse_equation(eq,dict_indvars,dict_depvars), eqs )
 
-    vars = :(phi, cord, θ, derivative)
+    vars = :(cord, θ, phi, derivative,u_arr,u_d_arr)
     ex = Expr(:block)
-    us = []
+
+    depvars_d = Symbol[]
     for v in depvars
-        var_num = dict_depvars[v]
-        push!(us,:($v = ($(indvars...), θ) -> phi([$(indvars...)],θ)[$var_num]))
-    end
-    for v in depvars
-        var_num = dict_depvars[v]
-        push!(us,:($(Symbol(:($v),:_d)) = (cord, θ) -> phi(cord,θ)[$var_num]))
+        push!(depvars_d,:($(Symbol(:($v),:_d))))
     end
 
-    u_ex = ModelingToolkit.build_expr(:block, us)
-    push!(ex.args,  u_ex)
+    expr_u_arr = Expr[]
+    expr_u_d_arr = Expr[]
+    for i in eachindex(depvars)
+        push!(expr_u_arr, :(u_arr[$i]) )
+        push!(expr_u_d_arr, :(u_d_arr[$i]) )
+    end
+
+    vars_u = Expr(:(=), ModelingToolkit.build_expr(:tuple, depvars),
+                        ModelingToolkit.build_expr(:tuple, expr_u_arr))
+    push!(ex.args,  vars_u)
+
+    vars_u_d = Expr(:(=), ModelingToolkit.build_expr(:tuple, depvars_d),
+                        ModelingToolkit.build_expr(:tuple, expr_u_d_arr))
+    push!(ex.args,  vars_u_d)
 
     indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(bc_indvars)]
+
     left_arg_pairs, right_arg_pairs = bc_indvars,indvars_ex
 
     vars_eq = Expr(:(=), ModelingToolkit.build_expr(:tuple, left_arg_pairs),
@@ -271,7 +283,23 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars; bc_i
     let_ex = Expr(:let, vars_eq, ModelingToolkit.build_expr(:vect, loss_functions))
     push!(ex.args,  let_ex)
 
-    return :(($vars) -> begin $ex end)
+    us = Expr[]
+    for v in depvars
+        var_num = dict_depvars[v]
+        push!(us,:(($(indvars...), θ, phi) -> phi([$(indvars...)],θ)[$var_num]))
+    end
+    u_ds = Expr[]
+    for (v,v_d) in zip(depvars, depvars_d)
+        var_num = dict_depvars[v]
+        push!(u_ds,:((cord, θ, phi) -> phi(cord,θ)[$var_num]))
+    end
+    expr_loss_function = :(($vars) -> begin $ex end)
+
+    u_arr = [@RuntimeGeneratedFunction(u) for u in us]
+    u_d_arr = [@RuntimeGeneratedFunction(u_d) for u_d in u_ds]
+    _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
+    loss_function = (cord, θ) -> _loss_function(cord, θ, phi, derivative, u_arr, u_d_arr)
+    return loss_function
 end
 
 # Get arguments from boundary condition functions
@@ -282,9 +310,9 @@ function get_bc_argument(bcs,dict_indvars,dict_depvars)
         left_expr = transform_derivative(ModelingToolkit.simplified_expr(_bc.lhs),
                                          dict_indvars,dict_depvars)
         bc_arg = if (left_expr.args[1] == :derivative)
-            left_expr.args[3].args
+            left_expr.args[4].args
         else
-            left_expr.args[2:end-1]
+            left_expr.args[2:end-2]
         end
         push!(bc_args, bc_arg)
     end
@@ -367,27 +395,27 @@ function get_derivative(autodiff)
     if autodiff # automatic differentiation (not implemented yet)
         error("automatic differentiation is not implemented yet)")
     else # numerical differentiation
-        derivative = (u,x,εs,order,θ) ->
+        derivative = (phi,u,x,εs,order,θ) ->
         begin
             ε = εs[order]
             if order > 1
-                return (derivative(u,x+ε,εs,order-1,θ)
-                      - derivative(u,x-ε,εs,order-1,θ))/epsilon
+                return (derivative(phi,u,x+ε,εs,order-1,θ)
+                      - derivative(phi,u,x-ε,εs,order-1,θ))/epsilon
             else
-                return (u(x+ε,θ) - u(x-ε,θ))/epsilon
+                return (u(x+ε,θ,phi) - u(x-ε,θ,phi))/epsilon
             end
         end
     end
     derivative
 end
 
-function get_loss_function(loss_functions, train_sets, phi, derivative, strategy)
+function get_loss_function(loss_functions, train_sets, strategy)
 
     # norm coefficient for loss function
     τ = sum(length(train_set) for train_set in train_sets)
 
-    function inner_loss(loss_function,phi,x,θ,derivative)
-        sum(loss_function(phi, x, θ, derivative))
+    function inner_loss(loss_function,x,θ)
+        sum(loss_function(x, θ))
     end
 
     if !(loss_functions isa Array)
@@ -414,20 +442,20 @@ function get_loss_function(loss_functions, train_sets, phi, derivative, strategy
                 size_set = sets_size[j]
                 for i in 1:count_elements[j]
                     index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
-                    total += inner_loss(l,phi,train_sets[j][index],θ,derivative)^2
+                    total += inner_loss(l,train_sets[j][index],θ)^2
                 end
             end
             return (1.0f0/τ) * total
         end
 
     elseif strategy isa GridTraining
-        f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,phi,x,θ,derivative) for x in train_set])
+        f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,x,θ) for x in train_set])
         loss = (θ) ->  (1.0f0/τ) * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
     elseif strategy isa QuadratureTraining
         lbs = [ts[1] for ts in train_sets]
         ubs = [ts[end] for ts in train_sets]
         f = (lb,ub,loss_,θ) -> begin
-            _loss = (x,θ) -> sum(abs2,inner_loss(loss_, phi, x, θ, derivative))
+            _loss = (x,θ) -> sum(abs2,inner_loss(loss_, x, θ))
             prob = QuadratureProblem(_loss,lb,ub,θ)
             solve(prob,
                   strategy.algorithm,
@@ -464,34 +492,31 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     autodiff == true && error("Automatic differentiation is not support yet")
     strategy = discretization.strategy
 
-    # length(domains) != chain.layers[1].in && error("the input of chain should equal the length of domains according to the dimensionality of the task")
-    # length(depvars) != chain.layers[end].out && error("the output of chain should equal the number of variables")
-
     train_sets = generate_training_sets(domains,dx,bcs,
                                         dict_indvars,dict_depvars)
 
     # the points in the domain and on the boundary
     train_domain_set,train_bound_set,train_set = train_sets
 
-    expr_pde_loss_function = build_loss_function(eqs,indvars,depvars,
-                                                 dict_indvars,dict_depvars)
+    _pde_loss_function = build_loss_function(eqs,indvars,depvars,
+                                                 dict_indvars,dict_depvars,phi, derivative)
 
     bc_indvars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
-    expr_bc_loss_functions = [build_loss_function(bc,indvars,depvars,
-                                                  dict_indvars,dict_depvars;
+    _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
+                                                  dict_indvars,dict_depvars,
+                                                  phi, derivative;
                                                   bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
-    pde_loss_function = get_loss_function(runtime_eval(expr_pde_loss_function),
+    pde_loss_function = get_loss_function(_pde_loss_function,
                                           train_domain_set,
-                                          phi,
-                                          derivative,
                                           strategy)
 
-    strategy = isempty(bc_indvars[1]) ? GridTraining() : strategy
-    bc_loss_function = get_loss_function(runtime_eval.(expr_bc_loss_functions),
+    strategy = dim==1 && strategy isa QuadratureTraining  ? GridTraining() : strategy
+    strategy = (dim<=2 && strategy isa QuadratureTraining && strategy.algorithm == CubaCuhre()) ?
+                QuadratureTraining(abstol = strategy.abstol, reltol =strategy.reltol,maxiters = strategy.maxiters) : strategy
+
+    bc_loss_function = get_loss_function(_bc_loss_functions,
                                          train_bound_set,
-                                         phi,
-                                         derivative,
                                          strategy)
 
     function loss_function(θ,p)

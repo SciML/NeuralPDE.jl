@@ -123,7 +123,8 @@ end
 
 strategies = [stochastic_strategy, quadrature_strategy]
 for strategy in strategies
-    test_2d_poisson_equation(fastchain, strategy)
+    chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+    test_2d_poisson_equation(chain, strategy)
 end
 
 
@@ -247,31 +248,30 @@ indvars = [x,t]
 depvars = [u]
 dim = length(domains)
 
-expr_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative)
+# _pde_loss_function([1,2], initθ, phi, derivative)
 
 bc_indvars = NeuralPDE.get_bc_varibles(bcs,indvars,depvars)
-expr_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,
                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
 
 train_domain_set,train_bound_set,train_set = train_sets
-# quadrature_strategy =QuadratureTraining(;algorithm=HCubatureJL(),reltol=1e-2,abstol=1e-2,maxiters=5)
-pde_loss_function = NeuralPDE.get_loss_function(eval(expr_pde_loss_function),
-                                      train_domain_set,
-                                      phi,
-                                      derivative,
-                                      quadrature_strategy)
 
-bc_loss_function = NeuralPDE.get_loss_function(eval.(expr_bc_loss_functions),
-                                     train_bound_set,
-                                     phi,
-                                     derivative,
-                                     quadrature_strategy)
+pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
+                                                train_domain_set,
+                                                quadrature_strategy)
+
+bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
+                                               train_bound_set,
+                                               quadrature_strategy)
 
 function loss_function(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
 end
+
+# loss_function(initθ,nothing)
 
 f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f, initθ)
