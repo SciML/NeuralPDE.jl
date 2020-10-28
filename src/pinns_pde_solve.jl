@@ -166,9 +166,9 @@ Example:
        (derivative(u2_d, [x, y], [[ε,0]], 1, θ) + 9 * derivative(u1_d, [x, y], [[0,ε]], 1, θ)) - 0]
 """
 function parse_equation(eq,dict_indvars,dict_depvars)
-    left_expr = transform_derivative(ModelingToolkit.simplified_expr(eq.lhs),
+    left_expr = transform_derivative(ModelingToolkit.toexpr(eq.lhs),
                                      dict_indvars,dict_depvars)
-    right_expr = transform_derivative(ModelingToolkit.simplified_expr(eq.rhs),
+    right_expr = transform_derivative(ModelingToolkit.toexpr(eq.rhs),
                                      dict_indvars,dict_depvars)
     loss_func = :($left_expr - $right_expr)
 end
@@ -216,8 +216,8 @@ to
 """
 function build_loss_function(eqs,_indvars,_depvars)
     # dictionaries: variable -> unique number
-    indvars = Expr.(_indvars)
-    depvars = [d.name for d in _depvars]
+    depvars = [d.val.name for d in _depvars]
+    indvars = [i.val.name for i in _indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     return build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
@@ -265,7 +265,7 @@ function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
     bc_args = []
     for _bc in bcs
         _bc isa Array && error("boundary conditions must be represented as a one-dimensional array")
-        left_expr = transform_derivative(ModelingToolkit.simplified_expr(_bc.lhs),
+        left_expr = transform_derivative(ModelingToolkit.toexpr(_bc.lhs),
                                          dict_indvars,dict_depvars)
         bc_arg = if (left_expr.args[1] == :derivative)
             left_expr.args[3].args
@@ -278,8 +278,8 @@ function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
 end
 
 function generate_training_sets(domains,dx,bcs,_indvars,_depvars)
-    indvars = Expr.(_indvars)
-    depvars = [d.name for d in _depvars]
+    depvars = [d.val.name for d in _depvars]
+    indvars = [i.val.name for i in _indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     return generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict_depvars)
@@ -398,8 +398,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     dim = length(domains)
     dim > 3 && error("While only dimensionality no more than 3")
 
-    depvars = [d.name for d in pde_system.depvars]
-    indvars = Expr.(pde_system.indvars)
+    depvars = [d.val.name for d in pde_system.depvars]
+    indvars = [i.val.name for i in pde_system.indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
 
