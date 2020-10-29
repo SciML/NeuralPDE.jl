@@ -373,7 +373,7 @@ function get_loss_function(loss_functions, train_sets, phi, derivative, strategy
             for (j,l) in enumerate(loss_functions)
                 size_set = sets_size[j]
                 for i in 1:count_elements[j]
-                    index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
+                    index = rand(1:size_set)
                     total += inner_loss(l,phi,train_sets[j][index],θ,derivative)^2
                 end
             end
