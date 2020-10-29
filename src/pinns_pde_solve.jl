@@ -332,8 +332,8 @@ function get_bc_varibles(bcs,dict_indvars,dict_depvars)
 end
 
 function generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
-    indvars = Expr.(_indvars)
-    depvars = [d.name for d in _depvars]
+    depvars = [nameof(value(d)) for d in _depvars]
+    indvars = [nameof(value(i)) for i in _indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     return generate_training_sets(domains,dx,bcs,dict_indvars,dict_depvars)
