@@ -278,7 +278,7 @@ function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
 end
 
 function generate_training_sets(domains,dx,bcs,_indvars,_depvars)
-    depvars = [d.val.name for d in _depvars]
+    depvars = [nameof(value(d)) for d in _depvars]
     indvars = [i.val.name for i in _indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
