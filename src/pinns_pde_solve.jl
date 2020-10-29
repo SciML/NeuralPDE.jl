@@ -216,7 +216,7 @@ to
 """
 function build_loss_function(eqs,_indvars,_depvars)
     # dictionaries: variable -> unique number
-    depvars = [d.val.name for d in _depvars]
+    depvars = [nameof(value(d)) for d in _depvars]
     indvars = [i.val.name for i in _indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
