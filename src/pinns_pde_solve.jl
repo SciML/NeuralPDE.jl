@@ -217,7 +217,7 @@ to
 function build_loss_function(eqs,_indvars,_depvars)
     # dictionaries: variable -> unique number
     depvars = [nameof(value(d)) for d in _depvars]
-    indvars = [i.val.name for i in _indvars]
+    indvars = [nameof(value(i)) for i in _indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     return build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
@@ -279,7 +279,7 @@ end
 
 function generate_training_sets(domains,dx,bcs,_indvars,_depvars)
     depvars = [nameof(value(d)) for d in _depvars]
-    indvars = [i.val.name for i in _indvars]
+    indvars = [nameof(value(i)) for i in _indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     return generate_training_sets(domains,dx,bcs,indvars,depvars,dict_indvars,dict_depvars)
@@ -398,8 +398,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     dim = length(domains)
     dim > 3 && error("While only dimensionality no more than 3")
 
-    depvars = [d.val.name for d in pde_system.depvars]
-    indvars = [i.val.name for i in pde_system.indvars]
+    depvars = [nameof(value(d)) for d in pde_system.depvars]
+    indvars = [nameof(value(i)) for i in pde_system.indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
 
