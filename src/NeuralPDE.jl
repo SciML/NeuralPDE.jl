@@ -8,6 +8,7 @@ using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
 using ModelingToolkit
 using GalacticOptim
 import Tracker, Optim
+import ModelingToolkit: value, nameof, toexpr, build_expr
 
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """

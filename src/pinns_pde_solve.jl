@@ -166,9 +166,9 @@ Example:
        (derivative(u2_d, [x, y], [[ε,0]], 1, θ) + 9 * derivative(u1_d, [x, y], [[0,ε]], 1, θ)) - 0]
 """
 function parse_equation(eq,dict_indvars,dict_depvars)
-    left_expr = transform_derivative(ModelingToolkit.toexpr(eq.lhs),
+    left_expr = transform_derivative(toexpr(eq.lhs),
                                      dict_indvars,dict_depvars)
-    right_expr = transform_derivative(ModelingToolkit.toexpr(eq.rhs),
+    right_expr = transform_derivative(toexpr(eq.rhs),
                                      dict_indvars,dict_depvars)
     loss_func = :($left_expr - $right_expr)
 end
@@ -245,16 +245,15 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
         push!(us,:($(Symbol(:($v),:_d)) = (cord, θ) -> phi(cord,θ)[$var_num]))
     end
 
-    u_ex = ModelingToolkit.build_expr(:block, us)
+    u_ex = build_expr(:block, us)
     push!(ex.args,  u_ex)
 
     indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(indvars)]
     arg_pairs_indvars = indvars,indvars_ex
 
     left_arg_pairs, right_arg_pairs = arg_pairs_indvars
-    vars_eq = Expr(:(=), ModelingToolkit.build_expr(:tuple, left_arg_pairs),
-                            ModelingToolkit.build_expr(:tuple, right_arg_pairs))
-    let_ex = Expr(:let, vars_eq, ModelingToolkit.build_expr(:vect, loss_functions))
+    vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
+    let_ex = Expr(:let, vars_eq, build_expr(:vect, loss_functions))
     push!(ex.args,  let_ex)
 
     return :(($vars) -> begin $ex end)
@@ -265,7 +264,7 @@ function get_bc_argument(bcs,indvars,depvars,dict_indvars,dict_depvars)
     bc_args = []
     for _bc in bcs
         _bc isa Array && error("boundary conditions must be represented as a one-dimensional array")
-        left_expr = transform_derivative(ModelingToolkit.toexpr(_bc.lhs),
+        left_expr = transform_derivative(toexpr(_bc.lhs),
                                          dict_indvars,dict_depvars)
         bc_arg = if (left_expr.args[1] == :derivative)
             left_expr.args[3].args
