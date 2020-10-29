@@ -440,7 +440,7 @@ function get_loss_function(loss_functions, train_sets, strategy)
                 size_set = sets_size[j]
                 for i in 1:count_elements[j]
                     index = rand(1:size_set)
-                    total += inner_loss(l,phi,train_sets[j][index],θ,derivative)^2
+                    total += inner_loss(l,train_sets[j][index],θ)^2
                 end
             end
             return (1.0f0/τ) * total
