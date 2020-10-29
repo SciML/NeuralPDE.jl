@@ -181,9 +181,9 @@ Example:
        (derivative(u2_d, [x, y], [[ε,0]], 1, θ) + 9 * derivative(u1_d, [x, y], [[0,ε]], 1, θ)) - 0]
 """
 function parse_equation(eq,dict_indvars,dict_depvars)
-    left_expr = transform_derivative(ModelingToolkit.simplified_expr(eq.lhs),
+    left_expr = transform_derivative(toexpr(eq.lhs),
                                      dict_indvars,dict_depvars)
-    right_expr = transform_derivative(ModelingToolkit.simplified_expr(eq.rhs),
+    right_expr = transform_derivative(toexpr(eq.rhs),
                                      dict_indvars,dict_depvars)
     loss_func = :($left_expr - $right_expr)
 end
@@ -232,8 +232,8 @@ to
 function build_loss_function(eqs,_indvars,_depvars, phi, derivative;bc_indvars=nothing)
 
     # dictionaries: variable -> unique number
-    indvars = Expr.(_indvars)
-    depvars = [d.name for d in _depvars]
+    depvars = [nameof(value(d)) for d in _depvars]
+    indvars = [nameof(value(i)) for i in _indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
@@ -266,21 +266,18 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi,
         push!(expr_u_d_arr, :(u_d_arr[$i]) )
     end
 
-    vars_u = Expr(:(=), ModelingToolkit.build_expr(:tuple, depvars),
-                        ModelingToolkit.build_expr(:tuple, expr_u_arr))
+    vars_u = Expr(:(=), build_expr(:tuple, depvars), build_expr(:tuple, expr_u_arr))
     push!(ex.args,  vars_u)
 
-    vars_u_d = Expr(:(=), ModelingToolkit.build_expr(:tuple, depvars_d),
-                        ModelingToolkit.build_expr(:tuple, expr_u_d_arr))
+    vars_u_d = Expr(:(=), build_expr(:tuple, depvars_d), build_expr(:tuple, expr_u_d_arr))
     push!(ex.args,  vars_u_d)
 
     indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(bc_indvars)]
 
     left_arg_pairs, right_arg_pairs = bc_indvars,indvars_ex
 
-    vars_eq = Expr(:(=), ModelingToolkit.build_expr(:tuple, left_arg_pairs),
-                            ModelingToolkit.build_expr(:tuple, right_arg_pairs))
-    let_ex = Expr(:let, vars_eq, ModelingToolkit.build_expr(:vect, loss_functions))
+    vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
+    let_ex = Expr(:let, vars_eq, build_expr(:vect, loss_functions))
     push!(ex.args,  let_ex)
 
     us = Expr[]
@@ -307,7 +304,7 @@ function get_bc_argument(bcs,dict_indvars,dict_depvars)
     bc_args = []
     for _bc in bcs
         _bc isa Array && error("boundary conditions must be represented as a one-dimensional array")
-        left_expr = transform_derivative(ModelingToolkit.simplified_expr(_bc.lhs),
+        left_expr = transform_derivative(toexpr(_bc.lhs),
                                          dict_indvars,dict_depvars)
         bc_arg = if (left_expr.args[1] == :derivative)
             left_expr.args[4].args
@@ -320,9 +317,10 @@ function get_bc_argument(bcs,dict_indvars,dict_depvars)
     return bc_args
 end
 
+
 function get_bc_varibles(bcs,_indvars::Array,_depvars::Array)
-    indvars = Expr.(_indvars)
-    depvars = [d.name for d in _depvars]
+    depvars = [nameof(value(d)) for d in _depvars]
+    indvars = [nameof(value(i)) for i in _indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     return get_bc_varibles(bcs,dict_indvars,dict_depvars)
@@ -441,8 +439,8 @@ function get_loss_function(loss_functions, train_sets, strategy)
             for (j,l) in enumerate(loss_functions)
                 size_set = sets_size[j]
                 for i in 1:count_elements[j]
-                    index = convert(Int64, round(size_set*rand(1)[1] + 0.5, digits=0))
-                    total += inner_loss(l,train_sets[j][index],θ)^2
+                    index = rand(1:size_set)
+                    total += inner_loss(l,phi,train_sets[j][index],θ,derivative)^2
                 end
             end
             return (1.0f0/τ) * total
@@ -478,8 +476,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     dim = length(domains)
     dim > 3 && error("While only dimensionality no more than 3")
 
-    depvars = [d.name for d in pde_system.depvars]
-    indvars = Expr.(pde_system.indvars)
+    depvars = [nameof(value(d)) for d in pde_system.depvars]
+    indvars = [nameof(value(i)) for i in pde_system.indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
 

@@ -10,6 +10,7 @@ using GalacticOptim
 using Quadrature
 using RuntimeGeneratedFunctions
 import Tracker, Optim
+import ModelingToolkit: value, nameof, toexpr, build_expr
 
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
