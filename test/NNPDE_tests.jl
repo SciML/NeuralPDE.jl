@@ -8,7 +8,7 @@ using Test, NeuralPDE
 println("Starting Soon!")
 using GalacticOptim
 using Optim
-using Quadrature
+using Quadrature,Cubature, Cuba
 
 using Random
 Random.seed!(100)
@@ -86,9 +86,6 @@ function test_2d_poisson_equation(chain, strategy)
     # Discretization
     dx = 0.1
 
-    # chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
-    # strategy = NeuralPDE.GridTraining()
-
     discretization = NeuralPDE.PhysicsInformedNN(dx,
                                                  chain,
                                                  strategy = strategy)
@@ -125,6 +122,42 @@ strategies = [stochastic_strategy, quadrature_strategy]
 for strategy in strategies
     chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
     test_2d_poisson_equation(chain, strategy)
+end
+
+function run_2d_poisson_equation(strategy)
+    @parameters x y θ
+    @variables u(..)
+    @derivatives Dxx''~x
+    @derivatives Dyy''~y
+
+    # 2D PDE
+    eq  = Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
+
+    # Initial and boundary conditions
+    bcs = [u(0,y,θ) ~ 0.f0, u(1,y,θ) ~ -sin(pi*1)*sin(pi*y),
+           u(x,0,θ) ~ 0.f0, u(x,1,θ) ~ -sin(pi*x)*sin(pi*1)]
+    # Space and time domains
+    domains = [x ∈ IntervalDomain(0.0,1.0),
+               y ∈ IntervalDomain(0.0,1.0)]
+    # Discretization
+    dx = 0.1
+
+    chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+
+    discretization = NeuralPDE.PhysicsInformedNN(dx,
+                                                 chain,
+                                                 strategy = strategy)
+
+    pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+    prob = NeuralPDE.discretize(pde_system,discretization)
+
+    res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=5)
+end
+
+algs = [CubaVegas(), CubaSUAVE(), CubaDivonne(),HCubatureJL(), CubatureJLh(), CubatureJLp(),CubaCuhre()]
+for alg in algs
+    strategy =  NeuralPDE.QuadratureTraining(algorithm = alg,reltol=1e-8,abstol=1e-8,maxiters=600)
+    run_2d_poisson_equation(strategy)
 end
 
 
@@ -265,13 +298,11 @@ pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
 
 bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
                                                train_bound_set,
-                                               quadrature_strategy)
+                                               quadrature_strategy) #grid_strategy
 
 function loss_function(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
 end
-
-# loss_function(initθ,nothing)
 
 f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f, initθ)

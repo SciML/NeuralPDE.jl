@@ -69,11 +69,9 @@ struct QuadratureTraining <: TrainingStrategies
     maxiters::Int64
 end
 
-function QuadratureTraining(;algorithm=HCubatureJL(),reltol=1e-3,abstol=1e-3,maxiters=10)
+function QuadratureTraining(;algorithm=HCubatureJL(),reltol= 1e-8,abstol= 1e-8,maxiters=1e3)
     QuadratureTraining(algorithm,reltol,abstol,maxiters)
 end
-
-struct AdaptiveMonteCarloTraning <: TrainingStrategies end
 
 """
 Create dictionary: variable => unique number for variable
@@ -115,9 +113,10 @@ Transform the derivative expression to inner representation
 
 1. First compute the derivative of function 'u(x,y)' with respect to x.
 
-Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(u, [x, y], εs, order, θ)`,
+Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(phi, u, [x, y], εs, order, θ)`,
 
 where
+ phi - trial solution
  u_d - derived function
  x,y - coordinates of point
  εs - epsilon mask
@@ -160,14 +159,14 @@ Example:
 
 1)  1-D ODE: Dt(u(t,θ)) ~ t +1
 
-    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u_d, [t], [[ε]], 1, θ) - (t + 1)'
+    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(phi, u_d, [t], [[ε]], 1, θ) - (t + 1)'
 
 2)  2-D PDE: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
 
     Take expressions in the form:
      Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))
     to
-     (derivative(u_d, [x, y], [[ε,0],[ε,0]], 2, θ) + derivative(u_d, [x, y], [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
+     (derivative(phi,u_d, [x, y], [[ε,0],[ε,0]], 2, θ) + derivative(phi, u_d, [x, y], [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
 
 3)  System of PDEs: [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
                     Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
@@ -177,8 +176,8 @@ Example:
         Equation(derivative(u1(x, y, θ), x) + 4 * derivative(u2(x, y, θ), y), ModelingToolkit.Constant(0))
         Equation(derivative(u2(x, y, θ), x) + 9 * derivative(u1(x, y, θ), y), ModelingToolkit.Constant(0))
     to
-      [(derivative(u1_d, [x, y], [[ε,0]], 1, θ) + 4 * derivative(u2_d, [x, y], [[0,ε]], 1, θ)) - 0,
-       (derivative(u2_d, [x, y], [[ε,0]], 1, θ) + 9 * derivative(u1_d, [x, y], [[0,ε]], 1, θ)) - 0]
+      [(derivative(phi, u1_d, [x, y], [[ε,0]], 1, θ) + 4 * derivative(phi, u2_d, [x, y], [[0,ε]], 1, θ)) - 0,
+       (derivative(phi, u2_d, [x, y], [[ε,0]], 1, θ) + 9 * derivative(phi, u1_d, [x, y], [[0,ε]], 1, θ)) - 0]
 """
 function parse_equation(eq,dict_indvars,dict_depvars)
     left_expr = transform_derivative(toexpr(eq.lhs),
@@ -223,8 +222,8 @@ to
                           end)
               end
               let (x, y) = (cord[1], cord[2])
-                  [(derivative(u1_d, [x, y], [[ε, 0]], 1, θ) + 4 * derivative(u2_d, [x, y], [[0, ε]], 1, θ)) - 0,
-                   (derivative(u2_d, [x, y], [[ε, 0]], 1, θ) + 9 * derivative(u1_d, [x, y], [[0, ε]], 1, θ)) - 0]
+                  [(derivative(phi, u1_d, [x, y], [[ε, 0]], 1, θ) + 4 * derivative(phi, u2_d, [x, y], [[0, ε]], 1, θ)) - 0,
+                   (derivative(phi, u2_d, [x, y], [[ε, 0]], 1, θ) + 9 * derivative(phi, u1_d, [x, y], [[0, ε]], 1, θ)) - 0]
               end
           end
       end)
@@ -410,7 +409,7 @@ end
 function get_loss_function(loss_functions, train_sets, strategy)
 
     # norm coefficient for loss function
-    τ = sum(length(train_set) for train_set in train_sets)
+    τ = !(loss_functions isa Array) ? length(train_sets) : sum(length(train_set) for train_set in train_sets)
 
     function inner_loss(loss_function,x,θ)
         sum(loss_function(x, θ))
@@ -509,9 +508,10 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                           train_domain_set,
                                           strategy)
 
+    strategy = (dim<=2 && strategy isa QuadratureTraining && strategy.algorithm in [CubaCuhre(),CubaDivonne()]) ?
+                QuadratureTraining(algorithm = HCubatureJL(),abstol = strategy.abstol, reltol =strategy.reltol,maxiters = strategy.maxiters) : strategy
     strategy = dim==1 && strategy isa QuadratureTraining  ? GridTraining() : strategy
-    strategy = (dim<=2 && strategy isa QuadratureTraining && strategy.algorithm == CubaCuhre()) ?
-                QuadratureTraining(abstol = strategy.abstol, reltol =strategy.reltol,maxiters = strategy.maxiters) : strategy
+
 
     bc_loss_function = get_loss_function(_bc_loss_functions,
                                          train_bound_set,
