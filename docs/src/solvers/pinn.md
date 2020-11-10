@@ -64,6 +64,11 @@ List of training strategies that are available now:
 the training process.
  - `StochasticTraining()`: In each optimization iteration, we randomly select
 the subset of points from a full training set.
+- `QuadratureTraining()`: Сompute an approximation of the integral of the loss function at each iteration using [adaptive quadrature methods](https://en.wikipedia.org/wiki/Adaptive_quadrature).
+
+The following algorithms are available: CubaVegas, CubaSUAVE, CubaDivonne,HCubatureJL, CubatureJLh, CubatureJLp, CubaCuhre
+
+More details, about the implementation of the algorithms used, can be found in [Quadrature.jl](https://github.com/SciML/Quadrature.jl)
 
 
 ### Low-level API
