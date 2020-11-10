@@ -409,7 +409,7 @@ end
 function get_loss_function(loss_functions, train_sets, strategy)
 
     # norm coefficient for loss function
-    τ = !(loss_functions isa Array) ? length(train_sets) : sum(length(train_set) for train_set in train_sets)
+    τ = loss_functions isa Array ? sum(length(train_set) for train_set in train_sets) : length(train_sets)
 
     function inner_loss(loss_function,x,θ)
         sum(loss_function(x, θ))

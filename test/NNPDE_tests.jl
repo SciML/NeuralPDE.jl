@@ -52,7 +52,7 @@ discretization = NeuralPDE.PhysicsInformedNN(dt,
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -93,7 +93,7 @@ function test_2d_poisson_equation(chain, strategy)
     pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
     prob = NeuralPDE.discretize(pde_system,discretization)
 
-    res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=500)
+    res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=500)
     phi = discretization.phi
 
     xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
@@ -142,7 +142,7 @@ function run_2d_poisson_equation(strategy)
     # Discretization
     dx = 0.1
 
-    chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+    chain = FastChain(FastDense(2,4,Flux.σ),FastDense(4,1))
 
     discretization = NeuralPDE.PhysicsInformedNN(dx,
                                                  chain,
@@ -151,7 +151,7 @@ function run_2d_poisson_equation(strategy)
     pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
     prob = NeuralPDE.discretize(pde_system,discretization)
 
-    res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=5)
+    res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb,  maxiters=2)
 end
 
 algs = [CubaVegas(), CubaSUAVE(), CubaDivonne(),HCubatureJL(), CubatureJLh(), CubatureJLp(),CubaCuhre()]
@@ -189,7 +189,7 @@ discretization = NeuralPDE.PhysicsInformedNN(dx,chain,strategy = quadrature_stra
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.01), progress = false; cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=2000)
 phi = discretization.phi
 
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
