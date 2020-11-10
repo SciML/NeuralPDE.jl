@@ -20,7 +20,7 @@ end
 
 grid_strategy = NeuralPDE.GridTraining()
 stochastic_strategy = NeuralPDE.StochasticTraining()
-quadrature_strategy = NeuralPDE.QuadratureTraining()
+quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-4,abstol= 1e-4,maxiters=1e2)
 
 ## Example 1, 1D ode
 @parameters t θ

@@ -67,10 +67,11 @@ struct QuadratureTraining <: TrainingStrategies
     reltol::Float64
     abstol::Float64
     maxiters::Int64
+    batch::Int64
 end
 
-function QuadratureTraining(;algorithm=HCubatureJL(),reltol= 1e-8,abstol= 1e-8,maxiters=1e3)
-    QuadratureTraining(algorithm,reltol,abstol,maxiters)
+function QuadratureTraining(;algorithm=HCubatureJL(),reltol= 1e-8,abstol= 1e-8,maxiters=1e3,batch=0)
+    QuadratureTraining(algorithm,reltol,abstol,maxiters,batch)
 end
 
 """
@@ -453,7 +454,7 @@ function get_loss_function(loss_functions, train_sets, strategy)
         ubs = [ts[end] for ts in train_sets]
         f = (lb,ub,loss_,θ) -> begin
             _loss = (x,θ) -> sum(abs2,inner_loss(loss_, x, θ))
-            prob = QuadratureProblem(_loss,lb,ub,θ)
+            prob = QuadratureProblem(_loss,lb,ub,θ;batch = strategy.batch)
             solve(prob,
                   strategy.algorithm,
                   reltol = strategy.reltol,
