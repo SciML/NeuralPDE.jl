@@ -102,21 +102,23 @@ Transform the derivative expression to inner representation
 
 1. First compute the derivative of function 'u(x,y)' with respect to x.
 
-Take expressions in the form: `derivative(u(x,y,θ), x)` to `derivative(u, [x, y], εs, order, θ)`,
+Take expressions in the form: `derivative(u(x,y), x)` to `derivative(u, [x, y], εs, order, θ)`,
 
 where
  u_d - derived function
  x,y - coordinates of point
  εs - epsilon mask
  order - order of derivative
- θ - parameters of neural network
+ θ - weight in neural network
 """
 function _transform_derivative(_args,dict_indvars,dict_depvars)
     dim = length(dict_indvars)
     εs = [get_ε(dim,d) for d in 1:dim]
     for (i,e) in enumerate(_args)
-        if !(e isa Expr)
-            if e == :derivative && _args[end] != :θ
+            if !(e isa Expr)
+                if e in keys(dict_depvars)
+                push!(_args, :θ)
+            elseif e == :derivative
                 derivative_variables = Symbol[]
                 order = 0
                 while (_args[1] == :derivative)
@@ -125,7 +127,7 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
                     _args = _args[2].args
                 end
                 depvar = _args[1]
-                indvars = _args[2:end-1]
+                indvars = _args[2:end]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
                 _args = [:derivative, Symbol(:($depvar),:_d), :([$(indvars...)]), εs_dnv, order, :θ]
@@ -143,24 +145,24 @@ Parse ModelingToolkit equation form to the inner representation.
 
 Example:
 
-1)  1-D ODE: Dt(u(t,θ)) ~ t +1
+1)  1-D ODE: Dt(u(t)) ~ t +1
 
-    Take expressions in the form: 'Equation(derivative(u(t, θ), t), t + 1)' to 'derivative(u_d, [t], [[ε]], 1, θ) - (t + 1)'
+    Take expressions in the form: 'Equation(derivative(u(t), t), t + 1)' to 'derivative(u_d, [t], [[ε]], 1, θ) - (t + 1)'
 
-2)  2-D PDE: Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
+2)  2-D PDE: Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
 
     Take expressions in the form:
-     Equation(derivative(derivative(u(x, y, θ), x), x) + derivative(derivative(u(x, y, θ), y), y), -(sin(πx)) * sin(πy))
+     Equation(derivative(derivative(u(x, y), x), x) + derivative(derivative(u(x, y), y), y), -(sin(πx)) * sin(πy))
     to
      (derivative(u_d, [x, y], [[ε,0],[ε,0]], 2, θ) + derivative(u_d, [x, y], [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
 
-3)  System of PDEs: [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
-                    Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
+3)  System of PDEs: [Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
+                    Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0]
 
     Take expressions in the form:
     2-element Array{Equation,1}:
-        Equation(derivative(u1(x, y, θ), x) + 4 * derivative(u2(x, y, θ), y), ModelingToolkit.Constant(0))
-        Equation(derivative(u2(x, y, θ), x) + 9 * derivative(u1(x, y, θ), y), ModelingToolkit.Constant(0))
+        Equation(derivative(u1(x, y), x) + 4 * derivative(u2(x, y), y), ModelingToolkit.Constant(0))
+        Equation(derivative(u2(x, y), x) + 9 * derivative(u1(x, y), y), ModelingToolkit.Constant(0))
     to
       [(derivative(u1_d, [x, y], [[ε,0]], 1, θ) + 4 * derivative(u2_d, [x, y], [[0,ε]], 1, θ)) - 0,
        (derivative(u2_d, [x, y], [[ε,0]], 1, θ) + 9 * derivative(u1_d, [x, y], [[0,ε]], 1, θ)) - 0]
@@ -180,8 +182,8 @@ Build a loss function for a PDE or a boundary condition
 
 Take expressions in the form:
 
-[Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
- Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0]
+[Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
+ Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0]
 
 to
 
@@ -238,7 +240,7 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
     us = []
     for v in depvars
         var_num = dict_depvars[v]
-        push!(us,:($v = ($(indvars...), θ) -> phi([$(indvars...)],θ)[$var_num]))
+        push!(us,:($v = ($(indvars...),θ) -> phi([$(indvars...)],θ)[$var_num]))
     end
     for v in depvars
         var_num = dict_depvars[v]

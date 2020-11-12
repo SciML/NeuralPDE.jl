@@ -17,18 +17,18 @@ cb = function (p,l)
 end
 
 ## Example 1, 1D ode
-@parameters t θ
+@parameters θ
 @variables u(..)
-@derivatives Dt'~t
+@derivatives Dθ'~θ
 
 # 1D ODE
-eq = Dt(u(t,θ)) ~ t^3 + 2*t + (t^2)*((1+3*(t^2))/(1+t+(t^3))) - u(t,θ)*(t + ((1+3*(t^2))/(1+t+t^3)))
+eq = Dθ(u(θ)) ~ θ^3 + 2*t + (θ^2)*((1+3*(θ^2))/(1+θ+(θ^3))) - u(θ)*(θ + ((1+3*(θ^2))/(1+θ+θ^3)))
 
 # Initial and boundary conditions
-bcs = [u(0.,θ) ~ 1.0]
+bcs = [u(0.) ~ 1.0]
 
 # Space and time domains
-domains = [t ∈ IntervalDomain(0.0,1.0)]
+domains = [θ ∈ IntervalDomain(0.0,1.0)]
 # Discretization
 dt = 0.1
 # Neural network
@@ -42,7 +42,7 @@ discretization = NeuralPDE.PhysicsInformedNN(dt,
                                              derivative = nothing,
                                              strategy = NeuralPDE.GridTraining())
 
-pde_system = PDESystem(eq,bcs,domains,[t],[u])
+pde_system = PDESystem(eq,bcs,domains,[θ],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
 res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=1500)
@@ -61,17 +61,17 @@ u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 # plot!(t_plot ,u_predict)
 
 ## Example 2, 2D Poisson equation
-@parameters x y θ
+@parameters x y
 @variables u(..)
 @derivatives Dxx''~x
 @derivatives Dyy''~y
 
 # 2D PDE
-eq  = Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
+eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
 
 # Initial and boundary conditions
-bcs = [u(0,y,θ) ~ 0.f0, u(1,y,θ) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0,θ) ~ 0.f0, u(x,1,θ) ~ -sin(pi*x)*sin(pi*1)]
+bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0),
            y ∈ IntervalDomain(0.0,1.0)]
@@ -111,18 +111,18 @@ end
 
 
 ## Example 3, high-order ode
-@parameters x θ
+@parameters x
 @variables u(..)
 @derivatives Dxxx'''~x
 @derivatives Dx'~x
 
 # ODE
-eq = Dxxx(u(x,θ)) ~ cos(pi*x)
+eq = Dxxx(u(x)) ~ cos(pi*x)
 
 # Initial and boundary conditions
-bcs = [u(0.,θ) ~ 0.0,
-       u(1.,θ) ~ cos(pi),
-       Dx(u(1.,θ)) ~ 1.0]
+bcs = [u(0.) ~ 0.0,
+       u(1.) ~ cos(pi),
+       Dx(u(1.)) ~ 1.0]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0)]
@@ -153,18 +153,18 @@ u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 # plot!(x_plot ,u_predict)
 
 ## Example 4, system of pde
-@parameters x, y, θ
+@parameters x, y
 @variables u1(..), u2(..)
 @derivatives Dx'~x
 @derivatives Dy'~y
 
 # System of pde
-eqs = [Dx(u1(x,y,θ)) + 4*Dy(u2(x,y,θ)) ~ 0,
-      Dx(u2(x,y,θ)) + 9*Dy(u1(x,y,θ)) ~ 0,
-      3*u1(x,0,θ) ~ 2*u2(x,0,θ)]
+eqs = [Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
+      Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0,
+      3*u1(x,0) ~ 2*u2(x,0)]
 
 # Initial and boundary conditions
-bcs = [u1(x,0,θ) ~ 2x, u2(x,0,θ) ~ 3x]
+bcs = [u1(x,0) ~ 2x, u2(x,0) ~ 3x]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
@@ -194,7 +194,7 @@ u_predict  = [[phi([x,y],res.minimizer)[i] for x in xs  for y in ys] for i in 1:
 
 ## Example 5, 2d wave equation, neumann boundary condition
 #here we use low level api for build solution
-@parameters x, t, θ
+@parameters x, t
 @variables u(..)
 @derivatives Dxx''~x
 @derivatives Dtt''~t
@@ -202,13 +202,13 @@ u_predict  = [[phi([x,y],res.minimizer)[i] for x in xs  for y in ys] for i in 1:
 
 #2D PDE
 C=1
-eq  = Dtt(u(x,t,θ)) ~ C^2*Dxx(u(x,t,θ))
+eq  = Dtt(u(x,t)) ~ C^2*Dxx(u(x,t))
 
 # Initial and boundary conditions
-bcs = [u(0,t,θ) ~ 0.,# for all t > 0
-       u(1,t,θ) ~ 0.,# for all t > 0
-       u(x,0,θ) ~ x*(1. - x), #for all 0 < x < 1
-       Dt(u(x,0,θ)) ~ 0. ] #for all  0 < x < 1]
+bcs = [u(0,t) ~ 0.,# for all t > 0
+       u(1,t) ~ 0.,# for all t > 0
+       u(x,0) ~ x*(1. - x), #for all 0 < x < 1
+       Dt(u(x,0)) ~ 0. ] #for all  0 < x < 1]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0),
@@ -272,19 +272,19 @@ u_real = reshape([analytic_sol_func(x,t) for x in xs for t in ts], (length(xs),l
 
 
 ## Example 6, pde with mixed derivative
-@parameters x y θ
+@parameters x y
 @variables u(..)
 @derivatives Dxx''~x
 @derivatives Dyy''~y
 @derivatives Dy'~y
 @derivatives Dx'~x
 
-eq = Dxx(u(x,y,θ)) + Dx(Dy(u(x,y,θ))) - 2*Dyy(u(x,y,θ)) ~  -1.
+eq = Dxx(u(x,y)) + Dx(Dy(u(x,y))) - 2*Dyy(u(x,y)) ~  -1.
 
 # Initial and boundary conditions
-bcs = [u(x,0,θ) ~ x,
-       Dy(u(x,0,θ)) ~ x,
-       u(x,0,θ) ~ Dy(u(x,0,θ))]
+bcs = [u(x,0) ~ x,
+       Dy(u(x,0)) ~ x,
+       u(x,0) ~ Dy(u(x,0))]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
