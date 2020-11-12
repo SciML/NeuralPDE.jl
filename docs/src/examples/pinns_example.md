@@ -20,17 +20,17 @@ The ModelingToolkit PDE interface for this example looks like this:
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
-@parameters x y θ
+@parameters x y
 @variables u(..)
 @derivatives Dxx''~x
 @derivatives Dyy''~y
 
 # 2D PDE
-eq  = Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
+eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
 
 # Boundary conditions
-bcs = [u(0,y,θ) ~ 0.f0, u(1,y,θ) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0,θ) ~ 0.f0, u(x,1,θ) ~ -sin(pi*x)*sin(pi*1)]
+bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0),
            y ∈ IntervalDomain(0.0,1.0)]
@@ -102,7 +102,7 @@ with grid discretization `dx = 0.1`.
 Further, the solution of this equation with the given boundary conditions is presented.
 
 ```julia
-@parameters x, t, θ
+@parameters x, t
 @variables u(..)
 @derivatives Dxx''~x
 @derivatives Dtt''~t
@@ -110,13 +110,13 @@ Further, the solution of this equation with the given boundary conditions is pre
 
 #2D PDE
 C=1
-eq  = Dtt(u(x,t,θ)) ~ C^2*Dxx(u(x,t,θ))
+eq  = Dtt(u(x,t)) ~ C^2*Dxx(u(x,t))
 
 # Initial and boundary conditions
-bcs = [u(0,t,θ) ~ 0.,# for all t > 0
-       u(1,t,θ) ~ 0.,# for all t > 0
-       u(x,0,θ) ~ x*(1. - x), #for all 0 < x < 1
-       Dt(u(x,0,θ)) ~ 0. ] #for all  0 < x < 1]
+bcs = [u(0,t) ~ 0.,# for all t > 0
+       u(1,t) ~ 0.,# for all t > 0
+       u(x,0) ~ x*(1. - x), #for all 0 < x < 1
+       Dt(u(x,0)) ~ 0. ] #for all  0 < x < 1]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0),
@@ -176,20 +176,20 @@ with grid discretization `dx = 0.25`, `dy = 0.25`, `dt = 0.25`.
 
 ```julia
 # 3D PDE
-@parameters x y t θ
+@parameters x y t
 @variables u(..)
 @derivatives Dxx''~x
 @derivatives Dyy''~y
 @derivatives Dt'~t
 
 # 3D PDE
-eq  = Dt(u(x,y,t,θ)) ~ Dxx(u(x,y,t,θ)) + Dyy(u(x,y,t,θ))
+eq  = Dt(u(x,y,t)) ~ Dxx(u(x,y,t)) + Dyy(u(x,y,t))
 # Initial and boundary conditions
-bcs = [u(x,y,0,θ) ~ exp(x+y)*cos(x+y) ,
-       u(0,y,t,θ) ~ exp(y)*cos(y+4t)
-       u(2,y,t,θ) ~ exp(2+y)*cos(2+y+4t) ,
-       u(x,0,t,θ) ~ exp(x)*cos(x+4t),
-       u(x,2,t,θ) ~ exp(x+2)*cos(x+2+4t)]
+bcs = [u(x,y,0) ~ exp(x+y)*cos(x+y) ,
+       u(0,y,t) ~ exp(y)*cos(y+4t)
+       u(2,y,t) ~ exp(2+y)*cos(2+y+4t) ,
+       u(x,0,t) ~ exp(x)*cos(x+4t),
+       u(x,2,t) ~ exp(x+2)*cos(x+2+4t)]
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,2.0),
            y ∈ IntervalDomain(0.0,2.0),
@@ -226,27 +226,27 @@ and the boundary conditions:
 
 
 ```julia
-@parameters t, x, θ
+@parameters t, x
 @variables u1(..), u2(..), u3(..)
 @derivatives Dt'~t
 @derivatives Dtt''~t
 @derivatives Dx'~x
 @derivatives Dxx''~x
 
-eqs = [Dtt(u1(t,x,θ)) ~ Dxx(u1(t,x,θ)) + u3(t,x,θ)*sin(pi*x),
-       Dtt(u2(t,x,θ)) ~ Dxx(u2(t,x,θ)) + u3(t,x,θ)*cos(pi*x),
-       0. ~ u1(t,x,θ)*sin(pi*x) + u2(t,x,θ)*cos(pi*x) - exp(-t)]
+eqs = [Dtt(u1(t,x)) ~ Dxx(u1(t,x)) + u3(t,x)*sin(pi*x),
+       Dtt(u2(t,x)) ~ Dxx(u2(t,x)) + u3(t,x)*cos(pi*x),
+       0. ~ u1(t,x)*sin(pi*x) + u2(t,x)*cos(pi*x) - exp(-t)]
 
-bcs = [u1(0,x,θ) ~ sin(pi*x),
-       u2(0,x,θ) ~ cos(pi*x),
-       Dt(u1(0,x,θ)) ~ -sin(pi*x),
-       Dt(u2(0,x,θ)) ~ -cos(pi*x),
-       u1(t,0,θ) ~ 0.,
-       u2(t,0,θ) ~ exp(-t),
-       u1(t,1,θ) ~ 0.,
-       u2(t,1,θ) ~ -exp(-t),
-       u1(t,0,θ) ~ u1(t,1,θ),
-       u2(t,0,θ) ~ -u2(t,1,θ)]
+bcs = [u1(0,x) ~ sin(pi*x),
+       u2(0,x) ~ cos(pi*x),
+       Dt(u1(0,x)) ~ -sin(pi*x),
+       Dt(u2(0,x)) ~ -cos(pi*x),
+       u1(t,0) ~ 0.,
+       u2(t,0) ~ exp(-t),
+       u1(t,1) ~ 0.,
+       u2(t,1) ~ -exp(-t),
+       u1(t,0) ~ u1(t,1),
+       u2(t,0) ~ -u2(t,1)]
 
 
 # Space and time domains
@@ -299,16 +299,16 @@ end
 Also, in addition to systems, we can use the matrix form of PDEs:
 
 ```julia
-@parameters x y θ
+@parameters x y
 @variables u[1:2,1:2](..)
 @derivatives Dxx''~x
 @derivatives Dyy''~y
 
 # matrix PDE
-eqs  = @. [(Dxx(u_(x,y,θ)) + Dyy(u_(x,y,θ))) for u_ in u] ~ -sin(pi*x)*sin(pi*y)*[0 1; 0 1]
+eqs  = @. [(Dxx(u_(x,y)) + Dyy(u_(x,y))) for u_ in u] ~ -sin(pi*x)*sin(pi*y)*[0 1; 0 1]
 
 # Initial and boundary conditions
-bcs = [u[1](x,0,θ) ~ x, u[2](x,0,θ) ~ 2, u[3](x,0,θ) ~ 3, u[4](x,0,θ) ~ 4]
+bcs = [u[1](x,0) ~ x, u[2](x,0) ~ 2, u[3](x,0) ~ 3, u[4](x,0) ~ 4]
 ```
 
 ## Example 5 : Solving an ODE with a 3rd-order derivative
@@ -320,18 +320,18 @@ Let's consider the ODE with a 3rd-order derivative:
 with grid discretization `dx = 0.1`.
 
 ```julia
-@parameters x θ
+@parameters x
 @variables u(..)
 @derivatives Dxxx'''~x
 @derivatives Dx'~x
 
 # ODE
-eq = Dxxx(u(x,θ)) ~ cos(pi*x)
+eq = Dxxx(u(x)) ~ cos(pi*x)
 
 # Initial and boundary conditions
-bcs = [u(0.,θ) ~ 0.0,
-       u(1.,θ) ~ cos(pi),
-       Dx(u(1.,θ)) ~ 1.0]
+bcs = [u(0.) ~ 0.0,
+       u(1.) ~ cos(pi),
+       Dx(u(1.)) ~ 1.0]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0)]
@@ -376,19 +376,19 @@ Let's consider the Burgers’ equation:
 Here is an example of using the low-level API:
 
 ```julia
-@parameters t, x, θ
+@parameters t, x
 @variables u(..)
 @derivatives Dt'~t
 @derivatives Dx'~x
 @derivatives Dxx''~x
 
 #2D PDE
-eq  = Dt(u(t,x,θ)) + u(t,x,θ)*Dx(u(t,x,θ)) - (0.01/pi)*Dxx(u(t,x,θ)) ~ 0
+eq  = Dt(u(t,x)) + u(t,x)*Dx(u(t,x)) - (0.01/pi)*Dxx(u(t,x)) ~ 0
 
 # Initial and boundary conditions
-bcs = [u(0,x,θ) ~ -sin(pi*x),
-       u(t,-1,θ) ~ 0.,
-       u(t,1,θ) ~ 0.]
+bcs = [u(0,x) ~ -sin(pi*x),
+       u(t,-1) ~ 0.,
+       u(t,1) ~ 0.]
 
 # Space and time domains
 domains = [t ∈ IntervalDomain(0.0,1.0),
@@ -469,7 +469,7 @@ with the initial and boundary conditions:
 ![bs](https://user-images.githubusercontent.com/12683885/91025570-3fa01400-e602-11ea-8fd7-5b0e250a67a4.png)
 
 ```julia
-@parameters x, t, θ
+@parameters x, t
 @variables u(..)
 @derivatives Dt'~t
 @derivatives Dx'~x
@@ -480,16 +480,16 @@ with the initial and boundary conditions:
 α = 1
 β = 4
 γ = 1
-eq = Dt(u(x,t,θ)) + u(x,t,θ)*Dx(u(x,t,θ)) + α*Dx2(u(x,t,θ)) + β*Dx3(u(x,t,θ)) + γ*Dx4(u(x,t,θ)) ~ 0
+eq = Dt(u(x,t)) + u(x,t)*Dx(u(x,t)) + α*Dx2(u(x,t)) + β*Dx3(u(x,t)) + γ*Dx4(u(x,t)) ~ 0
 
 u_analytic(x,t;z = -x/2+t) = 11 + 15*tanh(z) -15*tanh(z)^2 - 15*tanh(z)^3
 du(x,t;z = -x/2+t) = 15/2*(tanh(z) + 1)*(3*tanh(z) - 1)*sech(z)^2
 
-bcs = [u(x,0,θ) ~ u_analytic(x,0),
-       u(-10,t,θ) ~ u_analytic(-10,t),
-       u(10,t,θ) ~ u_analytic(10,t),
-       Dx(u(-10,t,θ)) ~ du(-10,t),
-       Dx(u(10,t,θ)) ~ du(10,t)]
+bcs = [u(x,0) ~ u_analytic(x,0),
+       u(-10,t) ~ u_analytic(-10,t),
+       u(10,t) ~ u_analytic(10,t),
+       Dx(u(-10,t)) ~ du(-10,t),
+       Dx(u(10,t)) ~ du(10,t)]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(-10.0,10.0),
@@ -546,7 +546,7 @@ Actually, it is just enough to add `|>gpu` after `chain` and everything will wor
 
 ```julia
 # the example is taken from this article https://arxiv.org/abs/1910.10503
-@parameters x θ
+@parameters x
 @variables p(..)
 @derivatives Dx'~x
 @derivatives Dxx''~x
@@ -557,12 +557,12 @@ Actually, it is just enough to add `|>gpu` after `chain` and everything will wor
 _σ = 0.5
 # Discretization
 dx = 0.05
-# here we use normalization condition: dx*p(x,θ) ~ 1 in order to get a non-zero solution.
-eq  = [(α - 3*β*x^2)*p(x,θ) + (α*x - β*x^3)*Dx(p(x,θ)) ~ (_σ^2/2)*Dxx(p(x,θ)),
-       dx*p(x,θ) ~ 1.]
+# here we use normalization condition: dx*p(x) ~ 1 in order to get a non-zero solution.
+eq  = [(α - 3*β*x^2)*p(x) + (α*x - β*x^3)*Dx(p(x)) ~ (_σ^2/2)*Dxx(p(x)),
+       dx*p(x) ~ 1.]
 
 # Initial and boundary conditions
-bcs = [p(-2.2,θ) ~ 0. ,p(2.2,θ) ~ 0. , p(-2.2,θ) ~ p(2.2,θ)]
+bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(-2.2,2.2)]
