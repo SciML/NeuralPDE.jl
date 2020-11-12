@@ -95,6 +95,8 @@ function get_ε(dim, der_num)
     ε
 end
 
+θ = gensym("θ")
+
 """
 Transform the derivative expression to inner representation
 
@@ -115,9 +117,9 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
     dim = length(dict_indvars)
     εs = [get_ε(dim,d) for d in 1:dim]
     for (i,e) in enumerate(_args)
-            if !(e isa Expr)
-                if e in keys(dict_depvars)
-                push!(_args, :θ)
+        if !(e isa Expr)
+            if e in keys(dict_depvars)
+                push!(_args, :($θ))
             elseif e == :derivative
                 derivative_variables = Symbol[]
                 order = 0
@@ -130,7 +132,7 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
                 indvars = _args[2:end]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
-                _args = [:derivative, Symbol(:($depvar),:_d), :([$(indvars...)]), εs_dnv, order, :θ]
+                _args = [:derivative, Symbol(:($depvar),:_d), :([$(indvars...)]), εs_dnv, order, :($θ)]
                 break
             end
         else
@@ -235,16 +237,16 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars)
         push!(loss_functions,loss_function)
     end
 
-    vars = :(phi, cord, θ, derivative)
+    vars = :(phi, cord, $θ, derivative)
     ex = Expr(:block)
     us = []
     for v in depvars
         var_num = dict_depvars[v]
-        push!(us,:($v = ($(indvars...),θ) -> phi([$(indvars...)],θ)[$var_num]))
+        push!(us,:($v = ($(indvars...),$θ) -> phi([$(indvars...)],$θ)[$var_num]))
     end
     for v in depvars
         var_num = dict_depvars[v]
-        push!(us,:($(Symbol(:($v),:_d)) = (cord, θ) -> phi(cord,θ)[$var_num]))
+        push!(us,:($(Symbol(:($v),:_d)) = (cord, $θ) -> phi(cord,$θ)[$var_num]))
     end
 
     u_ex = build_expr(:block, us)

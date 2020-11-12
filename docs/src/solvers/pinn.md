@@ -21,8 +21,6 @@ pde_system = PDESystem(eq,bcs,domains,param,var)
 Here, `eq` is the equation, `bcs` represents the boundary conditions,
 `param` is the parameter of the equation (like `[x,y]`), and `var` represents variables (like `[u]`).
 
-The `θ` symbol is reserved. Don't use this symbol as a parameter of the equation.
-
 To solve this problem, use the `PhysicsInformedNN` algorithm.
 
 ```julia
