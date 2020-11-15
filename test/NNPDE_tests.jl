@@ -18,10 +18,6 @@ cb = function (p,l)
     return false
 end
 
-grid_strategy = NeuralPDE.GridTraining()
-stochastic_strategy = NeuralPDE.StochasticTraining()
-quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-4,abstol= 1e-4,maxiters=1e2)
-
 ## Example 1, 1D ode
 @parameters t θ
 @variables u(..)
@@ -41,13 +37,12 @@ dt = 0.1
 chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 
 
-discretization = NeuralPDE.PhysicsInformedNN(dt,
-                                             chain,
-                                             init_params = nothing;
-                                             phi = nothing,
-                                             autodiff=false,
-                                             derivative = nothing,
-                                             strategy=quadrature_strategy)
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                   init_params = nothing;
+                                   phi = nothing,
+                                   autodiff=false,
+                                   derivative = nothing,
+                                   strategy = NeuralPDE.GridTraining(dt))
 
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
@@ -83,11 +78,9 @@ function test_2d_poisson_equation(chain, strategy)
     # Space and time domains
     domains = [x ∈ IntervalDomain(0.0,1.0),
                y ∈ IntervalDomain(0.0,1.0)]
-    # Discretization
-    dx = 0.1
 
-    discretization = NeuralPDE.PhysicsInformedNN(dx,
-                                                 chain,
+    chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+    discretization = NeuralPDE.PhysicsInformedNN(chain,
                                                  strategy = strategy)
 
     pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
@@ -111,13 +104,18 @@ function test_2d_poisson_equation(chain, strategy)
     # plot(p1,p2,p3)
 end
 
+# Discretization
+dx = 0.1
+grid_strategy = NeuralPDE.GridTraining(dx)
 fastchain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 fluxchain = Chain(Dense(2,12,Flux.σ),Dense(12,12,Flux.σ),Dense(12,1))
 chains = [fluxchain, fastchain]
 for chain in chains
-    test_2d_poisson_equation(chain, quadrature_strategy)
+    test_2d_poisson_equation(chain, grid_strategy)
 end
 
+stochastic_strategy = NeuralPDE.StochasticTraining(dx)
+quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=50)
 strategies = [stochastic_strategy, quadrature_strategy]
 for strategy in strategies
     chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
@@ -144,8 +142,7 @@ function run_2d_poisson_equation(strategy)
 
     chain = FastChain(FastDense(2,4,Flux.σ),FastDense(4,1))
 
-    discretization = NeuralPDE.PhysicsInformedNN(dx,
-                                                 chain,
+    discretization = NeuralPDE.PhysicsInformedNN(chain,
                                                  strategy = strategy)
 
     pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
@@ -154,7 +151,8 @@ function run_2d_poisson_equation(strategy)
     res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb,  maxiters=2)
 end
 
-algs = [CubaVegas(), CubaSUAVE(), CubaDivonne(),HCubatureJL(), CubatureJLh(), CubatureJLp(),CubaCuhre()]
+algs = [CubaVegas(), CubaSUAVE(),HCubatureJL(), CubatureJLh(), CubatureJLp()]
+#CubaDivonne(),CubaCuhre() doesn't work with dim = 2
 for alg in algs
     strategy =  NeuralPDE.QuadratureTraining(algorithm = alg,reltol=1e-8,abstol=1e-8,maxiters=600)
     run_2d_poisson_equation(strategy)
@@ -185,7 +183,7 @@ dx = 0.05
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 
 
-discretization = NeuralPDE.PhysicsInformedNN(dx,chain,strategy = quadrature_strategy)
+discretization = NeuralPDE.PhysicsInformedNN(chain,strategy = NeuralPDE.GridTraining(dx))
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
@@ -226,7 +224,8 @@ dx = 0.1
 
 # Neural network
 chain = FastChain(FastDense(2,8,Flux.σ),FastDense(8,2))
-discretization = NeuralPDE.PhysicsInformedNN(dx,chain,strategy = quadrature_strategy)
+quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-4,abstol= 1e-4,maxiters=1e2)
+discretization = NeuralPDE.PhysicsInformedNN(chain,strategy = quadrature_strategy)
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
@@ -271,34 +270,33 @@ dx = 0.1
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = NeuralPDE.PhysicsInformedNN(dx,chain)
-
-phi = discretization.phi
-derivative = discretization.derivative
-initθ = discretization.initθ
+phi = NeuralPDE.get_phi(chain)
+derivative = NeuralPDE.get_derivative(false)
+initθ = DiffEqFlux.initial_params(chain)
 
 indvars = [x,t]
 depvars = [u]
 dim = length(domains)
 
 _pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative)
-# _pde_loss_function([1,2], initθ, phi, derivative)
 
 bc_indvars = NeuralPDE.get_bc_varibles(bcs,indvars,depvars)
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,
                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
+pde_train_set,bcs_train_set,train_set = train_sets
 
-train_domain_set,train_bound_set,train_set = train_sets
-
+pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,bcs,indvars,depvars)
+grid_strategy = NeuralPDE.GridTraining(dx)
+quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=10)
 pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
-                                                train_domain_set,
+                                                pde_bounds,
                                                 quadrature_strategy)
 
 bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
-                                               train_bound_set,
-                                               quadrature_strategy) #grid_strategy
+                                               bcs_bounds,
+                                               quadrature_strategy)
 
 function loss_function(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
@@ -344,10 +342,10 @@ domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 
 # Discretization
 dx = 0.1
-
+quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=10)
 # Neural network
 chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
-discretization = NeuralPDE.PhysicsInformedNN(dx,chain, strategy = quadrature_strategy)
+discretization = NeuralPDE.PhysicsInformedNN(chain, strategy = quadrature_strategy)
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 

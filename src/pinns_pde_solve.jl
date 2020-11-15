@@ -2,7 +2,6 @@
 Algorithm for solving Physics-Informed Neural Networks problems.
 
 Arguments:
-* `dx` is the discretization of the grid
 * `chain` is a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
 * `init_params` is the initial parameter of the neural network,
 * `phi` is a trial solution,
@@ -11,8 +10,7 @@ Arguments:
 * `strategy` determines which training strategy will be used.
 """
 
-struct PhysicsInformedNN{D,C,P,PH,DER,T,K}
-  dx::D
+struct PhysicsInformedNN{C,P,PH,DER,T,K}
   chain::C
   initθ::P
   phi::PH
@@ -22,8 +20,7 @@ struct PhysicsInformedNN{D,C,P,PH,DER,T,K}
   kwargs::K
 end
 
-function PhysicsInformedNN(dx,
-                           chain,
+function PhysicsInformedNN(chain,
                            init_params = nothing;
                            _phi = nothing,
                            autodiff=false,
@@ -48,20 +45,39 @@ function PhysicsInformedNN(dx,
         derivative = _derivative
     end
 
-    PhysicsInformedNN(dx,chain,initθ,phi,autodiff,derivative, strategy, kwargs)
+    PhysicsInformedNN(chain,initθ,phi,autodiff,derivative, strategy, kwargs)
 end
 
 abstract type TrainingStrategies  end
 
-struct GridTraining <: TrainingStrategies end
+"""
+* `dx` is the discretization of the grid
+"""
+struct GridTraining <: TrainingStrategies
+    dx
+end
 
+"""
+* `dx` is the discretization of the grid,
+* `include_frac` is percentage of randomly selected points from the training set.
+"""
 struct StochasticTraining <:TrainingStrategies
+    dx
     include_frac::Float64
 end
-function StochasticTraining(;include_frac=0.75)
-    StochasticTraining(include_frac)
+function StochasticTraining(dx;include_frac=0.75)
+    StochasticTraining(dx,include_frac)
 end
 
+"""
+* `algorithm`: quadrature algorithm,
+* `reltol`: relative tolerance,
+* `abstol` absolute tolerance,
+* `maxiters`: the maximum number of iterations,
+* `batch`: the preferred number of points to batch.
+
+For more information look: Quadrature.jl https://github.com/SciML/Quadrature.jl
+"""
 struct QuadratureTraining <: TrainingStrategies
     algorithm::DiffEqBase.AbstractQuadratureAlgorithm
     reltol::Float64
@@ -366,14 +382,14 @@ function generate_training_sets(domains,dx,bcs,dict_indvars::Dict,dict_depvars::
     end
 
     train_set = vec(map(points -> collect(points), Iterators.product(spans...)))
-    train_domain_set = vec(map(points -> collect(points), Iterators.product(bc_data...)))
+    pde_train_set = vec(map(points -> collect(points), Iterators.product(bc_data...)))
 
-    train_bound_set = map(bound_vars) do bt
+    bcs_train_set = map(bound_vars) do bt
         span = map(b -> dict_var_span[b], bt)
         _set = vec(map(points -> collect(points), Iterators.product(span...)))
     end
 
-    [train_domain_set,train_bound_set,train_set]
+    [pde_train_set,bcs_train_set,train_set]
 end
 
 function get_phi(chain)
@@ -407,8 +423,25 @@ function get_derivative(autodiff)
     derivative
 end
 
-function get_loss_function(loss_functions, train_sets, strategy)
+function get_loss_function(loss_functions, train_sets, strategy::GridTraining)
+    # norm coefficient for loss function
+    τ = loss_functions isa Array ? sum(length(train_set) for train_set in train_sets) : length(train_sets)
 
+    function inner_loss(loss_function,x,θ)
+        sum(loss_function(x, θ))
+    end
+
+    if !(loss_functions isa Array)
+        loss_functions = [loss_functions]
+        train_sets = [train_sets]
+    end
+    f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,x,θ) for x in train_set])
+    loss = (θ) ->  (1.0f0/τ) * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
+    return loss
+end
+
+
+function get_loss_function(loss_functions, train_sets, strategy::StochasticTraining)
     # norm coefficient for loss function
     τ = loss_functions isa Array ? sum(length(train_set) for train_set in train_sets) : length(train_sets)
 
@@ -421,48 +454,86 @@ function get_loss_function(loss_functions, train_sets, strategy)
         train_sets = [train_sets]
     end
 
-    if strategy isa StochasticTraining
-        include_frac = strategy.include_frac
-        count_elements = []
-        sets_size = []
-        for j in 1:length(train_sets)
-            size_set = size(train_sets[j])[1]
-            count_element = convert(Int64,round(include_frac*size_set, digits=0))
-            if count_element <= 2
-                count_element = size_set
-            end
-            push!(sets_size,size_set)
-            push!(count_elements,count_element)
+    include_frac = strategy.include_frac
+    count_elements = []
+    sets_size = []
+    for j in 1:length(train_sets)
+        size_set = size(train_sets[j])[1]
+        count_element = convert(Int64,round(include_frac*size_set, digits=0))
+        if count_element <= 2
+            count_element = size_set
         end
-        loss = (θ) -> begin
-            total = 0.
-            for (j,l) in enumerate(loss_functions)
-                size_set = sets_size[j]
-                for i in 1:count_elements[j]
-                    index = rand(1:size_set)
-                    total += inner_loss(l,train_sets[j][index],θ)^2
-                end
-            end
-            return (1.0f0/τ) * total
-        end
-
-    elseif strategy isa GridTraining
-        f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,x,θ) for x in train_set])
-        loss = (θ) ->  (1.0f0/τ) * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
-    elseif strategy isa QuadratureTraining
-        lbs = [ts[1] for ts in train_sets]
-        ubs = [ts[end] for ts in train_sets]
-        f = (lb,ub,loss_,θ) -> begin
-            _loss = (x,θ) -> sum(abs2,inner_loss(loss_, x, θ))
-            prob = QuadratureProblem(_loss,lb,ub,θ;batch = strategy.batch)
-            solve(prob,
-                  strategy.algorithm,
-                  reltol = strategy.reltol,
-                  abstol = strategy.abstol,
-                  maxiters = strategy.maxiters)[1]
-        end
-        loss = (θ) -> (1.0f0/τ)*sum(f(lb,ub,loss_,θ) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
+        push!(sets_size,size_set)
+        push!(count_elements,count_element)
     end
+    loss = (θ) -> begin
+        total = 0.
+        for (j,l) in enumerate(loss_functions)
+            size_set = sets_size[j]
+            for i in 1:count_elements[j]
+                index = rand(1:size_set)
+                total += inner_loss(l,train_sets[j][index],θ)^2
+            end
+        end
+        return (1.0f0/τ) * total
+    end
+    return loss
+end
+
+function get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
+    depvars = [nameof(value(d)) for d in _depvars]
+    indvars = [nameof(value(i)) for i in _indvars]
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
+    return get_bounds(domains,bcs,dict_indvars,dict_depvars)
+end
+
+function get_bounds(domains,bcs,dict_indvars,dict_depvars)
+    bound_vars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
+
+    pde_lower_bounds = [d.domain.lower for d in domains]
+    pde_upper_bounds = [d.domain.upper for d in domains]
+    pde_bounds= [pde_lower_bounds,pde_upper_bounds]
+
+    dict_lower_bound = Dict([Symbol(d.variables) => d.domain.lower for d in domains])
+    dict_upper_bound = Dict([Symbol(d.variables) => d.domain.upper for d in domains])
+
+    bcs_lower_bounds = map(bound_vars) do bt
+        map(b -> dict_lower_bound[b], bt)
+    end
+    bcs_upper_bounds = map(bound_vars) do bt
+        map(b -> dict_upper_bound[b], bt)
+    end
+    bcs_bounds= [bcs_lower_bounds,bcs_upper_bounds]
+
+    [pde_bounds, bcs_bounds]
+end
+
+function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
+    lbs,ubs = bounds
+
+    function inner_loss(loss_function,x,θ)
+        sum(loss_function(x, θ))
+    end
+
+    if !(loss_functions isa Array)
+        loss_functions = [loss_functions]
+        lbs = [lbs]
+        ubs = [ubs]
+    end
+    
+    τ = (10)^length(ubs[1])*length(ubs)
+
+    f = (lb,ub,loss_,θ) -> begin
+        _loss = (x,θ) -> sum(abs2,inner_loss(loss_, x, θ))
+        prob = QuadratureProblem(_loss,lb,ub,θ;batch = strategy.batch)
+        solve(prob,
+              strategy.algorithm,
+              reltol = strategy.reltol,
+              abstol = strategy.abstol,
+              maxiters = strategy.maxiters)[1]
+    end
+    loss = (θ) -> (1.0f0/τ)*sum(f(lb,ub,loss_,θ) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
     return loss
 end
 
@@ -481,7 +552,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
 
-    dx = discretization.dx
     chain = discretization.chain
     initθ = discretization.initθ
     phi = discretization.phi
@@ -489,12 +559,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     derivative = discretization.derivative
     autodiff == true && error("Automatic differentiation is not support yet")
     strategy = discretization.strategy
-
-    train_sets = generate_training_sets(domains,dx,bcs,
-                                        dict_indvars,dict_depvars)
-
-    # the points in the domain and on the boundary
-    train_domain_set,train_bound_set,train_set = train_sets
 
     _pde_loss_function = build_loss_function(eqs,indvars,depvars,
                                                  dict_indvars,dict_depvars,phi, derivative)
@@ -505,18 +569,41 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                   phi, derivative;
                                                   bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
-    pde_loss_function = get_loss_function(_pde_loss_function,
-                                          train_domain_set,
-                                          strategy)
+    pde_loss_function, bc_loss_function =
+    if (strategy isa GridTraining || strategy isa StochasticTraining)
+        dx = strategy.dx
+        train_sets = generate_training_sets(domains,dx,bcs,
+                                            dict_indvars,dict_depvars)
 
-    strategy = (dim<=2 && strategy isa QuadratureTraining && strategy.algorithm in [CubaCuhre(),CubaDivonne()]) ?
-                QuadratureTraining(algorithm = HCubatureJL(),abstol = strategy.abstol, reltol =strategy.reltol,maxiters = strategy.maxiters) : strategy
-    strategy = dim==1 && strategy isa QuadratureTraining  ? GridTraining() : strategy
+        # the points in the domain and on the boundary
+        pde_train_set,bcs_train_set,train_set = train_sets
 
+        pde_loss_function = get_loss_function(_pde_loss_function,
+                                                        pde_train_set,
+                                                        strategy)
 
-    bc_loss_function = get_loss_function(_bc_loss_functions,
-                                         train_bound_set,
-                                         strategy)
+        bc_loss_function = get_loss_function(_bc_loss_functions,
+                                                       bcs_train_set,
+                                                       strategy)
+        (pde_loss_function, bc_loss_function)
+    elseif strategy isa QuadratureTraining
+        dim<=1 && error("QuadratureTraining works only with dimensionality more than 1")
+
+        (dim<=2 && strategy.algorithm in [CubaCuhre(),CubaDivonne()]
+        && error("$(strategy.algorithm) works only with dimensionality more than 2"))
+
+        bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
+        pde_bounds, bcs_bounds = bounds
+
+        pde_loss_function = get_loss_function(_pde_loss_function,
+                                              pde_bounds,
+                                              strategy)
+
+        bc_loss_function = get_loss_function(_bc_loss_functions,
+                                             bcs_bounds,
+                                             strategy)
+        (pde_loss_function, bc_loss_function)
+    end
 
     function loss_function(θ,p)
         return pde_loss_function(θ) + bc_loss_function(θ)
