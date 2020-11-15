@@ -528,7 +528,7 @@ plot(p1,p2,p3)
 
 ![plotks](https://user-images.githubusercontent.com/12683885/91025889-a6253200-e602-11ea-8f61-8e6e2488e025.png)
 
-## Example 8 : Fokker-Planck equation with GPU acceleration
+## Example 8 : Fokker-Planck equation
 
 Let's consider the Fokker-Planck equation:
 
@@ -542,7 +542,6 @@ with the boundary conditions:
 
 ![bc](https://user-images.githubusercontent.com/12683885/91548102-902eae80-e92d-11ea-8956-736a54e9591e.png)
 
-Actually, it is just enough to add `|>gpu` after `chain` and everything will work.
 
 ```julia
 # the example is taken from this article https://arxiv.org/abs/1910.10503
@@ -568,7 +567,7 @@ bcs = [p(-2.2,θ) ~ 0. ,p(2.2,θ) ~ 0. , p(-2.2,θ) ~ p(2.2,θ)]
 domains = [x ∈ IntervalDomain(-2.2,2.2)]
 
 # Neural network
-chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1)) |>gpu
+chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 
 discretization = NeuralPDE.PhysicsInformedNN(dx,
                                              chain,
