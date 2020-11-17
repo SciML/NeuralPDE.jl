@@ -543,7 +543,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     domains = pde_system.domain
     # dimensionality of equation
     dim = length(domains)
-    dim > 3 && error("While only dimensionality no more than 3")
 
     depvars = [nameof(value(d)) for d in pde_system.depvars]
     indvars = [nameof(value(i)) for i in pde_system.indvars]

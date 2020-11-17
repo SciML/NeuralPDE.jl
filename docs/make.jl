@@ -21,7 +21,7 @@ makedocs(
             "examples/optimal_stopping_american.md",
             "examples/nnrode_example.md",
         ],
-        "Neural-Enhanced Solvers" => Any[
+        "Neural-Enhanced PDE Solvers" => Any[
             "solvers/ode.md",
             "solvers/pinn.md",
             "solvers/deep_fbsde.md",

@@ -77,9 +77,3 @@ Besides the high-level API: `discretize(pde_system, discretization)`, we can als
 `get_phi`, `get_derivative`.
 
 See how this can be used in the docs examples or take a look at the tests.
-
-### GPUs
-
-If the Chain is a GPU-compatible chain, then it's GPU-accelerated. For Flux chains this is done by doing: add `|> gpu` after `chain`.
-
-For more information on using GPUs with Flux, consult [Flux GPU Support](https://fluxml.ai/Flux.jl/stable/gpu/)
