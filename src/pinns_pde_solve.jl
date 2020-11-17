@@ -56,17 +56,19 @@ abstract type TrainingStrategies  end
 struct GridTraining <: TrainingStrategies
     dx
 end
+function GridTraining(;dx= 0.1)
+    GridTraining(dx)
+end
 
 """
 * `dx` is the discretization of the grid,
 * `include_frac` is percentage of randomly selected points from the training set.
 """
 struct StochasticTraining <:TrainingStrategies
-    dx
-    include_frac::Float64
+    number_of_points:: Int64
 end
-function StochasticTraining(dx;include_frac=0.75)
-    StochasticTraining(dx,include_frac)
+function StochasticTraining(;number_of_points=100)
+    StochasticTraining(number_of_points)
 end
 
 """
@@ -441,9 +443,9 @@ function get_loss_function(loss_functions, train_sets, strategy::GridTraining)
 end
 
 
-function get_loss_function(loss_functions, train_sets, strategy::StochasticTraining)
-    # norm coefficient for loss function
-    τ = loss_functions isa Array ? sum(length(train_set) for train_set in train_sets) : length(train_sets)
+function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
+    number_of_points = strategy.number_of_points
+    lbs,ubs = bounds
 
     function inner_loss(loss_function,x,θ)
         sum(loss_function(x, θ))
@@ -451,28 +453,24 @@ function get_loss_function(loss_functions, train_sets, strategy::StochasticTrain
 
     if !(loss_functions isa Array)
         loss_functions = [loss_functions]
-        train_sets = [train_sets]
+        lbs = [lbs]
+        ubs = [ubs]
     end
 
-    include_frac = strategy.include_frac
-    count_elements = []
-    sets_size = []
-    for j in 1:length(train_sets)
-        size_set = size(train_sets[j])[1]
-        count_element = convert(Int64,round(include_frac*size_set, digits=0))
-        if count_element <= 2
-            count_element = size_set
-        end
-        push!(sets_size,size_set)
-        push!(count_elements,count_element)
-    end
+    τ = (10)^length(ubs[1])*length(ubs)
+
+    # sobols = map(zip(lbs,ubs)) do (lb,ub)
+    #     SobolSeq(lb, ub)
+    # end
+
     loss = (θ) -> begin
         total = 0.
-        for (j,l) in enumerate(loss_functions)
-            size_set = sets_size[j]
-            for i in 1:count_elements[j]
-                index = rand(1:size_set)
-                total += inner_loss(l,train_sets[j][index],θ)^2
+        for (lb, ub,l) in zip(lbs, ubs, loss_functions)
+            len = length(lb)
+            for i in 1:number_of_points
+                # r_point = collect(next!(s))
+                r_point = lb .+ ub .* rand(len)
+                total += inner_loss(l,r_point,θ)^2
             end
         end
         return (1.0f0/τ) * total
@@ -521,7 +519,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
         lbs = [lbs]
         ubs = [ubs]
     end
-    
+
     τ = (10)^length(ubs[1])*length(ubs)
 
     f = (lb,ub,loss_,θ) -> begin
@@ -570,8 +568,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                   bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
     pde_loss_function, bc_loss_function =
-    if (strategy isa GridTraining || strategy isa StochasticTraining)
+    if strategy isa GridTraining
         dx = strategy.dx
+
         train_sets = generate_training_sets(domains,dx,bcs,
                                             dict_indvars,dict_depvars)
 
@@ -586,6 +585,17 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                        bcs_train_set,
                                                        strategy)
         (pde_loss_function, bc_loss_function)
+    elseif strategy isa StochasticTraining
+          bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
+          pde_bounds, bcs_bounds = bounds
+          pde_loss_function = get_loss_function(_pde_loss_function,
+                                                          pde_bounds,
+                                                          strategy)
+
+          bc_loss_function = get_loss_function(_bc_loss_functions,
+                                                         bcs_bounds,
+                                                         strategy)
+          (pde_loss_function, bc_loss_function)
     elseif strategy isa QuadratureTraining
         dim<=1 && error("QuadratureTraining works only with dimensionality more than 1")
 

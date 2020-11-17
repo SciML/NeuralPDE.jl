@@ -42,7 +42,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                    phi = nothing,
                                    autodiff=false,
                                    derivative = nothing,
-                                   strategy = NeuralPDE.GridTraining(dt))
+                                   strategy = NeuralPDE.GridTraining(dx=dt))
 
 pde_system = PDESystem(eq,bcs,domains,[t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
@@ -106,7 +106,7 @@ end
 
 # Discretization
 dx = 0.1
-grid_strategy = NeuralPDE.GridTraining(dx)
+grid_strategy = NeuralPDE.GridTraining(dx=dx)
 fastchain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 fluxchain = Chain(Dense(2,12,Flux.σ),Dense(12,12,Flux.σ),Dense(12,1))
 chains = [fluxchain, fastchain]
@@ -114,7 +114,7 @@ for chain in chains
     test_2d_poisson_equation(chain, grid_strategy)
 end
 
-stochastic_strategy = NeuralPDE.StochasticTraining(dx)
+stochastic_strategy = NeuralPDE.StochasticTraining(number_of_points = 100)
 quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=50)
 strategies = [stochastic_strategy, quadrature_strategy]
 for strategy in strategies
@@ -183,7 +183,7 @@ dx = 0.05
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 
 
-discretization = NeuralPDE.PhysicsInformedNN(chain,strategy = NeuralPDE.GridTraining(dx))
+discretization = NeuralPDE.PhysicsInformedNN(chain,strategy = NeuralPDE.GridTraining(dx=dx))
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
@@ -288,7 +288,7 @@ train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
 pde_train_set,bcs_train_set,train_set = train_sets
 
 pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,bcs,indvars,depvars)
-grid_strategy = NeuralPDE.GridTraining(dx)
+grid_strategy = NeuralPDE.GridTraining(dx=dx)
 quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=10)
 pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
                                                 pde_bounds,
