@@ -455,20 +455,15 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
         loss_functions = [loss_functions]
         lbs = [lbs]
         ubs = [ubs]
+        number_of_points =number_of_points^(1/2)
     end
-
-    τ = (10)^length(ubs[1])*length(ubs)
-
-    # sobols = map(zip(lbs,ubs)) do (lb,ub)
-    #     SobolSeq(lb, ub)
-    # end
+    τ = number_of_points
 
     loss = (θ) -> begin
         total = 0.
         for (lb, ub,l) in zip(lbs, ubs, loss_functions)
             len = length(lb)
             for i in 1:number_of_points
-                # r_point = collect(next!(s))
                 r_point = lb .+ ub .* rand(len)
                 total += inner_loss(l,r_point,θ)^2
             end

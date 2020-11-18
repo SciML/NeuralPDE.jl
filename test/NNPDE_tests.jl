@@ -89,6 +89,7 @@ function test_2d_poisson_equation(chain, strategy)
     res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=500)
     phi = discretization.phi
 
+    dx = 0.1
     xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
     analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
 
