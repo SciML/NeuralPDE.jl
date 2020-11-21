@@ -24,8 +24,7 @@ Here, `eq` is the equation, `bcs` represents the boundary conditions,
 To solve this problem, use the `PhysicsInformedNN` algorithm.
 
 ```julia
-discretization = PhysicsInformedNN(dx,
-                                   chain,
+discretization = PhysicsInformedNN(chain,
                                    init_params = nothing;
                                    phi = nothing,
                                    autodiff=false,
@@ -34,7 +33,6 @@ discretization = PhysicsInformedNN(dx,
 ```
 
 Here,
-- `dx` is a discretization of the grid
 - `chain` is a Flux.jl chain, where the input of NN equals the number of dimensions and output equals the number of equations in the system
 - `init_params` is the initial parameter of the neural network
 - `phi` is a trial solution

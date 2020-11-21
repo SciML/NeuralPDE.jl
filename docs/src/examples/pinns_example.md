@@ -48,9 +48,8 @@ Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretizat
 ```julia
 # Discretization
 dx = 0.05
-discretization = PhysicsInformedNN(dx,
-                                   chain,
-                                   strategy = GridTraining())
+discretization = PhysicsInformedNN(chain,
+                                   strategy = GridTraining(dx=dx))
 ```
 
 As described in the API docs, we now need to define the `PDESystem` and create PINNs problem using the `discretize` method.
@@ -127,9 +126,8 @@ dx = 0.1
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = PhysicsInformedNN(dx,
-                                   chain,
-                                   strategy= GridTraining())
+discretization = PhysicsInformedNN(chain,
+                                   strategy= GridTraining(dx=dx))
 
 pde_system = PDESystem(eq,bcs,domains,[x,t],[u])
 prob = discretize(pde_system,discretization)
@@ -172,7 +170,7 @@ on the space and time domain:
 
 ![space](https://user-images.githubusercontent.com/12683885/90976622-3605a600-e547-11ea-837e-92330769f5ee.png)
 
-with grid discretization `dx = 0.25`, `dy = 0.25`, `dt = 0.25`.
+<!-- with grid discretization `dx = 0.25`, `dy = 0.25`, `dt = 0.25`. -->
 
 ```julia
 # 3D PDE
@@ -195,14 +193,11 @@ domains = [x ∈ IntervalDomain(0.0,2.0),
            y ∈ IntervalDomain(0.0,2.0),
            t ∈ IntervalDomain(0.0,2.0)]
 
-# Discretization
-dx = 0.25; dy= 0.25; dt = 0.25
 # Neural network
 chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = NeuralPDE.PhysicsInformedNN([dx,dy,dt],
-                                             chain,
-                                             strategy = NeuralPDE.StochasticTraining(include_frac=0.9))
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy = StochasticTraining(number_of_points = 200))
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
@@ -259,8 +254,8 @@ input_ = length(domains)
 output = length(eqs)
 chain = FastChain(FastDense(input_,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,output))
 
-strategy = GridTraining()
-discretization = PhysicsInformedNN(dx,chain,strategy=strategy)
+strategy = GridTraining(dx=dx)
+discretization = PhysicsInformedNN(chain,strategy=strategy)
 
 pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1,u2,u3])
 prob = discretize(pde_system,discretization)
@@ -336,15 +331,11 @@ bcs = [u(0.,θ) ~ 0.0,
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0)]
 
-# Discretization
-dx = 0.05
-
 # Neural network
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 
-discretization = PhysicsInformedNN(dx,
-                                   chain,
-                                   strategy=StochasticTraining(include_frac=0.5))
+discretization = PhysicsInformedNN(chain,
+                                   strategy=StochasticTraining(number_of_points=20))
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = discretize(pde_system,discretization)
 
@@ -357,6 +348,7 @@ We can plot the predicted solution of the ODE and its analytical solution.
 ```julia
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
 
+dx = 0.05
 xs = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
@@ -398,8 +390,8 @@ dx = 0.1
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-strategy = GridTraining()
-discretization = PhysicsInformedNN(dx,chain,strategy=strategy)
+strategy = GridTraining(dx=dx)
+discretization = PhysicsInformedNN(chain,strategy=strategy)
 
 indvars = [t,x]
 depvars = [u]
@@ -500,9 +492,8 @@ dx = 0.4; dt = 0.2
 # Neural network
 chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 
-discretization = PhysicsInformedNN([dx,dt],
-                                    chain,
-                                    strategy = GridTraining())
+discretization = PhysicsInformedNN(chain,
+                                   strategy = GridTraining(dx = [dx,dt]))
 pde_system = PDESystem(eq,bcs,domains,[x,t],[u])
 prob = discretize(pde_system,discretization)
 
@@ -569,9 +560,8 @@ domains = [x ∈ IntervalDomain(-2.2,2.2)]
 # Neural network
 chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 
-discretization = NeuralPDE.PhysicsInformedNN(dx,
-                                             chain,
-                                             strategy= NeuralPDE.GridTraining())
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy= NeuralPDE.GridTraining(dx=dx))
 
 pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
