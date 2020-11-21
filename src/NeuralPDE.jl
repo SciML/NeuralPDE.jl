@@ -8,6 +8,7 @@ using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
 using ModelingToolkit
 using GalacticOptim
 using Quadrature
+using Sobol
 using RuntimeGeneratedFunctions
 import Tracker, Optim
 import ModelingToolkit: value, nameof, toexpr, build_expr
