@@ -61,8 +61,7 @@ function GridTraining(;dx= 0.1)
 end
 
 """
-* `dx` is the discretization of the grid,
-* `include_frac` is percentage of randomly selected points from the training set.
+* `number_of_points` is number of points in random select training set
 """
 struct StochasticTraining <:TrainingStrategies
     number_of_points:: Int64
@@ -75,7 +74,7 @@ end
 * `algorithm`: quadrature algorithm,
 * `reltol`: relative tolerance,
 * `abstol` absolute tolerance,
-* `maxiters`: the maximum number of iterations,
+* `maxiters`: the maximum number of iterations in quadrature algorithm,
 * `batch`: the preferred number of points to batch.
 
 For more information look: Quadrature.jl https://github.com/SciML/Quadrature.jl
