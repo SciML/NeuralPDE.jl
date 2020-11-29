@@ -301,12 +301,12 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi,
     us = Expr[]
     for v in depvars
         var_num = dict_depvars[v]
-        push!(us,:(($(indvars...), $θ, phi) -> phi([$(indvars...)],$θ)[$var_num]))
+        push!(us,:(($(indvars...), $θ, phi) -> sum(@views phi([$(indvars...)],$θ)[$var_num:$var_num])))
     end
     u_ds = Expr[]
     for (v,v_d) in zip(depvars, depvars_d)
         var_num = dict_depvars[v]
-        push!(u_ds,:((cord, $θ, phi) -> phi(cord,$θ)[$var_num]))
+        push!(u_ds,:((cord, $θ, phi) -> sum(@views phi(cord,$θ)[$var_num:$var_num])))
     end
     expr_loss_function = :(($vars) -> begin $ex end)
 
