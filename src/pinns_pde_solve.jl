@@ -427,7 +427,8 @@ end
 
 function get_loss_function(loss_functions, train_sets, strategy::GridTraining)
     # norm coefficient for loss function
-    τ = loss_functions isa Array ? sum(length(train_set) for train_set in train_sets) : length(train_sets)
+    τ_ = loss_functions isa Array ? sum(length(train_set) for train_set in train_sets) : length(train_sets)
+    τ = 1.0f0 / τ_
 
     function inner_loss(loss_function,x,θ)
         sum(loss_function(x, θ))
@@ -438,7 +439,7 @@ function get_loss_function(loss_functions, train_sets, strategy::GridTraining)
         train_sets = [train_sets]
     end
     f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,x,θ) for x in train_set])
-    loss = (θ) ->  (1.0f0/τ) * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
+    loss = (θ) ->  τ * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
     return loss
 end
 
@@ -455,10 +456,8 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
         loss_functions = [loss_functions]
         lbs = [lbs]
         ubs = [ubs]
-    else
-        number_of_points = number_of_points^(1/2)
     end
-    τ = number_of_points
+    τ = 1.0f0 / number_of_points
 
     loss = (θ) -> begin
         total = 0.
@@ -469,7 +468,7 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
                 total += inner_loss(l,r_point,θ)^2
             end
         end
-        return (1.0f0/τ) * total
+        return τ * total
     end
     return loss
 end
@@ -516,7 +515,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
         ubs = [ubs]
     end
 
-    τ = (10)^length(ubs[1])*length(ubs)
+    τ = 1.0f0 / ((10)^length(ubs[1])*length(ubs))
 
     f = (lb,ub,loss_,θ) -> begin
         _loss = (x,θ) -> sum(abs2,inner_loss(loss_, x, θ))
@@ -527,7 +526,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
               abstol = strategy.abstol,
               maxiters = strategy.maxiters)[1]
     end
-    loss = (θ) -> (1.0f0/τ)*sum(f(lb,ub,loss_,θ) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
+    loss = (θ) -> τ*sum(f(lb,ub,loss_,θ) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
     return loss
 end
 
@@ -586,6 +585,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
           pde_loss_function = get_loss_function(_pde_loss_function,
                                                           pde_bounds,
                                                           strategy)
+          lbs,ubs = bcs_bounds
+          number_of_points = length(lbs[1]) == 0 ? 1 : strategy.number_of_points^(1/length(lbs[1]))
+          strategy = StochasticTraining(number_of_points = number_of_points)
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
                                                          bcs_bounds,
