@@ -455,7 +455,8 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
         loss_functions = [loss_functions]
         lbs = [lbs]
         ubs = [ubs]
-        number_of_points =number_of_points^(1/2)
+    else
+        number_of_points = number_of_points^(1/2)
     end
     τ = number_of_points
 

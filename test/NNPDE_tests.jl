@@ -38,11 +38,11 @@ chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                   init_params = nothing;
-                                   phi = nothing,
-                                   autodiff=false,
-                                   derivative = nothing,
-                                   strategy = NeuralPDE.GridTraining(dx=dt))
+                                             nothing; #init_params
+                                             phi = nothing,
+                                             autodiff=false,
+                                             derivative = nothing,
+                                             strategy = NeuralPDE.GridTraining(dx=dt))
 
 pde_system = PDESystem(eq,bcs,domains,[θ],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
@@ -273,8 +273,7 @@ chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 
 phi = NeuralPDE.get_phi(chain)
 derivative = NeuralPDE.get_derivative(false)
-init
-                                      = DiffEqFlux.initial_params(chain)
+initθ = DiffEqFlux.initial_params(chain)
 
 indvars = [x,t]
 depvars = [u]
