@@ -18,21 +18,21 @@ cb = function (p,l)
 end
 
 ## Example 1, 3D PDE
-@parameters x y t θ
+@parameters x y t
 @variables u(..)
 @derivatives Dxx''~x
 @derivatives Dyy''~y
 @derivatives Dt'~t
 
 # 3D PDE
-eq  = Dt(u(x,y,t,θ)) ~ Dxx(u(x,y,t,θ)) + Dyy(u(x,y,t,θ))
+eq  = Dt(u(x,y,t)) ~ Dxx(u(x,y,t)) + Dyy(u(x,y,t))
 # Initial and boundary conditions
-bcs = [u(x,y,0,θ) ~ exp(x+y)*cos(x+y) ,
-      # u(x,y,2,θ) ~ exp(x+y)*cos(x+y+4*2) ,
-      u(0,y,t,θ) ~ exp(y)*cos(y+4t),
-      u(2,y,t,θ) ~ exp(2+y)*cos(2+y+4t) ,
-      u(x,0,t,θ) ~ exp(x)*cos(x+4t),
-      u(x,2,t,θ) ~ exp(x+2)*cos(x+2+4t)]
+bcs = [u(x,y,0) ~ exp(x+y)*cos(x+y) ,
+      # u(x,y,2) ~ exp(x+y)*cos(x+y+4*2) ,
+      u(0,y,t) ~ exp(y)*cos(y+4t),
+      u(2,y,t) ~ exp(2+y)*cos(2+y+4t) ,
+      u(x,0,t) ~ exp(x)*cos(x+4t),
+      u(x,2,t) ~ exp(x+2)*cos(x+2+4t)]
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,2.0),
           y ∈ IntervalDomain(0.0,2.0),
@@ -63,7 +63,7 @@ u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys
 
 ## Example 2, ## Fokker-Planck equation
 # the example took from this article https://arxiv.org/abs/1910.10503
-@parameters x θ
+@parameters x
 @variables p(..)
 @derivatives Dx'~x
 @derivatives Dxx''~x
@@ -74,12 +74,12 @@ u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys
 _σ = 0.5
 # Discretization
 dx = 0.05
-# here we use normalization condition: dx*p(x,θ) ~ 1, in order to get non-zero solution.
-eq  = [(α - 3*β*x^2)*p(x,θ) + (α*x - β*x^3)*Dx(p(x,θ)) ~ (_σ^2/2)*Dxx(p(x,θ)),
-       dx*p(x,θ) ~ 1.]
+# here we use normalization condition: dx*p(x) ~ 1, in order to get non-zero solution.
+eq  = [(α - 3*β*x^2)*p(x) + (α*x - β*x^3)*Dx(p(x)) ~ (_σ^2/2)*Dxx(p(x)),
+       dx*p(x) ~ 1.]
 
 # Initial and boundary conditions
-bcs = [p(-2.2,θ) ~ 0. ,p(2.2,θ) ~ 0. , p(-2.2,θ) ~ p(2.2,θ)]
+bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
 
 # Space and time domains
 domains = [x ∈ IntervalDomain(-2.2,2.2)]
