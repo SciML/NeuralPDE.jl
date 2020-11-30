@@ -44,10 +44,9 @@ dx = 0.25; dy= 0.25; dt = 0.25
 chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
 initθ = initial_params(chain) |>gpu
-strategy = QuadratureTraining(algorithm=CubaCuhre(),reltol= 1e-5,abstol= 1e-5,maxiters=50)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              initθ,
-                                             strategy = strategy)
+                                             strategy = NeuralPDE.GridTraining(dx=[dx,dy,dt]))
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
