@@ -1,7 +1,8 @@
 using Test, Flux, Optim
 println("NNODE Tests")
-using DiffEqDevTools , NeuralPDE
-using Random
+using DiffEqDevTools
+println("Starting Soon!")
+using Random, NeuralPDE
 Random.seed!(100)
 # Run a solve on scalars
 linear = (u,p,t) -> cos(2pi*t)

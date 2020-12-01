@@ -41,11 +41,10 @@ domains = [x ∈ IntervalDomain(0.0,2.0),
 # Discretization
 dx = 0.25; dy= 0.25; dt = 0.25
 # Neural network
-chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1)) |>gpu
+chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = NeuralPDE.PhysicsInformedNN([dx,dy,dt],
-                                             chain,
-                                             strategy = NeuralPDE.GridTraining())
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy = NeuralPDE.GridTraining(dx=[dx,dy,dt]))
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
@@ -86,16 +85,15 @@ bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
 domains = [x ∈ IntervalDomain(-2.2,2.2)]
 
 # Neural network
-chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1)) |>gpu
+chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 
-discretization = NeuralPDE.PhysicsInformedNN(dx,
-                                             chain,
-                                             strategy= NeuralPDE.GridTraining())
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy= NeuralPDE.GridTraining(dx=dx))
 
 pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))

@@ -24,8 +24,7 @@ Here, `eq` is the equation, `bcs` represents the boundary conditions,
 To solve this problem, use the `PhysicsInformedNN` algorithm.
 
 ```julia
-discretization = PhysicsInformedNN(dx,
-                                   chain,
+discretization = PhysicsInformedNN(chain,
                                    init_params = nothing;
                                    phi = nothing,
                                    autodiff=false,
@@ -34,7 +33,6 @@ discretization = PhysicsInformedNN(dx,
 ```
 
 Here,
-- `dx` is a discretization of the grid
 - `chain` is a Flux.jl chain, where the input of NN equals the number of dimensions and output equals the number of equations in the system
 - `init_params` is the initial parameter of the neural network
 - `phi` is a trial solution
@@ -64,6 +62,11 @@ List of training strategies that are available now:
 the training process.
  - `StochasticTraining()`: In each optimization iteration, we randomly select
 the subset of points from a full training set.
+- `QuadratureTraining()`: Сompute an approximation of the integral of the loss function at each iteration using [adaptive quadrature methods](https://en.wikipedia.org/wiki/Adaptive_quadrature).
+
+The following algorithms are available: CubaVegas, CubaSUAVE, CubaDivonne,HCubatureJL, CubatureJLh, CubatureJLp, CubaCuhre
+
+More details, about the implementation of the algorithms used, can be found in [Quadrature.jl](https://github.com/SciML/Quadrature.jl)
 
 
 ### Low-level API
