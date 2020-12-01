@@ -41,7 +41,7 @@ domains = [x ∈ IntervalDomain(0.0,2.0),
 # Discretization
 dx = 0.25; dy= 0.25; dt = 0.25
 # Neural network
-chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1)) |>gpu
+chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy = NeuralPDE.GridTraining(dx=[dx,dy,dt]))
@@ -85,7 +85,7 @@ bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
 domains = [x ∈ IntervalDomain(-2.2,2.2)]
 
 # Neural network
-chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1)) |>gpu
+chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy= NeuralPDE.GridTraining(dx=dx))
