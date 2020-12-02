@@ -5,7 +5,6 @@ Arguments:
 * `chain` is a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
 * `init_params` is the initial parameter of the neural network,
 * `phi` is a trial solution,
-* `autodiff` is a boolean variable that determines whether to use automatic, differentiation (not supported while) or numerical,
 * `derivative` is method that calculates the derivative,
 * `strategy` determines which training strategy will be used.
 """
@@ -14,7 +13,6 @@ struct PhysicsInformedNN{C,P,PH,DER,T,K}
   chain::C
   initθ::P
   phi::PH
-  autodiff::Bool
   derivative::DER
   strategy::T
   kwargs::K
@@ -23,29 +21,37 @@ end
 function PhysicsInformedNN(chain,
                            init_params = nothing;
                            _phi = nothing,
-                           autodiff=false,
                            _derivative = nothing,
                            strategy = GridTraining(),
                            kwargs...)
-    if init_params === nothing
-        initθ = DiffEqFlux.initial_params(chain)
+    if init_params == nothing
+        if chain isa Array
+            initθ = DiffEqFlux.initial_params.(chain)
+        else
+            initθ = DiffEqFlux.initial_params(chain)
+        end
+
     else
         initθ = init_params
     end
 
     if _phi == nothing
-        phi = get_phi(chain)
+        if chain isa Array
+            phi = get_phi.(chain)
+        else
+            phi = get_phi(chain)
+        end
     else
         phi = _phi
     end
 
     if _derivative == nothing
-        derivative = get_derivative(autodiff)
+        derivative = get_numeric_derivative()
     else
         derivative = _derivative
     end
 
-    PhysicsInformedNN(chain,initθ,phi,autodiff,derivative, strategy, kwargs)
+    PhysicsInformedNN(chain,initθ,phi,derivative, strategy, kwargs)
 end
 
 abstract type TrainingStrategies  end
@@ -148,7 +154,15 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
             if e in keys(dict_depvars)
-                push!(_args,:($θ), :phi)
+                depvar = _args[1]
+                num_depvar = dict_depvars[depvar]
+                indvars = _args[2:end]
+                _args = if length(dict_depvars) == 1
+                    [:u, :([$(indvars...)]), :($θ), :phi]
+                else
+                    [:u, :([$(indvars...)]), Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
+                end
+                break
             elseif e == :derivative
                 derivative_variables = Symbol[]
                 order = 0
@@ -158,10 +172,15 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
                     _args = _args[2].args
                 end
                 depvar = _args[1]
+                num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
-                _args = [:derivative, :phi, Symbol(:($depvar),:_d), :([$(indvars...)]), εs_dnv, order, :($θ)]
+                _args = if length(dict_depvars) == 1
+                    [:derivative, :phi, :u, :([$(indvars...)]), εs_dnv, order, :($θ)]
+                else
+                    [:derivative, Symbol(:phi,num_depvar), :u, :([$(indvars...)]), εs_dnv, order, Symbol(:($θ),num_depvar)]
+                end
                 break
             end
         else
@@ -269,27 +288,30 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi,
         push!(loss_functions,parse_equation(eq,dict_indvars,dict_depvars))
     end
 
-    vars = :(cord, $θ, phi, derivative,u_arr,u_d_arr)
+    vars = :(cord, $θ, phi, derivative,u)
     ex = Expr(:block)
+    if length(depvars) != 1
+        θ_nums = Symbol[]
+        phi_nums = Symbol[]
+        for v in depvars
+            num = dict_depvars[v]
+            push!(θ_nums,:($(Symbol(:($θ),num))))
+            push!(phi_nums,:($(Symbol(:phi,num))))
+        end
 
-    depvars_d = Symbol[]
-    for v in depvars
-        push!(depvars_d,:($(Symbol(:($v),:_d))))
+        expr_θ = Expr[]
+        expr_phi = Expr[]
+        for i in eachindex(depvars)
+            push!(expr_θ, :($θ[$i]))
+            push!(expr_phi, :(phi[$i]))
+        end
+
+        vars_θ = Expr(:(=), build_expr(:tuple, θ_nums), build_expr(:tuple, expr_θ))
+        push!(ex.args,  vars_θ)
+
+        vars_phi = Expr(:(=), build_expr(:tuple, phi_nums), build_expr(:tuple, expr_phi))
+        push!(ex.args,  vars_phi)
     end
-
-    expr_u_arr = Expr[]
-    expr_u_d_arr = Expr[]
-    for i in eachindex(depvars)
-        push!(expr_u_arr, :(u_arr[$i]) )
-        push!(expr_u_d_arr, :(u_d_arr[$i]) )
-    end
-
-    vars_u = Expr(:(=), build_expr(:tuple, depvars), build_expr(:tuple, expr_u_arr))
-    push!(ex.args,  vars_u)
-
-    vars_u_d = Expr(:(=), build_expr(:tuple, depvars_d), build_expr(:tuple, expr_u_d_arr))
-    push!(ex.args,  vars_u_d)
-
     indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(bc_indvars)]
 
     left_arg_pairs, right_arg_pairs = bc_indvars,indvars_ex
@@ -298,22 +320,11 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi,
     let_ex = Expr(:let, vars_eq, build_expr(:vect, loss_functions))
     push!(ex.args,  let_ex)
 
-    us = Expr[]
-    for v in depvars
-        var_num = dict_depvars[v]
-        push!(us,:(($(indvars...), $θ, phi) -> phi([$(indvars...)],$θ)[$var_num]))
-    end
-    u_ds = Expr[]
-    for (v,v_d) in zip(depvars, depvars_d)
-        var_num = dict_depvars[v]
-        push!(u_ds,:((cord, $θ, phi) -> phi(cord,$θ)[$var_num]))
-    end
     expr_loss_function = :(($vars) -> begin $ex end)
 
-    u_arr = [@RuntimeGeneratedFunction(u) for u in us]
-    u_d_arr = [@RuntimeGeneratedFunction(u_d) for u_d in u_ds]
+    u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
-    loss_function = (cord, θ) -> _loss_function(cord, θ, phi, derivative, u_arr, u_d_arr)
+    loss_function = (cord, θ) -> _loss_function(cord, θ, phi, derivative, u)
     return loss_function
 end
 
@@ -327,7 +338,7 @@ function get_bc_argument(bcs,dict_indvars,dict_depvars)
         bc_arg = if (left_expr.args[1] == :derivative)
             left_expr.args[4].args
         else
-            left_expr.args[2:end-2]
+            left_expr.args[2].args
         end
         push!(bc_args, bc_arg)
     end
@@ -405,21 +416,20 @@ function get_phi(chain)
     phi
 end
 
+function get_u()
+	u = (cord, θ, phi)->phi(cord, θ)[1]
+end
 # the method to calculate the derivative
-function get_derivative(autodiff)
+function get_numeric_derivative()
     epsilon = 2*cbrt(eps(Float32))
-    if autodiff # automatic differentiation (not implemented yet)
-        error("automatic differentiation is not implemented yet)")
-    else # numerical differentiation
-        derivative = (phi,u,x,εs,order,θ) ->
-        begin
-            ε = εs[order]
-            if order > 1
-                return (derivative(phi,u,x+ε,εs,order-1,θ)
-                      - derivative(phi,u,x-ε,εs,order-1,θ))/epsilon
-            else
-                return (u(x+ε,θ,phi) - u(x-ε,θ,phi))/epsilon
-            end
+    derivative = (phi,u,x,εs,order,θ) ->
+    begin
+        ε = εs[order]
+        if order > 1
+            return (derivative(phi,u,x+ε,εs,order-1,θ)
+                  - derivative(phi,u,x-ε,εs,order-1,θ))/epsilon
+        else
+            return (u(x+ε,θ,phi) - u(x-ε,θ,phi))/epsilon
         end
     end
     derivative
@@ -547,9 +557,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     chain = discretization.chain
     initθ = discretization.initθ
     phi = discretization.phi
-    autodiff = discretization.autodiff
     derivative = discretization.derivative
-    autodiff == true && error("Automatic differentiation is not support yet")
     strategy = discretization.strategy
 
     _pde_loss_function = build_loss_function(eqs,indvars,depvars,
@@ -571,11 +579,11 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         # the points in the domain and on the boundary
         pde_train_set,bcs_train_set,train_set = train_sets
 
-        pde_loss_function = get_loss_function(_pde_loss_function,
+        pde_loss_function =get_loss_function(_pde_loss_function,
                                                         pde_train_set,
                                                         strategy)
 
-        bc_loss_function = get_loss_function(_bc_loss_functions,
+        bc_loss_function =get_loss_function(_bc_loss_functions,
                                                        bcs_train_set,
                                                        strategy)
         (pde_loss_function, bc_loss_function)
@@ -612,9 +620,21 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         (pde_loss_function, bc_loss_function)
     end
 
-    function loss_function(θ,p)
-        return pde_loss_function(θ) + bc_loss_function(θ)
+    length_θ = length.(initθ)
+    sep =[ 1:length_θ[1], [length_θ[i]+1:length_θ[i]+length_θ[i+1] for i in 1:length(length_θ)-1]...]
+    loss_function = if phi isa Array
+        loss_function = (θ,p) -> begin
+            θ = [θ[s] for s in sep]
+            return pde_loss_function(θ) + bc_loss_function(θ)
+        end
+        loss_function
+    else
+        loss_function = (θ,p) -> begin
+            return pde_loss_function(θ) + bc_loss_function(θ)
+        end
+        loss_function
     end
+    initθ = vcat(initθ...)
 
     f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, initθ)

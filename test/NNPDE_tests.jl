@@ -224,9 +224,10 @@ domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 dx = 0.1
 
 # Neural network
-chain = FastChain(FastDense(2,8,Flux.σ),FastDense(8,2))
+chain1 = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
+chain2 = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
 quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-4,abstol= 1e-4,maxiters=1e2)
-discretization = NeuralPDE.PhysicsInformedNN(chain,strategy = quadrature_strategy)
+discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2],strategy = quadrature_strategy)
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
@@ -236,7 +237,8 @@ phi = discretization.phi
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
 xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 u_real  = [[analytic_sol_func(x,y)[i] for x in xs  for y in ys] for i in 1:2]
-u_predict  = [[phi([x,y],res.minimizer)[i] for x in xs  for y in ys] for i in 1:2]
+mins = [res.minimizer[1:33], res.minimizer[34:end]]
+u_predict  = [[phi[i]([x,y],mins[i])[1] for x in xs  for y in ys] for i in 1:2]
 
 @test u_predict ≈ u_real atol = 10.0
 
@@ -272,7 +274,7 @@ dx = 0.1
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
 phi = NeuralPDE.get_phi(chain)
-derivative = NeuralPDE.get_derivative(false)
+derivative = NeuralPDE.get_numeric_derivative()
 initθ = DiffEqFlux.initial_params(chain)
 
 indvars = [x,t]
@@ -299,11 +301,11 @@ bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
                                                bcs_bounds,
                                                quadrature_strategy)
 
-function loss_function(θ,p)
+function loss_function_(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
 end
 
-f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
+f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f, initθ)
 
 res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=400)
