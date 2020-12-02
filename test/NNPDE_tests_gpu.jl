@@ -9,6 +9,8 @@ using GalacticOptim
 using Optim
 using CUDA
 
+CUDA.allowscalar(false)
+
 using Random
 Random.seed!(100)
 
