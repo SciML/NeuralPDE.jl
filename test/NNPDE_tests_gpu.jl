@@ -43,7 +43,8 @@ domains = [x ∈ IntervalDomain(0.0,2.0),
 # Discretization
 dx = 0.25; dy= 0.25; dt = 0.25
 # Neural network
-chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+const gpuones = cu(ones(1))
+chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1),(u,p)->gpuones .* u)
 
 initθ = initial_params(chain) |>gpu
 discretization = NeuralPDE.PhysicsInformedNN(chain,
