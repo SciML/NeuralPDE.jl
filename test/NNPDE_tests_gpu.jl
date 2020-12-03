@@ -90,7 +90,7 @@ bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
 domains = [x ∈ IntervalDomain(-2.2,2.2)]
 
 # Neural network
-chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1),(u,p)-> gpuones .* u)
 
 initθ = initial_params(chain) |>gpu
 discretization = NeuralPDE.PhysicsInformedNN(chain,
