@@ -1,3 +1,4 @@
+RuntimeGeneratedFunctions.init(@__MODULE__)
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
 
@@ -260,7 +261,6 @@ end
 
 function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi, derivative;
                              bc_indvars = indvars)
-    RuntimeGeneratedFunctions.init(@__MODULE__)
     if !(eqs isa Array)
         eqs = [eqs]
     end
