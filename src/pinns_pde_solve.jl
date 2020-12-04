@@ -590,13 +590,14 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     strategy = discretization.strategy
 
     symbolic_pde_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
-                                                 dict_indvars,dict_depvars,phi, derivative)
+                                                              dict_indvars,dict_depvars,
+                                                              phi, derivative,initθ)
 
     bc_indvars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
-                                                  dict_indvars,dict_depvars,
-                                                  phi, derivative;
-                                                  bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+                                                               dict_indvars,dict_depvars,
+                                                               phi, derivative,initθ;
+                                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
     symbolic_pde_loss_function,symbolic_bc_loss_functions
 end
 # Convert a PDE problem into an OptimizationProblem
