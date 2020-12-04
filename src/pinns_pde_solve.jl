@@ -266,7 +266,7 @@ to
           end
       end)
 """
-function build_loss_function(eqs,_indvars,_depvars, phi, derivative;bc_indvars=nothing)
+function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing)
 
     # dictionaries: variable -> unique number
     depvars = [nameof(value(d)) for d in _depvars]
@@ -274,10 +274,10 @@ function build_loss_function(eqs,_indvars,_depvars, phi, derivative;bc_indvars=n
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
-    return build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi, derivative,bc_indvars = bc_indvars)
+    return build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi, derivative,initθ,bc_indvars = bc_indvars)
 end
 
-function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi, derivative;
+function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi, derivative, initθ;
                              bc_indvars = indvars)
     RuntimeGeneratedFunctions.init(@__MODULE__)
     if !(eqs isa Array)
@@ -301,8 +301,12 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi,
 
         expr_θ = Expr[]
         expr_phi = Expr[]
+
+        length_θ = length.(initθ)
+        sep =[ 1:length_θ[1], [length_θ[i]+1:length_θ[i]+length_θ[i+1] for i in 1:length(length_θ)-1]...]
+
         for i in eachindex(depvars)
-            push!(expr_θ, :($θ[$i]))
+            push!(expr_θ, :($θ[$(sep[i])]))
             push!(expr_phi, :(phi[$i]))
         end
 
@@ -556,17 +560,18 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
 
     chain = discretization.chain
     initθ = discretization.initθ
+    flat_initθ = vcat(initθ...)
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
 
     _pde_loss_function = build_loss_function(eqs,indvars,depvars,
-                                                 dict_indvars,dict_depvars,phi, derivative)
+                                                 dict_indvars,dict_depvars,phi, derivative, initθ)
 
     bc_indvars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
     _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
                                                   dict_indvars,dict_depvars,
-                                                  phi, derivative;
+                                                  phi, derivative, initθ;
                                                   bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
     pde_loss_function, bc_loss_function =
@@ -620,22 +625,10 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         (pde_loss_function, bc_loss_function)
     end
 
-    length_θ = length.(initθ)
-    sep =[ 1:length_θ[1], [length_θ[i]+1:length_θ[i]+length_θ[i+1] for i in 1:length(length_θ)-1]...]
-    loss_function = if phi isa Array
-        loss_function = (θ,p) -> begin
-            θ = [θ[s] for s in sep]
-            return pde_loss_function(θ) + bc_loss_function(θ)
-        end
-        loss_function
-    else
-        loss_function = (θ,p) -> begin
-            return pde_loss_function(θ) + bc_loss_function(θ)
-        end
-        loss_function
+    loss_function = (θ,p) -> begin
+        return pde_loss_function(θ) + bc_loss_function(θ)
     end
-    initθ = vcat(initθ...)
 
     f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
-    GalacticOptim.OptimizationProblem(f, initθ)
+    GalacticOptim.OptimizationProblem(f, flat_initθ)
 end

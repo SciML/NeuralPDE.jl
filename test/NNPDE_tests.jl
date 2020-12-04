@@ -237,8 +237,8 @@ phi = discretization.phi
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
 xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 u_real  = [[analytic_sol_func(x,y)[i] for x in xs  for y in ys] for i in 1:2]
-mins = [res.minimizer[1:33], res.minimizer[34:end]]
-u_predict  = [[phi[i]([x,y],mins[i])[1] for x in xs  for y in ys] for i in 1:2]
+minimizers = [res.minimizer[1:33], res.minimizer[34:end]]
+u_predict  = [[phi[i]([x,y],minimizers[i])[1] for x in xs  for y in ys] for i in 1:2]
 
 @test u_predict ≈ u_real atol = 10.0
 
@@ -281,10 +281,10 @@ indvars = [x,t]
 depvars = [u]
 dim = length(domains)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative,initθ)
 
 bc_indvars = NeuralPDE.get_bc_varibles(bcs,indvars,depvars)
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,initθ,
                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
