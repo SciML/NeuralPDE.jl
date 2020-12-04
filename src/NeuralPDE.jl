@@ -134,6 +134,7 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        GridTraining, StochasticTraining, QuadratureTraining
        build_loss_function, get_loss_function,
        generate_training_sets, get_bc_varibles,get_bounds
-       get_phi, get_numeric_derivative
+       get_phi, get_numeric_derivative,
+       build_symbolic_loss_function, symbolic_discretize
 
 end # module

@@ -1,3 +1,4 @@
+RuntimeGeneratedFunctions.init(@__MODULE__)
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
 
@@ -266,20 +267,23 @@ to
           end
       end)
 """
-function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing)
-
+function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ; bc_indvars=nothing)
     # dictionaries: variable -> unique number
     depvars = [nameof(value(d)) for d in _depvars]
     indvars = [nameof(value(i)) for i in _indvars]
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
-    return build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi, derivative,initθ,bc_indvars = bc_indvars)
+    return build_symbolic_loss_function(eqs,indvars,depvars,
+                                        dict_indvars,dict_depvars,
+                                        phi, derivative,initθ,
+                                        bc_indvars = bc_indvars)
 end
 
-function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi, derivative, initθ;
-                             bc_indvars = indvars)
-    RuntimeGeneratedFunctions.init(@__MODULE__)
+function build_symbolic_loss_function(eqs,indvars,depvars,
+                                      dict_indvars,dict_depvars,
+                                      phi, derivative, initθ;
+                                      bc_indvars = indvars)
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -325,7 +329,27 @@ function build_loss_function(eqs,indvars,depvars,dict_indvars,dict_depvars, phi,
     push!(ex.args,  let_ex)
 
     expr_loss_function = :(($vars) -> begin $ex end)
+end
 
+function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing)
+    # dictionaries: variable -> unique number
+    depvars = [nameof(value(d)) for d in _depvars]
+    indvars = [nameof(value(i)) for i in _indvars]
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
+    bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
+    return build_loss_function(eqs,indvars,depvars,
+                               dict_indvars,dict_depvars,
+                               phi, derivative,initθ,
+                               bc_indvars = bc_indvars)
+end
+
+function build_loss_function(eqs,_indvars,_depvars, phi, derivative, initθ;bc_indvars=nothing)
+  
+     expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
+                                                       dict_indvars,dict_depvars,
+                                                       phi, derivative, initθ;
+                                                       bc_indvars = bc_indvars)
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     loss_function = (cord, θ) -> _loss_function(cord, θ, phi, derivative, u)
@@ -543,7 +567,37 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
     loss = (θ) -> τ*sum(f(lb,ub,loss_,θ) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
     return loss
 end
+function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+    eqs = pde_system.eq
+    bcs = pde_system.bcs
 
+    domains = pde_system.domain
+    # dimensionality of equation
+    dim = length(domains)
+
+    depvars = [nameof(value(d)) for d in pde_system.depvars]
+    indvars = [nameof(value(i)) for i in pde_system.indvars]
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
+
+    chain = discretization.chain
+    initθ = discretization.initθ
+    phi = discretization.phi
+    autodiff = discretization.autodiff
+    derivative = discretization.derivative
+    autodiff == true && error("Automatic differentiation is not support yet")
+    strategy = discretization.strategy
+
+    symbolic_pde_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
+                                                 dict_indvars,dict_depvars,phi, derivative)
+
+    bc_indvars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
+    symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
+                                                  dict_indvars,dict_depvars,
+                                                  phi, derivative;
+                                                  bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+    symbolic_pde_loss_function,symbolic_bc_loss_functions
+end
 # Convert a PDE problem into an OptimizationProblem
 function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     eqs = pde_system.eq
