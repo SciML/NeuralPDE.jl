@@ -586,9 +586,7 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     chain = discretization.chain
     initθ = discretization.initθ
     phi = discretization.phi
-    autodiff = discretization.autodiff
     derivative = discretization.derivative
-    autodiff == true && error("Automatic differentiation is not support yet")
     strategy = discretization.strategy
 
     symbolic_pde_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
