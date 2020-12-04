@@ -344,8 +344,11 @@ function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_in
                                bc_indvars = bc_indvars)
 end
 
-function build_loss_function(eqs,_indvars,_depvars, phi, derivative, initθ;bc_indvars=nothing)
-  
+function build_loss_function(eqs,indvars,depvars,
+                             dict_indvars,dict_depvars,
+                             phi, derivative, initθ;
+                             bc_indvars = indvars)
+
      expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars,
                                                        phi, derivative, initθ;
