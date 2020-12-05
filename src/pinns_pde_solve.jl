@@ -598,7 +598,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                   phi, derivative;
                                                   bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
-    pde_loss_function, bc_loss_function, automatic_differentiation =
+    pde_loss_function, bc_loss_function =
     if strategy isa GridTraining
         dx = strategy.dx
 
@@ -615,9 +615,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         bc_loss_function = get_loss_function(_bc_loss_functions,
                                                        bcs_train_set,
                                                        strategy)
-        automatic_differentiation = GalacticOptim.AutoZygote()
 
-        (pde_loss_function, bc_loss_function, automatic_differentiation)
+        (pde_loss_function, bc_loss_function)
     elseif strategy isa StochasticTraining
           bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
           pde_bounds, bcs_bounds = bounds
@@ -630,7 +629,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                          strategy)
           automatic_differentiation = GalacticOptim.AutoZygote()
 
-          (pde_loss_function, bc_loss_function, automatic_differentiation)
+          (pde_loss_function, bc_loss_function)
     elseif strategy isa QuadratureTraining
         dim<=1 && error("QuadratureTraining works only with dimensionality more than 1")
 
@@ -647,9 +646,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         bc_loss_function = get_loss_function(_bc_loss_functions,
                                              bcs_bounds,
                                              strategy)
-
-        automatic_differentiation =GalacticOptim.AutoZygote()
-        (pde_loss_function, bc_loss_function,automatic_differentiation)
+        (pde_loss_function, bc_loss_function)
     elseif strategy isa SobolTraining
         bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
         pde_bounds, bcs_bounds = bounds
@@ -660,9 +657,16 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         bc_loss_function = get_loss_function(_bc_loss_functions,
                                                        bcs_bounds,
                                                        strategy)
-        automatic_differentiation = GalacticOptim.AutoForwardDiff()
 
-        (pde_loss_function, bc_loss_function, automatic_differentiation)
+
+        (pde_loss_function, bc_loss_function)
+    end
+
+    automatic_differentiation =
+    if strategy isa GridTraining || strategy isa StochasticTraining || strategy isa QuadratureTraining
+        GalacticOptim.AutoZygote()
+    elseif strategy isa SobolTraining
+        GalacticOptim.AutoForwardDiff()
     end
 
     function loss_function(θ,p)
