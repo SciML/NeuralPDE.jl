@@ -150,8 +150,6 @@ where
  θ - weight in neural network
 """
 function _transform_derivative(_args,dict_indvars,dict_depvars)
-    dim = length(dict_indvars)
-    εs = [get_ε(dim,d) for d in 1:dim]
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
             if e in keys(dict_depvars)
@@ -175,6 +173,8 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
+                dim_l = length(indvars)
+                εs = [get_ε(dim_l,d) for d in 1:dim_l]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
                 _args = if length(dict_depvars) == 1
