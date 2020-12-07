@@ -79,7 +79,7 @@ function test_2d_poisson_equation(chain, strategy)
     domains = [x ∈ IntervalDomain(0.0,1.0),
                y ∈ IntervalDomain(0.0,1.0)]
 
-    chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+    # chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
     discretization = NeuralPDE.PhysicsInformedNN(chain,
                                                  strategy = strategy)
 
@@ -116,8 +116,14 @@ for chain in chains
 end
 
 stochastic_strategy = NeuralPDE.StochasticTraining(number_of_points = 100)
-quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=50)
-strategies = [stochastic_strategy, quadrature_strategy]
+quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),
+                                                   reltol = 1e-2, abstol = 1e-2,
+                                                   maxiters = 50)
+quasirandom_strategy = NeuralPDE.QuasiRandomTraining(sampling_method = UniformSample(),
+                                                     number_of_points = 100,
+                                                     number_of_minibatch = 10)
+
+strategies = [stochastic_strategy, quadrature_strategy,quasirandom_strategy]
 for strategy in strategies
     chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
     test_2d_poisson_equation(chain, strategy)

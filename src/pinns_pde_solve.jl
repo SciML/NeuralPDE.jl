@@ -71,11 +71,14 @@ function StochasticTraining(;number_of_points=100)
     StochasticTraining(number_of_points)
 end
 
-struct SobolTraining <:TrainingStrategies
+    # sampling_method::
+struct QuasiRandomTraining <:TrainingStrategies
+    sampling_method::QuasiMonteCarlo.SamplingAlgorithm
     number_of_points:: Int64
+    number_of_minibatch:: Int64
 end
-function SobolTraining(;number_of_points=100)
-    SobolTraining(number_of_points)
+function QuasiRandomTraining(;sampling_method = UniformSample(), number_of_points=100,number_of_minibatch=10)
+    QuasiRandomTraining(sampling_method,number_of_points,number_of_minibatch)
 end
 """
 * `algorithm`: quadrature algorithm,
@@ -479,9 +482,10 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
     return loss
 end
 
-
-function get_loss_function(loss_functions, bounds, strategy::SobolTraining)
+function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining)
+    sampling_method = strategy.sampling_method
     number_of_points = strategy.number_of_points
+    number_of_minibatch = strategy.number_of_minibatch
     lbs,ubs = bounds
 
     function inner_loss(loss_function,x,θ)
@@ -492,16 +496,22 @@ function get_loss_function(loss_functions, bounds, strategy::SobolTraining)
         loss_functions = [loss_functions]
         lbs = [lbs]
         ubs = [ubs]
-        number_of_points =number_of_points^(1/2)
     end
     τ = number_of_points
-
+    ss =[]
+    for (lb, ub) in zip(lbs, ubs)
+        s = QuasiMonteCarlo.generate_design_matrices(number_of_points,lb,ub,sampling_method,number_of_minibatch)
+        # s =QuasiMonteCarlo.sample(number_of_points,lb,ub,UniformSample())
+        push!(ss,s)
+    end
     loss = (θ) -> begin
         total = 0.
-        for (lb, ub,l) in zip(lbs, ubs, loss_functions)
-            s =SobolSeq(lb, ub)
-            for i in 1:number_of_points
-                r_point = next!(s)
+        for (lb, ub,s_,l) in zip(lbs,ubs,ss,loss_functions)
+            s =  s_[rand(1:4)]
+            ste_ = size(lb)[1]
+            k = size(lb)[1]-1
+            for i in 1:ste_:ste_*number_of_points
+                r_point = s[i:i+k]
                 total += inner_loss(l,r_point,θ)^2
             end
         end
@@ -627,9 +637,24 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
           bc_loss_function = get_loss_function(_bc_loss_functions,
                                                          bcs_bounds,
                                                          strategy)
-          automatic_differentiation = GalacticOptim.AutoZygote()
-
           (pde_loss_function, bc_loss_function)
+    elseif strategy isa QuasiRandomTraining
+         bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
+         pde_bounds, bcs_bounds = bounds
+         pde_loss_function = get_loss_function(_pde_loss_function,
+                                                        pde_bounds,
+                                                        strategy)
+         plbs,pubs = pde_bounds
+         blbs,bubs = bcs_bounds
+         pl = length(plbs)
+         bl = length(blbs[1])
+         number_of_points = Int(round(strategy.number_of_points^(bl/pl)))
+         strategy = QuasiRandomTraining(number_of_points = number_of_points)
+
+         bc_loss_function = get_loss_function(_bc_loss_functions,
+                                                       bcs_bounds,
+                                                       strategy)
+         (pde_loss_function, bc_loss_function)
     elseif strategy isa QuadratureTraining
         dim<=1 && error("QuadratureTraining works only with dimensionality more than 1")
 
@@ -647,32 +672,12 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                              bcs_bounds,
                                              strategy)
         (pde_loss_function, bc_loss_function)
-    elseif strategy isa SobolTraining
-        bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
-        pde_bounds, bcs_bounds = bounds
-        pde_loss_function = get_loss_function(_pde_loss_function,
-                                                        pde_bounds,
-                                                        strategy)
-
-        bc_loss_function = get_loss_function(_bc_loss_functions,
-                                                       bcs_bounds,
-                                                       strategy)
-
-
-        (pde_loss_function, bc_loss_function)
     end
 
-    automatic_differentiation =
-    if strategy isa GridTraining || strategy isa StochasticTraining || strategy isa QuadratureTraining
-        GalacticOptim.AutoZygote()
-    elseif strategy isa SobolTraining
-        GalacticOptim.AutoForwardDiff()
-    end
-
-    function loss_function(θ,p)
+    function loss_function_(θ,p)
         return pde_loss_function(θ) + bc_loss_function(θ)
     end
 
-    f = OptimizationFunction(loss_function, automatic_differentiation)
-    GalacticOptim.OptimizationProblem(f, initθ)
+    f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
+    prob = GalacticOptim.OptimizationProblem(f, initθ)
 end
