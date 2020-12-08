@@ -9,6 +9,7 @@ println("Starting Soon!")
 using GalacticOptim
 using Optim
 using Quadrature,Cubature, Cuba
+using QuasiMonteCarlo
 
 using Random
 Random.seed!(100)
