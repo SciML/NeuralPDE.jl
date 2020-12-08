@@ -174,35 +174,51 @@ on the space and time domain:
 
 ```julia
 # 3D PDE
-@parameters x y t
-@variables u(..)
-@derivatives Dxx''~x
-@derivatives Dyy''~y
+@parameters t, x
+@variables u1(..), u2(..), u3(..)
 @derivatives Dt'~t
+@derivatives Dtt''~t
+@derivatives Dx'~x
+@derivatives Dxx''~x
 
-# 3D PDE
-eq  = Dt(u(x,y,t)) ~ Dxx(u(x,y,t)) + Dyy(u(x,y,t))
-# Initial and boundary conditions
-bcs = [u(x,y,0) ~ exp(x+y)*cos(x+y) ,
-       u(0,y,t) ~ exp(y)*cos(y+4t)
-       u(2,y,t) ~ exp(2+y)*cos(2+y+4t) ,
-       u(x,0,t) ~ exp(x)*cos(x+4t),
-       u(x,2,t) ~ exp(x+2)*cos(x+2+4t)]
+eqs = [Dtt(u1(t,x)) ~ Dxx(u1(t,x)) + u3(t,x)*sin(pi*x),
+       Dtt(u2(t,x)) ~ Dxx(u2(t,x)) + u3(t,x)*cos(pi*x),
+       0. ~ u1(t,x)*sin(pi*x) + u2(t,x)*cos(pi*x) - exp(-t)]
+
+bcs = [u1(0,x) ~ sin(pi*x),
+       u2(0,x) ~ cos(pi*x),
+       Dt(u1(0,x)) ~ -sin(pi*x),
+       Dt(u2(0,x)) ~ -cos(pi*x),
+       u1(t,0) ~ 0.,
+       u2(t,0) ~ exp(-t),
+       u1(t,1) ~ 0.,
+       u2(t,1) ~ -exp(-t),
+       u1(t,0) ~ u1(t,1),
+       u2(t,0) ~ -u2(t,1)]
+
+
 # Space and time domains
-domains = [x ∈ IntervalDomain(0.0,2.0),
-           y ∈ IntervalDomain(0.0,2.0),
-           t ∈ IntervalDomain(0.0,2.0)]
-
+domains = [t ∈ IntervalDomain(0.0,1.0),
+           x ∈ IntervalDomain(0.0,1.0)]
+# Discretization
+dx = 0.1
 # Neural network
-chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+input_ = length(domains)
+output = 1
+inner = 8
+chain1 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
+chain2 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
+chain3 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
 
-discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy = StochasticTraining(number_of_points = 200))
-pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
-prob = NeuralPDE.discretize(pde_system,discretization)
+strategy = NeuralPDE.GridTraining(dx=dx)
+discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2,chain3],strategy=strategy)
 
-res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=3000)
+pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1,u2,u3])
+prob = discretize(pde_system,discretization)
+
+@time res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=3000)
 phi = discretization.phi
+
 ```
 
 ## Example 4 : Solving a PDE System
@@ -251,11 +267,15 @@ domains = [t ∈ IntervalDomain(0.0,1.0),
 dx = 0.1
 # Neural network
 input_ = length(domains)
-output = length(eqs)
-chain = FastChain(FastDense(input_,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,output))
-
-strategy = GridTraining(dx=dx)
-discretization = PhysicsInformedNN(chain,strategy=strategy)
+output = 1
+inner = 8
+chain1 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
+chain2 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
+chain3 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
+# CubatureJLh(), CubatureJLp()]
+quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=CubatureJLp(),reltol= 1e-4,abstol= 1e-4,maxiters=200)
+strategy = NeuralPDE.GridTraining(dx=dx)
+discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2,chain3],strategy=strategy)
 
 pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1,u2,u3])
 prob = discretize(pde_system,discretization)
@@ -267,27 +287,32 @@ phi = discretization.phi
 And some analysis:
 
 ```julia
-ts,xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
+
+ts,xs = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
+
+initθ = discretization.initθ
+acum =  [0;accumulate(+, length.(initθ))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+minimizers = [res.minimizer[s] for s in sep]
 
 analytic_sol_func(t,x) = [exp(-t)*sin(pi*x), exp(-t)*cos(pi*x), (1+pi^2)*exp(-t)]
 u_real  = [[analytic_sol_func(t,x)[i] for t in ts for x in xs] for i in 1:3]
-u_predict  = [[phi([t,x],res.minimizer)[i] for t in ts for x in xs] for i in 1:3]
+u_predict  = [[phi[i]([t,x],minimizers[i])[1] for t in ts  for x in xs] for i in 1:3]
 diff_u = [abs.(u_real[i] .- u_predict[i] ) for i in 1:3]
 
 for i in 1:3
-    p1 = plot(xs, ts, u_real[i], st=:surface,title = "u$i, analytic");
-    p2 = plot(xs, ts, u_predict[i], st=:surface,title = "predict");
-    p3 = plot(xs, ts, diff_u[i],linetype=:contourf,title = "error");
+    p1 = plot(ts, xs, u_real[i], st=:surface,title = "u$i, analytic");
+    p2 = plot(ts, xs, u_predict[i], st=:surface,title = "predict");
+    p3 = plot(ts, xs, diff_u[i],linetype=:contourf,title = "error");
     plot(p1,p2,p3)
-    savefig("sol_u$i")
+    savefig("sol2_u$i")
 end
 ```
+![u1](https://user-images.githubusercontent.com/12683885/101504680-8b45b600-3984-11eb-8180-5ce0b992055e.png)
 
-![u1](https://user-images.githubusercontent.com/12683885/90981503-192e9a00-e56a-11ea-8378-8e53e9de9c3c.png)
+![u2](https://user-images.githubusercontent.com/12683885/101504774-aadcde80-3984-11eb-9ed5-47a637f1285e.png)
 
-![u2](https://user-images.githubusercontent.com/12683885/90981470-e1bfed80-e569-11ea-9210-ff606af17532.png)
-
-![u3](https://user-images.githubusercontent.com/12683885/90981491-01571600-e56a-11ea-9143-52ced4b177c8.png)
+![u3](https://user-images.githubusercontent.com/12683885/101504874-c3e58f80-3984-11eb-9b6a-655ae7239a1a.png)
 
 
 ### Matrix PDEs form
