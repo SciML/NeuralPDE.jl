@@ -305,7 +305,7 @@ for i in 1:3
     p2 = plot(ts, xs, u_predict[i], st=:surface,title = "predict");
     p3 = plot(ts, xs, diff_u[i],linetype=:contourf,title = "error");
     plot(p1,p2,p3)
-    savefig("sol2_u$i")
+    savefig("sol_u$i")
 end
 ```
 ![u1](https://user-images.githubusercontent.com/12683885/101504680-8b45b600-3984-11eb-8180-5ce0b992055e.png)
