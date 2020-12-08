@@ -306,8 +306,8 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         expr_θ = Expr[]
         expr_phi = Expr[]
 
-        length_θ = length.(initθ)
-        sep =[ 1:length_θ[1], [length_θ[i]+1:length_θ[i]+length_θ[i+1] for i in 1:length(length_θ)-1]...]
+        acum =  [0;accumulate(+, length.(initθ))]
+        sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 
         for i in eachindex(depvars)
             push!(expr_θ, :($θ[$(sep[i])]))

@@ -237,7 +237,11 @@ phi = discretization.phi
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
 xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 u_real  = [[analytic_sol_func(x,y)[i] for x in xs  for y in ys] for i in 1:2]
-minimizers = [res.minimizer[1:33], res.minimizer[34:end]]
+
+initθ = discretization.initθ
+acum =  [0;accumulate(+, length.(initθ))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+minimizers = [res.minimizer[s] for s in sep]
 u_predict  = [[phi[i]([x,y],minimizers[i])[1] for x in xs  for y in ys] for i in 1:2]
 
 @test u_predict ≈ u_real atol = 10.0
