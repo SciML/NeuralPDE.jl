@@ -174,51 +174,35 @@ on the space and time domain:
 
 ```julia
 # 3D PDE
-@parameters t, x
-@variables u1(..), u2(..), u3(..)
-@derivatives Dt'~t
-@derivatives Dtt''~t
-@derivatives Dx'~x
+@parameters x y t
+@variables u(..)
 @derivatives Dxx''~x
+@derivatives Dyy''~y
+@derivatives Dt'~t
 
-eqs = [Dtt(u1(t,x)) ~ Dxx(u1(t,x)) + u3(t,x)*sin(pi*x),
-       Dtt(u2(t,x)) ~ Dxx(u2(t,x)) + u3(t,x)*cos(pi*x),
-       0. ~ u1(t,x)*sin(pi*x) + u2(t,x)*cos(pi*x) - exp(-t)]
-
-bcs = [u1(0,x) ~ sin(pi*x),
-       u2(0,x) ~ cos(pi*x),
-       Dt(u1(0,x)) ~ -sin(pi*x),
-       Dt(u2(0,x)) ~ -cos(pi*x),
-       u1(t,0) ~ 0.,
-       u2(t,0) ~ exp(-t),
-       u1(t,1) ~ 0.,
-       u2(t,1) ~ -exp(-t),
-       u1(t,0) ~ u1(t,1),
-       u2(t,0) ~ -u2(t,1)]
-
-
+# 3D PDE
+eq  = Dt(u(x,y,t)) ~ Dxx(u(x,y,t)) + Dyy(u(x,y,t))
+# Initial and boundary conditions
+bcs = [u(x,y,0) ~ exp(x+y)*cos(x+y) ,
+       u(0,y,t) ~ exp(y)*cos(y+4t)
+       u(2,y,t) ~ exp(2+y)*cos(2+y+4t) ,
+       u(x,0,t) ~ exp(x)*cos(x+4t),
+       u(x,2,t) ~ exp(x+2)*cos(x+2+4t)]
 # Space and time domains
-domains = [t ∈ IntervalDomain(0.0,1.0),
-           x ∈ IntervalDomain(0.0,1.0)]
-# Discretization
-dx = 0.1
+domains = [x ∈ IntervalDomain(0.0,2.0),
+           y ∈ IntervalDomain(0.0,2.0),
+           t ∈ IntervalDomain(0.0,2.0)]
+
 # Neural network
-input_ = length(domains)
-output = 1
-inner = 8
-chain1 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
-chain2 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
-chain3 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
+chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-strategy = NeuralPDE.GridTraining(dx=dx)
-discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2,chain3],strategy=strategy)
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy = StochasticTraining(number_of_points = 200))
+pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
+prob = NeuralPDE.discretize(pde_system,discretization)
 
-pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1,u2,u3])
-prob = discretize(pde_system,discretization)
-
-@time res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=3000)
+res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=3000)
 phi = discretization.phi
-
 ```
 
 ## Example 4 : Solving a PDE System
@@ -267,12 +251,11 @@ domains = [t ∈ IntervalDomain(0.0,1.0),
 dx = 0.1
 # Neural network
 input_ = length(domains)
-output = 1
-inner = 8
-chain1 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
-chain2 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
-chain3 = FastChain(FastDense(input_,inner,Flux.σ),FastDense(inner,inner,Flux.σ),FastDense(inner,output))
-# CubatureJLh(), CubatureJLp()]
+n = 8
+chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+
 quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=CubatureJLp(),reltol= 1e-4,abstol= 1e-4,maxiters=200)
 strategy = NeuralPDE.GridTraining(dx=dx)
 discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2,chain3],strategy=strategy)
