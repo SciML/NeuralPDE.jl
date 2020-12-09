@@ -73,7 +73,7 @@ More details, about the implementation of the algorithms used, can be found in [
 
 Besides the high-level API: `discretize(pde_system, discretization)`, we can also use the low-level API methods:
 `build_loss_function`, `get_loss_function`,`generate_training_sets`,
-`get_phi`, `get_derivative`,
+`get_phi`, `get_numeric_derivative`,
 `build_symbolic_loss_function`, `symbolic_discretize`.
 
 See how this can be used in the docs examples or take a look at the tests.
