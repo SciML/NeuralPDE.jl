@@ -303,7 +303,7 @@ pde_train_set,bcs_train_set,train_set = train_sets
 
 pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,bcs,indvars,depvars)
 grid_strategy = NeuralPDE.GridTraining(dx=dx)
-quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=10)
+quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-3,abstol= 1e-3,maxiters=20)
 pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
                                                 pde_bounds,
                                                 quadrature_strategy)
