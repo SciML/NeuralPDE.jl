@@ -37,7 +37,7 @@ function PhysicsInformedNN(chain,
     end
 
     if _phi == nothing
-        if chain isa Array
+        if chain isa AbstractArray
             phi = get_phi.(chain)
         else
             phi = get_phi(chain)
