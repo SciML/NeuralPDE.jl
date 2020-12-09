@@ -26,7 +26,7 @@ function PhysicsInformedNN(chain,
                            strategy = GridTraining(),
                            kwargs...)
     if init_params == nothing
-        if chain isa Array
+        if chain isa AbstractArray
             initθ = DiffEqFlux.initial_params.(chain)
         else
             initθ = DiffEqFlux.initial_params(chain)
