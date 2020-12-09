@@ -8,6 +8,7 @@ using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
 using ModelingToolkit
 using GalacticOptim
 using Quadrature
+using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 import Tracker, Optim
 import ModelingToolkit: value, nameof, toexpr, build_expr
@@ -131,7 +132,7 @@ include("pinns_pde_solve.jl")
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,
        PhysicsInformedNN, discretize,
-       GridTraining, StochasticTraining, QuadratureTraining
+       GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
        build_loss_function, get_loss_function,
        generate_training_sets, get_bc_varibles,get_bounds
        get_phi, get_numeric_derivative,
