@@ -77,7 +77,12 @@ function StochasticTraining(;number_of_points=100)
     StochasticTraining(number_of_points)
 end
 
-    # sampling_method::
+"""
+* `sampling_method`: is the quasi-Monte Carlo sampling strategy.
+* `number_of_points`: is number of quasi-random points in training set
+* `number_of_minibatch` is number of generated training samples
+For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMonteCarlo.jl
+"""
 struct QuasiRandomTraining <:TrainingStrategies
     sampling_method::QuasiMonteCarlo.SamplingAlgorithm
     number_of_points:: Int64
@@ -542,7 +547,6 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     ss =[]
     for (lb, ub) in zip(lbs, ubs)
         s = QuasiMonteCarlo.generate_design_matrices(number_of_points,lb,ub,sampling_method,number_of_minibatch)
-        # s =QuasiMonteCarlo.sample(number_of_points,lb,ub,UniformSample())
         push!(ss,s)
     end
     loss = (θ) -> begin
