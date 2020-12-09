@@ -231,9 +231,10 @@ domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 dx = 0.1
 
 # Neural network
-chain = FastChain(FastDense(2,8,Flux.σ),FastDense(8,2))
+chain1 = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
+chain2 = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
 quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-4,abstol= 1e-4,maxiters=1e2)
-discretization = NeuralPDE.PhysicsInformedNN(chain,strategy = quadrature_strategy)
+discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2],strategy = quadrature_strategy)
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
@@ -243,7 +244,12 @@ phi = discretization.phi
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
 xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 u_real  = [[analytic_sol_func(x,y)[i] for x in xs  for y in ys] for i in 1:2]
-u_predict  = [[phi([x,y],res.minimizer)[i] for x in xs  for y in ys] for i in 1:2]
+
+initθ = discretization.initθ
+acum =  [0;accumulate(+, length.(initθ))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+minimizers = [res.minimizer[s] for s in sep]
+u_predict  = [[phi[i]([x,y],minimizers[i])[1] for x in xs  for y in ys] for i in 1:2]
 
 @test u_predict ≈ u_real atol = 10.0
 
@@ -279,17 +285,17 @@ dx = 0.1
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
 phi = NeuralPDE.get_phi(chain)
-derivative = NeuralPDE.get_derivative(false)
+derivative = NeuralPDE.get_numeric_derivative()
 initθ = DiffEqFlux.initial_params(chain)
 
 indvars = [x,t]
 depvars = [u]
 dim = length(domains)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative,initθ)
 
 bc_indvars = NeuralPDE.get_bc_varibles(bcs,indvars,depvars)
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,initθ,
                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
@@ -297,7 +303,7 @@ pde_train_set,bcs_train_set,train_set = train_sets
 
 pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,bcs,indvars,depvars)
 grid_strategy = NeuralPDE.GridTraining(dx=dx)
-quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=10)
+quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-3,abstol= 1e-3,maxiters=20)
 pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
                                                 pde_bounds,
                                                 quadrature_strategy)
@@ -306,11 +312,11 @@ bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
                                                bcs_bounds,
                                                quadrature_strategy)
 
-function loss_function(θ,p)
+function loss_function_(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
 end
 
-f = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
+f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f, initθ)
 
 res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=400)
