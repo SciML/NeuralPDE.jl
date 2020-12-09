@@ -528,7 +528,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     loss = (θ) -> begin
         total = 0.
         for (lb, ub,s_,l) in zip(lbs,ubs,ss,loss_functions)
-            s =  s_[rand(1:4)]
+            s =  s_[rand(1:number_of_minibatch)]
             ste_ = size(lb)[1]
             k = size(lb)[1]-1
             for i in 1:ste_:ste_*number_of_points
