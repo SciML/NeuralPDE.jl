@@ -27,7 +27,6 @@ To solve this problem, use the `PhysicsInformedNN` algorithm.
 discretization = PhysicsInformedNN(chain,
                                    init_params = nothing;
                                    phi = nothing,
-                                   autodiff=false,
                                    derivative = nothing,
                                    strategy = GridTraining())
 ```
@@ -36,7 +35,6 @@ Here,
 - `chain` is a Flux.jl chain, where the input of NN equals the number of dimensions and output equals the number of equations in the system
 - `init_params` is the initial parameter of the neural network
 - `phi` is a trial solution
-- `autodiff` is a boolean variable that determines for the PDE operators whether to use automatic differentiation (not supported while) or numerical. The reverse mode of the loss function is always AD.
 - `derivative` is a method that calculates the derivative
 - `strategy` determines which training strategy will be used.
 
@@ -62,6 +60,8 @@ List of training strategies that are available now:
 the training process.
  - `StochasticTraining()`: In each optimization iteration, we randomly select
 the subset of points from a full training set.
+- `QuasiRandomTraining()`: The training set is generated on [Quasi-Monte Carlo
+ samples](https://github.com/SciML/QuasiMonteCarlo.jl)
 - `QuadratureTraining()`: Сompute an approximation of the integral of the loss function at each iteration using [adaptive quadrature methods](https://en.wikipedia.org/wiki/Adaptive_quadrature).
 
 The following algorithms are available: CubaVegas, CubaSUAVE, CubaDivonne,HCubatureJL, CubatureJLh, CubatureJLp, CubaCuhre
@@ -71,7 +71,9 @@ More details, about the implementation of the algorithms used, can be found in [
 
 ### Low-level API
 
-Besides the high-level API: `discretize(pde_system, discretization)`, we can also use the low-level API methods: `build_loss_function`, `get_loss_function` ,`generate_training_sets`,
-`get_phi`, `get_derivative`.
+Besides the high-level API: `discretize(pde_system, discretization)`, we can also use the low-level API methods:
+`build_loss_function`, `get_loss_function`,`generate_training_sets`,
+`get_phi`, `get_numeric_derivative`,
+`build_symbolic_loss_function`, `symbolic_discretize`.
 
 See how this can be used in the docs examples or take a look at the tests.

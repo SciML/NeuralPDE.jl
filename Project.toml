@@ -1,7 +1,7 @@
 name = "NeuralPDE"
 uuid = "315f7962-48a3-4962-8226-d0f33b1235f0"
 authors = ["Chris Rackauckas <accounts@chrisrackauckas.com>"]
-version = "2.7.0"
+version = "3.0.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -27,6 +27,7 @@ Quadrature = "67601950-bd08-11e9-3c89-fd23fb4432d2"
 Cubature = "667455a9-e2ce-5579-9412-b964f529a492"
 Cuba = "8a292aeb-7a57-582c-b821-06e4c11590b1"
 RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
+QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
 
 [compat]
 Adapt = "2.0"
@@ -49,6 +50,7 @@ Quadrature = "1.5"
 Cubature = "1.5.1"
 Cuba = "2.1.0"
 RuntimeGeneratedFunctions = "0.4"
+QuasiMonteCarlo = "0.2.1"
 julia = "1.5"
 
 [extras]
