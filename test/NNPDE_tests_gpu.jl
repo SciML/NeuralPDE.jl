@@ -59,7 +59,7 @@ phi = discretization.phi
 xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for (dx,domain) in zip([dx,dy,dt],domains)]
 analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
 u_real = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
+u_predict = [reshape([first(phi([x,y,t],Array(res.minimizer))) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
 @test u_predict ≈ u_real atol = 200.0
 
 # p1 =plot(xs, ys, u_predict, st=:surface);
@@ -100,14 +100,14 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
 
 xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
-u_predict  = [first(phi(x,res.minimizer)) for x in xs]
+u_predict  = [first(phi(x,Array(res.minimizer))) for x in xs]
 
 @test u_predict ≈ u_real atol = 20.0
 

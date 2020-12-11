@@ -462,7 +462,7 @@ function get_phi(chain)
 end
 
 function get_u()
-	u = (cord, θ, phi)->phi(cord, θ)[1]
+	u = (cord, θ, phi)->sum(phi(cord, θ))
 end
 # the method to calculate the derivative
 function get_numeric_derivative()
@@ -470,6 +470,8 @@ function get_numeric_derivative()
     derivative = (phi,u,x,εs,order,θ) ->
     begin
         ε = εs[order]
+        ε = adapt(typeof(θ),ε)
+        x = adapt(typeof(θ),x)
         if order > 1
             return (derivative(phi,u,x+ε,εs,order-1,θ)
                   - derivative(phi,u,x-ε,εs,order-1,θ))/epsilon
@@ -667,7 +669,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
 
     chain = discretization.chain
     initθ = discretization.initθ
-    flat_initθ = vcat(initθ...)
+    flat_initθ = if length(depvars) != 1 vcat(initθ...) else  initθ end
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
