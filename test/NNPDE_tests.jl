@@ -231,12 +231,12 @@ domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 # Neural network
 chain1 = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
 chain2 = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
-quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=CubatureJLh(),reltol= 1e-2,abstol= 1e-2,maxiters=20)
-discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2],strategy = quadrature_strategy)
+
+discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2],strategy = NeuralPDE.GridTraining(dx=0.1))
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=400)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=300)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
