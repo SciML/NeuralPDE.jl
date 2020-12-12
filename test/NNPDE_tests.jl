@@ -227,8 +227,6 @@ bcs = [u1(x,0) ~ 2x, u2(x,0) ~ 3x]
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 
-# Discretization
-dx = 0.1
 
 # Neural network
 chain1 = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
@@ -242,7 +240,7 @@ res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=300)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
-xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
+xs,ys = [domain.domain.lower:0.01:domain.domain.upper for domain in domains]
 u_real  = [[analytic_sol_func(x,y)[i] for x in xs  for y in ys] for i in 1:2]
 
 initθ = discretization.initθ
@@ -278,8 +276,6 @@ bcs = [u(0,t) ~ 0.,# for all t > 0
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0),
            t ∈ IntervalDomain(0.0,1.0)]
-# Discretization
-dx = 0.1
 
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
@@ -300,24 +296,25 @@ _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, der
 
 train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
 pde_train_set,bcs_train_set,train_set = train_sets
-
 pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,bcs,indvars,depvars)
-grid_strategy = NeuralPDE.GridTraining(dx=dx)
+
 quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-3,abstol= 1e-3,maxiters=20)
 pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
                                                 pde_bounds,
                                                 quadrature_strategy)
 
+dx = 0.1
+grid_strategy = NeuralPDE.GridTraining(dx=dx)
 bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
-                                               bcs_bounds,
-                                               quadrature_strategy)
+                                               bcs_train_set,
+                                               grid_strategy)
 
 function loss_function_(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
 end
 
-f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
-prob = GalacticOptim.OptimizationProblem(f, initθ)
+f_ = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
+prob = GalacticOptim.OptimizationProblem(f_, initθ)
 
 res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=400)
 
@@ -327,7 +324,7 @@ analytic_sol_func(x,t) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k 
 u_predict = reshape([first(phi([x,t],res.minimizer)) for x in xs for t in ts],(length(xs),length(ts)))
 u_real = reshape([analytic_sol_func(x,t) for x in xs for t in ts], (length(xs),length(ts)))
 
-@test u_predict ≈ u_real atol = 10.0
+@test u_predict ≈ u_real atol = 1.0
 
 # diff_u = abs.(u_predict .- u_real)
 # p1 = plot(xs, ts, u_real, linetype=:contourf,title = "analytic");
