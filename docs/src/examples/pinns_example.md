@@ -454,10 +454,9 @@ chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 
 strategy = GridTraining(dx=dx)
 
-discretization = PhysicsInformedNN(chain,strategy=strategy)
-phi = discretization.phi
-derivative = discretization.derivative
-initθ = discretization.initθ
+phi = get_phi(chain)
+derivative = get_numeric_derivative()
+initθ = initial_params(chain)
 
 indvars = [t,x]
 depvars = [u]

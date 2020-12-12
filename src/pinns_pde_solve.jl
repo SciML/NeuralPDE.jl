@@ -157,7 +157,7 @@ Transform the derivative expression to inner representation
 Take expressions in the form: `derivative(u(x,y), x)` to `derivative(phi, u, [x, y], εs, order, θ)`,
 where
  phi - trial solution
- u_d - derived function
+ u - function
  x,y - coordinates of point
  εs - epsilon mask
  order - order of derivative
@@ -219,7 +219,7 @@ Example:
     Take expressions in the form:
      Equation(derivative(derivative(u(x, y), x), x) + derivative(derivative(u(x, y), y), y), -(sin(πx)) * sin(πy))
     to
-     (derivative(phi,u_d, [x, y], [[ε,0],[ε,0]], 2, θ) + derivative(phi, u_d, [x, y], [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
+     (derivative(phi,u, [x, y], [[ε,0],[ε,0]], 2, θ) + derivative(phi, u, [x, y], [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
 
 3)  System of PDEs: [Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
                     Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0]
@@ -229,8 +229,8 @@ Example:
         Equation(derivative(u1(x, y), x) + 4 * derivative(u2(x, y), y), ModelingToolkit.Constant(0))
         Equation(derivative(u2(x, y), x) + 9 * derivative(u1(x, y), y), ModelingToolkit.Constant(0))
     to
-      [(derivative(phi, u1_d, [x, y], [[ε,0]], 1, θ) + 4 * derivative(phi, u2_d, [x, y], [[0,ε]], 1, θ)) - 0,
-       (derivative(phi, u2_d, [x, y], [[ε,0]], 1, θ) + 9 * derivative(phi, u1_d, [x, y], [[0,ε]], 1, θ)) - 0]
+      [(derivative(phi1, u1, [x, y], [[ε,0]], 1, θ1) + 4 * derivative(phi2, u, [x, y], [[0,ε]], 1, θ2)) - 0,
+       (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 function parse_equation(eq,dict_indvars,dict_depvars)
     left_expr = transform_derivative(toexpr(eq.lhs),
@@ -252,41 +252,22 @@ Take expressions in the form:
 
 to
 
-:((phi, cord, θ, derivative)->begin
-          #= none:35 =#
-          #= none:35 =#
+:((cord, θ, phi, derivative, u)->begin
+          #= ... =#
+          #= ... =#
           begin
-              begin
-                  u1 = ((x, y, θ)->begin
-                              #= none:16 =#
-                              (phi([x, y], θ))[1]
-                          end)
-                  u2 = ((x, y, θ)->begin
-                              #= none:16 =#
-                              (phi([x, y], θ))[2]
-                          end)
-                  u1_d = ((cord, θ)->begin
-                              #= none:20 =#
-                              (phi(cord, θ))[1]
-                          end)
-                  u2_d = ((cord, θ)->begin
-                              #= none:20 =#
-                              (phi(cord, θ))[2]
-                          end)
-              end
+              (θ1, θ2) = (θ[1:33], θ"[34:66])
+              (phi1, phi2) = (phi[1], phi[2])
               let (x, y) = (cord[1], cord[2])
-                  [(derivative(phi, u1_d, [x, y], [[ε, 0]], 1, θ) + 4 * derivative(phi, u2_d, [x, y], [[0, ε]], 1, θ)) - 0,
-                   (derivative(phi, u2_d, [x, y], [[ε, 0]], 1, θ) + 9 * derivative(phi, u1_d, [x, y], [[0, ε]], 1, θ)) - 0]
+                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, θ1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, θ2))) - 0,
+                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, θ2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, θ1))) - 0]
               end
           end
       end)
 """
 function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ; bc_indvars=nothing)
     # dictionaries: variable -> unique number
-    depvars = [nameof(value(d)) for d in _depvars]
-    indvars = [nameof(value(i)) for i in _indvars]
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_symbolic_loss_function(eqs,indvars,depvars,
                                         dict_indvars,dict_depvars,
@@ -347,10 +328,7 @@ end
 
 function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing)
     # dictionaries: variable -> unique number
-    depvars = [nameof(value(d)) for d in _depvars]
-    indvars = [nameof(value(i)) for i in _indvars]
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_loss_function(eqs,indvars,depvars,
                                dict_indvars,dict_depvars,
@@ -373,6 +351,24 @@ function build_loss_function(eqs,indvars,depvars,
     return loss_function
 end
 
+function get_vars(indvars_, depvars_)
+    depvars = [nameof(value(d)) for d in depvars_]
+    indvars = [nameof(value(i)) for i in indvars_]
+    dict_indvars = get_dict_vars(indvars)
+    dict_depvars = get_dict_vars(depvars)
+    return depvars,indvars,dict_indvars,dict_depvars
+end
+
+function get_bc_varibles(bcs,_indvars::Array,_depvars::Array)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
+    return get_bc_varibles(bcs,dict_indvars,dict_depvars)
+end
+
+function get_bc_varibles(bcs,dict_indvars,dict_depvars)
+    bc_args = get_bc_argument(bcs,dict_indvars,dict_depvars)
+    return map(barg -> filter(x -> x isa Symbol, barg), bc_args)
+end
+
 # Get arguments from boundary condition functions
 function get_bc_argument(bcs,dict_indvars,dict_depvars)
     bc_args = []
@@ -391,25 +387,8 @@ function get_bc_argument(bcs,dict_indvars,dict_depvars)
     return bc_args
 end
 
-
-function get_bc_varibles(bcs,_indvars::Array,_depvars::Array)
-    depvars = [nameof(value(d)) for d in _depvars]
-    indvars = [nameof(value(i)) for i in _indvars]
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
-    return get_bc_varibles(bcs,dict_indvars,dict_depvars)
-end
-
-function get_bc_varibles(bcs,dict_indvars,dict_depvars)
-    bc_args = get_bc_argument(bcs,dict_indvars,dict_depvars)
-    return map(barg -> filter(x -> x isa Symbol, barg), bc_args)
-end
-
 function generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
-    depvars = [nameof(value(d)) for d in _depvars]
-    indvars = [nameof(value(i)) for i in _indvars]
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     return generate_training_sets(domains,dx,bcs,dict_indvars,dict_depvars)
 end
 # Generate training set in the domain and on the boundary
@@ -449,6 +428,33 @@ function generate_training_sets(domains,dx,bcs,dict_indvars::Dict,dict_depvars::
 
     [pde_train_set,bcs_train_set,train_set]
 end
+
+function get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
+    return get_bounds(domains,bcs,dict_indvars,dict_depvars)
+end
+
+function get_bounds(domains,bcs,dict_indvars,dict_depvars)
+    bound_vars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
+
+    pde_lower_bounds = [d.domain.lower for d in domains]
+    pde_upper_bounds = [d.domain.upper for d in domains]
+    pde_bounds= [pde_lower_bounds,pde_upper_bounds]
+
+    dict_lower_bound = Dict([Symbol(d.variables) => d.domain.lower for d in domains])
+    dict_upper_bound = Dict([Symbol(d.variables) => d.domain.upper for d in domains])
+
+    bcs_lower_bounds = map(bound_vars) do bt
+        map(b -> dict_lower_bound[b], bt)
+    end
+    bcs_upper_bounds = map(bound_vars) do bt
+        map(b -> dict_upper_bound[b], bt)
+    end
+    bcs_bounds= [bcs_lower_bounds,bcs_upper_bounds]
+
+    [pde_bounds, bcs_bounds]
+end
+
 
 function get_phi(chain)
     # The phi trial solution
@@ -565,35 +571,6 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     return loss
 end
 
-function get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
-    depvars = [nameof(value(d)) for d in _depvars]
-    indvars = [nameof(value(i)) for i in _indvars]
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
-    return get_bounds(domains,bcs,dict_indvars,dict_depvars)
-end
-
-function get_bounds(domains,bcs,dict_indvars,dict_depvars)
-    bound_vars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
-
-    pde_lower_bounds = [d.domain.lower for d in domains]
-    pde_upper_bounds = [d.domain.upper for d in domains]
-    pde_bounds= [pde_lower_bounds,pde_upper_bounds]
-
-    dict_lower_bound = Dict([Symbol(d.variables) => d.domain.lower for d in domains])
-    dict_upper_bound = Dict([Symbol(d.variables) => d.domain.upper for d in domains])
-
-    bcs_lower_bounds = map(bound_vars) do bt
-        map(b -> dict_lower_bound[b], bt)
-    end
-    bcs_upper_bounds = map(bound_vars) do bt
-        map(b -> dict_upper_bound[b], bt)
-    end
-    bcs_bounds= [bcs_lower_bounds,bcs_upper_bounds]
-
-    [pde_bounds, bcs_bounds]
-end
-
 function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
     lbs,ubs = bounds
 
@@ -628,11 +605,7 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     domains = pde_system.domain
     # dimensionality of equation
     dim = length(domains)
-
-    depvars = [nameof(value(d)) for d in pde_system.depvars]
-    indvars = [nameof(value(i)) for i in pde_system.indvars]
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
 
     chain = discretization.chain
     initθ = discretization.initθ
@@ -659,11 +632,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     domains = pde_system.domain
     # dimensionality of equation
     dim = length(domains)
-
-    depvars = [nameof(value(d)) for d in pde_system.depvars]
-    indvars = [nameof(value(i)) for i in pde_system.indvars]
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars,pde_system.depvars)
 
     chain = discretization.chain
     initθ = discretization.initθ

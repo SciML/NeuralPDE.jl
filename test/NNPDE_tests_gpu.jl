@@ -48,7 +48,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for (dx,domain) in zip([dx,dy,dt],domains)]
