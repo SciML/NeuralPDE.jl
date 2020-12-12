@@ -25,7 +25,7 @@ To solve this problem, use the `PhysicsInformedNN` algorithm.
 
 ```julia
 discretization = PhysicsInformedNN(chain,
-                                   init_params = nothing;
+                                   nothing; #init_params
                                    phi = nothing,
                                    derivative = nothing,
                                    strategy = GridTraining())
