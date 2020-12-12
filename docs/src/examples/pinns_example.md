@@ -68,7 +68,7 @@ cb = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(), progress = false; cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=1000)
 phi = discretization.phi
 ```
 
@@ -201,7 +201,7 @@ discretization = PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=3000)
+res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=3000)
 phi = discretization.phi
 ```
 
@@ -346,7 +346,7 @@ discretization = PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.01), progress = false; cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=2000)
 phi = discretization.phi
 ```
 
