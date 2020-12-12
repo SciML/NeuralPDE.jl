@@ -148,6 +148,8 @@ u_predict = reshape([first(phi([x,t],res.minimizer)) for x in xs for t in ts],(l
 u_real = reshape([analytic_sol_func(x,t) for x in xs for t in ts], (length(xs),length(ts)))
 
 diff_u = abs.(u_predict .- u_real)
+
+using Plots
 p1 = plot(xs, ts, u_real, linetype=:contourf,title = "analytic");
 p2 =plot(xs, ts, u_predict, linetype=:contourf,title = "predict");
 p3 = plot(xs, ts, diff_u,linetype=:contourf,title = "error");
