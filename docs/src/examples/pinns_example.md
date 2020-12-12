@@ -155,7 +155,7 @@ with grid discretization `dx = 0.1`.
 Further, the solution of this equation with the given boundary conditions is presented.
 
 ```julia
-@parameters x, t
+@parameters t, x
 @variables u(..)
 @derivatives Dxx''~x
 @derivatives Dtt''~t
@@ -163,17 +163,17 @@ Further, the solution of this equation with the given boundary conditions is pre
 
 #2D PDE
 C=1
-eq  = Dtt(u(x,t)) ~ C^2*Dxx(u(x,t))
+eq  = Dtt(u(t,x)) ~ C^2*Dxx(u(t,x))
 
 # Initial and boundary conditions
-bcs = [u(0,t) ~ 0.,# for all t > 0
-       u(1,t) ~ 0.,# for all t > 0
-       u(x,0) ~ x*(1. - x), #for all 0 < x < 1
-       Dt(u(x,0)) ~ 0. ] #for all  0 < x < 1]
+bcs = [u(t,0) ~ 0.,# for all t > 0
+       u(t,1) ~ 0.,# for all t > 0
+       u(0,x) ~ x*(1. - x), #for all 0 < x < 1
+       Dt(u(0,x)) ~ 0. ] #for all  0 < x < 1]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(0.0,1.0),
-           t ∈ IntervalDomain(0.0,1.0)]
+domains = [t ∈ IntervalDomain(0.0,1.0),
+           x ∈ IntervalDomain(0.0,1.0)]
 # Discretization
 dx = 0.1
 
@@ -183,7 +183,7 @@ chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 discretization = PhysicsInformedNN(chain,
                                    strategy= GridTraining(dx=dx))
 
-pde_system = PDESystem(eq,bcs,domains,[x,t],[u])
+pde_system = PDESystem(eq,bcs,domains,[t,x],[u])
 prob = discretize(pde_system,discretization)
 
 # optimizer
@@ -195,21 +195,20 @@ phi = discretization.phi
 We can plot the predicted solution of the PDE and compare it with the analytical solution in order to plot the relative error.
 
 ```julia
-xs,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
-analytic_sol_func(x,t) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
+ts,xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
+analytic_sol_func(t,x) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
 
-u_predict = reshape([first(phi([x,t],res.minimizer)) for x in xs for t in ts],(length(xs),length(ts)))
-u_real = reshape([analytic_sol_func(x,t) for x in xs for t in ts], (length(xs),length(ts)))
+u_predict = reshape([first(phi([t,x],res.minimizer)) for t in ts for x in xs],(length(ts),length(xs)))
+u_real = reshape([analytic_sol_func(t,x) for t in ts for x in xs], (length(ts),length(xs)))
 
 diff_u = abs.(u_predict .- u_real)
-
-using Plots
-p1 = plot(xs, ts, u_real, linetype=:contourf,title = "analytic");
-p2 =plot(xs, ts, u_predict, linetype=:contourf,title = "predict");
-p3 = plot(xs, ts, diff_u,linetype=:contourf,title = "error");
+p1 = plot(ts, xs, u_real, linetype=:contourf,title = "analytic");
+p2 =plot(ts, xs, u_predict, linetype=:contourf,title = "predict");
+p3 = plot(ts, xs, diff_u,linetype=:contourf,title = "error");
 plot(p1,p2,p3)
 ```
-![waveplot](https://user-images.githubusercontent.com/12683885/90979146-c9e16d00-e55b-11ea-93d7-fefa696008fd.png)
+![waveplot](https://user-images.githubusercontent.com/12683885/101984293-74a7a380-3c91-11eb-8e78-72a50d88e3f8.png)
+
 
 
 
