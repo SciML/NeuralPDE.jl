@@ -75,7 +75,8 @@ _σ = 0.5
 # Discretization
 dx = 0.05
 # here we use normalization condition: dx*p(x) ~ 1, in order to get non-zero solution.
-eq  = [(α - 3*β*x^2)*p(x) + (α*x - β*x^3)*Dx(p(x)) ~ (_σ^2/2)*Dxx(p(x)),
+#(α - 3*β*x^2)*p(x) + (α*x - β*x^3)*Dx(p(x)) ~ (_σ^2/2)*Dxx(p(x))
+eq  = [Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x)),
        dx*p(x) ~ 1.]
 
 # Initial and boundary conditions
