@@ -218,8 +218,7 @@ u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
 # System of pde
 eqs = [Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
-      Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0,
-      3*u1(x,0) ~ 2*u2(x,0)]
+      Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0]
 
 # Initial and boundary conditions
 bcs = [u1(x,0) ~ 2x, u2(x,0) ~ 3x]
