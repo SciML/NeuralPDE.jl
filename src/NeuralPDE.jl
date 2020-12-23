@@ -91,6 +91,39 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.g)
 end
 
+struct ParamKolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, YD , YSP , YMP ,YPH } <: DiffEqBase.DEProblem
+    f::F
+    g::G
+    phi::Phi
+    xspan::Tuple{X,X}
+    tspan::Tuple{T,T}
+    d::D
+    p::P
+    u0::U0
+    yspan::YD
+    Y_sigma_prototype::YSP
+    Y_mu_prototype::YMP
+    Y_phi_prototype::YPH
+    ParamKolmogorovPDEProblem( f, g, phi , xspan , tspan , d, p=nothing, u0=0 , noise_rate_prototype= nothing, yspan, Y_sigma_prototype , Y_mu_prototype , Y_phi_prototype) = new{typeof(f),typeof(g),
+                                                                                                                                                                    typeof(phi),eltype(tspan),eltype(xspan),typeof(d),
+                                                                                                                                                                    typeof(p),typeof(u0),typeof(noise_rate_prototype),
+                                                                                                                                                                    typeof(yspan),typeof(Y_sigma_prototype),
+                                                                                                                                                                    typeof(Y_mu_prototype),typeof(Y_phi_prototype)}(f,g,phi,xspan,tspan,d,p,u0,noise_rate_prototype , yspan , Y_sigma_prototype , Y_mu_prototype , Y_phi_prototype)
+end
+
+Base.summary(prob::ParamKolmogorovPDEProblem) = string(nameof(typeof(prob)))
+function Base.show(io::IO, A::ParamKolmogorovPDEProblem)
+  println(io,summary(A))
+  print(io,"timespan: ")
+  show(io,A.tspan)
+  print(io,"xspan: ")
+  show(io,A.xspan)
+  println(io , "μ")
+  show(io , A.f)
+  println(io,"Sigma")
+  show(io , A.g)
+end
+
 """
 Algorithm for solving differential equation using a neural network.
 
@@ -131,7 +164,7 @@ include("stopping_solve.jl")
 include("pinns_pde_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
-       KolmogorovPDEProblem, NNKolmogorov, NNStopping,
+       KolmogorovPDEProblem, NNKolmogorov, NNStopping,ParamKolmogorovPDEProblem,
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
        build_loss_function, get_loss_function,
