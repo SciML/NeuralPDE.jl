@@ -55,7 +55,7 @@ function DiffEqBase.solve(
     if isnothing(γ_sigma_prototype)
       γ_sigma = nothing
     else
-      γ_sigma = rand(y_domain[1]:dy:y_domain[2] , size(γ_sigma_prototype)[1] , size(γ_sigma_prototype)[2] , size(γ_sigma_prototype)[3] , trajectories)
+      γ_sigma = rand(γs , size(γ_sigma_prototype)[1] , size(γ_sigma_prototype)[2] , size(γ_sigma_prototype)[3] , trajectories)
       total_dims += d^2*(size(γ_sigma_prototype))[3]
     end
     if isnothing(γ_mu_prototype)
@@ -63,17 +63,17 @@ function DiffEqBase.solve(
       γ_mu_2 = nothing
     else
       if !isnothing(γ_mu_prototype[1])
-        γ_mu_1 = rand(y_domain[1]:dy:y_domain[2] , size(γ_mu_prototype[1])[1], size(γ_mu_prototype[1])[2], 1 , trajectories)
+        γ_mu_1 = rand(γs , size(γ_mu_prototype[1])[1], size(γ_mu_prototype[1])[2], 1 , trajectories)
         total_dims += d^2
       elseif !isnothing(γ_mu_prototype[1])
-        γ_mu_2 = rand(y_domain[1]:dy:y_domain[2] , size(γ_mu_prototype[2])[1], size(γ_mu_prototype[2])[2] , 1 ,trajectories)
+        γ_mu_2 = rand(γs , size(γ_mu_prototype[2])[1], size(γ_mu_prototype[2])[2] , 1 ,trajectories)
         total_dims += d
       end
     end
     if isnothing(γ_phi_prototype)
       γ_phi = nothing
     else
-      γ_phi = rand(0.00:0.01:0.00 , size(γ_phi_prototype)[1] , size(γ_phi_prototype)[2] , 1 , trajectories)
+      γ_phi = rand(γs , size(γ_phi_prototype)[1] , size(γ_phi_prototype)[2] , 1 , trajectories)
       total_dims += size(γ_phi_prototype)[1]
     end
 
