@@ -91,24 +91,23 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.g)
 end
 
-struct ParamKolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, YD , YSP , YMP ,YPH } <: DiffEqBase.DEProblem
+struct ParamKolmogorovPDEProblem{ F, G, Phi, X , T , D, YD ,P,U0 , YSP , YMP ,YPH } <: DiffEqBase.DEProblem
     f::F
     g::G
     phi::Phi
     xspan::Tuple{X,X}
     tspan::Tuple{T,T}
     d::D
+    yspan::YD
     p::P
     u0::U0
-    yspan::YD
     Y_sigma_prototype::YSP
     Y_mu_prototype::YMP
     Y_phi_prototype::YPH
-    ParamKolmogorovPDEProblem( f, g, phi , xspan , tspan , d, p=nothing, u0=0 , noise_rate_prototype= nothing, yspan, Y_sigma_prototype , Y_mu_prototype , Y_phi_prototype) = new{typeof(f),typeof(g),
-                                                                                                                                                                    typeof(phi),eltype(tspan),eltype(xspan),typeof(d),
-                                                                                                                                                                    typeof(p),typeof(u0),typeof(noise_rate_prototype),
-                                                                                                                                                                    typeof(yspan),typeof(Y_sigma_prototype),
-                                                                                                                                                                    typeof(Y_mu_prototype),typeof(Y_phi_prototype)}(f,g,phi,xspan,tspan,d,p,u0,noise_rate_prototype , yspan , Y_sigma_prototype , Y_mu_prototype , Y_phi_prototype)
+    ParamKolmogorovPDEProblem( f, g, phi , xspan , tspan , d, yspan, p=nothing, u0=0 , noise_rate_prototype= nothing, Y_sigma_prototype=nothing , Y_mu_prototype=nothing , Y_phi_prototype=nothing) = new{typeof(f),typeof(g),
+                                                                                                                                                                    typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(yspan)
+                                                                                                                                                                    typeof(p),typeof(u0),typeof(noise_rate_prototype),typeof(Y_sigma_prototype),
+                                                                                                                                                                    typeof(Y_mu_prototype),typeof(Y_phi_prototype)}(f,g,phi,xspan,tspan,d,yspan,p,u0,noise_rate_prototype , Y_sigma_prototype , Y_mu_prototype , Y_phi_prototype)
 end
 
 Base.summary(prob::ParamKolmogorovPDEProblem) = string(nameof(typeof(prob)))
