@@ -20,6 +20,7 @@ with grid discretization `dx = 0.1`.
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using Plots
 @parameters x y
 @variables u(..)
 @derivatives Dxx''~x
@@ -47,12 +48,16 @@ discretization = PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)
 
+#Optimizer
+opt = Optim.BFGS()
+
+#Callback function
 cb = function (p,l)
     println("Current loss is: $l")
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(), progress = false; cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, opt, cb = cb, maxiters=1000)
 phi = discretization.phi
 
 xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
@@ -117,12 +122,15 @@ Here, we define the callback function and the optimizer. And now we can solve th
 (with the number of epochs `maxiters=1000`).
 
 ```julia
+#Optimizer
+opt = Optim.BFGS()
+
 cb = function (p,l)
     println("Current loss is: $l")
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, opt, cb = cb, maxiters=1000)
 phi = discretization.phi
 ```
 
