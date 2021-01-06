@@ -179,15 +179,14 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
             elseif e == :derivative
                 derivative_variables = Symbol[]
                 order = 0
-                inner_args = _args
-                while (inner_args[1] == :derivative)
+                while (_args[1] == :derivative)
                     order += 1
                     push!(derivative_variables, _args[end])
-                    inner_args = inner_args[2].args
+                    _args = _args[2].args
                 end
-                depvar = inner_args[1]
+                depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
-                indvars = inner_args[2:end]
+                indvars = _args[2:end]
                 dim_l = length(indvars)
                 εs = [get_ε(dim_l,d) for d in 1:dim_l]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
@@ -240,8 +239,6 @@ function build_symbolic_equation(eq,_indvars,_depvars)
 end
 
 function parse_equation(eq,dict_indvars,dict_depvars)
-    #FIXME when expand_derivatives(Dx(u(1))) != 0
-
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
 
