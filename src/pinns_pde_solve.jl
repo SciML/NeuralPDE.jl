@@ -65,13 +65,10 @@ struct GridTraining <: TrainingStrategies
 end
 
 """
-* `number_of_points` is number of points in random select training set
+* `points` is number of points in random select training set
 """
 struct StochasticTraining <:TrainingStrategies
-    number_of_points:: Int64
-end
-function StochasticTraining(;number_of_points=100)
-    StochasticTraining(number_of_points)
+    points:: Int64
 end
 
 """
@@ -503,7 +500,7 @@ end
 
 
 function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
-    number_of_points = strategy.number_of_points
+    points = strategy.points
     lbs,ubs = bounds
 
     function inner_loss(loss_function,x,θ)
@@ -515,13 +512,13 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
         lbs = [lbs]
         ubs = [ubs]
     end
-    τ = 1.0f0 / number_of_points
+    τ = 1.0f0 / points
 
     loss = (θ) -> begin
         total = 0.
         for (lb, ub,l) in zip(lbs, ubs, loss_functions)
             len = length(lb)
-            for i in 1:number_of_points
+            for i in 1:points
                 r_point = lb .+ ub .* rand(len)
                 total += inner_loss(l,r_point,θ)^2
             end
@@ -673,8 +670,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                           pde_bounds,
                                                           strategy)
           lbs,ubs = bcs_bounds
-          number_of_points = length(lbs[1]) == 0 ? 1 : strategy.number_of_points^(1/length(lbs[1]))
-          strategy = StochasticTraining(number_of_points = number_of_points)
+          points = length(lbs[1]) == 0 ? 1 : strategy.points^(1/length(lbs[1]))
+          strategy = StochasticTraining(points)
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
                                                          bcs_bounds,
