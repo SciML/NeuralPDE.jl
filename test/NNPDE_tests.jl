@@ -116,7 +116,7 @@ for chain in chains
     test_2d_poisson_equation(chain, grid_strategy)
 end
 
-stochastic_strategy = NeuralPDE.StochasticTraining(number_of_points = 100)
+stochastic_strategy = NeuralPDE.StochasticTraining(100)
 quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),
                                                    reltol = 1e-2, abstol = 1e-2,
                                                    maxiters = 50)
