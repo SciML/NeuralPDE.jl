@@ -63,9 +63,6 @@ abstract type TrainingStrategies  end
 struct GridTraining <: TrainingStrategies
     dx
 end
-function GridTraining(;dx= 0.1)
-    GridTraining(dx)
-end
 
 """
 * `number_of_points` is number of points in random select training set
