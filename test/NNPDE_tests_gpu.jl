@@ -9,6 +9,8 @@ using GalacticOptim
 using Optim
 using CUDA
 
+CUDA.allowscalar(false)
+
 using Random
 Random.seed!(100)
 
@@ -41,9 +43,12 @@ domains = [x ∈ IntervalDomain(0.0,2.0),
 # Discretization
 dx = 0.25; dy= 0.25; dt = 0.25
 # Neural network
-chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+const gpuones = cu(ones(1))
+chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1),(u,p)->gpuones .* u)
 
+initθ = initial_params(chain) |>gpu
 discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             initθ,
                                              strategy = NeuralPDE.GridTraining(dx=[dx,dy,dt]))
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
@@ -54,7 +59,7 @@ phi = discretization.phi
 xs,ys,ts = [domain.domain.lower:dx:domain.domain.upper for (dx,domain) in zip([dx,dy,dt],domains)]
 analytic_sol_func(x,y,t) = exp(x+y)*cos(x+y+4t)
 u_real = [reshape([analytic_sol_func(x,y,t) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
-u_predict = [reshape([first(phi([x,y,t],res.minimizer)) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
+u_predict = [reshape([first(phi([x,y,t],Array(res.minimizer))) for x in xs  for y in ys], (length(xs),length(ys)))  for t in ts ]
 @test u_predict ≈ u_real atol = 200.0
 
 # p1 =plot(xs, ys, u_predict, st=:surface);
@@ -85,22 +90,24 @@ bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
 domains = [x ∈ IntervalDomain(-2.2,2.2)]
 
 # Neural network
-chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1),(u,p)-> gpuones .* u)
 
+initθ = initial_params(chain) |>gpu
 discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             initθ,
                                              strategy= NeuralPDE.GridTraining(dx=dx))
 
 pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
 
 xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
-u_predict  = [first(phi(x,res.minimizer)) for x in xs]
+u_predict  = [first(phi(x,Array(res.minimizer))) for x in xs]
 
 @test u_predict ≈ u_real atol = 20.0
 
