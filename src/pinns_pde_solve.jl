@@ -226,10 +226,19 @@ Example:
       [(derivative(phi1, u1, [x, y], [[ε,0]], 1, θ1) + 4 * derivative(phi2, u, [x, y], [[0,ε]], 1, θ2)) - 0,
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
+
+function build_symbolic_equation(eq,_indvars,_depvars)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
+    parse_equation(eq,dict_indvars,dict_depvars)
+end
+
 function parse_equation(eq,dict_indvars,dict_depvars)
-    left_expr = transform_derivative(toexpr(eq.lhs),
+    eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
+    eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
+
+    left_expr = transform_derivative(toexpr(eq_lhs),
                                      dict_indvars,dict_depvars)
-    right_expr = transform_derivative(toexpr(eq.rhs),
+    right_expr = transform_derivative(toexpr(eq_rhs),
                                      dict_indvars,dict_depvars)
     loss_func = :($left_expr - $right_expr)
 end
@@ -714,7 +723,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                              strategy)
         (pde_loss_function, bc_loss_function)
     end
-  
+
     function loss_function_(θ,p)
         return pde_loss_function(θ) + bc_loss_function(θ)
     end
