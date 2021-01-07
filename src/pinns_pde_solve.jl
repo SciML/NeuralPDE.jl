@@ -72,21 +72,21 @@ struct StochasticTraining <:TrainingStrategies
 end
 
 """
-* `sampling_method`: is the quasi-Monte Carlo sampling strategy.
-* `number_of_points`: is number of quasi-random points in training set
-* `number_of_minibatch` is number of generated training samples
+* `sampling_alg`: is the quasi-Monte Carlo sampling algorithm.
+* `points`: is number of quasi-random points in training set
+* `minibatch` is number of generated training samples
 For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMonteCarlo.jl
 """
 struct QuasiRandomTraining <:TrainingStrategies
-    sampling_method::QuasiMonteCarlo.SamplingAlgorithm
-    number_of_points:: Int64
-    number_of_minibatch:: Int64
+    sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
+    points:: Int64
+    minibatch:: Int64
 end
-function QuasiRandomTraining(;sampling_method = UniformSample(), number_of_points=100,number_of_minibatch=10)
-    QuasiRandomTraining(sampling_method,number_of_points,number_of_minibatch)
+function QuasiRandomTraining(;sampling_alg = UniformSample(), points, minibatch)
+    QuasiRandomTraining(sampling_alg,points,minibatch)
 end
 """
-* `algorithm`: quadrature algorithm,
+* `quadrature_alg`: quadrature algorithm,
 * `reltol`: relative tolerance,
 * `abstol` absolute tolerance,
 * `maxiters`: the maximum number of iterations in quadrature algorithm,
@@ -95,15 +95,15 @@ end
 For more information look: Quadrature.jl https://github.com/SciML/Quadrature.jl
 """
 struct QuadratureTraining <: TrainingStrategies
-    algorithm::DiffEqBase.AbstractQuadratureAlgorithm
+    quadrature_alg::DiffEqBase.AbstractQuadratureAlgorithm
     reltol::Float64
     abstol::Float64
     maxiters::Int64
     batch::Int64
 end
 
-function QuadratureTraining(;algorithm=HCubatureJL(),reltol= 1e-8,abstol= 1e-8,maxiters=1e3,batch=0)
-    QuadratureTraining(algorithm,reltol,abstol,maxiters,batch)
+function QuadratureTraining(;quadrature_alg=HCubatureJL(),reltol= 1e-8,abstol= 1e-8,maxiters=1e3,batch=0)
+    QuadratureTraining(quadrature_alg,reltol,abstol,maxiters,batch)
 end
 
 """
@@ -540,9 +540,9 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
 end
 
 function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining)
-    sampling_method = strategy.sampling_method
-    number_of_points = strategy.number_of_points
-    number_of_minibatch = strategy.number_of_minibatch
+    sampling_alg = strategy.sampling_alg
+    points = strategy.points
+    minibatch = strategy.minibatch
     lbs,ubs = bounds
 
     function inner_loss(loss_function,x,θ)
@@ -554,19 +554,19 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
         lbs = [lbs]
         ubs = [ubs]
     end
-    τ = number_of_points
+    τ = points
     ss =[]
     for (lb, ub) in zip(lbs, ubs)
-        s = QuasiMonteCarlo.generate_design_matrices(number_of_points,lb,ub,sampling_method,number_of_minibatch)
+        s = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
         push!(ss,s)
     end
     loss = (θ) -> begin
         total = 0.
         for (lb, ub,s_,l) in zip(lbs,ubs,ss,loss_functions)
-            s =  s_[rand(1:number_of_minibatch)]
+            s =  s_[rand(1:minibatch)]
             ste_ = size(lb)[1]
             k = size(lb)[1]-1
-            for i in 1:ste_:ste_*number_of_points
+            for i in 1:ste_:ste_*points
                 r_point = s[i:i+k]
                 total += inner_loss(l,r_point,θ)^2
             end
@@ -595,7 +595,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
         _loss = (x,θ) -> sum(abs2,inner_loss(loss_, x, θ))
         prob = QuadratureProblem(_loss,lb,ub,θ;batch = strategy.batch)
         solve(prob,
-              strategy.algorithm,
+              strategy.quadrature_alg,
               reltol = strategy.reltol,
               abstol = strategy.abstol,
               maxiters = strategy.maxiters)[1]
@@ -698,8 +698,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
          blbs,bubs = bcs_bounds
          pl = length(plbs)
          bl = length(blbs[1])
-         number_of_points = Int(round(strategy.number_of_points^(bl/pl)))
-         strategy = QuasiRandomTraining(number_of_points = number_of_points)
+         points = Int(round(strategy.points^(bl/pl)))
+         strategy = QuasiRandomTraining(points = points, minibatch = strategy.minibatch)
 
          bc_loss_function = get_loss_function(_bc_loss_functions,
                                                        bcs_bounds,
@@ -708,8 +708,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     elseif strategy isa QuadratureTraining
         dim<=1 && error("QuadratureTraining works only with dimensionality more than 1")
 
-        (dim<=2 && strategy.algorithm in [CubaCuhre(),CubaDivonne()]
-        && error("$(strategy.algorithm) works only with dimensionality more than 2"))
+        (dim<=2 && strategy.quadrature_alg in [CubaCuhre(),CubaDivonne()]
+        && error("$(strategy.quadrature_alg) works only with dimensionality more than 2"))
 
         bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
         pde_bounds, bcs_bounds = bounds
