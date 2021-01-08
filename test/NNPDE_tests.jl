@@ -116,13 +116,13 @@ for chain in chains
     test_2d_poisson_equation(chain, grid_strategy)
 end
 
-stochastic_strategy = NeuralPDE.StochasticTraining(100)
-quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),
+stochastic_strategy = NeuralPDE.StochasticTraining(100) #points
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),
                                                    reltol = 1e-2, abstol = 1e-2,
                                                    maxiters = 50)
-quasirandom_strategy = NeuralPDE.QuasiRandomTraining(sampling_method = UniformSample(),
-                                                     number_of_points = 100,
-                                                     number_of_minibatch = 10)
+quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
+                                                     sampling_alg = UniformSample(),
+                                                     minibatch = 100)
 
 strategies = [stochastic_strategy, quadrature_strategy,quasirandom_strategy]
 for strategy in strategies
@@ -162,7 +162,7 @@ end
 algs = [CubaVegas(), CubaSUAVE(),HCubatureJL(), CubatureJLh(), CubatureJLp()]
 #CubaDivonne(),CubaCuhre() doesn't work with dim = 2
 for alg in algs
-    strategy =  NeuralPDE.QuadratureTraining(algorithm = alg,reltol=1e-8,abstol=1e-8,maxiters=600)
+    strategy =  NeuralPDE.QuadratureTraining(quadrature_alg = alg,reltol=1e-8,abstol=1e-8,maxiters=600)
     run_2d_poisson_equation(strategy)
 end
 
@@ -298,7 +298,7 @@ train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
 pde_train_set,bcs_train_set,train_set = train_sets
 pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,bcs,indvars,depvars)
 
-quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-3,abstol= 1e-3,maxiters=20)
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),reltol= 1e-3,abstol= 1e-3,maxiters=20)
 pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
                                                 pde_bounds,
                                                 quadrature_strategy)
@@ -353,7 +353,7 @@ domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 
 # Discretization
 dx = 0.1
-quadrature_strategy = NeuralPDE.QuadratureTraining(algorithm=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=10)
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=10)
 # Neural network
 chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 discretization = NeuralPDE.PhysicsInformedNN(chain, strategy = quadrature_strategy)
