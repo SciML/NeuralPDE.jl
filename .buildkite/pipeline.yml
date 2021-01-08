@@ -14,5 +14,6 @@ steps:
     if: build.message !~ /\[skip tests\]/
 
 env:
+  GROUP: GPU
   JULIA_PKG_SERVER: "" # it often struggles with our large artifacts
   # SECRET_CODECOV_TOKEN: "..."
