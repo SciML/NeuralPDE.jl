@@ -49,7 +49,7 @@ chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 initθ = initial_params(chain) |>gpu
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              initθ,
-                                             strategy = NeuralPDE.GridTraining(dx=[dx,dy,dt]))
+                                             strategy = NeuralPDE.GridTraining([dx,dy,dt]))
 pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
@@ -96,7 +96,7 @@ chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,
 initθ = initial_params(chain) |>gpu
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              initθ,
-                                             strategy= NeuralPDE.GridTraining(dx=dx))
+                                             strategy= NeuralPDE.GridTraining(dx))
 
 pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
