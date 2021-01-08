@@ -1,0 +1,18 @@
+steps:
+  - label: "Julia 1"
+    plugins:
+      - JuliaCI/julia#v0.6:
+          version: "1"
+      - JuliaCI/julia-test#v0.3:
+      # - JuliaCI/julia-coverage#v0.3:
+      #     codecov: true
+    agents:
+      queue: "juliagpu"
+      cuda: "*"
+    timeout_in_minutes: 60
+    # Don't run Buildkite if the commit message includes the text [skip tests]
+    if: build.message !~ /\[skip tests\]/
+
+env:
+  JULIA_PKG_SERVER: "" # it often struggles with our large artifacts
+  # SECRET_CODECOV_TOKEN: "..."
