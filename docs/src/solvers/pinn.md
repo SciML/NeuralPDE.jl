@@ -55,19 +55,22 @@ List of training strategies that are available now:
    to the spacing per direction.
  - `StochasticTraining(points)`: `points` number of sochastically sampled points from the domain. 
    In each optimization iteration, we randomly select a new subset of points from a full training set.
-- `QuasiRandomTraining(sampling_alg,points,minibatch)`: The training set is generated on quasi-random low discrepency
-  sequences.
-  `sampling_alg`is the quasi-Monte Carlo sampling algorithm,
-  `points` is number of quasi-random points in training set,
-  `minibatch` is number of generated training samples.
-  See the [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl) for the full
-  set of quasi-random sampling algorithms which are available.
-- `QuadratureTraining(quadrature_alg,reltol,abstol,maxiters,batch)`: The loss is computed as an approximation of the integral of the PDE loss
+ - `QuasiRandomTraining(points;sampling_alg,minibatch)`: The training set is generated on quasi-random low discrepency sequences.`minibatch` is the number of subsets, where `points` is the number of quasi-random points in minibatch.
+  The number of the total points is `length(lb) * points * minibatch`,
+  where `lb` is the lower bound and `length(lb)` is the dimensionality.
+  `sampling_alg` is the quasi-Monte Carlo sampling algorithm.
+  On each iteration of training, it is randomly selected one of the minibatch.
+  See the [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl) for the full set of quasi-random sampling algorithms which are available.
+- `QuadratureTraining(;quadrature_alg,reltol,abstol,maxiters,batch)`: The loss is computed as an approximation of the integral of the PDE loss
   at each iteration using [adaptive quadrature methods](https://en.wikipedia.org/wiki/Adaptive_quadrature)
   via the differentiable [Quadrature.jl](https://github.com/SciML/Quadrature.jl).
-  `quadrature_alg` is quadrature algorithm, `reltol` is relative tolerance, `abstol` absolute tolerance,
-  `maxiters`: the maximum number of iterations in quadrature algorithm, `batch`: the preferred number of points to batch.
-  See the Quadrature.jl documentation for the choices of quadrature methods.
+  - `quadrature_alg` is quadrature algorithm,
+  - `reltol`: relative tolerance,
+  - `abstol`: absolute tolerance,
+  - `maxiters`: the maximum number of iterations in quadrature algorithm,
+  - `batch`: the preferred number of points to batch.
+
+  See the [Quadrature.jl](https://github.com/SciML/Quadrature.jl) documentation for the choices of quadrature methods.
 
 ### Low-level API
 

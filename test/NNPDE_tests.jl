@@ -116,13 +116,13 @@ for chain in chains
     test_2d_poisson_equation(chain, grid_strategy)
 end
 
-stochastic_strategy = NeuralPDE.StochasticTraining(100)
+stochastic_strategy = NeuralPDE.StochasticTraining(100) #points
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),
                                                    reltol = 1e-2, abstol = 1e-2,
                                                    maxiters = 50)
-quasirandom_strategy = NeuralPDE.QuasiRandomTraining(sampling_alg = UniformSample(),
-                                                     points = 100,
-                                                     minibatch = 10)
+quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
+                                                     sampling_alg = UniformSample(),
+                                                     minibatch = 100)
 
 strategies = [stochastic_strategy, quadrature_strategy,quasirandom_strategy]
 for strategy in strategies

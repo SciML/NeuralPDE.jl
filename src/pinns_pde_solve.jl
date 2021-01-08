@@ -3,11 +3,11 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 Algorithm for solving Physics-Informed Neural Networks problems.
 
 Arguments:
-* `chain` is a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
-* `init_params` is the initial parameter of the neural network,
-* `phi` is a trial solution,
-* `derivative` is method that calculates the derivative,
-* `strategy` determines which training strategy will be used.
+* `chain`: a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
+* `init_params`: the initial parameter of the neural network,
+* `phi`: a trial solution,
+* `derivative`: method that calculates the derivative,
+* `strategy`: determines which training strategy will be used.
 """
 
 struct PhysicsInformedNN{C,P,PH,DER,T,K}
@@ -58,37 +58,38 @@ end
 abstract type TrainingStrategies  end
 
 """
-* `dx` is the discretization of the grid
+* `dx`: the discretization of the grid.
 """
 struct GridTraining <: TrainingStrategies
     dx
 end
 
 """
-* `points` is number of points in random select training set
+* `points`: number of points in random select training set.
 """
 struct StochasticTraining <:TrainingStrategies
     points:: Int64
 end
 
 """
-* `sampling_alg`: is the quasi-Monte Carlo sampling algorithm.
-* `points`: is number of quasi-random points in training set
-* `minibatch` is number of generated training samples
+* `points`:  the number of quasi-random points in minibatch,
+* `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
+* `minibatch`: the number of subsets.
+
 For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMonteCarlo.jl
 """
 struct QuasiRandomTraining <:TrainingStrategies
-    sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
     points:: Int64
+    sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
     minibatch:: Int64
 end
-function QuasiRandomTraining(;sampling_alg = UniformSample(), points, minibatch)
-    QuasiRandomTraining(sampling_alg,points,minibatch)
+function QuasiRandomTraining(points;sampling_alg = UniformSample(),minibatch=500)
+    QuasiRandomTraining(points,sampling_alg,minibatch)
 end
 """
 * `quadrature_alg`: quadrature algorithm,
 * `reltol`: relative tolerance,
-* `abstol` absolute tolerance,
+* `abstol`: absolute tolerance,
 * `maxiters`: the maximum number of iterations in quadrature algorithm,
 * `batch`: the preferred number of points to batch.
 
@@ -102,7 +103,7 @@ struct QuadratureTraining <: TrainingStrategies
     batch::Int64
 end
 
-function QuadratureTraining(;quadrature_alg=HCubatureJL(),reltol= 1e-8,abstol= 1e-8,maxiters=1e3,batch=0)
+function QuadratureTraining(;quadrature_alg=HCubatureJL(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=0)
     QuadratureTraining(quadrature_alg,reltol,abstol,maxiters,batch)
 end
 
@@ -564,9 +565,9 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
         total = 0.
         for (lb, ub,s_,l) in zip(lbs,ubs,ss,loss_functions)
             s =  s_[rand(1:minibatch)]
-            ste_ = size(lb)[1]
+            step_ = size(lb)[1]
             k = size(lb)[1]-1
-            for i in 1:ste_:ste_*points
+            for i in 1:step_:step_*points
                 r_point = s[i:i+k]
                 total += inner_loss(l,r_point,θ)^2
             end
@@ -699,7 +700,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
          pl = length(plbs)
          bl = length(blbs[1])
          points = Int(round(strategy.points^(bl/pl)))
-         strategy = QuasiRandomTraining(points = points, minibatch = strategy.minibatch)
+         strategy = QuasiRandomTraining(points;
+                                        sampling_alg = strategy.sampling_alg,
+                                        minibatch = strategy.minibatch)
 
          bc_loss_function = get_loss_function(_bc_loss_functions,
                                                        bcs_bounds,
