@@ -23,7 +23,7 @@ function PhysicsInformedNN(chain,
                            init_params = nothing;
                            _phi = nothing,
                            _derivative = nothing,
-                           strategy = GridTraining(),
+                           strategy = nothing,
                            kwargs...)
     if init_params == nothing
         if chain isa AbstractArray

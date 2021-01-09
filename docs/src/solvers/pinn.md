@@ -26,7 +26,7 @@ discretization = PhysicsInformedNN(chain,
                                    nothing; #init_params
                                    phi = nothing,
                                    derivative = nothing,
-                                   strategy = GridTraining())
+                                   strategy = nothing)
 ```
 
 Keyword arguments:
