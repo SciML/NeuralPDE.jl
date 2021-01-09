@@ -4,10 +4,11 @@ Algorithm for solving Physics-Informed Neural Networks problems.
 
 Arguments:
 * `chain`: a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
-* `init_params`: the initial parameter of the neural network,
+* `strategy`: determines which training strategy will be used,
+* `initθ`: the initial parameter of the neural network,
 * `phi`: a trial solution,
-* `derivative`: method that calculates the derivative,
-* `strategy`: determines which training strategy will be used.
+* `derivative`: method that calculates the derivative.
+
 """
 
 struct PhysicsInformedNN{C,P,PH,DER,T,K}
@@ -20,12 +21,12 @@ struct PhysicsInformedNN{C,P,PH,DER,T,K}
 end
 
 function PhysicsInformedNN(chain,
-                           init_params = nothing;
+                           strategy;
+                           _initθ = nothing,
                            _phi = nothing,
                            _derivative = nothing,
-                           strategy = nothing,
                            kwargs...)
-    if init_params == nothing
+    if _initθ == nothing
         if chain isa AbstractArray
             initθ = DiffEqFlux.initial_params.(chain)
         else
@@ -33,7 +34,7 @@ function PhysicsInformedNN(chain,
         end
 
     else
-        initθ = init_params
+        initθ = _initθ
     end
 
     if _phi == nothing

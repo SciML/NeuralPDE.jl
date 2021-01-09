@@ -23,19 +23,20 @@ The `PhysicsInformedNN` discretizer is defined as:
 
 ```julia
 discretization = PhysicsInformedNN(chain,
-                                   nothing; #init_params
+                                   strategy;
+                                   initθ = nothing,
                                    phi = nothing,
                                    derivative = nothing,
-                                   strategy = nothing)
+                                   )
 ```
 
 Keyword arguments:
 
-- `chain` is a Flux.jl chain, where the input of NN equals the number of dimensions and output equals the number of equations in the system
-- `init_params` is the initial parameter of the neural network. If nothing then automatically generated from the neural network.
-- `phi` is a trial solution
-- `derivative` is a method that calculates the derivative
-- `strategy` determines which training strategy will be used.
+- `chain` is a Flux.jl chain, where the input of NN equals the number of dimensions and output equals the number of equations in the system,
+- `strategy` determines which training strategy will be used,
+- `initθ` is the initial parameter of the neural network. If nothing then automatically generated from the neural network,
+- `phi` is a trial solution,
+- `derivative` is a method that calculates the derivative.
 
 The method `discretize` interprets from the ModelingToolkit PDE form to the PINNs Problem.
 
