@@ -5,7 +5,7 @@ Algorithm for solving Physics-Informed Neural Networks problems.
 Arguments:
 * `chain`: a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
 * `strategy`: determines which training strategy will be used,
-* `initθ`: the initial parameter of the neural network,
+* `init_params`: the initial parameter of the neural network,
 * `phi`: a trial solution,
 * `derivative`: method that calculates the derivative.
 
@@ -13,7 +13,7 @@ Arguments:
 
 struct PhysicsInformedNN{C,P,PH,DER,T,K}
   chain::C
-  initθ::P
+  init_params::P
   phi::PH
   derivative::DER
   strategy::T
@@ -22,11 +22,11 @@ end
 
 function PhysicsInformedNN(chain,
                            strategy;
-                           _initθ = nothing,
+                           _init_params = nothing,
                            _phi = nothing,
                            _derivative = nothing,
                            kwargs...)
-    if _initθ == nothing
+    if _init_params == nothing
         if chain isa AbstractArray
             initθ = DiffEqFlux.initial_params.(chain)
         else
@@ -34,7 +34,7 @@ function PhysicsInformedNN(chain,
         end
 
     else
-        initθ = _initθ
+        initθ = _init_params
     end
 
     if _phi == nothing
@@ -615,7 +615,7 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
 
     chain = discretization.chain
-    initθ = discretization.initθ
+    initθ = discretization.init_params
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -642,7 +642,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars,pde_system.depvars)
 
     chain = discretization.chain
-    initθ = discretization.initθ
+    initθ = discretization.init_params
     flat_initθ = if length(depvars) != 1 vcat(initθ...) else  initθ end
     phi = discretization.phi
     derivative = discretization.derivative
