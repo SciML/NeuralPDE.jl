@@ -499,14 +499,14 @@ function get_loss_function(loss_functions, train_sets, strategy::GridTraining)
     τ = 1.0f0 / τ_
 
     function inner_loss(loss_function,x,θ)
-        sum(loss_function(x, θ))
+        sum(abs2,loss_function(x, θ))
     end
 
     if !(loss_functions isa Array)
         loss_functions = [loss_functions]
         train_sets = [train_sets]
     end
-    f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,x,θ) for x in train_set])
+    f = (loss,train_set,θ) -> sum([inner_loss(loss,x,θ) for x in train_set])
     loss = (θ) ->  τ * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
     return loss
 end
