@@ -230,8 +230,8 @@ domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 
 
 # Neural network
-chain1 = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
-chain2 = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
+chain1 = FastChain(FastDense(2,10,Flux.σ),FastDense(10,1))
+chain2 = FastChain(FastDense(2,10,Flux.σ),FastDense(10,1))
 
 discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2],NeuralPDE.GridTraining([0.1, 0.1]))
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
