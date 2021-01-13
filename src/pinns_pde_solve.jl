@@ -683,7 +683,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                           pde_bounds,
                                                           strategy)
           lbs,ubs = bcs_bounds
-          points = length(lbs[1]) == 0 ? 1 : strategy.points^(1/length(lbs[1]))
+          pl = length(lbs)
+          bl = length(lbs[1])
+          points = length(lbs[1]) == 0 ? 1 : Int(round(strategy.points^(bl/pl)))
           strategy = StochasticTraining(points)
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
