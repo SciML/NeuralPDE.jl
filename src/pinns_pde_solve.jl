@@ -4,15 +4,16 @@ Algorithm for solving Physics-Informed Neural Networks problems.
 
 Arguments:
 * `chain`: a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
+* `strategy`: determines which training strategy will be used,
 * `init_params`: the initial parameter of the neural network,
 * `phi`: a trial solution,
-* `derivative`: method that calculates the derivative,
-* `strategy`: determines which training strategy will be used.
+* `derivative`: method that calculates the derivative.
+
 """
 
 struct PhysicsInformedNN{C,P,PH,DER,T,K}
   chain::C
-  initθ::P
+  init_params::P
   phi::PH
   derivative::DER
   strategy::T
@@ -20,12 +21,12 @@ struct PhysicsInformedNN{C,P,PH,DER,T,K}
 end
 
 function PhysicsInformedNN(chain,
-                           init_params = nothing;
+                           strategy;
+                           _init_params = nothing,
                            _phi = nothing,
                            _derivative = nothing,
-                           strategy = GridTraining(),
                            kwargs...)
-    if init_params == nothing
+    if _init_params == nothing
         if chain isa AbstractArray
             initθ = DiffEqFlux.initial_params.(chain)
         else
@@ -33,7 +34,7 @@ function PhysicsInformedNN(chain,
         end
 
     else
-        initθ = init_params
+        initθ = _init_params
     end
 
     if _phi == nothing
@@ -498,14 +499,14 @@ function get_loss_function(loss_functions, train_sets, strategy::GridTraining)
     τ = 1.0f0 / τ_
 
     function inner_loss(loss_function,x,θ)
-        sum(loss_function(x, θ))
+        sum(abs2,loss_function(x, θ))
     end
 
     if !(loss_functions isa Array)
         loss_functions = [loss_functions]
         train_sets = [train_sets]
     end
-    f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,x,θ) for x in train_set])
+    f = (loss,train_set,θ) -> sum([inner_loss(loss,x,θ) for x in train_set])
     loss = (θ) ->  τ * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
     return loss
 end
@@ -614,7 +615,7 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
 
     chain = discretization.chain
-    initθ = discretization.initθ
+    initθ = discretization.init_params
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -641,7 +642,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars,pde_system.depvars)
 
     chain = discretization.chain
-    initθ = discretization.initθ
+    initθ = discretization.init_params
     flat_initθ = if length(depvars) != 1 vcat(initθ...) else  initθ end
     phi = discretization.phi
     derivative = discretization.derivative
