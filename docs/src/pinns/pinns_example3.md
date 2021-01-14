@@ -1,0 +1,47 @@
+
+## Example 3 : Solving the 3-dimensional PDE
+
+the 3-dimensional PDE:
+![3dpde](https://user-images.githubusercontent.com/12683885/90976452-d2c74400-e545-11ea-8361-288603d9ddbc.png)
+
+with the initial and boundary conditions:
+
+![boundary](https://user-images.githubusercontent.com/12683885/91332936-8c881400-e7d5-11ea-991a-39c9d61d4f24.png)
+
+on the space and time domain:
+
+![space](https://user-images.githubusercontent.com/12683885/90976622-3605a600-e547-11ea-837e-92330769f5ee.png)
+
+<!-- with grid discretization `dx = 0.25`, `dy = 0.25`, `dt = 0.25`. -->
+
+```julia
+# 3D PDE
+@parameters x y t
+@variables u(..)
+@derivatives Dxx''~x
+@derivatives Dyy''~y
+@derivatives Dt'~t
+
+# 3D PDE
+eq  = Dt(u(x,y,t)) ~ Dxx(u(x,y,t)) + Dyy(u(x,y,t))
+# Initial and boundary conditions
+bcs = [u(x,y,0) ~ exp(x+y)*cos(x+y) ,
+       u(0,y,t) ~ exp(y)*cos(y+4t)
+       u(2,y,t) ~ exp(2+y)*cos(2+y+4t) ,
+       u(x,0,t) ~ exp(x)*cos(x+4t),
+       u(x,2,t) ~ exp(x+2)*cos(x+2+4t)]
+# Space and time domains
+domains = [x ∈ IntervalDomain(0.0,2.0),
+           y ∈ IntervalDomain(0.0,2.0),
+           t ∈ IntervalDomain(0.0,2.0)]
+
+# Neural network
+chain = FastChain(FastDense(3,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+
+discretization = PhysicsInformedNN(chain, StochasticTraining(200)) #points
+pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
+prob = discretize(pde_system,discretization)
+
+res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=3000)
+phi = discretization.phi
+```
