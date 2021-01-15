@@ -76,55 +76,40 @@ List of training strategies that are available now:
 
 
   ### Low-level API
-  TODO
 
   These additional methods exist to help with introspection:
 
   - `symbolic_discretize(pde_system,discretization)`: This method is the same as `discretize` but instead
     returns the unevaluated Julia function to allow the user to see the generated training code.
 
-    Keyword arguments:
+  - `build_symbolic_loss_function(eqs,indvars,depvars, phi, derivative, initθ; bc_indvars=nothing)`: return symbolic inner representation for the loss function.
+      Keyword arguments:
+      - `eqs`: equation or equations,
+      - `indvars`: independent variables (the parameter of the equation),
+      - `depvars`: dependent variables,
+      - `phi`:trial solution,
+      - `derivative`: method that calculates the derivative,
+      - `initθ`: the initial parameter of the neural network,
+      - `bc_indvars`: independent variables for each boundary conditions.
 
-    - `pde_system`
-    - `discretization`
+  - `build_symbolic_equation(eq,indvars,depvars)`: return symbolic inner representation for the equation.
 
-    ```julia
+  - `build_loss_function(eqs, indvars, depvars, phi, derivative, initθ; bc_indvars=nothing)`: returns the body of loss function, which is the executable Julia function, for the main equation or boundary condition.
 
-    ```
+  - `get_loss_function(loss_functions, train_sets, strategy::TrainingStrategies)`: return the executable loss function.
+     Keyword arguments:
+      - `loss_functions`: the body of loss function, which is created using  `build_loss_function`,
+      - `train_sets`: training sets,
+      - `strategy`: training strategy.
 
-  - `build_symbolic_loss_function(eqs,indvars,depvars, phi, derivative,initθ; bc_indvars=nothing)`: return symbol
+  - `get_phi(chain)`: return function for trial solution.
 
-  Keyword arguments:
+  - `get_numeric_derivative()`: return method that calculates the derivative.
 
-  - `eqs`,
-  - `indvars,depvars`,
-  - `phi`,
-  - `derivative`,
-  - `initθ`,
-  - `bc_indvars`.
+  - `generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)`: return training sets for equations and boundary condition, that is used for GridTraining strategy.
 
+  - `get_bc_varibles(bcs,_indvars::Array,_depvars::Array)`: returns all variables that are used in each equation or boundary condition.
 
-  ```julia
-  ```
+  - `get_bounds(domains,bcs,_indvars::Array,_depvars::Array)`: return pairs with lower and upper bounds for all domains. It is used for all non-grid training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
 
-  - `build_symbolic_equation(eq,indvars,depvars)`:
-
-  ```julia
-  ```
-
-  - `build_loss_function(eqs, indvars, depvars, phi, derivative, initθ; bc_indvars=nothing)`:
-
-  - `get_loss_function(loss_functions, train_sets, strategy::)`:
-
-  - `get_phi(chain)`:
-
-  - `get_numeric_derivative()`:
-
-  - `generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)`:
-
-  - `get_bc_varibles(bcs,_indvars::Array,_depvars::Array)`:
-
-  - `get_bounds()`:
-
-
-  See how this can be used in Debugging section or the docs examples .
+  See how this can be used in `Debugging` section or `2-D Burgers equation, low-level API`  examples.
