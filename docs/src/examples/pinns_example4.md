@@ -1,6 +1,4 @@
-
-
-## Example 4 : Solving a PDE System
+# Systems of PDEs
 
 In this example, we will solve the PDE system:
 
@@ -91,8 +89,8 @@ end
 
 ![u3](https://user-images.githubusercontent.com/12683885/101504874-c3e58f80-3984-11eb-9b6a-655ae7239a1a.png)
 
+## Solving Matrices of PDEs
 
-### Matrix PDEs form
 Also, in addition to systems, we can use the matrix form of PDEs:
 
 ```julia

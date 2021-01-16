@@ -1,5 +1,4 @@
-
-## 2-D Burgers' equation, low-level API
+# 2-D Burgers' Equation With Low-Level API
 
 Let's consider the Burgers’ equation:
 
@@ -89,5 +88,4 @@ plot(p1,p2,p3)
 
 ![burgers2](https://user-images.githubusercontent.com/12683885/90984856-8c430b00-e580-11ea-9206-1a88ebd24ca0.png)
 
-
-See low-level API
+[See low-level API](@ref Physics-Informed Neural Networks)

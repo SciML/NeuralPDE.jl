@@ -1,5 +1,4 @@
-
-## Example 3 : Solving the 3-dimensional PDE
+# 3-dimensional PDEs
 
 the 3-dimensional PDE:
 ![3dpde](https://user-images.githubusercontent.com/12683885/90976452-d2c74400-e545-11ea-8361-288603d9ddbc.png)

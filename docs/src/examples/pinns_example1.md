@@ -1,4 +1,4 @@
-## The 2-dimensional Poisson Equation
+# 2D Poisson Equation
 
 In this example, we will solve a Poisson equation of 2 dimensions:
 
@@ -14,7 +14,7 @@ on the space domain:
 
 with grid discretization `dx = 0.1`.
 
-### Example 1 at a Glace:
+## Copy-Pastable Code
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
@@ -70,7 +70,7 @@ p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 plot(p1,p2,p3)
 ```
 
-### Example 1 in Detail:
+## Detailed Description
 
 The ModelingToolkit PDE interface for this example looks like this:
 

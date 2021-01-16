@@ -1,5 +1,4 @@
-
-## Fokker-Planck equation
+# Fokker-Planck Equation
 
 Let's consider the Fokker-Planck equation:
 

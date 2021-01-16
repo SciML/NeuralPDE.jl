@@ -1,6 +1,4 @@
-
-
-## Kuramoto–Sivashinsky equation
+# Kuramoto–Sivashinsky equation
 
 Let's consider the Kuramoto–Sivashinsky equation, which contains a 4th-order derivative:
 

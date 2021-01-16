@@ -1,4 +1,4 @@
-### Debugging
+# Debugging PINN Solutions
 
 ```julia
 using NeuralPDE, ModelingToolkit, Flux, DiffEqFlux, Zygote

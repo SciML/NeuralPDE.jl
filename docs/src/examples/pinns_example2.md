@@ -1,6 +1,4 @@
-
-
-## Example 2 : Solving the 2-dimensional Wave Equation with Neumann boundary condition
+# 2D Wave Equation with Neumann BCs
 
 Let's solve this 2-dimensional wave equation:
 

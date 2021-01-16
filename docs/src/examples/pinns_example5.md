@@ -1,5 +1,4 @@
-
-## Example 5 : Solving an ODE with a 3rd-order derivative
+# ODE with a 3rd-Order Derivative
 
 Let's consider the ODE with a 3rd-order derivative:
 

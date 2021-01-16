@@ -12,7 +12,7 @@ makedocs(
                              canonical="#"),
     pages=[
         "NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations" => "index.md",
-        "Symbolic Physics-Informed Neural Network Tutorials" => Any[
+        "Physics-Informed Neural Network Tutorials" => Any[
             "examples/pinns_example1.md",
             "examples/pinns_example2.md",
             "examples/pinns_example3.md",
@@ -21,7 +21,7 @@ makedocs(
             "examples/pinns_example6.md",
             "examples/pinns_example7.md",
             "examples/pinns_example8.md",
-            "examples/pinns_debugging.md",#TODO
+            "examples/pinns_debugging.md",
         ],
         "Specialized Neural PDE Tutorials" => Any[
             "examples/100_HJB.md",
@@ -34,10 +34,10 @@ makedocs(
             "examples/nnrode_example.md",
         ],
         "API Documentation" => Any[
-            "solvers/pinns.md",#TODO
+            "solvers/pinns.md",
             "solvers/deep_fbsde.md",
             "solvers/kolmogorovbackwards_solver.md",
-            "solvers/optimal_stopping.md",
+            "solvers/optimal_stopping.md",#TODO
             "solvers/ode.md",
             "solvers/nnrode.md",#TODO
         ]
