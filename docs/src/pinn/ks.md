@@ -8,6 +8,8 @@ with the initial and boundary conditions:
 
 ![bs](https://user-images.githubusercontent.com/12683885/91025570-3fa01400-e602-11ea-8fd7-5b0e250a67a4.png)
 
+with physics-informed neural networks.
+
 ```julia
 @parameters x, t
 @variables u(..)

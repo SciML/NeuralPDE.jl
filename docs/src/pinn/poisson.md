@@ -12,7 +12,7 @@ on the space domain:
 
 ![spaces](https://user-images.githubusercontent.com/12683885/86621460-e8e56900-bfc6-11ea-9b64-826ac84c36c9.png)
 
-with grid discretization `dx = 0.1`.
+with grid discretization `dx = 0.1`. We will use physics-informed neural networks.
 
 ## Copy-Pastable Code
 

@@ -12,6 +12,7 @@ with the boundary conditions:
 
 ![bc](https://user-images.githubusercontent.com/12683885/91548102-902eae80-e92d-11ea-8956-736a54e9591e.png)
 
+with Physics-Informed Neural Networks.
 
 ```julia
 # the example is taken from this article https://arxiv.org/abs/1910.10503

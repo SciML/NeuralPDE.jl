@@ -4,7 +4,7 @@ Let's consider the Burgers’ equation:
 
 ![burgers](https://user-images.githubusercontent.com/12683885/90985032-b6e19380-e581-11ea-89ee-cdfdc4ecf075.png)
 
-Here is an example of using the low-level API:
+with Physics-Informed Neural Networks. Here is an example of using the low-level API:
 
 ```julia
 @parameters t, x

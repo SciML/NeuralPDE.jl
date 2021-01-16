@@ -4,7 +4,7 @@ Let's consider the ODE with a 3rd-order derivative:
 
 ![hdode](https://user-images.githubusercontent.com/12683885/89736407-dc46ab80-da71-11ea-9c6e-5964488642bd.png)
 
-with grid discretization `dx = 0.1`.
+with grid discretization `dx = 0.1`. We will use physics-informed neural networks.
 
 ```julia
 @parameters x

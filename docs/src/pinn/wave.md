@@ -5,7 +5,7 @@ Let's solve this 2-dimensional wave equation:
 ![wave](https://user-images.githubusercontent.com/12683885/91465006-ecde8a80-e895-11ea-935e-2c1d60e3d1f2.png)
 
 
-with grid discretization `dx = 0.1`.
+with grid discretization `dx = 0.1` and physics-informed neural networks.
 
 Further, the solution of this equation with the given boundary conditions is presented.
 

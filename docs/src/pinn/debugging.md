@@ -1,5 +1,8 @@
 # Debugging PINN Solutions
 
+Let's walk through debugging functions for the physics-informed neural network
+PDE solvers.
+
 ```julia
 using NeuralPDE, ModelingToolkit, Flux, DiffEqFlux, Zygote
 # 2d wave equation, neumann boundary condition

@@ -12,6 +12,7 @@ and the boundary conditions:
 
 ![boundary](https://user-images.githubusercontent.com/12683885/90978689-4c682d80-e558-11ea-8e51-080bd02a1856.png)
 
+with physics-informed neural networks.
 
 ```julia
 @parameters t, x
