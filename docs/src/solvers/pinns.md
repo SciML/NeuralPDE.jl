@@ -16,7 +16,7 @@ PDEs are defined using the ModelingToolkit.jl `PDESystem`:
 pde_system = PDESystem(eq,bcs,domains,param,var)
 ```
 
-Here, `eq` is the equation, `bcs` represents the boundary conditions, `param` is 
+Here, `eq` is the equation, `bcs` represents the boundary conditions, `param` is
 the parameter of the equation (like `[x,y]`), and `var` represents variables (like `[u]`).
 
 The `PhysicsInformedNN` discretizer is defined as:
@@ -46,7 +46,7 @@ prob = discretize(pde_system, discretization)
 
 which outputs an `OptimizationProblem` for [GalacticOptim.jl](https://galacticoptim.sciml.ai/dev/).
 
-### Training strategy
+## Training strategy
 
 List of training strategies that are available now:
 
@@ -54,15 +54,19 @@ List of training strategies that are available now:
    `dx` is a scalar, then `dx` corresponds to the spacing in each direction. If `dx`
    is a vector, then it should be sized to match the number of dimensions and corresponds
    to the spacing per direction.
- - `StochasticTraining(points)`: `points` number of sochastically sampled points from the domain. 
+ - `StochasticTraining(points)`: `points` number of sochastically sampled points from the domain.
    In each optimization iteration, we randomly select a new subset of points from a full training set.
- - `QuasiRandomTraining(points;sampling_alg = UniformSample(),minibatch=500)`: The training set is generated on quasi-random low discrepency sequences.`minibatch` is the number of subsets, where `points` is the number of quasi-random points in minibatch.
-  The number of the total points is `length(lb) * points * minibatch`,
+ - `QuasiRandomTraining(points;sampling_alg = UniformSample(),minibatch=500)`:
+   The training set is generated on quasi-random low discrepency sequences.
+   `minibatch` is the number of subsets, where `points` is the number of quasi-random points in minibatch.
+   The number of the total points is `length(lb) * points * minibatch`,
   where `lb` is the lower bound and `length(lb)` is the dimensionality.
   `sampling_alg` is the quasi-Monte Carlo sampling algorithm.
   On each iteration of training, it is randomly selected one of the minibatch.
-  See the [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl) for the full set of quasi-random sampling algorithms which are available.
-- `QuadratureTraining(;quadrature_alg=HCubatureJL(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=0)`: The loss is computed as an approximation of the integral of the PDE loss
+  See the [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl) for
+  the full set of quasi-random sampling algorithms which are available.
+- `QuadratureTraining(;quadrature_alg=HCubatureJL(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=0)`:
+  The loss is computed as an approximation of the integral of the PDE loss
   at each iteration using [adaptive quadrature methods](https://en.wikipedia.org/wiki/Adaptive_quadrature)
   via the differentiable [Quadrature.jl](https://github.com/SciML/Quadrature.jl).
   - `quadrature_alg` is quadrature algorithm,
@@ -73,11 +77,41 @@ List of training strategies that are available now:
 
   See the [Quadrature.jl](https://github.com/SciML/Quadrature.jl) documentation for the choices of quadrature methods.
 
-### Low-level API
+## Low-level API
 
 These additional methods exist to help with introspection:
 
 - `symbolic_discretize(pde_system,discretization)`: This method is the same as `discretize` but instead
   returns the unevaluated Julia function to allow the user to see the generated training code.
 
-See how this can be used in the docs examples or take a look at the tests.
+- `build_symbolic_loss_function(eqs,indvars,depvars, phi, derivative, initθ; bc_indvars=nothing)`: return symbolic inner representation for the loss function.
+    Keyword arguments:
+    - `eqs`: equation or equations,
+    - `indvars`: independent variables (the parameter of the equation),
+    - `depvars`: dependent variables,
+    - `phi`:trial solution,
+    - `derivative`: method that calculates the derivative,
+    - `initθ`: the initial parameter of the neural network,
+    - `bc_indvars`: independent variables for each boundary conditions.
+
+- `build_symbolic_equation(eq,indvars,depvars)`: return symbolic inner representation for the equation.
+
+- `build_loss_function(eqs, indvars, depvars, phi, derivative, initθ; bc_indvars=nothing)`: returns the body of loss function, which is the executable Julia function, for the main equation or boundary condition.
+
+- `get_loss_function(loss_functions, train_sets, strategy::TrainingStrategies)`: return the executable loss function.
+   Keyword arguments:
+    - `loss_functions`: the body of loss function, which is created using  `build_loss_function`,
+    - `train_sets`: training sets,
+    - `strategy`: training strategy.
+
+- `get_phi(chain)`: return function for trial solution.
+
+- `get_numeric_derivative()`: return method that calculates the derivative.
+
+- `generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)`: return training sets for equations and boundary condition, that is used for GridTraining strategy.
+
+- `get_bc_varibles(bcs,_indvars::Array,_depvars::Array)`: returns all variables that are used in each equation or boundary condition.
+
+- `get_bounds(domains,bcs,_indvars::Array,_depvars::Array)`: return pairs with lower and upper bounds for all domains. It is used for all non-grid training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
+
+See how this can be used in `Debugging` section or `2-D Burgers equation, low-level API`  examples.

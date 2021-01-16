@@ -12,21 +12,34 @@ makedocs(
                              canonical="#"),
     pages=[
         "NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations" => "index.md",
-        "Tutorials" => Any[
-            "examples/ode.md",
-            "examples/pinns_example.md",
+        "Physics-Informed Neural Network Tutorials" => Any[
+            "pinn/poisson.md",
+            "pinn/wave.md",
+            "pinn/3D.md",
+            "pinn/system.md",
+            "pinn/3rd.md",
+            "pinn/low_level.md",
+            "pinn/ks.md",
+            "pinn/fp.md",
+            "pinn/debugging.md",
+        ],
+        "Specialized Neural PDE Tutorials" => Any[
             "examples/100_HJB.md",
             "examples/blackscholes.md",
             "examples/kolmogorovbackwards.md",
             "examples/optimal_stopping_american.md",
+        ],
+        "Specialized Neural ODE Tutorials" => Any[
+            "examples/ode.md",
             "examples/nnrode_example.md",
         ],
-        "Neural-Enhanced PDE Solvers" => Any[
-            "solvers/ode.md",
-            "solvers/pinn.md",
+        "API Documentation" => Any[
+            "solvers/pinns.md",
             "solvers/deep_fbsde.md",
             "solvers/kolmogorovbackwards_solver.md",
-            "solvers/optimal_stopping.md"
+            "solvers/optimal_stopping.md",#TODO
+            "solvers/ode.md",
+            "solvers/nnrode.md",#TODO
         ]
     ]
 )
