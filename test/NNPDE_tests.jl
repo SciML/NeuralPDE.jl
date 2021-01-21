@@ -22,7 +22,7 @@ end
 ## Example 1, 1D ode
 @parameters θ
 @variables u(..)
-@derivatives Dθ'~θ
+Dθ = Differential(θ)
 
 # 1D ODE
 eq = Dθ(u(θ)) ~ θ^3 + 2*θ + (θ^2)*((1+3*(θ^2))/(1+θ+(θ^3))) - u(θ)*(θ + ((1+3*(θ^2))/(1+θ+θ^3)))
@@ -68,8 +68,8 @@ u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 function test_2d_poisson_equation(chain, strategy)
     @parameters x y
     @variables u(..)
-    @derivatives Dxx''~x
-    @derivatives Dyy''~y
+    Dxx = Differential(x)^2
+    Dyy = Differential(y)^2
 
     # 2D PDE
     eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
@@ -134,8 +134,8 @@ end
 function run_2d_poisson_equation(strategy)
     @parameters x y
     @variables u(..)
-    @derivatives Dxx''~x
-    @derivatives Dyy''~y
+    Dxx = Differential(x)^2
+    Dyy = Differential(y)^2
 
     # 2D PDE
     eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
@@ -171,8 +171,8 @@ end
 ## Example 3, high-order ode
 @parameters x
 @variables u(..)
-@derivatives Dxxx'''~x
-@derivatives Dx'~x
+Dxxx = Differential(x)^3
+Dx = Differential(x)
 
 # ODE
 eq = Dxxx(u(x)) ~ cos(pi*x)
@@ -214,8 +214,8 @@ u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 ## Example 4, system of pde
 @parameters x, y
 @variables u1(..), u2(..)
-@derivatives Dx'~x
-@derivatives Dy'~y
+Dx = Differential(x)
+Dy = Differential(y)
 
 # System of pde
 eqs = [Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
@@ -260,9 +260,9 @@ u_predict  = [[phi[i]([x,y],minimizers[i])[1] for x in xs  for y in ys] for i in
 #here we use low level api for build solution
 @parameters x, t
 @variables u(..)
-@derivatives Dxx''~x
-@derivatives Dtt''~t
-@derivatives Dt'~t
+Dxx = Differential(x)^2
+Dtt = Differential(t)^2
+Dt = Differential(t)
 
 #2D PDE
 C=1
@@ -337,10 +337,10 @@ u_real = reshape([analytic_sol_func(x,t) for x in xs for t in ts], (length(xs),l
 ## Example 6, pde with mixed derivative
 @parameters x y
 @variables u(..)
-@derivatives Dxx''~x
-@derivatives Dyy''~y
-@derivatives Dy'~y
-@derivatives Dx'~x
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
+Dx = Differential(x)
+Dy = Differential(y)
 
 eq = Dxx(u(x,y)) + Dx(Dy(u(x,y))) - 2*Dyy(u(x,y)) ~  -1.
 

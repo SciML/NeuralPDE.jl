@@ -172,10 +172,10 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
                     [:u, :([$(indvars...)]), Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
                 end
                 break
-            elseif e == :derivative
+            elseif e == :_derivative
                 derivative_variables = Symbol[]
                 order = 0
-                while (_args[1] == :derivative)
+                while (_args[1] == :_derivative)
                     order += 1
                     push!(derivative_variables, _args[end])
                     _args = _args[2].args
