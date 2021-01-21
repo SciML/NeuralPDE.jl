@@ -101,7 +101,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob,ADAM(0.01); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))

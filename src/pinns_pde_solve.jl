@@ -11,22 +11,22 @@ Arguments:
 
 """
 
-struct PhysicsInformedNN{C,P,PH,DER,T,K}
+struct PhysicsInformedNN{C,T,P,PH,DER,K}
   chain::C
+  strategy::T
   init_params::P
   phi::PH
   derivative::DER
-  strategy::T
   kwargs::K
 end
 
 function PhysicsInformedNN(chain,
                            strategy;
-                           _init_params = nothing,
-                           _phi = nothing,
-                           _derivative = nothing,
+                           init_params = nothing,
+                           phi = nothing,
+                           derivative = nothing,
                            kwargs...)
-    if _init_params == nothing
+    if init_params == nothing
         if chain isa AbstractArray
             initθ = DiffEqFlux.initial_params.(chain)
         else
@@ -34,26 +34,26 @@ function PhysicsInformedNN(chain,
         end
 
     else
-        initθ = _init_params
+        initθ = init_params
     end
 
-    if _phi == nothing
+    if phi == nothing
         if chain isa AbstractArray
-            phi = get_phi.(chain)
+            _phi = get_phi.(chain)
         else
-            phi = get_phi(chain)
+            _phi = get_phi(chain)
         end
     else
-        phi = _phi
+        _phi = phi
     end
 
-    if _derivative == nothing
-        derivative = get_numeric_derivative()
+    if derivative == nothing
+        _derivative = get_numeric_derivative()
     else
-        derivative = _derivative
+        _derivative = derivative
     end
 
-    PhysicsInformedNN(chain,initθ,phi,derivative, strategy, kwargs)
+    PhysicsInformedNN(chain,strategy,initθ,_phi,_derivative, kwargs)
 end
 
 abstract type TrainingStrategies  end
@@ -481,12 +481,12 @@ function get_numeric_derivative()
     derivative = (phi,u,x,εs,order,θ) ->
     begin
         ε = εs[order]
-        ε = adapt(typeof(θ),ε)
-        x = adapt(typeof(θ),x)
         if order > 1
             return (derivative(phi,u,x+ε,εs,order-1,θ)
                   - derivative(phi,u,x-ε,εs,order-1,θ))/epsilon
         else
+            ε = adapt(typeof(θ),ε)
+            x = adapt(typeof(θ),x)
             return (u(x+ε,θ,phi) - u(x-ε,θ,phi))/epsilon
         end
     end

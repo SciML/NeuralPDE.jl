@@ -237,7 +237,7 @@ discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2],NeuralPDE.GridTrain
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=300)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=600)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
