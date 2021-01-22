@@ -52,7 +52,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[θ],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-@time res = GalacticOptim.solve(prob, ADAM(1e-1); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(1e-1); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -101,7 +101,7 @@ symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
 phi = discretization.phi
 
-ts,xs = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
+ts,xs = [domain.domain.lower:0.01:domain.domain.upper for domain in domains]
 u_predict = reshape([first(Array(phi([t,x],res.minimizer))) for t in ts for x in xs],(length(ts),length(xs)))
 u_real = reshape([u_exact(t,x) for t in ts  for x in xs ], (length(ts),length(xs)))
 diff_u = abs.(u_predict .- u_real)
