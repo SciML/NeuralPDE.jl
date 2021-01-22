@@ -8,6 +8,7 @@ using Test, NeuralPDE
 using GalacticOptim
 using Optim
 using CUDA
+using Quadrature
 
 using Random
 Random.seed!(100)
@@ -105,7 +106,7 @@ u_predict = reshape([first(Array(phi([t,x],res.minimizer))) for t in ts for x in
 u_real = reshape([u_exact(t,x) for t in ts  for x in xs ], (length(ts),length(xs)))
 diff_u = abs.(u_predict .- u_real)
 
-@test u_predict ≈ u_real atol = 1.0
+@test u_predict ≈ u_real atol = 0.3
 
 # p1 = plot(ts, xs, u_real, linetype=:contourf,title = "analytic");
 # p2 = plot(ts, xs, u_predict, linetype=:contourf,title = "predict");
