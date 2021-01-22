@@ -101,6 +101,7 @@ symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
 phi = discretization.phi
 
+u_exact = (t,x) -> exp.(-t) * cos.(x)
 ts,xs = [domain.domain.lower:0.01:domain.domain.upper for domain in domains]
 u_predict = reshape([first(Array(phi([t,x],res.minimizer))) for t in ts for x in xs],(length(ts),length(xs)))
 u_real = reshape([u_exact(t,x) for t in ts  for x in xs ], (length(ts),length(xs)))
