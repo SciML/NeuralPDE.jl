@@ -377,3 +377,49 @@ diff_u = abs.(u_predict .- u_real)
 # p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
 # p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 # plot(p1,p2,p3)
+
+## Example 7, ## Fokker-Planck equation
+# the example took from this article https://arxiv.org/abs/1910.10503
+@parameters x
+@variables p(..)
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+#2D PDE
+α = 0.3
+β = 0.5
+_σ = 0.5
+# Discretization
+dx = 0.05
+# here we use normalization condition: dx*p(x) ~ 1, in order to get non-zero solution.
+#(α - 3*β*x^2)*p(x) + (α*x - β*x^3)*Dx(p(x)) ~ (_σ^2/2)*Dxx(p(x))
+eq  = Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x))+dx*p(x) - 1.
+
+# Initial and boundary conditions
+bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
+
+# Space and time domains
+domains = [x ∈ IntervalDomain(-2.2,2.2)]
+
+# Neural network
+chain = FastChain(FastDense(1,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             NeuralPDE.GridTraining(dx))
+
+pde_system = PDESystem(eq,bcs,domains,[x],[p])
+prob = NeuralPDE.discretize(pde_system,discretization)
+
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=1000)
+phi = discretization.phi
+
+analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
+
+xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains][1]
+u_real  = [analytic_sol_func(x) for x in xs]
+u_predict  = [first(phi(x,Array(res.minimizer))) for x in xs]
+
+@test u_predict ≈ u_real atol = 10.0
+
+# plot(xs ,u_real, label = "analytic")
+# plot!(xs ,u_predict, label = "predict")
