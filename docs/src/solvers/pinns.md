@@ -98,11 +98,12 @@ These additional methods exist to help with introspection:
 
 - `build_loss_function(eqs, indvars, depvars, phi, derivative, initθ; bc_indvars=nothing)`: returns the body of loss function, which is the executable Julia function, for the main equation or boundary condition.
 
-- `get_loss_function(loss_functions, train_sets, strategy::TrainingStrategies)`: return the executable loss function.
+- `get_loss_function(loss_functions, train_sets, strategy::TrainingStrategies; τ = nothing)`: return the executable loss function.
    Keyword arguments:
     - `loss_functions`: the body of loss function, which is created using  `build_loss_function`,
     - `train_sets`: training sets,
-    - `strategy`: training strategy.
+    - `strategy`: training strategy,
+    - `τ`: normalizing coefficient for loss function. If `τ` is nothing, then it is automatically set.
 
 - `get_phi(chain)`: return function for trial solution.
 

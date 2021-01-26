@@ -493,10 +493,12 @@ function get_numeric_derivative()
     derivative
 end
 
-function get_loss_function(loss_functions, train_sets, strategy::GridTraining)
+function get_loss_function(loss_functions, train_sets, strategy::GridTraining;τ=nothing)
     # norm coefficient for loss function
-    τ_ = loss_functions isa Array ? sum(length(train_set) for train_set in train_sets) : length(train_sets)
-    τ = 1.0f0 / τ_
+    if τ == nothing
+        τ_ = loss_functions isa Array ? sum(length(train_set) for train_set in train_sets) : length(train_sets)
+        τ = 1.0f0 / τ_
+    end
 
     function inner_loss(loss_function,x,θ)
         sum(abs2,loss_function(x, θ))
@@ -512,12 +514,12 @@ function get_loss_function(loss_functions, train_sets, strategy::GridTraining)
 end
 
 
-function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
+function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;τ=nothing)
     points = strategy.points
     lbs,ubs = bounds
 
     function inner_loss(loss_function,x,θ)
-        sum(loss_function(x, θ))
+        sum(abs2,loss_function(x, θ))
     end
 
     if !(loss_functions isa Array)
@@ -525,7 +527,9 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
         lbs = [lbs]
         ubs = [ubs]
     end
-    τ = 1.0f0 / points
+    if τ == nothing
+        τ = 1.0f0 / points
+    end
 
     loss = (θ) -> begin
         total = 0.
@@ -533,7 +537,7 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
             len = length(lb)
             for i in 1:points
                 r_point = lb .+ ub .* rand(len)
-                total += inner_loss(l,r_point,θ)^2
+                total += inner_loss(l,r_point,θ)
             end
         end
         return τ * total
@@ -541,14 +545,14 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
     return loss
 end
 
-function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining)
+function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining;τ=nothing)
     sampling_alg = strategy.sampling_alg
     points = strategy.points
     minibatch = strategy.minibatch
     lbs,ubs = bounds
 
     function inner_loss(loss_function,x,θ)
-        sum(loss_function(x, θ))
+        sum(abs2,loss_function(x, θ))
     end
 
     if !(loss_functions isa Array)
@@ -556,7 +560,9 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
         lbs = [lbs]
         ubs = [ubs]
     end
-    τ = points
+    if τ == nothing
+        τ = 1.0f0 / points
+    end
     ss =[]
     for (lb, ub) in zip(lbs, ubs)
         s = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
@@ -570,19 +576,22 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
             k = size(lb)[1]-1
             for i in 1:step_:step_*points
                 r_point = s[i:i+k]
-                total += inner_loss(l,r_point,θ)^2
+                total += inner_loss(l,r_point,θ)
             end
         end
-        return (1.0f0/τ) * total
+        return τ * total
     end
     return loss
 end
 
-function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
+function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;τ=nothing)
     lbs,ubs = bounds
+    if τ == nothing
+        τ = 1.0f0
+    end
 
     function inner_loss(loss_function,x,θ)
-        sum(loss_function(x, θ))
+        sum(abs2,loss_function(x, θ))
     end
 
     if !(loss_functions isa Array)
@@ -591,10 +600,8 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
         ubs = [ubs]
     end
 
-    τ = 1.0f0 / ((10)^length(ubs[1])*length(ubs))
-
     f = (lb,ub,loss_,θ) -> begin
-        _loss = (x,θ) -> sum(abs2,inner_loss(loss_, x, θ))
+        _loss = (x,θ) -> sum(inner_loss(loss_, x, θ))
         prob = QuadratureProblem(_loss,lb,ub,θ;batch = strategy.batch)
         solve(prob,
               strategy.quadrature_alg,
@@ -682,10 +689,12 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
           pde_loss_function = get_loss_function(_pde_loss_function,
                                                           pde_bounds,
                                                           strategy)
-          lbs,ubs = bcs_bounds
-          pl = length(lbs)
-          bl = length(lbs[1])
-          points = length(lbs[1]) == 0 ? 1 : Int(round(strategy.points^(bl/pl)))
+          plbs,pubs = pde_bounds
+          blbs,bubs = bcs_bounds
+          pl = length(plbs)
+          bl = length(blbs[1])
+          bsl = length(blbs)
+          points = length(blbs[1]) == 0 ? 1 : bsl*Int(round(strategy.points^(bl/pl)))
           strategy = StochasticTraining(points)
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
@@ -698,11 +707,13 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
          pde_loss_function = get_loss_function(_pde_loss_function,
                                                         pde_bounds,
                                                         strategy)
+
          plbs,pubs = pde_bounds
          blbs,bubs = bcs_bounds
          pl = length(plbs)
          bl = length(blbs[1])
-         points = Int(round(strategy.points^(bl/pl)))
+         bsl = length(blbs)
+         points = length(blbs[1]) == 0 ? 1 : bsl*Int(round(strategy.points^(bl/pl)))
          strategy = QuasiRandomTraining(points;
                                         sampling_alg = strategy.sampling_alg,
                                         minibatch = strategy.minibatch)
@@ -720,13 +731,26 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
         pde_bounds, bcs_bounds = bounds
 
+        plbs,pubs = pde_bounds
+        blbs,bubs = bcs_bounds
+        pl = length(plbs)
+        bl = length(blbs[1])
+        bsl = length(blbs)
+
+        τ_ = (10)^length(plbs)
+        τp = 1.0f0 / τ_
+
         pde_loss_function = get_loss_function(_pde_loss_function,
                                               pde_bounds,
-                                              strategy)
+                                              strategy;
+                                              τ=τp)
+
+        τb =  1.0f0 / (bsl*Int(round(τ_^(bl/pl))))
 
         bc_loss_function = get_loss_function(_bc_loss_functions,
                                              bcs_bounds,
-                                             strategy)
+                                             strategy;
+                                             τ=τb)
         (pde_loss_function, bc_loss_function)
     end
 
