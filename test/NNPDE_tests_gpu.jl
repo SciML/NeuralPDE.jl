@@ -40,7 +40,8 @@ inner = 12
 chain = FastChain(FastDense(1,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1),(u,p)->gpuones .* u) |> gpu
+                  FastDense(inner,1),(u,p)->gpuones .* u)
+                  
 initθ = DiffEqFlux.initial_params(chain) |> gpu
 
 strategy = NeuralPDE.GridTraining(dt)
