@@ -103,7 +103,7 @@ These additional methods exist to help with introspection:
     - `loss_functions`: the body of loss function, which is created using  `build_loss_function`,
     - `train_sets`: training sets,
     - `strategy`: training strategy,
-    - `τ`: normalizing coefficient for loss function. If `τ` is nothing, then it is automatically set.
+    - `τ`: normalizing coefficient for loss function. If `τ` is nothing, then it is automatically set to `1/n` where `n` is the number of points checked in the loss function.
 
 - `get_phi(chain)`: return function for trial solution.
 
