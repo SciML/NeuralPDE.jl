@@ -37,7 +37,7 @@ dt = 0.1
 # Neural network
 chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 
-strategy = NeuralPDE.GridTraining(dt)
+strategy = NeuralPDE.QuadratureTraining()
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = nothing,
@@ -160,8 +160,7 @@ function run_2d_poisson_equation(strategy)
     res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb,  maxiters=2)
 end
 
-algs = [CubaVegas(), CubaSUAVE(),HCubatureJL(), CubatureJLh(), CubatureJLp()]
-#CubaDivonne(),CubaCuhre() doesn't work with dim = 2
+algs = [HCubatureJL(), CubatureJLh(), CubatureJLp(),CubaCuhre()]
 for alg in algs
     strategy =  NeuralPDE.QuadratureTraining(quadrature_alg = alg,reltol=1e-8,abstol=1e-8,maxiters=600)
     run_2d_poisson_equation(strategy)
@@ -232,12 +231,12 @@ domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 # Neural network
 chain1 = FastChain(FastDense(2,10,Flux.σ),FastDense(10,1))
 chain2 = FastChain(FastDense(2,10,Flux.σ),FastDense(10,1))
-
-discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2],NeuralPDE.GridTraining([0.1, 0.1]))
+strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubaCuhre(),reltol= 1e-4,abstol= 1e-3,maxiters=20)
+discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2],strategy)
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=600)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=300)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
@@ -250,7 +249,7 @@ sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 minimizers = [res.minimizer[s] for s in sep]
 u_predict  = [[phi[i]([x,y],minimizers[i])[1] for x in xs  for y in ys] for i in 1:2]
 
-@test u_predict ≈ u_real atol = 10.0
+@test u_predict ≈ u_real atol = 2.0
 
 # p1 =plot(xs, ys, u_predict, st=:surface);
 # p2 = plot(xs, ys, u_real, st=:surface);
@@ -300,19 +299,18 @@ train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
 pde_train_set,bcs_train_set,train_set = train_sets
 pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,bcs,indvars,depvars)
 
-quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),reltol= 1e-3,abstol= 1e-3,maxiters=20)
-τp = 1/100
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubaCuhre(),reltol= 1e-4,abstol= 1e-3,maxiters=20)
 pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
                                                 pde_bounds,
                                                 quadrature_strategy;
-                                                τ = τp)
+                                                τ = 1/100)
 
 
-grid_strategy = NeuralPDE.GridTraining(dx)
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),reltol= 1e-2,abstol= 1e-1,maxiters=5)
 bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
-                                               bcs_train_set,
-                                               grid_strategy;
-                                               τ = nothing)
+                                               bcs_bounds,
+                                               quadrature_strategy;
+                                               τ = 1/20)
 
 function loss_function_(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
@@ -321,7 +319,12 @@ end
 f_ = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f_, initθ)
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=400)
+cb_ = function (p,l)
+    println("Current losses are: ", pde_loss_function(p), " , ",  bc_loss_function(p))
+    return false
+end
+
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb_, maxiters=400)
 
 xs,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(x,t) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
