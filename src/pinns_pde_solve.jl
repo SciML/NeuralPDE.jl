@@ -638,6 +638,22 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
                                                                bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
     symbolic_pde_loss_function,symbolic_bc_loss_functions
 end
+
+function remake(pde_system::PDESystem, discretization::PhysicsInformedNN, init_params)
+    pde_system = PDESystem(pde_system.eq,
+                           pde_system.bcs,
+                           pde_system.domain,
+                           pde_system.indvars,
+                           pde_system.depvars)
+
+    discretization = PhysicsInformedNN(discretization.chain,
+                                       discretization.strategy;
+                                       init_params = init_params,
+                                       phi = discretization.phi,
+                                       derivative = discretization.derivative)
+
+    prob = discretize(pde_system,discretization)
+end
 # Convert a PDE problem into an OptimizationProblem
 function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     eqs = pde_system.eq

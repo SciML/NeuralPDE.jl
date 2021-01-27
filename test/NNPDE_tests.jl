@@ -42,7 +42,6 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = nothing,
                                              phi = nothing,
-                                             autodiff=false,
                                              derivative = nothing,
                                              )
 
@@ -414,7 +413,12 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=800)
+
+discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(dx/3))
+prob = NeuralPDE.remake(pde_system,discretization,res.minimizer)
+
+res = GalacticOptim.solve(prob,Optim.BFGS();cb=cb,maxiters=100)
 phi = discretization.phi
 
 analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
