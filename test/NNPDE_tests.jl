@@ -295,20 +295,24 @@ bc_indvars = NeuralPDE.get_bc_varibles(bcs,indvars,depvars)
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,initθ,
                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
+dx = 0.1
 train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
 pde_train_set,bcs_train_set,train_set = train_sets
 pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,bcs,indvars,depvars)
 
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),reltol= 1e-3,abstol= 1e-3,maxiters=20)
+τp = 1/100
 pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
                                                 pde_bounds,
-                                                quadrature_strategy)
+                                                quadrature_strategy;
+                                                τ = τp)
 
-dx = 0.1
+
 grid_strategy = NeuralPDE.GridTraining(dx)
 bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
                                                bcs_train_set,
-                                               grid_strategy)
+                                               grid_strategy;
+                                               τ = nothing)
 
 function loss_function_(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
