@@ -21,8 +21,8 @@ using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
 using Plots
 @parameters x y
 @variables u(..)
-@derivatives Dxx''~x
-@derivatives Dyy''~y
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
 
 # 2D PDE
 eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)

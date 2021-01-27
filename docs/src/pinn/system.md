@@ -17,10 +17,10 @@ with physics-informed neural networks.
 ```julia
 @parameters t, x
 @variables u1(..), u2(..), u3(..)
-@derivatives Dt'~t
-@derivatives Dtt''~t
-@derivatives Dx'~x
-@derivatives Dxx''~x
+Dt = Differential(t)
+Dtt = Differential(t)^2
+Dx = Differential(x)
+Dxx = Differential(x)^2
 
 eqs = [Dtt(u1(t,x)) ~ Dxx(u1(t,x)) + u3(t,x)*sin(pi*x),
        Dtt(u2(t,x)) ~ Dxx(u2(t,x)) + u3(t,x)*cos(pi*x),
