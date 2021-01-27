@@ -601,13 +601,13 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
     end
 
     f = (lb,ub,loss_,θ) -> begin
-        _loss = (x,θ) -> sum(inner_loss(loss_, x, θ))
+        _loss = (x,θ) -> inner_loss(loss_, x, θ)
         prob = QuadratureProblem(_loss,lb,ub,θ;batch = strategy.batch)
-        solve(prob,
+        abs(solve(prob,
               strategy.quadrature_alg,
               reltol = strategy.reltol,
               abstol = strategy.abstol,
-              maxiters = strategy.maxiters)[1]
+              maxiters = strategy.maxiters)[1])
     end
     loss = (θ) -> τ*sum(f(lb,ub,loss_,θ) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
     return loss
@@ -723,11 +723,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                        strategy)
          (pde_loss_function, bc_loss_function)
     elseif strategy isa QuadratureTraining
-        dim<=1 && error("QuadratureTraining works only with dimensionality more than 1")
-
-        (dim<=2 && strategy.quadrature_alg in [CubaCuhre(),CubaDivonne()]
-        && error("$(strategy.quadrature_alg) works only with dimensionality more than 2"))
-
         bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
         pde_bounds, bcs_bounds = bounds
 
@@ -745,12 +740,39 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                               strategy;
                                               τ=τp)
 
-        τb =  1.0f0 / (bsl*Int(round(τ_^(bl/pl))))
+        τb =  1.0f0 / (bsl * τ_^(bl/pl))
 
-        bc_loss_function = get_loss_function(_bc_loss_functions,
+        if bl == 0
+            bc_loss_function = get_loss_function(_bc_loss_functions,
+                                                 [[[]]],
+                                                 GridTraining(0.1))
+
+        elseif bl == 1 && strategy.quadrature_alg in [CubaCuhre(),CubaDivonne()]
+            @warn "$(strategy.quadrature_alg) does not work with one-dimensional
+            problems, so for the boundary conditions loss function,
+            the quadrature algorithm was replaced by HCubatureJL"
+
+            strategy = QuadratureTraining(quadrature_alg = HCubatureJL(),
+                                          reltol = bsl*(strategy.reltol)^(bl/pl),
+                                          abstol = bsl*(strategy.abstol)^(bl/pl),
+                                          maxiters = bsl*Int(round((strategy.maxiters)^(bl/pl))),
+                                          batch = strategy.batch)
+            bc_loss_function = get_loss_function(_bc_loss_functions,
+                                                 bcs_bounds,
+                                                 strategy;
+                                                 τ=τb)
+        else
+            strategy = QuadratureTraining(quadrature_alg = strategy.quadrature_alg,
+                                          reltol = bsl*(strategy.reltol)^(bl/pl),
+                                          abstol = bsl*(strategy.abstol)^(bl/pl),
+                                          maxiters = bsl*Int(round((strategy.maxiters)^(bl/pl))),
+                                          batch = strategy.batch)
+            bc_loss_function = get_loss_function(_bc_loss_functions,
                                              bcs_bounds,
                                              strategy;
                                              τ=τb)
+        end
+
         (pde_loss_function, bc_loss_function)
     end
 
