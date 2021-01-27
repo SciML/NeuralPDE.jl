@@ -9,9 +9,9 @@ with Physics-Informed Neural Networks. Here is an example of using the low-level
 ```julia
 @parameters t, x
 @variables u(..)
-@derivatives Dt'~t
-@derivatives Dx'~x
-@derivatives Dxx''~x
+Dt = Differential(t)
+Dx = Differential(x)
+Dxx = Differential(x)^2
 
 #2D PDE
 eq  = Dt(u(t,x)) + u(t,x)*Dx(u(t,x)) - (0.01/pi)*Dxx(u(t,x)) ~ 0

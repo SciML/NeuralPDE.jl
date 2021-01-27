@@ -8,10 +8,9 @@ using NeuralPDE, ModelingToolkit, Flux, DiffEqFlux, Zygote
 # 2d wave equation, neumann boundary condition
 @parameters x, t
 @variables u(..)
-@derivatives Dxx''~x
-@derivatives Dtt''~t
-@derivatives Dt'~t
-
+Dxx = Differential(x)^2
+Dtt = Differential(t)^2
+Dt = Differential(t)
 #2D PDE
 C=1
 eq  = Dtt(u(x,t)) ~ C^2*Dxx(u(x,t))

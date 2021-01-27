@@ -9,9 +9,9 @@ with grid discretization `dx = 0.1`. We will use physics-informed neural network
 ```julia
 @parameters x
 @variables u(..)
-@derivatives Dxxx'''~x
-@derivatives Dx'~x
 
+Dxxx = Differential(x)^3
+Dx = Differential(x)
 # ODE
 eq = Dxxx(u(x)) ~ cos(pi*x)
 

@@ -39,8 +39,8 @@ using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
 
 @parameters x y
 @variables u(..)
-@derivatives Dxx''~x
-@derivatives Dyy''~y
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
 
 # 2D PDE
 eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
@@ -58,7 +58,7 @@ dx = 0.1
 dim = 2 # number of dimensions
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = PhysicsInformedNN(chain, GridTraining(dx=dx))
+discretization = PhysicsInformedNN(chain, GridTraining(dx))
 
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)

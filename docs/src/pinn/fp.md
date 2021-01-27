@@ -18,8 +18,8 @@ with Physics-Informed Neural Networks.
 # the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x
 @variables p(..)
-@derivatives Dx'~x
-@derivatives Dxx''~x
+Dx = Differential(x)
+Dxx = Differential(x)^2
 
 #2D PDE
 α = 0.3

@@ -13,11 +13,11 @@ with physics-informed neural networks.
 ```julia
 @parameters x, t
 @variables u(..)
-@derivatives Dt'~t
-@derivatives Dx'~x
-@derivatives Dx2''~x
-@derivatives Dx3'''~x
-@derivatives Dx4''''~x
+Dt = Differential(t)
+Dx = Differential(x)
+Dx2 = Differential(x)^2
+Dx3 = Differential(x)^3
+Dx4 = Differential(x)^4
 
 α = 1
 β = 4

@@ -12,9 +12,9 @@ Further, the solution of this equation with the given boundary conditions is pre
 ```julia
 @parameters t, x
 @variables u(..)
-@derivatives Dxx''~x
-@derivatives Dtt''~t
-@derivatives Dt'~t
+Dxx = Differential(x)^2
+Dtt = Differential(t)^2
+Dt = Differential(t)
 
 #2D PDE
 C=1
