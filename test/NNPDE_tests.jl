@@ -49,6 +49,8 @@ pde_system = PDESystem(eq,bcs,domains,[θ],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
 res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
+prob2 = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob2, ADAM(0.001); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -414,7 +416,7 @@ pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
 res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=800)
-discretization2 = NeuralPDE.remake(discretization; strategy = NeuralPDE.GridTraining(dx/5), init_params =res.minimizer)
+discretization2 = remake(discretization; strategy = NeuralPDE.GridTraining(dx/5), init_params =res.minimizer)
 prob = NeuralPDE.discretize(pde_system,discretization2)
 
 res = GalacticOptim.solve(prob,Optim.BFGS();cb=cb,maxiters=100)
