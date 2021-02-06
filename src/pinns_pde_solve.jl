@@ -617,7 +617,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
     return loss
 end
 function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    eqs = pde_system.eq
+    eqs = pde_system.eqs
     bcs = pde_system.bcs
 
     domains = pde_system.domain
@@ -645,7 +645,7 @@ end
 
 # Convert a PDE problem into an OptimizationProblem
 function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    eqs = pde_system.eq
+    eqs = pde_system.eqs
     bcs = pde_system.bcs
 
     domains = pde_system.domain
