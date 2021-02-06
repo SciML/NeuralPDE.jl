@@ -12,7 +12,7 @@ Arguments:
 """
 abstract type AbstractPINN{isinplace} <: SciMLBase.SciMLProblem end
 
-struct PhysicsInformedNN{C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
+struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
   chain::C
   strategy::T
   init_params::P
@@ -21,10 +21,10 @@ struct PhysicsInformedNN{C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
   kwargs::K
 
  @add_kwonly function PhysicsInformedNN{iip}(chain,
-                                             strategy,
+                                             strategy;
                                              init_params = nothing,
                                              phi = nothing,
-                                             derivative = nothing;
+                                             derivative = nothing,
                                              kwargs...) where iip
         if init_params == nothing
             if chain isa AbstractArray
@@ -52,7 +52,7 @@ struct PhysicsInformedNN{C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
         else
             _derivative = derivative
         end
-        new{typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(kwargs)}(chain,strategy,initθ,_phi,_derivative, kwargs)
+        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(kwargs)}(chain,strategy,initθ,_phi,_derivative, kwargs)
     end
 end
 PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
