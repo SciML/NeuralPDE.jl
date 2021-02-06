@@ -10,51 +10,55 @@ Arguments:
 * `derivative`: method that calculates the derivative.
 
 """
+abstract type AbstractPINN{isinplace} <: SciMLBase.SciMLProblem end
 
-struct PhysicsInformedNN{C,T,P,PH,DER,K}
+struct PhysicsInformedNN{C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
   chain::C
   strategy::T
   init_params::P
   phi::PH
   derivative::DER
   kwargs::K
-end
 
-function PhysicsInformedNN(chain,
-                           strategy;
-                           init_params = nothing,
-                           phi = nothing,
-                           derivative = nothing,
-                           kwargs...)
-    if init_params == nothing
-        if chain isa AbstractArray
-            initθ = DiffEqFlux.initial_params.(chain)
+ @add_kwonly function PhysicsInformedNN{iip}(chain,
+                                             strategy,
+                                             init_params = nothing,
+                                             phi = nothing,
+                                             derivative = nothing;
+                                             kwargs...) where iip
+        if init_params == nothing
+            if chain isa AbstractArray
+                initθ = DiffEqFlux.initial_params.(chain)
+            else
+                initθ = DiffEqFlux.initial_params(chain)
+            end
+
         else
-            initθ = DiffEqFlux.initial_params(chain)
+            initθ = init_params
         end
 
-    else
-        initθ = init_params
-    end
-
-    if phi == nothing
-        if chain isa AbstractArray
-            _phi = get_phi.(chain)
+        if phi == nothing
+            if chain isa AbstractArray
+                _phi = get_phi.(chain)
+            else
+                _phi = get_phi(chain)
+            end
         else
-            _phi = get_phi(chain)
+            _phi = phi
         end
-    else
-        _phi = phi
-    end
 
-    if derivative == nothing
-        _derivative = get_numeric_derivative()
-    else
-        _derivative = derivative
+        if derivative == nothing
+            _derivative = get_numeric_derivative()
+        else
+            _derivative = derivative
+        end
+        new{typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(kwargs)}(chain,strategy,initθ,_phi,_derivative, kwargs)
     end
-
-    PhysicsInformedNN(chain,strategy,initθ,_phi,_derivative, kwargs)
 end
+PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
+
+SciMLBase.isinplace(prob::PhysicsInformedNN{iip}) where iip = iip
+
 
 abstract type TrainingStrategies  end
 
@@ -613,7 +617,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
     return loss
 end
 function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    eqs = pde_system.eq
+    eqs = pde_system.eqs
     bcs = pde_system.bcs
 
     domains = pde_system.domain
@@ -638,9 +642,10 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
                                                                bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
     symbolic_pde_loss_function,symbolic_bc_loss_functions
 end
+
 # Convert a PDE problem into an OptimizationProblem
 function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    eqs = pde_system.eq
+    eqs = pde_system.eqs
     bcs = pde_system.bcs
 
     domains = pde_system.domain
