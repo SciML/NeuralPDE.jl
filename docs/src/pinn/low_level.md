@@ -7,6 +7,8 @@ Let's consider the Burgers’ equation:
 with Physics-Informed Neural Networks. Here is an example of using the low-level API:
 
 ```julia
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+
 @parameters t, x
 @variables u(..)
 Dt = Differential(t)
@@ -31,30 +33,30 @@ chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 
 strategy = GridTraining(dx)
 
-phi = get_phi(chain)
-derivative = get_numeric_derivative()
-initθ = initial_params(chain)
+phi = NeuralPDE.get_phi(chain)
+derivative = NeuralPDE.get_numeric_derivative()
+initθ = DiffEqFlux.initial_params(chain)
 
 indvars = [t,x]
 depvars = [u]
 
-_pde_loss_function = build_loss_function(eq,indvars,depvars,
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,
                                          phi, derivative,initθ)
 
-bc_indvars = get_bc_varibles(bcs,indvars,depvars)
-_bc_loss_functions = [build_loss_function(bc,indvars,depvars,
+bc_indvars = NeuralPDE.get_bc_varibles(bcs,indvars,depvars)
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
                                           phi,derivative,initθ,
                                           bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
-train_sets = generate_training_sets(domains,dx,bcs,indvars,depvars)
+train_sets = NeuralPDE.generate_training_sets(domains,dx,bcs,indvars,depvars)
 train_domain_set, train_bound_set, train_set= train_sets
 
 
-pde_loss_function = get_loss_function(_pde_loss_function,
+pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
                                       train_domain_set,
                                       strategy)
 
-bc_loss_function = get_loss_function(_bc_loss_functions,
+bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
                                      train_bound_set,
                                      strategy)
 
@@ -64,6 +66,11 @@ end
 f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f, initθ)
 
+cb = function (p,l)
+    println("Current losses are: ", pde_loss_function(p), " , ",  bc_loss_function(p))
+    return false
+end
+
 # optimizer
 opt = Optim.BFGS()
 res = GalacticOptim.solve(prob, opt; cb = cb, maxiters=2000)
@@ -72,6 +79,8 @@ res = GalacticOptim.solve(prob, opt; cb = cb, maxiters=2000)
 And some analysis:
 
 ```julia
+using Plots
+
 ts,xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 u_predict_contourf = reshape([first(phi([t,x],res.minimizer)) for t in ts for x in xs] ,length(xs),length(ts))
 plot(ts, xs, u_predict_contourf, linetype=:contourf,title = "predict")
