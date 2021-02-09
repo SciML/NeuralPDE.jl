@@ -2,11 +2,13 @@
 
 Let's consider the ODE with a 3rd-order derivative:
 
-![hdode](https://user-images.githubusercontent.com/12683885/89736407-dc46ab80-da71-11ea-9c6e-5964488642bd.png)
+![hdode](https://user-images.githubusercontent.com/12683885/107214983-c2cfed80-6a1b-11eb-9c1a-8e7b021a11bf.png)
 
-with grid discretization `dx = 0.1`. We will use physics-informed neural networks.
+We will use physics-informed neural networks.
 
 ```julia
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+
 @parameters x
 @variables u(..)
 
@@ -26,9 +28,14 @@ domains = [x ∈ IntervalDomain(0.0,1.0)]
 # Neural network
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 
-discretization = PhysicsInformedNN(chain, StochasticTraining(20))
+discretization = PhysicsInformedNN(chain, QuasiRandomTraining(20))
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = discretize(pde_system,discretization)
+
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
 
 res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=2000)
 phi = discretization.phi
@@ -37,6 +44,8 @@ phi = discretization.phi
 We can plot the predicted solution of the ODE and its analytical solution.
 
 ```julia
+using Plots
+
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
 
 dx = 0.05

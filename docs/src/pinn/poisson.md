@@ -18,7 +18,7 @@ with grid discretization `dx = 0.1`. We will use physics-informed neural network
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
-using Plots
+
 @parameters x y
 @variables u(..)
 Dxx = Differential(x)^2
@@ -56,6 +56,8 @@ end
 
 res = GalacticOptim.solve(prob, opt, cb = cb, maxiters=1000)
 phi = discretization.phi
+
+using Plots
 
 xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)

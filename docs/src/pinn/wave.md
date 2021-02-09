@@ -10,6 +10,8 @@ with grid discretization `dx = 0.1` and physics-informed neural networks.
 Further, the solution of this equation with the given boundary conditions is presented.
 
 ```julia
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+
 @parameters t, x
 @variables u(..)
 Dxx = Differential(x)^2
@@ -40,6 +42,11 @@ discretization = PhysicsInformedNN(chain, GridTraining(dx))
 pde_system = PDESystem(eq,bcs,domains,[t,x],[u])
 prob = discretize(pde_system,discretization)
 
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+
 # optimizer
 opt = Optim.BFGS()
 res = GalacticOptim.solve(prob,opt; cb = cb, maxiters=1200)
@@ -49,6 +56,8 @@ phi = discretization.phi
 We can plot the predicted solution of the PDE and compare it with the analytical solution in order to plot the relative error.
 
 ```julia
+using Plots
+
 ts,xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 analytic_sol_func(t,x) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
 

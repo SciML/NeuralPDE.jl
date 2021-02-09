@@ -15,6 +15,8 @@ and the boundary conditions:
 with physics-informed neural networks.
 
 ```julia
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+
 @parameters t, x
 @variables u1(..), u2(..), u3(..)
 Dt = Differential(t)
@@ -56,6 +58,11 @@ discretization = PhysicsInformedNN([chain1,chain2,chain3], strategy)
 pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1,u2,u3])
 prob = discretize(pde_system,discretization)
 
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+
 res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=2000)
 phi = discretization.phi
 ```
@@ -63,6 +70,7 @@ phi = discretization.phi
 And some analysis:
 
 ```julia
+using Plots
 
 ts,xs = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
 
