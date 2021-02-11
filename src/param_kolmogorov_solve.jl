@@ -136,7 +136,7 @@ function DiffEqBase.solve(
     # sol = solve(sdeproblem, sdealg ,dt=0.01 , save_everystep=false , kwargs...)
     # x_sde = sol[end]
 
-    x_sde  = zeros(1,trajectories)
+    x_sde  = zeros(d,trajectories)
     for i in 1:length(sim.u)
         x_sde[: , i] = sim.u[i]
     end
