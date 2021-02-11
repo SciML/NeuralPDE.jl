@@ -2,8 +2,9 @@ using NeuralPDE
 using Test, Flux
 using StochasticDiffEq
 using LinearAlgebra
+
 d = 1
-m = Chain(Dense(3 , 64, elu),Dense(64, 64, elu) , Dense(64 , 5 , elu) , Dense(5 , 1))
+m = Chain(Dense(3 , 16, elu),Dense(16, 16, elu) , Dense(16 , 5 , elu) , Dense(5 , 1))
 ensemblealg = EnsembleThreads()
 γ_mu_prototype = nothing
 γ_sigma_prototype = zeros(d , d , 1)
@@ -18,20 +19,19 @@ end
 g(x , γ_sigma) = γ_sigma[: , : , 1]
 f(x , γ_mu_1 ,γ_mu_2 ) = [0.00]
 xspan = (0.00 , 3.00)
-y_domain = KolmogorovParamDomain((0.00 , 2.00) , (0.00 , 0.00) , (2.00 , 5.00) )
+y_domain = KolmogorovParamDomain((0.00 , 2.00) , (0.00 , 0.00) , (0.00 , 0.00) )
 dt = 0.01
 dx = 0.01
 dy = 0.01
-opt = Flux.ADAM(5e-3)
-prob = ParamKolmogorovPDEProblem(f , g , phi , (0.0 , 1.0) , xspan , d  , y_domain  ; Y_sigma_prototype = γ_sigma_prototype)
+opt = Flux.ADAM(1e-2)
+prob = ParamKolmogorovPDEProblem(f , g , phi , xspan , tspan , d  , y_domain  ; Y_sigma_prototype = γ_sigma_prototype)
 sol = solve(prob, NNParamKolmogorov(m,opt , sdealg,ensemblealg) , verbose = true, dt = 0.01,
-            abstol=1e-10, dx = 0.01 , trajectories = 20000 ,  maxiters = 500)
+            abstol=1e-10, dx = 0.01 , trajectories = trajectories ,  maxiters = 150 , use_gpu = false)
 
 x_test = rand(xspan[1]:dx:xspan[2] , d , 1  , 1000)
 t_test = rand(tspan[1]:dt:tspan[2] ,  1 , 1000)
 γ_sigma_test = rand(0.3:dy:0.3 , d , d,  1, 1000)
 
-k = 1
 X_test  = reshape([], 3 ,0)
 for i in 1:length(t_test)
   K = vcat(t_test[i] , x_test[: , : , i] , reshape(γ_sigma_test[: , : , : , i] , d^2*(size(γ_sigma_prototype))[3] , 1))
@@ -40,7 +40,7 @@ end
 X_test
 
 function analytical(x , t , y)
-  #return sum(x.^2) + t*tr(y*y)
+  #return sum(x.^2) + t*tr(y*y) for multidimensional
   return x^2 + t*(y*y)
 end
 function y_analytical(X)
@@ -55,4 +55,4 @@ y_test = y_analytical(X_test)
 
 m(X_test)
 
-Flux.mse(m(X_test), y_test)
+@test Flux.mse(m(X_test), y_test) < 0.1
