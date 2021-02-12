@@ -46,6 +46,12 @@ discretization = PhysicsInformedNN(chain,GridTraining(dx))
 pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = discretize(pde_system,discretization)
 
+#Callback function
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=2000)
 phi = discretization.phi
 ```
