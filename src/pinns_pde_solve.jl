@@ -3,113 +3,113 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 Algorithm for solving Physics-Informed Neural Networks problems.
 
 Arguments:
-* `chain` is a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
-* `init_params` is the initial parameter of the neural network,
-* `phi` is a trial solution,
-* `derivative` is method that calculates the derivative,
-* `strategy` determines which training strategy will be used.
-"""
+* `chain`: a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
+* `strategy`: determines which training strategy will be used,
+* `init_params`: the initial parameter of the neural network,
+* `phi`: a trial solution,
+* `derivative`: method that calculates the derivative.
 
-struct PhysicsInformedNN{C,P,PH,DER,T,K}
+"""
+abstract type AbstractPINN{isinplace} <: SciMLBase.SciMLProblem end
+
+struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
   chain::C
-  initθ::P
+  strategy::T
+  init_params::P
   phi::PH
   derivative::DER
-  strategy::T
   kwargs::K
-end
 
-function PhysicsInformedNN(chain,
-                           init_params = nothing;
-                           _phi = nothing,
-                           _derivative = nothing,
-                           strategy = GridTraining(),
-                           kwargs...)
-    if init_params == nothing
-        if chain isa AbstractArray
-            initθ = DiffEqFlux.initial_params.(chain)
+ @add_kwonly function PhysicsInformedNN{iip}(chain,
+                                             strategy;
+                                             init_params = nothing,
+                                             phi = nothing,
+                                             derivative = nothing,
+                                             kwargs...) where iip
+        if init_params == nothing
+            if chain isa AbstractArray
+                initθ = DiffEqFlux.initial_params.(chain)
+            else
+                initθ = DiffEqFlux.initial_params(chain)
+            end
+
         else
-            initθ = DiffEqFlux.initial_params(chain)
+            initθ = init_params
         end
 
-    else
-        initθ = init_params
-    end
-
-    if _phi == nothing
-        if chain isa AbstractArray
-            phi = get_phi.(chain)
+        if phi == nothing
+            if chain isa AbstractArray
+                _phi = get_phi.(chain)
+            else
+                _phi = get_phi(chain)
+            end
         else
-            phi = get_phi(chain)
+            _phi = phi
         end
-    else
-        phi = _phi
-    end
 
-    if _derivative == nothing
-        derivative = get_numeric_derivative()
-    else
-        derivative = _derivative
+        if derivative == nothing
+            _derivative = get_numeric_derivative()
+        else
+            _derivative = derivative
+        end
+        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(kwargs)}(chain,strategy,initθ,_phi,_derivative, kwargs)
     end
-
-    PhysicsInformedNN(chain,initθ,phi,derivative, strategy, kwargs)
 end
+PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
+
+SciMLBase.isinplace(prob::PhysicsInformedNN{iip}) where iip = iip
+
 
 abstract type TrainingStrategies  end
 
 """
-* `dx` is the discretization of the grid
+* `dx`: the discretization of the grid.
 """
 struct GridTraining <: TrainingStrategies
     dx
 end
-function GridTraining(;dx= 0.1)
-    GridTraining(dx)
-end
 
 """
-* `number_of_points` is number of points in random select training set
+* `points`: number of points in random select training set.
 """
 struct StochasticTraining <:TrainingStrategies
-    number_of_points:: Int64
-end
-function StochasticTraining(;number_of_points=100)
-    StochasticTraining(number_of_points)
+    points:: Int64
 end
 
 """
-* `sampling_method`: is the quasi-Monte Carlo sampling strategy.
-* `number_of_points`: is number of quasi-random points in training set
-* `number_of_minibatch` is number of generated training samples
+* `points`:  the number of quasi-random points in minibatch,
+* `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
+* `minibatch`: the number of subsets.
+
 For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMonteCarlo.jl
 """
 struct QuasiRandomTraining <:TrainingStrategies
-    sampling_method::QuasiMonteCarlo.SamplingAlgorithm
-    number_of_points:: Int64
-    number_of_minibatch:: Int64
+    points:: Int64
+    sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
+    minibatch:: Int64
 end
-function QuasiRandomTraining(;sampling_method = UniformSample(), number_of_points=100,number_of_minibatch=10)
-    QuasiRandomTraining(sampling_method,number_of_points,number_of_minibatch)
+function QuasiRandomTraining(points;sampling_alg = UniformSample(),minibatch=500)
+    QuasiRandomTraining(points,sampling_alg,minibatch)
 end
 """
-* `algorithm`: quadrature algorithm,
+* `quadrature_alg`: quadrature algorithm,
 * `reltol`: relative tolerance,
-* `abstol` absolute tolerance,
+* `abstol`: absolute tolerance,
 * `maxiters`: the maximum number of iterations in quadrature algorithm,
 * `batch`: the preferred number of points to batch.
 
 For more information look: Quadrature.jl https://github.com/SciML/Quadrature.jl
 """
 struct QuadratureTraining <: TrainingStrategies
-    algorithm::DiffEqBase.AbstractQuadratureAlgorithm
+    quadrature_alg::DiffEqBase.AbstractQuadratureAlgorithm
     reltol::Float64
     abstol::Float64
     maxiters::Int64
     batch::Int64
 end
 
-function QuadratureTraining(;algorithm=HCubatureJL(),reltol= 1e-8,abstol= 1e-8,maxiters=1e3,batch=0)
-    QuadratureTraining(algorithm,reltol,abstol,maxiters,batch)
+function QuadratureTraining(;quadrature_alg=HCubatureJL(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=0)
+    QuadratureTraining(quadrature_alg,reltol,abstol,maxiters,batch)
 end
 
 """
@@ -176,10 +176,10 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
                     [:u, :([$(indvars...)]), Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
                 end
                 break
-            elseif e == :derivative
+            elseif e == :_derivative
                 derivative_variables = Symbol[]
                 order = 0
-                while (_args[1] == :derivative)
+                while (_args[1] == :_derivative)
                     order += 1
                     push!(derivative_variables, _args[end])
                     _args = _args[2].args
@@ -232,10 +232,19 @@ Example:
       [(derivative(phi1, u1, [x, y], [[ε,0]], 1, θ1) + 4 * derivative(phi2, u, [x, y], [[0,ε]], 1, θ2)) - 0,
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
+
+function build_symbolic_equation(eq,_indvars,_depvars)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
+    parse_equation(eq,dict_indvars,dict_depvars)
+end
+
 function parse_equation(eq,dict_indvars,dict_depvars)
-    left_expr = transform_derivative(toexpr(eq.lhs),
+    eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
+    eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
+
+    left_expr = transform_derivative(toexpr(eq_lhs),
                                      dict_indvars,dict_depvars)
-    right_expr = transform_derivative(toexpr(eq.rhs),
+    right_expr = transform_derivative(toexpr(eq_rhs),
                                      dict_indvars,dict_depvars)
     loss_func = :($left_expr - $right_expr)
 end
@@ -468,7 +477,7 @@ function get_phi(chain)
 end
 
 function get_u()
-	u = (cord, θ, phi)->phi(cord, θ)[1]
+	u = (cord, θ, phi)->sum(phi(cord, θ))
 end
 # the method to calculate the derivative
 function get_numeric_derivative()
@@ -480,37 +489,41 @@ function get_numeric_derivative()
             return (derivative(phi,u,x+ε,εs,order-1,θ)
                   - derivative(phi,u,x-ε,εs,order-1,θ))/epsilon
         else
+            ε = adapt(typeof(θ),ε)
+            x = adapt(typeof(θ),x)
             return (u(x+ε,θ,phi) - u(x-ε,θ,phi))/epsilon
         end
     end
     derivative
 end
 
-function get_loss_function(loss_functions, train_sets, strategy::GridTraining)
+function get_loss_function(loss_functions, train_sets, strategy::GridTraining;τ=nothing)
     # norm coefficient for loss function
-    τ_ = loss_functions isa Array ? sum(length(train_set) for train_set in train_sets) : length(train_sets)
-    τ = 1.0f0 / τ_
+    if τ == nothing
+        τ_ = loss_functions isa Array ? sum(length(train_set) for train_set in train_sets) : length(train_sets)
+        τ = 1.0f0 / τ_
+    end
 
     function inner_loss(loss_function,x,θ)
-        sum(loss_function(x, θ))
+        sum(abs2,loss_function(x, θ))
     end
 
     if !(loss_functions isa Array)
         loss_functions = [loss_functions]
         train_sets = [train_sets]
     end
-    f = (loss,train_set,θ) -> sum(abs2,[inner_loss(loss,x,θ) for x in train_set])
+    f = (loss,train_set,θ) -> sum([inner_loss(loss,x,θ) for x in train_set])
     loss = (θ) ->  τ * sum(f(loss_function,train_set,θ) for (loss_function,train_set) in zip(loss_functions,train_sets))
     return loss
 end
 
 
-function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
-    number_of_points = strategy.number_of_points
+function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;τ=nothing)
+    points = strategy.points
     lbs,ubs = bounds
 
     function inner_loss(loss_function,x,θ)
-        sum(loss_function(x, θ))
+        sum(abs2,loss_function(x, θ))
     end
 
     if !(loss_functions isa Array)
@@ -518,15 +531,17 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
         lbs = [lbs]
         ubs = [ubs]
     end
-    τ = 1.0f0 / number_of_points
+    if τ == nothing
+        τ = 1.0f0 / points
+    end
 
     loss = (θ) -> begin
         total = 0.
         for (lb, ub,l) in zip(lbs, ubs, loss_functions)
             len = length(lb)
-            for i in 1:number_of_points
+            for i in 1:points
                 r_point = lb .+ ub .* rand(len)
-                total += inner_loss(l,r_point,θ)^2
+                total += inner_loss(l,r_point,θ)
             end
         end
         return τ * total
@@ -534,14 +549,14 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining)
     return loss
 end
 
-function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining)
-    sampling_method = strategy.sampling_method
-    number_of_points = strategy.number_of_points
-    number_of_minibatch = strategy.number_of_minibatch
+function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining;τ=nothing)
+    sampling_alg = strategy.sampling_alg
+    points = strategy.points
+    minibatch = strategy.minibatch
     lbs,ubs = bounds
 
     function inner_loss(loss_function,x,θ)
-        sum(loss_function(x, θ))
+        sum(abs2,loss_function(x, θ))
     end
 
     if !(loss_functions isa Array)
@@ -549,33 +564,38 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
         lbs = [lbs]
         ubs = [ubs]
     end
-    τ = number_of_points
+    if τ == nothing
+        τ = 1.0f0 / points
+    end
     ss =[]
     for (lb, ub) in zip(lbs, ubs)
-        s = QuasiMonteCarlo.generate_design_matrices(number_of_points,lb,ub,sampling_method,number_of_minibatch)
+        s = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
         push!(ss,s)
     end
     loss = (θ) -> begin
         total = 0.
         for (lb, ub,s_,l) in zip(lbs,ubs,ss,loss_functions)
-            s =  s_[rand(1:number_of_minibatch)]
-            ste_ = size(lb)[1]
+            s =  s_[rand(1:minibatch)]
+            step_ = size(lb)[1]
             k = size(lb)[1]-1
-            for i in 1:ste_:ste_*number_of_points
+            for i in 1:step_:step_*points
                 r_point = s[i:i+k]
-                total += inner_loss(l,r_point,θ)^2
+                total += inner_loss(l,r_point,θ)
             end
         end
-        return (1.0f0/τ) * total
+        return τ * total
     end
     return loss
 end
 
-function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
+function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;τ=nothing)
     lbs,ubs = bounds
+    if τ == nothing
+        τ = 1.0f0
+    end
 
     function inner_loss(loss_function,x,θ)
-        sum(loss_function(x, θ))
+        sum(abs2,loss_function(x, θ))
     end
 
     if !(loss_functions isa Array)
@@ -584,22 +604,20 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining)
         ubs = [ubs]
     end
 
-    τ = 1.0f0 / ((10)^length(ubs[1])*length(ubs))
-
     f = (lb,ub,loss_,θ) -> begin
-        _loss = (x,θ) -> sum(abs2,inner_loss(loss_, x, θ))
+        _loss = (x,θ) -> inner_loss(loss_, x, θ)
         prob = QuadratureProblem(_loss,lb,ub,θ;batch = strategy.batch)
-        solve(prob,
-              strategy.algorithm,
+        abs(solve(prob,
+              strategy.quadrature_alg,
               reltol = strategy.reltol,
               abstol = strategy.abstol,
-              maxiters = strategy.maxiters)[1]
+              maxiters = strategy.maxiters)[1])
     end
     loss = (θ) -> τ*sum(f(lb,ub,loss_,θ) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
     return loss
 end
 function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    eqs = pde_system.eq
+    eqs = pde_system.eqs
     bcs = pde_system.bcs
 
     domains = pde_system.domain
@@ -608,7 +626,7 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
 
     chain = discretization.chain
-    initθ = discretization.initθ
+    initθ = discretization.init_params
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -624,9 +642,10 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
                                                                bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
     symbolic_pde_loss_function,symbolic_bc_loss_functions
 end
+
 # Convert a PDE problem into an OptimizationProblem
 function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    eqs = pde_system.eq
+    eqs = pde_system.eqs
     bcs = pde_system.bcs
 
     domains = pde_system.domain
@@ -635,8 +654,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars,pde_system.depvars)
 
     chain = discretization.chain
-    initθ = discretization.initθ
-    flat_initθ = vcat(initθ...)
+    initθ = discretization.init_params
+    flat_initθ = if length(depvars) != 1 vcat(initθ...) else  initθ end
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -675,9 +694,13 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
           pde_loss_function = get_loss_function(_pde_loss_function,
                                                           pde_bounds,
                                                           strategy)
-          lbs,ubs = bcs_bounds
-          number_of_points = length(lbs[1]) == 0 ? 1 : strategy.number_of_points^(1/length(lbs[1]))
-          strategy = StochasticTraining(number_of_points = number_of_points)
+          plbs,pubs = pde_bounds
+          blbs,bubs = bcs_bounds
+          pl = length(plbs)
+          bl = length(blbs[1])
+          bsl = length(blbs)
+          points = length(blbs[1]) == 0 ? 1 : bsl*Int(round(strategy.points^(bl/pl)))
+          strategy = StochasticTraining(points)
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
                                                          bcs_bounds,
@@ -689,36 +712,75 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
          pde_loss_function = get_loss_function(_pde_loss_function,
                                                         pde_bounds,
                                                         strategy)
+
          plbs,pubs = pde_bounds
          blbs,bubs = bcs_bounds
          pl = length(plbs)
          bl = length(blbs[1])
-         number_of_points = Int(round(strategy.number_of_points^(bl/pl)))
-         strategy = QuasiRandomTraining(number_of_points = number_of_points)
+         bsl = length(blbs)
+         points = length(blbs[1]) == 0 ? 1 : bsl*Int(round(strategy.points^(bl/pl)))
+         strategy = QuasiRandomTraining(points;
+                                        sampling_alg = strategy.sampling_alg,
+                                        minibatch = strategy.minibatch)
 
          bc_loss_function = get_loss_function(_bc_loss_functions,
                                                        bcs_bounds,
                                                        strategy)
          (pde_loss_function, bc_loss_function)
     elseif strategy isa QuadratureTraining
-        dim<=1 && error("QuadratureTraining works only with dimensionality more than 1")
-
-        (dim<=2 && strategy.algorithm in [CubaCuhre(),CubaDivonne()]
-        && error("$(strategy.algorithm) works only with dimensionality more than 2"))
-
         bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
         pde_bounds, bcs_bounds = bounds
 
+        plbs,pubs = pde_bounds
+        blbs,bubs = bcs_bounds
+        pl = length(plbs)
+        bl = length(blbs[1])
+        bsl = length(blbs)
+
+        τ_ = (10)^length(plbs)
+        τp = 1.0f0 / τ_
+
         pde_loss_function = get_loss_function(_pde_loss_function,
                                               pde_bounds,
-                                              strategy)
+                                              strategy;
+                                              τ=τp)
 
-        bc_loss_function = get_loss_function(_bc_loss_functions,
+        τb =  1.0f0 / (bsl * τ_^(bl/pl))
+
+        if bl == 0
+            bc_loss_function = get_loss_function(_bc_loss_functions,
+                                                 [[[]]],
+                                                 GridTraining(0.1))
+
+        elseif bl == 1 && strategy.quadrature_alg in [CubaCuhre(),CubaDivonne()]
+            @warn "$(strategy.quadrature_alg) does not work with one-dimensional
+            problems, so for the boundary conditions loss function,
+            the quadrature algorithm was replaced by HCubatureJL"
+
+            strategy = QuadratureTraining(quadrature_alg = HCubatureJL(),
+                                          reltol = bsl*(strategy.reltol)^(bl/pl),
+                                          abstol = bsl*(strategy.abstol)^(bl/pl),
+                                          maxiters = bsl*Int(round((strategy.maxiters)^(bl/pl))),
+                                          batch = strategy.batch)
+            bc_loss_function = get_loss_function(_bc_loss_functions,
+                                                 bcs_bounds,
+                                                 strategy;
+                                                 τ=τb)
+        else
+            strategy = QuadratureTraining(quadrature_alg = strategy.quadrature_alg,
+                                          reltol = bsl*(strategy.reltol)^(bl/pl),
+                                          abstol = bsl*(strategy.abstol)^(bl/pl),
+                                          maxiters = bsl*Int(round((strategy.maxiters)^(bl/pl))),
+                                          batch = strategy.batch)
+            bc_loss_function = get_loss_function(_bc_loss_functions,
                                              bcs_bounds,
-                                             strategy)
+                                             strategy;
+                                             τ=τb)
+        end
+
         (pde_loss_function, bc_loss_function)
     end
-  
+
     function loss_function_(θ,p)
         return pde_loss_function(θ) + bc_loss_function(θ)
     end

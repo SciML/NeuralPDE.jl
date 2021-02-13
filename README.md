@@ -2,7 +2,7 @@
 
 [![Join the chat at https://gitter.im/JuliaDiffEq/Lobby](https://badges.gitter.im/JuliaDiffEq/Lobby.svg)](https://gitter.im/JuliaDiffEq/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://github.com/SciML/NeuralPDE.jl/workflows/CI/badge.svg)](https://github.com/SciML/NeuralPDE.jl/actions?query=workflow%3ACI)
-[![Coverage Status](https://coveralls.io/repos/SciML/NeuralPDE.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/SciML/NeuralPDE.jl?branch=master)
+[![Build status](https://badge.buildkite.com/fa31256f4b8a4f95fe5ab90c3bf4ef56055a2afe675435c182.svg)](https://buildkite.com/julialang/neuralpde-dot-jl)
 [![codecov.io](http://codecov.io/github/SciML/NeuralPDE.jl/coverage.svg?branch=master)](http://codecov.io/github/SciML/NeuralPDE.jl?branch=master)
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](http://neuralpde.sciml.ai/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](http://neuralpde.sciml.ai/dev/)
@@ -39,8 +39,8 @@ using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
 
 @parameters x y
 @variables u(..)
-@derivatives Dxx''~x
-@derivatives Dyy''~y
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
 
 # 2D PDE
 eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
@@ -58,7 +58,7 @@ dx = 0.1
 dim = 2 # number of dimensions
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = PhysicsInformedNN(chain, strategy = GridTraining(dx=dx))
+discretization = PhysicsInformedNN(chain, GridTraining(dx))
 
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)
