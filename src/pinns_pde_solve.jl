@@ -151,7 +151,7 @@ end
 
 import ModelingToolkit:canonicalexpr,operation,arguments, toexpr,istree
 
-function toexpr(O; canonicalize=true)
+function to_expr(O; canonicalize=true)
     if canonicalize
         canonical, O = canonicalexpr(O)
         canonical && return O
@@ -270,9 +270,9 @@ function parse_equation(eq,dict_indvars,dict_depvars)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
 
-    left_expr = Broadcast.__dot__(transform_expression(toexpr(eq_lhs ; canonicalize=false),
+    left_expr = Broadcast.__dot__(transform_expression(to_expr(eq_lhs ; canonicalize=false),
                                      dict_indvars,dict_depvars))
-    right_expr = Broadcast.__dot__(transform_expression(toexpr(eq_rhs; canonicalize=false),
+    right_expr = Broadcast.__dot__(transform_expression(to_expr(eq_rhs; canonicalize=false),
                                      dict_indvars,dict_depvars))
 
     loss_func = :($left_expr .- $right_expr)
@@ -436,7 +436,7 @@ end
 
 # Get arguments from boundary condition functions
 function get_bc_argument(bcs,dict_indvars,dict_depvars)
-    bcs_expr = toexpr.(bcs)
+    bcs_expr = to_expr.(bcs; canonicalize=false)
     vars = map(bcs_expr) do bc_expr
         _vars =  map(depvar -> find_thing_in_expr(bc_expr,  depvar), collect(keys(dict_depvars)))
         f_vars = filter(x -> !isempty(x), _vars)
@@ -706,7 +706,9 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
-
+    if !(eqs isa Array)
+        eqs = [eqs]
+    end
     symbolic_pde_loss_functions = [build_symbolic_loss_function(eq,indvars,depvars,
                                                               dict_indvars,dict_depvars,
                                                               phi, derivative,initθ) for eq  in eqs]
@@ -735,7 +737,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
-
+    if !(eqs isa Array)
+        eqs = [eqs]
+    end
     _pde_loss_functions = [build_loss_function(eq,indvars,depvars,
                                              dict_indvars,dict_depvars,
                                              phi, derivative, initθ) for eq in eqs]
