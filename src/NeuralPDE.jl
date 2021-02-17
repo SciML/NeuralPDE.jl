@@ -12,7 +12,7 @@ using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 import Tracker, Optim
-import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
+import ModelingToolkit: value, nameof, build_expr, expand_derivatives# toexpr,
 import SciMLBase: @add_kwonly
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """

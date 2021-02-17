@@ -27,7 +27,7 @@ println("Example 1, 1D ode")
 Dθ = Differential(θ)
 
 # 1D ODE
-eq = Dθ(u(θ)) ~ θ^3 + 2*θ + (θ^2)*((1+3*(θ^2))/(1+θ+(θ^3))) - u(θ)*(θ + ((1+3*(θ^2))/(1+θ+θ^3)))
+eq = [Dθ(u(θ)) ~ θ^3 + 2*θ + (θ^2)*((1+3*(θ^2))/(1+θ+(θ^3))) - u(θ)*(θ + ((1+3*(θ^2))/(1+θ+θ^3)))]
 
 # Initial and boundary conditions
 bcs = [u(0.) ~ 1.0]
@@ -38,8 +38,9 @@ domains = [θ ∈ IntervalDomain(0.0,1.0)]
 dt = 0.1
 # Neural network
 chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
-
-strategy = NeuralPDE.QuadratureTraining()
+initθ = DiffEqFlux.initial_params(chain)
+# strategy = NeuralPDE.QuadratureTraining()
+strategy = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = nothing,
@@ -49,6 +50,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 
 pde_system = PDESystem(eq,bcs,domains,[θ],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
 res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
 prob2 = remake(prob,u0=res.minimizer)
