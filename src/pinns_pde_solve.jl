@@ -1,5 +1,5 @@
 import Base.Broadcast
-
+Base.Broadcast.dottable(x::Function) = true
 RuntimeGeneratedFunctions.init(@__MODULE__)
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
@@ -149,30 +149,6 @@ end
 
 θ = gensym("θ")
 
-import ModelingToolkit:canonicalexpr,operation,arguments, toexpr,istree
-
-function to_expr(O; canonicalize=true)
-    if canonicalize
-        canonical, O = canonicalexpr(O)
-        canonical && return O
-    else
-        !istree(O) && return O
-    end
-
-    op = operation(O)
-    args = arguments(O)
-    if op isa Differential
-        ex = toexpr(args[1]; canonicalize=canonicalize)
-        wrt = toexpr(op.x; canonicalize=canonicalize)
-        return :(_derivative($ex, $wrt))
-    elseif op isa Sym
-        isempty(args) && return nameof(op)
-        return Expr(:call, toexpr(nameof(op); canonicalize=canonicalize), toexpr(args; canonicalize=canonicalize)...)
-    end
-    return Expr(:call, nameof(op), toexpr(args; canonicalize=canonicalize)...)
-end
-
-
 """
 Transform the derivative expression to inner representation
 
@@ -203,12 +179,12 @@ function _transform_expression(ex,dict_indvars,dict_depvars)
                     [:u, :set, Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
                 end
                 break
-            elseif e == :_derivative
+            elseif e isa ModelingToolkit.Differential
                 derivative_variables = Symbol[]
                 order = 0
-                while (_args[1] == :_derivative)
+                while (_args[1] isa ModelingToolkit.Differential)
                     order += 1
-                    push!(derivative_variables, _args[end])
+                    push!(derivative_variables, toexpr(_args[1].x))
                     _args = _args[2].args
                 end
                 depvar = _args[1]
@@ -270,9 +246,9 @@ function parse_equation(eq,dict_indvars,dict_depvars)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
 
-    left_expr = Broadcast.__dot__(transform_expression(to_expr(eq_lhs ; canonicalize=false),
+    left_expr = Broadcast.__dot__(transform_expression(toexpr(eq_lhs),
                                      dict_indvars,dict_depvars))
-    right_expr = Broadcast.__dot__(transform_expression(to_expr(eq_rhs; canonicalize=false),
+    right_expr = Broadcast.__dot__(transform_expression(toexpr(eq_rhs),
                                      dict_indvars,dict_depvars))
 
     loss_func = :($left_expr .- $right_expr)
@@ -317,13 +293,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,
                                       phi, derivative, initθ;
                                       bc_indvars = indvars)
-    # if !(eqs isa Array)
-    #     eqs = [eqs]
-    # end
-    # loss_functions= Expr[]
-    # for eq in eqs
-    #     push!(loss_functions,parse_equation(eq,dict_indvars,dict_depvars))
-    # end
+
     loss_function = parse_equation(eqs,dict_indvars,dict_depvars)
     vars = :(cord, $θ, phi, derivative,u)
     ex = Expr(:block)
@@ -436,7 +406,7 @@ end
 
 # Get arguments from boundary condition functions
 function get_bc_argument(bcs,dict_indvars,dict_depvars)
-    bcs_expr = to_expr.(bcs; canonicalize=false)
+    bcs_expr = toexpr.(bcs)
     vars = map(bcs_expr) do bc_expr
         _vars =  map(depvar -> find_thing_in_expr(bc_expr,  depvar), collect(keys(dict_depvars)))
         f_vars = filter(x -> !isempty(x), _vars)
@@ -494,8 +464,7 @@ function generate_training_sets(domains,dx,bcs,dict_indvars::Dict,dict_depvars::
     bcs_cords = [[collect(bcs_train_set[i,:]') for i in 1:size(bcs_train_set)[1]] for bcs_train_set in bcs_train_sets]
     #TODO for Dt(u(t)) ~ Dx(v(x, t))
 
-    # [pde_train_set,bcs_train_set,train_set]
-      [[pde_train_set,pde_cord],[bcs_train_sets,bcs_cords]]
+    [[pde_train_set,pde_cord],[bcs_train_sets,bcs_cords]]
 end
 
 function get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
