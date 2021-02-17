@@ -176,12 +176,12 @@ function _transform_derivative(_args,dict_indvars,dict_depvars)
                     [:u, :([$(indvars...)]), Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
                 end
                 break
-            elseif e == :_derivative
+            elseif e isa ModelingToolkit.Differential
                 derivative_variables = Symbol[]
                 order = 0
-                while (_args[1] == :_derivative)
+                while (_args[1] isa Differential)
                     order += 1
-                    push!(derivative_variables, _args[end])
+                    push!(derivative_variables, toexpr(_args[1].x))
                     _args = _args[2].args
                 end
                 depvar = _args[1]
