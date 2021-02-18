@@ -71,7 +71,7 @@ u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
 ## Example 2, 2D Poisson equation
 function test_2d_poisson_equation(chain_, strategy_)
-    println("Example 2, 2D Poisson equation, chain: $(typeof(chain)), strategy: $strategy_")
+    println("Example 2, 2D Poisson equation, chain: $(typeof(chain_)), strategy: $strategy_")
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
