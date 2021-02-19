@@ -133,9 +133,9 @@ Dict{Symbol,Int64} with 3 entries:
 get_dict_vars(vars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(vars)])
 
 # Wrapper for _transform_expression
-function transform_expression(ex,dict_indvars,dict_depvars)
+function transform_expression(ex,dict_indvars,dict_depvars, initθ)
     if ex isa Expr
-        ex = _transform_expression(ex,dict_indvars,dict_depvars)
+        ex = _transform_expression(ex,dict_indvars,dict_depvars,initθ)
     end
     return ex
 end
@@ -165,7 +165,7 @@ where
  order - order of derivative
  θ - weight in neural network
 """
-function _transform_expression(ex,dict_indvars,dict_depvars)
+function _transform_expression(ex,dict_indvars,dict_depvars, initθ)
     _args = ex.args
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
@@ -193,7 +193,7 @@ function _transform_expression(ex,dict_indvars,dict_depvars)
                 dim_l = length(indvars)
                 εs = [get_ε(dim_l,d) for d in 1:dim_l]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
-                εs_dnv = [εs[d] for d in undv]
+                εs_dnv = adapt.(typeof(initθ),[εs[d] for d in undv])
                 ex.args = if length(dict_depvars) == 1
                     [:derivative, :phi, :u, :cord, εs_dnv, order, :($θ)]
                 else
@@ -202,7 +202,7 @@ function _transform_expression(ex,dict_indvars,dict_depvars)
                 break
             end
         else
-            ex.args[i] = _transform_expression(ex.args[i],dict_indvars,dict_depvars)
+            ex.args[i] = _transform_expression(ex.args[i],dict_indvars,dict_depvars,initθ)
         end
     end
     return ex
@@ -236,20 +236,20 @@ Example:
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 
-function build_symbolic_equation(eq,_indvars,_depvars)
+function build_symbolic_equation(eq,_indvars,_depvars,initθ)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
-    parse_equation(eq,dict_indvars,dict_depvars)
+    parse_equation(eq,dict_indvars,dict_depvars,initθ)
 end
 
 
-function parse_equation(eq,dict_indvars,dict_depvars)
+function parse_equation(eq,dict_indvars,dict_depvars,initθ)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
 
     left_expr = Broadcast.__dot__(transform_expression(toexpr(eq_lhs),
-                                     dict_indvars,dict_depvars))
+                                     dict_indvars,dict_depvars,initθ))
     right_expr = Broadcast.__dot__(transform_expression(toexpr(eq_rhs),
-                                     dict_indvars,dict_depvars))
+                                     dict_indvars,dict_depvars,initθ))
 
     loss_func = :($left_expr .- $right_expr)
 end
@@ -294,7 +294,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
                                       phi, derivative, initθ;
                                       bc_indvars = indvars)
 
-    loss_function = parse_equation(eqs,dict_indvars,dict_depvars)
+    loss_function = parse_equation(eqs,dict_indvars,dict_depvars,initθ)
     vars = :(cord, $θ, phi, derivative,u)
     ex = Expr(:block)
     if length(depvars) != 1
@@ -357,9 +357,9 @@ function build_loss_function(eqs,indvars,depvars,
                                                        phi, derivative, initθ;
                                                        bc_indvars = bc_indvars)
     u = get_u()
-    derivative_ = get_numeric_derivative()
+    # derivative_ = get_numeric_derivative()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
-    loss_function = (cord, θ) -> _loss_function(cord, θ, phi, derivative_, u)
+    loss_function = (cord, θ) -> _loss_function(cord, θ, phi, derivative, u)
     return loss_function
 end
 
@@ -528,7 +528,6 @@ function get_u()
 	u = (cord, θ, phi)->phi(cord, θ)
 end
 
-
 Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
 
 # the method to calculate the derivative
@@ -537,12 +536,12 @@ function get_numeric_derivative()
     derivative = (phi,u,x,εs,order,θ) ->
     begin
         ε = εs[order]
+        ε = adapt(typeof(θ),ε)
+        x = adapt(typeof(θ),x)
         if order > 1
             return (derivative(phi,u,x .+ ε,εs,order-1,θ)
                   - derivative(phi,u,x .- ε,εs,order-1,θ))*_epsilon
         else
-            ε = adapt(typeof(θ),ε)
-            x = adapt(typeof(θ),x)
             return (u(x .+ ε,θ,phi) - u(x .- ε,θ,phi))*_epsilon
         end
     end
@@ -717,9 +716,13 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
 
         # the points in the domain and on the boundary
         pde_train_set, bcs_train_sets = train_sets
+        pde_train_set = [pde_train_set]
+
+        pde_train_set = adapt(typeof(initθ),pde_train_set)
+        bcs_train_sets =  adapt.(typeof(initθ),pde_train_set)
 
         pde_loss_function = get_loss_function(_pde_loss_functions,
-                                                        [pde_train_set], #TODO general
+                                                        pde_train_set, #TODO general
                                                         strategy)
 
         bc_loss_function = get_loss_function(_bc_loss_functions,
