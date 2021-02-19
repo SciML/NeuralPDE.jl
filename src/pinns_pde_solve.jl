@@ -718,8 +718,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         pde_train_set, bcs_train_sets = train_sets
         pde_train_set = [pde_train_set]
 
-        pde_train_set = adapt(typeof(initθ),pde_train_set)
-        bcs_train_sets =  adapt.(typeof(initθ),pde_train_set)
+        pde_train_set = adapt.(typeof(initθ),pde_train_set)
+        bcs_train_sets =  adapt.(typeof(initθ),bcs_train_sets)
 
         pde_loss_function = get_loss_function(_pde_loss_functions,
                                                         pde_train_set, #TODO general
