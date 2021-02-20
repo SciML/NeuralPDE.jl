@@ -133,7 +133,7 @@ y_min = 0.
 y_max = 2.
 
 # 3D PDE
-eq  = [Dt(u(t,x,y)) ~ Dxx(u(t,x,y)) + Dyy(u(t,x,y))]
+eq  = Dt(u(t,x,y)) ~ Dxx(u(t,x,y)) + Dyy(u(t,x,y))
 
 analytic_sol_func(t,x,y) = exp(x+y)*cos(x+y+4t)
 # Initial and boundary conditions
@@ -149,9 +149,8 @@ domains = [t ∈ IntervalDomain(t_min,t_max),
            y ∈ IntervalDomain(y_min,y_max)]
 
 # Neural network
-inner = 30
+inner = 25
 chain = FastChain(FastDense(3,inner,Flux.σ),
-                  FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,1))
