@@ -193,7 +193,7 @@ function _transform_expression(ex,dict_indvars,dict_depvars, initθ)
                 dim_l = length(indvars)
                 εs = [get_ε(dim_l,d) for d in 1:dim_l]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
-                εs_dnv = adapt.(typeof(initθ),[εs[d] for d in undv])
+                εs_dnv = [εs[d] for d in undv]
                 ex.args = if length(dict_depvars) == 1
                     [:derivative, :phi, :u, :cord, εs_dnv, order, :($θ)]
                 else
@@ -532,7 +532,7 @@ Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ,
 
 # the method to calculate the derivative
 function get_numeric_derivative()
-    _epsilon = 1/(2*cbrt(eps(Float32)))
+    _epsilon = (2*cbrt(eps(Float32)))
     derivative = (phi,u,x,εs,order,θ) ->
     begin
         ε = εs[order]
@@ -540,9 +540,9 @@ function get_numeric_derivative()
         x = adapt(typeof(θ),x)
         if order > 1
             return (derivative(phi,u,x .+ ε,εs,order-1,θ)
-                  - derivative(phi,u,x .- ε,εs,order-1,θ))*_epsilon
+                  .- derivative(phi,u,x .- ε,εs,order-1,θ)) /_epsilon
         else
-            return (u(x .+ ε,θ,phi) - u(x .- ε,θ,phi))*_epsilon
+            return (u(x .+ ε,θ,phi) .- u(x .- ε,θ,phi)) /_epsilon
         end
     end
     derivative

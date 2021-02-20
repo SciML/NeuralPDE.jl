@@ -18,7 +18,7 @@ cb = function (p,l)
     return false
 end
 CUDA.allowscalar(false)
-const gpuones = cu(ones(1))
+#const gpuones = cu(ones(1))
 
 ## ODE
 @parameters θ
@@ -36,12 +36,14 @@ domains = [θ ∈ IntervalDomain(0.0,1.0)]
 # Discretization
 dt = 0.1
 # Neural network
-inner = 12
-chain = FastChain(FastDense(1,inner,Flux.σ),
-                  FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1),(u,p)->gpuones .* u)
-                  
+inner = 20
+chain = Chain(Dense(1,inner,Flux.σ),
+              Dense(inner,inner,Flux.σ),
+              Dense(inner,inner,Flux.σ),
+              Dense(inner,inner,Flux.σ),
+              Dense(inner,inner,Flux.σ),
+              Dense(inner,1)) |> gpu
+
 initθ = DiffEqFlux.initial_params(chain) |> gpu
 
 strategy = NeuralPDE.GridTraining(dt)
@@ -97,11 +99,13 @@ domains = [t ∈ IntervalDomain(t_min,t_max),
            y ∈ IntervalDomain(y_min,y_max)]
 
 # Neural network
-inner =30
+inner = 30
 chain = FastChain(FastDense(3,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1))
+                  FastDense(inner,inner,Flux.σ),
+                  FastDense(inner,inner,Flux.σ),
+                  FastDense(inner,1))|> gpu
 
 initθ = DiffEqFlux.initial_params(chain) |> gpu
 
