@@ -532,7 +532,7 @@ Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ,
 
 # the method to calculate the derivative
 function get_numeric_derivative()
-    _epsilon = (2*cbrt(eps(Float32)))
+    _epsilon = 1 / (2*cbrt(eps(Float32)))
     derivative = (phi,u,x,εs,order,θ) ->
     begin
         ε = εs[order]
@@ -540,9 +540,9 @@ function get_numeric_derivative()
         x = adapt(typeof(θ),x)
         if order > 1
             return (derivative(phi,u,x .+ ε,εs,order-1,θ)
-                  .- derivative(phi,u,x .- ε,εs,order-1,θ)) /_epsilon
+                  .- derivative(phi,u,x .- ε,εs,order-1,θ)) .* _epsilon
         else
-            return (u(x .+ ε,θ,phi) .- u(x .- ε,θ,phi)) /_epsilon
+            return (u(x .+ ε,θ,phi) .- u(x .- ε,θ,phi)) .* _epsilon
         end
     end
     derivative
