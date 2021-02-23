@@ -700,7 +700,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
     end
 
     f = (lb,ub,loss_,θ,p) -> begin
-        _loss = (x,θ,p) -> inner_loss(loss_, x, θ, p)
+        _loss = (x,θ) -> inner_loss(loss_, x, θ, p)
         prob = QuadratureProblem(_loss,lb,ub,θ;batch = strategy.batch)
         abs(solve(prob,
               strategy.quadrature_alg,
@@ -708,7 +708,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
               abstol = strategy.abstol,
               maxiters = strategy.maxiters)[1])
     end
-    loss = (θ, p) -> τ*sum(f(lb,ub,loss_,θ,p) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
+    loss = (θ,p) -> τ*sum(f(lb,ub,loss_,θ,p) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
     return loss
 end
 function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
