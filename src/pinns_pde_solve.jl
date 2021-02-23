@@ -305,8 +305,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
                                       strategy;
                                       bc_indvars = indvars)
 
-    loss_function = parse_equation(eqs,dict_indvars,dict_depvars,initθ,strategy)
-    vars = :(cord, $θ, phi, derivative,u)
+    vars = :(cord, $θ, phi, derivative,u ,p)
     ex = Expr(:block)
     if length(depvars) != 1
         θ_nums = Symbol[]
@@ -375,7 +374,7 @@ function build_loss_function(eqs,indvars,depvars,
                                                        bc_indvars = bc_indvars)
     u = get_u(;strategy=strategy)
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
-    loss_function = (cord, θ) -> _loss_function(cord, θ, phi, derivative, u)
+    loss_function = (cord, θ, p) -> _loss_function(cord, θ, phi, derivative, u, p)
     return loss_function
 end
 
@@ -589,7 +588,16 @@ function get_loss_function(loss_functions, train_sets, strategy::GridTraining;τ
         τs = 1.0f0 ./ τs_
     end
 
-    loss = (θ) ->  sum(τ * sum(abs2,loss_function(train_set, θ)) for (loss_function,train_set,τ) in zip(loss_functions,train_sets,τs))
+    function inner_loss(loss_function,x,θ,p)
+        sum(abs2,loss_function(x, θ, p))
+    end
+
+    if !(loss_functions isa Array)
+        loss_functions = [loss_functions]
+        train_sets = [train_sets]
+    end
+    f = (loss,train_set,θ,p) -> sum([inner_loss(loss,x,θ,p) for x in train_set])
+    loss = (θ, p) ->  τ * sum(f(loss_function,train_set,θ,p) for (loss_function,train_set) in zip(loss_functions,train_sets))
     return loss
 end
 
@@ -608,16 +616,27 @@ end
 function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;τ=nothing)
     points = strategy.points
 
+    function inner_loss(loss_function,x,θ,p)
+        sum(abs2,loss_function(x, θ, p))
+    end
+
+    if !(loss_functions isa Array)
+        loss_functions = [loss_functions]
+        lbs = [lbs]
+        ubs = [ubs]
+    end
     if τ == nothing
         τ = 1.0f0 / points
     end
 
-    loss = (θ) -> begin
+    loss = (θ, p) -> begin
         total = 0.
-        for (bound, loss_function) in zip(bounds, loss_functions)
-            sets = generate_random_points(points, bound)
-            sets_ = adapt(typeof(θ),sets)
-            total += τ * sum(abs2,loss_function(sets_,θ))
+        for (lb, ub,l) in zip(lbs, ubs, loss_functions)
+            len = length(lb)
+            for i in 1:points
+                r_point = lb .+ ub .* rand(len)
+                total += inner_loss(l,r_point,θ,p)
+            end
         end
         return total
     end
@@ -630,28 +649,33 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     points = strategy.points
     minibatch = strategy.minibatch
 
+    function inner_loss(loss_function,x,θ,p)
+        sum(abs2,loss_function(x, θ, p))
+    end
+
+    if !(loss_functions isa Array)
+        loss_functions = [loss_functions]
+        lbs = [lbs]
+        ubs = [ubs]
+    end
     if τ == nothing
         τ = 1.0f0 / points
     end
-
-    sss = map(bounds) do bound
-             map(bound) do b
-                if !(b isa Number)
-                    lb, ub =  [b[1]], [b[2]]
-                    s = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
-                else
-                    s = fill(Float64(b),(1,points))
-                end
-             end
-          end
-
-    loss = (θ) -> begin
+    ss =[]
+    for (lb, ub) in zip(lbs, ubs)
+        s = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
+        push!(ss,s)
+    end
+    loss = (θ, p) -> begin
         total = 0.
-        for (bound,ss_,loss_function) in zip(bounds,sss,loss_functions)
-            ss__ =  [ss_[i] isa Array{Float64,2} ? ss_[i] : ss_[i][rand(1:minibatch)] for i in 1:length(ss_)]
-            r_point = vcat(ss__...)
-            r_point_ = adapt(typeof(θ),r_point)
-            total += τ * sum(abs2,loss_function(r_point_,θ))
+        for (lb, ub,s_,l) in zip(lbs,ubs,ss,loss_functions)
+            s =  s_[rand(1:minibatch)]
+            step_ = size(lb)[1]
+            k = size(lb)[1]-1
+            for i in 1:step_:step_*points
+                r_point = s[i:i+k]
+                total += inner_loss(l,r_point,θ,p)
+            end
         end
         return total
     end
@@ -665,8 +689,18 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
         τ = 1.0f0
     end
 
-    f = (lb,ub,loss_,θ) -> begin
-        _loss = (x,θ) -> sum(abs2,loss_(x,θ))
+    function inner_loss(loss_function,x,θ,p)
+        sum(abs2,loss_function(x, θ, p))
+    end
+
+    if !(loss_functions isa Array)
+        loss_functions = [loss_functions]
+        lbs = [lbs]
+        ubs = [ubs]
+    end
+
+    f = (lb,ub,loss_,θ,p) -> begin
+        _loss = (x,θ,p) -> inner_loss(loss_, x, θ, p)
         prob = QuadratureProblem(_loss,lb,ub,θ;batch = strategy.batch)
         abs(solve(prob,
               strategy.quadrature_alg,
@@ -674,7 +708,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
               abstol = strategy.abstol,
               maxiters = strategy.maxiters)[1])
     end
-    loss = (θ) -> τ*sum(f(lb,ub,loss_,θ) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
+    loss = (θ, p) -> τ*sum(f(lb,ub,loss_,θ,p) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
     return loss
 end
 function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
@@ -712,6 +746,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     bcs = pde_system.bcs
 
     domains = pde_system.domain
+    p = pde_system.ps
     # dimensionality of equation
     dim = length(domains)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars,pde_system.depvars)
@@ -854,9 +889,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     end
 
     function loss_function_(θ,p)
-        return pde_loss_function(θ) + bc_loss_function(θ)
+        return pde_loss_function(θ,p) + bc_loss_function(θ,p)
     end
 
     f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
-    GalacticOptim.OptimizationProblem(f, flat_initθ)
+    GalacticOptim.OptimizationProblem(f, flat_initθ, p)
 end
