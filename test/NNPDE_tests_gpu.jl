@@ -165,14 +165,11 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-cb = function (p,l)
-    println("Current loss is: $l")
-    return false
-end
-
 res = GalacticOptim.solve(prob,ADAM(0.1);cb=cb,maxiters=1000)
 prob = remake(prob,u0=res.minimizer)
 res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=1000)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=1000)
 
 phi = discretization.phi
 ts,xs,ys = [domain.domain.lower:0.1:domain.domain.upper for domain in domains]
@@ -183,7 +180,6 @@ u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs
 
 # using Plots
 # using Printf
-
 #
 # function plot_(res)
 #     # Animate

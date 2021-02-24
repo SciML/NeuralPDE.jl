@@ -50,7 +50,11 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
         end
 
         if derivative == nothing
-            _derivative = get_numeric_derivative()
+            if strategy isa QuadratureTraining
+                _derivative = get_numeric_derivative(;vectorize = false)
+            else
+                _derivative = get_numeric_derivative(;vectorize = true)
+            end
         else
             _derivative = derivative
         end
@@ -133,9 +137,9 @@ Dict{Symbol,Int64} with 3 entries:
 get_dict_vars(vars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(vars)])
 
 # Wrapper for _transform_expression
-function transform_expression(ex,dict_indvars,dict_depvars, initθ)
+function transform_expression(ex,dict_indvars,dict_depvars, initθ, strategy)
     if ex isa Expr
-        ex = _transform_expression(ex,dict_indvars,dict_depvars,initθ)
+        ex = _transform_expression(ex,dict_indvars,dict_depvars,initθ,strategy)
     end
     return ex
 end
@@ -165,7 +169,7 @@ where
  order - order of derivative
  θ - weight in neural network
 """
-function _transform_expression(ex,dict_indvars,dict_depvars, initθ)
+function _transform_expression(ex,dict_indvars,dict_depvars, initθ, strategy)
     _args = ex.args
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
@@ -173,10 +177,11 @@ function _transform_expression(ex,dict_indvars,dict_depvars, initθ)
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
+                cord = strategy isa QuadratureTraining ? :([$(indvars...)]) : :cord
                 ex.args = if length(dict_depvars) == 1
-                    [:u, :cord, :($θ), :phi]
+                    [:u, cord, :($θ), :phi]
                 else
-                    [:u, :cord, Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
+                    [:u, cord, Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
                 end
                 break
             elseif e isa ModelingToolkit.Differential
@@ -190,19 +195,20 @@ function _transform_expression(ex,dict_indvars,dict_depvars, initθ)
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
+                cord = strategy  isa QuadratureTraining ? :([$(indvars...)])  : :cord
                 dim_l = length(indvars)
                 εs = [get_ε(dim_l,d) for d in 1:dim_l]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
                 ex.args = if length(dict_depvars) == 1
-                    [:derivative, :phi, :u, :cord, εs_dnv, order, :($θ)]
+                    [:derivative, :phi, :u, cord, εs_dnv, order, :($θ)]
                 else
-                    [:derivative, Symbol(:phi,num_depvar), :u, :cord, εs_dnv, order, Symbol(:($θ),num_depvar)]
+                    [:derivative, Symbol(:phi,num_depvar), :u, cord, εs_dnv, order, Symbol(:($θ),num_depvar)]
                 end
                 break
             end
         else
-            ex.args[i] = _transform_expression(ex.args[i],dict_indvars,dict_depvars,initθ)
+            ex.args[i] = _transform_expression(ex.args[i],dict_indvars,dict_depvars,initθ,strategy)
         end
     end
     return ex
@@ -236,22 +242,25 @@ Example:
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 
-function build_symbolic_equation(eq,_indvars,_depvars,initθ)
+function build_symbolic_equation(eq,_indvars,_depvars,initθ,strategy)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
-    parse_equation(eq,dict_indvars,dict_depvars,initθ)
+    parse_equation(eq,dict_indvars,dict_depvars,initθ,strategy)
 end
 
 
-function parse_equation(eq,dict_indvars,dict_depvars,initθ)
+function parse_equation(eq,dict_indvars,dict_depvars,initθ, strategy)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
 
-    left_expr = Broadcast.__dot__(transform_expression(toexpr(eq_lhs),
-                                     dict_indvars,dict_depvars,initθ))
-    right_expr = Broadcast.__dot__(transform_expression(toexpr(eq_rhs),
-                                     dict_indvars,dict_depvars,initθ))
-
-    loss_func = :($left_expr .- $right_expr)
+    left_expr = transform_expression(toexpr(eq_lhs),dict_indvars,dict_depvars,initθ,strategy)
+    right_expr = transform_expression(toexpr(eq_rhs),dict_indvars,dict_depvars,initθ,strategy)
+    loss_func = if strategy isa QuadratureTraining
+        :($left_expr - $right_expr)
+    else
+        left_expr = Broadcast.__dot__(left_expr)
+        right_expr = Broadcast.__dot__(right_expr)
+        :($left_expr .- $right_expr)
+    end
 end
 
 """
@@ -279,22 +288,24 @@ to
           end
       end)
 """
-function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ; bc_indvars=nothing)
+function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ,strategy; bc_indvars=nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_symbolic_loss_function(eqs,indvars,depvars,
                                         dict_indvars,dict_depvars,
                                         phi, derivative,initθ,
+                                        strategy;
                                         bc_indvars = bc_indvars)
 end
 
 function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,
-                                      phi, derivative, initθ;
+                                      phi, derivative, initθ,
+                                      strategy;
                                       bc_indvars = indvars)
 
-    loss_function = parse_equation(eqs,dict_indvars,dict_depvars,initθ)
+    loss_function = parse_equation(eqs,dict_indvars,dict_depvars,initθ,strategy)
     vars = :(cord, $θ, phi, derivative,u)
     ex = Expr(:block)
     if length(depvars) != 1
@@ -324,40 +335,45 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         push!(ex.args,  vars_phi)
     end
 
-    # push!(ex.args,  Expr(:(=),build_expr(:tuple, [:set, :cord_]), :cord))
+    if strategy isa QuadratureTraining
+        indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(bc_indvars)]
+        left_arg_pairs, right_arg_pairs = bc_indvars,indvars_ex
+        vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
+    else
+        indvars_ex = [:($:cord[[$i],:]) for (i, u) ∈ enumerate(indvars)]
+        left_arg_pairs, right_arg_pairs = indvars,indvars_ex
+        vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
+    end
 
-    indvars_ex = [:($:cord[[$i],:]) for (i, u) ∈ enumerate(indvars)]
-
-
-    left_arg_pairs, right_arg_pairs = indvars,indvars_ex
-    vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
     let_ex = Expr(:let, vars_eq, loss_function)
     push!(ex.args,  let_ex)
 
     expr_loss_function = :(($vars) -> begin $ex end)
 end
 
-function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing)
+function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ,strategy; bc_indvars=nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_loss_function(eqs,indvars,depvars,
                                dict_indvars,dict_depvars,
                                phi, derivative,initθ,
+                               strategy;
                                bc_indvars = bc_indvars)
 end
 
 function build_loss_function(eqs,indvars,depvars,
                              dict_indvars,dict_depvars,
-                             phi, derivative, initθ;
+                             phi, derivative, initθ,
+                             strategy;
                              bc_indvars = indvars)
 
      expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars,
-                                                       phi, derivative, initθ;
+                                                       phi, derivative, initθ,
+                                                       strategy;
                                                        bc_indvars = bc_indvars)
-    u = get_u()
-    # derivative_ = get_numeric_derivative()
+    u = get_u(;strategy=strategy)
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     loss_function = (cord, θ) -> _loss_function(cord, θ, phi, derivative, u)
     return loss_function
@@ -524,25 +540,44 @@ function get_phi(chain)
     phi
 end
 
-function get_u()
-	u = (cord, θ, phi)->phi(cord, θ)
+function get_u(;strategy=nothing)
+    if strategy isa QuadratureTraining
+	    u = (cord, θ, phi)-> sum(phi(cord, θ))
+    else
+        u = (cord, θ, phi)-> phi(cord, θ)
+    end
 end
 
 Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
 
 # the method to calculate the derivative
-function get_numeric_derivative()
+function get_numeric_derivative(;vectorize = true)
     _epsilon = 1 / (2*cbrt(eps(Float32)))
-    derivative = (phi,u,x,εs,order,θ) ->
-    begin
-        ε = εs[order]
-        ε = adapt(typeof(θ),ε)
-        x = adapt(typeof(θ),x)
-        if order > 1
-            return (derivative(phi,u,x .+ ε,εs,order-1,θ)
-                  .- derivative(phi,u,x .- ε,εs,order-1,θ)) .* _epsilon
-        else
-            return (u(x .+ ε,θ,phi) .- u(x .- ε,θ,phi)) .* _epsilon
+    derivative = if vectorize == true
+        (phi,u,x,εs,order,θ) ->
+        begin
+            ε = εs[order]
+            ε = adapt(typeof(θ),ε)
+            x = adapt(typeof(θ),x)
+            if order > 1
+                return (derivative(phi,u,x .+ ε,εs,order-1,θ)
+                      .- derivative(phi,u,x .- ε,εs,order-1,θ)) .* _epsilon
+            else
+                return (u(x .+ ε,θ,phi) .- u(x .- ε,θ,phi)) .* _epsilon
+            end
+        end
+    else
+        (phi,u,x,εs,order,θ) ->
+        begin
+            ε = εs[order]
+            ε = adapt(typeof(θ),ε)
+            x = adapt(typeof(θ),x)
+            if order > 1
+                return (derivative(phi,u,x+ε,εs,order-1,θ)
+                      - derivative(phi,u,x-ε,εs,order-1,θ)) * _epsilon
+            else
+                return (u(x+ε,θ,phi) - u(x-ε,θ,phi)) * _epsilon
+            end
         end
     end
     derivative
@@ -555,6 +590,7 @@ function get_loss_function(loss_functions, train_sets, strategy::GridTraining;τ
         τ_ = sum(size(set)[2] for set in train_sets)
         τ = 1.0f0 / τ_
     end
+    #TODO adapt train_set
     loss = (θ) -> τ * sum(sum(abs2,loss_function(train_set, θ)) for (loss_function,train_set) in zip(loss_functions,train_sets))
     return loss
 end
@@ -583,7 +619,8 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;
         total = 0.
         for (bound, loss_function) in zip(bounds, loss_functions)
             sets = generate_random_points(points, bound)
-            total += τ * sum(abs2,loss_function(sets,θ))
+            sets_ = adapt(typeof(θ),sets)
+            total += τ * sum(abs2,loss_function(sets_,θ))
         end
         return total
     end
@@ -594,6 +631,9 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     sampling_alg = strategy.sampling_alg
     points = strategy.points
     minibatch = strategy.minibatch
+
+     loss_functions =_bc_loss_functions
+     bounds = bcs_bounds
 
     if τ == nothing
         τ = 1.0f0 / points
@@ -618,12 +658,21 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
         end
         push!(sss,ss)
     end
+    sss =map(bounds) do bound
+            map(bound) do b
+                if !(b isa Number)
+                    lb, ub =  [b[1]], [b[2]]
+                    s = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
+                end
+            end
+        end
     loss = (θ) -> begin
         total = 0.
         for (bound,ss_,loss_function) in zip(bounds,sss,loss_functions)
             ss__ =  [ss_[i][rand(1:minibatch)] for i in 1:length(ss_)]
             r_point = vcat(f.(bound,ss__,)...)
-            total += τ * sum(abs2,loss_function(r_point,θ))
+            r_point_ = adapt(typeof(θ),r_point)
+            total += τ * sum(abs2,loss_function(r_point_,θ))
         end
         return total
     end
@@ -668,12 +717,12 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     end
     symbolic_pde_loss_functions = [build_symbolic_loss_function(eq,indvars,depvars,
                                                               dict_indvars,dict_depvars,
-                                                              phi, derivative,initθ) for eq  in eqs]
+                                                              phi, derivative,initθ,strategy) for eq  in eqs]
 
     bc_indvars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars,
-                                                               phi, derivative,initθ;
+                                                               phi, derivative,initθ,strategy;
                                                                bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
     symbolic_pde_loss_functions,symbolic_bc_loss_functions
 end
@@ -699,12 +748,12 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     end
     _pde_loss_functions = [build_loss_function(eq,indvars,depvars,
                                              dict_indvars,dict_depvars,
-                                             phi, derivative, initθ) for eq in eqs]
+                                             phi, derivative, initθ,strategy) for eq in eqs]
 
     bc_indvars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
     _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
                                                   dict_indvars,dict_depvars,
-                                                  phi, derivative, initθ;
+                                                  phi, derivative, initθ, strategy;
                                                   bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
     pde_loss_function, bc_loss_function =
@@ -717,9 +766,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         # the points in the domain and on the boundary
         pde_train_set, bcs_train_sets = train_sets
         pde_train_set = [pde_train_set]
-
-        pde_train_set = adapt.(typeof(initθ),pde_train_set)
-        bcs_train_sets =  adapt.(typeof(initθ),bcs_train_sets)
 
         pde_loss_function = get_loss_function(_pde_loss_functions,
                                                         pde_train_set, #TODO general
@@ -735,13 +781,18 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
           pde_loss_function = get_loss_function(_pde_loss_functions,
                                                           [pde_bounds],
                                                           strategy)
+          # plbs,pubs = pde_bounds
+          # blbs,bubs = bcs_bounds
+          # pl = length(plbs)
+          # bl = length(blbs[1])
+          # bsl = length(blbs)
+          # points = length(blbs[1]) == 0 ? 1 : bsl*Int(round(strategy.points^(bl/pl)))
 
-          plbs,pubs = pde_bounds
-          blbs,bubs = bcs_bounds
-          pl = length(plbs)
-          bl = length(blbs[1])
-          bsl = length(blbs)
-          points = length(blbs[1]) == 0 ? 1 : bsl*Int(round(strategy.points^(bl/pl)))
+          pde_dim = size(pde_bounds)[1]
+          bcs_dim = isempty(maximum(size.(bcs_bounds[1]))) ? nothing : maximum(size.(bcs_bounds[1]))[1]
+          bcs_cond_size = size(bcs_bounds)[1]
+
+          points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim))) #TODO
           strategy = StochasticTraining(points)
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
@@ -755,12 +806,16 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                         [pde_bounds],
                                                         strategy)
 
-         plbs,pubs = pde_bounds
-         blbs,bubs = bcs_bounds
-         pl = length(plbs)
-         bl = length(blbs[1])
-         bsl = length(blbs)
-         points = length(blbs[1]) == 0 ? 1 : bsl*Int(round(strategy.points^(bl/pl)))
+         # plbs,pubs = pde_bounds
+         # blbs,bubs = bcs_bounds
+         # pl = length(plbs)
+         # bl = length(blbs[1])
+         # bsl = length(blbs)
+         pde_dim = size(pde_bounds)[1]
+         bcs_dim = isempty(maximum(size.(bcs_bounds[1]))) ? nothing : maximum(size.(bcs_bounds[1]))[1]
+         bcs_cond_size = size(bcs_bounds)[1]
+         # length(blbs[1]) == 0 ? 1 :
+         points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim))) #TODO
          strategy = QuasiRandomTraining(points;
                                         sampling_alg = strategy.sampling_alg,
                                         minibatch = strategy.minibatch)
@@ -790,14 +845,17 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         τb =  1.0f0 / (bsl * τ_^(bl/pl))
         bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars)
         pde_bounds, bcs_bounds = bounds
-        # bc_loss_function = get_loss_function(_bc_loss_functions,
-        #                                  bcs_bounds,
-        #                                  QuasiRandomTraining(bsl * τ_^(bl/pl));
-        #                                  τ=τb)
 
         if bl == 0
+            _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
+                                                          dict_indvars,dict_depvars,
+                                                          phi, derivative, initθ, GridTraining(0.1);
+                                                          bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+            train_sets = generate_training_sets(domains,0.1,bcs,
+                                                dict_indvars,dict_depvars)
+            pde_train_set, bcs_train_sets = train_sets
             bc_loss_function = get_loss_function(_bc_loss_functions,
-                                                 [[[]]],
+                                                 bcs_train_sets,
                                                  GridTraining(0.1))
 
         elseif bl == 1 && strategy.quadrature_alg in [CubaCuhre(),CubaDivonne()]
