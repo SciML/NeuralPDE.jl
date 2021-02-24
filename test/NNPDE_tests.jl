@@ -332,7 +332,7 @@ bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
                                                τ = 1/40)
 
 function loss_function_(θ,p)
-    return pde_loss_function(θ,p) + bc_loss_function(θ,p)
+    return pde_loss_function(θ) + bc_loss_function(θ)
 end
 
 f_ = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
