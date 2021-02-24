@@ -339,7 +339,7 @@ f_ = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f_, initθ)
 
 cb_ = function (p,l)
-    println("Current losses are: ", pde_loss_function(p), " , ",  bc_loss_function(p))
+    println("Current losses are: $l ")
     return false
 end
 
