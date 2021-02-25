@@ -288,22 +288,27 @@ to
           end
       end)
 """
-function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ,strategy; bc_indvars=nothing)
+function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ; bc_indvars=nothing, eq_params = nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_symbolic_loss_function(eqs,indvars,depvars,
                                         dict_indvars,dict_depvars,
                                         phi, derivative,initθ,
-                                        strategy;
-                                        bc_indvars = bc_indvars)
+                                        bc_indvars = bc_indvars, eq_params = eq_params)
 end
 
 function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,
-                                      phi, derivative, initθ,
-                                      strategy;
-                                      bc_indvars = indvars)
+                                      phi, derivative, initθ;
+                                      bc_indvars = indvars, eq_params = nothing)
+    if !(eqs isa Array)
+        eqs = [eqs]
+    end
+    loss_functions= Expr[]
+    for eq in eqs
+        push!(loss_functions,parse_equation(eq,dict_indvars,dict_depvars))
+    end
 
     vars = :(cord, $θ, phi, derivative,u ,p)
     ex = Expr(:block)
@@ -333,6 +338,18 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         vars_phi = Expr(:(=), build_expr(:tuple, phi_nums), build_expr(:tuple, expr_phi))
         push!(ex.args,  vars_phi)
     end
+    #Add an expression for paramater symbols
+    if eq_params != nothing
+        params_symbols = Symbol[]
+        expr_params = Expr[]
+        for (i , eq_param) in enumerate(eq_params)
+            push!(expr_params, :(p[$i]))
+            push!(params_symbols, Symbol(:($eq_param)))
+        end
+        params_eq = Expr(:(=), build_expr(:tuple, params_symbols), build_expr(:tuple, expr_params))
+        push!(ex.args,  params_eq)
+    end
+    indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(bc_indvars)]
 
     if strategy isa QuadratureTraining
         indvars_ex = [:($:cord[$i]) for (i, u) ∈ enumerate(bc_indvars)]
@@ -350,7 +367,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     expr_loss_function = :(($vars) -> begin $ex end)
 end
 
-function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing,params_len=0)
+function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing,eq_params=nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
@@ -362,7 +379,7 @@ end
 
 function build_loss_function(eqs,indvars,depvars,
                              dict_indvars,dict_depvars,
-                             phi, derivative, initθ,params_len;
+                             phi, derivative, initθ,eq_params;
                              bc_indvars = indvars)
 
      expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
