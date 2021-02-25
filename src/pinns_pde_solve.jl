@@ -20,6 +20,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
   init_params::P
   phi::PH
   derivative::DER
+  param_estim::PE
   kwargs::K
 
  @add_kwonly function PhysicsInformedNN{iip}(chain,
@@ -27,6 +28,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
                                              init_params = nothing,
                                              phi = nothing,
                                              derivative = nothing,
+                                             param_estim=false,
                                              kwargs...) where iip
         if init_params == nothing
             if chain isa AbstractArray
@@ -58,7 +60,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
         else
             _derivative = derivative
         end
-        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(kwargs)}(chain,strategy,initθ,_phi,_derivative, kwargs)
+        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(kwargs)}(chain,strategy,initθ,_phi,_derivative,param_estim,kwargs)
     end
 end
 PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
@@ -367,31 +369,30 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     expr_loss_function = :(($vars) -> begin $ex end)
 end
 
-function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing,eq_params=nothing)
+function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing,eq_params=nothing,param_estim=false,default_p=nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_loss_function(eqs,indvars,depvars,
                                dict_indvars,dict_depvars,
-                               phi, derivative,initθ,params_len,
-                               bc_indvars = bc_indvars)
+                               phi, derivative,initθ,
+                               bc_indvars = bc_indvars, eq_params=eq_params,param_estim=param_estim,default_p=default_p)
 end
 
 function build_loss_function(eqs,indvars,depvars,
                              dict_indvars,dict_depvars,
-                             phi, derivative, initθ,eq_params;
-                             bc_indvars = indvars)
+                             phi, derivative, initθ;
+                             bc_indvars = indvars,eq_params=nothing,param_estim=false,default_p=nothing)
 
      expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars,
-                                                       phi, derivative, initθ,
-                                                       strategy;
-                                                       bc_indvars = bc_indvars)
-    u = get_u(;strategy=strategy)
+                                                       phi, derivative, initθ;
+                                                       bc_indvars = bc_indvars,eq_params = eq_params)
+    u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     loss_function = (cord, θ) -> begin
         θ = θ[1:end-params_len]
-        p = θ[end-params_len+1:end]
+        p = if param_estim == true θ[end-params_len+1:end] else default_p end
         _loss_function(cord, θ, phi, derivative, u, p)
     end
     return loss_function
@@ -765,8 +766,12 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     bcs = pde_system.bcs
 
     domains = pde_system.domain
-    p = pde_system.ps
-    params_len =  if p isa SciMLBase.NullParameters 0 else length(p) end
+    default_p = pde_system.default_p
+
+    param_estim = discretization.param_estim
+
+
+
     # dimensionality of equation
     dim = length(domains)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars,pde_system.depvars)
@@ -774,7 +779,8 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     chain = discretization.chain
     initθ = discretization.init_params
     flat_initθ = if length(depvars) != 1 vcat(initθ...) else  initθ end
-    flat_initθ = if p isa SciMLBase.NullParameters flat_initθ else vcat(flat_initθ , p) end
+    flat_initθ = if param_estim == true flat_initθ else vcat(flat_initθ , default_p) end
+
 
     phi = discretization.phi
     derivative = discretization.derivative
@@ -787,12 +793,12 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                              phi, derivative, initθ,strategy) for eq in eqs]
 
     _pde_loss_function = build_loss_function(eqs,indvars,depvars,
-                                                 dict_indvars,dict_depvars,phi, derivative, initθ, params_len)
+                                                 dict_indvars,dict_depvars,phi, derivative, initθ, eq_params=eq_params,param_estim=param_estim,default_p=default_p)
 
     bc_indvars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
     _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
                                                   dict_indvars,dict_depvars,
-                                                  phi, derivative, initθ, params_len;
+                                                  phi, derivative, initθ, eq_params=eq_params,param_estim=param_estim,default_p=default_p;
                                                   bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
     pde_loss_function, bc_loss_function =
