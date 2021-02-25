@@ -21,6 +21,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
   phi::PH
   derivative::DER
   param_estim::PE
+  additional_loss::AL
   kwargs::K
 
  @add_kwonly function PhysicsInformedNN{iip}(chain,
@@ -29,6 +30,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
                                              phi = nothing,
                                              derivative = nothing,
                                              param_estim=false,
+                                             additional_loss=nothing,
                                              kwargs...) where iip
         if init_params == nothing
             if chain isa AbstractArray
@@ -60,7 +62,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
         else
             _derivative = derivative
         end
-        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(kwargs)}(chain,strategy,initθ,_phi,_derivative,param_estim,kwargs)
+        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(kwargs)}(chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,kwargs)
     end
 end
 PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
@@ -920,7 +922,11 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     end
 
     function loss_function_(θ,p)
-        return pde_loss_function(θ) + bc_loss_function(θ)
+        if param_estim == true
+            return pde_loss_function(θ) + bc_loss_function(θ) + additional_loss(θ,p)
+        else
+            return pde_loss_function(θ) + bc_loss_function(θ)
+        end
     end
 
     f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
