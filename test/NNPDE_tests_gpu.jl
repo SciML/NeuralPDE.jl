@@ -9,6 +9,7 @@ using GalacticOptim
 using Optim
 using CUDA
 using Quadrature
+using QuasiMonteCarlo
 
 using Random
 Random.seed!(100)
