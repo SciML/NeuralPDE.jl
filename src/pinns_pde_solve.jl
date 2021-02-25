@@ -783,7 +783,6 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     flat_initθ = if length(depvars) != 1 vcat(initθ...) else  initθ end
     flat_initθ = if param_estim == true flat_initθ else vcat(flat_initθ , default_p) end
 
-
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -923,7 +922,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
 
     function loss_function_(θ,p)
         if param_estim == true
-            return pde_loss_function(θ) + bc_loss_function(θ) + additional_loss(θ,p)
+            return pde_loss_function(θ) + bc_loss_function(θ) + additional_loss(θ[1:end-length(default_p)], θ[end-length(default_p)+1:end])
         else
             return pde_loss_function(θ) + bc_loss_function(θ)
         end
