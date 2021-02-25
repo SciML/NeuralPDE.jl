@@ -632,8 +632,6 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     points = strategy.points
     minibatch = strategy.minibatch
 
-     loss_functions =_bc_loss_functions
-     bounds = bcs_bounds
 
     if τ == nothing
         τ = 1.0f0 / points
@@ -646,18 +644,6 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
        end
     end
 
-    sss =[]
-    for bound in bounds
-        ss =[]
-        for b in bound
-            if !(b isa Number)
-                lb, ub =  [b[1]], [b[2]]
-                s = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
-                push!(ss,s)
-            end
-        end
-        push!(sss,ss)
-    end
     sss =map(bounds) do bound
             map(bound) do b
                 if !(b isa Number)
@@ -669,7 +655,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     loss = (θ) -> begin
         total = 0.
         for (bound,ss_,loss_function) in zip(bounds,sss,loss_functions)
-            ss__ =  [ss_[i][rand(1:minibatch)] for i in 1:length(ss_)]
+            ss__ =  [ss_[i] ==nothing ? nothing : ss_[i][rand(1:minibatch)] for i in 1:length(ss_)]
             r_point = vcat(f.(bound,ss__,)...)
             r_point_ = adapt(typeof(θ),r_point)
             total += τ * sum(abs2,loss_function(r_point_,θ))
@@ -766,7 +752,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         # the points in the domain and on the boundary
         pde_train_set, bcs_train_sets = train_sets
         pde_train_set = [pde_train_set]
-        
+
         pde_train_set = adapt.(typeof(initθ),pde_train_set)
         bcs_train_sets =  adapt.(typeof(initθ),bcs_train_sets)
 
@@ -809,15 +795,10 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                         [pde_bounds],
                                                         strategy)
 
-         # plbs,pubs = pde_bounds
-         # blbs,bubs = bcs_bounds
-         # pl = length(plbs)
-         # bl = length(blbs[1])
-         # bsl = length(blbs)
          pde_dim = size(pde_bounds)[1]
          bcs_dim = isempty(maximum(size.(bcs_bounds[1]))) ? nothing : maximum(size.(bcs_bounds[1]))[1]
          bcs_cond_size = size(bcs_bounds)[1]
-         # length(blbs[1]) == 0 ? 1 :
+
          points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim))) #TODO
          strategy = QuasiRandomTraining(points;
                                         sampling_alg = strategy.sampling_alg,

@@ -18,6 +18,7 @@ cb = function (p,l)
     return false
 end
 CUDA.allowscalar(false)
+const gpuones = cu(ones(1))
 
 ## ODE
 @parameters θ
@@ -91,9 +92,9 @@ chain = FastChain(FastDense(2,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1))
+                  FastDense(inner,1),(u,p)->gpuones .* u)
 
-strategy = NeuralPDE.GridTraining(0.05)
+strategy = NeuralPDE.StochasticTraining(400)
 initθ = initial_params(chain) |>gpu
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
@@ -153,11 +154,13 @@ inner = 25
 chain = FastChain(FastDense(3,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1))
+                  FastDense(inner,1),(u,p)->gpuones .* u)
 
 initθ = DiffEqFlux.initial_params(chain) |> gpu
 
-strategy = NeuralPDE.GridTraining(0.1)
+strategy = NeuralPDE.QuasiRandomTraining(6000; #points
+                                         sampling_alg = UniformSample(),
+                                         minibatch = 100)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)
@@ -186,7 +189,7 @@ u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs
 #     anim = @animate for (i, t) in enumerate(0:0.05:t_max)
 #         @info "Animating frame $i..."
 #         u_real = reshape([analytic_sol_func(t,x,y) for x in xs for y in ys], (length(xs),length(ys)))
-#         u_predict = reshape([phi([t, x, y], res.minimizer)[1] for x in xs for y in ys], length(xs), length(ys))
+#         u_predict = reshape([Array(phi([t, x, y], res.minimizer))[1] for x in xs for y in ys], length(xs), length(ys))
 #         u_error = abs.(u_predict .- u_real)
 #         title = @sprintf("predict t = %.3f", t)
 #         p1 = plot(xs, ys, u_predict,st=:surface, label="", title=title)
@@ -199,4 +202,4 @@ u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs
 #     gif(anim,"3pde.gif", fps=10)
 # end
 #
-# plot_(res2)
+# plot_(res)
