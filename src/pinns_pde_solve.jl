@@ -14,7 +14,7 @@ Arguments:
 """
 abstract type AbstractPINN{isinplace} <: SciMLBase.SciMLProblem end
 
-struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,K} <: AbstractPINN{isinplace}
+struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,K} <: AbstractPINN{isinplace}
   chain::C
   strategy::T
   init_params::P
@@ -343,7 +343,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         push!(ex.args,  vars_phi)
     end
     #Add an expression for paramater symbols
-    if eq_params != nothing
+    if eq_params != SciMLBase.NullParameters()
         params_symbols = Symbol[]
         expr_params = Expr[]
         for (i , eq_param) in enumerate(eq_params)
@@ -393,8 +393,8 @@ function build_loss_function(eqs,indvars,depvars,
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     loss_function = (cord, θ) -> begin
-        θ = θ[1:end-params_len]
-        p = if param_estim == true θ[end-params_len+1:end] else default_p end
+        θ = if param_estim == true θ[1:end-length(eq_params)] else θ end
+        p = if param_estim == true θ[end-length(eq_params)+1:end] else default_p end
         _loss_function(cord, θ, phi, derivative, u, p)
     end
     return loss_function
@@ -768,11 +768,11 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     bcs = pde_system.bcs
 
     domains = pde_system.domain
+    eq_params = pde_system.ps
     default_p = pde_system.default_p
 
     param_estim = discretization.param_estim
-
-
+    additional_loss = discretization.additional_loss
 
     # dimensionality of equation
     dim = length(domains)
@@ -781,7 +781,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     chain = discretization.chain
     initθ = discretization.init_params
     flat_initθ = if length(depvars) != 1 vcat(initθ...) else  initθ end
-    flat_initθ = if param_estim == true flat_initθ else vcat(flat_initθ , default_p) end
+    flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ , default_p) end
 
     phi = discretization.phi
     derivative = discretization.derivative
@@ -921,12 +921,13 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     end
 
     function loss_function_(θ,p)
-        if param_estim == true
-            return pde_loss_function(θ) + bc_loss_function(θ) + additional_loss(θ[1:end-length(default_p)], θ[end-length(default_p)+1:end])
-        else
+        if param_estim == false
             return pde_loss_function(θ) + bc_loss_function(θ)
+        else
+            return pde_loss_function(θ) + bc_loss_function(θ) + additional_loss(phi,θ,p)
         end
     end
+
 
     f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, flat_initθ)
