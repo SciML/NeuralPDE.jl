@@ -292,20 +292,20 @@ to
           end
       end)
 """
-function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ; bc_indvars=nothing, eq_params = nothing)
+function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ; bc_indvars=nothing, eq_params = nothing, param_estim = false)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_symbolic_loss_function(eqs,indvars,depvars,
                                         dict_indvars,dict_depvars,
                                         phi, derivative,initθ,
-                                        bc_indvars = bc_indvars, eq_params = eq_params)
+                                        bc_indvars = bc_indvars, eq_params = eq_params, param_estim = param_estim)
 end
 
 function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,
                                       phi, derivative, initθ;
-                                      bc_indvars = indvars, eq_params = nothing)
+                                      bc_indvars = indvars, eq_params = nothing, param_estim = param_estim)
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -343,7 +343,20 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         push!(ex.args,  vars_phi)
     end
     #Add an expression for paramater symbols
-    if eq_params != SciMLBase.NullParameters()
+    if param_estim == true && eq_params != SciMLBase.NullParameters()
+        param_len = length(eq_params)
+        last_indx =  [0;accumulate(+, length.(initθ))][end]
+        params_symbols = Symbol[]
+        expr_params = Expr[]
+        for (i , eq_param) in enumerate(eq_params)
+            push!(expr_params, :($θ[$(i+last_indx)]))
+            push!(params_symbols, Symbol(:($eq_param)))
+        end
+        params_eq = Expr(:(=), build_expr(:tuple, params_symbols), build_expr(:tuple, expr_params))
+        push!(ex.args,  params_eq)
+    end
+
+    if eq_params != SciMLBase.NullParameters() && param_estim == false
         params_symbols = Symbol[]
         expr_params = Expr[]
         for (i , eq_param) in enumerate(eq_params)
@@ -385,17 +398,14 @@ function build_loss_function(eqs,indvars,depvars,
                              dict_indvars,dict_depvars,
                              phi, derivative, initθ;
                              bc_indvars = indvars,eq_params=nothing,param_estim=false,default_p=nothing)
-
      expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars,
                                                        phi, derivative, initθ;
-                                                       bc_indvars = bc_indvars,eq_params = eq_params)
+                                                       bc_indvars = bc_indvars,eq_params = eq_params,param_estim=param_estim)
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     loss_function = (cord, θ) -> begin
-        θ = if param_estim == true θ[1:end-length(eq_params)] else θ end
-        p = if param_estim == true θ[end-length(eq_params)+1:end] else default_p end
-        _loss_function(cord, θ, phi, derivative, u, p)
+        _loss_function(cord, θ, phi, derivative, u, default_p)
     end
     return loss_function
 end
