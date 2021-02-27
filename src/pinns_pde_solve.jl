@@ -292,7 +292,7 @@ to
           end
       end)
 """
-function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ; bc_indvars=nothing, eq_params = nothing, param_estim = false)
+function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ; bc_indvars=nothing, eq_params = SciMLBase.NullParameters(), param_estim = false)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
@@ -305,7 +305,7 @@ end
 function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,
                                       phi, derivative, initθ;
-                                      bc_indvars = indvars, eq_params = nothing, param_estim = param_estim)
+                                      bc_indvars = indvars, eq_params = SciMLBase.NullParameters(), param_estim = param_estim)
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -384,7 +384,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     expr_loss_function = :(($vars) -> begin $ex end)
 end
 
-function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing,eq_params=nothing,param_estim=false,default_p=nothing)
+function build_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ;bc_indvars=nothing,eq_params=SciMLBase.NullParameters(),param_estim=false,default_p=nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
@@ -397,7 +397,7 @@ end
 function build_loss_function(eqs,indvars,depvars,
                              dict_indvars,dict_depvars,
                              phi, derivative, initθ;
-                             bc_indvars = indvars,eq_params=nothing,param_estim=false,default_p=nothing)
+                             bc_indvars = indvars,eq_params=SciMLBase.NullParameters(),param_estim=false,default_p=nothing)
      expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars,
                                                        phi, derivative, initθ;
