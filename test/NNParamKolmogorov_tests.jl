@@ -42,6 +42,8 @@ function getTestData(x_test, t_test, γ_sigma_test)
   return X_test
 end
 
+X_test = getTestData(x_test, t_test, γ_sigma_test)
+
 function analytical(x , t , y)
   #return sum(x.^2) + t*tr(y*y) for multidimensional
   return x^2 + t*(y*y)
