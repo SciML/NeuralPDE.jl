@@ -32,12 +32,15 @@ x_test = rand(xspan[1]:dx:xspan[2] , d , 1  , 1000)
 t_test = rand(tspan[1]:dt:tspan[2] ,  1 , 1000)
 γ_sigma_test = rand(0.3:dy:0.3 , d , d,  1, 1000)
 
-X_test  = reshape([], 3 ,0)
-for i in 1:length(t_test)
-  K = vcat(t_test[i] , x_test[: , : , i] , reshape(γ_sigma_test[: , : , : , i] , d^2*(size(γ_sigma_prototype))[3] , 1))
-  X_test = hcat(X_test , K)
+
+function getTestData(x_test, t_test, γ_sigma_test)
+  X_test  = reshape([], 3 ,0)
+  for i in 1:length(t_test)
+    K = vcat(t_test[i] , x_test[: , : , i] , reshape(γ_sigma_test[: , : , : , i] , d^2*(size(γ_sigma_prototype))[3] , 1))
+    X_test = hcat(X_test , K)
+  end
+  return X_test
 end
-X_test
 
 function analytical(x , t , y)
   #return sum(x.^2) + t*tr(y*y) for multidimensional
