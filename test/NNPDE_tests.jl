@@ -87,7 +87,7 @@ function test_2d_poisson_equation(chain_, strategy_)
     domains = [x ∈ IntervalDomain(0.0,1.0),
                y ∈ IntervalDomain(0.0,1.0)]
 
-    # chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+    # chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
     discretization = NeuralPDE.PhysicsInformedNN(chain_,
                                                  strategy_)
 
@@ -196,10 +196,13 @@ dx = 0.05
 
 # Neural network
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
-
-discretization = NeuralPDE.PhysicsInformedNN(chain,NeuralPDE.GridTraining(dx))
+quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
+                                                     sampling_alg = UniformSample(),
+                                                     minibatch = 100)
+discretization = NeuralPDE.PhysicsInformedNN(chain,quadrature_strategy)
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
 res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=300)
 prob = remake(prob,u0=res.minimizer)
@@ -242,12 +245,14 @@ domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 # Neural network
 chain1 = FastChain(FastDense(2,10,Flux.σ),FastDense(10,1))
 chain2 = FastChain(FastDense(2,10,Flux.σ),FastDense(10,1))
-strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubaCuhre(),reltol= 1e-4,abstol= 1e-3,maxiters=20)
+
+strategy = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN([chain1,chain2],strategy)
 pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
 prob = NeuralPDE.discretize(pde_system,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=300)
+res = GalacticOptim.solve(prob,ADAM(0.05); cb = cb, maxiters=2000)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
@@ -260,7 +265,7 @@ sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 minimizers = [res.minimizer[s] for s in sep]
 u_predict  = [[phi[i]([x,y],minimizers[i])[1] for x in xs  for y in ys] for i in 1:2]
 
-@test u_predict ≈ u_real atol = 2.0
+@test u_predict ≈ u_real atol = 3.0
 
 # p1 =plot(xs, ys, u_predict, st=:surface);
 # p2 = plot(xs, ys, u_real, st=:surface);
@@ -376,14 +381,14 @@ domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
 
 # Discretization
 dx = 0.1
-quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),reltol= 1e-2,abstol= 1e-2,maxiters=10)
+strategy = NeuralPDE.GridTraining(dx)
 # Neural network
 chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
-discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
+discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=200)
+res = GalacticOptim.solve(prob,ADAM(0.1); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(x,y) = x + x*y +y^2/2
