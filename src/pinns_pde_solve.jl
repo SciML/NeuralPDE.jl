@@ -342,7 +342,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         vars_phi = Expr(:(=), build_expr(:tuple, phi_nums), build_expr(:tuple, expr_phi))
         push!(ex.args,  vars_phi)
     end
-    #Add an expression for paramater symbols
+    #Add an expression for parameter symbols
     if param_estim == true && eq_params != SciMLBase.NullParameters()
         param_len = length(eq_params)
         last_indx =  [0;accumulate(+, length.(initθ))][end]
