@@ -617,7 +617,7 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;
         for (bound, loss_function) in zip(bounds, loss_functions)
             sets = generate_random_points(points, bound)
             sets_ = adapt(typeof(θ),sets)
-            total += τ * sum(abs2,loss_function(sets,θ))
+            total += τ * sum(abs2,loss_function(sets_,θ))
         end
         return total
     end
