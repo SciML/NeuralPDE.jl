@@ -91,6 +91,43 @@ function Base.show(io::IO, A::KolmogorovPDEProblem)
   show(io , A.g)
 end
 
+abstract type ParametersDomain end
+struct KolmogorovParamDomain{T} <:ParametersDomain
+           sigma::Tuple{T,T}
+           mu::Tuple{T,T}
+           phi::Tuple{T,T}
+end
+
+struct ParamKolmogorovPDEProblem{ F, G, Phi, X , T , D, YD , P,U0 , YSP , YMP ,YPH, NP} <: DiffEqBase.DEProblem
+    f::F
+    g::G
+    phi::Phi
+    xspan::Tuple{X,X}
+    tspan::Tuple{T,T}
+    d::D
+    Y_domain::YD
+    p::P
+    u0::U0
+    Y_sigma_prototype::YSP
+    Y_mu_prototype::YMP
+    Y_phi_prototype::YPH
+    noise_rate_prototype::NP
+    ParamKolmogorovPDEProblem( f, g, phi , xspan , tspan , d, Y_domain, p=nothing, u0=0 ; Y_sigma_prototype=nothing , Y_mu_prototype=nothing , Y_phi_prototype=nothing , noise_rate_prototype= nothing) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(Y_domain),typeof(p),typeof(u0),typeof(Y_sigma_prototype),typeof(Y_mu_prototype),typeof(Y_phi_prototype),typeof(noise_rate_prototype)}(f,g,phi,xspan,tspan,d,Y_domain,p,u0 , Y_sigma_prototype,Y_mu_prototype,Y_phi_prototype,noise_rate_prototype)
+end
+
+Base.summary(prob::ParamKolmogorovPDEProblem) = string(nameof(typeof(prob)))
+function Base.show(io::IO, A::ParamKolmogorovPDEProblem)
+  println(io,summary(A))
+  print(io,"timespan: ")
+  show(io,A.tspan)
+  print(io,"xspan: ")
+  show(io,A.xspan)
+  println(io , "μ")
+  show(io , A.f)
+  println(io,"Sigma")
+  show(io , A.g)
+end
+
 """
 Algorithm for solving differential equation using a neural network.
 
@@ -129,9 +166,10 @@ include("kolmogorov_solve.jl")
 include("rode_solve.jl")
 include("stopping_solve.jl")
 include("pinns_pde_solve.jl")
+include("param_kolmogorov_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
-       KolmogorovPDEProblem, NNKolmogorov, NNStopping,
+       KolmogorovPDEProblem, NNKolmogorov, NNStopping,ParamKolmogorovPDEProblem,KolmogorovParamDomain, NNParamKolmogorov,
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
        build_loss_function, get_loss_function,
