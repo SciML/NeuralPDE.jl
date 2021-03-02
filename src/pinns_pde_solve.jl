@@ -593,12 +593,13 @@ function get_loss_function(loss_functions, train_sets, strategy::GridTraining;τ
 end
 
 function generate_random_points(points, bound)
+    r = Float32.(rand(1,points))
     function f(b)
       if b isa Number
-           fill(Float64(b),(1,points))
+           fill(Float32(b),(1,points))
        else
            lb, ub =  b[1], b[2]
-           lb .+ ub .* rand(1,points)
+           lb .+ ub .* r
        end
     end
     vcat(f.(bound)...)
@@ -616,7 +617,7 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;
         for (bound, loss_function) in zip(bounds, loss_functions)
             sets = generate_random_points(points, bound)
             sets_ = adapt(typeof(θ),sets)
-            total += sum(abs2,loss_function(sets,θ))
+            total += τ * sum(abs2,loss_function(sets,θ))
         end
         return total
     end
@@ -756,7 +757,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                        strategy)
         (pde_loss_function, bc_loss_function)
     elseif strategy isa StochasticTraining
-          bounds = get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
+          bounds = get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars) #TODO separate
           pde_bounds, bcs_bounds = bounds
           pde_loss_function = get_loss_function(_pde_loss_functions,
                                                           pde_bounds,
@@ -767,11 +768,11 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
           bcs_cond_size = size(bcs_bounds)[1]
 
           points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim)))
-          strategy = StochasticTraining(points)
+          strategy_ = StochasticTraining(points)
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
                                                          bcs_bounds,
-                                                         strategy)
+                                                         strategy_)
           (pde_loss_function, bc_loss_function)
     elseif strategy isa QuasiRandomTraining
          bounds = get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
@@ -785,13 +786,13 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
          bcs_cond_size = size(bcs_bounds)[1]
 
          points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim)))
-         strategy = QuasiRandomTraining(points;
+         strategy_ = QuasiRandomTraining(points;
                                         sampling_alg = strategy.sampling_alg,
                                         minibatch = strategy.minibatch)
 
          bc_loss_function = get_loss_function(_bc_loss_functions,
                                                        bcs_bounds,
-                                                       strategy)
+                                                       strategy_)
          (pde_loss_function, bc_loss_function)
     elseif strategy isa QuadratureTraining
         bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars,strategy)
