@@ -11,6 +11,7 @@ using Optim
 using Quadrature,Cubature, Cuba
 using QuasiMonteCarlo
 using SciMLBase
+using OrdinaryDiffEq
 
 using Random
 Random.seed!(100)
