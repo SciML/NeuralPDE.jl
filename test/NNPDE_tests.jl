@@ -484,3 +484,55 @@ u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
 # plot(xs ,u_real, label = "analytic")
 # plot!(xs ,u_predict, label = "predict")
+
+##Parameter Estimation TestCase
+#Lorenz System
+Random.seed!(1234)
+@parameters t , β, ρ
+@variables x(..), y(..), z(..)
+Dt = Differential(t)
+eqs = [Dt(x(t)) ~ 10*(y(t) - x(t)),
+       Dt(y(t)) ~ x(t)*(ρ - z(t)) - y(t),
+       Dt(z(t)) ~ x(t)*y(t) - β*z(t)]
+
+
+bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
+domains = [t ∈ IntervalDomain(0.0,1.0)]
+dt = 0.1
+
+function lorenz!(du,u,p,t)
+ du[1] = 10.0*(u[2]-u[1])
+ du[2] = u[1]*(28.0-u[3]) - u[2]
+ du[3] = u[1]*u[2] - (8/3)*u[3]
+end
+
+u0 = [1.0;0.0;0.0]
+tspan = (0.0,1.0)
+prob = ODEProblem(lorenz!,u0,tspan)
+sol = solve(prob, Tsit5(), dt=0.1)
+data = []
+data
+indx = rand(1:1:21 , 11)
+for i in indx
+    data = vcat(data , (sol.u[i] , sol.t[i]))
+end
+
+
+function additional_loss(phi, θ , p)
+    _loss(u , t; t_ = cu[t]) = sum(abs2, phi[i](t_ , θ[(i*593 - 593 + 1):(i*593)])[1] - (u[i])  for i in 1:1:3)
+    return sum(abs2, _loss(u,t) for (u , t) in data)/length(data)
+end
+
+input_ = length(domains)
+n = 16
+chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
+pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[ρ, β], [1.0 ,1.0])
+prob = NeuralPDE.discretize(pde_system,discretization)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=4000)
+p_ = res.minimizer[end-1:end]
+
+@test abs2(p_[1] - 28.00) < 1.0
+@test abs2(p_[2] - 8/3) < 1.0
