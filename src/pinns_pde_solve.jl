@@ -387,18 +387,18 @@ function get_vars(indvars_, depvars_)
     return depvars,indvars,dict_indvars,dict_depvars
 end
 
-function get_bc_varibles(bcs,_indvars::Array,_depvars::Array)
+function get_varibles(eqs,_indvars::Array,_depvars::Array)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
-    return get_bc_varibles(bcs,dict_indvars,dict_depvars)
+    return get_varibles(eqs,dict_indvars,dict_depvars)
 end
 
-function get_bc_varibles(bcs,dict_indvars,dict_depvars)
-    bc_args = get_bc_argument(bcs,dict_indvars,dict_depvars)
+function get_varibles(eqs,dict_indvars,dict_depvars)
+    bc_args = get_argument(eqs,dict_indvars,dict_depvars)
     return map(barg -> filter(x -> x isa Symbol, barg), bc_args)
 end
 
-function get_bc_number(bcs,dict_indvars,dict_depvars)
-    bc_args = get_bc_argument(bcs,dict_indvars,dict_depvars)
+function get_number(eqs,dict_indvars,dict_depvars)
+    bc_args = get_argument(eqs,dict_indvars,dict_depvars)
     return map(barg -> filter(x -> x isa Number, barg), bc_args)
 end
 
@@ -415,17 +415,17 @@ function find_thing_in_expr(ex::Expr, thing; ans = Expr[])
 end
 
 # Get arguments from boundary condition functions
-function get_bc_argument(bcs,dict_indvars,dict_depvars)
-    bcs_expr = toexpr.(bcs)
-    vars = map(bcs_expr) do bc_expr
-        _vars =  map(depvar -> find_thing_in_expr(bc_expr,  depvar), collect(keys(dict_depvars)))
+function get_argument(eqs,dict_indvars,dict_depvars)
+    exprs = toexpr.(eqs)
+    vars = map(exprs) do expr
+        _vars =  map(depvar -> find_thing_in_expr(expr,  depvar), collect(keys(dict_depvars)))
         f_vars = filter(x -> !isempty(x), _vars)
         map(x -> first(x), f_vars)
     end
-    bc_args = map(vars) do _vars
+    args_ = map(vars) do _vars
         map(var -> var.args[2:end] , _vars)
     end
-    return first.(bc_args) #TODO for all arguments
+    return first.(args_) #TODO for all arguments
 end
 
 function generate_training_sets(domains,dx,eqs,bcs,_indvars::Array,_depvars::Array)
@@ -440,16 +440,13 @@ function generate_training_sets(domains,dx,eqs,bcs,dict_indvars::Dict,dict_depva
         dxs = fill(dx,length(domains))
     end
 
-    bound_args = get_bc_argument(bcs,dict_indvars,dict_depvars)
-    bound_vars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
-
-    pde_vars = get_bc_varibles(eqs,dict_indvars,dict_depvars)
-    pde_args = get_bc_argument(eqs,dict_indvars,dict_depvars)
-
     spans = [d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)]
     dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
 
-    dif = [Float64[] for i=1:size(domains)[1]]
+    bound_args = get_argument(bcs,dict_indvars,dict_depvars)
+    bound_vars = get_varibles(bcs,dict_indvars,dict_depvars)
+
+    dif = [Float32[] for i=1:size(domains)[1]]
     for _args in bound_args
         for (i,x) in enumerate(_args)
             if x isa Number
@@ -461,14 +458,18 @@ function generate_training_sets(domains,dx,eqs,bcs,dict_indvars::Dict,dict_depva
     bc_data = map(zip(dif,cord_train_set)) do (d,c)
         setdiff(c, d)
     end
-    dict_var_span_ = Dict([Symbol(d.variables) => bc for (d,bc) in zip(domains,bc_data)])
 
-    pde_train_set = Float32.(hcat(vec(map(points -> collect(points), Iterators.product(bc_data...)))...))
+    dict_var_span_ = Dict([Symbol(d.variables) => bc for (d,bc) in zip(domains,bc_data)])
 
     bcs_train_sets = map(bound_args) do bt
         span = map(b -> get(dict_var_span, b, b), bt)
         _set = Float32.(hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
     end
+
+    pde_vars = get_varibles(eqs,dict_indvars,dict_depvars)
+    pde_args = get_argument(eqs,dict_indvars,dict_depvars)
+
+    pde_train_set = Float32.(hcat(vec(map(points -> collect(points), Iterators.product(bc_data...)))...))
 
     pde_train_sets = map(pde_args) do bt
         span = map(b -> get(dict_var_span_, b, b), bt)
@@ -488,7 +489,7 @@ function get_bounds(domains,bcs,_indvars::Array,_depvars::Array,strategy::Quadra
 end
 
 function get_bounds(domains,bcs,dict_indvars,dict_depvars,strategy::QuadratureTraining)
-    bound_vars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
+    bound_vars = get_varibles(bcs,dict_indvars,dict_depvars)
 
     pde_lower_bounds = [d.domain.lower for d in domains]
     pde_upper_bounds = [d.domain.upper for d in domains]
@@ -511,13 +512,13 @@ end
 function get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
     dict_span = Dict([Symbol(d.variables) => [d.domain.lower, d.domain.upper] for d in domains])
     # pde_bounds = [[d.domain.lower,d.domain.upper] for d in domains]
-    pde_args = get_bc_argument(eqs,dict_indvars,dict_depvars)
+    pde_args = get_argument(eqs,dict_indvars,dict_depvars)
 
     pde_bounds= map(pde_args) do pd
         span = map(p -> get(dict_span, p, p), pd)
     end
 
-    bound_args = get_bc_argument(bcs,dict_indvars,dict_depvars)
+    bound_args = get_argument(bcs,dict_indvars,dict_depvars)
     dict_span = Dict([Symbol(d.variables) => [d.domain.lower, d.domain.upper] for d in domains])
 
     bcs_bounds= map(bound_args) do bt
@@ -593,13 +594,12 @@ function get_loss_function(loss_functions, train_sets, strategy::GridTraining;τ
 end
 
 function generate_random_points(points, bound)
-    r = Float32.(rand(1,points))
     function f(b)
       if b isa Number
            fill(Float32(b),(1,points))
        else
            lb, ub =  b[1], b[2]
-           lb .+ ub .* r
+           lb .+ ub .* Float32.(rand(1,points))
        end
     end
     vcat(f.(bound)...)
@@ -698,7 +698,7 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
                                                               dict_indvars,dict_depvars,
                                                               phi, derivative,initθ,strategy) for eq  in eqs]
 
-    bc_indvars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
+    bc_indvars = get_varibles(bcs,dict_indvars,dict_depvars)
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars,
                                                                phi, derivative,initθ,strategy;
@@ -729,7 +729,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                              dict_indvars,dict_depvars,
                                              phi, derivative, initθ,strategy) for eq in eqs]
 
-    bc_indvars = get_bc_varibles(bcs,dict_indvars,dict_depvars)
+    bc_indvars = get_varibles(bcs,dict_indvars,dict_depvars)
     _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
                                                   dict_indvars,dict_depvars,
                                                   phi, derivative, initθ, strategy;
@@ -745,11 +745,11 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         # the points in the domain and on the boundary
         pde_train_sets, bcs_train_sets = train_sets
 
-        pde_train_set = adapt.(typeof(initθ),pde_train_sets)
-        bcs_train_sets =  adapt.(typeof(initθ),bcs_train_sets)
+        pde_train_sets = adapt.(typeof(flat_initθ),pde_train_sets)
+        bcs_train_sets =  adapt.(typeof(flat_initθ),bcs_train_sets)
 
         pde_loss_function = get_loss_function(_pde_loss_functions,
-                                                        pde_train_set,
+                                                        pde_train_sets,
                                                         strategy)
 
         bc_loss_function = get_loss_function(_bc_loss_functions,
@@ -757,7 +757,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
                                                        strategy)
         (pde_loss_function, bc_loss_function)
     elseif strategy isa StochasticTraining
-          bounds = get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars) #TODO separate
+          bounds = get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
           pde_bounds, bcs_bounds = bounds
           pde_loss_function = get_loss_function(_pde_loss_functions,
                                                           pde_bounds,
