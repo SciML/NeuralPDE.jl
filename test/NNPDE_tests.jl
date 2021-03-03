@@ -405,55 +405,82 @@ diff_u = abs.(u_predict .- u_real)
 # p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 # plot(p1,p2,p3)
 
-# ## Example 7, Fokker-Planck equation
-# println("Example 7, Fokker-Planck equation")
-# # the example took from this article https://arxiv.org/abs/1910.10503
-# @parameters x
-# @variables p(..)
-# Dx = Differential(x)
-# Dxx = Differential(x)^2
-#
-# #2D PDE
-# α = 0.3
-# β = 0.5
-# _σ = 0.5
-# # Discretization
-# dx = 0.05
-# # here we use normalization condition: dx*p(x) ~ 1, in order to get non-zero solution.
-# #(α - 3*β*x^2)*p(x) + (α*x - β*x^3)*Dx(p(x)) ~ (_σ^2/2)*Dxx(p(x))
-# eq  = Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x))+dx*p(x) - 1.
-#
-# # Initial and boundary conditions
-# bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
-#
-# # Space and time domains
-# domains = [x ∈ IntervalDomain(-2.2,2.2)]
-#
-# # Neural network
-# chain = FastChain(FastDense(1,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
-#
-# discretization = NeuralPDE.PhysicsInformedNN(chain,
-#                                              NeuralPDE.GridTraining(dx))
-#
-# pde_system = PDESystem(eq,bcs,domains,[x],[p])
+## Example 7, Fokker-Planck equation
+println("Example 7, Fokker-Planck equation")
+# the example took from this article https://arxiv.org/abs/1910.10503
+@parameters x
+@variables p(..)
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+#2D PDE
+α = 0.3
+β = 0.5
+_σ = 0.5
+# Discretization
+dx = 0.05
+# here we use normalization condition: dx*p(x) ~ 1, in order to get non-zero solution.
+#(α - 3*β*x^2)*p(x) + (α*x - β*x^3)*Dx(p(x)) ~ (_σ^2/2)*Dxx(p(x))
+eq  = Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x))+dx*p(x) - 1.
+
+# Initial and boundary conditions
+bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
+
+# Space and time domains
+domains = [x ∈ IntervalDomain(-2.2,2.2)]
+
+# Neural network
+inn = 18
+chain = FastChain(FastDense(1,inn,Flux.σ),
+                  FastDense(inn,inn,Flux.σ),
+                  FastDense(inn,1))
+
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             NeuralPDE.GridTraining(dx))
+
+pde_system = PDESystem(eq,bcs,domains,[x],[p])
+prob = NeuralPDE.discretize(pde_system,discretization)
+
+res = GalacticOptim.solve(prob,Optim.BFGS();allow_f_increases=true, cb = cb, maxiters=10000)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,ADAM(0.1); cb = cb, maxiters=1500)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,Optim.BFGS();allow_f_increases=true, cb = cb, maxiters=10000)
+
+
+dx = dx/5
+discretization = remake(discretization; strategy = NeuralPDE.GridTraining(dx), init_params =res.minimizer)
+prob = NeuralPDE.discretize(pde_system,discretization)
+
+res = GalacticOptim.solve(prob,Optim.BFGS();allow_f_increases=true, cb = cb, maxiters=10000)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,ADAM(0.01); cb = cb, maxiters=1500)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,Optim.BFGS();allow_f_increases=true, cb = cb, maxiters=10000)
+
+
+dx= dx/5
+discretization = remake(discretization; strategy = NeuralPDE.GridTraining(dx), init_params =res.minimizer)
+prob = NeuralPDE.discretize(pde_system,discretization)
+
+res = GalacticOptim.solve(prob,Optim.BFGS();allow_f_increases=true, cb = cb, maxiters=10000)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,ADAM(0.001); cb = cb, maxiters=1500)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,Optim.BFGS();allow_f_increases=true, cb = cb, maxiters=100000)
+
+# pde_system = remake(pde_system; eqs = Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x)))
+# discretization = remake(discretization; strategy = NeuralPDE.GridTraining(dx), init_params =res.minimizer)
 # prob = NeuralPDE.discretize(pde_system,discretization)
-#
-# res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=800)
-#
-# pde_system2 = remake(pde_system; eqs = Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x)))
-# discretization2 = remake(discretization; strategy = NeuralPDE.GridTraining(dx/5), init_params =res.minimizer)
-# prob2 = NeuralPDE.discretize(pde_system2,discretization2)
-#
-# res = GalacticOptim.solve(prob2,Optim.BFGS();cb=cb,maxiters=200)
-# phi = discretization.phi
-#
-# analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
-#
-# xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains][1]
-# u_real  = [analytic_sol_func(x) for x in xs]
-# u_predict  = [first(phi(x,Array(res.minimizer))) for x in xs]
-#
-# @test u_predict ≈ u_real atol = 6.0
-#
-# # plot(xs ,u_real, label = "analytic")
-# # plot!(xs ,u_predict, label = "predict")
+# res = GalacticOptim.solve(prob,BFGS();cb=cb,maxiters=10000,allow_f_increases=true)
+
+phi = discretization.phi
+analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
+xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains][1]
+u_real  = [analytic_sol_func(x) for x in xs]
+u_predict  = [first(phi(x,res.minimizer)) for x in xs]
+
+@test u_predict ≈ u_real atol = 50.0
+
+# plot(xs ,u_real, label = "analytic")
+# plot!(xs ,u_predict, label = "predict")
