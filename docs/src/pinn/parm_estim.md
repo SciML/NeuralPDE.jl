@@ -47,7 +47,7 @@ for i in indx
 end
 
 ```
-Then we define the additional loss funciton `additional_loss(phi, θ , p)`, the function has three arguments, `phi` the trial solution, `θ` the parameters of neural networks, and `p` optional parameters.
+Then we define the additional loss function `additional_loss(phi, θ , p)`, the function has three arguments, `phi` the trial solution, `θ` the parameters of neural networks, and `p` optional parameters.
 
 ```julia
 function additional_loss(phi, θ , p)
