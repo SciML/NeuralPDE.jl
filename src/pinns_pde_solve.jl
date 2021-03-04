@@ -748,6 +748,12 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     bcs = pde_system.bcs
 
     domains = pde_system.domain
+    eq_params = pde_system.ps
+    default_p = pde_system.default_p
+
+    param_estim = discretization.param_estim
+    additional_loss = discretization.additional_loss
+
     # dimensionality of equation
     dim = length(domains)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
@@ -762,14 +768,14 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     end
     symbolic_pde_loss_functions = [build_symbolic_loss_function(eq,indvars,depvars,
                                                               dict_indvars,dict_depvars,
-                                                              phi, derivative,initθ,strategy) for eq  in eqs]
+                                                              phi, derivative,initθ;eq_params=eq_params,param_estim=param_estim)
 
     bc_indvars = get_varibles(bcs,dict_indvars,dict_depvars)
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars,
-                                                               phi, derivative,initθ,strategy;
-                                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
-    symbolic_pde_loss_functions,symbolic_bc_loss_functions
+                                                               phi, derivative,initθ;
+                                                               bc_indvars = bc_indvar,eq_params=eq_params,param_estim=param_estim)) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+    symbolic_pde_loss_function,symbolic_bc_loss_functions
 end
 
 # Convert a PDE problem into an OptimizationProblem
@@ -931,10 +937,15 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     end
 
     function loss_function_(θ,p)
-        if param_estim == false
+        if additional_loss isa nothing
             return pde_loss_function(θ) + bc_loss_function(θ)
         else
-            return pde_loss_function(θ) + bc_loss_function(θ) + additional_loss(phi,θ,p)
+            function _additional_loss(phi,θ)
+                θ = θ[1:end - length(default_p)]
+                p = θ[end - length(default_p):end]
+                return additional_loss(phi,θ,p)
+            end
+            return pde_loss_function(θ) + bc_loss_function(θ) + _additional_loss(phi,θ)
         end
     end
 
