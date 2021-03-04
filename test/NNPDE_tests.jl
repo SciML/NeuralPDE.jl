@@ -340,7 +340,7 @@ f_ = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f_, initθ)
 
 cb_ = function (p,l)
-    println("Current losses are: $l ")
+    println("Current losses are: ", pde_loss_function(p), " , ",  bc_loss_function(p))
     return false
 end
 
@@ -486,20 +486,21 @@ u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 # plot(xs ,u_real, label = "analytic")
 # plot!(xs ,u_predict, label = "predict")
 
-##Parameter Estimation TestCase
-#Lorenz System
+## Example 8, Lorenz System (Parameter Estimation)
+println("Example 8, Lorenz System")
+
 Random.seed!(1234)
-@parameters t , β, ρ
+@parameters t ,σ_ ,β, ρ
 @variables x(..), y(..), z(..)
 Dt = Differential(t)
-eqs = [Dt(x(t)) ~ 10*(y(t) - x(t)),
+eqs = [Dt(x(t)) ~ σ_*(y(t) - x(t)),
        Dt(y(t)) ~ x(t)*(ρ - z(t)) - y(t),
        Dt(z(t)) ~ x(t)*y(t) - β*z(t)]
 
 
 bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
 domains = [t ∈ IntervalDomain(0.0,1.0)]
-dt = 0.1
+dt = 0.05
 
 function lorenz!(du,u,p,t)
  du[1] = 10.0*(u[2]-u[1])
@@ -513,27 +514,37 @@ prob = ODEProblem(lorenz!,u0,tspan)
 sol = solve(prob, Tsit5(), dt=0.1)
 data = []
 data
-indx = rand(1:1:21 , 11)
+indx = rand(1:1:21 , 12)
 for i in indx
     data = vcat(data , (sol.u[i] , sol.t[i]))
 end
 
-
+#Additional Loss Function
 function additional_loss(phi, θ , p)
-    _loss(u , t; t_ = cu[t]) = sum(abs2, phi[i](t_ , θ[(i*593 - 593 + 1):(i*593)])[1] - (u[i])  for i in 1:1:3)
+    l = Int(length(θ)/3)
+    _loss(u , t) = sum(abs2, phi[i](t , θ[(i*l - l + 1):(i*l)])[1] - (u[i])  for i in 1:1:3)
     return sum(abs2, _loss(u,t) for (u , t) in data)/length(data)
 end
 
 input_ = length(domains)
-n = 16
-chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
-chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
-chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+n = 8
+chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
-pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[ρ, β], [1.0 ,1.0])
+pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], [1.0, 1.0 ,1.0])
 prob = NeuralPDE.discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=4000)
-p_ = res.minimizer[end-1:end]
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=5000)
+p_ = res.minimizer[end-2:end]
+@test sum(abs2, p_[1] - 10.00) < 0.1
+@test sum(abs2, p_[2] - 28.00) < 0.1
+@test sum(abs2, p_[3] - (8/3)) < 0.1
 
-@test abs2(p_[1] - 28.00) < 1.0
-@test abs2(p_[2] - 8/3) < 1.0
+#Plotting the system
+# initθ = discretization.init_params
+# acum =  [0;accumulate(+, length.(initθ))]
+# sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+# minimizers = [res.minimizer[s] for s in sep]
+#u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in sol.t] for i in 1:3]
+# plot(sol)
+# plot!(sol.t, u_predict, label = ["x(t)" "y(t)" "z(t)"])
