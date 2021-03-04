@@ -937,7 +937,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     end
 
     function loss_function_(θ,p)
-        if additional_loss isa nothing
+        if additional_loss isa Nothing
             return pde_loss_function(θ) + bc_loss_function(θ)
         else
             function _additional_loss(phi,θ)
