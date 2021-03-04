@@ -304,7 +304,7 @@ end
 
 function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,
-                                      phi, derivative, initθ; eq_params = SciMLBase.NullParameters(), param_estim = param_estim
+                                      phi, derivative, initθ; eq_params = SciMLBase.NullParameters(), param_estim = param_estim,
                                       bc_indvars = indvars)
     if !(eqs isa Array)
         eqs = [eqs]
