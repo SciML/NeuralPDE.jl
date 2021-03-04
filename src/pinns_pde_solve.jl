@@ -774,7 +774,7 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars,
                                                                phi, derivative,initθ;eq_params=eq_params,param_estim=param_estim,
-                                                               bc_indvars = bc_indvar for (bc,bc_indvar) in zip(bcs,bc_indvars))]
+                                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
     symbolic_pde_loss_function,symbolic_bc_loss_functions
 end
 
