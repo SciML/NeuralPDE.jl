@@ -304,8 +304,8 @@ end
 
 function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,
-                                      phi, derivative, initθ;
-                                      bc_indvars = indvars, eq_params = SciMLBase.NullParameters(), param_estim = param_estim)
+                                      phi, derivative, initθ; eq_params = SciMLBase.NullParameters(), param_estim = param_estim
+                                      bc_indvars = indvars)
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -773,7 +773,7 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     bc_indvars = get_varibles(bcs,dict_indvars,dict_depvars)
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars,
-                                                               phi, derivative,initθ;eq_params=eq_params,param_estim=param_estim,
+                                                               phi, derivative,initθ,eq_params=eq_params,param_estim=param_estim;
                                                                bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
     symbolic_pde_loss_function,symbolic_bc_loss_functions
 end
