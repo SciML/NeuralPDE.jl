@@ -513,7 +513,6 @@ tspan = (0.0,1.0)
 prob = ODEProblem(lorenz!,u0,tspan)
 sol = solve(prob, Tsit5(), dt=0.1)
 data = []
-data
 indx = rand(1:1:21 , 12)
 for i in indx
     data = vcat(data , (sol.u[i] , sol.t[i]))
@@ -523,6 +522,7 @@ end
 function additional_loss(phi, θ , p)
     l = Int(length(θ)/3)
     _loss(u , t) = sum(abs2, phi[i](t , θ[(i*l - l + 1):(i*l)])[1] - (u[i])  for i in 1:1:3)
+    global data
     return sum(abs2, _loss(u,t) for (u , t) in data)/length(data)
 end
 
