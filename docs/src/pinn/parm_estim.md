@@ -1,6 +1,9 @@
 # Optimising Parameters of a Lorenz System
  Consider a Lorenz System ,
-! [lorenzSystem](https://user-images.githubusercontent.com/43771652/110070232-8172f980-7d9f-11eb-9d18-f1cf7e89c857.png) with Physics-Informed Neural Networks.
+
+![lorenzSystem](https://user-images.githubusercontent.com/43771652/110070232-8172f980-7d9f-11eb-9d18-f1cf7e89c857.png)
+
+with Physics-Informed Neural Networks.
 Now we would consider the case where we want to optimise the parameters σ, β  and ρ.
 We start by defining the the problem,
 
@@ -74,4 +77,4 @@ plot(sol)
 plot!(sol.t, u_predict, label = ["x(t)" "y(t)" "z(t)"])
 ```
 
-! [Plot_Lorenz](https://user-images.githubusercontent.com/43771652/110070388-e75f8100-7d9f-11eb-90ed-a165993e901e.png) 
+![Plot_Lorenz](https://user-images.githubusercontent.com/43771652/110070388-e75f8100-7d9f-11eb-90ed-a165993e901e.png)
