@@ -512,12 +512,15 @@ u0 = [1.0;0.0;0.0]
 tspan = (0.0,1.0)
 prob = ODEProblem(lorenz!,u0,tspan)
 sol = solve(prob, Tsit5(), dt=0.1)
-data = []
-indx = rand(1:1:21 , 12)
-for i in indx
-    data = vcat(data , (sol.u[i] , sol.t[i]))
+function getData(sol)
+    data = []
+    indx = rand(1:1:21 , 12)
+    for i in indx
+        data = vcat(data , (sol.u[i] , sol.t[i]))
+    end
+    return data
 end
-
+data = getData(sol)
 #Additional Loss Function
 function additional_loss(phi, θ , p)
     l = Int(length(θ)/3)
