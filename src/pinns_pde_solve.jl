@@ -478,9 +478,9 @@ function generate_training_sets(domains,dx,eqs,bcs,dict_indvars::Dict,dict_depva
     [pde_train_sets,bcs_train_sets]
 end
 
-function get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
+function get_bounds(domains,eqs,bcs,_indvars::Array,_depvars::Array)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
-    return get_bounds(domains,bcs,dict_indvars,dict_depvars)
+    return get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
 end
 
 function get_bounds(domains,bcs,_indvars::Array,_depvars::Array,strategy::QuadratureTraining)
