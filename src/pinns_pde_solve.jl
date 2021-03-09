@@ -292,19 +292,19 @@ to
           end
       end)
 """
-function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ; bc_indvars=nothing, eq_params = SciMLBase.NullParameters(), param_estim = false)
+function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,initθ; bc_indvars=nothing, eq_params = SciMLBase.NullParameters(), param_estim = false,default_p=nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_symbolic_loss_function(eqs,indvars,depvars,
                                         dict_indvars,dict_depvars,
                                         phi, derivative,initθ,
-                                        bc_indvars = bc_indvars, eq_params = eq_params, param_estim = param_estim)
+                                        bc_indvars = bc_indvars, eq_params = eq_params, param_estim = param_estim,default_p=default_p)
 end
 
 function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,
-                                      phi, derivative, initθ; eq_params = SciMLBase.NullParameters(), param_estim = param_estim,
+                                      phi, derivative, initθ; eq_params = SciMLBase.NullParameters(), param_estim = param_estim,default_p=default_p,
                                       bc_indvars = indvars)
     if !(eqs isa Array)
         eqs = [eqs]
@@ -401,7 +401,7 @@ function build_loss_function(eqs,indvars,depvars,
      expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars,
                                                        phi, derivative, initθ;
-                                                       bc_indvars = bc_indvars,eq_params = eq_params,param_estim=param_estim)
+                                                       bc_indvars = bc_indvars,eq_params = eq_params,param_estim=param_estim,default_p=default_p)
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     loss_function = (cord, θ) -> begin
@@ -768,12 +768,12 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     end
     symbolic_pde_loss_functions = [build_symbolic_loss_function(eq,indvars,depvars,
                                                               dict_indvars,dict_depvars,
-                                                              phi, derivative,initθ;eq_params=eq_params,param_estim=param_estim)
+                                                              phi, derivative,initθ;eq_params=eq_params,param_estim=param_estim,default_p=default_p)
 
     bc_indvars = get_varibles(bcs,dict_indvars,dict_depvars)
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars,
-                                                               phi, derivative,initθ,eq_params=eq_params,param_estim=param_estim;
+                                                               phi, derivative,initθ,eq_params=eq_params,param_estim=param_estim,default_p=default_p;
                                                                bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
     symbolic_pde_loss_function,symbolic_bc_loss_functions
 end
