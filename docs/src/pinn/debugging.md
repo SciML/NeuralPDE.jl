@@ -29,8 +29,8 @@ domains = [x ∈ IntervalDomain(0.0,1.0),
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 initθ = DiffEqFlux.initial_params(chain)
 
-phi = get_phi(chain)
-derivative = get_numeric_derivative()
+phi = NeuralPDE.get_phi(chain)
+derivative = NeuralPDE.get_numeric_derivative()
 
 u_ = (cord, θ, phi)->sum(phi(cord, θ))
 
@@ -48,101 +48,100 @@ isapprox(dphi[1][2], dphi2, atol=1e-8)
 indvars = [x,t]
 depvars = [u]
 dim = length(domains)
+dx = 0.1
+strategy = NeuralPDE.GridTraining(dx)
 
-_pde_loss_function = build_loss_function(eq,indvars,depvars,phi, derivative,initθ)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative,initθ,strategy)
 
-julia> expr_pde_loss_function = build_symbolic_loss_function(eq,indvars,depvars,phi,derivative,initθ)
+julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,phi,derivative,initθ,strategy)
 
-:((cord, var"##θ#1211", phi, derivative, u)->begin
+:((cord, var"##θ#529", phi, derivative, u)->begin
           begin
-              let (x, t) = (cord[1], cord[2])
-                  [derivative(phi, u, [x, t], Array{Float32,1}[[0.0, 0.0049215667], [0.0, 0.0049215667]], 2, var"##θ#1211") - derivative(phi, u, [x, t], Array{Float32,1}[[0.0049215667, 0.0], [0.0049215667, 0.0]], 2, var"##θ#1211")]
+              let (x, t) = (cord[[1], :], cord[[2], :])
+                  derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667], [0.0, 0.0049215667]], 2, var"##θ#529") .- derivative.(phi, u, cord, Array{Float32,1}[[0.0049215667, 0.0], [0.0049215667, 0.0]], 2, var"##θ#529")
               end
           end
+      end)
 
-julia> bc_indvars = get_bc_varibles(bcs,indvars,depvars)
+julia> bc_indvars = NeuralPDE.get_varibles(bcs,indvars,depvars)
 4-element Array{Array{Any,1},1}:
  [:t]
  [:t]
  [:x]
  [:x]
 
-_bc_loss_functions = [build_loss_function(bc,indvars,depvars,
-                                                    phi, derivative,initθ,
-                                                    bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
+                                                     phi, derivative,initθ,strategy,
+                                                     bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
-julia> expr_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
-                                                                 phi, derivative,initθ,
-                                                                 bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]                                         
+julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,
+                                                                        phi, derivative,initθ,strategy,
+                                                                        bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 4-element Array{Expr,1}:
- :((cord, var"##θ#1211", phi, derivative, u)->begin
+ :((cord, var"##θ#529", phi, derivative, u)->begin
           begin
-              let (t,) = (cord[1],)
-                  [u([0, t], var"##θ#1211", phi) - 0.0]
+              let (x, t) = (cord[[1], :], cord[[2], :])
+                  u.(cord, var"##θ#529", phi) .- 0.0
               end
           end
       end)
- :((cord, var"##θ#1211", phi, derivative, u)->begin
+ :((cord, var"##θ#529", phi, derivative, u)->begin
           begin
-              let (t,) = (cord[1],)
-                  [u([1, t], var"##θ#1211", phi) - 0.0]
+              let (x, t) = (cord[[1], :], cord[[2], :])
+                  u.(cord, var"##θ#529", phi) .- 0.0
               end
           end
       end)
- :((cord, var"##θ#1211", phi, derivative, u)->begin
+ :((cord, var"##θ#529", phi, derivative, u)->begin
           begin
-              let (x,) = (cord[1],)
-                  [u([x, 0], var"##θ#1211", phi) - (*)(x, (-)(1.0, x))]
+              let (x, t) = (cord[[1], :], cord[[2], :])
+                  u.(cord, var"##θ#529", phi) .- (*).(x, (+).(1.0, (*).(-1, x)))
               end
           end
       end)
- :((cord, var"##θ#1211", phi, derivative, u)->begin
+ :((cord, var"##θ#529", phi, derivative, u)->begin
           begin
-              let (x,) = (cord[1],)
-                  [derivative(phi, u, [x, 0], Array{Float32,1}[[0.0, 0.0049215667]], 1, var"##θ#1211") - 0.0]
+              let (x, t) = (cord[[1], :], cord[[2], :])
+                  derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667]], 1, var"##θ#529") .- 0.0
               end
           end
       end)
-dx=0.1
-train_sets = generate_training_sets(domains,dx,bcs,indvars,depvars)
-pde_train_set,bcs_train_set,train_set = train_sets
+
+train_sets = NeuralPDE.generate_training_sets(domains,dx,[eq],bcs,indvars,depvars)
+pde_train_set,bcs_train_set = train_sets
 
 julia> pde_train_set
-90-element Array{Array{Float64,1},1}:
- [0.1, 0.1]
- [0.2, 0.1]
- [0.3, 0.1]
- ⋮
- [0.7, 1.0]
- [0.8, 1.0]
- [0.9, 1.0]
+1-element Array{Array{Float32,2},1}:
+ [0.1 0.2 … 0.8 0.9; 0.1 0.1 … 1.0 1.0]
 
- julia> bcs_train_set
- 4-element Array{Array{Array{Float64,1},1},1}:
-  [[0.0], [0.1], [0.2], [0.3], [0.4], [0.5], [0.6], [0.7], [0.8], [0.9], [1.0]]
-  [[0.0], [0.1], [0.2], [0.3], [0.4], [0.5], [0.6], [0.7], [0.8], [0.9], [1.0]]
-  [[0.0], [0.1], [0.2], [0.3], [0.4], [0.5], [0.6], [0.7], [0.8], [0.9], [1.0]]
-  [[0.0], [0.1], [0.2], [0.3], [0.4], [0.5], [0.6], [0.7], [0.8], [0.9], [1.0]]
 
-pde_bounds, bcs_bounds = get_bounds(domains,bcs,indvars,depvars)
+julia> bcs_train_set
+4-element Array{Array{Float32,2},1}:
+ [0.0 0.0 … 0.0 0.0; 0.0 0.1 … 0.9 1.0]
+ [1.0 1.0 … 1.0 1.0; 0.0 0.1 … 0.9 1.0]
+ [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]
+ [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]
+
+
+pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,[eq],bcs,indvars,depvars)
 
 julia> pde_bounds
-2-element Array{Array{Float64,1},1}:
- [0.0, 0.0]
- [1.0, 1.0]
+1-element Array{Array{Any,1},1}:
+ [[0.0, 1.0], [0.0, 1.0]]
 
 julia> bcs_bounds
-2-element Array{Array{Array{Float64,1},1},1}:
- [[0.0], [0.0], [0.0], [0.0]]
- [[1.0], [1.0], [1.0], [1.0]]
+4-element Array{Array{Any,1},1}:
+ [0, [0.0, 1.0]]
+ [1, [0.0, 1.0]]
+ [[0.0, 1.0], 0]
+ [[0.0, 1.0], 0]
 
-strategy = GridTraining(dx)
-discretization = PhysicsInformedNN(chain,strategy)
+discretization = NeuralPDE.PhysicsInformedNN(chain,strategy)
 
 pde_system = PDESystem(eq,bcs,domains,indvars,depvars)
-prob = discretize(pde_system,discretization)
+prob = NeuralPDE.discretize(pde_system,discretization)
 
-expr_prob = symbolic_discretize(pde_system,discretization)
+expr_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 expr_pde_loss_function , expr_bc_loss_functions = expr_prob
 
 ```
