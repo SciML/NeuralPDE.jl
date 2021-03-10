@@ -536,7 +536,7 @@ sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 len = length(data)
 
 function additional_loss(phi, θ , p)
-    return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
+    return sum(abs2, sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
 end
 
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
@@ -544,7 +544,7 @@ pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], [1.0, 1.0 ,1
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=3000)
 p_ = res.minimizer[end-2:end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1
@@ -558,3 +558,4 @@ p_ = res.minimizer[end-2:end]
 # u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 # plot(sol)
 # plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
+p_
