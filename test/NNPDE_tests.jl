@@ -542,7 +542,6 @@ p_ = res.minimizer[end-2:end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1
 @test sum(abs2, p_[3] - (8/3)) < 0.1
-
 #Plotting the system
 # initθ = discretization.init_params
 # acum =  [0;accumulate(+, length.(initθ))]
