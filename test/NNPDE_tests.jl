@@ -502,6 +502,14 @@ bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
 domains = [t ∈ IntervalDomain(0.0,1.0)]
 dt = 0.05
 
+input_ = length(domains)
+n = 8
+
+chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+
+#Generate Data
 function lorenz!(du,u,p,t)
  du[1] = 10.0*(u[2]-u[1])
  du[2] = u[1]*(28.0-u[3]) - u[2]
@@ -519,30 +527,13 @@ function getData(sol)
     return [us,ts]
 end
 data = getData(sol)
-#Additional Loss Function
-initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
-acum =  [0;accumulate(+, length.(initθs))]
-sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
-len = length(ts)
-(u_ , t_) = data
-
-function additional_loss(phi, θ , p)
-    return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
-end
-
-input_ = length(domains)
-n = 8
-chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
-chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
-chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
-
 
 #Additional Loss Function
 initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
 acum =  [0;accumulate(+, length.(initθs))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
-len = length(ts)
 (u_ , t_) = data
+len = length(data)
 
 function additional_loss(phi, θ , p)
     return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)

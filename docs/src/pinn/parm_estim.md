@@ -23,7 +23,7 @@ dt = 0.05
 And the neural networks as,
 ```julia
 input_ = length(domains)
-n = 16
+n = 8
 chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
@@ -43,20 +43,24 @@ u0 = [1.0;0.0;0.0]
 tspan = (0.0,1.0)
 prob = ODEProblem(lorenz!,u0,tspan)
 sol = solve(prob, Tsit5(), dt=0.1)
-data = []
-indx = rand(1:1:21 , 12)
-for i in indx
-    data = vcat(data , (sol.u[i] , sol.t[i]))
+function getData(sol)
+    data = []
+    us = hcat(sol.u...)
+    ts = hcat(sol.t...)
+    return [us,ts]
 end
+data = getData(sol)
+initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
+acum =  [0;accumulate(+, length.(initθs))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+(u_ , t_) = data
+len = length(data)
 ```
 Then we define the additional loss funciton `additional_loss(phi, θ , p)`, the function has three arguments, `phi` the trial solution, `θ` the parameters of neural networks, and the hyperparameters `p` .
 
 ```julia
 function additional_loss(phi, θ , p)
-    l = Int(length(θ)/3)
-    _loss(u , t) = sum(abs2, phi[i](t , θ[(i*l - l + 1):(i*l)])[1] - (u[i])  for i in 1:1:3)
-    global data
-    return sum(abs2, _loss(u,t) for (u , t) in data)/length(data)
+    return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
 end
 ```
 Then finally defining and optimising using the `PhysicsInformedNN` interface.
