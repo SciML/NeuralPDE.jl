@@ -563,6 +563,7 @@ p_ = res.minimizer[end-2:end]
 # acum =  [0;accumulate(+, length.(initθ))]
 # sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 # minimizers = [res.minimizer[s] for s in sep]
-#u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in sol.t] for i in 1:3]
+# ts = [domain.domain.lower:dt/10:domain.domain.upper for domain in domains][1]
+# u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 # plot(sol)
-# plot!(sol.t, u_predict, label = ["x(t)" "y(t)" "z(t)"])
+# plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
