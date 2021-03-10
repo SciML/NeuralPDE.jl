@@ -896,9 +896,9 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
             return pde_loss_function(θ) + bc_loss_function(θ)
         else
             function _additional_loss(phi,θ)
-                θ = θ[1:end - length(default_p)]
-                p = θ[end - length(default_p):end]
-                return additional_loss(phi,θ,p)
+                θ_ = θ[1:end - length(default_p)]
+                p = θ[(end - length(default_p) + 1):end]
+                return additional_loss(phi,θ_,p)
             end
             return pde_loss_function(θ) + bc_loss_function(θ) + _additional_loss(phi,θ)
         end
