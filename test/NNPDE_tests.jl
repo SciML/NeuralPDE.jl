@@ -514,19 +514,20 @@ prob = ODEProblem(lorenz!,u0,tspan)
 sol = solve(prob, Tsit5(), dt=0.1)
 function getData(sol)
     data = []
-    indx = rand(1:1:21 , 12)
-    for i in indx
-        data = vcat(data , (sol.u[i] , sol.t[i]))
-    end
-    return data
+    us = hcat(sol.u...)
+    ts = hcat(sol.t...)
+    return [us,ts]
 end
 data = getData(sol)
 #Additional Loss Function
+initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
+acum =  [0;accumulate(+, length.(initθs))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+len = length(ts)
+(u_ , t_) = data
+
 function additional_loss(phi, θ , p)
-    l = Int(length(θ)/3)
-    _loss(u , t) = sum(abs2, phi[i](t , θ[(i*l - l + 1):(i*l)])[1] - (u[i])  for i in 1:1:3)
-    global data
-    return sum(abs2, _loss(u,t) for (u , t) in data)/length(data)
+    return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
 end
 
 input_ = length(domains)
@@ -534,10 +535,25 @@ n = 8
 chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+
+
+#Additional Loss Function
+initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
+acum =  [0;accumulate(+, length.(initθs))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+len = length(ts)
+(u_ , t_) = data
+
+function additional_loss(phi, θ , p)
+    return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
+end
+
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
 pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], [1.0, 1.0 ,1.0])
 prob = NeuralPDE.discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=5500)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=1000)
 p_ = res.minimizer[end-2:end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1
