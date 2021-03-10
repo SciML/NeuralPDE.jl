@@ -8,6 +8,7 @@ Now we would consider the case where we want to optimise the parameters σ, β  
 We start by defining the the problem,
 
 ```julia
+using OrdinaryDiffEq
 @parameters t ,σ_ ,β, ρ
 @variables x(..), y(..), z(..)
 Dt = Differential(t)

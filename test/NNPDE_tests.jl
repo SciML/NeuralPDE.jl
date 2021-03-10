@@ -537,7 +537,7 @@ chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
 pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], [1.0, 1.0 ,1.0])
 prob = NeuralPDE.discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=5000)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=5500)
 p_ = res.minimizer[end-2:end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1
