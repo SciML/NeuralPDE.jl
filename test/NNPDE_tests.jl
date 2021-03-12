@@ -442,8 +442,6 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,Optim.BFGS();allow_f_increases=true, cb = cb, maxiters=10000)
-prob = remake(prob,u0=res.minimizer)
 res = GalacticOptim.solve(prob,ADAM(0.1); cb = cb, maxiters=1500)
 prob = remake(prob,u0=res.minimizer)
 res = GalacticOptim.solve(prob,Optim.BFGS();allow_f_increases=true, cb = cb, maxiters=10000)
