@@ -110,7 +110,7 @@ struct QuadratureTraining <: TrainingStrategies
     batch::Int64
 end
 
-function QuadratureTraining(;quadrature_alg=HCubatureJL(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=0)
+function QuadratureTraining(;quadrature_alg=CubatureJLh(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=100)
     QuadratureTraining(quadrature_alg,reltol,abstol,maxiters,batch)
 end
 
