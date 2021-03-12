@@ -87,4 +87,4 @@ plot(sol)
 plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
 ```
 
-![Plot_Lorenz](https://user-images.githubusercontent.com/43771652/110070388-e75f8100-7d9f-11eb-90ed-a165993e901e.png)
+![Plot_Lorenz](https://user-images.githubusercontent.com/12683885/110944192-2ae05f00-834d-11eb-910b-f5c06d22ec8a.png)
