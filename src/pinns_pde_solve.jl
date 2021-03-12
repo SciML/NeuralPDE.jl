@@ -399,12 +399,12 @@ function get_vars(indvars_, depvars_)
     return depvars,indvars,dict_indvars,dict_depvars
 end
 
-function get_varibles(eqs,_indvars::Array,_depvars::Array)
+function get_variables(eqs,_indvars::Array,_depvars::Array)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
-    return get_varibles(eqs,dict_indvars,dict_depvars)
+    return get_variables(eqs,dict_indvars,dict_depvars)
 end
 
-function get_varibles(eqs,dict_indvars,dict_depvars)
+function get_variables(eqs,dict_indvars,dict_depvars)
     bc_args = get_argument(eqs,dict_indvars,dict_depvars)
     return map(barg -> filter(x -> x isa Symbol, barg), bc_args)
 end
@@ -427,6 +427,10 @@ function find_thing_in_expr(ex::Expr, thing; ans = Expr[])
 end
 
 # Get arguments from boundary condition functions
+function get_argument(eqs,_indvars::Array,_depvars::Array)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
+    get_argument(eqs,dict_indvars,dict_depvars)
+end
 function get_argument(eqs,dict_indvars,dict_depvars)
     exprs = toexpr.(eqs)
     vars = map(exprs) do expr
@@ -456,7 +460,7 @@ function generate_training_sets(domains,dx,eqs,bcs,dict_indvars::Dict,dict_depva
     dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
 
     bound_args = get_argument(bcs,dict_indvars,dict_depvars)
-    bound_vars = get_varibles(bcs,dict_indvars,dict_depvars)
+    bound_vars = get_variables(bcs,dict_indvars,dict_depvars)
 
     dif = [Float32[] for i=1:size(domains)[1]]
     for _args in bound_args
@@ -478,7 +482,7 @@ function generate_training_sets(domains,dx,eqs,bcs,dict_indvars::Dict,dict_depva
         _set = Float32.(hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
     end
 
-    pde_vars = get_varibles(eqs,dict_indvars,dict_depvars)
+    pde_vars = get_variables(eqs,dict_indvars,dict_depvars)
     pde_args = get_argument(eqs,dict_indvars,dict_depvars)
 
     pde_train_set = Float32.(hcat(vec(map(points -> collect(points), Iterators.product(bc_data...)))...))
@@ -501,7 +505,7 @@ function get_bounds(domains,bcs,_indvars::Array,_depvars::Array,strategy::Quadra
 end
 
 function get_bounds(domains,bcs,dict_indvars,dict_depvars,strategy::QuadratureTraining)
-    bound_vars = get_varibles(bcs,dict_indvars,dict_depvars)
+    bound_vars = get_variables(bcs,dict_indvars,dict_depvars)
 
     pde_lower_bounds = [d.domain.lower for d in domains]
     pde_upper_bounds = [d.domain.upper for d in domains]
@@ -712,7 +716,7 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     bc_indvars = if strategy isa QuadratureTraining
          get_argument(bcs,dict_indvars,dict_depvars)
     else
-         get_varibles(bcs,dict_indvars,dict_depvars)
+         get_variables(bcs,dict_indvars,dict_depvars)
     end
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars,
@@ -746,7 +750,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     bc_indvars = if strategy isa QuadratureTraining
          get_argument(bcs,dict_indvars,dict_depvars)
     else
-         get_varibles(bcs,dict_indvars,dict_depvars)
+         get_variables(bcs,dict_indvars,dict_depvars)
     end
     _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
                                                   dict_indvars,dict_depvars,
