@@ -93,7 +93,7 @@ function test_2d_poisson_equation(chain_, strategy_)
 
     pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
     prob = NeuralPDE.discretize(pde_system,discretization)
-
+    sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
     res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=500)
     phi = discretization.phi
 
@@ -124,9 +124,9 @@ for chain in chains
 end
 
 stochastic_strategy = NeuralPDE.StochasticTraining(100) #points
-quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),
-                                                   reltol = 1e-2, abstol = 1e-2,
-                                                   maxiters = 50)
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
+                                                    reltol=1e-3,abstol=1e-3,
+                                                    maxiters =50, batch=100)
 quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
                                                      sampling_alg = UniformSample(),
                                                      minibatch = 100)
