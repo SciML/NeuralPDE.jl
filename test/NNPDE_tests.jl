@@ -558,4 +558,3 @@ p_ = res.minimizer[end-2:end]
 # u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 # plot(sol)
 # plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
-p_

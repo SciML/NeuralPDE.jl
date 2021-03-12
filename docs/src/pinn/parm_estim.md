@@ -8,7 +8,7 @@ Now we would consider the case where we want to optimise the parameters σ, β  
 We start by defining the the problem,
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, OrdinaryDiffEq
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, OrdinaryDiffEq, Plots
 @parameters t ,σ_ ,β, ρ
 @variables x(..), y(..), z(..)
 Dt = Differential(t)
@@ -81,9 +81,10 @@ initθ = discretization.init_params
 acum =  [0;accumulate(+, length.(initθ))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 minimizers = [res.minimizer[s] for s in sep]
-u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in sol.t] for i in 1:3]
+ts = [domain.domain.lower:dt/10:domain.domain.upper for domain in domains][1]
+u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 plot(sol)
-plot!(sol.t, u_predict, label = ["x(t)" "y(t)" "z(t)"])
+plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
 ```
 
 ![Plot_Lorenz](https://user-images.githubusercontent.com/43771652/110070388-e75f8100-7d9f-11eb-90ed-a165993e901e.png)
