@@ -703,6 +703,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
 
     f_ = (lb,ub,loss_,θ) -> begin
         function ___loss(dx, x,θ)
+            x = adapt(typeof(θ),x)
             dx.= [sum(abs2,loss_(x,θ))]
         end
 
