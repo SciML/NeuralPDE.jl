@@ -19,7 +19,7 @@ cb = function (p,l)
     return false
 end
 CUDA.allowscalar(false)
-const gpuones = cu(ones(1))
+#const gpuones = cu(ones(1))
 
 ## ODE
 @parameters θ
@@ -93,7 +93,7 @@ chain = FastChain(FastDense(2,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1),(u,p)->gpuones .* u)
+                  FastDense(inner,1))#,(u,p)->gpuones .* u)
 
 strategy = NeuralPDE.StochasticTraining(500)
 initθ = initial_params(chain) |>gpu
@@ -155,7 +155,7 @@ inner = 25
 chain = FastChain(FastDense(3,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1),(u,p)->gpuones .* u)
+                  FastDense(inner,1))#,(u,p)->gpuones .* u)
 
 initθ = DiffEqFlux.initial_params(chain) |> gpu
 
