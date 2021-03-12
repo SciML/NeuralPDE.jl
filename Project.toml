@@ -5,6 +5,7 @@ version = "3.8.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
+ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Cuba = "8a292aeb-7a57-582c-b821-06e4c11590b1"
 Cubature = "667455a9-e2ce-5579-9412-b964f529a492"
@@ -33,6 +34,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 Adapt = "2.0, 3.0"
+ArrayInterface = "3.1"
 CUDA = "1.2, 2.0"
 Cuba = "2.1.0"
 Cubature = "1.5.1"
@@ -45,7 +47,7 @@ Flux = "0.10.1, 0.11"
 ForwardDiff = "0.10"
 GalacticOptim = "1"
 IfElse = "0.1"
-ModelingToolkit = "5"
+ModelingToolkit = "5.13"
 Optim = "1.0"
 Quadrature = "1.5"
 QuasiMonteCarlo = "0.2.1"
@@ -59,9 +61,10 @@ julia = "1.5"
 
 [extras]
 DiffEqDevTools = "f3b72e0c-5b89-59e1-b016-84e28bfd966d"
+OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "SafeTestsets", "DiffEqDevTools", "Pkg"]
+test = ["Test", "SafeTestsets", "DiffEqDevTools", "Pkg", "OrdinaryDiffEq"]
