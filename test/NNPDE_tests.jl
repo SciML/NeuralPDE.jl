@@ -11,6 +11,7 @@ using Optim
 using Quadrature,Cubature, Cuba
 using QuasiMonteCarlo
 using SciMLBase
+using OrdinaryDiffEq
 
 using Random
 Random.seed!(100)
@@ -484,3 +485,76 @@ u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
 # plot(xs ,u_real, label = "analytic")
 # plot!(xs ,u_predict, label = "predict")
+
+## Example 8, Lorenz System (Parameter Estimation)
+println("Example 8, Lorenz System")
+
+Random.seed!(1234)
+@parameters t ,σ_ ,β, ρ
+@variables x(..), y(..), z(..)
+Dt = Differential(t)
+eqs = [Dt(x(t)) ~ σ_*(y(t) - x(t)),
+       Dt(y(t)) ~ x(t)*(ρ - z(t)) - y(t),
+       Dt(z(t)) ~ x(t)*y(t) - β*z(t)]
+
+
+bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
+domains = [t ∈ IntervalDomain(0.0,1.0)]
+dt = 0.05
+
+input_ = length(domains)
+n = 8
+
+chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+
+#Generate Data
+function lorenz!(du,u,p,t)
+ du[1] = 10.0*(u[2]-u[1])
+ du[2] = u[1]*(28.0-u[3]) - u[2]
+ du[3] = u[1]*u[2] - (8/3)*u[3]
+end
+
+u0 = [1.0;0.0;0.0]
+tspan = (0.0,1.0)
+prob = ODEProblem(lorenz!,u0,tspan)
+sol = solve(prob, Tsit5(), dt=0.1)
+function getData(sol)
+    data = []
+    us = hcat(sol.u...)
+    ts = hcat(sol.t...)
+    return [us,ts]
+end
+data = getData(sol)
+
+#Additional Loss Function
+initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
+acum =  [0;accumulate(+, length.(initθs))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+(u_ , t_) = data
+len = length(data)
+
+function additional_loss(phi, θ , p)
+    return sum(abs2, sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
+end
+
+discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
+pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], [1.0, 1.0 ,1.0])
+prob = NeuralPDE.discretize(pde_system,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=3000)
+p_ = res.minimizer[end-2:end]
+@test sum(abs2, p_[1] - 10.00) < 0.1
+@test sum(abs2, p_[2] - 28.00) < 0.1
+@test sum(abs2, p_[3] - (8/3)) < 0.1
+#Plotting the system
+# initθ = discretization.init_params
+# acum =  [0;accumulate(+, length.(initθ))]
+# sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+# minimizers = [res.minimizer[s] for s in sep]
+# ts = [domain.domain.lower:dt/10:domain.domain.upper for domain in domains][1]
+# u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
+# plot(sol)
+# plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
