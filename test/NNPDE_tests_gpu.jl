@@ -159,7 +159,7 @@ chain = FastChain(FastDense(3,inner,Flux.σ),
 
 initθ = DiffEqFlux.initial_params(chain) |> gpu
 
-strategy = NeuralPDE.QuasiRandomTraining(6000; #points
+strategy = NeuralPDE.QuasiRandomTraining(3000; #points
                                          sampling_alg = UniformSample(),
                                          minibatch = 100)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
