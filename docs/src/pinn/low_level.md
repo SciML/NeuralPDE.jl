@@ -1,4 +1,4 @@
-# 2-D Burgers' Equation With Low-Level API
+# 1-D Burgers' Equation With Low-Level API
 
 Let's consider the Burgers’ equation:
 

@@ -1,6 +1,6 @@
-# 2D Wave Equation with Neumann BCs
+# 1D Wave Equation with Dirichlet boundary conditions
 
-Let's solve this 2-dimensional wave equation:
+Let's solve this 1-dimensional wave equation:
 
 ![wave](https://user-images.githubusercontent.com/12683885/91465006-ecde8a80-e895-11ea-935e-2c1d60e3d1f2.png)
 
