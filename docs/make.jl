@@ -15,7 +15,7 @@ makedocs(
         "Physics-Informed Neural Network Tutorials" => Any[
             "pinn/poisson.md",
             "pinn/wave.md",
-            "pinn/3D.md",
+            "pinn/2D.md",
             "pinn/system.md",
             "pinn/3rd.md",
             "pinn/low_level.md",

@@ -1,6 +1,6 @@
-# 2D Poisson Equation
+# Poisson Equation
 
-In this example, we will solve a Poisson equation of 2 dimensions:
+In this example, we will solve a Poisson equation:
 
 ![poisson](https://user-images.githubusercontent.com/12683885/86838505-ee1ae480-c0a8-11ea-8d3c-7da53a9a7091.png)
 
