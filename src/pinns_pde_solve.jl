@@ -54,7 +54,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,K} <: AbstractPINN{isinpla
         end
 
         if derivative == nothing
-            _derivative = get_numeric_derivative(;vectorize = true)
+            _derivative = get_numeric_derivative()
         else
             _derivative = derivative
         end
@@ -407,7 +407,7 @@ function build_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars,
                                                        phi, derivative, initθ,strategy;
                                                        bc_indvars = bc_indvars,eq_params = eq_params,param_estim=param_estim,default_p=default_p)
-    u = get_u(;strategy=strategy)
+    u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     loss_function = (cord, θ) -> begin
         _loss_function(cord, θ, phi, derivative, u, default_p)
@@ -578,16 +578,16 @@ function get_phi(chain)
     phi
 end
 
-function get_u(;strategy=nothing)
+function get_u()
     u = (cord, θ, phi)-> phi(cord, θ)
 end
 
 Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
 
 # the method to calculate the derivative
-function get_numeric_derivative(;vectorize = true)
+function get_numeric_derivative()
     _epsilon = 1 / (2*cbrt(eps(Float32)))
-    derivative = if vectorize == true
+    derivative =
         (phi,u,x,εs,order,θ) ->
         begin
             ε = εs[order]
@@ -600,21 +600,6 @@ function get_numeric_derivative(;vectorize = true)
                 return (u(x .+ ε,θ,phi) .- u(x .- ε,θ,phi)) .* _epsilon
             end
         end
-    else
-        (phi,u,x,εs,order,θ) ->
-        begin
-            ε = εs[order]
-            ε = adapt(typeof(θ),ε)
-            x = adapt(typeof(θ),x)
-            if order > 1
-                return (derivative(phi,u,x+ε,εs,order-1,θ)
-                      - derivative(phi,u,x-ε,εs,order-1,θ)) * _epsilon
-            else
-                return (u(x+ε,θ,phi) - u(x-ε,θ,phi)) * _epsilon
-            end
-        end
-    end
-    derivative
 end
 
 Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
@@ -878,7 +863,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
         if bl == 0
             _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
                                                           dict_indvars,dict_depvars,
-                                                          phi, get_numeric_derivative(;vectorize = true), initθ, GridTraining(0.1);
+                                                          phi, get_numeric_derivative(), initθ, GridTraining(0.1);
                                                           bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
             train_sets = generate_training_sets(domains,0.1,eqs,bcs,
                                                 dict_indvars,dict_depvars)
