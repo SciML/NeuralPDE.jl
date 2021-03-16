@@ -687,9 +687,9 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
     end
 
     f_ = (lb,ub,loss_,θ) -> begin
-        function ___loss(dx, x,θ)
+        function ___loss(x,θ)
             x = adapt(typeof(θ),x)
-            dx.= adapt(typeof(θ),[sum(abs2,loss_(x,θ))])
+            cu.([sum(abs2,loss_(x,θ))])
         end
 
         prob = QuadratureProblem(___loss,lb,ub,θ,batch = strategy.batch,nout=1)
@@ -760,7 +760,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     chain = discretization.chain
     initθ = discretization.init_params
     flat_initθ = if length(depvars) != 1 vcat(initθ...) else  initθ end
-    flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ , default_p) end
+    flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, adapt(typeof(flat_initθ),default_p)) end
 
     phi = discretization.phi
     derivative = discretization.derivative

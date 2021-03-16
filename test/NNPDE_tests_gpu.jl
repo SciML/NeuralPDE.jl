@@ -176,168 +176,168 @@ diff_u = abs.(u_predict .- u_real)
 # p3 = plot(ts, xs, diff_u,linetype=:contourf,title = "error");
 # plot(p1,p2,p3)
 
-## Lorenz System (Parameter Estimation)
-@parameters t ,σ_ ,β, ρ
-@variables x(..), y(..), z(..)
-Dt = Differential(t)
-eqs = [Dt(x(t)) ~ σ_*(y(t) - x(t)),
-       Dt(y(t)) ~ x(t)*(ρ - z(t)) - y(t),
-       Dt(z(t)) ~ x(t)*y(t) - β*z(t)]
-
-
-bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
-domains = [t ∈ IntervalDomain(0.0,1.0)]
-dt = 0.05
-
-input_ = length(domains)
-n = 8
-
-chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
-chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
-chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
-
-#Generate Data
-function lorenz!(du,u,p,t)
- du[1] = 10.0*(u[2]-u[1])
- du[2] = u[1]*(28.0-u[3]) - u[2]
- du[3] = u[1]*u[2] - (8/3)*u[3]
-end
-
-u0 = [1.0;0.0;0.0]
-tspan = (0.0,1.0)
-prob = ODEProblem(lorenz!,u0,tspan)
-sol = solve(prob, Tsit5(), dt=0.1)
-function getData(sol)
-    data = []
-    us = hcat(sol.u...)
-    ts = hcat(sol.t...)
-    return [us,ts]
-end
-data = getData(sol)
-
-#Additional Loss Function
-initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
-acum =  [0;accumulate(+, length.(initθs))]
-sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
-(u_ , t_) = data
-len = length(data)
-
-function additional_loss(phi, θ , p)
-    return sum(abs2, sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
-end
-
-initθs_gpu = initθs
-
-discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],
-                                             NeuralPDE.GridTraining(dt),
-                                             init_params = initθs_gpu,
-                                             param_estim = true,
-                                             additional_loss = additional_loss)
-
-pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], [1.0, 1.0 ,1.0])
-prob = NeuralPDE.discretize(pde_system,discretization)
-
-
-sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=3000)
-p_ = res.minimizer[end-2:end]
-@test sum(abs2, p_[1] - 10.00) < 0.1
-@test sum(abs2, p_[2] - 28.00) < 0.1
-@test sum(abs2, p_[3] - (8/3)) < 0.1
-
-#Plotting the system
-# initθ = discretization.init_params
-# acum =  [0;accumulate(+, length.(initθ))]
-# sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
-# minimizers = [res.minimizer[s] for s in sep]
-# ts = [domain.domain.lower:dt/10:domain.domain.upper for domain in domains][1]
-# u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
-# plot(sol)
-# plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
-
-
-## 2D PDE
-@parameters t x y
-@variables u(..)
-Dxx = Differential(x)^2
-Dyy = Differential(y)^2
-Dt = Differential(t)
-t_min= 0.
-t_max = 2.0
-x_min = 0.
-x_max = 2.
-y_min = 0.
-y_max = 2.
-
-# 3D PDE
-eq  = Dt(u(t,x,y)) ~ Dxx(u(t,x,y)) + Dyy(u(t,x,y))
-
-analytic_sol_func(t,x,y) = exp(x+y)*cos(x+y+4t)
-# Initial and boundary conditions
-bcs = [u(t_min,x,y) ~ analytic_sol_func(t_min,x,y),
-       u(t,x_min,y) ~ analytic_sol_func(t,x_min,y),
-       u(t,x_max,y) ~ analytic_sol_func(t,x_max,y),
-       u(t,x,y_min) ~ analytic_sol_func(t,x,y_min),
-       u(t,x,y_max) ~ analytic_sol_func(t,x,y_max)]
-
-# Space and time domains
-domains = [t ∈ IntervalDomain(t_min,t_max),
-           x ∈ IntervalDomain(x_min,x_max),
-           y ∈ IntervalDomain(y_min,y_max)]
-
-# Neural network
-inner = 25
-chain = FastChain(FastDense(3,inner,Flux.σ),
-                  FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1))#,(u,p)->gpuones .* u)
-
-initθ = DiffEqFlux.initial_params(chain) |> gpu
-
-strategy = NeuralPDE.QuasiRandomTraining(4000; #points
-                                         sampling_alg = UniformSample(),
-                                         minibatch = 3)
-
-discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy;
-                                             init_params = initθ)
-
-pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u])
-prob = NeuralPDE.discretize(pde_system,discretization)
-
-res = GalacticOptim.solve(prob,ADAM(0.1);cb=cb,maxiters=1000)
-prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=1000)
-prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=1000)
-
-phi = discretization.phi
-ts,xs,ys = [domain.domain.lower:0.1:domain.domain.upper for domain in domains]
-u_real = [analytic_sol_func(t,x,y) for t in ts for x in xs for y in ys]
-u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs for y in ys]
-
-@test u_predict ≈ u_real atol = 20.0
-
-# using Plots
-# using Printf
+# ## Lorenz System (Parameter Estimation)
+# @parameters t ,σ_ ,β, ρ
+# @variables x(..), y(..), z(..)
+# Dt = Differential(t)
+# eqs = [Dt(x(t)) ~ σ_*(y(t) - x(t)),
+#        Dt(y(t)) ~ x(t)*(ρ - z(t)) - y(t),
+#        Dt(z(t)) ~ x(t)*y(t) - β*z(t)]
 #
-# function plot_(res)
-#     # Animate
-#     anim = @animate for (i, t) in enumerate(0:0.05:t_max)
-#         @info "Animating frame $i..."
-#         u_real = reshape([analytic_sol_func(t,x,y) for x in xs for y in ys], (length(xs),length(ys)))
-#         u_predict = reshape([Array(phi([t, x, y], res.minimizer))[1] for x in xs for y in ys], length(xs), length(ys))
-#         u_error = abs.(u_predict .- u_real)
-#         title = @sprintf("predict t = %.3f", t)
-#         p1 = plot(xs, ys, u_predict,st=:surface, label="", title=title)
-#         title = @sprintf("real")
-#         p2 = plot(xs, ys, u_real,st=:surface, label="", title=title)
-#         title = @sprintf("error")
-#         p3 = plot(xs, ys, u_error, st=:contourf,label="", title=title)
-#         plot(p1,p2,p3)
-#     end
-#     gif(anim,"3pde.gif", fps=10)
+#
+# bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
+# domains = [t ∈ IntervalDomain(0.0,1.0)]
+# dt = 0.05
+#
+# input_ = length(domains)
+# n = 8
+#
+# chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+# chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+# chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+#
+# #Generate Data
+# function lorenz!(du,u,p,t)
+#  du[1] = 10.0*(u[2]-u[1])
+#  du[2] = u[1]*(28.0-u[3]) - u[2]
+#  du[3] = u[1]*u[2] - (8/3)*u[3]
 # end
 #
-# plot_(res)
+# u0 = [1.0;0.0;0.0]
+# tspan = (0.0,1.0)
+# prob = ODEProblem(lorenz!,u0,tspan)
+# sol = solve(prob, Tsit5(), dt=0.1)
+# function getData(sol)
+#     data = []
+#     us = hcat(sol.u...)
+#     ts = hcat(sol.t...)
+#     return [us,ts]
+# end
+# data = getData(sol)
+#
+# #Additional Loss Function
+# initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
+# acum =  [0;accumulate(+, length.(initθs))]
+# sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+# (u_ , t_) = data
+# len = length(data)
+#
+# function additional_loss(phi, θ , p)
+#     return sum(abs2, sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
+# end
+#
+# initθs_gpu = initθs
+#
+# discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],
+#                                              NeuralPDE.GridTraining(dt),
+#                                              init_params = initθs_gpu,
+#                                              param_estim = true,
+#                                              additional_loss = additional_loss)
+#
+# pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], [1.0, 1.0 ,1.0])
+# prob = NeuralPDE.discretize(pde_system,discretization)
+#
+#
+# sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+#
+# res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=3000)
+# p_ = res.minimizer[end-2:end]
+# @test sum(abs2, p_[1] - 10.00) < 0.1
+# @test sum(abs2, p_[2] - 28.00) < 0.1
+# @test sum(abs2, p_[3] - (8/3)) < 0.1
+#
+# #Plotting the system
+# # initθ = discretization.init_params
+# # acum =  [0;accumulate(+, length.(initθ))]
+# # sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+# # minimizers = [res.minimizer[s] for s in sep]
+# # ts = [domain.domain.lower:dt/10:domain.domain.upper for domain in domains][1]
+# # u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
+# # plot(sol)
+# # plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
+#
+#
+# ## 2D PDE
+# @parameters t x y
+# @variables u(..)
+# Dxx = Differential(x)^2
+# Dyy = Differential(y)^2
+# Dt = Differential(t)
+# t_min= 0.
+# t_max = 2.0
+# x_min = 0.
+# x_max = 2.
+# y_min = 0.
+# y_max = 2.
+#
+# # 3D PDE
+# eq  = Dt(u(t,x,y)) ~ Dxx(u(t,x,y)) + Dyy(u(t,x,y))
+#
+# analytic_sol_func(t,x,y) = exp(x+y)*cos(x+y+4t)
+# # Initial and boundary conditions
+# bcs = [u(t_min,x,y) ~ analytic_sol_func(t_min,x,y),
+#        u(t,x_min,y) ~ analytic_sol_func(t,x_min,y),
+#        u(t,x_max,y) ~ analytic_sol_func(t,x_max,y),
+#        u(t,x,y_min) ~ analytic_sol_func(t,x,y_min),
+#        u(t,x,y_max) ~ analytic_sol_func(t,x,y_max)]
+#
+# # Space and time domains
+# domains = [t ∈ IntervalDomain(t_min,t_max),
+#            x ∈ IntervalDomain(x_min,x_max),
+#            y ∈ IntervalDomain(y_min,y_max)]
+#
+# # Neural network
+# inner = 25
+# chain = FastChain(FastDense(3,inner,Flux.σ),
+#                   FastDense(inner,inner,Flux.σ),
+#                   FastDense(inner,inner,Flux.σ),
+#                   FastDense(inner,1))#,(u,p)->gpuones .* u)
+#
+# initθ = DiffEqFlux.initial_params(chain) |> gpu
+#
+# strategy = NeuralPDE.QuasiRandomTraining(4000; #points
+#                                          sampling_alg = UniformSample(),
+#                                          minibatch = 3)
+#
+# discretization = NeuralPDE.PhysicsInformedNN(chain,
+#                                              strategy;
+#                                              init_params = initθ)
+#
+# pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u])
+# prob = NeuralPDE.discretize(pde_system,discretization)
+#
+# res = GalacticOptim.solve(prob,ADAM(0.1);cb=cb,maxiters=1000)
+# prob = remake(prob,u0=res.minimizer)
+# res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=1000)
+# prob = remake(prob,u0=res.minimizer)
+# res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=1000)
+#
+# phi = discretization.phi
+# ts,xs,ys = [domain.domain.lower:0.1:domain.domain.upper for domain in domains]
+# u_real = [analytic_sol_func(t,x,y) for t in ts for x in xs for y in ys]
+# u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs for y in ys]
+#
+# @test u_predict ≈ u_real atol = 20.0
+#
+# # using Plots
+# # using Printf
+# #
+# # function plot_(res)
+# #     # Animate
+# #     anim = @animate for (i, t) in enumerate(0:0.05:t_max)
+# #         @info "Animating frame $i..."
+# #         u_real = reshape([analytic_sol_func(t,x,y) for x in xs for y in ys], (length(xs),length(ys)))
+# #         u_predict = reshape([Array(phi([t, x, y], res.minimizer))[1] for x in xs for y in ys], length(xs), length(ys))
+# #         u_error = abs.(u_predict .- u_real)
+# #         title = @sprintf("predict t = %.3f", t)
+# #         p1 = plot(xs, ys, u_predict,st=:surface, label="", title=title)
+# #         title = @sprintf("real")
+# #         p2 = plot(xs, ys, u_real,st=:surface, label="", title=title)
+# #         title = @sprintf("error")
+# #         p3 = plot(xs, ys, u_error, st=:contourf,label="", title=title)
+# #         plot(p1,p2,p3)
+# #     end
+# #     gif(anim,"3pde.gif", fps=10)
+# # end
+# #
+# # plot_(res)
