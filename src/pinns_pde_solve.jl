@@ -349,7 +349,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         params_symbols = Symbol[]
         expr_params = Expr[]
         for (i , eq_param) in enumerate(eq_params)
-            push!(expr_params, :($θ[$(i+last_indx)]))
+            push!(expr_params, :($θ[$(i+last_indx:i+last_indx)]))
             push!(params_symbols, Symbol(:($eq_param)))
         end
         params_eq = Expr(:(=), build_expr(:tuple, params_symbols), build_expr(:tuple, expr_params))
@@ -360,7 +360,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         params_symbols = Symbol[]
         expr_params = Expr[]
         for (i , eq_param) in enumerate(eq_params)
-            push!(expr_params, :(ArrayInterface.allowed_getindex(p,$i)))
+            push!(expr_params, :(ArrayInterface.allowed_getindex(p,$i:$i)))
             push!(params_symbols, Symbol(:($eq_param)))
         end
         params_eq = Expr(:(=), build_expr(:tuple, params_symbols), build_expr(:tuple, expr_params))
@@ -689,7 +689,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
     f_ = (lb,ub,loss_,θ) -> begin
         function ___loss(dx, x,θ)
             x = adapt(typeof(θ),x)
-            dx.= [sum(abs2,loss_(x,θ))]
+            dx.= adapt(typeof(θ),[sum(abs2,loss_(x,θ))])
         end
 
         prob = QuadratureProblem(___loss,lb,ub,θ,batch = strategy.batch,nout=1)
