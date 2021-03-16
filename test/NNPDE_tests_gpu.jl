@@ -162,7 +162,8 @@ initθ = DiffEqFlux.initial_params(chain) |> gpu
 # strategy = NeuralPDE.QuasiRandomTraining(3000; #points
 #                                          sampling_alg = UniformSample(),
 #                                          minibatch = 50)
-strategy = NeuralPDE.GridTraining(0.1)
+# strategy = NeuralPDE.GridTraining(0.1)
+strategy = NeuralPDE.StochasticTraining(4000)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)
