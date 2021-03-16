@@ -52,7 +52,27 @@ cb = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob,ADAM(0.1); cb = cb, maxiters=1500)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,Optim.BFGS(initial_stepnorm=0.01);allow_f_increases=true, cb = cb, maxiters=400)
+
+dx = dx/5
+discretization = remake(discretization; strategy = NeuralPDE.GridTraining(dx), init_params =res.minimizer)
+prob = NeuralPDE.discretize(pde_system,discretization)
+
+res = GalacticOptim.solve(prob,ADAM(0.01); cb = cb, maxiters=1000)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,Optim.BFGS(initial_stepnorm=0.01);allow_f_increases=true, cb = cb, maxiters=400)
+
+
+dx= dx/5
+discretization = remake(discretization; strategy = NeuralPDE.GridTraining(dx), init_params =res.minimizer)
+prob = NeuralPDE.discretize(pde_system,discretization)
+
+res = GalacticOptim.solve(prob,Optim.BFGS(initial_stepnorm=0.01);allow_f_increases=true, cb = cb, maxiters=400)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,ADAM(0.001); cb = cb, maxiters=1000)
+
 phi = discretization.phi
 ```
 
