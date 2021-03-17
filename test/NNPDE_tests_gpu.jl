@@ -122,6 +122,8 @@ diff_u = abs.(u_predict .- u_real)
 # plot(p1,p2,p3)
 
 ## 1D PDE Neumann boundary conditions
+CUDA.allowscalar(true)
+
 @parameters t x
 @variables u(..)
 Dt = Differential(t)

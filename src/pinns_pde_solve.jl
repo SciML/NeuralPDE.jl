@@ -912,8 +912,10 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
             return pde_loss_function(θ) + bc_loss_function(θ) + _additional_loss(phi,θ)
         end
     end
-
-    f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
-
+    f = if strategy isa QuadratureTraining && flat_initθ isa CuArray
+        OptimizationFunction(loss_function_, GalacticOptim.AutoFiniteDiff())
+    else
+        OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
+    end
     GalacticOptim.OptimizationProblem(f, flat_initθ)
 end
