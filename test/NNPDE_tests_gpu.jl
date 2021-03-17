@@ -19,7 +19,7 @@ cb = function (p,l)
     return false
 end
 CUDA.allowscalar(false)
-const gpuones = cu(ones(1))
+#const gpuones = cu(ones(1))
 
 ## ODE
 @parameters θ
@@ -70,7 +70,7 @@ u_predict  = [first(Array(phi([t],res.minimizer))) for t in ts]
 # plot(t_plot ,u_real)
 # plot!(t_plot ,u_predict)
 
-## 1D PDE
+## 1D PDE Dirichlet boundary conditions
 @parameters t x
 @variables u(..)
 Dt = Differential(t)
@@ -93,7 +93,7 @@ chain = FastChain(FastDense(2,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1),(u,p)->gpuones .* u)
+                  FastDense(inner,1))#,(u,p)->gpuones .* u)
 
 strategy = NeuralPDE.StochasticTraining(500)
 initθ = initial_params(chain) |>gpu
@@ -109,6 +109,61 @@ res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=1000)
 phi = discretization.phi
 
 u_exact = (t,x) -> exp.(-t) * cos.(x)
+ts,xs = [domain.domain.lower:0.01:domain.domain.upper for domain in domains]
+u_predict = reshape([first(Array(phi([t,x],res.minimizer))) for t in ts for x in xs],(length(ts),length(xs)))
+u_real = reshape([u_exact(t,x) for t in ts  for x in xs ], (length(ts),length(xs)))
+diff_u = abs.(u_predict .- u_real)
+
+@test u_predict ≈ u_real atol = 1.0
+
+# p1 = plot(ts, xs, u_real, linetype=:contourf,title = "analytic");
+# p2 = plot(ts, xs, u_predict, linetype=:contourf,title = "predict");
+# p3 = plot(ts, xs, diff_u,linetype=:contourf,title = "error");
+# plot(p1,p2,p3)
+
+## 1D PDE Neumann boundary conditions
+@parameters t x
+@variables u(..)
+Dt = Differential(t)
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+# 1D PDE and boundary conditions
+eq  = Dt(u(t,x)) ~ Dxx(u(t,x))
+bcs = [u(0,x) ~ cos(x),
+        Dx(u(t,0)) ~ 0.0,
+        Dx(u(t,1)) ~ -exp(-t) * sin(1)]
+
+# Space and time domains
+domains = [t ∈ IntervalDomain(0.0,1.0),
+        x ∈ IntervalDomain(0.0,1.0)]
+
+# PDE system
+pdesys = PDESystem(eq,bcs,domains,[t,x],[u])
+
+inner = 20
+chain = FastChain(FastDense(2,inner,Flux.σ),
+                  FastDense(inner,inner,Flux.σ),
+                  FastDense(inner,inner,Flux.σ),
+                  FastDense(inner,inner,Flux.σ),
+                  FastDense(inner,1))
+
+strategy = NeuralPDE.QuasiRandomTraining(500; #points
+                                         sampling_alg = SobolSample(),
+                                         minibatch = 30)
+initθ = initial_params(chain) |>gpu
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy;
+                                             init_params = initθ)
+prob = NeuralPDE.discretize(pdesys,discretization)
+symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
+
+res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=1000)
+phi = discretization.phi
+
+u_exact = (t,x) -> exp(-t) * cos(x)
 ts,xs = [domain.domain.lower:0.01:domain.domain.upper for domain in domains]
 u_predict = reshape([first(Array(phi([t,x],res.minimizer))) for t in ts for x in xs],(length(ts),length(xs)))
 u_real = reshape([u_exact(t,x) for t in ts  for x in xs ], (length(ts),length(xs)))
@@ -155,13 +210,15 @@ inner = 25
 chain = FastChain(FastDense(3,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1),(u,p)->gpuones .* u)
+                  FastDense(inner,inner,Flux.σ),
+                  FastDense(inner,1))#,(u,p)->gpuones .* u)
 
 initθ = DiffEqFlux.initial_params(chain) |> gpu
 
-strategy = NeuralPDE.QuasiRandomTraining(6000; #points
-                                         sampling_alg = UniformSample(),
-                                         minibatch = 100)
+# strategy = NeuralPDE.QuasiRandomTraining(4000; #points
+#                                          sampling_alg = SobolSample(),
+#                                          minibatch = 3)
+strategy = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)

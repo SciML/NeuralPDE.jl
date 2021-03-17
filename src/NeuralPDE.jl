@@ -173,7 +173,7 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
        build_loss_function, get_loss_function,
-       generate_training_sets, get_varibles, get_bounds
+       generate_training_sets, get_variables, get_argument, get_bounds
        get_phi, get_numeric_derivative,
        build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
        remake

@@ -94,7 +94,7 @@ function test_2d_poisson_equation(chain_, strategy_)
 
     pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
     prob = NeuralPDE.discretize(pde_system,discretization)
-
+    sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
     res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=500)
     phi = discretization.phi
 
@@ -125,9 +125,9 @@ for chain in chains
 end
 
 stochastic_strategy = NeuralPDE.StochasticTraining(100) #points
-quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),
-                                                   reltol = 1e-2, abstol = 1e-2,
-                                                   maxiters = 50)
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
+                                                    reltol=1e-3,abstol=1e-3,
+                                                    maxiters =50, batch=100)
 quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
                                                      sampling_alg = UniformSample(),
                                                      minibatch = 100)
@@ -167,9 +167,9 @@ function run_2d_poisson_equation(strategy_)
     res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb,  maxiters=5)
 end
 
-algs = [HCubatureJL(), CubatureJLh(), CubatureJLp(),CubaCuhre()]
+algs = [CubatureJLh(), CubatureJLp()]
 for alg in algs
-    strategy_ =  NeuralPDE.QuadratureTraining(quadrature_alg = alg,reltol=1e-8,abstol=1e-8,maxiters=30)
+    strategy_ =  NeuralPDE.QuadratureTraining(quadrature_alg = alg,reltol=1e-4,abstol=1e-3,maxiters=30, batch=10)
     run_2d_poisson_equation(strategy_)
 end
 
@@ -305,14 +305,15 @@ initθ = DiffEqFlux.initial_params(chain)
 indvars = [x,t]
 depvars = [u]
 dim = length(domains)
-quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),reltol= 1e-4,abstol= 1e-3,maxiters=10)
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),reltol= 1e-4,abstol= 1e-3,maxiters=10, batch=10)
 
 _pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative,initθ,quadrature_strategy)
-s_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,phi, derivative,initθ,quadrature_strategy)
+_pde_loss_function(rand(2,10), initθ)
 
-bc_indvars = NeuralPDE.get_varibles(bcs,indvars,depvars)
+bc_indvars = NeuralPDE.get_argument(bcs,indvars,depvars)
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,initθ,quadrature_strategy,
                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+map(loss_f -> loss_f(rand(1,10), initθ),_bc_loss_functions)
 
 dx = 0.1
 train_sets = NeuralPDE.generate_training_sets(domains,dx,[eq],bcs,indvars,depvars)
@@ -325,12 +326,13 @@ pde_loss_function = NeuralPDE.get_loss_function([_pde_loss_function],
                                                 quadrature_strategy;
                                                 τ = 1/100)
 
-
-quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=HCubatureJL(),reltol= 1e-2,abstol= 1e-1,maxiters=5)
+pde_loss_function(initθ)
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),reltol= 1e-2,abstol= 1e-1,maxiters=5, batch=100)
 bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
                                                bcs_bounds,
                                                quadrature_strategy;
                                                τ = 1/40)
+bc_loss_function(initθ)
 
 function loss_function_(θ,p)
     return pde_loss_function(θ) + bc_loss_function(θ)
