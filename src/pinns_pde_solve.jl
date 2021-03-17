@@ -689,7 +689,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
     f_ = (lb,ub,loss_,θ) -> begin
         function ___loss(x,θ)
             x = adapt(typeof(θ),x)
-            cu.([sum(abs2,loss_(x,θ))])
+            sum(abs2,loss_(x,θ), dims=2)
         end
 
         prob = QuadratureProblem(___loss,lb,ub,θ,batch = strategy.batch,nout=1)
