@@ -530,7 +530,7 @@ function additional_loss(phi, θ , p)
 end
 
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
-pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], [1.0, 1.0 ,1.0])
+pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β],Dict([v .=> 1. for v in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
