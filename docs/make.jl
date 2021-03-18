@@ -21,6 +21,7 @@ makedocs(
             "pinn/low_level.md",
             "pinn/ks.md",
             "pinn/fp.md",
+            "pinn/parm_estim.md",
             "pinn/debugging.md",
         ],
         "Specialized Neural PDE Tutorials" => Any[
