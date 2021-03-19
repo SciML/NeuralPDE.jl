@@ -523,14 +523,14 @@ initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
 acum =  [0;accumulate(+, length.(initθs))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 (u_ , t_) = data
-len = length(data)
+len = length(data[2])
 
 function additional_loss(phi, θ , p)
-    return sum(abs2, sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
+    return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
 end
 
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
-pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β],Dict([v .=> 1. for v in [σ_, ρ, β]]))
+pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β],Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
