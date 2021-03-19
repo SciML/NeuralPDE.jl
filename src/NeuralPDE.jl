@@ -1,5 +1,9 @@
+"""
+$(DocStringExtensions.README)
+"""
 module NeuralPDE
 
+using DocStringExtensions
 using Reexport, Statistics
 @reexport using DiffEqBase
 
