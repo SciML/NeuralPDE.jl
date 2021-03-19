@@ -709,7 +709,7 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
     domains = pde_system.domain
     eq_params = pde_system.ps
     defaults = pde_system.defaults
-    default_p = collect(values(defaults))
+    default_p = eq_params == SciMLBase.NullParameters() ? nothing : [defaults[ep] for ep in eq_params]
 
     param_estim = discretization.param_estim
     additional_loss = discretization.additional_loss
@@ -750,7 +750,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     domains = pde_system.domain
     eq_params = pde_system.ps
     defaults = pde_system.defaults
-    default_p = collect(values(defaults))
+    default_p = eq_params == SciMLBase.NullParameters() ? nothing : [defaults[ep] for ep in eq_params] 
 
     param_estim = discretization.param_estim
     additional_loss = discretization.additional_loss
