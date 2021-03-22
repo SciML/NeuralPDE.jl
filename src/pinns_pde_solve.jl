@@ -189,7 +189,7 @@ function _transform_expression(ex,dict_indvars,dict_depvars, initθ, strategy)
                 order = 0
                 while (_args[1] isa ModelingToolkit.Differential)
                     order += 1
-                    push!(derivative_variables, toexpr(_args[1].x))
+                    push!(derivative_variables, toexpr(_args[1].x)) #TODO
                     _args = _args[2].args
                 end
                 depvar = _args[1]
@@ -252,8 +252,8 @@ function parse_equation(eq,dict_indvars,dict_depvars,initθ, strategy)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
 
-    left_expr = transform_expression(toexpr(eq_lhs),dict_indvars,dict_depvars,initθ,strategy)
-    right_expr = transform_expression(toexpr(eq_rhs),dict_indvars,dict_depvars,initθ,strategy)
+    left_expr = transform_expression(toexpr(eq_lhs),dict_indvars,dict_depvars,initθ,strategy) #TODO
+    right_expr = transform_expression(toexpr(eq_rhs),dict_indvars,dict_depvars,initθ,strategy) #TODO
     left_expr = Broadcast.__dot__(left_expr)
     right_expr = Broadcast.__dot__(right_expr)
     loss_func = :($left_expr .- $right_expr)
@@ -456,7 +456,7 @@ function get_argument(eqs,_indvars::Array,_depvars::Array)
     get_argument(eqs,dict_indvars,dict_depvars)
 end
 function get_argument(eqs,dict_indvars,dict_depvars)
-    exprs = toexpr.(eqs)
+    exprs = toexpr.(eqs) #TODO
     vars = map(exprs) do expr
         _vars =  map(depvar -> find_thing_in_expr(expr,  depvar), collect(keys(dict_depvars)))
         f_vars = filter(x -> !isempty(x), _vars)
@@ -750,7 +750,7 @@ function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInf
     domains = pde_system.domain
     eq_params = pde_system.ps
     defaults = pde_system.defaults
-    default_p = eq_params == SciMLBase.NullParameters() ? nothing : [defaults[ep] for ep in eq_params] 
+    default_p = eq_params == SciMLBase.NullParameters() ? nothing : [defaults[ep] for ep in eq_params]
 
     param_estim = discretization.param_estim
     additional_loss = discretization.additional_loss
