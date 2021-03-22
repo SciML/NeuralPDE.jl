@@ -54,7 +54,7 @@ initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
 acum =  [0;accumulate(+, length.(initθs))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 (u_ , t_) = data
-len = length(data)
+len = length(data[2])
 ```
 Then we define the additional loss funciton `additional_loss(phi, θ , p)`, the function has three arguments, `phi` the trial solution, `θ` the parameters of neural networks, and the hyperparameters `p` .
 
@@ -66,7 +66,7 @@ end
 Then finally defining and optimising using the `PhysicsInformedNN` interface.
 ```julia
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
-pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], [1.0, 1.0 ,1.0])
+pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
 cb = function (p,l)
     println("Current loss is: $l")
