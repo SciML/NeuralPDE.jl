@@ -702,7 +702,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
     loss = (θ) -> τ*sum(f_(lb,ub,loss_,θ) for (lb,ub,loss_) in zip(lbs,ubs,loss_functions))
     return loss
 end
-function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     eqs = pde_system.eqs
     bcs = pde_system.bcs
 
@@ -743,14 +743,14 @@ function symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInfor
 end
 
 # Convert a PDE problem into an OptimizationProblem
-function DiffEqBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     eqs = pde_system.eqs
     bcs = pde_system.bcs
 
     domains = pde_system.domain
     eq_params = pde_system.ps
     defaults = pde_system.defaults
-    default_p = eq_params == SciMLBase.NullParameters() ? nothing : [defaults[ep] for ep in eq_params] 
+    default_p = eq_params == SciMLBase.NullParameters() ? nothing : [defaults[ep] for ep in eq_params]
 
     param_estim = discretization.param_estim
     additional_loss = discretization.additional_loss
