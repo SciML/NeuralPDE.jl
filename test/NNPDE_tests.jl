@@ -510,12 +510,15 @@ u0 = [1.0;0.0;0.0]
 tspan = (0.0,1.0)
 prob = ODEProblem(lorenz!,u0,tspan)
 sol = solve(prob, Tsit5(), dt=0.1)
+ts = [domain.domain.lower:dt/5:domain.domain.upper for domain in domains][1]
+
 function getData(sol)
     data = []
-    us = hcat(sol.u...)
-    ts = hcat(sol.t...)
-    return [us,ts]
+    us = hcat(sol(ts).u...)
+    ts_ = hcat(sol(ts).t...)
+    return [us,ts_]
 end
+
 data = getData(sol)
 
 #Additional Loss Function
@@ -534,7 +537,7 @@ pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β],Dict([p .=> 1
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=6000)
+res = GalacticOptim.solve(prob, Optim.BFGS(); cb = cb, maxiters=6000)
 p_ = res.minimizer[end-2:end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1
