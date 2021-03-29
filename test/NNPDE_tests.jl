@@ -534,7 +534,7 @@ pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β],Dict([p .=> 1
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=3000)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=6000)
 p_ = res.minimizer[end-2:end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1
