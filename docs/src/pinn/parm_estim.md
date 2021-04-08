@@ -18,7 +18,7 @@ eqs = [Dt(x(t)) ~ σ_*(y(t) - x(t)),
 
 bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
 domains = [t ∈ IntervalDomain(0.0,1.0)]
-dt = 0.05
+dt = 0.01
 ```
 And the neural networks as,
 ```julia
@@ -43,11 +43,12 @@ u0 = [1.0;0.0;0.0]
 tspan = (0.0,1.0)
 prob = ODEProblem(lorenz!,u0,tspan)
 sol = solve(prob, Tsit5(), dt=0.1)
+ts = [domain.domain.lower:dt:domain.domain.upper for domain in domains][1]
 function getData(sol)
     data = []
-    us = hcat(sol.u...)
-    ts = hcat(sol.t...)
-    return [us,ts]
+    us = hcat(sol(ts).u...)
+    ts_ = hcat(sol(ts).t...)
+    return [us,ts_]
 end
 data = getData(sol)
 initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
