@@ -490,14 +490,15 @@ eqs = [Dt(x(t)) ~ σ_*(y(t) - x(t)),
 
 bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
 domains = [t ∈ IntervalDomain(0.0,1.0)]
-dt = 0.05
 
 input_ = length(domains)
-n = 8
-
+n = 12
 chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+# chain1 = FastChain(FastDense(input_,n,Flux.relu),FastDense(n,n,Flux.relu),FastDense(n,1))
+# chain2 = FastChain(FastDense(input_,n,Flux.relu),FastDense(n,n,Flux.relu),FastDense(n,1))
+# chain3 = FastChain(FastDense(input_,n,Flux.relu),FastDense(n,n,Flux.relu),FastDense(n,1))
 
 #Generate Data
 function lorenz!(du,u,p,t)
@@ -510,16 +511,6 @@ u0 = [1.0;0.0;0.0]
 tspan = (0.0,1.0)
 prob = ODEProblem(lorenz!,u0,tspan)
 sol = solve(prob, Tsit5(), dt=0.1)
-ts = [domain.domain.lower:dt/5:domain.domain.upper for domain in domains][1]
-
-function getData(sol)
-    data = []
-    us = hcat(sol(ts).u...)
-    ts_ = hcat(sol(ts).t...)
-    return [us,ts_]
-end
-
-data = getData(sol)
 
 #Additional Loss Function
 initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
@@ -528,14 +519,85 @@ sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 (u_ , t_) = data
 len = length(data[2])
 
-function additional_loss(phi, θ , p)
-    return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
+dt = 0.01
+ts = [domain.domain.lower:dt:domain.domain.upper for domain in domains][1]
+function getData(sol)
+    data = []
+    us = hcat(sol(ts).u...)
+    ts_ = hcat(sol(ts).t...)
+    return [us,ts_]
 end
 
-discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
+data = getData(sol)
+τ_g = 1.0f0 /len
+grid_strategy = NeuralPDE.GridTraining(dt)
+
+
+function additional_grid_loss(phi, θ , p)
+    return sum(τ_g * sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :]) for i in 1:1:3)
+end
+
+quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
+                                                     sampling_alg = SobolSample(),
+                                                     minibatch = 100)
+#Quasi-Random Additional Loss Function
+lb = [domains[1].domain.lower]
+ub = [domains[1].domain.upper]
+points,minibatch,sampling_alg = quasirandom_strategy.points,quasirandom_strategy.minibatch,quasirandom_strategy.sampling_alg
+samples = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
+quasirandom_us = [[hcat(sol(s[1,:]).u...)[[i], :] for i in 1:1:3] for s in samples]
+
+τ_q = 1.0f0 / points
+function additional_quasi_loss(phi, θ , p)
+    r = rand(1:minibatch)
+    r_point = samples[r]
+    r_u = quasirandom_us[r]
+    return sum(abs2,τ_q * sum(abs2, phi[i](r_point , θ[sep[i]]) .- r_u[i]) for i in 1:1:3)
+end
+
+initθ_ = vcat(initθs...)
+initθ_
+additional_quasi_loss(phi, initθ_ , nothing)
+
+function testf(p)
+    additional_quasi_loss(phi, p , nothing)
+end
+using Zygote
+testf(initθ_)
+dp1 = Zygote.gradient(testf,initθ_)
+
+quadratute_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
+                                                    reltol=1e-2,abstol=1e-1,
+                                                    maxiters =3, batch=100)
+#TODO additional_quadrature_loss
+# f_ = (θ,phi_) -> begin
+#     function  __loss(x,θ)
+#         sum(abs2,phi_(x,θ) .- hcat(sol(x[1,:]).u...)[[i], :] ,dims=2)
+#     end
+#     prob = QuadratureProblem(__loss, [0.0], [1.0], θ, batch = 10, nout=1)
+#     abs(solve(prob, CubatureJLh(), reltol = 1e-3, abstol = 1e-2, maxiters = 50)[1])
+# end
+#
+# function additional_quadrature_loss(phi, θ , p)
+#     θs = [θ[sep[i]] for i in 1:1:3]
+#     return sum(f_(θ[sep[i], phi[i]) for i in 1:1:3)
+# end
+# initθ_ = vcat(initθ...)
+# initθ_
+# additional_quadrature_loss(phi, initθ_ , nothing)
+#
+# function testf(p)
+#     additional_quadrature_loss(phi, p , nothing)
+# end
+# using Zygote
+# testf(initθ_)
+# dp1 = Zygote.gradient(testf,initθ_)
+
+discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],grid_strategy, param_estim=true, additional_loss=additional_grid_loss)
 pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β],Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+phi = discretization.phi
 
 res = GalacticOptim.solve(prob, Optim.BFGS(); cb = cb, maxiters=6000)
 p_ = res.minimizer[end-2:end]
