@@ -14,7 +14,7 @@ Arguments:
 """
 abstract type AbstractPINN{isinplace} <: SciMLBase.SciMLProblem end
 
-struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,K} <: AbstractPINN{isinplace}
+struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,K} <: AbstractPINN{isinplace}
   chain::C
   strategy::T
   init_params::P
@@ -22,6 +22,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,K} <: AbstractPINN{isinpla
   derivative::DER
   param_estim::PE
   additional_loss::AL
+  adaptive_loss::ADA
   kwargs::K
 
  @add_kwonly function PhysicsInformedNN{iip}(chain,
@@ -31,6 +32,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,K} <: AbstractPINN{isinpla
                                              derivative = nothing,
                                              param_estim=false,
                                              additional_loss=nothing,
+                                             adaptive_loss=nothing,
                                              kwargs...) where iip
         if init_params == nothing
             if chain isa AbstractArray
@@ -58,7 +60,8 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,K} <: AbstractPINN{isinpla
         else
             _derivative = derivative
         end
-        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(kwargs)}(chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,kwargs)
+        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(adaptive_loss),typeof(kwargs)}(
+            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,adaptive_loss,kwargs)
     end
 end
 PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
@@ -116,6 +119,28 @@ end
 
 function QuadratureTraining(;quadrature_alg=CubatureJLh(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=100)
     QuadratureTraining(quadrature_alg,reltol,abstol,maxiters,batch)
+end
+
+abstract type AdaptiveLosses end
+
+"""
+Adaptive Loss struct for 
+"""
+mutable struct LossGradientsAdaptiveLoss <: AdaptiveLosses
+    reweight_every::Int64
+    i::Int64
+    α::Float32
+    pde_loss_weights::Vector{Float32} # we seem to be hard coding Float32's often, this could be parameterized though
+    bc_loss_weights::Vector{Float32} 
+    additional_loss_weights::Vector{Float32} 
+    SciMLBase.@add_kwonly function LossGradientsAdaptiveLoss(reweight_every; i=0, α=0.9f0)
+        new(convert(Int64, reweight_every), convert(Int64, i), α, Float32[], Float32[], Float32[])
+    end
+end
+
+struct NonAdaptiveLossWeights <: AdaptiveLosses
+
+
 end
 
 """
@@ -902,16 +927,64 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         (pde_loss_function, bc_loss_function)
     end
 
+    reweight_losses = 
+    if discretization.adaptive_loss isa LossGradientsAdaptiveLoss
+        # initialize adaptive loss data structures 
+        # TODO ZDM: initially assume one loss for pde and one loss for bc and one loss for additional, expand later
+        println("In adaptive loss setup")
+        num_pde_loss = 1
+        num_bc_loss = 1
+        num_additional_loss = additional_loss isa Nothing ? 0 : 1
+
+        discretization.adaptive_loss.pde_loss_weights = ones(Float32, num_pde_loss)
+        discretization.adaptive_loss.bc_loss_weights = ones(Float32, num_bc_loss)
+        discretization.adaptive_loss.additional_loss_weights = ones(Float32, num_additional_loss)
+
+        dump(discretization.adaptive_loss)
+
+        function run_adaptive_loss(θ)
+            println("In adaptive loss")
+            discretization.adaptive_loss.i += 1
+            if discretization.adaptive_loss.i % discretization.adaptive_loss.reweight_every == 0
+                println("Doing adaptive loss reweighting")
+                pde_grad = Zygote.gradient(pde_loss_function, θ)[1]
+                bc_grad = Zygote.gradient(bc_loss_function, θ)[1]
+
+                pde_grad_max = maximum(abs.(pde_grad))
+                bc_grad_mean = mean(abs.(bc_grad))
+                @show pde_grad_max
+                @show bc_grad_mean
+
+                bc_loss_weight_new = pde_grad_max / bc_grad_mean
+                α = discretization.adaptive_loss.α
+                discretization.adaptive_loss.bc_loss_weights[1] = (1 - α) * discretization.adaptive_loss.bc_loss_weights[1] + α * bc_loss_weight_new
+                @show discretization.adaptive_loss.bc_loss_weights[1]
+            end
+
+            nothing
+        end
+
+    else
+        function run_nonadaptive_loss(θ)
+            println("No adaptive loss")
+            nothing
+        end
+    end
+
+
     function loss_function_(θ,p)
+        Zygote.@ignore reweight_losses(θ)
+        adaloss = discretization.adaptive_loss
         if additional_loss isa Nothing
-            return pde_loss_function(θ) + bc_loss_function(θ)
+            return adaloss.pde_loss_weights[1] * pde_loss_function(θ) + adaloss.bc_loss_weights[1] * bc_loss_function(θ)
         else
             function _additional_loss(phi,θ)
                 θ_ = θ[1:end - length(default_p)]
                 p = θ[(end - length(default_p) + 1):end]
                 return additional_loss(phi,θ_,p)
             end
-            return pde_loss_function(θ) + bc_loss_function(θ) + _additional_loss(phi,θ)
+            return adaloss.pde_loss_weights[1] * pde_loss_function(θ) + adaloss.bc_loss_weights[1] * bc_loss_function(θ) + 
+                adaloss.additional_loss_weights[1] * _additional_loss(phi,θ)
         end
     end
 

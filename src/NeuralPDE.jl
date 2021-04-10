@@ -6,6 +6,7 @@ module NeuralPDE
 using DocStringExtensions
 using Reexport, Statistics
 @reexport using DiffEqBase
+@reexport using SciMLBase
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
