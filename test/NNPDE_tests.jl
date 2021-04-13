@@ -36,7 +36,7 @@ bcs = [u(0.) ~ 1.0]
 # Space and time domains
 domains = [θ ∈ IntervalDomain(0.0,1.0)]
 # Discretization
-dt = 0.1
+dt = 0.1f0
 # Neural network
 chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
 initθ = DiffEqFlux.initial_params(chain)
@@ -490,7 +490,7 @@ eqs = [Dt(x(t)) ~ σ_*(y(t) - x(t)),
 
 bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
 domains = [t ∈ IntervalDomain(0.0,1.0)]
-dt = 0.05
+dt = 0.05f0
 
 input_ = length(domains)
 n = 8
@@ -533,7 +533,7 @@ function additional_loss(phi, θ , p)
 end
 
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
-pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β],Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
+pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β],Dict([p .=> 1f0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
