@@ -60,8 +60,14 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,K} <: AbstractPINN{isi
         else
             _derivative = derivative
         end
-        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(adaptive_loss),typeof(kwargs)}(
-            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,adaptive_loss,kwargs)
+
+        if adaptive_loss == nothing
+            _adaptive_loss = NonAdaptiveLossWeights()
+        else
+            _adaptive_loss = adaptive_loss
+        end
+        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(_adaptive_loss),typeof(kwargs)}(
+            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,_adaptive_loss,kwargs)
     end
 end
 PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
@@ -138,9 +144,16 @@ mutable struct LossGradientsAdaptiveLoss <: AdaptiveLosses
     end
 end
 
+struct ReturnOne end
+
+Base.getindex(ReturnOne, i) = 1
 struct NonAdaptiveLossWeights <: AdaptiveLosses
-
-
+    pde_loss_weights::ReturnOne
+    bc_loss_weights::ReturnOne 
+    additional_loss_weights::ReturnOne 
+    function NonAdaptiveLossWeights()
+        new(ReturnOne(), ReturnOne(), ReturnOne())
+    end
 end
 
 """
@@ -955,9 +968,9 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                 @show pde_grad_max
                 @show bc_grad_mean
 
-                bc_loss_weight_new = pde_grad_max / bc_grad_mean
+                bc_loss_weight_new = pde_grad_max / (bc_grad_mean + 1e-5)
                 α = discretization.adaptive_loss.α
-                discretization.adaptive_loss.bc_loss_weights[1] = (1 - α) * discretization.adaptive_loss.bc_loss_weights[1] + α * bc_loss_weight_new
+                discretization.adaptive_loss.bc_loss_weights[1] = α * discretization.adaptive_loss.bc_loss_weights[1] + (1 - α) * bc_loss_weight_new
                 @show discretization.adaptive_loss.bc_loss_weights[1]
             end
 
@@ -975,17 +988,27 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     function loss_function_(θ,p)
         Zygote.@ignore reweight_losses(θ)
         adaloss = discretization.adaptive_loss
+
+        weighted_pde_loss = adaloss.pde_loss_weights[1] * pde_loss_function(θ)
+        Zygote.@ignore @show weighted_pde_loss
+
+        weighted_bc_loss = adaloss.bc_loss_weights[1] * bc_loss_function(θ)
+        Zygote.@ignore @show weighted_bc_loss
+
+        weighted_additional_loss = 
         if additional_loss isa Nothing
-            return adaloss.pde_loss_weights[1] * pde_loss_function(θ) + adaloss.bc_loss_weights[1] * bc_loss_function(θ)
+            0
         else
             function _additional_loss(phi,θ)
                 θ_ = θ[1:end - length(default_p)]
                 p = θ[(end - length(default_p) + 1):end]
                 return additional_loss(phi,θ_,p)
             end
-            return adaloss.pde_loss_weights[1] * pde_loss_function(θ) + adaloss.bc_loss_weights[1] * bc_loss_function(θ) + 
-                adaloss.additional_loss_weights[1] * _additional_loss(phi,θ)
+            adaloss.additional_loss_weights[1] * _additional_loss_function(θ)
         end
+
+        full_loss = weighted_pde_loss + weighted_bc_loss + weighted_additional_loss
+        return full_loss
     end
 
     f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
