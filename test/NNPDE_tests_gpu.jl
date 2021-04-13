@@ -35,7 +35,7 @@ bcs = [u(0.) ~ 1.0]
 # Space and time domains
 domains = [θ ∈ IntervalDomain(0.0,1.0)]
 # Discretization
-dt = 0.1
+dt = 0.1f0
 # Neural network
 inner = 20
 chain = Chain(Dense(1,inner,Flux.σ),

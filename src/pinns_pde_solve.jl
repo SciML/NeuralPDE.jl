@@ -586,10 +586,10 @@ Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ,
 
 # the method to calculate the derivative
 function get_numeric_derivative()
-    _epsilon = 1 / (2*cbrt(eps(Float32)))
     derivative =
         (phi,u,x,εs,order,θ) ->
         begin
+            _epsilon = 1 / (2*cbrt(eps(eltype(θ))))
             ε = εs[order]
             ε = adapt(DiffEqBase.parameterless_type(θ),ε)
             x = adapt(DiffEqBase.parameterless_type(θ),x)
