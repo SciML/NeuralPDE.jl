@@ -36,7 +36,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 [compat]
 Adapt = "3.0 - 3.2"
 ArrayInterface = "3.1"
-CUDA = "2.0"
+CUDA = "3.0"
 Cuba = "2.1.0"
 Cubature = "1.5.1"
 DiffEqBase = "6"
