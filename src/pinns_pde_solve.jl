@@ -570,10 +570,10 @@ end
 function get_phi(chain)
     # The phi trial solution
     if chain isa FastChain
-        phi = (x,θ) -> chain(adapt(typeof(θ),x),θ)
+        phi = (x,θ) -> chain(adapt(DiffEqBase.parameterless_type(θ),x),θ)
     else
         _,re  = Flux.destructure(chain)
-        phi = (x,θ) -> re(θ)(adapt(typeof(θ),x))
+        phi = (x,θ) -> re(θ)(adapt(DiffEqBase.parameterless_type(θ),x))
     end
     phi
 end
@@ -586,13 +586,13 @@ Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ,
 
 # the method to calculate the derivative
 function get_numeric_derivative()
-    _epsilon = 1 / (2*cbrt(eps(Float32)))
     derivative =
         (phi,u,x,εs,order,θ) ->
         begin
+            _epsilon = 1 / (2*cbrt(eps(eltype(θ))))
             ε = εs[order]
-            ε = adapt(typeof(θ),ε)
-            x = adapt(typeof(θ),x)
+            ε = adapt(DiffEqBase.parameterless_type(θ),ε)
+            x = adapt(DiffEqBase.parameterless_type(θ),x)
             if order > 1
                 return (derivative(phi,u,x .+ ε,εs,order-1,θ)
                       .- derivative(phi,u,x .- ε,εs,order-1,θ)) .* _epsilon
@@ -637,7 +637,7 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;
         total = 0.
         for (bound, loss_function) in zip(bounds, loss_functions)
             sets = generate_random_points(points, bound)
-            sets_ = adapt(typeof(θ),sets)
+            sets_ = adapt(DiffEqBase.parameterless_type(θ),sets)
             total += τ * sum(abs2,loss_function(sets_,θ))
         end
         return total
@@ -671,7 +671,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
         for (bound,ss_,loss_function) in zip(bounds,sss,loss_functions)
             ss__ =  [ss_[i] isa Array{Float64,2} ? ss_[i] : ss_[i][rand(1:minibatch)] for i in 1:length(ss_)]
             r_point = vcat(ss__...)
-            r_point_ = adapt(typeof(θ),r_point)
+            r_point_ = adapt(DiffEqBase.parameterless_type(θ),r_point)
             total += τ * sum(abs2,loss_function(r_point_,θ))
         end
         return total
@@ -688,7 +688,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;
 
     f_ = (lb,ub,loss_,θ) -> begin
         function _loss(x,θ)
-            #x = adapt(typeof(θ),x)
+            x = adapt(DiffEqBase.parameterless_type(θ),x)
             sum(abs2,loss_(x,θ), dims=2)
         end
 
@@ -762,8 +762,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     chain = discretization.chain
     initθ = discretization.init_params
     flat_initθ = if length(depvars) != 1 vcat(initθ...) else  initθ end
-    flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, adapt(typeof(flat_initθ),default_p)) end
-
+    flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, adapt(DiffEqBase.parameterless_type(flat_initθ),default_p)) end
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -794,8 +793,8 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         # the points in the domain and on the boundary
         pde_train_sets, bcs_train_sets = train_sets
 
-        pde_train_sets = adapt.(typeof(flat_initθ),pde_train_sets)
-        bcs_train_sets =  adapt.(typeof(flat_initθ),bcs_train_sets)
+        pde_train_sets = adapt.(DiffEqBase.parameterless_type(flat_initθ),pde_train_sets)
+        bcs_train_sets =  adapt.(DiffEqBase.parameterless_type(flat_initθ),bcs_train_sets)
 
         pde_loss_function = get_loss_function(_pde_loss_functions,
                                                         pde_train_sets,
