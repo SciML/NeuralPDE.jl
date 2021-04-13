@@ -763,7 +763,6 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     initθ = discretization.init_params
     flat_initθ = if length(depvars) != 1 vcat(initθ...) else  initθ end
     flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, adapt(DiffEqBase.parameterless_type(flat_initθ),default_p)) end
-    flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, default_p) end
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
