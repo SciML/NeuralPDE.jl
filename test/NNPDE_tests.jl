@@ -200,7 +200,7 @@ chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
                                                      sampling_alg = UniformSample(),
                                                      minibatch = 100)
-discretization = NeuralPDE.PhysicsInformedNN(chain,quasirandom_strategy)
+discretization = NeuralPDE.PhysicsInformedNN([chain],quasirandom_strategy)
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
@@ -210,7 +210,7 @@ prob = remake(prob,u0=res.minimizer)
 res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=800)
 prob = remake(prob,u0=res.minimizer)
 res = GalacticOptim.solve(prob, ADAM(0.001); cb = cb, maxiters=600)
-phi = discretization.phi
+phi = discretization.phi[1]
 
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
 
