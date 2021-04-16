@@ -19,7 +19,7 @@ bcs = [u(0,x) ~ -sin(pi*x),
 domains = [t ∈ IntervalDomain(0.0,1.0),
            x ∈ IntervalDomain(-1.0,1.0)]
 # Discretization
-dx = 0.1
+dx = 0.05
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
@@ -35,7 +35,7 @@ depvars = [u]
 _pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,
                                          phi,derivative,chain,initθ,strategy)
 
-bc_indvars = NeuralPDE.get_bc_varibles(bcs,indvars,depvars)
+bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
                                           phi,derivative,chain,initθ,strategy,
                                           bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
@@ -44,7 +44,7 @@ train_sets = NeuralPDE.generate_training_sets(domains,dx,[eq],bcs,indvars,depvar
 train_domain_set, train_bound_set = train_sets
 
 
-pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
+pde_loss_function = NeuralPDE.get_loss_function([_pde_loss_function],
                                       train_domain_set,
                                       strategy)
 
@@ -64,8 +64,8 @@ cb = function (p,l)
 end
 
 # optimizer
-opt = Optim.BFGS()
-res = GalacticOptim.solve(prob, opt; cb = cb, maxiters=2000)</code></pre><p>And some analysis:</p><pre><code class="language-julia">using Plots
+opt = ADAM(0.1)
+res = GalacticOptim.solve(prob, opt; cb = cb, maxiters=6000)</code></pre><p>And some analysis:</p><pre><code class="language-julia">using Plots
 
 ts,xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 u_predict_contourf = reshape([first(phi([t,x],res.minimizer)) for t in ts for x in xs] ,length(xs),length(ts))
@@ -75,4 +75,4 @@ u_predict = [[first(phi([t,x],res.minimizer)) for x in xs] for t in ts ]
 p1= plot(xs, u_predict[2],title = &quot;t = 0.1&quot;);
 p2= plot(xs, u_predict[6],title = &quot;t = 0.5&quot;);
 p3= plot(xs, u_predict[end],title = &quot;t = 1&quot;);
-plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90984874-a0870800-e580-11ea-9fd4-af8a4e3c523e.png" alt="burgers"/></p><p><img src="https://user-images.githubusercontent.com/12683885/90984856-8c430b00-e580-11ea-9206-1a88ebd24ca0.png" alt="burgers2"/></p><p><a href="pinn/@ref Physics-Informed Neural Networks">See low-level API</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../3rd/">« ODE with a 3rd-Order Derivative</a><a class="docs-footer-nextpage" href="../ks/">Kuramoto–Sivashinsky equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 14 April 2021 21:15">Wednesday 14 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90984874-a0870800-e580-11ea-9fd4-af8a4e3c523e.png" alt="burgers"/></p><p><img src="https://user-images.githubusercontent.com/12683885/90984856-8c430b00-e580-11ea-9206-1a88ebd24ca0.png" alt="burgers2"/></p><p><a href="pinn/@ref Physics-Informed Neural Networks">See low-level API</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../3rd/">« ODE with a 3rd-Order Derivative</a><a class="docs-footer-nextpage" href="../ks/">Kuramoto–Sivashinsky equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 16 April 2021 12:41">Friday 16 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
