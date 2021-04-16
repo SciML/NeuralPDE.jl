@@ -27,7 +27,7 @@ bcs = [u(0,x) ~ -sin(pi*x),
 domains = [t ∈ IntervalDomain(0.0,1.0),
            x ∈ IntervalDomain(-1.0,1.0)]
 # Discretization
-dx = 0.1
+dx = 0.05
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
@@ -43,7 +43,7 @@ depvars = [u]
 _pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,
                                          phi,derivative,chain,initθ,strategy)
 
-bc_indvars = NeuralPDE.get_bc_varibles(bcs,indvars,depvars)
+bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
                                           phi,derivative,chain,initθ,strategy,
                                           bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
@@ -52,7 +52,7 @@ train_sets = NeuralPDE.generate_training_sets(domains,dx,[eq],bcs,indvars,depvar
 train_domain_set, train_bound_set = train_sets
 
 
-pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
+pde_loss_function = NeuralPDE.get_loss_function([_pde_loss_function],
                                       train_domain_set,
                                       strategy)
 
@@ -72,8 +72,8 @@ cb = function (p,l)
 end
 
 # optimizer
-opt = Optim.BFGS()
-res = GalacticOptim.solve(prob, opt; cb = cb, maxiters=2000)
+opt = ADAM(0.1)
+res = GalacticOptim.solve(prob, opt; cb = cb, maxiters=6000)
 ```
 
 And some analysis:
