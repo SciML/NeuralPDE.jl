@@ -65,7 +65,7 @@ List of training strategies that are available now:
   On each iteration of training, it is randomly selected one of the minibatch.
   See the [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl) for
   the full set of quasi-random sampling algorithms which are available.
-- `QuadratureTraining(;quadrature_alg=HCubatureJL(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=0)`:
+- `QuadratureTraining(;quadrature_alg=CubatureJLh(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=100)`:
   The loss is computed as an approximation of the integral of the PDE loss
   at each iteration using [adaptive quadrature methods](https://en.wikipedia.org/wiki/Adaptive_quadrature)
   via the differentiable [Quadrature.jl](https://github.com/SciML/Quadrature.jl).
@@ -111,7 +111,9 @@ These additional methods exist to help with introspection:
 
 - `generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)`: return training sets for equations and boundary condition, that is used for GridTraining strategy.
 
-- `get_bc_varibles(bcs,_indvars::Array,_depvars::Array)`: returns all variables that are used in each equation or boundary condition.
+- `get_variables(eqs,_indvars::Array,_depvars::Array)`: returns all variables that are used in each equations or boundary condition.
+
+- `get_argument(eqs,_indvars::Array,_depvars::Array)`: returns all arguments that are used in each equations or boundary condition.
 
 - `get_bounds(domains,bcs,_indvars::Array,_depvars::Array)`: return pairs with lower and upper bounds for all domains. It is used for all non-grid training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
 
