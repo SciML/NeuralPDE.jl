@@ -51,17 +51,17 @@ function DiffEqBase.solve(
     if chain isa FastChain
         #The phi trial solution
         if u0 isa Number
-            phi = (t,W,θ) -> u0 + (t-tspan[1])*first(chain(adapt(typeof(θ),[t,W]),θ))
+            phi = (t,W,θ) -> u0 + (t-tspan[1])*first(chain(adapt(DiffEqBase.parameterless_type(θ),[t,W]),θ))
         else
-            phi = (t,W,θ) -> u0 + (t-tspan[1])*chain(adapt(typeof(θ),[t,W]),θ)
+            phi = (t,W,θ) -> u0 + (t-tspan[1])*chain(adapt(DiffEqBase.parameterless_type(θ),[t,W]),θ)
         end
     else
         _,re  = Flux.destructure(chain)
         #The phi trial solution
         if u0 isa Number
-            phi = (t,W,θ) -> u0 + (t-t0)*first(re(θ)(adapt(typeof(θ),[t,W])))
+            phi = (t,W,θ) -> u0 + (t-t0)*first(re(θ)(adapt(DiffEqBase.parameterless_type(θ),[t,W])))
         else
-            phi = (t,W,θ) -> u0 + (t-t0)*re(θ)(adapt(typeof(θ),[t,W]))
+            phi = (t,W,θ) -> u0 + (t-t0)*re(θ)(adapt(DiffEqBase.parameterless_type(θ),[t,W]))
         end
     end
 

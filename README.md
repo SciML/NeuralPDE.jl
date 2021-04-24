@@ -58,7 +58,7 @@ dx = 0.1
 dim = 2 # number of dimensions
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = PhysicsInformedNN(chain, GridTraining(dx))
+discretization = PhysicsInformedNN(chain, QuadratureTraining())
 
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)
@@ -68,7 +68,9 @@ cb = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, Optim.BFGS(); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=4000)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=2000)
 phi = discretization.phi
 ```
 
