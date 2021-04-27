@@ -816,7 +816,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
           bcs_cond_size = size(bcs_bounds)[1]
 
           points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim)))
-          strategy_ = StochasticTraining(points)
+          strategy_ = StochasticTraining(points; bcs_points=bcs_points)
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
                                                          bcs_bounds,
@@ -834,9 +834,10 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
          bcs_cond_size = size(bcs_bounds)[1]
 
          points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim)))
-         strategy_ = QuasiRandomTraining(points;
+         strategy_ = QuasiRandomTraining(points; 
                                         sampling_alg = strategy.sampling_alg,
-                                        minibatch = strategy.minibatch)
+                                        minibatch = strategy.minibatch,
+                                        bcs_points = bcs_points)
 
          bc_loss_function = get_loss_function(_bc_loss_functions,
                                                        bcs_bounds,
