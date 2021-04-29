@@ -304,14 +304,15 @@ initθ = DiffEqFlux.initial_params(chain)
 
 indvars = [x,t]
 depvars = [u]
+_,_,_,_,dict_depvar_input = NeuralPDE.get_vars(indvars, depvars)
 dim = length(domains)
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),reltol= 1e-4,abstol= 1e-3,maxiters=10, batch=10)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative,chain,initθ,quadrature_strategy)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,dict_depvar_input,phi, derivative,chain,initθ,quadrature_strategy)
 _pde_loss_function(rand(2,10), initθ)
 
 bc_indvars = NeuralPDE.get_argument(bcs,indvars,depvars)
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,chain,initθ,quadrature_strategy,
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,dict_depvar_input, phi, derivative,chain,initθ,quadrature_strategy,
                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 map(loss_f -> loss_f(rand(1,10), initθ),_bc_loss_functions)
 

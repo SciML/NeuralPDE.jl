@@ -429,7 +429,7 @@ function get_vars(indvars_, depvars_)
             dname = nameof(value(d).f)
             push!(depvars, dname)
             push!(dict_depvar_input, dname => [nameof(value(argument)) for argument in value(d).arguments])
-        elseif value(d) isa Symbol
+        elseif value(d) isa Sym
             dname = nameof(value(d))
             push!(depvars, dname)
             push!(dict_depvar_input, dname => indvars) # default to all inputs if not given
