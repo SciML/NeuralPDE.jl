@@ -41,7 +41,7 @@ quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
                                                      minibatch = 100)
 
 strategies = [grid_strategy, stochastic_strategy, quadrature_strategy,quasirandom_strategy]
-strategies = [stochastic_strategy]
+strategies = [stochastic_strategy, quadrature_strategy]
 #for strategy_ in strategies
     #test_heterogeneous_input(strategy_)
 #end
@@ -94,13 +94,15 @@ eq  = p(x) + q(y) + r(x, y) + s(y, x) ~ 0
 bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0,
         r(x,-1) ~ 0.f0, r(1, y) ~ 0.0f0, 
         s(y,1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
+#bcs = [s(y, 1) ~ 0.0f0]
 # Space and time domains
 domains = [x ∈ IntervalDomain(0.0,1.0),
             y ∈ IntervalDomain(-1.0,0.0)]
 
 # chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 numhid = 3
-fastchains = [FastChain(FastDense(2,numhid,Flux.σ),FastDense(numhid,numhid,Flux.σ),FastDense(numhid,1)) for i in 1:4]
+fastchains = [[FastChain(FastDense(1,numhid,Flux.σ),FastDense(numhid,numhid,Flux.σ),FastDense(numhid,1)) for i in 1:2];
+              [FastChain(FastDense(2,numhid,Flux.σ),FastDense(numhid,numhid,Flux.σ),FastDense(numhid,1)) for i in 1:2]]
 discretization = NeuralPDE.PhysicsInformedNN(fastchains,
                                                 strategy_)
 
@@ -110,11 +112,12 @@ pde_system = PDESystem(eq,bcs,domains,[x,y],[p(x), q(y), r(x,y), s(y,x)])
 
 
 end
-@run sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-prob = NeuralPDE.discretize(pde_system,discretization)
+@run sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+@run prob = NeuralPDE.discretize(pde_system,discretization)
 initθ = discretization.init_params
 initθvec = vcat(initθ...)
+prob.f(initθvec, [])
 @run prob.f(initθvec, [])
 #res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=3)
 phi = discretization.phi
