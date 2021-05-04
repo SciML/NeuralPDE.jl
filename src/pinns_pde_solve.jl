@@ -185,12 +185,11 @@ function _transform_expression(ex,dict_indvars,dict_depvars, dict_depvar_input, 
                         :(fill($arg,(1, $:batch_size)))
                     end
                 end
+                input_cord = :(adapt(DiffEqBase.parameterless_type($θ), vcat($(interior_u_args...))))
                 ex.args = if !(typeof(chain) <: AbstractVector)
-                    [:u, :(vcat($(interior_u_args...))), :($θ), :phi]
+                    [:u, input_cord, :($θ), :phi]
                 else
-                    #[:u, cord, Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
-                    #[:u, Symbol(:phi_in,num_depvar), Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
-                    [:u, :(vcat($(interior_u_args...))), Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
+                    [:u, input_cord, Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
                 end
                 break
             elseif e isa ModelingToolkit.Differential
@@ -212,11 +211,19 @@ function _transform_expression(ex,dict_indvars,dict_depvars, dict_depvar_input, 
                 #undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 undv = [dict_interior_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
+                interior_u_args = map(indvars) do arg
+                    if arg isa Symbol
+                        arg
+                    else
+                        :(fill($arg,(1, $:batch_size)))
+                    end
+                end
+                input_cord = :(adapt(DiffEqBase.parameterless_type($θ), vcat($(interior_u_args...))))
                 ex.args = if !(typeof(chain) <: AbstractVector)
-                    [:derivative, :phi, :u, cord, εs_dnv, order, :($θ)]
+                    [:derivative, :phi, :u, input_cord, εs_dnv, order, :($θ)]
                 else
                     #[:derivative, Symbol(:phi,num_depvar), :u, cord, εs_dnv, order, Symbol(:($θ),num_depvar)]
-                    [:derivative, Symbol(:phi,num_depvar), :u, Symbol(:phi_in,num_depvar), εs_dnv, order, Symbol(:($θ),num_depvar)]
+                    [:derivative, Symbol(:phi,num_depvar), :u, input_cord, εs_dnv, order, Symbol(:($θ),num_depvar)]
                 end
                 break
             end
@@ -267,8 +274,10 @@ function parse_equation(eq,dict_indvars,dict_depvars, dict_depvar_input,chain,in
 
     left_expr = transform_expression(toexpr(eq_lhs),dict_indvars,dict_depvars, dict_depvar_input,chain,initθ,strategy)
     right_expr = transform_expression(toexpr(eq_rhs),dict_indvars,dict_depvars, dict_depvar_input,chain,initθ,strategy)
-    left_expr = Broadcast.__dot__(left_expr)
-    right_expr = Broadcast.__dot__(right_expr)
+
+    #left_expr = Broadcast.__dot__(left_expr)   #TODO: ZDM: the new way of filling args & constants to the phi inputs is broken by these
+    #right_expr = Broadcast.__dot__(right_expr)
+
     loss_func = :($left_expr .- $right_expr)
 end
 
@@ -425,7 +434,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
 
     indvars_ex = [:($:cord[[$i],:]) for (i, u) ∈ enumerate(integration_indvars)]
     batch_size_variable = if length(integration_indvars) > 0
-        :(size($:cord[[1], :]))
+        :(size($:cord[[1], :])[2])
     else
         :(1)
     end
@@ -914,23 +923,34 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                                                        strategy)
         (pde_loss_function, bc_loss_function)
     elseif strategy isa StochasticTraining
-          bounds = get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
-          pde_bounds, bcs_bounds = bounds
+          #bounds = get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
+          #pde_bounds, bcs_bounds = bounds
+          dict_span = Dict([Symbol(d.variables) => [d.domain.lower, d.domain.upper] for d in domains])
+
+          pde_bounds = map(pde_integration_vars) do eq_pde_integration_vars
+              span = map(indvar -> dict_span[indvar], eq_pde_integration_vars)
+          end
+          bcs_bounds = map(bc_integration_vars) do eq_bc_integration_vars
+              span = map(indvar -> dict_span[indvar], eq_bc_integration_vars)
+          end
+
           pde_loss_function = get_loss_function(_pde_loss_functions,
                                                           pde_bounds,
                                                           strategy)
 
+          #=
           pde_dim = size(pde_bounds[1])[1] #TODO
           bcs_dim = isempty(maximum(size.(bcs_bounds[1]))) ? nothing : maximum(size.(bcs_bounds))[1]
           bcs_cond_size = size(bcs_bounds)[1]
 
-          #points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim)))
-          points = bcs_dim == nothing ? 1 : strategy.points
+          points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim)))
+          points = bcs_dim == nothing ? 1 : strategy.points 
           strategy_ = StochasticTraining(points)
+          =#
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
                                                          bcs_bounds,
-                                                         strategy_)
+                                                         strategy) # this is a workaround until the new specific point # is in.
           (pde_loss_function, bc_loss_function)
     elseif strategy isa QuasiRandomTraining
          bounds = get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)

@@ -48,14 +48,14 @@ strategies = [stochastic_strategy, quadrature_strategy]
 strategy_ = strategies[1]
 
 #=
-println("Example 10, Simple Heterongenous input PDE comparison, strategy: $strategy_")
+println("Example 10, Simple Heterogeneous input PDE comparison, strategy: $strategy_")
 @parameters x y
 @variables r(..)
 Dx = Differential(x)
 Dy = Differential(y)
 
 # 2D PDE
-eq  = Dx(r(x, y)) + r(x, y) ~ 0
+eq  = Dx(r(x,y)) + r(x, y) ~ 0
 
 # Initial and boundary conditions
 bcs = [
@@ -73,14 +73,16 @@ discretization = NeuralPDE.PhysicsInformedNN(fastchains,
 
 pde_system = PDESystem(eq,bcs,domains,[x,y],[r(x,y)])
 end
-@run prob = NeuralPDE.discretize(pde_system,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 @run sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+prob = NeuralPDE.discretize(pde_system,discretization)
 initθ = discretization.init_params
 initθvec = vcat(initθ...)
+prob.f(initθvec, [])
 @run prob.f(initθvec, [])
 =#
 
-println("Example 10, Simple Heterongenous input PDE, strategy: $strategy_")
+println("Example 10, Simple Heterogeneous input PDE, strategy: $strategy_")
 @parameters x y
 @variables p(..) q(..) r(..) s(..)
 Dx = Differential(x)
@@ -107,14 +109,14 @@ discretization = NeuralPDE.PhysicsInformedNN(fastchains,
                                                 strategy_)
 
 pde_system = PDESystem(eq,bcs,domains,[x,y],[p(x), q(y), r(x,y), s(y,x)])
-
-
-
-
 end
+
+
+
+
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 @run sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-@run prob = NeuralPDE.discretize(pde_system,discretization)
+prob = NeuralPDE.discretize(pde_system,discretization)
 initθ = discretization.init_params
 initθvec = vcat(initθ...)
 prob.f(initθvec, [])
