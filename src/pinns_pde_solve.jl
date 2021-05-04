@@ -901,6 +901,15 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                                                   bc_indvars = bc_indvar, integration_indvars = integration_indvar
                                                   ) for (bc,bc_indvar, integration_indvar) in zip(bcs,bc_indvars, bc_integration_vars)]
 
+    dict_span = Dict([Symbol(d.variables) => [d.domain.lower, d.domain.upper] for d in domains])
+
+    pde_bounds = map(pde_integration_vars) do eq_pde_integration_vars
+        span = map(indvar -> dict_span[indvar], eq_pde_integration_vars)
+    end
+    bcs_bounds = map(bc_integration_vars) do eq_bc_integration_vars
+        span = map(indvar -> dict_span[indvar], eq_bc_integration_vars)
+    end
+
     pde_loss_function, bc_loss_function =
     if strategy isa GridTraining
         dx = strategy.dx
@@ -925,20 +934,12 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     elseif strategy isa StochasticTraining
           #bounds = get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
           #pde_bounds, bcs_bounds = bounds
-          dict_span = Dict([Symbol(d.variables) => [d.domain.lower, d.domain.upper] for d in domains])
-
-          pde_bounds = map(pde_integration_vars) do eq_pde_integration_vars
-              span = map(indvar -> dict_span[indvar], eq_pde_integration_vars)
-          end
-          bcs_bounds = map(bc_integration_vars) do eq_bc_integration_vars
-              span = map(indvar -> dict_span[indvar], eq_bc_integration_vars)
-          end
 
           pde_loss_function = get_loss_function(_pde_loss_functions,
                                                           pde_bounds,
                                                           strategy)
 
-          #=
+          #= TODO: ZDM: default to the same # of points for BCs and PDEs, this is a workaround until the new specific point # is in.
           pde_dim = size(pde_bounds[1])[1] #TODO
           bcs_dim = isempty(maximum(size.(bcs_bounds[1]))) ? nothing : maximum(size.(bcs_bounds))[1]
           bcs_cond_size = size(bcs_bounds)[1]
@@ -950,15 +951,18 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
                                                          bcs_bounds,
-                                                         strategy) # this is a workaround until the new specific point # is in.
+                                                         strategy) 
           (pde_loss_function, bc_loss_function)
     elseif strategy isa QuasiRandomTraining
+        #=
          bounds = get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
          pde_bounds, bcs_bounds = bounds
+         =#
          pde_loss_function = get_loss_function(_pde_loss_functions,
                                                         pde_bounds,
                                                         strategy)
 
+        #= TODO: ZDM: default to the same # of points for BCs and PDEs, this is a workaround until the new specific point # is in.
          pde_dim = size(pde_bounds[1])[1] #TODO
          bcs_dim = isempty(maximum(size.(bcs_bounds[1]))) ? nothing : maximum(size.(bcs_bounds))[1]
          bcs_cond_size = size(bcs_bounds)[1]
@@ -967,10 +971,11 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
          strategy_ = QuasiRandomTraining(points;
                                         sampling_alg = strategy.sampling_alg,
                                         minibatch = strategy.minibatch)
+        =#
 
          bc_loss_function = get_loss_function(_bc_loss_functions,
                                                        bcs_bounds,
-                                                       strategy_)
+                                                       strategy)
          (pde_loss_function, bc_loss_function)
     elseif strategy isa QuadratureTraining
         bounds = get_bounds(domains,bcs,dict_indvars,dict_depvars,strategy)
