@@ -35,7 +35,8 @@ the documentation, which contains the unreleased features.
 ## Example: Solving 2D Poisson Equation via Physics-Informed Neural Networks
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, DiffEqFlux
+using Quadrature, Cubature
 
 @parameters x y
 @variables u(..)
