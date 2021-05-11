@@ -16,6 +16,7 @@ with physics-informed neural networks.
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using Quadrature,Cubature
 
 @parameters t, x
 @variables u1(..), u2(..), u3(..)
@@ -35,24 +36,21 @@ bcs = [u1(0,x) ~ sin(pi*x),
        u1(t,0) ~ 0.,
        u2(t,0) ~ exp(-t),
        u1(t,1) ~ 0.,
-       u2(t,1) ~ -exp(-t),
-       u1(t,0) ~ u1(t,1),
-       u2(t,0) ~ -u2(t,1)]
+       u2(t,1) ~ -exp(-t)]
 
 
 # Space and time domains
 domains = [t ∈ IntervalDomain(0.0,1.0),
            x ∈ IntervalDomain(0.0,1.0)]
-# Discretization
-dx = 0.1
+
 # Neural network
 input_ = length(domains)
-n = 8
+n = 20
 chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 
-strategy = GridTraining(dx)
+strategy = QuadratureTraining()
 discretization = PhysicsInformedNN([chain1,chain2,chain3], strategy)
 
 pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1,u2,u3])
@@ -63,7 +61,11 @@ cb = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=200)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,ADAM(10^-2); cb = cb, maxiters=10000)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=200)
 phi = discretization.phi
 ```
 
@@ -72,7 +74,7 @@ And some analysis:
 ```julia
 using Plots
 
-ts,xs = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
+ts,xs = [domain.domain.lower:0.01:domain.domain.upper for domain in domains]
 
 initθ = discretization.init_params
 acum =  [0;accumulate(+, length.(initθ))]
