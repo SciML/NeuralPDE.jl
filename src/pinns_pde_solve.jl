@@ -620,7 +620,7 @@ function generate_random_points(points, bound)
            fill(Float32(b),(1,points))
        else
            lb, ub =  b[1], b[2]
-           lb .+ ub .* Float32.(rand(1,points))
+           lb .+ (ub .- lb) .* Float32.(rand(1,points))
        end
     end
     vcat(f.(bound)...)
