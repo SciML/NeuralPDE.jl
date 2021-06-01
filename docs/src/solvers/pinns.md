@@ -54,17 +54,19 @@ List of training strategies that are available now:
    `dx` is a scalar, then `dx` corresponds to the spacing in each direction. If `dx`
    is a vector, then it should be sized to match the number of dimensions and corresponds
    to the spacing per direction.
- - `StochasticTraining(points)`: `points` number of sochastically sampled points from the domain.
+ - `StochasticTraining(points)`: `points` number of stochastically sampled points from the domain.
    In each optimization iteration, we randomly select a new subset of points from a full training set.
  - `QuasiRandomTraining(points;sampling_alg = UniformSample(),minibatch=500)`:
    The training set is generated on quasi-random low discrepency sequences.
    `minibatch` is the number of subsets, where `points` is the number of quasi-random points in minibatch.
    The number of the total points is `length(lb) * points * minibatch`,
-  where `lb` is the lower bound and `length(lb)` is the dimensionality.
-  `sampling_alg` is the quasi-Monte Carlo sampling algorithm.
-  On each iteration of training, it is randomly selected one of the minibatch.
-  See the [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl) for
-  the full set of quasi-random sampling algorithms which are available.
+   where `lb` is the lower bound and `length(lb)` is the dimensionality.
+   `sampling_alg` is the quasi-Monte Carlo sampling algorithm.
+   `if minibatch != 0`, The full training set is generated in advance before training, and at each iteration, one subset is randomly selected out of the batch.
+   `if minibatch == 0`, the training set isn't generated beforehand, and one set of quasi-random points is generated directly at each iteration.
+
+   See the [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl) for
+   the full set of quasi-random sampling algorithms which are available.
 - `QuadratureTraining(;quadrature_alg=CubatureJLh(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=100)`:
   The loss is computed as an approximation of the integral of the PDE loss
   at each iteration using [adaptive quadrature methods](https://en.wikipedia.org/wiki/Adaptive_quadrature)

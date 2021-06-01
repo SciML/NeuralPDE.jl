@@ -646,6 +646,32 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;
     return loss
 end
 
+function generate_quasi_random_points(points, bound,sampling_alg)
+    function f(b)
+      if b isa Number
+           fill(Float32(b),(1,points))
+       else
+           lb, ub =  [b[1]], [b[2]]
+           Float32.(QuasiMonteCarlo.sample(points,lb,ub,sampling_alg))
+       end
+    end
+    vcat(f.(bound)...)
+end
+
+function generate_quasi_random_points_batch(points, bounds,sampling_alg,minibatch)
+    map(bounds) do bound
+        map(bound) do b
+            if !(b isa Number)
+                lb, ub =  [b[1]], [b[2]]
+                set_ = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
+                set = map(s -> Float32.(s), set_)
+            else
+                set = fill(Float32(b),(1,points))
+            end
+        end
+    end
+end
+
 function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining;τ=nothing)
     sampling_alg = strategy.sampling_alg
     points = strategy.points
@@ -654,28 +680,33 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     if τ == nothing
         τ = 1.0f0 / points
     end
-
-    sss = map(bounds) do bound
-             map(bound) do b
-                if !(b isa Number)
-                    lb, ub =  [b[1]], [b[2]]
-                    s = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
-                else
-                    s = fill(Float64(b),(1,points))
-                end
-             end
-          end
-
-    loss = (θ) -> begin
-        total = 0.
-        for (bound,ss_,loss_function) in zip(bounds,sss,loss_functions)
-            ss__ =  [ss_[i] isa Array{Float64,2} ? ss_[i] : ss_[i][rand(1:minibatch)] for i in 1:length(ss_)]
-            r_point = vcat(ss__...)
-            r_point_ = adapt(DiffEqBase.parameterless_type(θ),r_point)
-            total += τ * sum(abs2,loss_function(r_point_,θ))
-        end
-        return total
+    point_batch = nothing
+    point_batch = if (minibatch != 0)
+        generate_quasi_random_points_batch(points, bounds,sampling_alg,minibatch)
     end
+    loss =
+        if minibatch == 0
+            θ -> begin
+                total = 0.
+                for (bound,loss_function) in zip(bounds,loss_functions)
+                    sets = generate_quasi_random_points(points, bound, sampling_alg)
+                    sets_ = adapt(DiffEqBase.parameterless_type(θ),sets)
+                    total += τ * sum(abs2,loss_function(sets_,θ))
+                end
+                return total
+            end
+        else
+            θ -> begin
+                total = 0.
+                for (bound,p_b,loss_function) in zip(bounds,point_batch,loss_functions)
+                    sets =  [p_b[i] isa Array{Float32,2} ? p_b[i] : p_b[i][rand(1:minibatch)] for i in 1:length(p_b)]
+                    sets_ = vcat(sets...)
+                    sets__ = adapt(DiffEqBase.parameterless_type(θ),sets_)
+                    total += τ * sum(abs2,loss_function(sets__,θ))
+                end
+                return total
+            end
+        end
     return loss
 end
 
