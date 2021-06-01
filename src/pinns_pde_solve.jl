@@ -85,7 +85,11 @@ end
 """
 * `points`:  the number of quasi-random points in minibatch,
 * `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
-* `minibatch`: the number of subsets.
+* `resampling`: if it's false - the full training set is generated in advance before training,
+   and at each iteration, one subset is randomly selected out of the batch.
+   if it's true - the training set isn't generated beforehand, and one set of quasi-random
+   points is generated directly at each iteration in runtime. In this case `minibatch` has no effect,
+* `minibatch`: the number of subsets, if resampling == false.
 
 For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMonteCarlo.jl
 """
@@ -95,7 +99,7 @@ struct QuasiRandomTraining <:TrainingStrategies
     resampling:: Bool
     minibatch:: Int64
 end
-function QuasiRandomTraining(points;sampling_alg = UniformSample(),resampling =true, minibatch=500)
+function QuasiRandomTraining(points;sampling_alg = UniformSample(),resampling =true, minibatch=0)
     QuasiRandomTraining(points,sampling_alg,resampling,minibatch)
 end
 """
