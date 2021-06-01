@@ -18,6 +18,7 @@ using SciMLBase
 import Tracker, Optim
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import SciMLBase: @add_kwonly
+using Flux: @nograd
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
     TerminalPDEProblem(g, f, μ, σ, x0, tspan)

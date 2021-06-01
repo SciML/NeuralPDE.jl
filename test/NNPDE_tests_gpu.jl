@@ -150,6 +150,7 @@ chain = FastChain(FastDense(2,inner,Flux.σ),
 
 strategy = NeuralPDE.QuasiRandomTraining(500; #points
                                          sampling_alg = SobolSample(),
+                                         resampling = false,
                                          minibatch = 30)
 initθ = initial_params(chain) |>gpu
 discretization = NeuralPDE.PhysicsInformedNN(chain,
