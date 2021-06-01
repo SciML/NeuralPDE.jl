@@ -56,14 +56,11 @@ List of training strategies that are available now:
    to the spacing per direction.
  - `StochasticTraining(points)`: `points` number of stochastically sampled points from the domain.
    In each optimization iteration, we randomly select a new subset of points from a full training set.
- - `QuasiRandomTraining(points;sampling_alg = UniformSample(),minibatch=500)`:
+ - `QuasiRandomTraining(points;sampling_alg = UniformSample(), resampling = true, minibatch=500)`:
    The training set is generated on quasi-random low discrepency sequences.
-   `minibatch` is the number of subsets, where `points` is the number of quasi-random points in minibatch.
-   The number of the total points is `length(lb) * points * minibatch`,
-   where `lb` is the lower bound and `length(lb)` is the dimensionality.
-   `sampling_alg` is the quasi-Monte Carlo sampling algorithm.
-   `if minibatch != 0`, The full training set is generated in advance before training, and at each iteration, one subset is randomly selected out of the batch.
-   `if minibatch == 0`, the training set isn't generated beforehand, and one set of quasi-random points is generated directly at each iteration.
+   `points` is the number of quasi-random points in every subset or set, `sampling_alg` is the quasi-Monte Carlo sampling algorithm. `if resampling = false`, the full training set is generated in advance before training, and at each iteration, one subset is randomly selected out of the batch.`minibatch` is the number of subsets in full training set.
+   The number of the total points is `length(lb) * points * minibatch`, where `lb` is the lower bound and `length(lb)` is the dimensionality.
+   `if resampling = true`, the training set isn't generated beforehand, and one set of quasi-random points is generated directly at each iteration in runtime. In this case `minibatch` has no effect.
 
    See the [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl) for
    the full set of quasi-random sampling algorithms which are available.

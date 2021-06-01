@@ -92,10 +92,11 @@ For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMont
 struct QuasiRandomTraining <:TrainingStrategies
     points:: Int64
     sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
+    resampling:: Bool
     minibatch:: Int64
 end
-function QuasiRandomTraining(points;sampling_alg = UniformSample(),minibatch=500)
-    QuasiRandomTraining(points,sampling_alg,minibatch)
+function QuasiRandomTraining(points;sampling_alg = UniformSample(),resampling =true, minibatch=500)
+    QuasiRandomTraining(points,sampling_alg,resampling,minibatch)
 end
 """
 * `quadrature_alg`: quadrature algorithm,
@@ -646,7 +647,7 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;
     return loss
 end
 
-function generate_quasi_random_points(points, bound,sampling_alg)
+@nograd function generate_quasi_random_points(points, bound,sampling_alg)
     function f(b)
       if b isa Number
            fill(Float32(b),(1,points))
@@ -675,17 +676,18 @@ end
 function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining;τ=nothing)
     sampling_alg = strategy.sampling_alg
     points = strategy.points
+    resampling = strategy.resampling
     minibatch = strategy.minibatch
 
     if τ == nothing
         τ = 1.0f0 / points
     end
     point_batch = nothing
-    point_batch = if (minibatch != 0)
+    point_batch = if resampling == false
         generate_quasi_random_points_batch(points, bounds,sampling_alg,minibatch)
     end
     loss =
-        if minibatch == 0
+        if resampling == true
             θ -> begin
                 total = 0.
                 for (bound,loss_function) in zip(bounds,loss_functions)

@@ -76,13 +76,16 @@ quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
                                                     reltol=1e-3,abstol=1e-3,
                                                     maxiters =50, batch=100)
 quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
-                                                     sampling_alg = GridSample([0.1,0.1]),
-                                                     minibatch = 0)
-quasirandom_strategy_batch = NeuralPDE.QuasiRandomTraining(100; #points
                                                      sampling_alg = UniformSample(),
-                                                     minibatch = 100)
+                                                     resampling =false,
+                                                     minibatch = 100
+                                                    )
+quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100; #points
+                                                     sampling_alg = UniformSample(),
+                                                     resampling = true,
+                                                     minibatch = 0)
 
-strategies = [stochastic_strategy, quadrature_strategy,quasirandom_strategy,quasirandom_strategy_batch]
+strategies = [stochastic_strategy, quadrature_strategy,quasirandom_strategy,quasirandom_strategy_resampling]
 
 for strategy_ in strategies
     test_ode(strategy_)
@@ -204,8 +207,7 @@ dx = 0.05
 # Neural network
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
-                                                     sampling_alg = UniformSample(),
-                                                     minibatch = 100)
+                                                     sampling_alg = SobolSample())
 discretization = NeuralPDE.PhysicsInformedNN([chain],quasirandom_strategy)
 pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
