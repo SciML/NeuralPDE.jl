@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Poisson Equation · NeuralPDE.jl</title><link rel="canonical" href="#/pinn/poisson/"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">NeuralPDE.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations</a></li><li><span class="tocitem">Physics-Informed Neural Network Tutorials</span><ul><li class="is-active"><a class="tocitem" href>Poisson Equation</a><ul class="internal"><li><a class="tocitem" href="#Copy-Pastable-Code"><span>Copy-Pastable Code</span></a></li><li><a class="tocitem" href="#Detailed-Description"><span>Detailed Description</span></a></li></ul></li><li><a class="tocitem" href="../wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../2D/">2-dimensional PDEs with GPU</a></li><li><a class="tocitem" href="../system/">Systems of PDEs</a></li><li><a class="tocitem" href="../3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../low_level/">1-D Burgers&#39; Equation With Low-Level API</a></li><li><a class="tocitem" href="../ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../fp/">Fokker-Planck Equation</a></li><li><a class="tocitem" href="../parm_estim/">Optimising Parameters of a Lorenz System</a></li><li><a class="tocitem" href="../debugging/">Debugging PINN Solutions</a></li></ul></li><li><span class="tocitem">Specialized Neural PDE Tutorials</span><ul><li><a class="tocitem" href="../../examples/100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation</a></li><li><a class="tocitem" href="../../examples/blackscholes/">Solving the 100-dimensional Black-Scholes-Barenblatt Equation</a></li><li><a class="tocitem" href="../../examples/kolmogorovbackwards/">Solving Kolmogorov Equations with Neural Networks</a></li><li><a class="tocitem" href="../../examples/optimal_stopping_american/">Optimal Stopping Times of American Options</a></li></ul></li><li><span class="tocitem">Specialized Neural ODE Tutorials</span><ul><li><a class="tocitem" href="../../examples/ode/">Solving ODEs with Neural Networks</a></li><li><a class="tocitem" href="../../examples/nnrode_example/">Solving Random Ordinary Differential Equations</a></li></ul></li><li><span class="tocitem">API Documentation</span><ul><li><a class="tocitem" href="../../solvers/pinns/">Physics-Informed Neural Networks</a></li><li><a class="tocitem" href="../../solvers/deep_fbsde/">Deep Forward-Backwards SDEs for Terminal Parabolic PDEs</a></li><li><a class="tocitem" href="../../solvers/kolmogorovbackwards_solver/">Neural Network Solvers for Kolmogorov Backwards Equations</a></li><li><a class="tocitem" href="../../solvers/optimal_stopping/">Neural Network Solvers for Optimal Stopping Time Problems</a></li><li><a class="tocitem" href="../../solvers/ode/">ODE-Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../solvers/nnrode/">Random Ordinary Differential Equation Specialized Physics-Informed Neural Solver</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Physics-Informed Neural Network Tutorials</a></li><li class="is-active"><a href>Poisson Equation</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Poisson Equation</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/pinn/poisson.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Poisson-Equation"><a class="docs-heading-anchor" href="#Poisson-Equation">Poisson Equation</a><a id="Poisson-Equation-1"></a><a class="docs-heading-anchor-permalink" href="#Poisson-Equation" title="Permalink"></a></h1><p>In this example, we will solve a Poisson equation:</p><p><img src="https://user-images.githubusercontent.com/12683885/86838505-ee1ae480-c0a8-11ea-8d3c-7da53a9a7091.png" alt="poisson"/></p><p>with the boundary conditions:</p><p><img src="https://user-images.githubusercontent.com/12683885/86621678-437ec500-bfc7-11ea-8fe7-23a46a524cbe.png" alt="boundary"/></p><p>on the space domain:</p><p><img src="https://user-images.githubusercontent.com/12683885/86621460-e8e56900-bfc6-11ea-9b64-826ac84c36c9.png" alt="spaces"/></p><p>with grid discretization <code>dx = 0.1</code>. We will use physics-informed neural networks.</p><h2 id="Copy-Pastable-Code"><a class="docs-heading-anchor" href="#Copy-Pastable-Code">Copy-Pastable Code</a><a id="Copy-Pastable-Code-1"></a><a class="docs-heading-anchor-permalink" href="#Copy-Pastable-Code" title="Permalink"></a></h2><pre><code class="language-julia">using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+
+@parameters x y
+@variables u(..)
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
+
+# 2D PDE
+eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
+
+# Boundary conditions
+bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+# Space and time domains
+domains = [x ∈ IntervalDomain(0.0,1.0),
+           y ∈ IntervalDomain(0.0,1.0)]
+
+# Neural network
+dim = 2 # number of dimensions
+chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+
+# Discretization
+dx = 0.05
+discretization = PhysicsInformedNN(chain,GridTraining(dx))
+
+pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+prob = discretize(pde_system,discretization)
+
+#Optimizer
+opt = Optim.BFGS()
+
+#Callback function
+cb = function (p,l)
+    println(&quot;Current loss is: $l&quot;)
+    return false
+end
+
+res = GalacticOptim.solve(prob, opt, cb = cb, maxiters=1000)
+phi = discretization.phi
+
+using Plots
+
+xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
+analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
+
+u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+diff_u = abs.(u_predict .- u_real)
+
+p1 = plot(xs, ys, u_real, linetype=:contourf,title = &quot;analytic&quot;);
+p2 = plot(xs, ys, u_predict, linetype=:contourf,title = &quot;predict&quot;);
+p3 = plot(xs, ys, diff_u,linetype=:contourf,title = &quot;error&quot;);
+plot(p1,p2,p3)</code></pre><h2 id="Detailed-Description"><a class="docs-heading-anchor" href="#Detailed-Description">Detailed Description</a><a id="Detailed-Description-1"></a><a class="docs-heading-anchor-permalink" href="#Detailed-Description" title="Permalink"></a></h2><p>The ModelingToolkit PDE interface for this example looks like this:</p><pre><code class="language-julia">using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+@parameters x y
+@variables u(..)
+@derivatives Dxx&#39;&#39;~x
+@derivatives Dyy&#39;&#39;~y
+
+# 2D PDE
+eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
+
+# Boundary conditions
+bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+# Space and time domains
+domains = [x ∈ IntervalDomain(0.0,1.0),
+           y ∈ IntervalDomain(0.0,1.0)]</code></pre><p>Here, we define the neural network, where the input of NN equals the number of dimensions and output equals the number of equations in the system.</p><pre><code class="language-julia"># Neural network
+dim = 2 # number of dimensions
+chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))</code></pre><p>Here, we build PhysicsInformedNN algorithm where <code>dx</code> is the step of discretization and <code>strategy</code> stores information for choosing a training strategy.</p><pre><code class="language-julia"># Discretization
+dx = 0.05
+discretization = PhysicsInformedNN(chain, GridTraining(dx))</code></pre><p>As described in the API docs, we now need to define the <code>PDESystem</code> and create PINNs problem using the <code>discretize</code> method.</p><pre><code class="language-julia">pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+prob = discretize(pde_system,discretization)</code></pre><p>Here, we define the callback function and the optimizer. And now we can solve the PDE using PINNs (with the number of epochs <code>maxiters=1000</code>).</p><pre><code class="language-julia">#Optimizer
+opt = Optim.BFGS()
+
+cb = function (p,l)
+    println(&quot;Current loss is: $l&quot;)
+    return false
+end
+
+res = GalacticOptim.solve(prob, opt, cb = cb, maxiters=1000)
+phi = discretization.phi</code></pre><p>We can plot the predicted solution of the PDE and compare it with the analytical solution in order to plot the relative error.</p><pre><code class="language-julia">xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
+analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
+
+u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+diff_u = abs.(u_predict .- u_real)
+
+p1 = plot(xs, ys, u_real, linetype=:contourf,title = &quot;analytic&quot;);
+p2 = plot(xs, ys, u_predict, linetype=:contourf,title = &quot;predict&quot;);
+p3 = plot(xs, ys, diff_u,linetype=:contourf,title = &quot;error&quot;);
+plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png" alt="poissonplot"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations</a><a class="docs-footer-nextpage" href="../wave/">1D Wave Equation with Dirichlet boundary conditions »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 1 June 2021 20:42">Tuesday 1 June 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
