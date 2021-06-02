@@ -9,7 +9,7 @@ makedocs(
 
     format=Documenter.HTML(# analytics = "",
                              assets=["assets/favicon.ico"],
-                             canonical="#"),
+                             canonical="https://neuralpde.sciml.ai/stable/"),
     pages=[
         "NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations" => "index.md",
         "Physics-Informed Neural Network Tutorials" => Any[
