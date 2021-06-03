@@ -76,14 +76,19 @@ struct GridTraining <: TrainingStrategies
 end
 
 """
-* `points`: number of points in random select training set.
+* `points`: number of points in random select training set,
+* `bcs_points`: number of points in random select training set for boundry conditions.
 """
 struct StochasticTraining <:TrainingStrategies
     points:: Int64
+    bcs_points:: Int64
 end
-
+function StochasticTraining(points;bcs_points = points)
+    StochasticTraining(points, bcs_points)
+end
 """
-* `points`:  the number of quasi-random points in minibatch,
+* `points`:  the number of quasi-random points in a sample,
+* `bcs_points`: the number of quasi-random points in a sample for boundry conditions,
 * `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
 * `resampling`: if it's false - the full training set is generated in advance before training,
    and at each iteration, one subset is randomly selected out of the batch.
@@ -95,12 +100,13 @@ For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMont
 """
 struct QuasiRandomTraining <:TrainingStrategies
     points:: Int64
+    bcs_points:: Int64
     sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
     resampling:: Bool
     minibatch:: Int64
 end
-function QuasiRandomTraining(points;sampling_alg = UniformSample(),resampling =true, minibatch=0)
-    QuasiRandomTraining(points,sampling_alg,resampling,minibatch)
+function QuasiRandomTraining(points;bcs_points = points, sampling_alg = UniformSample(),resampling =true, minibatch=0)
+    QuasiRandomTraining(points,bcs_points,sampling_alg,resampling,minibatch)
 end
 """
 * `quadrature_alg`: quadrature algorithm,
@@ -848,12 +854,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                                                           pde_bounds,
                                                           strategy)
 
-          pde_dim = size(pde_bounds[1])[1] #TODO
-          bcs_dim = isempty(maximum(size.(bcs_bounds[1]))) ? nothing : maximum(size.(bcs_bounds))[1]
-          bcs_cond_size = size(bcs_bounds)[1]
-
-          points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim)))
-          strategy_ = StochasticTraining(points)
+          strategy_ = StochasticTraining(strategy.bcs_points)
 
           bc_loss_function = get_loss_function(_bc_loss_functions,
                                                          bcs_bounds,
@@ -866,15 +867,10 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                                                         pde_bounds,
                                                         strategy)
 
-         pde_dim = size(pde_bounds[1])[1] #TODO
-         bcs_dim = isempty(maximum(size.(bcs_bounds[1]))) ? nothing : maximum(size.(bcs_bounds))[1]
-         bcs_cond_size = size(bcs_bounds)[1]
-
-         points = bcs_dim == nothing ? 1 : bcs_cond_size*Int(round(strategy.points^(bcs_dim/pde_dim)))
-         strategy_ = QuasiRandomTraining(points;
-                                        sampling_alg = strategy.sampling_alg,
-                                        resampling = strategy.resampling,
-                                        minibatch = strategy.minibatch)
+         strategy_ = QuasiRandomTraining(strategy.bcs_points;
+                                         sampling_alg = strategy.sampling_alg,
+                                         resampling = strategy.resampling,
+                                         minibatch = strategy.minibatch)
 
          bc_loss_function = get_loss_function(_bc_loss_functions,
                                                        bcs_bounds,
@@ -926,14 +922,14 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                                                  strategy;
                                                  τ=τb)
         else
-            strategy = QuadratureTraining(quadrature_alg = strategy.quadrature_alg,
+            strategy_ = QuadratureTraining(quadrature_alg = strategy.quadrature_alg,
                                           reltol = bsl*(strategy.reltol)^(bl/pl),
                                           abstol = bsl*(strategy.abstol)^(bl/pl),
                                           maxiters = bsl*Int(round((strategy.maxiters)^(bl/pl))),
                                           batch = strategy.batch)
             bc_loss_function = get_loss_function(_bc_loss_functions,
                                              bcs_bounds,
-                                             strategy;
+                                             strategy_;
                                              τ=τb)
         end
         (pde_loss_function, bc_loss_function)

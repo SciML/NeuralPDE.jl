@@ -71,7 +71,7 @@ function test_ode(strategy_)
 end
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
-stochastic_strategy = NeuralPDE.StochasticTraining(100) #points
+stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points= 30) #points
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
                                                     reltol=1e-3,abstol=1e-3,
                                                     maxiters =50, batch=100)
@@ -81,6 +81,7 @@ quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
                                                      minibatch = 100
                                                     )
 quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100; #points
+                                                     bcs_points= 30,
                                                      sampling_alg = UniformSample(),
                                                      resampling = true,
                                                      minibatch = 0)
@@ -438,7 +439,7 @@ eq  = Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x))+dx*p(x) - 1.
 bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(-2.2,2.2)]
+domains = [x ∈ Interval(-2.2,2.2)]
 
 # Neural network
 inn = 18
