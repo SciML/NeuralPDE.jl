@@ -12,6 +12,7 @@ with physics-informed neural networks.
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x, t
 @variables u(..)
@@ -36,8 +37,8 @@ bcs = [u(x,0) ~ u_analytic(x,0),
        Dx(u(10,t)) ~ du(10,t)]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(-10.0,10.0),
-           t ∈ IntervalDomain(0.0,1.0)]
+domains = [x ∈ Interval(-10.0,10.0),
+           t ∈ Interval(0.0,1.0)]
 # Discretization
 dx = 0.4; dt = 0.2
 
@@ -63,7 +64,7 @@ And some analysis:
 ```julia
 using Plots
 
-xs,ts = [domain.domain.lower:dx:domain.domain.upper for (domain,dx) in zip(domains,[dx/10,dt])]
+xs,ts = [infimum(d.domain):dx:supremum(d.domain) for (d,dx) in zip(domains,[dx/10,dt])]
 
 u_predict = [[first(phi([x,t],res.minimizer)) for x in xs] for t in ts]
 u_real = [[u_analytic(x,t) for x in xs] for t in ts]

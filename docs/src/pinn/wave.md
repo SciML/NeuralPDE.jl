@@ -11,6 +11,7 @@ Further, the solution of this equation with the given boundary conditions is pre
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..)
@@ -29,8 +30,8 @@ bcs = [u(t,0) ~ 0.,# for all t > 0
        Dt(u(0,x)) ~ 0. ] #for all  0 < x < 1]
 
 # Space and time domains
-domains = [t ∈ IntervalDomain(0.0,1.0),
-           x ∈ IntervalDomain(0.0,1.0)]
+domains = [t ∈ Interval(0.0,1.0),
+           x ∈ Interval(0.0,1.0)]
 # Discretization
 dx = 0.1
 
@@ -58,7 +59,7 @@ We can plot the predicted solution of the PDE and compare it with the analytical
 ```julia
 using Plots
 
-ts,xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
+ts,xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 analytic_sol_func(t,x) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
 
 u_predict = reshape([first(phi([t,x],res.minimizer)) for t in ts for x in xs],(length(ts),length(xs)))

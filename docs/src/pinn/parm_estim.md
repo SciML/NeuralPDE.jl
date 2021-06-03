@@ -9,6 +9,7 @@ We start by defining the the problem,
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, OrdinaryDiffEq, Plots
+import ModelingToolkit: Interval, infimum, supremum
 @parameters t ,σ_ ,β, ρ
 @variables x(..), y(..), z(..)
 Dt = Differential(t)
@@ -17,7 +18,7 @@ eqs = [Dt(x(t)) ~ σ_*(y(t) - x(t)),
        Dt(z(t)) ~ x(t)*y(t) - β*z(t)]
 
 bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
-domains = [t ∈ IntervalDomain(0.0,1.0)]
+domains = [t ∈ Interval(0.0,1.0)]
 dt = 0.01
 ```
 And the neural networks as,
@@ -43,7 +44,7 @@ u0 = [1.0;0.0;0.0]
 tspan = (0.0,1.0)
 prob = ODEProblem(lorenz!,u0,tspan)
 sol = solve(prob, Tsit5(), dt=0.1)
-ts = [domain.domain.lower:dt:domain.domain.upper for domain in domains][1]
+ts = [infimum(d.domain):dt:supremum(d.domain) for d in domains][1]
 function getData(sol)
     data = []
     us = hcat(sol(ts).u...)
@@ -82,7 +83,7 @@ initθ = discretization.init_params
 acum =  [0;accumulate(+, length.(initθ))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 minimizers = [res.minimizer[s] for s in sep]
-ts = [domain.domain.lower:dt/10:domain.domain.upper for domain in domains][1]
+ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
 u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 plot(sol)
 plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])

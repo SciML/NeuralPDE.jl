@@ -37,6 +37,7 @@ the documentation, which contains the unreleased features.
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, DiffEqFlux
 using Quadrature, Cubature
+import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
 @variables u(..)
@@ -50,8 +51,8 @@ eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
 bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
        u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
 # Space and time domains
-domains = [x ∈ IntervalDomain(0.0,1.0),
-           y ∈ IntervalDomain(0.0,1.0)]
+domains = [x ∈ Interval(0.0,1.0),
+           y ∈ Interval(0.0,1.0)]
 # Discretization
 dx = 0.1
 
@@ -78,7 +79,7 @@ phi = discretization.phi
 And some analysis:
 
 ```julia
-xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
+xs,ys = [infimum(d.domain):dx/10:supremum(d.domain) for d in domains]
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
 
 u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))

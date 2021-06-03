@@ -12,6 +12,7 @@ using Quadrature,Cubature, Cuba
 using QuasiMonteCarlo
 using SciMLBase
 using OrdinaryDiffEq
+import ModelingToolkit: Interval, infimum, supremum
 
 using Random
 Random.seed!(100)
@@ -35,7 +36,7 @@ function test_ode(strategy_)
     bcs = [u(0.) ~ 1.0]
 
     # Space and time domains
-    domains = [θ ∈ IntervalDomain(0.0,1.0)]
+    domains = [θ ∈ Interval(0.0,1.0)]
     # Discretization
     dt = 0.1f0
     # Neural network
@@ -59,7 +60,7 @@ function test_ode(strategy_)
     phi = discretization.phi
 
     analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
-    ts = [domain.domain.lower:dt/10:domain.domain.upper for domain in domains][1]
+    ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
     u_real  = [analytic_sol_func(t) for t in ts]
     u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
@@ -107,8 +108,8 @@ function test_2d_poisson_equation(chain_, strategy_)
     bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
            u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
     # Space and time domains
-    domains = [x ∈ IntervalDomain(0.0,1.0),
-               y ∈ IntervalDomain(0.0,1.0)]
+    domains = [x ∈ Interval(0.0,1.0),
+               y ∈ Interval(0.0,1.0)]
 
     # chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
     discretization = NeuralPDE.PhysicsInformedNN(chain_,
@@ -121,7 +122,7 @@ function test_2d_poisson_equation(chain_, strategy_)
     phi = discretization.phi
 
     dx = 0.1
-    xs,ys = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains]
+    xs,ys = [infimum(d.domain):dx/10:supremum(d.domain) for d in domains]
     analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
 
     u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
@@ -161,8 +162,8 @@ function run_2d_poisson_equation(strategy_)
     bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
            u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
     # Space and time domains
-    domains = [x ∈ IntervalDomain(0.0,1.0),
-               y ∈ IntervalDomain(0.0,1.0)]
+    domains = [x ∈ Interval(0.0,1.0),
+               y ∈ Interval(0.0,1.0)]
     # Discretization
     dx = 0.1
 
@@ -200,7 +201,7 @@ bcs = [u(0.) ~ 0.0,
        Dx(u(1.)) ~ 1.0]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(0.0,1.0)]
+domains = [x ∈ Interval(0.0,1.0)]
 
 # Discretization
 dx = 0.05
@@ -223,7 +224,7 @@ phi = discretization.phi[1]
 
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
 
-xs = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains][1]
+xs = [infimum(d.domain):dx/10:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
@@ -249,7 +250,7 @@ eqs = [Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
 bcs = [u1(x,0) ~ 2x, u2(x,0) ~ 3x]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
+domains = [x ∈ Interval(0.0,1.0), y ∈ Interval(0.0,1.0)]
 
 
 # Neural network
@@ -266,7 +267,7 @@ res = GalacticOptim.solve(prob,ADAM(0.05); cb = cb, maxiters=2000)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
-xs,ys = [domain.domain.lower:0.01:domain.domain.upper for domain in domains]
+xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_real  = [[analytic_sol_func(x,y)[i] for x in xs  for y in ys] for i in 1:2]
 
 initθ = discretization.init_params
@@ -301,8 +302,8 @@ bcs = [u(0,t) ~ 0.,# for all t > 0
        Dt(u(x,0)) ~ 0. ] #for all  0 < x < 1]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(0.0,1.0),
-           t ∈ IntervalDomain(0.0,1.0)]
+domains = [x ∈ Interval(0.0,1.0),
+           t ∈ Interval(0.0,1.0)]
 
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
@@ -357,7 +358,7 @@ end
 
 res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb_, maxiters=400)
 
-xs,ts = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
+xs,ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 analytic_sol_func(x,t) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
 
 u_predict = reshape([first(phi([x,t],res.minimizer)) for x in xs for t in ts],(length(xs),length(ts)))
@@ -389,7 +390,7 @@ bcs = [u(x,0) ~ x,
        u(x,0) ~ Dy(u(x,0))]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(0.0,1.0), y ∈ IntervalDomain(0.0,1.0)]
+domains = [x ∈ Interval(0.0,1.0), y ∈ Interval(0.0,1.0)]
 
 # Discretization
 dx = 0.1
@@ -404,7 +405,7 @@ res = GalacticOptim.solve(prob,ADAM(0.1); cb = cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(x,y) = x + x*y +y^2/2
-xs,ys = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
+xs,ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 
 u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
@@ -439,7 +440,7 @@ eq  = Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x))+dx*p(x) - 1.
 bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(-2.2,2.2)]
+domains = [x ∈ Interval(-2.2,2.2)]
 
 # Neural network
 inn = 18
@@ -476,7 +477,7 @@ res = GalacticOptim.solve(prob,ADAM(0.001); cb = cb, maxiters=1000)
 
 phi = discretization.phi
 analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
-xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains][1]
+xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
@@ -498,7 +499,7 @@ eqs = [Dt(x(t)) ~ σ_*(y(t) - x(t)),
 
 
 bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
-domains = [t ∈ IntervalDomain(0.0,1.0)]
+domains = [t ∈ Interval(0.0,1.0)]
 dt = 0.05f0
 
 input_ = length(domains)
@@ -519,7 +520,7 @@ u0 = [1.0;0.0;0.0]
 tspan = (0.0,1.0)
 prob = ODEProblem(lorenz!,u0,tspan)
 sol = solve(prob, Tsit5(), dt=0.1)
-ts = [domain.domain.lower:dt/5:domain.domain.upper for domain in domains][1]
+ts = [infimum(d.domain):dt/5:supremum(d.domain) for d in domains][1]
 
 function getData(sol)
     data = []
@@ -556,7 +557,7 @@ p_ = res.minimizer[end-2:end]
 # acum =  [0;accumulate(+, length.(initθ))]
 # sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 # minimizers = [res.minimizer[s] for s in sep]
-# ts = [domain.domain.lower:dt/10:domain.domain.upper for domain in domains][1]
+# ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
 # u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 # plot(sol)
 # plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
