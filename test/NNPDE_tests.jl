@@ -86,7 +86,7 @@ quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100; #points
                                                      resampling = true,
                                                      minibatch = 0)
 
-strategies = [stochastic_strategy, quadrature_strategy,quasirandom_strategy,quasirandom_strategy_resampling]
+strategies = [grid_strategy,stochastic_strategy, quadrature_strategy,quasirandom_strategy,quasirandom_strategy_resampling]
 
 for strategy_ in strategies
     test_ode(strategy_)
@@ -439,7 +439,7 @@ eq  = Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x))+dx*p(x) - 1.
 bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
 
 # Space and time domains
-domains = [x ∈ Interval(-2.2,2.2)]
+domains = [x ∈ IntervalDomain(-2.2,2.2)]
 
 # Neural network
 inn = 18

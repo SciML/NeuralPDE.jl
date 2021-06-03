@@ -77,7 +77,7 @@ end
 
 """
 * `points`: number of points in random select training set,
-* `bcs_points`: number of points in random select training set for boundry conditions.
+* `bcs_points`: number of points in random select training set for boundry conditions (by default, it equals `points`).
 """
 struct StochasticTraining <:TrainingStrategies
     points:: Int64
@@ -88,7 +88,7 @@ function StochasticTraining(points;bcs_points = points)
 end
 """
 * `points`:  the number of quasi-random points in a sample,
-* `bcs_points`: the number of quasi-random points in a sample for boundry conditions,
+* `bcs_points`: the number of quasi-random points in a sample for boundry conditions (by default, it equals `points`),
 * `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
 * `resampling`: if it's false - the full training set is generated in advance before training,
    and at each iteration, one subset is randomly selected out of the batch.
