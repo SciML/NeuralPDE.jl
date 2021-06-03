@@ -8,6 +8,7 @@ with Physics-Informed Neural Networks. Here is an example of using the low-level
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..)
@@ -24,8 +25,8 @@ bcs = [u(0,x) ~ -sin(pi*x),
        u(t,1) ~ 0.]
 
 # Space and time domains
-domains = [t ∈ IntervalDomain(0.0,1.0),
-           x ∈ IntervalDomain(-1.0,1.0)]
+domains = [t ∈ Interval(0.0,1.0),
+           x ∈ Interval(-1.0,1.0)]
 # Discretization
 dx = 0.05
 # Neural network
@@ -81,7 +82,7 @@ And some analysis:
 ```julia
 using Plots
 
-ts,xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
+ts,xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 u_predict_contourf = reshape([first(phi([t,x],res.minimizer)) for t in ts for x in xs] ,length(xs),length(ts))
 plot(ts, xs, u_predict_contourf, linetype=:contourf,title = "predict")
 

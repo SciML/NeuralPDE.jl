@@ -5,6 +5,7 @@ PDE solvers.
 
 ```julia
 using NeuralPDE, ModelingToolkit, Flux, DiffEqFlux, Zygote
+import ModelingToolkit: Interval, infimum, supremum
 # 2d wave equation, neumann boundary condition
 @parameters x, t
 @variables u(..)
@@ -22,8 +23,8 @@ bcs = [u(0,t) ~ 0.,
        Dt(u(x,0)) ~ 0. ]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(0.0,1.0),
-           t ∈ IntervalDomain(0.0,1.0)]
+domains = [x ∈ Interval(0.0,1.0),
+           t ∈ Interval(0.0,1.0)]
 
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))

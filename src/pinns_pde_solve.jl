@@ -491,8 +491,8 @@ function generate_training_sets(domains,dx,eqs,bcs,dict_indvars::Dict,dict_depva
         dxs = fill(dx,length(domains))
     end
 
-    spans = [d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)]
-    dict_var_span = Dict([Symbol(d.variables) => d.domain.lower:dx:d.domain.upper for (d,dx) in zip(domains,dxs)])
+    spans = [infimum(d.domain):dx:supremum(d.domain) for (d,dx) in zip(domains,dxs)]
+    dict_var_span = Dict([Symbol(d.variables) => infimum(d.domain):dx:supremum(d.domain) for (d,dx) in zip(domains,dxs)])
 
     bound_args = get_argument(bcs,dict_indvars,dict_depvars)
     bound_vars = get_variables(bcs,dict_indvars,dict_depvars)
@@ -542,12 +542,12 @@ end
 function get_bounds(domains,bcs,dict_indvars,dict_depvars,strategy::QuadratureTraining)
     bound_vars = get_variables(bcs,dict_indvars,dict_depvars)
 
-    pde_lower_bounds = [d.domain.lower for d in domains]
-    pde_upper_bounds = [d.domain.upper for d in domains]
+    pde_lower_bounds = [infimum(d.domain) for d in domains]
+    pde_upper_bounds = [supremum(d.domain) for d in domains]
     pde_bounds= [[pde_lower_bounds],[pde_upper_bounds]]
 
-    dict_lower_bound = Dict([Symbol(d.variables) => d.domain.lower for d in domains])
-    dict_upper_bound = Dict([Symbol(d.variables) => d.domain.upper for d in domains])
+    dict_lower_bound = Dict([Symbol(d.variables) => infimum(d.domain) for d in domains])
+    dict_upper_bound = Dict([Symbol(d.variables) => supremum(d.domain) for d in domains])
 
     bcs_lower_bounds = map(bound_vars) do bt
         map(b -> dict_lower_bound[b], bt)
@@ -561,8 +561,8 @@ function get_bounds(domains,bcs,dict_indvars,dict_depvars,strategy::QuadratureTr
 end
 
 function get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
-    dict_span = Dict([Symbol(d.variables) => [d.domain.lower, d.domain.upper] for d in domains])
-    # pde_bounds = [[d.domain.lower,d.domain.upper] for d in domains]
+    dict_span = Dict([Symbol(d.variables) => [infimum(d.domain), supremum(d.domain)] for d in domains])
+    # pde_bounds = [[infimum(d.domain),supremum(d.domain)] for d in domains]
     pde_args = get_argument(eqs,dict_indvars,dict_depvars)
 
     pde_bounds= map(pde_args) do pd
@@ -570,7 +570,7 @@ function get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
     end
 
     bound_args = get_argument(bcs,dict_indvars,dict_depvars)
-    dict_span = Dict([Symbol(d.variables) => [d.domain.lower, d.domain.upper] for d in domains])
+    dict_span = Dict([Symbol(d.variables) => [infimum(d.domain), supremum(d.domain)] for d in domains])
 
     bcs_bounds= map(bound_args) do bt
         span = map(b -> get(dict_span, b, b), bt)

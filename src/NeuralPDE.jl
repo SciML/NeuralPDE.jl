@@ -17,6 +17,7 @@ using RuntimeGeneratedFunctions
 using SciMLBase
 import Tracker, Optim
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
+import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly
 using Flux: @nograd
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end

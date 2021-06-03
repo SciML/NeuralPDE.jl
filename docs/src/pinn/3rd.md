@@ -8,6 +8,7 @@ We will use physics-informed neural networks.
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x
 @variables u(..)
@@ -23,7 +24,7 @@ bcs = [u(0.) ~ 0.0,
        Dx(u(1.)) ~ 1.0]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(0.0,1.0)]
+domains = [x ∈ Interval(0.0,1.0)]
 
 # Neural network
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
@@ -49,7 +50,7 @@ using Plots
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
 
 dx = 0.05
-xs = [domain.domain.lower:dx/10:domain.domain.upper for domain in domains][1]
+xs = [infimum(d.domain):dx/10:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 

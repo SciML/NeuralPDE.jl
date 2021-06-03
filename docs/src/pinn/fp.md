@@ -16,7 +16,7 @@ with Physics-Informed Neural Networks.
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
-
+import ModelingToolkit: Interval, infimum, supremum
 # the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x
 @variables p(..)
@@ -36,7 +36,7 @@ eq  = Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x))+dx*p(x) - 1.
 bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
 
 # Space and time domains
-domains = [x ∈ IntervalDomain(-2.2,2.2)]
+domains = [x ∈ Interval(-2.2,2.2)]
 
 # Neural network
 chain = FastChain(FastDense(1,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
@@ -82,7 +82,7 @@ And some analysis:
 using Plots
 analytic_sol_func(x) = 28.022*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
 
-xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains][1]
+xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
