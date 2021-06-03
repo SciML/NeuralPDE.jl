@@ -71,7 +71,7 @@ function test_ode(strategy_)
 end
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
-stochastic_strategy = NeuralPDE.StochasticTraining(100) #points
+stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points= 30) #points
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
                                                     reltol=1e-3,abstol=1e-3,
                                                     maxiters =50, batch=100)
@@ -81,11 +81,12 @@ quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
                                                      minibatch = 100
                                                     )
 quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100; #points
+                                                     bcs_points= 30,
                                                      sampling_alg = UniformSample(),
                                                      resampling = true,
                                                      minibatch = 0)
 
-strategies = [stochastic_strategy, quadrature_strategy,quasirandom_strategy,quasirandom_strategy_resampling]
+strategies = [grid_strategy,stochastic_strategy, quadrature_strategy,quasirandom_strategy,quasirandom_strategy_resampling]
 
 for strategy_ in strategies
     test_ode(strategy_)
