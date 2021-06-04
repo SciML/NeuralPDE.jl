@@ -674,8 +674,8 @@ function generate_quasi_random_points_batch(points, bounds,sampling_alg,minibatc
         map(bound) do b
             if !(b isa Number)
                 lb, ub =  [b[1]], [b[2]]
-                set_ = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
-                set = map(s -> Float32.(s), set_)
+                set = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
+                #set = map(s -> Float32.(s), set_)
             else
                 set = fill(Float32(b),(1,points))
             end
