@@ -663,7 +663,7 @@ end
            fill(Float32(b),(1,points))
        else
            lb, ub =  [b[1]], [b[2]]
-           Float32.(QuasiMonteCarlo.sample(points,lb,ub,sampling_alg))
+           QuasiMonteCarlo.sample(points,lb,ub,sampling_alg)
        end
     end
     vcat(f.(bound)...)
