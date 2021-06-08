@@ -156,8 +156,8 @@ function transform_expression(ex,dict_indvars,dict_depvars, chain,initθ, strate
 end
 
 function get_ε(dim, der_num)
-    epsilon = cbrt(eps(Float32))
-    ε = zeros(Float32, dim)
+    epsilon = cbrt(eps(eltypeθ))
+    ε = zeros(eltypeθ, dim)
     ε[der_num] = epsilon
     ε
 end
@@ -497,7 +497,7 @@ function generate_training_sets(domains,dx,eqs,bcs,dict_indvars::Dict,dict_depva
     bound_args = get_argument(bcs,dict_indvars,dict_depvars)
     bound_vars = get_variables(bcs,dict_indvars,dict_depvars)
 
-    dif = [Float32[] for i=1:size(domains)[1]]
+    dif = [eltypeθ[] for i=1:size(domains)[1]]
     for _args in bound_args
         for (i,x) in enumerate(_args)
             if x isa Number
@@ -514,17 +514,17 @@ function generate_training_sets(domains,dx,eqs,bcs,dict_indvars::Dict,dict_depva
 
     bcs_train_sets = map(bound_args) do bt
         span = map(b -> get(dict_var_span, b, b), bt)
-        _set = Float32.(hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
+        _set = adapt(typeofθ,hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
     end
 
     pde_vars = get_variables(eqs,dict_indvars,dict_depvars)
     pde_args = get_argument(eqs,dict_indvars,dict_depvars)
 
-    pde_train_set = Float32.(hcat(vec(map(points -> collect(points), Iterators.product(bc_data...)))...))
+    pde_train_set = adapt(typeofθ, hcat(vec(map(points -> collect(points), Iterators.product(bc_data...)))...))
 
     pde_train_sets = map(pde_args) do bt
         span = map(b -> get(dict_var_span_, b, b), bt)
-        _set = Float32.(hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
+        _set = adapt(typeofθ,hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
     end
     [pde_train_sets,bcs_train_sets]
 end
@@ -567,6 +567,7 @@ function get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
 
     pde_bounds= map(pde_args) do pd
         span = map(p -> get(dict_span, p, p), pd)
+        map(s -> adapt(typeofθ,s), span)
     end
 
     bound_args = get_argument(bcs,dict_indvars,dict_depvars)
@@ -574,6 +575,7 @@ function get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
 
     bcs_bounds= map(bound_args) do bt
         span = map(b -> get(dict_span, b, b), bt)
+        map(s -> adapt(typeofθ,s), span)
     end
     [pde_bounds,bcs_bounds]
 end
@@ -581,10 +583,10 @@ end
 function get_phi(chain)
     # The phi trial solution
     if chain isa FastChain
-        phi = (x,θ) -> chain(adapt(DiffEqBase.parameterless_type(θ),x),θ)
+        phi = (x,θ) -> chain(adapt(parameterless_type_θ,x),θ)
     else
         _,re  = Flux.destructure(chain)
-        phi = (x,θ) -> re(θ)(adapt(DiffEqBase.parameterless_type(θ),x))
+        phi = (x,θ) -> re(θ)(adapt(parameterless_type_θ,x))
     end
     phi
 end
@@ -602,8 +604,8 @@ function get_numeric_derivative()
         begin
             _epsilon = one(eltype(θ)) / (2*cbrt(eps(eltype(θ))))
             ε = εs[order]
-            ε = adapt(DiffEqBase.parameterless_type(θ),ε)
-            x = adapt(DiffEqBase.parameterless_type(θ),x)
+            ε = adapt(parameterless_type_θ,ε)
+            x = adapt(parameterless_type_θ,x)
             if order > 1
                 return (derivative(phi,u,x .+ ε,εs,order-1,θ)
                       .- derivative(phi,u,x .- ε,εs,order-1,θ)) .* _epsilon
@@ -617,21 +619,21 @@ Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order
 
 function get_loss_function(loss_functions, train_sets, strategy::GridTraining;τ=nothing)
     if τ == nothing
-        τs_ = Float32.([size(set)[2] for set in train_sets])
-        τs = 1.0f0 ./ τs_
+        τs_ = [size(set)[2] for set in train_sets]
+        τs = adapt(typeofθ, 1 ./ τs_)
     end
 
     loss = (θ) ->  sum(τ * sum(abs2,loss_function(train_set, θ)) for (loss_function,train_set,τ) in zip(loss_functions,train_sets,τs))
     return loss
 end
 
-function generate_random_points(points, bound)
+@nograd function generate_random_points(points, bound)
     function f(b)
       if b isa Number
-           fill(Float32(b),(1,points))
+           fill(eltypeθ(b),(1,points))
        else
            lb, ub =  b[1], b[2]
-           Float32.(lb .+ (ub .- lb) .* (rand(1,points)))
+           lb .+ (ub .- lb) .* rand(eltypeθ,1,points)
        end
     end
     vcat(f.(bound)...)
@@ -641,14 +643,14 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;
     points = strategy.points
 
     if τ == nothing
-        τ = Float32(1.0f0 / points)
+        τ = eltypeθ(1. / points)
     end
 
     loss = (θ) -> begin
-        total = 0.f0
+        total = zero(eltypeθ)
         for (bound, loss_function) in zip(bounds, loss_functions)
             sets = generate_random_points(points, bound)
-            sets_ = adapt(DiffEqBase.parameterless_type(θ),sets)
+            sets_ = adapt(parameterless_type_θ,sets)
             total += τ * sum(abs2,loss_function(sets_,θ))
         end
         return total
@@ -660,10 +662,10 @@ end
 @nograd function generate_quasi_random_points(points, bound,sampling_alg)
     function f(b)
       if b isa Number
-           fill(Float32(b),(1,points))
+           fill(eltypeθ(b),(1,points))
        else
-           lb, ub =  [b[1]], [b[2]]
-           Float32.(QuasiMonteCarlo.sample(points,lb,ub,sampling_alg))
+           lb, ub =  eltypeθ[b[1]], [b[2]]
+           QuasiMonteCarlo.sample(points,lb,ub,sampling_alg)
        end
     end
     vcat(f.(bound)...)
@@ -675,9 +677,9 @@ function generate_quasi_random_points_batch(points, bounds,sampling_alg,minibatc
             if !(b isa Number)
                 lb, ub =  [b[1]], [b[2]]
                 set_ = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
-                set = map(s -> Float32.(s), set_)
+                set = map(s -> adapt(typeofθ,s), set_)
             else
-                set = fill(Float32(b),(1,points))
+                set = fill(eltypeθ(b),(1,points))
             end
         end
     end
@@ -690,7 +692,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     minibatch = strategy.minibatch
 
     if τ == nothing
-        τ = Float32(1.0f0 / points)
+        τ = eltypeθ(1. / points)
     end
     point_batch = nothing
     point_batch = if resampling == false
@@ -699,21 +701,21 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     loss =
         if resampling == true
             θ -> begin
-                total = 0.f0
+                total = zero(eltypeθ)
                 for (bound,loss_function) in zip(bounds,loss_functions)
                     sets = generate_quasi_random_points(points, bound, sampling_alg)
-                    sets_ = adapt(DiffEqBase.parameterless_type(θ),sets)
+                    sets_ = adapt(parameterless_type_θ,sets)
                     total += τ * sum(abs2,loss_function(sets_,θ))
                 end
                 return total
             end
         else
             θ -> begin
-                total = 0.f0
+                total = zero(eltypeθ)
                 for (bound,p_b,loss_function) in zip(bounds,point_batch,loss_functions)
-                    sets =  [p_b[i] isa Array{Float32,2} ? p_b[i] : p_b[i][rand(1:minibatch)] for i in 1:length(p_b)]
+                    sets =  [p_b[i] isa Array{Float32,2} ? p_b[i] : p_b[i][rand(1:minibatch)] for i in 1:length(p_b)]#TODO
                     sets_ = vcat(sets...)
-                    sets__ = adapt(DiffEqBase.parameterless_type(θ),sets_)
+                    sets__ = adapt(parameterless_type_θ,sets_)
                     total += τ * sum(abs2,loss_function(sets__,θ))
                 end
                 return total
@@ -726,12 +728,12 @@ end
 function get_loss_function(loss_functions, bounds, strategy::QuadratureTraining;τ=nothing)
     lbs,ubs = bounds
     if τ == nothing
-        τ = 1.0f0
+        τ = one(eltypeθ)
     end
 
     f_ = (lb,ub,loss_,θ) -> begin
         function _loss(x,θ)
-            x = adapt(DiffEqBase.parameterless_type(θ),x)
+            x = adapt(parameterless_type_θ,x)
             sum(abs2,loss_(x,θ), dims=2)
         end
 
@@ -805,7 +807,11 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     chain = discretization.chain
     initθ = discretization.init_params
     flat_initθ = if (typeof(chain) <: AbstractVector) vcat(initθ...) else  initθ end
-    flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, adapt(DiffEqBase.parameterless_type(flat_initθ),default_p)) end
+    global typeofθ = typeof(flat_initθ)
+    global eltypeθ = eltype(flat_initθ)
+    global parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
+
+    flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, adapt(typeof(flat_initθ),default_p)) end
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -836,8 +842,8 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         # the points in the domain and on the boundary
         pde_train_sets, bcs_train_sets = train_sets
 
-        pde_train_sets = adapt.(DiffEqBase.parameterless_type(flat_initθ),pde_train_sets)
-        bcs_train_sets =  adapt.(DiffEqBase.parameterless_type(flat_initθ),bcs_train_sets)
+        pde_train_sets = adapt.(parameterless_type_θ,pde_train_sets)
+        bcs_train_sets =  adapt.(parameterless_type_θ,bcs_train_sets)
 
         pde_loss_function = get_loss_function(_pde_loss_functions,
                                                         pde_train_sets,
@@ -886,14 +892,14 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         bsl = length(blbs)
 
         τ_ = (10)^pl
-        τp = 1.0f0 / τ_
+        τp = one(eltypeθ) / τ_
 
         pde_loss_function = get_loss_function(_pde_loss_functions,
                                               pde_bounds,
                                               strategy;
                                               τ=τp)
 
-        τb =  1.0f0 / (bsl * τ_^(bl/pl))
+        τb =  one(eltypeθ) / (bsl * τ_^(bl/pl))
 
         if bl == 0
             _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
