@@ -600,7 +600,7 @@ function get_numeric_derivative()
     derivative =
         (phi,u,x,εs,order,θ) ->
         begin
-            _epsilon = 1.f0 / (2*cbrt(eps(eltype(θ))))
+            _epsilon = one(eltype(θ)) / (2*cbrt(eps(eltype(θ))))
             ε = εs[order]
             ε = adapt(DiffEqBase.parameterless_type(θ),ε)
             x = adapt(DiffEqBase.parameterless_type(θ),x)
