@@ -28,7 +28,7 @@ CUDA.allowscalar(false)
 Dθ = Differential(θ)
 
 # 1D ODE
-eq = Dθ(u(θ)) ~ θ^3 + 2*θ + (θ^2)*((1+3*(θ^2))/(1+θ+(θ^3))) - u(θ)*(θ + ((1+3*(θ^2))/(1+θ+θ^3)))
+eq = Dθ(u(θ)) ~ θ^3 + 2.f0*θ + (θ^2)*((1.f0+3*(θ^2))/(1.f0+θ+(θ^3))) - u(θ)*(θ + ((1.f0+3.f0*(θ^2))/(1.f0+θ+θ^3)))
 
 # Initial and boundary conditions
 bcs = [u(0.) ~ 1.0f0]
@@ -57,7 +57,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[θ],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, ADAM(1e-1); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(1e-2); cb = cb, maxiters=2000)
 phi = discretization.phi
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -80,7 +80,7 @@ Dxx = Differential(x)^2
 eq  = Dt(u(t,x)) ~ Dxx(u(t,x))
 bcs = [u(0,x) ~ cos(x),
         u(t,0) ~ exp(-t),
-        u(t,1) ~ exp(-t) * cos(1)]
+        u(t,1) ~ exp(-t) * cos(1.f0)]
 
 domains = [t ∈ Interval(0.0,1.0),
           x ∈ Interval(0.0,1.0)]
@@ -132,8 +132,8 @@ Dxx = Differential(x)^2
 # 1D PDE and boundary conditions
 eq  = Dt(u(t,x)) ~ Dxx(u(t,x))
 bcs = [u(0,x) ~ cos(x),
-        Dx(u(t,0)) ~ 0.0,
-        Dx(u(t,1)) ~ -exp(-t) * sin(1)]
+        Dx(u(t,0)) ~ 0.0f0,
+        Dx(u(t,1)) ~ -exp(-t) * sin(1.f0)]
 
 # Space and time domains
 domains = [t ∈ Interval(0.0,1.0),
@@ -184,17 +184,17 @@ diff_u = abs.(u_predict .- u_real)
 Dxx = Differential(x)^2
 Dyy = Differential(y)^2
 Dt = Differential(t)
-t_min= 0.
-t_max = 2.0
-x_min = 0.
-x_max = 2.
-y_min = 0.
-y_max = 2.
+t_min= 0.0f0
+t_max = 2.0f0
+x_min = 0.0f0
+x_max = 2.f0
+y_min = 0.f0
+y_max = 2.f0
 
 # 3D PDE
 eq  = Dt(u(t,x,y)) ~ Dxx(u(t,x,y)) + Dyy(u(t,x,y))
 
-analytic_sol_func(t,x,y) = exp(x+y)*cos(x+y+4t)
+analytic_sol_func(t,x,y) = exp(x+y)*cos(x+y+4.f0t)
 # Initial and boundary conditions
 bcs = [u(t_min,x,y) ~ analytic_sol_func(t_min,x,y),
        u(t,x_min,y) ~ analytic_sol_func(t,x_min,y),
@@ -220,14 +220,14 @@ initθ = DiffEqFlux.initial_params(chain) |> gpu
 # strategy = NeuralPDE.QuasiRandomTraining(4000; #points
 #                                          sampling_alg = SobolSample(),
 #                                          minibatch = 3)
-strategy = NeuralPDE.GridTraining(0.1)
+strategy = NeuralPDE.GridTraining(0.1f0)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)
 
 pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
-
+symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob,ADAM(0.1);cb=cb,maxiters=1000)
 prob = remake(prob,u0=res.minimizer)
 res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=1000)

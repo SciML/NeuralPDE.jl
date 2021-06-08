@@ -600,7 +600,7 @@ function get_numeric_derivative()
     derivative =
         (phi,u,x,εs,order,θ) ->
         begin
-            _epsilon = 1 / (2*cbrt(eps(eltype(θ))))
+            _epsilon = 1.f0 / (2*cbrt(eps(eltype(θ))))
             ε = εs[order]
             ε = adapt(DiffEqBase.parameterless_type(θ),ε)
             x = adapt(DiffEqBase.parameterless_type(θ),x)
@@ -617,7 +617,7 @@ Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order
 
 function get_loss_function(loss_functions, train_sets, strategy::GridTraining;τ=nothing)
     if τ == nothing
-        τs_ = [size(set)[2] for set in train_sets]
+        τs_ = Float32.([size(set)[2] for set in train_sets])
         τs = 1.0f0 ./ τs_
     end
 
@@ -631,7 +631,7 @@ function generate_random_points(points, bound)
            fill(Float32(b),(1,points))
        else
            lb, ub =  b[1], b[2]
-           lb .+ (ub .- lb) .* Float32.(rand(1,points))
+           Float32.(lb .+ (ub .- lb) .* (rand(1,points)))
        end
     end
     vcat(f.(bound)...)
@@ -641,11 +641,11 @@ function get_loss_function(loss_functions, bounds, strategy::StochasticTraining;
     points = strategy.points
 
     if τ == nothing
-        τ = 1.0f0 / points
+        τ = Float32(1.0f0 / points)
     end
 
     loss = (θ) -> begin
-        total = 0.
+        total = 0.f0
         for (bound, loss_function) in zip(bounds, loss_functions)
             sets = generate_random_points(points, bound)
             sets_ = adapt(DiffEqBase.parameterless_type(θ),sets)
@@ -663,7 +663,7 @@ end
            fill(Float32(b),(1,points))
        else
            lb, ub =  [b[1]], [b[2]]
-           QuasiMonteCarlo.sample(points,lb,ub,sampling_alg)
+           Float32.(QuasiMonteCarlo.sample(points,lb,ub,sampling_alg))
        end
     end
     vcat(f.(bound)...)
@@ -674,8 +674,8 @@ function generate_quasi_random_points_batch(points, bounds,sampling_alg,minibatc
         map(bound) do b
             if !(b isa Number)
                 lb, ub =  [b[1]], [b[2]]
-                set = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
-                #set = map(s -> Float32.(s), set_)
+                set_ = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
+                set = map(s -> Float32.(s), set_)
             else
                 set = fill(Float32(b),(1,points))
             end
@@ -690,7 +690,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     minibatch = strategy.minibatch
 
     if τ == nothing
-        τ = 1.0f0 / points
+        τ = Float32(1.0f0 / points)
     end
     point_batch = nothing
     point_batch = if resampling == false
@@ -699,7 +699,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
     loss =
         if resampling == true
             θ -> begin
-                total = 0.
+                total = 0.f0
                 for (bound,loss_function) in zip(bounds,loss_functions)
                     sets = generate_quasi_random_points(points, bound, sampling_alg)
                     sets_ = adapt(DiffEqBase.parameterless_type(θ),sets)
@@ -709,7 +709,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
             end
         else
             θ -> begin
-                total = 0.
+                total = 0.f0
                 for (bound,p_b,loss_function) in zip(bounds,point_batch,loss_functions)
                     sets =  [p_b[i] isa Array{Float32,2} ? p_b[i] : p_b[i][rand(1:minibatch)] for i in 1:length(p_b)]
                     sets_ = vcat(sets...)
