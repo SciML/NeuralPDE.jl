@@ -122,7 +122,7 @@ diff_u = abs.(u_predict .- u_real)
 # p3 = plot(ts, xs, diff_u,linetype=:contourf,title = "error");
 # plot(p1,p2,p3)
 
-## 1D PDE Neumann boundary conditions
+## 1D PDE Neumann boundary conditions and Float64 accuracy
 @parameters t x
 @variables u(..)
 Dt = Differential(t)
@@ -132,8 +132,8 @@ Dxx = Differential(x)^2
 # 1D PDE and boundary conditions
 eq  = Dt(u(t,x)) ~ Dxx(u(t,x))
 bcs = [u(0,x) ~ cos(x),
-        Dx(u(t,0)) ~ 0.0f0,
-        Dx(u(t,1)) ~ -exp(-t) * sin(1.f0)]
+        Dx(u(t,0)) ~ 0.0,
+        Dx(u(t,1)) ~ -exp(-t) * sin(1.0)]
 
 # Space and time domains
 domains = [t ∈ Interval(0.0,1.0),
@@ -153,16 +153,16 @@ strategy = NeuralPDE.QuasiRandomTraining(500; #points
                                          sampling_alg = SobolSample(),
                                          resampling = false,
                                          minibatch = 30)
-initθ = initial_params(chain) |>gpu
+initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)
 prob = NeuralPDE.discretize(pdesys,discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=2000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=1000)
+res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=2000)
 phi = discretization.phi
 
 u_exact = (t,x) -> exp(-t) * cos(x)

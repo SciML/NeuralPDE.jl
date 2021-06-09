@@ -713,7 +713,7 @@ function get_loss_function(loss_functions, bounds, strategy::QuasiRandomTraining
             θ -> begin
                 total = zero(eltypeθ)
                 for (bound,p_b,loss_function) in zip(bounds,point_batch,loss_functions)
-                    sets =  [p_b[i] isa Array{Float32,2} ? p_b[i] : p_b[i][rand(1:minibatch)] for i in 1:length(p_b)]#TODO
+                    sets =  [p_b[i] isa Array{eltypeθ,2} ? p_b[i] : p_b[i][rand(1:minibatch)] for i in 1:length(p_b)]
                     sets_ = vcat(sets...)
                     sets__ = adapt(parameterless_type_θ,sets_)
                     total += τ * sum(abs2,loss_function(sets__,θ))
