@@ -514,17 +514,17 @@ function generate_training_sets(domains,dx,eqs,bcs,dict_indvars::Dict,dict_depva
 
     bcs_train_sets = map(bound_args) do bt
         span = map(b -> get(dict_var_span, b, b), bt)
-        _set = adapt(typeofθ,hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
+        _set = adapt(eltypeθ,hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
     end
 
     pde_vars = get_variables(eqs,dict_indvars,dict_depvars)
     pde_args = get_argument(eqs,dict_indvars,dict_depvars)
 
-    pde_train_set = adapt(typeofθ, hcat(vec(map(points -> collect(points), Iterators.product(bc_data...)))...))
+    pde_train_set = adapt(eltypeθ, hcat(vec(map(points -> collect(points), Iterators.product(bc_data...)))...))
 
     pde_train_sets = map(pde_args) do bt
         span = map(b -> get(dict_var_span_, b, b), bt)
-        _set = adapt(typeofθ,hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
+        _set = adapt(eltypeθ,hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
     end
     [pde_train_sets,bcs_train_sets]
 end
@@ -567,7 +567,7 @@ function get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
 
     pde_bounds= map(pde_args) do pd
         span = map(p -> get(dict_span, p, p), pd)
-        map(s -> adapt(typeofθ,s), span)
+        map(s -> adapt(eltypeθ,s), span)
     end
 
     bound_args = get_argument(bcs,dict_indvars,dict_depvars)
@@ -575,7 +575,7 @@ function get_bounds(domains,eqs,bcs,dict_indvars,dict_depvars)
 
     bcs_bounds= map(bound_args) do bt
         span = map(b -> get(dict_span, b, b), bt)
-        map(s -> adapt(typeofθ,s), span)
+        map(s -> adapt(eltypeθ,s), span)
     end
     [pde_bounds,bcs_bounds]
 end
@@ -620,7 +620,7 @@ Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order
 function get_loss_function(loss_functions, train_sets, strategy::GridTraining;τ=nothing)
     if τ == nothing
         τs_ = [size(set)[2] for set in train_sets]
-        τs = adapt(typeofθ, 1 ./ τs_)
+        τs = adapt(eltypeθ, 1 ./ τs_)
     end
 
     loss = (θ) ->  sum(τ * sum(abs2,loss_function(train_set, θ)) for (loss_function,train_set,τ) in zip(loss_functions,train_sets,τs))
@@ -677,7 +677,7 @@ function generate_quasi_random_points_batch(points, bounds,sampling_alg,minibatc
             if !(b isa Number)
                 lb, ub =  [b[1]], [b[2]]
                 set_ = QuasiMonteCarlo.generate_design_matrices(points,lb,ub,sampling_alg,minibatch)
-                set = map(s -> adapt(typeofθ,s), set_)
+                set = map(s -> adapt(eltypeθ,s), set_)
             else
                 set = fill(eltypeθ(b),(1,points))
             end
@@ -807,7 +807,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     chain = discretization.chain
     initθ = discretization.init_params
     flat_initθ = if (typeof(chain) <: AbstractVector) vcat(initθ...) else  initθ end
-    global typeofθ = typeof(flat_initθ)
+    # global typeofθ = typeof(Array(flat_initθ))
     global eltypeθ = eltype(flat_initθ)
     global parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
 

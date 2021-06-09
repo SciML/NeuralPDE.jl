@@ -59,7 +59,7 @@ function test_ode(strategy_)
     phi = discretization.phi
 
     analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
-    ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
+    ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     u_real  = [analytic_sol_func(t) for t in ts]
     u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
