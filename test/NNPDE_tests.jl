@@ -33,12 +33,11 @@ function test_ode(strategy_)
     eq = Dθ(u(θ)) ~ θ^3 + 2*θ + (θ^2)*((1+3*(θ^2))/(1+θ+(θ^3))) - u(θ)*(θ + ((1+3*(θ^2))/(1+θ+θ^3)))
 
     # Initial and boundary conditions
-    bcs = [u(0.) ~ 1.0]
+    bcs = [u(0.) ~ 1.0f0]
 
     # Space and time domains
     domains = [θ ∈ Interval(0.0,1.0)]
-    # Discretization
-    dt = 0.1f0
+
     # Neural network
     chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
     initθ = DiffEqFlux.initial_params(chain)
@@ -54,13 +53,13 @@ function test_ode(strategy_)
     prob = NeuralPDE.discretize(pde_system,discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-    res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
+    res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=2000)
     prob2 = remake(prob,u0=res.minimizer)
     res = GalacticOptim.solve(prob2, ADAM(0.001); cb = cb, maxiters=1000)
     phi = discretization.phi
 
     analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
-    ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
+    ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     u_real  = [analytic_sol_func(t) for t in ts]
     u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 

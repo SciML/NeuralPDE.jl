@@ -26,7 +26,7 @@ dy = 0.01
 opt = Flux.ADAM(1e-2)
 prob = ParamKolmogorovPDEProblem(f , g , phi , xspan , tspan , d  , y_domain  ; Y_sigma_prototype = γ_sigma_prototype)
 sol = solve(prob, NNParamKolmogorov(m,opt , sdealg,ensemblealg) , verbose = true, dt = 0.01,
-            abstol=1e-10, dx = 0.01 , trajectories = trajectories ,  maxiters = 150 , use_gpu = false)
+            abstol=1e-10, dx = 0.01 , trajectories = trajectories ,  maxiters = 400 , use_gpu = false)
 
 x_test = rand(xspan[1]:dx:xspan[2] , d , 1  , 1000)
 t_test = rand(tspan[1]:dt:tspan[2] ,  1 , 1000)

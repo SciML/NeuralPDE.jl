@@ -10,6 +10,7 @@ using Optim
 using CUDA
 using Quadrature
 using QuasiMonteCarlo
+import ModelingToolkit: Interval, infimum, supremum
 
 using Random
 Random.seed!(100)
@@ -27,13 +28,13 @@ CUDA.allowscalar(false)
 Dθ = Differential(θ)
 
 # 1D ODE
-eq = Dθ(u(θ)) ~ θ^3 + 2*θ + (θ^2)*((1+3*(θ^2))/(1+θ+(θ^3))) - u(θ)*(θ + ((1+3*(θ^2))/(1+θ+θ^3)))
+eq = Dθ(u(θ)) ~ θ^3 + 2.f0*θ + (θ^2)*((1.f0+3*(θ^2))/(1.f0+θ+(θ^3))) - u(θ)*(θ + ((1.f0+3.f0*(θ^2))/(1.f0+θ+θ^3)))
 
 # Initial and boundary conditions
-bcs = [u(0.) ~ 1.0]
+bcs = [u(0.) ~ 1.0f0]
 
 # Space and time domains
-domains = [θ ∈ IntervalDomain(0.0,1.0)]
+domains = [θ ∈ Interval(0.0,1.0)]
 # Discretization
 dt = 0.1f0
 # Neural network
@@ -56,11 +57,11 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[θ],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, ADAM(1e-1); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(1e-2); cb = cb, maxiters=2000)
 phi = discretization.phi
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
-ts = [domain.domain.lower:dt/10:domain.domain.upper for domain in domains][1]
+ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(t) for t in ts]
 u_predict  = [first(Array(phi([t],res.minimizer))) for t in ts]
 
@@ -79,10 +80,10 @@ Dxx = Differential(x)^2
 eq  = Dt(u(t,x)) ~ Dxx(u(t,x))
 bcs = [u(0,x) ~ cos(x),
         u(t,0) ~ exp(-t),
-        u(t,1) ~ exp(-t) * cos(1)]
+        u(t,1) ~ exp(-t) * cos(1.f0)]
 
-domains = [t ∈ IntervalDomain(0.0,1.0),
-          x ∈ IntervalDomain(0.0,1.0)]
+domains = [t ∈ Interval(0.0,1.0),
+          x ∈ Interval(0.0,1.0)]
 
 pdesys = PDESystem(eq,bcs,domains,[t,x],[u])
 
@@ -109,7 +110,7 @@ res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=1000)
 phi = discretization.phi
 
 u_exact = (t,x) -> exp.(-t) * cos.(x)
-ts,xs = [domain.domain.lower:0.01:domain.domain.upper for domain in domains]
+ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_predict = reshape([first(Array(phi([t,x],res.minimizer))) for t in ts for x in xs],(length(ts),length(xs)))
 u_real = reshape([u_exact(t,x) for t in ts  for x in xs ], (length(ts),length(xs)))
 diff_u = abs.(u_predict .- u_real)
@@ -121,7 +122,7 @@ diff_u = abs.(u_predict .- u_real)
 # p3 = plot(ts, xs, diff_u,linetype=:contourf,title = "error");
 # plot(p1,p2,p3)
 
-## 1D PDE Neumann boundary conditions
+## 1D PDE Neumann boundary conditions and Float64 accuracy
 @parameters t x
 @variables u(..)
 Dt = Differential(t)
@@ -132,11 +133,11 @@ Dxx = Differential(x)^2
 eq  = Dt(u(t,x)) ~ Dxx(u(t,x))
 bcs = [u(0,x) ~ cos(x),
         Dx(u(t,0)) ~ 0.0,
-        Dx(u(t,1)) ~ -exp(-t) * sin(1)]
+        Dx(u(t,1)) ~ -exp(-t) * sin(1.0)]
 
 # Space and time domains
-domains = [t ∈ IntervalDomain(0.0,1.0),
-        x ∈ IntervalDomain(0.0,1.0)]
+domains = [t ∈ Interval(0.0,1.0),
+        x ∈ Interval(0.0,1.0)]
 
 # PDE system
 pdesys = PDESystem(eq,bcs,domains,[t,x],[u])
@@ -152,20 +153,20 @@ strategy = NeuralPDE.QuasiRandomTraining(500; #points
                                          sampling_alg = SobolSample(),
                                          resampling = false,
                                          minibatch = 30)
-initθ = initial_params(chain) |>gpu
+initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)
 prob = NeuralPDE.discretize(pdesys,discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=2000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=1000)
+res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=2000)
 phi = discretization.phi
 
 u_exact = (t,x) -> exp(-t) * cos(x)
-ts,xs = [domain.domain.lower:0.01:domain.domain.upper for domain in domains]
+ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_predict = reshape([first(Array(phi([t,x],res.minimizer))) for t in ts for x in xs],(length(ts),length(xs)))
 u_real = reshape([u_exact(t,x) for t in ts  for x in xs ], (length(ts),length(xs)))
 diff_u = abs.(u_predict .- u_real)
@@ -183,17 +184,17 @@ diff_u = abs.(u_predict .- u_real)
 Dxx = Differential(x)^2
 Dyy = Differential(y)^2
 Dt = Differential(t)
-t_min= 0.
-t_max = 2.0
-x_min = 0.
-x_max = 2.
-y_min = 0.
-y_max = 2.
+t_min= 0.0f0
+t_max = 2.0f0
+x_min = 0.0f0
+x_max = 2.f0
+y_min = 0.f0
+y_max = 2.f0
 
 # 3D PDE
 eq  = Dt(u(t,x,y)) ~ Dxx(u(t,x,y)) + Dyy(u(t,x,y))
 
-analytic_sol_func(t,x,y) = exp(x+y)*cos(x+y+4t)
+analytic_sol_func(t,x,y) = exp(x+y)*cos(x+y+4.f0t)
 # Initial and boundary conditions
 bcs = [u(t_min,x,y) ~ analytic_sol_func(t_min,x,y),
        u(t,x_min,y) ~ analytic_sol_func(t,x_min,y),
@@ -202,9 +203,9 @@ bcs = [u(t_min,x,y) ~ analytic_sol_func(t_min,x,y),
        u(t,x,y_max) ~ analytic_sol_func(t,x,y_max)]
 
 # Space and time domains
-domains = [t ∈ IntervalDomain(t_min,t_max),
-           x ∈ IntervalDomain(x_min,x_max),
-           y ∈ IntervalDomain(y_min,y_max)]
+domains = [t ∈ Interval(t_min,t_max),
+           x ∈ Interval(x_min,x_max),
+           y ∈ Interval(y_min,y_max)]
 
 # Neural network
 inner = 25
@@ -219,22 +220,22 @@ initθ = DiffEqFlux.initial_params(chain) |> gpu
 # strategy = NeuralPDE.QuasiRandomTraining(4000; #points
 #                                          sampling_alg = SobolSample(),
 #                                          minibatch = 3)
-strategy = NeuralPDE.GridTraining(0.1)
+strategy = NeuralPDE.GridTraining(0.1f0)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)
 
 pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
-
-res = GalacticOptim.solve(prob,ADAM(0.1);cb=cb,maxiters=1000)
+symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+res = GalacticOptim.solve(prob,ADAM(0.1);cb=cb,maxiters=2000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=1000)
+res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=2000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=1000)
+res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=2000)
 
 phi = discretization.phi
-ts,xs,ys = [domain.domain.lower:0.1:domain.domain.upper for domain in domains]
+ts,xs,ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
 u_real = [analytic_sol_func(t,x,y) for t in ts for x in xs for y in ys]
 u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs for y in ys]
 
