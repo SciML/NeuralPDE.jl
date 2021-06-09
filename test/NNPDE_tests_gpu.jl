@@ -228,11 +228,11 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob,ADAM(0.1);cb=cb,maxiters=1500)
+res = GalacticOptim.solve(prob,ADAM(0.1);cb=cb,maxiters=2000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=1500)
+res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=2000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=1500)
+res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=2000)
 
 phi = discretization.phi
 ts,xs,ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
