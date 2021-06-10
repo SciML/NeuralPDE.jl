@@ -148,39 +148,11 @@ for strategy_ in strategies
     test_2d_poisson_equation(chain_, strategy_)
 end
 
-function run_2d_poisson_equation(strategy_)
-    @parameters x y
-    @variables u(..)
-    Dxx = Differential(x)^2
-    Dyy = Differential(y)^2
-
-    # 2D PDE
-    eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
-
-    # Initial and boundary conditions
-    bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
-           u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
-    # Space and time domains
-    domains = [x ∈ Interval(0.0,1.0),
-               y ∈ Interval(0.0,1.0)]
-    # Discretization
-    dx = 0.1
-
-    chain = FastChain(FastDense(2,4,Flux.σ),FastDense(4,1))
-
-    discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                                 strategy_)
-
-    pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
-    prob = NeuralPDE.discretize(pde_system,discretization)
-
-    res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb,  maxiters=5)
-end
-
-algs = [CubatureJLh(), CubatureJLp()]
+algs = [CubatureJLp()] #CubatureJLh(), 
 for alg in algs
+    chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
     strategy_ =  NeuralPDE.QuadratureTraining(quadrature_alg = alg,reltol=1e-4,abstol=1e-3,maxiters=30, batch=10)
-    run_2d_poisson_equation(strategy_)
+    test_2d_poisson_equation(chain_, strategy_)
 end
 
 
