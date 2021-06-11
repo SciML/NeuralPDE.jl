@@ -1,9 +1,50 @@
-<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Physics-Informed Neural Networks solver · NeuralPDE.jl</title><link rel="canonical" href="#/examples/pinns_example/"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">NeuralPDE.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../ode/">Solving ODEs with Neural Networks</a></li><li class="is-active"><a class="tocitem" href>Physics-Informed Neural Networks solver</a><ul class="internal"><li><a class="tocitem" href="#Example-1:-Solving-the-2-dimensional-Poisson-Equation"><span>Example 1: Solving the 2-dimensional Poisson Equation</span></a></li><li><a class="tocitem" href="#Example-2-:-Solving-the-2-dimensional-Wave-Equation-with-Neumann-boundary-condition"><span>Example 2 : Solving the 2-dimensional Wave Equation with Neumann boundary condition</span></a></li><li><a class="tocitem" href="#Example-3-:-Solving-the-3-dimensional-PDE"><span>Example 3 : Solving the 3-dimensional PDE</span></a></li><li><a class="tocitem" href="#Example-4-:-Solving-a-PDE-System"><span>Example 4 : Solving a PDE System</span></a></li><li><a class="tocitem" href="#Example-5-:-Solving-an-ODE-with-a-3rd-order-derivative"><span>Example 5 : Solving an ODE with a 3rd-order derivative</span></a></li><li><a class="tocitem" href="#Example-6-:-2-D-Burgers&#39;-equation,-low-level-API"><span>Example 6 : 2-D Burgers&#39; equation, low-level API</span></a></li><li><a class="tocitem" href="#Example-7-:-Kuramoto–Sivashinsky-equation"><span>Example 7 :  Kuramoto–Sivashinsky equation</span></a></li><li><a class="tocitem" href="#Example-8-:-Fokker-Planck-equation"><span>Example 8 : Fokker-Planck equation</span></a></li></ul></li><li><a class="tocitem" href="../100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation</a></li><li><a class="tocitem" href="../blackscholes/">Solving the 100-dimensional Black-Scholes-Barenblatt Equation</a></li><li><a class="tocitem" href="../kolmogorovbackwards/">Solving Kolmogorov Equations with Neural Networks</a></li><li><a class="tocitem" href="../optimal_stopping_american/">Optimal Stopping Times of American Options</a></li><li><a class="tocitem" href="../nnrode_example/">Solving Random Ordinary Differential Equations</a></li></ul></li><li><span class="tocitem">Neural-Enhanced PDE Solvers</span><ul><li><a class="tocitem" href="../../solvers/ode/">ODE-Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../solvers/pinn/">Physics-Informed Neural Networks</a></li><li><a class="tocitem" href="../../solvers/deep_fbsde/">Deep Forward-Backwards SDEs for Terminal Parabolic PDEs</a></li><li><a class="tocitem" href="../../solvers/kolmogorovbackwards_solver/">Neural Network Solvers for Kolmogorov Backwards Equations</a></li><li><a class="tocitem" href="../../solvers/optimal_stopping/">Neural Network Solvers for Optimal Stopping Time Problems</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Physics-Informed Neural Networks solver</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Physics-Informed Neural Networks solver</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/examples/pinns_example.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Physics-Informed-Neural-Networks-solver"><a class="docs-heading-anchor" href="#Physics-Informed-Neural-Networks-solver">Physics-Informed Neural Networks solver</a><a id="Physics-Informed-Neural-Networks-solver-1"></a><a class="docs-heading-anchor-permalink" href="#Physics-Informed-Neural-Networks-solver" title="Permalink"></a></h1><h2 id="Example-1:-Solving-the-2-dimensional-Poisson-Equation"><a class="docs-heading-anchor" href="#Example-1:-Solving-the-2-dimensional-Poisson-Equation">Example 1: Solving the 2-dimensional Poisson Equation</a><a id="Example-1:-Solving-the-2-dimensional-Poisson-Equation-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-Solving-the-2-dimensional-Poisson-Equation" title="Permalink"></a></h2><p>In this example, we will solve a Poisson equation of 2 dimensions:</p><p><img src="https://user-images.githubusercontent.com/12683885/86838505-ee1ae480-c0a8-11ea-8d3c-7da53a9a7091.png" alt="poisson"/></p><p>with the boundary conditions:</p><p><img src="https://user-images.githubusercontent.com/12683885/86621678-437ec500-bfc7-11ea-8fe7-23a46a524cbe.png" alt="boundary"/></p><p>on the space domain:</p><p><img src="https://user-images.githubusercontent.com/12683885/86621460-e8e56900-bfc6-11ea-9b64-826ac84c36c9.png" alt="spaces"/></p><p>with grid discretization <code>dx = 0.1</code>.</p><p>The ModelingToolkit PDE interface for this example looks like this:</p><pre><code class="language-julia">using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+<!DOCTYPE html><HTML lang="en"><head><meta charset="UTF-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><title>Physics-Informed Neural Networks solver · NeuralPDE.jl</title><link href="#/examples/pinns_example/" rel="canonical"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script data-main="../../assets/documenter.js" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" data-theme-name="documenter-dark" href="../../assets/themes/documenter-dark.css" rel="stylesheet" type="text/css"/><link class="docs-theme-link" data-theme-name="documenter-light" data-theme-primary="" href="../../assets/themes/documenter-light.css" rel="stylesheet" type="text/css"/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/><script data-outdated-warner="">function maybeAddWarning () {
+    const head = document.getElementsByTagName('head')[0];
+
+    // Add a noindex meta tag (unless one exists) so that search engines don't index this version of the docs.
+    if (document.body.querySelector('meta[name="robots"]') === null) {
+        const meta = document.createElement('meta');
+        meta.name = 'robots';
+        meta.content = 'noindex';
+
+        head.appendChild(meta);
+    };
+
+    // Add a stylesheet to avoid inline styling
+    const style = document.createElement('style');
+    style.type = 'text/css';
+    style.appendChild(document.createTextNode('.outdated-warning-overlay {  position: fixed;  top: 0;  left: 0;  right: 0;  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);  z-index: 999;  background-color: #ffaba7;  color: rgba(0, 0, 0, 0.7);  border-bottom: 3px solid #da0b00;  padding: 10px 35px;  text-align: center;  font-size: 15px; }  .outdated-warning-overlay .outdated-warning-closer {    position: absolute;    top: calc(50% - 10px);    right: 18px;    cursor: pointer;    width: 12px; }  .outdated-warning-overlay a {    color: #2e63b8; }    .outdated-warning-overlay a:hover {      color: #363636; }'));
+    head.appendChild(style);
+
+    const div = document.createElement('div');
+    div.classList.add('outdated-warning-overlay');
+    const closer = document.createElement('div');
+    closer.classList.add('outdated-warning-closer');
+
+    // Icon by font-awesome (license: https://fontawesome.com/license, link: https://fontawesome.com/icons/times?style=solid)
+    closer.innerHTML = '<svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="times" class="svg-inline--fa fa-times fa-w-11" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 352 512"><path fill="currentColor" d="M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z"></path></svg>';
+    closer.addEventListener('click', function () {
+        document.body.removeChild(div);
+    });
+    let href = '/stable';
+    if (window.documenterBaseURL) {
+        href = window.documenterBaseURL + '/../stable';
+    }
+    div.innerHTML = 'This is an old version of the documentation. <br> <a href="' + href + '">Go to the newest version</a>.';
+    div.appendChild(closer);
+    document.body.appendChild(div);
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', maybeAddWarning);
+} else {
+    maybeAddWarning();
+};
+</script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img alt="NeuralPDE.jl logo" src="../../assets/logo.png"/></a><div class="docs-package-name"><span class="docs-autofit">NeuralPDE.jl</span></div><form action="../../search/" class="docs-search"><input class="docs-search-query" id="documenter-search-query" name="q" placeholder="Search docs" type="text"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../ode/">Solving ODEs with Neural Networks</a></li><li class="is-active"><a class="tocitem" href="">Physics-Informed Neural Networks solver</a><ul class="internal"><li><a class="tocitem" href="#Example-1:-Solving-the-2-dimensional-Poisson-Equation"><span>Example 1: Solving the 2-dimensional Poisson Equation</span></a></li><li><a class="tocitem" href="#Example-2-:-Solving-the-2-dimensional-Wave-Equation-with-Neumann-boundary-condition"><span>Example 2 : Solving the 2-dimensional Wave Equation with Neumann boundary condition</span></a></li><li><a class="tocitem" href="#Example-3-:-Solving-the-3-dimensional-PDE"><span>Example 3 : Solving the 3-dimensional PDE</span></a></li><li><a class="tocitem" href="#Example-4-:-Solving-a-PDE-System"><span>Example 4 : Solving a PDE System</span></a></li><li><a class="tocitem" href="#Example-5-:-Solving-an-ODE-with-a-3rd-order-derivative"><span>Example 5 : Solving an ODE with a 3rd-order derivative</span></a></li><li><a class="tocitem" href="#Example-6-:-2-D-Burgers&#39;-equation,-low-level-API"><span>Example 6 : 2-D Burgers' equation, low-level API</span></a></li><li><a class="tocitem" href="#Example-7-:-Kuramoto–Sivashinsky-equation"><span>Example 7 :  Kuramoto–Sivashinsky equation</span></a></li><li><a class="tocitem" href="#Example-8-:-Fokker-Planck-equation"><span>Example 8 : Fokker-Planck equation</span></a></li></ul></li><li><a class="tocitem" href="../100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation</a></li><li><a class="tocitem" href="../blackscholes/">Solving the 100-dimensional Black-Scholes-Barenblatt Equation</a></li><li><a class="tocitem" href="../kolmogorovbackwards/">Solving Kolmogorov Equations with Neural Networks</a></li><li><a class="tocitem" href="../optimal_stopping_american/">Optimal Stopping Times of American Options</a></li><li><a class="tocitem" href="../nnrode_example/">Solving Random Ordinary Differential Equations</a></li></ul></li><li><span class="tocitem">Neural-Enhanced PDE Solvers</span><ul><li><a class="tocitem" href="../../solvers/ode/">ODE-Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../solvers/pinn/">Physics-Informed Neural Networks</a></li><li><a class="tocitem" href="../../solvers/deep_fbsde/">Deep Forward-Backwards SDEs for Terminal Parabolic PDEs</a></li><li><a class="tocitem" href="../../solvers/kolmogorovbackwards_solver/">Neural Network Solvers for Kolmogorov Backwards Equations</a></li><li><a class="tocitem" href="../../solvers/optimal_stopping/">Neural Network Solvers for Optimal Stopping Time Problems</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href="">Physics-Informed Neural Networks solver</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="">Physics-Informed Neural Networks solver</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/examples/pinns_example.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" href="#" id="documenter-settings-button" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" href="#" id="documenter-sidebar-button"></a></div></header><article class="content" id="documenter-page"><h1 id="Physics-Informed-Neural-Networks-solver"><a class="docs-heading-anchor" href="#Physics-Informed-Neural-Networks-solver">Physics-Informed Neural Networks solver</a><a id="Physics-Informed-Neural-Networks-solver-1"></a><a class="docs-heading-anchor-permalink" href="#Physics-Informed-Neural-Networks-solver" title="Permalink"></a></h1><h2 id="Example-1:-Solving-the-2-dimensional-Poisson-Equation"><a class="docs-heading-anchor" href="#Example-1:-Solving-the-2-dimensional-Poisson-Equation">Example 1: Solving the 2-dimensional Poisson Equation</a><a id="Example-1:-Solving-the-2-dimensional-Poisson-Equation-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-Solving-the-2-dimensional-Poisson-Equation" title="Permalink"></a></h2><p>In this example, we will solve a Poisson equation of 2 dimensions:</p><p><img alt="poisson" src="https://user-images.githubusercontent.com/12683885/86838505-ee1ae480-c0a8-11ea-8d3c-7da53a9a7091.png"/></p><p>with the boundary conditions:</p><p><img alt="boundary" src="https://user-images.githubusercontent.com/12683885/86621678-437ec500-bfc7-11ea-8fe7-23a46a524cbe.png"/></p><p>on the space domain:</p><p><img alt="spaces" src="https://user-images.githubusercontent.com/12683885/86621460-e8e56900-bfc6-11ea-9b64-826ac84c36c9.png"/></p><p>with grid discretization <code>dx = 0.1</code>.</p><p>The ModelingToolkit PDE interface for this example looks like this:</p><pre><code class="language-julia">using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
 @parameters x y θ
 @variables u(..)
-@derivatives Dxx&#39;&#39;~x
-@derivatives Dyy&#39;&#39;~y
+@derivatives Dxx''~x
+@derivatives Dyy''~y
 
 # 2D PDE
 eq  = Dxx(u(x,y,θ)) + Dyy(u(x,y,θ)) ~ -sin(pi*x)*sin(pi*y)
@@ -21,7 +62,7 @@ discretization = PhysicsInformedNN(dx,
                                    chain,
                                    strategy = GridTraining())</code></pre><p>As described in the API docs, we now need to define the <code>PDESystem</code> and create PINNs problem using the <code>discretize</code> method.</p><pre><code class="language-julia">pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)</code></pre><p>Here, we define the callback function and the optimizer. And now we can solve the PDE using PINNs (with the number of epochs <code>maxiters=1000</code>).</p><pre><code class="language-julia">cb = function (p,l)
-    println(&quot;Current loss is: $l&quot;)
+    println("Current loss is: $l")
     return false
 end
 
@@ -33,14 +74,14 @@ u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(l
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 diff_u = abs.(u_predict .- u_real)
 
-p1 = plot(xs, ys, u_real, linetype=:contourf,title = &quot;analytic&quot;);
-p2 = plot(xs, ys, u_predict, linetype=:contourf,title = &quot;predict&quot;);
-p3 = plot(xs, ys, diff_u,linetype=:contourf,title = &quot;error&quot;);
-plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png" alt="poissonplot"/></p><h2 id="Example-2-:-Solving-the-2-dimensional-Wave-Equation-with-Neumann-boundary-condition"><a class="docs-heading-anchor" href="#Example-2-:-Solving-the-2-dimensional-Wave-Equation-with-Neumann-boundary-condition">Example 2 : Solving the 2-dimensional Wave Equation with Neumann boundary condition</a><a id="Example-2-:-Solving-the-2-dimensional-Wave-Equation-with-Neumann-boundary-condition-1"></a><a class="docs-heading-anchor-permalink" href="#Example-2-:-Solving-the-2-dimensional-Wave-Equation-with-Neumann-boundary-condition" title="Permalink"></a></h2><p>Let&#39;s solve this 2-dimensional wave equation:</p><p><img src="https://user-images.githubusercontent.com/12683885/91465006-ecde8a80-e895-11ea-935e-2c1d60e3d1f2.png" alt="wave"/></p><p>with grid discretization <code>dx = 0.1</code>.</p><p>Further, the solution of this equation with the given boundary conditions is presented.</p><pre><code class="language-julia">@parameters x, t, θ
+p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
+p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
+plot(p1,p2,p3)</code></pre><p><img alt="poissonplot" src="https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png"/></p><h2 id="Example-2-:-Solving-the-2-dimensional-Wave-Equation-with-Neumann-boundary-condition"><a class="docs-heading-anchor" href="#Example-2-:-Solving-the-2-dimensional-Wave-Equation-with-Neumann-boundary-condition">Example 2 : Solving the 2-dimensional Wave Equation with Neumann boundary condition</a><a id="Example-2-:-Solving-the-2-dimensional-Wave-Equation-with-Neumann-boundary-condition-1"></a><a class="docs-heading-anchor-permalink" href="#Example-2-:-Solving-the-2-dimensional-Wave-Equation-with-Neumann-boundary-condition" title="Permalink"></a></h2><p>Let's solve this 2-dimensional wave equation:</p><p><img alt="wave" src="https://user-images.githubusercontent.com/12683885/91465006-ecde8a80-e895-11ea-935e-2c1d60e3d1f2.png"/></p><p>with grid discretization <code>dx = 0.1</code>.</p><p>Further, the solution of this equation with the given boundary conditions is presented.</p><pre><code class="language-julia">@parameters x, t, θ
 @variables u(..)
-@derivatives Dxx&#39;&#39;~x
-@derivatives Dtt&#39;&#39;~t
-@derivatives Dt&#39;~t
+@derivatives Dxx''~x
+@derivatives Dtt''~t
+@derivatives Dt'~t
 
 #2D PDE
 C=1
@@ -78,15 +119,15 @@ u_predict = reshape([first(phi([x,t],res.minimizer)) for x in xs for t in ts],(l
 u_real = reshape([analytic_sol_func(x,t) for x in xs for t in ts], (length(xs),length(ts)))
 
 diff_u = abs.(u_predict .- u_real)
-p1 = plot(xs, ts, u_real, linetype=:contourf,title = &quot;analytic&quot;);
-p2 =plot(xs, ts, u_predict, linetype=:contourf,title = &quot;predict&quot;);
-p3 = plot(xs, ts, diff_u,linetype=:contourf,title = &quot;error&quot;);
-plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90979146-c9e16d00-e55b-11ea-93d7-fefa696008fd.png" alt="waveplot"/></p><h2 id="Example-3-:-Solving-the-3-dimensional-PDE"><a class="docs-heading-anchor" href="#Example-3-:-Solving-the-3-dimensional-PDE">Example 3 : Solving the 3-dimensional PDE</a><a id="Example-3-:-Solving-the-3-dimensional-PDE-1"></a><a class="docs-heading-anchor-permalink" href="#Example-3-:-Solving-the-3-dimensional-PDE" title="Permalink"></a></h2><p>the 3-dimensional PDE: <img src="https://user-images.githubusercontent.com/12683885/90976452-d2c74400-e545-11ea-8361-288603d9ddbc.png" alt="3dpde"/></p><p>with the initial and boundary conditions:</p><p><img src="https://user-images.githubusercontent.com/12683885/91332936-8c881400-e7d5-11ea-991a-39c9d61d4f24.png" alt="boundary"/></p><p>on the space and time domain:</p><p><img src="https://user-images.githubusercontent.com/12683885/90976622-3605a600-e547-11ea-837e-92330769f5ee.png" alt="space"/></p><p>with grid discretization <code>dx = 0.25</code>, <code>dy = 0.25</code>, <code>dt = 0.25</code>.</p><pre><code class="language-julia"># 3D PDE
+p1 = plot(xs, ts, u_real, linetype=:contourf,title = "analytic");
+p2 =plot(xs, ts, u_predict, linetype=:contourf,title = "predict");
+p3 = plot(xs, ts, diff_u,linetype=:contourf,title = "error");
+plot(p1,p2,p3)</code></pre><p><img alt="waveplot" src="https://user-images.githubusercontent.com/12683885/90979146-c9e16d00-e55b-11ea-93d7-fefa696008fd.png"/></p><h2 id="Example-3-:-Solving-the-3-dimensional-PDE"><a class="docs-heading-anchor" href="#Example-3-:-Solving-the-3-dimensional-PDE">Example 3 : Solving the 3-dimensional PDE</a><a id="Example-3-:-Solving-the-3-dimensional-PDE-1"></a><a class="docs-heading-anchor-permalink" href="#Example-3-:-Solving-the-3-dimensional-PDE" title="Permalink"></a></h2><p>the 3-dimensional PDE: <img alt="3dpde" src="https://user-images.githubusercontent.com/12683885/90976452-d2c74400-e545-11ea-8361-288603d9ddbc.png"/></p><p>with the initial and boundary conditions:</p><p><img alt="boundary" src="https://user-images.githubusercontent.com/12683885/91332936-8c881400-e7d5-11ea-991a-39c9d61d4f24.png"/></p><p>on the space and time domain:</p><p><img alt="space" src="https://user-images.githubusercontent.com/12683885/90976622-3605a600-e547-11ea-837e-92330769f5ee.png"/></p><p>with grid discretization <code>dx = 0.25</code>, <code>dy = 0.25</code>, <code>dt = 0.25</code>.</p><pre><code class="language-julia"># 3D PDE
 @parameters x y t θ
 @variables u(..)
-@derivatives Dxx&#39;&#39;~x
-@derivatives Dyy&#39;&#39;~y
-@derivatives Dt&#39;~t
+@derivatives Dxx''~x
+@derivatives Dyy''~y
+@derivatives Dt'~t
 
 # 3D PDE
 eq  = Dt(u(x,y,t,θ)) ~ Dxx(u(x,y,t,θ)) + Dyy(u(x,y,t,θ))
@@ -113,12 +154,12 @@ pde_system = PDESystem(eq,bcs,domains,[x,y,t],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
 res = GalacticOptim.solve(prob, ADAM(0.1), progress = false; cb = cb, maxiters=3000)
-phi = discretization.phi</code></pre><h2 id="Example-4-:-Solving-a-PDE-System"><a class="docs-heading-anchor" href="#Example-4-:-Solving-a-PDE-System">Example 4 : Solving a PDE System</a><a id="Example-4-:-Solving-a-PDE-System-1"></a><a class="docs-heading-anchor-permalink" href="#Example-4-:-Solving-a-PDE-System" title="Permalink"></a></h2><p>In this example, we will solve the PDE system:</p><p><img src="https://user-images.githubusercontent.com/12683885/90978370-22157080-e556-11ea-92b3-d65cb9aa3115.png" alt="pdesystem"/></p><p>with the initial conditions:</p><p><img src="https://user-images.githubusercontent.com/12683885/90978670-322e4f80-e558-11ea-8157-a0b6ec84e121.png" alt="Initial"/></p><p>and the boundary conditions:</p><p><img src="https://user-images.githubusercontent.com/12683885/90978689-4c682d80-e558-11ea-8e51-080bd02a1856.png" alt="boundary"/></p><pre><code class="language-julia">@parameters t, x, θ
+phi = discretization.phi</code></pre><h2 id="Example-4-:-Solving-a-PDE-System"><a class="docs-heading-anchor" href="#Example-4-:-Solving-a-PDE-System">Example 4 : Solving a PDE System</a><a id="Example-4-:-Solving-a-PDE-System-1"></a><a class="docs-heading-anchor-permalink" href="#Example-4-:-Solving-a-PDE-System" title="Permalink"></a></h2><p>In this example, we will solve the PDE system:</p><p><img alt="pdesystem" src="https://user-images.githubusercontent.com/12683885/90978370-22157080-e556-11ea-92b3-d65cb9aa3115.png"/></p><p>with the initial conditions:</p><p><img alt="Initial" src="https://user-images.githubusercontent.com/12683885/90978670-322e4f80-e558-11ea-8157-a0b6ec84e121.png"/></p><p>and the boundary conditions:</p><p><img alt="boundary" src="https://user-images.githubusercontent.com/12683885/90978689-4c682d80-e558-11ea-8e51-080bd02a1856.png"/></p><pre><code class="language-julia">@parameters t, x, θ
 @variables u1(..), u2(..), u3(..)
-@derivatives Dt&#39;~t
-@derivatives Dtt&#39;&#39;~t
-@derivatives Dx&#39;~x
-@derivatives Dxx&#39;&#39;~x
+@derivatives Dt'~t
+@derivatives Dtt''~t
+@derivatives Dx'~x
+@derivatives Dxx''~x
 
 eqs = [Dtt(u1(t,x,θ)) ~ Dxx(u1(t,x,θ)) + u3(t,x,θ)*sin(pi*x),
        Dtt(u2(t,x,θ)) ~ Dxx(u2(t,x,θ)) + u3(t,x,θ)*cos(pi*x),
@@ -161,24 +202,24 @@ u_predict  = [[phi([t,x],res.minimizer)[i] for t in ts for x in xs] for i in 1:3
 diff_u = [abs.(u_real[i] .- u_predict[i] ) for i in 1:3]
 
 for i in 1:3
-    p1 = plot(xs, ts, u_real[i], st=:surface,title = &quot;u$i, analytic&quot;);
-    p2 = plot(xs, ts, u_predict[i], st=:surface,title = &quot;predict&quot;);
-    p3 = plot(xs, ts, diff_u[i],linetype=:contourf,title = &quot;error&quot;);
+    p1 = plot(xs, ts, u_real[i], st=:surface,title = "u$i, analytic");
+    p2 = plot(xs, ts, u_predict[i], st=:surface,title = "predict");
+    p3 = plot(xs, ts, diff_u[i],linetype=:contourf,title = "error");
     plot(p1,p2,p3)
-    savefig(&quot;sol_u$i&quot;)
-end</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90981503-192e9a00-e56a-11ea-8378-8e53e9de9c3c.png" alt="u1"/></p><p><img src="https://user-images.githubusercontent.com/12683885/90981470-e1bfed80-e569-11ea-9210-ff606af17532.png" alt="u2"/></p><p><img src="https://user-images.githubusercontent.com/12683885/90981491-01571600-e56a-11ea-9143-52ced4b177c8.png" alt="u3"/></p><h3 id="Matrix-PDEs-form"><a class="docs-heading-anchor" href="#Matrix-PDEs-form">Matrix PDEs form</a><a id="Matrix-PDEs-form-1"></a><a class="docs-heading-anchor-permalink" href="#Matrix-PDEs-form" title="Permalink"></a></h3><p>Also, in addition to systems, we can use the matrix form of PDEs:</p><pre><code class="language-julia">@parameters x y θ
+    savefig("sol_u$i")
+end</code></pre><p><img alt="u1" src="https://user-images.githubusercontent.com/12683885/90981503-192e9a00-e56a-11ea-8378-8e53e9de9c3c.png"/></p><p><img alt="u2" src="https://user-images.githubusercontent.com/12683885/90981470-e1bfed80-e569-11ea-9210-ff606af17532.png"/></p><p><img alt="u3" src="https://user-images.githubusercontent.com/12683885/90981491-01571600-e56a-11ea-9143-52ced4b177c8.png"/></p><h3 id="Matrix-PDEs-form"><a class="docs-heading-anchor" href="#Matrix-PDEs-form">Matrix PDEs form</a><a id="Matrix-PDEs-form-1"></a><a class="docs-heading-anchor-permalink" href="#Matrix-PDEs-form" title="Permalink"></a></h3><p>Also, in addition to systems, we can use the matrix form of PDEs:</p><pre><code class="language-julia">@parameters x y θ
 @variables u[1:2,1:2](..)
-@derivatives Dxx&#39;&#39;~x
-@derivatives Dyy&#39;&#39;~y
+@derivatives Dxx''~x
+@derivatives Dyy''~y
 
 # matrix PDE
 eqs  = @. [(Dxx(u_(x,y,θ)) + Dyy(u_(x,y,θ))) for u_ in u] ~ -sin(pi*x)*sin(pi*y)*[0 1; 0 1]
 
 # Initial and boundary conditions
-bcs = [u[1](x,0,θ) ~ x, u[2](x,0,θ) ~ 2, u[3](x,0,θ) ~ 3, u[4](x,0,θ) ~ 4]</code></pre><h2 id="Example-5-:-Solving-an-ODE-with-a-3rd-order-derivative"><a class="docs-heading-anchor" href="#Example-5-:-Solving-an-ODE-with-a-3rd-order-derivative">Example 5 : Solving an ODE with a 3rd-order derivative</a><a id="Example-5-:-Solving-an-ODE-with-a-3rd-order-derivative-1"></a><a class="docs-heading-anchor-permalink" href="#Example-5-:-Solving-an-ODE-with-a-3rd-order-derivative" title="Permalink"></a></h2><p>Let&#39;s consider the ODE with a 3rd-order derivative:</p><p><img src="https://user-images.githubusercontent.com/12683885/89736407-dc46ab80-da71-11ea-9c6e-5964488642bd.png" alt="hdode"/></p><p>with grid discretization <code>dx = 0.1</code>.</p><pre><code class="language-julia">@parameters x θ
+bcs = [u[1](x,0,θ) ~ x, u[2](x,0,θ) ~ 2, u[3](x,0,θ) ~ 3, u[4](x,0,θ) ~ 4]</code></pre><h2 id="Example-5-:-Solving-an-ODE-with-a-3rd-order-derivative"><a class="docs-heading-anchor" href="#Example-5-:-Solving-an-ODE-with-a-3rd-order-derivative">Example 5 : Solving an ODE with a 3rd-order derivative</a><a id="Example-5-:-Solving-an-ODE-with-a-3rd-order-derivative-1"></a><a class="docs-heading-anchor-permalink" href="#Example-5-:-Solving-an-ODE-with-a-3rd-order-derivative" title="Permalink"></a></h2><p>Let's consider the ODE with a 3rd-order derivative:</p><p><img alt="hdode" src="https://user-images.githubusercontent.com/12683885/89736407-dc46ab80-da71-11ea-9c6e-5964488642bd.png"/></p><p>with grid discretization <code>dx = 0.1</code>.</p><pre><code class="language-julia">@parameters x θ
 @variables u(..)
-@derivatives Dxxx&#39;&#39;&#39;~x
-@derivatives Dx&#39;~x
+@derivatives Dxxx'''~x
+@derivatives Dx'~x
 
 # ODE
 eq = Dxxx(u(x,θ)) ~ cos(pi*x)
@@ -211,12 +252,12 @@ u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
 x_plot = collect(xs)
-plot(x_plot ,u_real,title = &quot;real&quot;)
-plot!(x_plot ,u_predict,title = &quot;predict&quot;)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90276340-69bc3e00-de6c-11ea-89a7-7d291123a38b.png" alt="hodeplot"/></p><h2 id="Example-6-:-2-D-Burgers&#39;-equation,-low-level-API"><a class="docs-heading-anchor" href="#Example-6-:-2-D-Burgers&#39;-equation,-low-level-API">Example 6 : 2-D Burgers&#39; equation, low-level API</a><a id="Example-6-:-2-D-Burgers&#39;-equation,-low-level-API-1"></a><a class="docs-heading-anchor-permalink" href="#Example-6-:-2-D-Burgers&#39;-equation,-low-level-API" title="Permalink"></a></h2><p>Let&#39;s consider the Burgers’ equation:</p><p><img src="https://user-images.githubusercontent.com/12683885/90985032-b6e19380-e581-11ea-89ee-cdfdc4ecf075.png" alt="burgers"/></p><p>Here is an example of using the low-level API:</p><pre><code class="language-julia">@parameters t, x, θ
+plot(x_plot ,u_real,title = "real")
+plot!(x_plot ,u_predict,title = "predict")</code></pre><p><img alt="hodeplot" src="https://user-images.githubusercontent.com/12683885/90276340-69bc3e00-de6c-11ea-89a7-7d291123a38b.png"/></p><h2 id="Example-6-:-2-D-Burgers&#39;-equation,-low-level-API"><a class="docs-heading-anchor" href="#Example-6-:-2-D-Burgers&#39;-equation,-low-level-API">Example 6 : 2-D Burgers' equation, low-level API</a><a id="Example-6-:-2-D-Burgers&#39;-equation,-low-level-API-1"></a><a class="docs-heading-anchor-permalink" href="#Example-6-:-2-D-Burgers&#39;-equation,-low-level-API" title="Permalink"></a></h2><p>Let's consider the Burgers’ equation:</p><p><img alt="burgers" src="https://user-images.githubusercontent.com/12683885/90985032-b6e19380-e581-11ea-89ee-cdfdc4ecf075.png"/></p><p>Here is an example of using the low-level API:</p><pre><code class="language-julia">@parameters t, x, θ
 @variables u(..)
-@derivatives Dt&#39;~t
-@derivatives Dx&#39;~x
-@derivatives Dxx&#39;&#39;~x
+@derivatives Dt'~t
+@derivatives Dx'~x
+@derivatives Dxx''~x
 
 #2D PDE
 eq  = Dt(u(t,x,θ)) + u(t,x,θ)*Dx(u(t,x,θ)) - (0.01/pi)*Dxx(u(t,x,θ)) ~ 0
@@ -274,19 +315,19 @@ opt = Optim.BFGS()
 res = GalacticOptim.solve(prob, opt; cb = cb, maxiters=1500)
 phi = discretization.phi</code></pre><p>And some analysis:</p><pre><code class="language-julia">ts,xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains]
 u_predict_contourf = reshape([first(phi([t,x],res.minimizer)) for t in ts for x in xs] ,length(xs),length(ts))
-plot(ts, xs, u_predict_contourf, linetype=:contourf,title = &quot;predict&quot;)
+plot(ts, xs, u_predict_contourf, linetype=:contourf,title = "predict")
 
 u_predict = [[first(phi([t,x],res.minimizer)) for x in xs] for t in ts ]
-p1= plot(xs, u_predict[2],title = &quot;t = 0.1&quot;);
-p2= plot(xs, u_predict[6],title = &quot;t = 0.5&quot;);
-p3= plot(xs, u_predict[end],title = &quot;t = 1&quot;);
-plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90984874-a0870800-e580-11ea-9fd4-af8a4e3c523e.png" alt="burgers"/></p><p><img src="https://user-images.githubusercontent.com/12683885/90984856-8c430b00-e580-11ea-9206-1a88ebd24ca0.png" alt="burgers2"/></p><h2 id="Example-7-:-Kuramoto–Sivashinsky-equation"><a class="docs-heading-anchor" href="#Example-7-:-Kuramoto–Sivashinsky-equation">Example 7 :  Kuramoto–Sivashinsky equation</a><a id="Example-7-:-Kuramoto–Sivashinsky-equation-1"></a><a class="docs-heading-anchor-permalink" href="#Example-7-:-Kuramoto–Sivashinsky-equation" title="Permalink"></a></h2><p>Let&#39;s consider the Kuramoto–Sivashinsky equation, which contains a 4th-order derivative:</p><p><img src="https://user-images.githubusercontent.com/12683885/91025423-09fb2b00-e602-11ea-8f5c-61e49e4fb54e.png" alt="KS"/></p><p>with the initial and boundary conditions:</p><p><img src="https://user-images.githubusercontent.com/12683885/91025570-3fa01400-e602-11ea-8fd7-5b0e250a67a4.png" alt="bs"/></p><pre><code class="language-julia">@parameters x, t, θ
+p1= plot(xs, u_predict[2],title = "t = 0.1");
+p2= plot(xs, u_predict[6],title = "t = 0.5");
+p3= plot(xs, u_predict[end],title = "t = 1");
+plot(p1,p2,p3)</code></pre><p><img alt="burgers" src="https://user-images.githubusercontent.com/12683885/90984874-a0870800-e580-11ea-9fd4-af8a4e3c523e.png"/></p><p><img alt="burgers2" src="https://user-images.githubusercontent.com/12683885/90984856-8c430b00-e580-11ea-9206-1a88ebd24ca0.png"/></p><h2 id="Example-7-:-Kuramoto–Sivashinsky-equation"><a class="docs-heading-anchor" href="#Example-7-:-Kuramoto–Sivashinsky-equation">Example 7 :  Kuramoto–Sivashinsky equation</a><a id="Example-7-:-Kuramoto–Sivashinsky-equation-1"></a><a class="docs-heading-anchor-permalink" href="#Example-7-:-Kuramoto–Sivashinsky-equation" title="Permalink"></a></h2><p>Let's consider the Kuramoto–Sivashinsky equation, which contains a 4th-order derivative:</p><p><img alt="KS" src="https://user-images.githubusercontent.com/12683885/91025423-09fb2b00-e602-11ea-8f5c-61e49e4fb54e.png"/></p><p>with the initial and boundary conditions:</p><p><img alt="bs" src="https://user-images.githubusercontent.com/12683885/91025570-3fa01400-e602-11ea-8fd7-5b0e250a67a4.png"/></p><pre><code class="language-julia">@parameters x, t, θ
 @variables u(..)
-@derivatives Dt&#39;~t
-@derivatives Dx&#39;~x
-@derivatives Dx2&#39;&#39;~x
-@derivatives Dx3&#39;&#39;&#39;~x
-@derivatives Dx4&#39;&#39;&#39;&#39;~x
+@derivatives Dt'~t
+@derivatives Dx'~x
+@derivatives Dx2''~x
+@derivatives Dx3'''~x
+@derivatives Dx4''''~x
 
 α = 1
 β = 4
@@ -325,14 +366,14 @@ u_predict = [[first(phi([x,t],res.minimizer)) for x in xs] for t in ts]
 u_real = [[u_analytic(x,t) for x in xs] for t in ts]
 diff_u = [[abs(u_analytic(x,t) -first(phi([x,t],res.minimizer)))  for x in xs] for t in ts]
 
-p1 =plot(xs,u_predict,title = &quot;predict&quot;)
-p2 =plot(xs,u_real,title = &quot;analytic&quot;)
-p3 =plot(xs,diff_u,title = &quot;error&quot;)
-plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/91025889-a6253200-e602-11ea-8f61-8e6e2488e025.png" alt="plotks"/></p><h2 id="Example-8-:-Fokker-Planck-equation"><a class="docs-heading-anchor" href="#Example-8-:-Fokker-Planck-equation">Example 8 : Fokker-Planck equation</a><a id="Example-8-:-Fokker-Planck-equation-1"></a><a class="docs-heading-anchor-permalink" href="#Example-8-:-Fokker-Planck-equation" title="Permalink"></a></h2><p>Let&#39;s consider the Fokker-Planck equation:</p><p><img src="https://user-images.githubusercontent.com/12683885/91547965-58c00200-e92d-11ea-8d7b-f20ba79ed7c1.png" alt="fke"/></p><p>which must satisfy the normalization condition:</p><p><img src="https://user-images.githubusercontent.com/12683885/91548028-74c3a380-e92d-11ea-8ee4-ac2a1c780808.png" alt="nc"/></p><p>with the boundary conditions:</p><p><img src="https://user-images.githubusercontent.com/12683885/91548102-902eae80-e92d-11ea-8956-736a54e9591e.png" alt="bc"/></p><pre><code class="language-julia"># the example is taken from this article https://arxiv.org/abs/1910.10503
+p1 =plot(xs,u_predict,title = "predict")
+p2 =plot(xs,u_real,title = "analytic")
+p3 =plot(xs,diff_u,title = "error")
+plot(p1,p2,p3)</code></pre><p><img alt="plotks" src="https://user-images.githubusercontent.com/12683885/91025889-a6253200-e602-11ea-8f61-8e6e2488e025.png"/></p><h2 id="Example-8-:-Fokker-Planck-equation"><a class="docs-heading-anchor" href="#Example-8-:-Fokker-Planck-equation">Example 8 : Fokker-Planck equation</a><a id="Example-8-:-Fokker-Planck-equation-1"></a><a class="docs-heading-anchor-permalink" href="#Example-8-:-Fokker-Planck-equation" title="Permalink"></a></h2><p>Let's consider the Fokker-Planck equation:</p><p><img alt="fke" src="https://user-images.githubusercontent.com/12683885/91547965-58c00200-e92d-11ea-8d7b-f20ba79ed7c1.png"/></p><p>which must satisfy the normalization condition:</p><p><img alt="nc" src="https://user-images.githubusercontent.com/12683885/91548028-74c3a380-e92d-11ea-8ee4-ac2a1c780808.png"/></p><p>with the boundary conditions:</p><p><img alt="bc" src="https://user-images.githubusercontent.com/12683885/91548102-902eae80-e92d-11ea-8956-736a54e9591e.png"/></p><pre><code class="language-julia"># the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x θ
 @variables p(..)
-@derivatives Dx&#39;~x
-@derivatives Dxx&#39;&#39;~x
+@derivatives Dx'~x
+@derivatives Dxx''~x
 
 #2D PDE
 α = 0.3
@@ -367,5 +408,5 @@ xs = [domain.domain.lower:dx:domain.domain.upper for domain in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
-plot(xs ,u_real, label = &quot;analytic&quot;)
-plot!(xs ,u_predict, label = &quot;predict&quot;)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/91551079-47c5bf80-e932-11ea-906e-23c84e2846dc.png" alt="fkplot"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ode/">« Solving ODEs with Neural Networks</a><a class="docs-footer-nextpage" href="../100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 21 November 2020 20:54">Saturday 21 November 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(xs ,u_real, label = "analytic")
+plot!(xs ,u_predict, label = "predict")</code></pre><p><img alt="fkplot" src="https://user-images.githubusercontent.com/12683885/91551079-47c5bf80-e932-11ea-906e-23c84e2846dc.png"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ode/">« Solving ODEs with Neural Networks</a><a class="docs-footer-nextpage" href="../100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label></p><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div><p></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 21 November 2020 20:54">Saturday 21 November 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></HTML>
