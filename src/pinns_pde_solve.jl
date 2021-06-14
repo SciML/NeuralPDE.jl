@@ -617,7 +617,7 @@ function get_numeric_derivative(parameterless_type_θ)
         end
 end
 
-Base.Broadcast.broadcasted(::typeof(get_numeric_derivative(AbstractVector)), phi,u,x,εs,order,θ) = get_numeric_derivative(AbstractVector)(phi,u,x,εs,order,θ)
+Base.Broadcast.broadcasted(::typeof(get_numeric_derivative(AbstractArray)), phi,u,x,εs,order,θ) = get_numeric_derivative(AbstractArray)(phi,u,x,εs,order,θ)
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
     if τ == nothing
