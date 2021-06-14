@@ -727,7 +727,7 @@ function get_loss_function(loss_function, lb,ub , strategy::QuadratureTraining;�
             x = adapt(parameterless_type_θ,x)
             sum(abs2,loss_(x,θ), dims=2)
         end
-        # τ  = 1/lentgh(last_x)
+        # τ  = 1/length(last_x)
         prob = QuadratureProblem(_loss,lb,ub,θ,batch = strategy.batch,nout=1)
         sol = abs(solve(prob,
               strategy.quadrature_alg,
