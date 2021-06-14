@@ -148,7 +148,7 @@ for strategy_ in strategies
     test_2d_poisson_equation(chain_, strategy_)
 end
 
-algs = [CubatureJLp()] #CubatureJLh(), 
+algs = [CubatureJLp()] #CubatureJLh(),
 for alg in algs
     chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
     strategy_ =  NeuralPDE.QuadratureTraining(quadrature_alg = alg,reltol=1e-4,abstol=1e-3,maxiters=30, batch=10)
@@ -414,7 +414,7 @@ _σ = 0.5
 dx = 0.05
 # here we use normalization condition: dx*p(x) ~ 1, in order to get non-zero solution.
 #(α - 3*β*x^2)*p(x) + (α*x - β*x^3)*Dx(p(x)) ~ (_σ^2/2)*Dxx(p(x))
-eq  = Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x))+dx*p(x) - 1.
+eq  = [Dx((α*x - β*x^3)*p(x)) ~ (_σ^2/2)*Dxx(p(x)) + dx*p(x) - 1.]
 
 # Initial and boundary conditions
 bcs = [p(-2.2) ~ 0. ,p(2.2) ~ 0. , p(-2.2) ~ p(2.2)]
@@ -427,33 +427,18 @@ inn = 18
 chain = FastChain(FastDense(1,inn,Flux.σ),
                   FastDense(inn,inn,Flux.σ),
                   FastDense(inn,1))
+initθ = Float64.(DiffEqFlux.initial_params(chain))
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             NeuralPDE.GridTraining(dx))
+                                             NeuralPDE.GridTraining(dx);
+                                             init_params = initθ)
 
 pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,ADAM(0.1); cb = cb, maxiters=1500)
-prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,Optim.BFGS(initial_stepnorm=0.01);allow_f_increases=true, cb = cb, maxiters=500)
-
-dx = dx/5
-discretization = remake(discretization; strategy = NeuralPDE.GridTraining(dx), init_params =res.minimizer)
-prob = NeuralPDE.discretize(pde_system,discretization)
-
-res = GalacticOptim.solve(prob,ADAM(0.01); cb = cb, maxiters=1000)
-prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,Optim.BFGS(initial_stepnorm=0.01);allow_f_increases=true, cb = cb, maxiters=500)
-
-
-dx= dx/5
-discretization = remake(discretization; strategy = NeuralPDE.GridTraining(dx), init_params =res.minimizer)
-prob = NeuralPDE.discretize(pde_system,discretization)
-
-res = GalacticOptim.solve(prob,Optim.BFGS(initial_stepnorm=0.01);allow_f_increases=true, cb = cb, maxiters=500)
-prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.001); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob,Optim.BFGS(),cb = cb,maxiters=2000)
+# prob = remake(prob,u0=res.minimizer)
+# res = GalacticOptim.solve(prob,ADAM(10^-4),cb = cb,maxiters=2000)
 
 phi = discretization.phi
 analytic_sol_func(x) = 28*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
@@ -461,7 +446,7 @@ xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
 u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
-@test u_predict ≈ u_real atol = 100.0
+@test u_predict ≈ u_real atol = 20.0
 
 # plot(xs ,u_real, label = "analytic")
 # plot!(xs ,u_predict, label = "predict")
