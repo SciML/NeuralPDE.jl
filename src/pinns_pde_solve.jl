@@ -57,7 +57,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,K} <: AbstractPINN{isinpla
         end
 
         if derivative == nothing
-            _derivative = get_numeric_derivative(parameterless_type_θ)
+            _derivative = get_numeric_derivative()
         else
             _derivative = derivative
         end
@@ -151,9 +151,9 @@ Dict{Symbol,Int64} with 3 entries:
 get_dict_vars(vars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(vars)])
 
 # Wrapper for _transform_expression
-function transform_expression(ex,dict_indvars,dict_depvars, chain,eltypeθ, strategy)
+function transform_expression(ex,dict_indvars,dict_depvars, chain,eltypeθ,parameterless_type_θ, strategy)
     if ex isa Expr
-        ex = _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+        ex = _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,parameterless_type_θ,strategy)
     end
     return ex
 end
@@ -183,7 +183,7 @@ where
  order - order of derivative
  θ - weight in neural network
 """
-function _transform_expression(ex,dict_indvars,dict_depvars, chain, eltypeθ, strategy)
+function _transform_expression(ex,dict_indvars,dict_depvars, chain, eltypeθ, parameterless_type_θ,strategy)
     _args = ex.args
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
@@ -214,6 +214,7 @@ function _transform_expression(ex,dict_indvars,dict_depvars, chain, eltypeθ, st
                 εs = [get_ε(dim_l,d,eltypeθ) for d in 1:dim_l]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
+                εs_dnv = adapt.(parameterless_type_θ,εs_dnv)
                 ex.args = if !(typeof(chain) <: AbstractVector)
                     [:derivative, :phi, :u, cord, εs_dnv, order, :($θ)]
                 else
@@ -222,7 +223,7 @@ function _transform_expression(ex,dict_indvars,dict_depvars, chain, eltypeθ, st
                 break
             end
         else
-            ex.args[i] = _transform_expression(ex.args[i],dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+            ex.args[i] = _transform_expression(ex.args[i],dict_indvars,dict_depvars,chain,eltypeθ,parameterless_type_θ,strategy)
         end
     end
     return ex
@@ -256,18 +257,18 @@ Example:
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 
-function build_symbolic_equation(eq,_indvars,_depvars,chain,eltypeθ,strategy)
+function build_symbolic_equation(eq,_indvars,_depvars,chain,eltypeθ,parameterless_type_θ,strategy)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
-    parse_equation(eq,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+    parse_equation(eq,dict_indvars,dict_depvars,chain,eltypeθ,parameterless_type_θ,strategy)
 end
 
 
-function parse_equation(eq,dict_indvars,dict_depvars,chain, eltypeθ,strategy)
+function parse_equation(eq,dict_indvars,dict_depvars,chain, eltypeθ,parameterless_type_θ,strategy)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
 
-    left_expr = transform_expression(toexpr(eq_lhs),dict_indvars,dict_depvars,chain,eltypeθ,strategy)
-    right_expr = transform_expression(toexpr(eq_rhs),dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+    left_expr = transform_expression(toexpr(eq_lhs),dict_indvars,dict_depvars,chain,eltypeθ,parameterless_type_θ,strategy)
+    right_expr = transform_expression(toexpr(eq_rhs),dict_indvars,dict_depvars,chain,eltypeθ,parameterless_type_θ,strategy)
     left_expr = Broadcast.__dot__(left_expr)
     right_expr = Broadcast.__dot__(right_expr)
     loss_func = :($left_expr .- $right_expr)
@@ -298,14 +299,21 @@ to
           end
       end)
 """
-function build_symbolic_loss_function(eqs,_indvars,_depvars, phi, derivative,chain,initθ,eltypeθ,strategy; bc_indvars=nothing , eq_params = SciMLBase.NullParameters(), param_estim = false,default_p=nothing)
+function build_symbolic_loss_function(eqs,_indvars,_depvars,
+                                      phi, derivative,chain,initθ,
+                                      eltypeθ,parameterless_type_θ,
+                                      strategy; bc_indvars=nothing ,
+                                      eq_params = SciMLBase.NullParameters(),
+                                      param_estim = false,default_p=nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_symbolic_loss_function(eqs,indvars,depvars,
                                         dict_indvars,dict_depvars,
-                                        phi, derivative,chain,initθ,eltypeθ,strategy,
-                                        bc_indvars = bc_indvars, eq_params = eq_params, param_estim = param_estim,default_p=default_p)
+                                        phi, derivative,chain,initθ,
+                                        eltypeθ,parameterless_type_θ,strategy,
+                                        bc_indvars = bc_indvars, eq_params = eq_params,
+                                        param_estim = param_estim,default_p=default_p)
 end
 
 function get_indvars_ex(bc_indvars)
@@ -324,10 +332,12 @@ end
 
 function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,
-                                      phi, derivative, chain,initθ,eltypeθ,strategy; eq_params = SciMLBase.NullParameters(), param_estim = param_estim,default_p=default_p,
+                                      phi, derivative, chain,initθ,eltypeθ,parameterless_type_θ,
+                                      strategy; eq_params = SciMLBase.NullParameters(),
+                                      param_estim = param_estim,default_p=default_p,
                                       bc_indvars = indvars)
 
-    loss_function = parse_equation(eqs,dict_indvars,dict_depvars,chain, eltypeθ,strategy)
+    loss_function = parse_equation(eqs,dict_indvars,dict_depvars,chain, eltypeθ,parameterless_type_θ,strategy)
     vars = :(cord, $θ, phi, derivative,u,p)
     ex = Expr(:block)
     if typeof(chain) <: AbstractVector
@@ -403,24 +413,33 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     expr_loss_function = :(($vars) -> begin $ex end)
 end
 
-function build_loss_function(eqs,_indvars,_depvars, phi, derivative,chain,initθ,eltypeθ,strategy;bc_indvars=nothing,eq_params=SciMLBase.NullParameters(),param_estim=false,default_p=nothing)
+function build_loss_function(eqs,_indvars,_depvars, phi, derivative,
+                             chain,initθ,eltypeθ,parameterless_type_θ,
+                             strategy;bc_indvars=nothing,eq_params=SciMLBase.NullParameters(),
+                             param_estim=false,default_p=nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_loss_function(eqs,indvars,depvars,
                                dict_indvars,dict_depvars,
-                               phi, derivative,chain,initθ,eltypeθ,strategy,
-                               bc_indvars = bc_indvars, eq_params=eq_params,param_estim=param_estim,default_p=default_p)
+                               phi, derivative,chain,initθ,
+                               eltypeθ,parameterless_type_θ,strategy,
+                               bc_indvars = bc_indvars, eq_params=eq_params,
+                               param_estim=param_estim,default_p=default_p)
 end
 
 function build_loss_function(eqs,indvars,depvars,
                              dict_indvars,dict_depvars,
-                             phi, derivative, chain,initθ,eltypeθ,strategy;
-                             bc_indvars = indvars,eq_params=SciMLBase.NullParameters(),param_estim=false,default_p=nothing)
+                             phi, derivative, chain,
+                             initθ,eltypeθ,parameterless_type_θ,
+                             strategy; bc_indvars = indvars,eq_params=SciMLBase.NullParameters(),
+                             param_estim=false,default_p=nothing)
      expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars,
-                                                       phi, derivative, chain,initθ,eltypeθ,strategy;
-                                                       bc_indvars = bc_indvars,eq_params = eq_params,param_estim=param_estim,default_p=default_p)
+                                                       phi, derivative, chain,initθ,
+                                                       eltypeθ,parameterless_type_θ,strategy;
+                                                       bc_indvars = bc_indvars,eq_params = eq_params,
+                                                       param_estim=param_estim,default_p=default_p)
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     loss_function = (cord, θ) -> begin
@@ -598,17 +617,17 @@ function get_u()
     u = (cord, θ, phi)-> phi(cord, θ)
 end
 
-# Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
+Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
 
 # the method to calculate the derivative
-function get_numeric_derivative(parameterless_type_θ)
+function get_numeric_derivative()
     derivative =
         (phi,u,x,εs,order,θ) ->
         begin
             _epsilon = one(eltype(θ)) / (2*cbrt(eps(eltype(θ))))
             ε = εs[order]
-            ε = adapt(parameterless_type_θ,ε)
-            x = adapt(parameterless_type_θ,x)
+            # ε = adapt(DiffEqBase.parameterless_type(θ),ε)
+            # x = adapt(DiffEqBase.parameterless_type(θ),x)
             if order > 1
                 return (derivative(phi,u,x .+ ε,εs,order-1,θ)
                       .- derivative(phi,u,x .- ε,εs,order-1,θ)) .* _epsilon
@@ -618,7 +637,7 @@ function get_numeric_derivative(parameterless_type_θ)
         end
 end
 
-# Base.Broadcast.broadcasted(::typeof(get_numeric_derivative(AbstractArray)), phi,u,x,εs,order,θ) = get_numeric_derivative(AbstractArray)(phi,u,x,εs,order,θ)
+Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
     if τ == nothing
@@ -763,7 +782,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
     initθ = discretization.init_params
     flat_initθ = if (typeof(chain) <: AbstractVector) reduce(vcat,initθ) else initθ end
     eltypeθ = eltype(flat_initθ)
-    # parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
+    parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -771,8 +790,12 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
         eqs = [eqs]
     end
     symbolic_pde_loss_functions = [build_symbolic_loss_function(eq,indvars,depvars,
-                                                              dict_indvars,dict_depvars,
-                                                              phi, derivative,chain,initθ,eltypeθ,strategy;eq_params=eq_params,param_estim=param_estim,default_p=default_p) for eq in eqs]
+                                                                dict_indvars,dict_depvars,
+                                                                phi, derivative,chain,initθ,
+                                                                eltypeθ,parameterless_type_θ,
+                                                                strategy;eq_params=eq_params,param_estim=param_estim,
+                                                                default_p=default_p)
+                                                                for eq in eqs]
 
     bc_indvars = if strategy isa QuadratureTraining
          get_argument(bcs,dict_indvars,dict_depvars)
@@ -781,8 +804,11 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
     end
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars,
-                                                               phi, derivative,chain,initθ,eltypeθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p;
-                                                               bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+                                                               phi, derivative,chain,initθ,
+                                                               eltypeθ,parameterless_type_θ,strategy,
+                                                               eq_params=eq_params,param_estim=param_estim,default_p=default_p;
+                                                               bc_indvars = bc_indvar)
+                                                               for (bc,bc_indvar) in zip(bcs,bc_indvars)]
     symbolic_pde_loss_functions,symbolic_bc_loss_functions
 end
 
@@ -817,8 +843,12 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         eqs = [eqs]
     end
     _pde_loss_functions = [build_loss_function(eq,indvars,depvars,
-                                             dict_indvars,dict_depvars,
-                                             phi, derivative,chain, initθ,eltypeθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p) for eq in eqs]
+                                               dict_indvars,dict_depvars,
+                                               phi, derivative,chain, initθ,
+                                               eltypeθ,parameterless_type_θ,
+                                               strategy,eq_params=eq_params,
+                                               param_estim=param_estim,
+                                               default_p=default_p) for eq in eqs]
     bc_indvars = if strategy isa QuadratureTraining
          get_argument(bcs,dict_indvars,dict_depvars)
     else
@@ -826,9 +856,13 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     end
 
     _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
-                                                  dict_indvars,dict_depvars,
-                                                  phi, derivative,chain, initθ,eltypeθ, strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p;
-                                                  bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+                                              dict_indvars,dict_depvars,
+                                              phi, derivative,chain,initθ,
+                                              eltypeθ, parameterless_type_θ,
+                                              strategy,eq_params=eq_params,
+                                              param_estim=param_estim,
+                                              default_p=default_p;
+                                              bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
     pde_loss_functions, bc_loss_functions =
     if strategy isa GridTraining
