@@ -1,5 +1,6 @@
 import Base.Broadcast
 Base.Broadcast.dottable(x::Function) = true
+Base.Broadcast.dottable(x::Symbol) = x !== :u && x != :derivative
 RuntimeGeneratedFunctions.init(@__MODULE__)
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
@@ -597,7 +598,7 @@ function get_u()
     u = (cord, θ, phi)-> phi(cord, θ)
 end
 
-Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
+# Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
 
 # the method to calculate the derivative
 function get_numeric_derivative(parameterless_type_θ)
@@ -617,7 +618,7 @@ function get_numeric_derivative(parameterless_type_θ)
         end
 end
 
-Base.Broadcast.broadcasted(::typeof(get_numeric_derivative(AbstractArray)), phi,u,x,εs,order,θ) = get_numeric_derivative(AbstractArray)(phi,u,x,εs,order,θ)
+# Base.Broadcast.broadcasted(::typeof(get_numeric_derivative(AbstractArray)), phi,u,x,εs,order,θ) = get_numeric_derivative(AbstractArray)(phi,u,x,εs,order,θ)
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
     if τ == nothing
