@@ -1,6 +1,6 @@
 import Base.Broadcast
 Base.Broadcast.dottable(x::Function) = true
-Base.Broadcast.dottable(x::Symbol) = x !== :u && x != :derivative
+Base.Broadcast.dottable(x::Symbol) = x != :u && x != :derivative
 RuntimeGeneratedFunctions.init(@__MODULE__)
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
