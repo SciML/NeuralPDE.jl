@@ -42,7 +42,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,K} <: AbstractPINN{isinpla
         else
             initθ = init_params
         end
-        flat_initθ = if (typeof(chain) <: AbstractVector) vcat(initθ...) else  initθ end
+        flat_initθ = if (typeof(chain) <: AbstractVector) reduce(vcat,initθ) else  initθ end
         parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
 
         if phi == nothing
