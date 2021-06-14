@@ -43,7 +43,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,K} <: AbstractPINN{isinpla
             initθ = init_params
         end
         flat_initθ = if (typeof(chain) <: AbstractVector) reduce(vcat,initθ) else  initθ end
-        parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
+        parameterless_type_θ = DiffEqBase.parameterless_type(flat_initθ)
 
         if phi == nothing
             if chain isa AbstractArray
@@ -760,7 +760,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
 
     chain = discretization.chain
     initθ = discretization.init_params
-    flat_initθ = if (typeof(chain) <: AbstractVector) vcat(initθ...) else  initθ end
+    flat_initθ = if (typeof(chain) <: AbstractVector) reduce(vcat,initθ) else initθ end
     eltypeθ = eltype(flat_initθ)
     # parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
     phi = discretization.phi
@@ -804,7 +804,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
 
     chain = discretization.chain
     initθ = discretization.init_params
-    flat_initθ = if (typeof(chain) <: AbstractVector) vcat(initθ...) else  initθ end
+    flat_initθ = if (typeof(chain) <: AbstractVector) reduce(vcat,initθ) else  initθ end
     eltypeθ = eltype(flat_initθ)
     parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
 
