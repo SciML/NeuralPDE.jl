@@ -619,7 +619,7 @@ Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order
 
 function get_loss_function(loss_function, train_set, strategy::GridTraining;τ=nothing)
     if τ == nothing
-        τ = adapt(eltypeθ, 1 ./ size(train_set)[2])
+        τ = convert(eltypeθ , 1 ./ size(train_set)[2])
     end
 
     loss = (θ) ->  τ * sum(abs2,loss_function(train_set, θ))
@@ -727,7 +727,7 @@ function get_loss_function(loss_function, lb,ub , strategy::QuadratureTraining;�
             x = adapt(parameterless_type_θ,x)
             sum(abs2,loss_(x,θ), dims=2)
         end
-
+        # τ  = 1/lentgh(last_x)
         prob = QuadratureProblem(_loss,lb,ub,θ,batch = strategy.batch,nout=1)
         sol = abs(solve(prob,
               strategy.quadrature_alg,
@@ -800,7 +800,6 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     chain = discretization.chain
     initθ = discretization.init_params
     flat_initθ = if (typeof(chain) <: AbstractVector) vcat(initθ...) else  initθ end
-    # global typeofθ = typeof(Array(flat_initθ))
     global eltypeθ = eltype(flat_initθ)
     global parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
 
@@ -882,16 +881,19 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         (pde_loss_functions, bc_loss_functions)
     end
 
+    loss_functions = [pde_loss_functions; bc_loss_functions]
+    loss_function = θ -> sum(map(l->l(θ) ,loss_functions))
+
     function loss_function_(θ,p)
         if additional_loss isa Nothing
-            return sum(map(l->l(θ) ,pde_loss_functions)) + sum(map(l->l(θ) , bc_loss_functions))
+            return loss_function(θ)
         else
             function _additional_loss(phi,θ)
                 θ_ = θ[1:end - length(default_p)]
                 p = θ[(end - length(default_p) + 1):end]
                 return additional_loss(phi,θ_,p)
             end
-            return pde_loss_function(θ) + bc_loss_function(θ) + _additional_loss(phi,θ)
+            return loss_function(θ) + _additional_loss(phi,θ)
         end
     end
 

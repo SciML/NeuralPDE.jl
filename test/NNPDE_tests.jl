@@ -287,6 +287,8 @@ indvars = [x,t]
 depvars = [u]
 dim = length(domains)
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),reltol= 1e-4,abstol= 1e-3,maxiters=10, batch=10)
+eltypeθ = eltype(initθ)
+parameterless_type_θ =  DiffEqBase.parameterless_type(initθ)
 
 _pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative,chain,initθ,quadrature_strategy)
 _pde_loss_function(rand(2,10), initθ)
@@ -301,29 +303,33 @@ train_sets = NeuralPDE.generate_training_sets(domains,dx,[eq],bcs,indvars,depvar
 pde_train_set,bcs_train_set = train_sets
 pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,bcs,indvars,depvars,quadrature_strategy)
 
-
-pde_loss_function = NeuralPDE.get_loss_function([_pde_loss_function],
-                                                pde_bounds,
+lbs,ubs = pde_bounds
+pde_loss_functions = [NeuralPDE.get_loss_function(_pde_loss_function,
+                                                lbs[1],ubs[1],
                                                 quadrature_strategy;
-                                                τ = 1/100)
+                                                τ = 1/100)]
 
-pde_loss_function(initθ)
+pde_loss_functions[1](initθ)
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),reltol= 1e-2,abstol= 1e-1,maxiters=5, batch=100)
-bc_loss_function = NeuralPDE.get_loss_function(_bc_loss_functions,
-                                               bcs_bounds,
-                                               quadrature_strategy;
-                                               τ = 1/40)
-bc_loss_function(initθ)
 
-function loss_function_(θ,p)
-    return pde_loss_function(θ) + bc_loss_function(θ)
+
+lbs,ubs = bcs_bounds
+bc_loss_functions = [NeuralPDE.get_loss_function(_loss,lb,ub,quadrature_strategy;τ = 1/40)
+                                       for (_loss,lb,ub) in zip(_bc_loss_functions, lbs,ubs)]
+
+map(l->l(initθ) ,bc_loss_functions)
+
+loss_functions =  [pde_loss_functions;bc_loss_functions]
+
+function loss_function(θ,p)
+    sum(map(l->l(θ) ,loss_functions))
 end
 
-f_ = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
+f_ = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f_, initθ)
 
 cb_ = function (p,l)
-    println("Current losses are: ", pde_loss_function(p), " , ",  bc_loss_function(p))
+    println("loss: ", l , " losses: ", map(l -> l(p), loss_functions))
     return false
 end
 
