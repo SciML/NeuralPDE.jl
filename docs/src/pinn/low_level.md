@@ -45,11 +45,11 @@ indvars = [t,x]
 depvars = [u]
 
 _pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,
-                                                   phi,derivative,chain,initθ,eltypeθ,strategy)
+                                                   phi,derivative,chain,initθ,strategy)
 
 bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
-                                                    phi,derivative,chain,initθ,eltypeθ,strategy,
+                                                    phi,derivative,chain,initθ,strategy,
                                                     bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 train_sets = NeuralPDE.generate_training_sets(domains,dx,[eq],bcs,eltypeθ,indvars,depvars)
@@ -62,8 +62,8 @@ pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
                                                 strategy)
 
 bc_loss_functions = [NeuralPDE.get_loss_function(loss,set,
-                                                eltypeθ, parameterless_type_θ,
-                                                strategy) for (loss, set) in zip(_bc_loss_functions,train_bound_set)]
+                                                 eltypeθ, parameterless_type_θ,
+                                                 strategy) for (loss, set) in zip(_bc_loss_functions,train_bound_set)]
 
 
 loss_functions = [pde_loss_function; bc_loss_functions]

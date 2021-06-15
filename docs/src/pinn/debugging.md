@@ -54,9 +54,9 @@ dim = length(domains)
 dx = 0.1
 strategy = NeuralPDE.GridTraining(dx)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative,chain,initθ,eltypeθ,strategy)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,chain,initθ,strategy)
 
-julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,phi,derivative,chain,initθ,eltypeθ, strategy)
+julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,phi,derivative,chain,initθ,strategy)
 
 :((cord, var"##θ#529", phi, derivative, u)->begin
           begin
@@ -74,11 +74,11 @@ julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
  [:x]
 
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
-                                                     phi, derivative,chain,initθ,eltypeθ,strategy,
+                                                     phi,derivative,chain,initθ,strategy,
                                                      bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,
-                                                                        phi, derivative,chain,initθ,eltypeθ,strategy,
+                                                                        phi,derivative,chain,initθ,strategy,
                                                                         bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 4-element Array{Expr,1}:
  :((cord, var"##θ#529", phi, derivative, u)->begin
