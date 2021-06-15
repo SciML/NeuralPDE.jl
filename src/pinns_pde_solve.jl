@@ -214,7 +214,7 @@ function _transform_expression(ex,dict_indvars,dict_depvars, chain, eltypeθ, pa
                 εs = [get_ε(dim_l,d,eltypeθ) for d in 1:dim_l]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
-                εs_dnv = adapt.(parameterless_type_θ,εs_dnv)
+                # εs_dnv = adapt.(parameterless_type_θ,εs_dnv)
                 ex.args = if !(typeof(chain) <: AbstractVector)
                     [:derivative, :phi, :u, cord, εs_dnv, order, :($θ)]
                 else
