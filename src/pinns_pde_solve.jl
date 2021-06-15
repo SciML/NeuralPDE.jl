@@ -626,8 +626,8 @@ function get_numeric_derivative()
         begin
             _epsilon = one(eltype(θ)) / (2*cbrt(eps(eltype(θ))))
             ε = εs[order]
-            # ε = adapt(DiffEqBase.parameterless_type(θ),ε)
-            # x = adapt(DiffEqBase.parameterless_type(θ),x)
+            ε = adapt(DiffEqBase.parameterless_type(θ),ε)
+            x = adapt(DiffEqBase.parameterless_type(θ),x)
             if order > 1
                 return (derivative(phi,u,x .+ ε,εs,order-1,θ)
                       .- derivative(phi,u,x .- ε,εs,order-1,θ)) .* _epsilon
