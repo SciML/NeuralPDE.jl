@@ -61,7 +61,7 @@ julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvar
 :((cord, var"##θ#529", phi, derivative, u)->begin
           begin
               let (x, t) = (cord[[1], :], cord[[2], :])
-                  derivative(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667], [0.0, 0.0049215667]], 2, var"##θ#529") .- derivative(phi, u, cord, Array{Float32,1}[[0.0049215667, 0.0], [0.0049215667, 0.0]], 2, var"##θ#529")
+                  derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667], [0.0, 0.0049215667]], 2, var"##θ#529") .- derivative.(phi, u, cord, Array{Float32,1}[[0.0049215667, 0.0], [0.0049215667, 0.0]], 2, var"##θ#529")
               end
           end
       end)
@@ -84,28 +84,28 @@ julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indva
  :((cord, var"##θ#529", phi, derivative, u)->begin
           begin
               let (x, t) = (cord[[1], :], cord[[2], :])
-                  u(cord, var"##θ#529", phi) .- 0.0
+                  u.(cord, var"##θ#529", phi) .- 0.0
               end
           end
       end)
  :((cord, var"##θ#529", phi, derivative, u)->begin
           begin
               let (x, t) = (cord[[1], :], cord[[2], :])
-                  u(cord, var"##θ#529", phi) .- 0.0
+                  u.(cord, var"##θ#529", phi) .- 0.0
               end
           end
       end)
  :((cord, var"##θ#529", phi, derivative, u)->begin
           begin
               let (x, t) = (cord[[1], :], cord[[2], :])
-                  u(cord, var"##θ#529", phi) .- (*).(x, (+).(1.0, (*).(-1, x)))
+                  u.(cord, var"##θ#529", phi) .- (*).(x, (+).(1.0, (*).(-1, x)))
               end
           end
       end)
  :((cord, var"##θ#529", phi, derivative, u)->begin
           begin
               let (x, t) = (cord[[1], :], cord[[2], :])
-                  derivative(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667]], 1, var"##θ#529") .- 0.0
+                  derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667]], 1, var"##θ#529") .- 0.0
               end
           end
       end)
