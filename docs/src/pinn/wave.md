@@ -37,8 +37,8 @@ dx = 0.1
 
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
-
-discretization = PhysicsInformedNN(chain, GridTraining(dx))
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+discretization = PhysicsInformedNN(chain, GridTraining(dx); init_params = initθ)
 
 pde_system = PDESystem(eq,bcs,domains,[t,x],[u])
 prob = discretize(pde_system,discretization)
