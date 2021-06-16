@@ -30,7 +30,9 @@ domains = [x ∈ Interval(0.0,1.0),
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 initθ = DiffEqFlux.initial_params(chain)
 
-phi = NeuralPDE.get_phi(chain)
+eltypeθ = eltype(initθ)
+parameterless_type_θ = DiffEqBase.parameterless_type(initθ)
+phi = NeuralPDE.get_phi(chain,parameterless_type_θ)
 derivative = NeuralPDE.get_numeric_derivative()
 
 u_ = (cord, θ, phi)->sum(phi(cord, θ))
@@ -52,7 +54,7 @@ dim = length(domains)
 dx = 0.1
 strategy = NeuralPDE.GridTraining(dx)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi, derivative,chain,initθ,strategy)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,chain,initθ,strategy)
 
 julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,phi,derivative,chain,initθ,strategy)
 
@@ -64,7 +66,7 @@ julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvar
           end
       end)
 
-julia> bc_indvars = NeuralPDE.get_varibles(bcs,indvars,depvars)
+julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
 4-element Array{Array{Any,1},1}:
  [:t]
  [:t]
@@ -72,11 +74,11 @@ julia> bc_indvars = NeuralPDE.get_varibles(bcs,indvars,depvars)
  [:x]
 
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
-                                                     phi, derivative,chain,initθ,strategy,
+                                                     phi,derivative,chain,initθ,strategy,
                                                      bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,
-                                                                        phi, derivative,chain,initθ,strategy,
+                                                                        phi,derivative,chain,initθ,strategy,
                                                                         bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 4-element Array{Expr,1}:
  :((cord, var"##θ#529", phi, derivative, u)->begin
@@ -108,7 +110,7 @@ julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indva
           end
       end)
 
-train_sets = NeuralPDE.generate_training_sets(domains,dx,[eq],bcs,indvars,depvars)
+train_sets = NeuralPDE.generate_training_sets(domains,dx,[eq],bcs,eltypeθ,indvars,depvars)
 pde_train_set,bcs_train_set = train_sets
 
 julia> pde_train_set
@@ -124,18 +126,18 @@ julia> bcs_train_set
  [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]
 
 
-pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,[eq],bcs,indvars,depvars)
+pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,[eq],bcs,eltypeθ,indvars,depvars)
 
 julia> pde_bounds
-1-element Array{Array{Any,1},1}:
- [[0.0, 1.0], [0.0, 1.0]]
+1-element Vector{Vector{Any}}:
+ [Float32[0.0, 1.0], Float32[0.0, 1.0]]
 
 julia> bcs_bounds
-4-element Array{Array{Any,1},1}:
- [0, [0.0, 1.0]]
- [1, [0.0, 1.0]]
- [[0.0, 1.0], 0]
- [[0.0, 1.0], 0]
+4-element Vector{Vector{Any}}:
+ [0, Float32[0.0, 1.0]]
+ [1, Float32[0.0, 1.0]]
+ [Float32[0.0, 1.0], 0]
+ [Float32[0.0, 1.0], 0]
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy)
 
