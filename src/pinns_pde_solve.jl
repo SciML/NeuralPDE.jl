@@ -742,11 +742,8 @@ function get_loss_function(loss_function, bound, eltypeθ,parameterless_type_θ,
 end
 
 function get_loss_function(loss_function, lb,ub ,eltypeθ, parameterless_type_θ,strategy::QuadratureTraining;τ=nothing)
-    # lb,ub = bound
-    if τ == nothing
-        τ = one(eltypeθ)
-    end
-    if length(lb) == 0
+
+    if length(lb) == 0 #TODO
         loss = (θ) -> 1/10*sum(abs2,loss_function(rand(1,10), θ))
         return loss
     end
@@ -757,14 +754,14 @@ function get_loss_function(loss_function, lb,ub ,eltypeθ, parameterless_type_θ
             x = adapt(parameterless_type_θ,x)
             sum(abs2,loss_(x,θ), dims=2)
         end
-        # τ  = 1/length(last_x)
         prob = QuadratureProblem(_loss,lb,ub,θ,batch = strategy.batch,nout=1)
         sol = abs(solve(prob,
               strategy.quadrature_alg,
               reltol = strategy.reltol,
               abstol = strategy.abstol,
               maxiters = strategy.maxiters)[1])
-        τ*sol#,last_x
+        τ_  = τ == nothing ? 1. / length(last_x) : τ
+        τ_*sol
     end
     loss = (θ) -> f_(lb,ub,loss_function,θ)
     return loss
