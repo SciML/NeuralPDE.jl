@@ -130,7 +130,7 @@ pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,[eq],bcs,eltypeθ,indvars,
 
 julia> pde_bounds
 1-element Vector{Vector{Any}}:
- [Float32[0.0, 1.0], Float32[0.0, 1.0]]
+ [Float32[0.01, 0.99], Float32[0.01, 0.99]]
 
 julia> bcs_bounds
 4-element Vector{Vector{Any}}:
