@@ -15,6 +15,7 @@ using Quadrature,Cubature
 using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
+using Statistics
 import Tracker, Optim
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import ModelingToolkit: Interval, infimum, supremum #,Ball

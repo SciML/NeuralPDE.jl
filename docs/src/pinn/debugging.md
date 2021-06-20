@@ -126,7 +126,7 @@ julia> bcs_train_set
  [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]
 
 
-pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,[eq],bcs,eltypeθ,indvars,depvars)
+pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,[eq],bcs,eltypeθ,indvars,depvars,NeuralPDE.StochasticTraining(100))
 
 julia> pde_bounds
 1-element Vector{Vector{Any}}:
