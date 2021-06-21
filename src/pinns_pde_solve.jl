@@ -107,7 +107,7 @@ struct QuasiRandomTraining <:TrainingStrategies
     resampling:: Bool
     minibatch:: Int64
 end
-function QuasiRandomTraining(points;bcs_points = points, sampling_alg = UniformSample(),resampling =true, minibatch=0)
+function QuasiRandomTraining(points;bcs_points = points, sampling_alg = LatinHypercubeSample(),resampling =true, minibatch=0)
     QuasiRandomTraining(points,bcs_points,sampling_alg,resampling,minibatch)
 end
 """
