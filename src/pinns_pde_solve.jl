@@ -657,7 +657,7 @@ end
 Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
-    loss = (θ) -> mean(abs2.(loss_function(train_set, θ)))
+    loss = (θ) -> mean(abs2,loss_function(train_set, θ))
 end
 
 @nograd function generate_random_points(points, bound, eltypeθ)
@@ -678,7 +678,7 @@ function get_loss_function(loss_function, bound, eltypeθ, parameterless_type_θ
     loss = (θ) -> begin
         sets = generate_random_points(points, bound,eltypeθ)
         sets_ = adapt(parameterless_type_θ,sets)
-        mean(abs2.(loss_function(sets_, θ)))
+        mean(abs2,loss_function(sets_, θ))
     end
     return loss
 end
@@ -722,7 +722,7 @@ function get_loss_function(loss_function, bound, eltypeθ,parameterless_type_θ,
             θ -> begin
                 sets = generate_quasi_random_points(points, bound, eltypeθ, sampling_alg)
                 sets_ = adapt(parameterless_type_θ,sets)
-                mean(abs2.(loss_function(sets_, θ)))
+                mean(abs2,loss_function(sets_, θ))
             end
         else
             θ -> begin
@@ -731,7 +731,7 @@ function get_loss_function(loss_function, bound, eltypeθ,parameterless_type_θ,
                                             for i in 1:length(point_batch)] #TODO
                 sets_ = vcat(sets...)
                 sets__ = adapt(parameterless_type_θ,sets_)
-                mean(abs2.(loss_function(sets__, θ)))
+                mean(abs2,loss_function(sets__, θ))
             end
         end
     return loss
@@ -740,23 +740,24 @@ end
 function get_loss_function(loss_function, lb,ub ,eltypeθ, parameterless_type_θ,strategy::QuadratureTraining;τ=nothing)
 
     if length(lb) == 0
-        loss = (θ) -> mean(abs2.(loss_function(rand(eltypeθ,1,10), θ)))
+        loss = (θ) -> mean(abs2,loss_function(rand(eltypeθ,1,10), θ))
         return loss
     end
     f_ = (lb,ub,loss_,θ) -> begin
         # last_x = 1
         function _loss(x,θ)
             # last_x = x
+            # mean(abs2,loss_(x,θ), dims=2)
             x = adapt(parameterless_type_θ,x)
-            sum(abs2,loss_(x,θ), dims=2) ./ length(x)
+            size_x = fill(size(last_x)[2],(1,1))
+            sum(abs2,loss_(x,θ), dims=2) ./ size_x
         end
         prob = QuadratureProblem(_loss,lb,ub,θ,batch = strategy.batch,nout=1)
-        sol = solve(prob,
+        solve(prob,
               strategy.quadrature_alg,
               reltol = strategy.reltol,
               abstol = strategy.abstol,
               maxiters = strategy.maxiters)[1]
-        sol
     end
     loss = (θ) -> f_(lb,ub,loss_function,θ)
     return loss
