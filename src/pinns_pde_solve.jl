@@ -749,7 +749,7 @@ function get_loss_function(loss_function, lb,ub ,eltypeθ, parameterless_type_θ
             # last_x = x
             # mean(abs2,loss_(x,θ), dims=2)
             x = adapt(parameterless_type_θ,x)
-            size_x = fill(size(last_x)[2],(1,1))
+            size_x = fill(size(x)[2],(1,1))
             sum(abs2,loss_(x,θ), dims=2) ./ size_x
         end
         prob = QuadratureProblem(_loss,lb,ub,θ,batch = strategy.batch,nout=1)
