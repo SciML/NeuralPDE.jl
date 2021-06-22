@@ -743,14 +743,15 @@ function get_loss_function(loss_function, lb,ub ,eltypeθ, parameterless_type_θ
         loss = (θ) -> mean(abs2,loss_function(rand(eltypeθ,1,10), θ))
         return loss
     end
+    area = eltypeθ(prod(abs.(ub .-lb)))
     f_ = (lb,ub,loss_,θ) -> begin
         # last_x = 1
         function _loss(x,θ)
             # last_x = x
             # mean(abs2,loss_(x,θ), dims=2)
+            # size_x = fill(size(x)[2],(1,1))
             x = adapt(parameterless_type_θ,x)
-            size_x = fill(size(x)[2],(1,1))
-            sum(abs2,loss_(x,θ), dims=2) ./ size_x
+            sum(abs2,loss_(x,θ), dims=2) #./ size_x
         end
         prob = QuadratureProblem(_loss,lb,ub,θ,batch = strategy.batch,nout=1)
         solve(prob,
@@ -759,7 +760,7 @@ function get_loss_function(loss_function, lb,ub ,eltypeθ, parameterless_type_θ
               abstol = strategy.abstol,
               maxiters = strategy.maxiters)[1]
     end
-    loss = (θ) -> f_(lb,ub,loss_function,θ)
+    loss = (θ) -> 1/area* f_(lb,ub,loss_function,θ)
     return loss
 end
 

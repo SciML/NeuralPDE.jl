@@ -24,7 +24,7 @@ end
 
 ## Example 1, 1D ode
 function test_ode(strategy_)
-    println("Example 1, 1D ode")
+    println("Example 1, 1D ode: strategy: $(nameof(typeof(strategy_)))")
     @parameters θ
     @variables u(..)
     Dθ = Differential(θ)
@@ -40,7 +40,7 @@ function test_ode(strategy_)
 
     # Neural network
     chain = FastChain(FastDense(1,12,Flux.σ),FastDense(12,1))
-    initθ = DiffEqFlux.initial_params(chain)
+    initθ = Float64.(DiffEqFlux.initial_params(chain))
 
     discretization = NeuralPDE.PhysicsInformedNN(chain,
                                                  strategy_;
@@ -53,9 +53,11 @@ function test_ode(strategy_)
     prob = NeuralPDE.discretize(pde_system,discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-    res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=2000)
-    prob2 = remake(prob,u0=res.minimizer)
-    res = GalacticOptim.solve(prob2, ADAM(0.001); cb = cb, maxiters=1000)
+    res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=1000)
+    prob = remake(prob,u0=res.minimizer)
+    res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=1000)
+    prob = remake(prob,u0=res.minimizer)
+    res = GalacticOptim.solve(prob, ADAM(0.001); cb = cb, maxiters=1000)
     phi = discretization.phi
 
     analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -71,18 +73,18 @@ function test_ode(strategy_)
 end
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
-stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points= 30) #points
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
                                                     reltol=1e-3,abstol=1e-3,
                                                     maxiters =50, batch=100)
-quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
-                                                     sampling_alg = UniformSample(),
+stochastic_strategy = NeuralPDE.StochasticTraining(400; bcs_points= 50) #points
+quasirandom_strategy = NeuralPDE.QuasiRandomTraining(400; #points
+                                                     sampling_alg = LatinHypercubeSample(),
                                                      resampling =false,
                                                      minibatch = 100
                                                     )
-quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100; #points
-                                                     bcs_points= 30,
-                                                     sampling_alg = UniformSample(),
+quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(400; #points
+                                                     bcs_points= 50,
+                                                     sampling_alg = LatinHypercubeSample(),
                                                      resampling = true,
                                                      minibatch = 0)
 
@@ -94,7 +96,7 @@ end
 
 ## Example 2, 2D Poisson equation
 function test_2d_poisson_equation(chain_, strategy_)
-    println("Example 2, 2D Poisson equation, chain: $(typeof(chain_)), strategy: $strategy_")
+    println("Example 2, 2D Poisson equation, chain: $(nameof(typeof(chain_))), strategy: $(nameof(typeof(strategy_)))")
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -117,7 +119,7 @@ function test_2d_poisson_equation(chain_, strategy_)
     pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
     prob = NeuralPDE.discretize(pde_system,discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-    res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=500)
+    res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=2000)
     phi = discretization.phi
 
     dx = 0.1
@@ -128,7 +130,7 @@ function test_2d_poisson_equation(chain_, strategy_)
     u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
     diff_u = abs.(u_predict .- u_real)
 
-    @test u_predict ≈ u_real atol = 3.0
+    @test u_predict ≈ u_real atol = 2.0
 
     # p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
     # p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
@@ -181,7 +183,7 @@ domains = [x ∈ Interval(0.0,1.0)]
 # Neural network
 chain = [FastChain(FastDense(1,8,Flux.σ),FastDense(8,1)) for _ in 1:3]
 quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
-                                                     sampling_alg = UniformSample())
+                                                     sampling_alg = LatinHypercubeSample())
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,quasirandom_strategy;init_params = initθ)
