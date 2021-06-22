@@ -104,7 +104,7 @@ end
 ![sol_uq3](https://user-images.githubusercontent.com/12683885/122979288-0e1de380-d3a0-11eb-9005-bfb501959b83.png)
 
 
-##Derivative neural network approximation
+## Derivative neural network approximation
 
 
 ```julia
@@ -221,7 +221,7 @@ end
 
 
 
-##Comparison of the second numerical derivative and numerical + neural network derivative
+## Comparison of the second numerical derivative and numerical + neural network derivative
 
 
 ![Dxxu1](https://user-images.githubusercontent.com/12683885/122998730-17b24600-d3b6-11eb-9e0a-74e7b8dfbef5.png)
