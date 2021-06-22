@@ -80,7 +80,7 @@ Dxx = Differential(x)^2
 eq  = Dt(u(t,x)) ~ Dxx(u(t,x))
 bcs = [u(0,x) ~ cos(x),
         u(t,0) ~ exp(-t),
-        u(t,1) ~ exp(-t) * cos(1.f0)]
+        u(t,1) ~ exp(-t) * cos(1)]
 
 domains = [t ∈ Interval(0.0,1.0),
           x ∈ Interval(0.0,1.0)]
@@ -97,7 +97,7 @@ chain = FastChain(FastDense(2,inner,Flux.σ),
                   FastDense(inner,1))#,(u,p)->gpuones .* u)
 
 strategy = NeuralPDE.StochasticTraining(500)
-initθ = initial_params(chain) |>gpu
+initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)
@@ -184,17 +184,17 @@ diff_u = abs.(u_predict .- u_real)
 Dxx = Differential(x)^2
 Dyy = Differential(y)^2
 Dt = Differential(t)
-t_min= 0.0f0
-t_max = 2.0f0
-x_min = 0.0f0
-x_max = 2.f0
-y_min = 0.f0
-y_max = 2.f0
+t_min= 0.0
+t_max = 2.0
+x_min = 0.0
+x_max = 2.0
+y_min = 0.0
+y_max = 2.0
 
 # 3D PDE
 eq  = Dt(u(t,x,y)) ~ Dxx(u(t,x,y)) + Dyy(u(t,x,y))
 
-analytic_sol_func(t,x,y) = exp(x+y)*cos(x+y+4.f0t)
+analytic_sol_func(t,x,y) = exp(x+y)*cos(x+y+4t)
 # Initial and boundary conditions
 bcs = [u(t_min,x,y) ~ analytic_sol_func(t_min,x,y),
        u(t,x_min,y) ~ analytic_sol_func(t,x_min,y),
@@ -215,12 +215,12 @@ chain = FastChain(FastDense(3,inner,Flux.σ),
                   FastDense(inner,inner,Flux.σ),
                   FastDense(inner,1))#,(u,p)->gpuones .* u)
 
-initθ = DiffEqFlux.initial_params(chain) |> gpu
+initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
 
 # strategy = NeuralPDE.QuasiRandomTraining(4000; #points
 #                                          sampling_alg = SobolSample(),
 #                                          minibatch = 3)
-strategy = NeuralPDE.GridTraining(0.1f0)
+strategy = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)
