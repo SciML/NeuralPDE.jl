@@ -50,12 +50,12 @@ n = 15
 chain =[FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1)) for _ in 1:3]
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-_strategy = NeuralPDE.QuadratureTraining()
-discretization = NeuralPDE.PhysicsInformedNN(chain, _strategy, init_params= initθ)
+_strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, _strategy, init_params= initθ)
 
 pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1,u2,u3])
-prob = NeuralPDE.discretize(pde_system,discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+prob = discretize(pde_system,discretization)
+sym_prob = symbolic_discretize(pde_system,discretization)
 
 pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
 bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
