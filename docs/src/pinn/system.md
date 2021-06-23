@@ -222,6 +222,7 @@ for i in 1:7
 end
 ```
 
+
 ![aprNN_sol_u1](https://user-images.githubusercontent.com/12683885/122998551-de79d600-d3b5-11eb-8f5d-59d00178c2ab.png)
 
 ![aprNN_sol_u2](https://user-images.githubusercontent.com/12683885/122998567-e3d72080-d3b5-11eb-9024-4072f4b66cda.png)
@@ -233,13 +234,9 @@ end
 ## Comparison of the second numerical derivative and numerical + neural network derivative
 
 
-![Dxxu1](https://user-images.githubusercontent.com/12683885/122998730-17b24600-d3b6-11eb-9e0a-74e7b8dfbef5.png)
+![DDu1](https://user-images.githubusercontent.com/12683885/123113394-3280cb00-d447-11eb-88e3-a8541bbf089f.png)
 
-![Dttu1](https://user-images.githubusercontent.com/12683885/122998744-1d0f9080-d3b6-11eb-8958-e4d2908c00c4.png)
-
-![Dttu1](https://user-images.githubusercontent.com/12683885/122998759-226cdb00-d3b6-11eb-89cb-13ea9e1302ac.png)
-
-![Dxxu2](https://user-images.githubusercontent.com/12683885/122998784-27318f00-d3b6-11eb-9b90-2029ffd34879.png)
+![DDu2](https://user-images.githubusercontent.com/12683885/123113413-36ace880-d447-11eb-8f6a-4c3caa86e359.png)
 
 
 ## Solving Matrices of PDEs
