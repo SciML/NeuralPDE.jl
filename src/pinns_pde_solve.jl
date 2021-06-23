@@ -222,6 +222,19 @@ function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strat
                     [:($derivative), Symbol(:phi,num_depvar), :u, cord, εs_dnv, order, Symbol(:($θ),num_depvar)]
                 end
                 break
+            elseif e isa Symbolics.Integral
+                integrating_variable = toexpr(_args[1].x)
+                integrand = _transform_expression(_args[2],dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+                integral_ex = [:integral, :u, :cord, integrating_variable, integrand]
+                if !(typeof(chain) <: AbstractVector)
+                    push!(integral_ex, :phi)
+                    push!(integral_ex, :($θ))
+                else
+                    for v in keys(dict_depvars)
+                        push!(integral_ex, Symbol(:phi,dict_depvars[v]), Symbol(:($θ),dict_depvars[v]))
+                    end ##change to better
+                end
+                integral_ex
             end
         else
             ex.args[i] = _transform_expression(ex.args[i],dict_indvars,dict_depvars,chain,eltypeθ,strategy)
@@ -656,6 +669,38 @@ function get_numeric_derivative()
                 return (u(x .+ ε,θ,phi) .- u(x .- ε,θ,phi)) .* _epsilon
             end
         end
+end
+function get_numeric_integral(dict_indvars, num_dep_vars, multiple_dep_var)
+    integral_args = :(u, integrand, num_var,lb, ub)
+    if !multiple_dep_var
+        push!(integral_args.args, :phi)
+        push!(integral_args.args, :($θ))
+    else
+        for i in num_dep_vars
+            push!(integral_args.args, Symbol(:phi, i))
+            push!(integral_args.args, Symbol(:($θ),i))
+        end
+    end
+    push!(integral_args.args , :(cord))
+    integral =
+        :(($integral_args)->
+            begin
+                integral_var = nothing
+                for (key, value) in dict_indvars if value == num_var integral_var = key end end
+                f =
+                :($(integral_var)->
+                        begin
+                            u = $u
+                            cord = $cord
+                            phi = $phi
+                            $θ = $$θ
+                            return $integrand
+                        end
+                    )
+                integrand_function = @RuntimeGeneratedFunction(f)
+                ##Do something with the integrand function
+            end)
+
 end
 
 derivative = get_numeric_derivative()
