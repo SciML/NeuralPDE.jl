@@ -72,14 +72,122 @@ res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=5000)
 phi = discretization.phi
 ```
 
-And some analysis:
+
+Low-level api
+
+
+```julia
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using Quadrature,Cubature
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u1(..), u2(..), u3(..)
+Dt = Differential(t)
+Dtt = Differential(t)^2
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+eqs = [Dtt(u1(t,x)) ~ Dxx(u1(t,x)) + u3(t,x)*sin(pi*x),
+       Dtt(u2(t,x)) ~ Dxx(u2(t,x)) + u3(t,x)*cos(pi*x),
+       0. ~ u1(t,x)*sin(pi*x) + u2(t,x)*cos(pi*x) - exp(-t)]
+
+bcs = [u1(0,x) ~ sin(pi*x),
+       u2(0,x) ~ cos(pi*x),
+       Dt(u1(0,x)) ~ -sin(pi*x),
+       Dt(u2(0,x)) ~ -cos(pi*x),
+       u1(t,0) ~ 0.,
+       u2(t,0) ~ exp(-t),
+       u1(t,1) ~ 0.,
+       u2(t,1) ~ -exp(-t)]
+
+# Space and time domains
+domains = [t ∈ Interval(0.0,1.0),
+           x ∈ Interval(0.0,1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain =[FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1)) for _ in 1:3]
+initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
+flat_initθ = reduce(vcat,initθ )
+
+eltypeθ = eltype(initθ[1])
+parameterless_type_θ = DiffEqBase.parameterless_type(initθ[1])
+phi = NeuralPDE.get_phi.(chain,parameterless_type_θ)
+
+map(phi_ -> phi_(rand(2,10), flat_initθ),phi)
+
+derivative = NeuralPDE.get_numeric_derivative()
+
+
+indvars = [t,x]
+depvars = [u1,u2,u3]
+dim = length(domains)
+quadrature_strategy = NeuralPDE.QuadratureTraining()
+
+
+_pde_loss_functions = [NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,
+                                                     chain,initθ,quadrature_strategy) for eq in  eqs]
+
+map(loss_f -> loss_f(rand(2,10), flat_initθ),_pde_loss_functions)
+
+bc_indvars = NeuralPDE.get_argument(bcs,indvars,depvars)
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,
+                                                    chain,initθ,quadrature_strategy,
+                                                    bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+map(loss_f -> loss_f(rand(1,10), flat_initθ),_bc_loss_functions)
+
+# dx = 0.1
+# train_sets = NeuralPDE.generate_training_sets(domains,dx,eqs,bcs,eltypeθ,indvars,depvars)
+# pde_train_set,bcs_train_set = train_sets
+pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,eqs,bcs,eltypeθ,indvars,depvars,quadrature_strategy)
+
+plbs,pubs = pde_bounds
+pde_loss_functions = [NeuralPDE.get_loss_function(_loss,
+                                                 lb,ub,
+                                                 eltypeθ, parameterless_type_θ,
+                                                 quadrature_strategy)
+                                                 for (_loss,lb,ub) in zip(_pde_loss_functions, plbs,pubs)]
+
+map(l->l(flat_initθ) ,pde_loss_functions)
+
+blbs,bubs = bcs_bounds
+bc_loss_functions = [NeuralPDE.get_loss_function(_loss,lb,ub,
+                                                 eltypeθ, parameterless_type_θ,
+                                                 quadrature_strategy)
+                                                 for (_loss,lb,ub) in zip(_bc_loss_functions, blbs,bubs)]
+
+map(l->l(falt_initθ) ,bc_loss_functions)
+
+loss_functions =  [pde_loss_functions;bc_loss_functions]
+
+function loss_function(θ,p)
+    sum(map(l->l(θ) ,loss_functions))
+end
+
+f_ = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
+prob = GalacticOptim.OptimizationProblem(f_, flat_initθ)
+
+cb_ = function (p,l)
+    println("loss: ", l )
+    println("pde losses: ", map(l -> l(p), loss_functions[1:3]))
+    println("bcs losses: ", map(l -> l(p), loss_functions[4:end]))
+    return false
+end
+
+res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb_, maxiters=5000)
+```
+
+
+And some analysis for both low and high level api:
+
 
 ```julia
 using Plots
 
 ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 
-initθ = discretization.init_params
 acum =  [0;accumulate(+, length.(initθ))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 minimizers_ = [res.minimizer[s] for s in sep]
@@ -93,7 +201,7 @@ for i in 1:3
     p2 = plot(ts, xs, u_predict[i],linetype=:contourf,title = "predict");
     p3 = plot(ts, xs, diff_u[i],linetype=:contourf,title = "error");
     plot(p1,p2,p3)
-    savefig("sol_uq$i")
+    savefig("sol_u$i")
 end
 ```
 
@@ -106,7 +214,7 @@ end
 
 ## Derivative neural network approximation
 
-The accuracy and stability of numerical derivative decreases with each successive order. 
+The accuracy and stability of numerical derivative decreases with each successive order.
 The accuracy of the entire solution is determined by the worst accuracy of one of the variables, in our case - the highest degree of the derivative.
 Derivative neural network approximation is such an approach that using lower-order numeric derivatives and estimates higher-order derivatives with a neural network so that allows an increase in the marginal precision for all optimization.
 
