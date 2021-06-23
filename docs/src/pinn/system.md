@@ -106,6 +106,15 @@ end
 
 ## Derivative neural network approximation
 
+The accuracy and stability of numerical derivative decreases with each successive order. 
+The accuracy of the entire solution is determined by the worst accuracy of one of the variables, in our case - the highest degree of the derivative.
+Derivative neural network approximation is such an approach that using lower-order numeric derivatives and estimates higher-order derivatives with a neural network so that allows an increase in the marginal precision for all optimization.
+
+Since `u3` is only in the first and second equations, that its accuracy during training is determined by the accuracy of the second numerical derivative `u3(t,x)  ~  (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)`.
+
+We approximate the derivative of the neural network with another neural network `Dt(u1(t,x)) ~ Dtu1(t,x)` and train it along with other equations, and thus we avoid using the second numeric derivative `Dt(Dtu1(t,x))`.
+
+
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
