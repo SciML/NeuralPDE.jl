@@ -158,7 +158,7 @@ bc_loss_functions = [NeuralPDE.get_loss_function(_loss,lb,ub,
                                                  quadrature_strategy)
                                                  for (_loss,lb,ub) in zip(_bc_loss_functions, blbs,bubs)]
 
-map(l->l(falt_initθ) ,bc_loss_functions)
+map(l->l(flat_initθ) ,bc_loss_functions)
 
 loss_functions =  [pde_loss_functions;bc_loss_functions]
 
