@@ -173,6 +173,7 @@ include("kolmogorov_solve.jl")
 include("rode_solve.jl")
 include("stopping_solve.jl")
 include("pinns_pde_solve.jl")
+include("neural_adapter.jl")
 include("param_kolmogorov_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
