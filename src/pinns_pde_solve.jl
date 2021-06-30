@@ -318,7 +318,8 @@ function build_symbolic_loss_function(eqs,_indvars,_depvars,
                                       bc_indvars=nothing,
                                       eq_params = SciMLBase.NullParameters(),
                                       param_estim = false,
-                                      default_p=nothing)
+                                      default_p=nothing,
+                                      integral=nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
@@ -328,7 +329,8 @@ function build_symbolic_loss_function(eqs,_indvars,_depvars,
                                         bc_indvars = bc_indvars,
                                         eq_params = eq_params,
                                         param_estim = param_estim,
-                                        default_p=default_p)
+                                        default_p=default_p,
+                                        integral=integral)
 end
 
 function get_indvars_ex(bc_indvars)
@@ -351,14 +353,19 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
                                       eq_params = SciMLBase.NullParameters(),
                                       param_estim = param_estim,
                                       default_p=default_p,
-                                      bc_indvars = indvars)
+                                      bc_indvars = indvars,
+                                      integral=nothing
+                                      )
     if chain isa AbstractArray
         eltypeθ = eltype(initθ[1])
     else
         eltypeθ = eltype(initθ)
     end
-
-    loss_function = parse_equation(eqs,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+    if integral isa Nothing
+        loss_function = parse_equation(eqs,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+    else
+        loss_function = integral
+    end
     vars = :(cord, $θ, phi, derivative,u,p)
     ex = Expr(:block)
     if typeof(chain) <: AbstractVector
@@ -670,41 +677,30 @@ function get_numeric_derivative()
             end
         end
 end
-function get_numeric_integral(dict_indvars, num_dep_vars, multiple_dep_var)
-    integral_args = :(u, integrand, num_var,lb, ub)
-    if !multiple_dep_var
-        push!(integral_args.args, :phi)
-        push!(integral_args.args, :($θ))
-    else
-        for i in num_dep_vars
-            push!(integral_args.args, Symbol(:phi, i))
-            push!(integral_args.args, Symbol(:($θ),i))
-        end
-    end
-    push!(integral_args.args , :(cord))
-    integral =
-        :(($integral_args)->
-            begin
-                integral_var = nothing
-                for (key, value) in dict_indvars if value == num_var integral_var = key end end
-                f =
-                :($(integral_var)->
-                        begin
-                            u = $u
-                            cord = $cord
-                            phi = $phi
-                            $θ = $$θ
-                            return $integrand
-                        end
-                    )
-                integrand_function = @RuntimeGeneratedFunction(f)
-                ##Do something with the integrand function
-            end)
 
+function get_numeric_integral(strategy, indvars, depvars)
+    integral =
+        (u, cord, phi, θ, num_vars, integrating_variable, integrand, lb, ub, strategy=strategy, indvars=indvars, depvars=depvars)->
+            begin
+                integrand_ = build_symbolic_function(nothing, indvars, depvars, phi, NeuralPDE.get_numeric_derivative, chain, θ, strategy, integral = integrand_ )
+                integrand_func = @RuntimeGeneratedFunction(integrand_)
+                function integrand_function(x,p)
+                    integrand_func([x] , θ, phi, get_numeric_derivative, u, nothing)
+                end
+                if lb isa Number && ub isa Number
+                    prob_ = QuadratureProblem(integrand_function,lb, ub)
+                    sol = solve(prob_,QuadGKJL(),reltol=1e-3,abstol=1e-3)
+                    return sol.u
+                end
 end
 
+<<<<<<< HEAD
 derivative = get_numeric_derivative()
 # Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
+=======
+
+Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
+>>>>>>> 49bb72b (Use symbolic_loss_function for integrand expression)
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
     loss = (θ) -> mean(abs2,loss_function(train_set, θ))
