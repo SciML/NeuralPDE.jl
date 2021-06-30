@@ -678,20 +678,44 @@ function get_numeric_derivative()
         end
 end
 
-function get_numeric_integral(strategy, indvars, depvars)
+function get_numeric_integral(strategy, indvars, depvars, dict_indvars, chain)
+
     integral =
-        (u, cord, phi, θ, num_vars, integrating_variable, integrand, lb, ub, strategy=strategy, indvars=indvars, depvars=depvars)->
+        (u, cord, phi, θ, integrating_variable, integrand, lb, ub, strategy=strategy, indvars=indvars, depvars=depvars)->
             begin
-                integrand_ = build_symbolic_function(nothing, indvars, depvars, phi, NeuralPDE.get_numeric_derivative, chain, θ, strategy, integral = integrand_ )
+                integrand_ = NeuralPDE.build_symbolic_loss_function(nothing, indvars, depvars, phi, NeuralPDE.get_numeric_derivative, chain, θ, strategy, integral = integrand)
                 integrand_func = @RuntimeGeneratedFunction(integrand_)
-                function integrand_function(x,p)
-                    integrand_func([x] , θ, phi, get_numeric_derivative, u, nothing)
-                end
-                if lb isa Number && ub isa Number
-                    prob_ = QuadratureProblem(integrand_function,lb, ub)
+                integrating_var_id = dict_indvars[integrating_variable]
+
+                flat_θ = if (typeof(chain) <: AbstractVector) reduce(vcat,θ) else θ end
+
+                function integration_(cord, lb, ub)
+                    lb_ = lb isa Number ? lb : lb(cord , flat_θ, phi, NeuralPDE.get_numeric_derivative, u, nothing)[1]
+                    ub_ = ub isa Number ? ub : ub(cord , flat_θ, phi, NeuralPDE.get_numeric_derivative, u, nothing)[1]
+                    function integrand_function_(x,p)
+                        cord_ = cord
+                        cord_[integrating_var_id] = x
+                        cord_ = reshape(cord_, (size(cord_)[1] , 1))
+                        integrand_func(cord_ , flat_θ, phi, NeuralPDE.get_numeric_derivative, u, nothing)[1]
+                    end
+                    prob_ = QuadratureProblem(integrand_function_, lb_, ub_)
                     sol = solve(prob_,QuadGKJL(),reltol=1e-3,abstol=1e-3)
                     return sol.u
                 end
+
+                if !(lb isa Number && ub isa Number)
+                    if !(lb isa Number)
+                        lb = NeuralPDE.build_symbolic_loss_function(nothing, indvars, depvars, phi, NeuralPDE.get_numeric_derivative, chain, θ, strategy, integral = lb)
+                        lb_f = @RuntimeGeneratedFunction(lb)
+                    end
+                    if !(ub isa Number)
+                        ub = NeuralPDE.build_symbolic_loss_function(nothing, indvars, depvars, phi, NeuralPDE.get_numeric_derivative, chain, θ, strategy, integral = ub)
+                        ub = @RuntimeGeneratedFunction(ub)
+                    end
+
+                end
+                return mapslices((x) -> integration_(x, lb, ub), cord; dims = 1)
+            end
 end
 
 <<<<<<< HEAD
