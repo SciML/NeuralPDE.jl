@@ -224,17 +224,11 @@ function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strat
                 break
             elseif e isa Symbolics.Integral
                 integrating_variable = toexpr(_args[1].x)
-                integrand = _transform_expression(_args[2],dict_indvars,dict_depvars,chain,eltypeθ,strategy)
-                integral_ex = [:integral, :u, :cord, integrating_variable, integrand]
-                if !(typeof(chain) <: AbstractVector)
-                    push!(integral_ex, :phi)
-                    push!(integral_ex, :($θ))
-                else
-                    for v in keys(dict_depvars)
-                        push!(integral_ex, Symbol(:phi,dict_depvars[v]), Symbol(:($θ),dict_depvars[v]))
-                    end ##change to better
-                end
-                integral_ex
+                integrand = transform_expression(_args[2],dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+                lb, ub = DomainSets.endpoints(_args[1].domain)
+                lb = toexpr(lb)
+                ub = toexpr(ub)
+                [:integral, :u, :cord, :phi, :($θ), integrating_variable, integrand, lb, ub]
             end
         else
             ex.args[i] = _transform_expression(ex.args[i],dict_indvars,dict_depvars,chain,eltypeθ,strategy)
