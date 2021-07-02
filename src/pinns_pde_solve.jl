@@ -1,5 +1,5 @@
 import Base.Broadcast
-Base.Broadcast.dottable(x::Function) = true
+# Base.Broadcast.dottable(x::Function) = true
 RuntimeGeneratedFunctions.init(@__MODULE__)
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
@@ -185,6 +185,9 @@ where
 function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
     _args = ex.args
     for (i,e) in enumerate(_args)
+        if e in [+,-,*,/,^,inv]
+            ex.args[i] = Symbol(e)
+        end
         if !(e isa Expr)
             if e in keys(dict_depvars)
                 depvar = _args[1]
