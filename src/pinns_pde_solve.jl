@@ -185,7 +185,7 @@ where
 function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
     _args = ex.args
     for (i,e) in enumerate(_args)
-        if e in [+,-,*,/,^,inv]
+        if e isa Function && !(e isa ModelingToolkit.Differential)
             ex.args[i] = Symbol(e)
         end
         if !(e isa Expr)
