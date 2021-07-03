@@ -1,5 +1,5 @@
 import Base.Broadcast
-Base.Broadcast.dottable(x::Function) = true
+# Base.Broadcast.dottable(x::Function) = true
 RuntimeGeneratedFunctions.init(@__MODULE__)
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
@@ -185,6 +185,9 @@ where
 function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
     _args = ex.args
     for (i,e) in enumerate(_args)
+        if e isa Function && !(e isa ModelingToolkit.Differential)
+            ex.args[i] = Symbol(e)
+        end
         if !(e isa Expr)
             if e in keys(dict_depvars)
                 depvar = _args[1]
@@ -192,9 +195,9 @@ function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strat
                 indvars = _args[2:end]
                 cord = :cord
                 ex.args = if !(typeof(chain) <: AbstractVector)
-                    [:u, cord, :($θ), :phi]
+                    [:($u), cord, :($θ), :phi]
                 else
-                    [:u, cord, Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
+                    [:($u), cord, Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
                 end
                 break
             elseif e isa ModelingToolkit.Differential
@@ -214,9 +217,9 @@ function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strat
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
                 ex.args = if !(typeof(chain) <: AbstractVector)
-                    [:derivative, :phi, :u, cord, εs_dnv, order, :($θ)]
+                    [:($derivative), :phi, :u, cord, εs_dnv, order, :($θ)]
                 else
-                    [:derivative, Symbol(:phi,num_depvar), :u, cord, εs_dnv, order, Symbol(:($θ),num_depvar)]
+                    [:($derivative), Symbol(:phi,num_depvar), :u, cord, εs_dnv, order, Symbol(:($θ),num_depvar)]
                 end
                 break
             end
@@ -634,7 +637,8 @@ function get_u()
     u = (cord, θ, phi)-> phi(cord, θ)
 end
 
-Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
+u = get_u()
+# Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
 
 # the method to calculate the derivative
 function get_numeric_derivative()
@@ -654,7 +658,8 @@ function get_numeric_derivative()
         end
 end
 
-Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
+derivative = get_numeric_derivative()
+# Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
     loss = (θ) -> mean(abs2,loss_function(train_set, θ))
