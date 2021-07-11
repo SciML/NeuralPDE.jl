@@ -150,9 +150,9 @@ Dict{Symbol,Int64} with 3 entries:
 get_dict_vars(vars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(vars)])
 
 # Wrapper for _transform_expression
-function transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+function transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ;is_integral=false)
     if ex isa Expr
-        ex = _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+        ex = _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ;is_integral = is_integral)
     end
     return ex
 end
@@ -182,10 +182,10 @@ where
  order - order of derivative
  θ - weight in neural network
 """
-function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,initθ;is_integral=false)
     _args = ex.args
     for (i,e) in enumerate(_args)
-        if e isa Function && !(e isa ModelingToolkit.Differential)
+        if e isa Function && !(e isa ModelingToolkit.Differential || e isa Symbolics.Integral)
             ex.args[i] = Symbol(e)
         end
         if !(e isa Expr)
@@ -194,10 +194,11 @@ function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strat
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
                 cord = :cord
+                var_ = is_integral ? :(u) : :($u)
                 ex.args = if !(typeof(chain) <: AbstractVector)
-                    [:($u), cord, :($θ), :phi]
+                    [var_, cord, :($θ), :phi]
                 else
-                    [:($u), cord, Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
+                    [var_, cord, Symbol(:($θ),num_depvar), Symbol(:phi,num_depvar)]
                 end
                 break
             elseif e isa ModelingToolkit.Differential
@@ -212,27 +213,32 @@ function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strat
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
                 cord = :cord
+                var_ = is_integral ? :(derivative) : :($derivative)
                 dim_l = length(indvars)
                 εs = [get_ε(dim_l,d,eltypeθ) for d in 1:dim_l]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
                 ex.args = if !(typeof(chain) <: AbstractVector)
-                    [:($derivative), :phi, :u, cord, εs_dnv, order, :($θ)]
+                    [var_, :phi, :u, cord, εs_dnv, order, :($θ)]
                 else
-                    [:($derivative), Symbol(:phi,num_depvar), :u, cord, εs_dnv, order, Symbol(:($θ),num_depvar)]
+                    [var_, Symbol(:phi,num_depvar), :u, cord, εs_dnv, order, Symbol(:($θ),num_depvar)]
                 end
                 break
             elseif e isa Symbolics.Integral
                 integrating_variable = toexpr(_args[1].x)
-                integrand = transform_expression(_args[2],dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+                integrating_var_id = dict_indvars[integrating_variable]
+                integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,initθ; is_integral = true)
+                integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative_, nothing, chain, θ, strategy, integrand = integrand,eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
+                # integrand = repr(integrand)
                 lb, ub = DomainSets.endpoints(_args[1].domain)
                 lb = toexpr(lb)
                 ub = toexpr(ub)
-                ex.args = [:integral, :u, :cord, :phi, :($θ), integrating_variable, integrand, lb, ub]
+                integrand_func = @RuntimeGeneratedFunction(integrand)
+                ex.args = [:($integral), :u, :cord, :phi, integrating_var_id, integrand_func, lb, ub,  :($θ)]
                 break
             end
         else
-            ex.args[i] = _transform_expression(ex.args[i],dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+            ex.args[i] = _transform_expression(ex.args[i],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
         end
     end
     return ex
@@ -266,17 +272,17 @@ Example:
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 
-function build_symbolic_equation(eq,_indvars,_depvars,chain,eltypeθ,strategy)
+function build_symbolic_equation(eq,_indvars,_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
-    parse_equation(eq,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+    parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
 end
 
 
-function parse_equation(eq,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
-    left_expr = transform_expression(toexpr(eq_lhs),dict_indvars,dict_depvars,chain,eltypeθ,strategy)
-    right_expr = transform_expression(toexpr(eq_rhs),dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+    left_expr = transform_expression(toexpr(eq_lhs),indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
+    right_expr = transform_expression(toexpr(eq_rhs),indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
     left_expr = Broadcast.__dot__(left_expr)
     right_expr = Broadcast.__dot__(right_expr)
     loss_func = :($left_expr .- $right_expr)
@@ -356,7 +362,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         eltypeθ = eltype(initθ)
     end
     if integrand isa Nothing
-        loss_function = parse_equation(eqs,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+        loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
     else
         loss_function = integrand
     end
@@ -467,6 +473,7 @@ function build_loss_function(eqs,indvars,depvars,
                                                        param_estim=param_estim,default_p=default_p)
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
+    println(expr_loss_function)
     loss_function = (cord, θ) -> begin
         _loss_function(cord, θ, phi, derivative, integral, u, default_p)
     end
@@ -672,51 +679,53 @@ function get_numeric_derivative()
         end
 end
 
-function get_numeric_integral(strategy, indvars, depvars, dict_indvars, chain, derivative)
+function get_numeric_integral(strategy, _indvars, _depvars, dict_indvars, chain, derivative)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     integral =
-        (u, cord, phi, θ, integrating_variable, integrand, lb, ub, strategy=strategy, indvars=indvars, depvars=depvars)->
+        (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ ;strategy=strategy, indvars=indvars, depvars=depvars, dict_indvars=dict_indvars, dict_depvars=dict_depvars)->
             begin
-                integrand_ = NeuralPDE.build_symbolic_loss_function(nothing, indvars, depvars, phi, derivative, nothing, chain, θ, strategy, integrand = integrand)
-                integrand_func = @RuntimeGeneratedFunction(integrand_)
-                integrating_var_id = dict_indvars[integrating_variable]
+                # integrand = eval(Meta.parse(integrand))
+                # integrand_ = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = integrand, param_estim =false, default_p = nothing)
+                # println(dict_indvars)
+                # println(integrand)
+                # integrating_var_id = dict_indvars[integrating_variable]
                 flat_θ = if (typeof(chain) <: AbstractVector) reduce(vcat,θ) else θ end
 
                 function integration_(cord, lb, ub)
                     lb_ = lb isa Number ? lb : lb(cord , flat_θ, phi, derivative, integral, u, nothing)[1]
                     ub_ = ub isa Number ? ub : ub(cord , flat_θ, phi, derivative, integral, u, nothing)[1]
-                    function integrand_function_(x,p)
-                        cord_ = cord
+                    cord_ = cord
+                    function integrand_function_(x, p)
                         cord_[integrating_var_id] = x
                         cord_ = reshape(cord_, (size(cord_)[1] , 1))
-                        integrand_func(cord_ , flat_θ, phi, derivative, integral, u, nothing)[1]
+                        integrand_func(cord_ ,flat_θ , phi, derivative, integral, u, nothing)[1]
                     end
-                    prob_ = QuadratureProblem(integrand_function_, lb_, ub_)
+                    prob_ = QuadratureProblem(integrand_function_, lb_, ub_,nout = 1)
                     sol = solve(prob_,QuadGKJL(),reltol=1e-3,abstol=1e-3)
                     return sol.u
                 end
 
                 if !(lb isa Number && ub isa Number)
                     if !(lb isa Number)
-                        lb = NeuralPDE.build_symbolic_loss_function(nothing, indvars, depvars, phi, derivative, nothing, chain, θ, strategy, integrand = lb)
-                        lb_f = @RuntimeGeneratedFunction(lb)
+                        lb = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = lb, param_estim =false, default_p = nothing)
+                        lb = @RuntimeGeneratedFunction(lb)
                     end
                     if !(ub isa Number)
-                        ub = NeuralPDE.build_symbolic_loss_function(nothing, indvars, depvars, phi, derivative, nothing, chain, θ, strategy, integrand = ub)
+                        ub = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = ub, param_estim =false, default_p = nothing)
                         ub = @RuntimeGeneratedFunction(ub)
                     end
 
                 end
-                return mapslices((x) -> integration_(x, lb, ub), cord; dims = 1)
+                integration_arr = reshape([], 1, 0)
+                for i in 1:size(cord)[2]
+                    integration_arr = hcat(integration_arr ,integration_(cord[:, i], lb, ub))
+                end
+                return integration_arr
             end
 end
 
-<<<<<<< HEAD
 derivative = get_numeric_derivative()
 # Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
-=======
-
-Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
->>>>>>> 49bb72b (Use symbolic_loss_function for integrand expression)
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
     loss = (θ) -> mean(abs2,loss_function(train_set, θ))
@@ -851,7 +860,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
-    integral = get_numeric_integral(strategy, indvars, depvars, dict_indvars, chain, derivative)
+    global integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, dict_indvars, chain, derivative)
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -909,7 +918,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
-    integral = get_numeric_integral(strategy, indvars, depvars, dict_indvars, chain, derivative)
+    global integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, dict_indvars, chain, derivative)
     if !(eqs isa Array)
         eqs = [eqs]
     end
