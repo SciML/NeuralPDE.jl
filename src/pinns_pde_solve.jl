@@ -695,12 +695,13 @@ function get_numeric_integral(strategy, _indvars, _depvars, dict_indvars, chain,
                     lb_ = lb isa Number ? lb : lb(cord , flat_θ, phi, derivative, integral, u, nothing)[1]
                     ub_ = ub isa Number ? ub : ub(cord , flat_θ, phi, derivative, integral, u, nothing)[1]
                     cord_ = cord
-                    function integrand_function_(x, p)
+                    function integrand_function_(x,p)
                         cord_[integrating_var_id] = x
                         cord_ = reshape(cord_, (size(cord_)[1] , 1))
-                        integrand_func(cord_ ,flat_θ , phi, derivative, integral, u, nothing)[1]
+                        integrand_func(cord_ ,p , phi, derivative, integral, u, nothing)[1]
                     end
-                    prob_ = QuadratureProblem(integrand_function_, lb_, ub_,nout = 1)
+                    prob_ = Quadrature.QuadratureProblem(integrand_function_, lb_, ub_,flat_θ; nout = 1, batch = 0)
+                    println(prob_.nout)
                     sol = solve(prob_,QuadGKJL(),reltol=1e-3,abstol=1e-3)
                     return sol.u
                 end
