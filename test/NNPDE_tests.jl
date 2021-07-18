@@ -578,185 +578,34 @@ p_ = res.minimizer[end-2:end]
 # plot(sol)
 # plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
 
-## Approximation of function 1D
-println("Approximation of function 1D")
-
-@parameters x
-@variables u(..)
-
-func(x) = @. 2 + abs(x - 0.5)
-
-eq = [u(x) ~ func(x)]
-bc = [u(0)~u(0)]
-
-x0 = 0
-x_end = 2
-dx= 0.001
-domain = [x ∈ Interval(x0,x_end)]
-
-xs = collect(x0:dx:x_end)
-func_s = func(xs)
-
-hidden =10
-chain = FastChain(FastDense(1,hidden, Flux.tanh),
-                    FastDense(hidden, hidden, Flux.tanh),
-                    FastDense(hidden, 1))
+@parameters t
+@variables i(..)
+Di = Differential(t)
+Ii = Integral(t, DomainSets.ClosedInterval(0, t))
+eq = Di(i(t)) + 2*i(t) + 5*Ii(i(t)) ~ 1
+bcs = [i(0.) ~ 0.0]
+domains = [t ∈ Interval(0.0,2.0)]
+chain = FastChain(FastDense(1,15,Flux.σ),FastDense(15,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
-
-strategy = NeuralPDE.GridTraining(0.01)
-
-discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
-@named pdesys = PDESystem(eq,bc,domain,[x],[u])
-prob = NeuralPDE.discretize(pdesys,discretization)
-
-res  = GalacticOptim.solve(prob,ADAM(0.1),maxiters=500)
-prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(),maxiters=500)
-
-@test discretization.phi(xs',res.u) ≈ func(xs') rtol = 0.001
-
-# plot(xs,func(xs))
-# plot!(xs, discretization.phi(xs',res.u)')
-
-## Approximation of function 1D 2
-println("Approximation of function 1D 2")
-
-@parameters x
-@variables u(..)
-func(x) =  @. cos(5pi*x)*x
-eq = [u(x) ~ func(x)]
-bc = [u(0)~u(0)]
-
-x0 = 0
-x_end = 4
-domain = [x ∈ Interval(x0,x_end)]
-
-hidden =20
-chain = FastChain(FastDense(1,hidden, Flux.sin),
-                  FastDense(hidden, hidden, Flux.sin),
-                  FastDense(hidden, hidden, Flux.sin),
-                  FastDense(hidden, 1))
-initθ = DiffEqFlux.initial_params(chain)
-
-strategy = NeuralPDE.GridTraining(0.01)
-
-discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
-@named pdesys = PDESystem(eq,bc,domain,[x],[u])
-prob = NeuralPDE.discretize(pdesys,discretization)
-
-res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
-prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(),maxiters=1000)
-
-dx= 0.01
-xs = collect(x0:dx:x_end)
-func_s = func(xs)
-
-@test discretization.phi(xs',res.u) ≈ func(xs') rtol = 0.01
-
-# plot(xs,func(xs))
-# plot!(xs, discretization.phi(xs',res.u)')
-
-## Approximation of function 2D
-println("Approximation of function 2D")
-
-@parameters x,y
-@variables u(..)
-func(x,y) =  -cos(x) * cos(y) * exp(-((x - pi)^2 + (y - pi)^2))
-eq = [u(x,y) ~ func(x,y)]
-bc = [u(0,0) ~ u(0,0)]
-
-x0 = -10
-x_end = 10
-y0 = -10
-y_end = 10
-d = 0.4
-
-domain = [x ∈ Interval(x0, x_end), y ∈ Interval(y0, y_end)]
-
-hidden =15
-chain = FastChain(FastDense(2,hidden, Flux.tanh),
-                  FastDense(hidden, hidden, Flux.tanh),
-                  FastDense(hidden, hidden, Flux.tanh),
-                  FastDense(hidden, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
-
-strategy = NeuralPDE.GridTraining(d)
-discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
-@named pdesys = PDESystem(eq,bc,domain,[x,y],[u])
-prob = NeuralPDE.discretize(pdesys,discretization)
-symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
-prob.f.f.loss_function(initθ)
-
-res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
-prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(),maxiters=1000)
-prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(),maxiters=500)
+strategy_ = NeuralPDE.GridTraining(0.01)
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy_;
+                                             init_params = nothing,
+                                             phi = nothing,
+                                             derivative = nothing,
+                                             )
+pde_system = PDESystem(eq,bcs,domains,[t],[i])
+prob = NeuralPDE.discretize(pde_system,discretization)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
+ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 
-xs = collect(x0:0.1:x_end)
-ys = collect(y0:0.1:y_end)
-u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-u_real = reshape([func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
-diff_u = abs.(u_predict .- u_real)
+analytic_sol_func(t) = 1/2*(exp(-t))*(sin(2*t))
+u_real  = [analytic_sol_func(t) for t in ts]
 
-@test u_predict ≈ u_real rtol = 0.05
+u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
-# p1 = plot(xs, ys, u_real, st=:surface,title = "analytic");
-# p2 = plot(xs, ys, u_predict, st=:surface,title = "predict");
-# p3 = plot(xs, ys, diff_u,st=:surface,title = "error");
-# plot(p1,p2,p3)
+@test Flux.mse(u_real, u_predict) < 0.001
 
-## approximation from data
-println("Approximation of function from data and additional_loss")
-
-@parameters x
-@variables u(..)
-eq = [u(0) ~ u(0)]
-bc = [u(0) ~ u(0)]
-x0 = 0
-x_end = pi
-dx =pi/10
-domain = [x ∈ Interval(x0,x_end)]
-
-hidden =10
-chain = FastChain(FastDense(1,hidden, Flux.tanh),
-                  FastDense(hidden, hidden, Flux.sin),
-                  FastDense(hidden, hidden, Flux.tanh),
-                  FastDense(hidden, 1))
-
-initθ = Float64.(DiffEqFlux.initial_params(chain))
-
-strategy = NeuralPDE.GridTraining(dx)
-xs = collect(x0:dx:x_end)'
-aproxf_(x) = @. cos(pi*x)
-data =aproxf_(xs)
-
-function additional_loss_(phi, θ , p)
-    sum(abs2,phi(xs,θ) .- data)
-end
-
-discretization = NeuralPDE.PhysicsInformedNN(chain,strategy;
-                                             initial_params=initθ,
-                                             additional_loss=additional_loss_)
-
-phi = discretization.phi
-phi(xs, initθ)
-additional_loss_(phi, initθ , nothing)
-
-@named pdesys = PDESystem(eq,bc,domain,[x],[u])
-prob = NeuralPDE.discretize(pdesys,discretization)
-
-res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
-prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(),maxiters=500)
-
-@test phi(xs,res.u) ≈ aproxf_(xs) rtol = 0.01
-
-# xs_ = xs'
-# plot(xs_,data')
-# plot!(xs_, phi(xs,res.u)')
-
-# func(x,y) = -20.0 * exp(-0.2 * sqrt(0.5 * (x^2 + y^2))) - exp(0.5 * (cos(2 * pi * x) + cos(2 * pi * y))) + e + 20
-# func(x,y) = -abs(sin(x) * cos(y) * exp(abs(1 - (sqrt(x^2 + y^2)/pi))))
+# plot(ts, u_real, label = "analytical")
+# plot!(ts, u_predict, label = "predicted")
