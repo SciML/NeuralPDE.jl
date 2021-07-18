@@ -228,11 +228,28 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                 integrating_variable = toexpr(_args[1].x)
                 integrating_var_id = dict_indvars[integrating_variable]
                 integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,initθ; is_integral = true)
-                integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative_, nothing, chain, θ, strategy, integrand = integrand,eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
+                integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative_, nothing, chain, initθ, strategy, integrand = integrand,eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
                 # integrand = repr(integrand)
                 lb, ub = DomainSets.endpoints(_args[1].domain)
                 lb = toexpr(lb)
                 ub = toexpr(ub)
+                lb_definite, ub_definite = false , false
+                if (lb isa Number || lb isa Matrix)
+                    lb_definite = true
+                end
+                if (ub isa Number || ub isa Matrix)
+                    ub_definite = true
+                end
+                if !(lb_definite && ub_definite)
+                    if !(lb_definite)
+                        lb = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = lb, param_estim =false, default_p = nothing)
+                        lb = @RuntimeGeneratedFunction(lb)
+                    end
+                    if !(ub_definite)
+                        ub = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = ub, param_estim =false, default_p = nothing)
+                        ub = @RuntimeGeneratedFunction(ub)
+                    end
+                end
                 integrand_func = @RuntimeGeneratedFunction(integrand)
                 ex.args = [:($integral), :u, :cord, :phi, integrating_var_id, integrand_func, lb, ub,  :($θ)]
                 break
@@ -473,7 +490,6 @@ function build_loss_function(eqs,indvars,depvars,
                                                        param_estim=param_estim,default_p=default_p)
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
-    println(expr_loss_function)
     loss_function = (cord, θ) -> begin
         _loss_function(cord, θ, phi, derivative, integral, u, default_p)
     end
@@ -684,48 +700,55 @@ function get_numeric_integral(strategy, _indvars, _depvars, dict_indvars, chain,
     integral =
         (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ ;strategy=strategy, indvars=indvars, depvars=depvars, dict_indvars=dict_indvars, dict_depvars=dict_depvars)->
             begin
-                # integrand = eval(Meta.parse(integrand))
-                # integrand_ = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = integrand, param_estim =false, default_p = nothing)
-                # println(dict_indvars)
-                # println(integrand)
-                # integrating_var_id = dict_indvars[integrating_variable]
                 flat_θ = if (typeof(chain) <: AbstractVector) reduce(vcat,θ) else θ end
-
-                function integration_(cord, lb, ub)
-                    lb_ = lb isa Number ? lb : lb(cord , flat_θ, phi, derivative, integral, u, nothing)[1]
-                    ub_ = ub isa Number ? ub : ub(cord , flat_θ, phi, derivative, integral, u, nothing)[1]
+                function integration_(cord, lb, ub, flat_θ)
                     cord_ = cord
-                    function integrand_function_(x,p)
-                        cord_[integrating_var_id] = x
-                        cord_ = reshape(cord_, (size(cord_)[1] , 1))
-                        integrand_func(cord_ ,p , phi, derivative, integral, u, nothing)[1]
+                    function integrand_(x , p)
+                        @Zygote.ignore cord_[integrating_var_id] = x[1]
+                        return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)
                     end
-                    prob_ = Quadrature.QuadratureProblem(integrand_function_, lb_, ub_,flat_θ; nout = 1, batch = 0)
-                    println(prob_.nout)
-                    sol = solve(prob_,QuadGKJL(),reltol=1e-3,abstol=1e-3)
-                    return sol.u
-                end
-
-                if !(lb isa Number && ub isa Number)
-                    if !(lb isa Number)
-                        lb = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = lb, param_estim =false, default_p = nothing)
-                        lb = @RuntimeGeneratedFunction(lb)
-                    end
-                    if !(ub isa Number)
-                        ub = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = ub, param_estim =false, default_p = nothing)
-                        ub = @RuntimeGeneratedFunction(ub)
-                    end
-
+                    prob_ = QuadratureProblem(integrand_,lb, ub ,flat_θ)
+                    sol = solve(prob_,CubatureJLh(),reltol=1e-3,abstol=1e-3)[1]
+                    return sol
                 end
                 integration_arr = reshape([], 1, 0)
+                lb_definite, ub_definite = false , false
+                if (lb isa Number || lb isa Matrix)
+                    lb_definite = true
+                end
+                if (ub isa Number || ub isa Matrix)
+                    ub_definite = true
+                end
+                if !lb_definite
+                    lb_ = lb(cord , flat_θ, phi, derivative, nothing, u, nothing)
+                else
+                    if lb isa Number
+                        lb_ = fill(lb, 1, size(cord)[2])
+                    else
+                        lb_ = repeat(lb, 1, size(cord)[2])
+                    end
+                end
+                if !ub_definite
+                    ub_ = ub(cord , flat_θ, phi, derivative, nothing, u, nothing)
+                else
+                    if ub isa Number
+                        ub_ = fill(ub, 1 , size(cord)[2])
+                    else
+                        ub_ = repeat(ub, 1, size(cord)[2])
+                    end
+                end
                 for i in 1:size(cord)[2]
-                    integration_arr = hcat(integration_arr ,integration_(cord[:, i], lb, ub))
+                    ub__ = @Zygote.ignore getindex(ub_, :,  i)
+                    lb__ = @Zygote.ignore getindex(lb_, :,  i)
+                    integration_arr = hcat(integration_arr ,integration_(cord[:, i], lb__, ub__, flat_θ))
                 end
                 return integration_arr
             end
 end
 
 derivative = get_numeric_derivative()
+
+
 # Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
