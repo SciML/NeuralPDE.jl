@@ -176,7 +176,14 @@ domains = [x ∈ Interval(0.0,1.0),
            y ∈ Interval(0.0,1.0)]
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
-chain1 = FastChain(FastDense(2,5,Flux.σ),FastDense(5,5,Flux.σ),FastDense(5,1))
+inner = 8
+af =Flux.σ
+chain1 = FastChain(FastDense(2,inner,af),
+                   FastDense(inner,inner,af),
+                   FastDense(inner,1))
+# chain1 = Chain(Dense(2,inner,af),
+#                Dense(inner,inner,af),
+#                Dense(inner,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain1))
 discretization = NeuralPDE.PhysicsInformedNN(chain1,
                                              grid_strategy;
@@ -185,51 +192,71 @@ discretization = NeuralPDE.PhysicsInformedNN(chain1,
 pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=500)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=2000)
 phi = discretization.phi
 
-chain2 = FastChain(FastDense(2,10,Flux.σ),FastDense(10,10,Flux.σ),FastDense(10,1))
+inner_ = 12
+af = Flux.σ
+chain2 = FastChain(FastDense(2,inner_,af),
+                   FastDense(inner_,inner_,af),
+                   FastDense(inner_,1))
+# chain2 = Chain(Dense(2,inner,af),
+#                Dense(inner,inner,af),
+#                Dense(inner,1))
 initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
 
 function loss(cord,θ)
     chain2(cord,θ) .- chain1(cord,res.minimizer)
 end
 
-prob_ = NeuralPDE.neurural_adapter(loss,initθ2,pde_system, grid_strategy)
-res_ = GalacticOptim.solve(prob_,Optim.BFGS();  maxiters=3000)
+grid_strategy = NeuralPDE.GridTraining(0.1)
+stochastic_strategy = NeuralPDE.StochasticTraining(100, bcs_points = 20)
+quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100,bcs_points = 20,resampling =false,minibatch = 100)
+quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100, bcs_points =20)
+quadrature_strategy = NeuralPDE.QuadratureTraining(reltol=1e-2,abstol=1e-2,
+                                                   maxiters =50, batch=100)
+strategies = [grid_strategy,stochastic_strategy,quasirandom_strategy, quasirandom_strategy_resampling,quadrature_strategy]
 
-grid_strategy2 = NeuralPDE.GridTraining(0.1)
-discretization__ = NeuralPDE.PhysicsInformedNN(chain2,
-                                               grid_strategy2;
-                                               init_params = res_.minimizer)
+reses_ = map(strategies) do strategy_
+    println("neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
+    prob_ = NeuralPDE.neurural_adapter(loss,initθ2,pde_system, strategy_)
+    res_ = GalacticOptim.solve(prob_, ADAM(0.1); cb = cb,maxiters=5000)
+end
 
-prob__ = NeuralPDE.discretize(pde_system,discretization__)
-res__ = GalacticOptim.solve(prob__,Optim.BFGS(); cb = cb, maxiters=1000)
-phi__ = discretization__.phi
+discretizations = map(res_ -> NeuralPDE.PhysicsInformedNN(chain2,
+                                                          grid_strategy;
+                                                          init_params = res_.minimizer),reses_)
+
+probs = map(discret -> NeuralPDE.discretize(pde_system,discret),discretizations)
+phis = map(discret -> discret.phi ,discretizations)
+
 
 xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
 
 u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-u_predict_ = reshape([first(phi__([x,y],res_.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-u_predict__ = reshape([first(phi__([x,y],res__.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+
+u_predicts = map(zip(phis,reses_)) do (phi_,res_)
+     reshape([first(phi_([x,y],res_.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+end
+
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 
-@test u_predict ≈ u_real atol = 0.1
-@test u_predict_ ≈ u_real atol = 0.1
-@test u_predict__ ≈ u_real atol = 0.05
+@test u_predict ≈ u_real atol = 0.5
 
+map(u_predicts) do upred
+    @test upred ≈ u_real atol = 1.0
+end
+
+# i=1
 # diff_u = abs.(u_predict .- u_real)
-# diff_u_ = abs.(u_predict_ .- u_real)
-# diff_u__ = abs.(u_predict__ .- u_real)
-# p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+# diff_u_ = abs.(u_predicts[i] .- u_real)
 # p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-# p3 = plot(xs, ys, u_predict_,linetype=:contourf,title = "predict_");
-# p4 = plot(xs, ys, u_predict__,linetype=:contourf,title = "predict__");
+# p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
 # p5 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
+# p3 = plot(xs, ys, u_predicts[i],linetype=:contourf,title = "predict_");
 # p6 = plot(xs, ys, diff_u_,linetype=:contourf,title = "error_");
-# p7 = plot(xs, ys, diff_u__,linetype=:contourf,title = "error__");
-# plot(p2,p3,p4,p5,p6,p7,p1)
+# plot(p2,p1,p5,p3,p6)
 
 
 ## Example 3, high-order ode
@@ -466,6 +493,7 @@ bcs = [u(x,0) ~ x,
 
 # Space and time domains
 domains = [x ∈ Interval(0.0,1.0), y ∈ Interval(0.0,1.0)]
+
 
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
                                                     reltol=1e-3,abstol=1e-3,
