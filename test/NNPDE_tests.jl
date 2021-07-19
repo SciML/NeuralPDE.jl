@@ -587,7 +587,7 @@ bcs = [i(0.) ~ 0.0]
 domains = [t ∈ Interval(0.0,2.0)]
 chain = FastChain(FastDense(1,15,Flux.σ),FastDense(15,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
-strategy_ = NeuralPDE.GridTraining(0.01)
+strategy_ = NeuralPDE.GridTraining(0.05)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy_;
                                              init_params = nothing,
@@ -606,6 +606,3 @@ u_real  = [analytic_sol_func(t) for t in ts]
 u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
 @test Flux.mse(u_real, u_predict) < 0.001
-
-# plot(ts, u_real, label = "analytical")
-# plot!(ts, u_predict, label = "predicted")
