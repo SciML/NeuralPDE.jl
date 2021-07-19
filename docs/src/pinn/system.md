@@ -367,7 +367,29 @@ bcs = [u[1](x,0) ~ x, u[2](x,0) ~ 2, u[3](x,0) ~ 3, u[4](x,0) ~ 4]
 
 ## Linear parabolic system of PDEs
 
-We can use NeuralPDE to solve the linear parabolic system of PDEs described here http://eqworld.ipmnet.ru/en/solutions/syspde/spde0101.pdf.
+We can use NeuralPDE to solve the linear parabolic system of PDEs:
+
+```math
+\begin{aligned}
+\frac{\partial u}{\partial t} &= a * frac{\partial^2 u}{\partial x^2} + b_1 u + c_1 w \\
+\frac{\partial w}{\partial t} &= a * frac{\partial^2 w}{\partial x^2} + b_2 u + c_2 w \\
+\end{aligned}
+```
+
+with initial and boundary conditions:
+
+```math
+\begin{aligned}
+u(0, x) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot cos(\frac{x}{a}) \\ 
+w(0, x) = 0 \\ 
+u(t, 0) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} \\ w(t, 0) = \frac{e^{\lambda_1}-e^{\lambda_2}}{\lambda_1 - \lambda_2} \\ 
+u(t, 1) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} * cos(\frac{x}{a}) \\ 
+w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\lambda_1 - \lambda_2}
+\end{aligned}
+```
+
+with a physics-informed neural network.
+
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
@@ -463,7 +485,30 @@ end
 
 ## Nonlinear elliptic system of PDEs
 
-We can also solve nonlinear systems such as the system of nonlinear elliptic PDEs described here http://eqworld.ipmnet.ru/en/solutions/syspde/spde3104.pdf. This is done using a derivative neural network approximation.
+We can also solve nonlinear systems such as the system of nonlinear elliptic PDEs
+
+```math
+\begin{aligned}
+\frac{\partial^2u}{\partial x^2} + \frac{\partial^2u}{\partial y^2} = uf(\frac{u}{w}) + \frac{u}{w}h(\frac{u}{w}) \\ 
+\frac{\partial^2w}{\partial x^2} + \frac{\partial^2w}{\partial y^2} = wg(\frac{u}{w}) + h(\frac{u}{w}) \\
+\end{aligned}
+```
+
+where f, g, h are arbitrary functions. With initial and boundary conditions:
+
+```math
+\begin{aligned}
+u(0,y) = y + 1 \\ 
+u(1, y) = [cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\ 
+u(x,0) = cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)}) \\ 
+w(0,y) = k(y + 1) \\ 
+u(1, y) = k[cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\ 
+u(x,0) = k [cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})] \\
+\end{aligned}
+```
+where k is a root of the algebraic (transcendental) equation f(k) = g(k).
+
+This is done using a derivative neural network approximation.
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, DifferentialEquations, Roots
