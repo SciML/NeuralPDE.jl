@@ -9,6 +9,7 @@ using Reexport, Statistics
 
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
+using TiledIteration
 using ModelingToolkit
 using GalacticOptim
 using Quadrature,Cubature

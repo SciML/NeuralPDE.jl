@@ -726,8 +726,27 @@ function get_loss_function(loss_function, bound, eltypeθ,parameterless_type_θ,
         if resampling == true
             θ -> begin
                 sets = generate_quasi_random_points(points, bound, eltypeθ, sampling_alg)
-                sets_ = adapt(parameterless_type_θ,sets)
-                mean(abs2,loss_function(sets_, θ))
+                # use tiled iteration to split the matrix
+                # send each "tile" into a different gpu
+                # combine the looss on main gpu
+                devs = collect(CUDA.devices())
+                N = size(sets)[end]
+                vs = TileIterator(axes(sets), (size(sets)[1], div(N,2)))
+                println("size of chunks: $N")
+                squared_sums = zeros(Float64, 2)
+                @sync begin
+                    for (i,d) in enumerate(devs[1:2])
+                        @async begin
+                            d_a = adapt(parameterless_type_θ, (sets[vs[i]...]))
+                            squared_sums = sum(abs2.(d_a))
+                        end
+                    end
+                    device_synchronize()
+                end
+                synchronize()
+                return sum(squared_sums) / N
+                #sets_ = adapt(parameterless_type_θ,sets)
+                #mean(abs2,loss_function(sets_, θ))
             end
         else
             θ -> begin
