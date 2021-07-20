@@ -8,7 +8,7 @@ function generate_training_sets(domains,dx,eqs,eltypeθ)
     train_set = adapt(eltypeθ, hcat(vec(map(points -> collect(points), Iterators.product(spans...)))...))
 end
 
-
+#TODO get_loss_function(loss,initθ,pde_system,discretization)
 function get_loss_function_(loss,initθ,pde_system,strategy::GridTraining)
     eqs = pde_system.eqs
     if !(eqs isa Array)
