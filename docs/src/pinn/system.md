@@ -689,8 +689,8 @@ bcs = [u(0, x) ~ u_analytic(0, x),
        w(t, 1) ~ w_analytic(t, 1)] 
 
 # Space and time domains
-domains = [x ∈ Interval(0.0, 1.0),
-           t ∈ Interval(0.0, 1.0)]
+domains = [t ∈ Interval(0.0, 1.0),
+           x ∈ Interval(0.0, 1.0)]
 
 # Neural network
 input_ = length(domains)
