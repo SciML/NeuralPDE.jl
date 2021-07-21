@@ -264,36 +264,36 @@ end
 # plot(p2,p1,p5,p3,p6)
 
 
-## Example 3, high-order ode
-# println("Example 3, 3rd-order ode")
+## Example 3, 3rd-order
+println("Example 3, 3rd-order ode")
 @parameters x
-@variables u(..) ,Dxu_(..) ,Dxxu_(..)
+@variables u(..) ,Dxu(..) ,Dxxu(..)
 Dxxx = Differential(x)^3
 Dx = Differential(x)
 
 # ODE
-eq = Dx(Dxxu_(x)) ~ cos(pi*x)
+eq = Dx(Dxxu(x)) ~ cos(pi*x)
 
 # Initial and boundary conditions
 bcs_ = [u(0.) ~ 0.0,
         u(1.) ~ cos(pi),
-        Dxu_(1.) ~ 1.0]
+        Dxu(1.) ~ 1.0]
 
-der = [Dx(u(x)) ~ Dxu_(x),
-       Dx(Dxu_(x)) ~ Dxxu_(x)]
+der = [Dx(u(x)) ~ Dxu(x),
+       Dx(Dxu(x)) ~ Dxxu(x)]
 
 bcs = [bcs_;der]
 # Space and time domains
 domains = [x ∈ Interval(0.0,1.0)]
 
 # Neural network
-# chain = [FastChain(FastDense(1,8,Flux.σ),FastDense(8,1)) for _ in 1:3]
-chain = [Chain(Dense(1,8,Flux.σ),Dense(8,1)) for _ in 1:3]
-stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points= 30)
+chain = [FastChain(FastDense(1,8,Flux.σ),FastDense(8,1)) for _ in 1:3]
+quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
+                                                     sampling_alg = LatinHypercubeSample())
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-discretization = NeuralPDE.PhysicsInformedNN(chain,stochastic_strategy;init_params = initθ)
-pde_system = PDESystem(eq,bcs,domains,[x],[u,Dxu_,Dxxu_])
+discretization = NeuralPDE.PhysicsInformedNN(chain,quasirandom_strategy;init_params = initθ)
+pde_system = PDESystem(eq,bcs,domains,[x],[u,Dxu,Dxxu])
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -318,132 +318,13 @@ analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
 
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
-u_predict  = [first(phi([x],res.minimizer)) for x in xs]
+u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
 @test u_predict ≈ u_real atol = 0.1
 
-x_plot = collect(xs)
-plot(x_plot ,u_real)
-plot!(x_plot ,u_predict)
-
-@parameters x
-# @variables nn1(..) ,nn2(..) ,nn3(..)
-@variables u(..) u0nn(..) u1nn(..)
-Dxxx = Differential(x)^3
-Dx = Differential(x)
-# u_(x) = u(x) + nn(x)
-# Dxu(x) = u_(x)+ Dx(u_(x))
-# Dxxu(x) = u_(x) + Dx(Dxu(x))
-#
-# # Dxxu(x) = nn2(x) + Dx(nn1(x)) + Dxx(u(x)))
-# Dxxxu(x) = u_(x) + Dx(Dxxu(x))
-# # Dxxxu(x) = u_(x) + Dx(nn2(x)) + Dxx(nn1(x)) + Dxx(Dxu(x))
-# u(x)  = u0(x) + Dx(u(x))*x + Dxx(u(x))*x^2 / 2! +...
-#
-# u(x)  = u0nn(x) + Dx(u(x))*x + Dxx(u(x))*x^2 / 2 + Dxxx(u(x))*x^3 / 6 #... O(x^4)
-# der = [Dx(u(x)) ~ Dxu_(x),
-#        Dx(Dxu_(x)) ~ Dxxu_(x)]
-# Dxu(x) = Dx(u(x))  #(u(x) - u0nn(x)) / x
-# Dxu_(x) ~  Dx(u(x))
-# u(x) ~ u(0.) + O1(x)
-# u(x) ~ u(0.) + Dxu(x)*x + O2(x)
-# u(x) ~ u(0.) + Dxu(x)*x + Dxx(u(x))*x^2 / 2  + O3(x)
-# u(x) ~ u(0.) + Dxu(x)*x + Dxx(u(x))*x^2 / 2 + Dxxx(u(x))*x^3 / 6  + O4(x)
-#
-# O2(x) = Dxx(u(x))*x^2 / 2  + O3(x) = Dxx(u(x))*x^2 / 2 + Dxxx(u(x))*x^3 / 6  + O4(x)
-# Dx(u(x)) ~ Dxu_(x)
-# Dx(Dxu_(x)) ~ Dxxu_(x)
-# u(x)  ~ u0nn(x) + Dxu(x)*x + Dxx(u(x))*x^2 / 2 + Dxxx(u(x))*x^3 / 6  + O4(x)
-# u(x)  ~ u0nn(x) + Dxu(x)*x + Dxx(u(x))*x^2 / 2 + O3(x)
-# u(x)  ~ u0nn(x) + Dxu(x)*x + O2(x)
-# Dxu(x) =
-# Dxxu(x) = (u(x) - Dx(u(x))*x -  O2(x)) * 1 / (x^2 /2)
-# Dxxxu(x) = (u(x) - Dx(u(x))*x - Dxx(u(x))*x^2/2 - O3(x)) * 1 / (x^3 / 6)
-@variables u(..) O1(..) O2(..) O3(..)
-
-# Dxxu_ts(x)) =
-# Dxx(u(x)) = (u(x) - u(0.) - Dxu(x) *x - O3(x)) / 1*(x^2 / 2 )
-#
-# O2(x) = Dxx(u(x))*x^2 / 2  + O3(x) = Dxx(u(x))*x^2 / 2 + Dxxx(u(x))*x^3 / 6  + O4(x)
-u(x) ~ u(0.) + O1(x)
-
-u(x) ~ u(0.) + Dxu(x)*x + O2(x)
-# u(x) ~ u(0.) + Dxu(x)*x + Dxx(u(x))*x^2 / 2  + O3(x)
-# u(x) ~ u(0.) + Dxu(x)*x + Dxx(u(x))*x^2 / 2 + Dxxx(u(x))*x^3 / 6  + O4(x)
-Dxu(x) = O1(x) + Dx(u(x))
-# Dxxu(x) = Dx(Dxu(x)) + O2(x)
-Dxxu(x) = O2(x) + Dx(O1(x)) + Dxx(u(x))/2
-# Dxxu(x) = Dx(Dxxu(x)) + O3(x)
-Dxxxu(x) = O3(x) +  Dx(O2(x)) + Dxx(O1(x))/2 + Dxxx(u(x)) /6
-
-# u(x) ~ u(0.) + Dxu(x)*x + O2(x)
-
-# Dxxx(u(x))*x^3 / 6 =  u(x)  - u1nn(x) - Dx(u(x))*x - Dxx(u(x))*x^2 / 2
-# Dxxx(u(x)) = ((x^2 / 2 * Dxxu(x) - Dxx(u(x))*x^2/2) * 1/(x^3 / 6)
-
-# Dxu(x) = (Dx(u(x)) + u(0.) .+ Dx(u(0.)) .*x)/2
-# Dxu(x) = u(0.) .+ Dx(u(0.)) .*x
-# Dxxxu(x) = Dx(Dxu(x)) + nn(x)
-# # Dxxu(x) = nn2(x) + Dx(nn1(x)) + Dxx(u(x)))
-# Dxxxu(x) = u_(x) + Dx(Dxxu(x))
-# Dxxxu(x) = u_(x) + Dx(nn2(x)) + Dxx(nn1(x)) + Dxx(Dxu(x))
-
-# ODE
-eq = Dxxxu(x) ~ cos(pi*x)
-
-# Dxxx(u(x)) =
-# Initial and boundary conditions
-bcs_ = [u(0.) ~ 0.0,
-        u(1.) ~ cos(pi),
-        Dxu(1.) ~ 1.0,
-        u(x)  ~ u0nn(x) + Dx(u(x))*x + Dxx(u(x))*x^2 / 2]
-
-# der = [Dx(u(x)) ~ Dxu(x),
-#        Dx(Dxu(x)) ~ Dxxu(x)]
-#
-# bcs = [bcs_;der]
-# Space and time domains
-domains = [x ∈ Interval(0.0,1.0)]
-
-# Neural network
-# chain = [FastChain(FastDense(1,8,Flux.σ),FastDense(8,1)) for _ in 1:3]
-chain = [Chain(Dense(1,8,Flux.σ),Dense(8,1)),Chain(Dense(1,8,Flux.σ),Dense(8,1)),Chain(Dense(1,8,Flux.σ),Dense(8,1))]
-stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points= 30)
-initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
-
-discretization = NeuralPDE.PhysicsInformedNN(chain,stochastic_strategy;init_params = initθ)
-pde_system = PDESystem(eq,bcs_,domains,[x],[u,u0nn,u1nn])
-prob = NeuralPDE.discretize(pde_system,discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
-
-cb_ = function (p,l)
-    println("loss: ", l )
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-    return false
-end
-
-res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb_, maxiters=1000)
-prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb_, maxiters=1000)
-prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob, ADAM(0.001); cb = cb_, maxiters=1000)
-phi = discretization.phi[1]
-
-analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
-
-xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
-u_real  = [analytic_sol_func(x) for x in xs]
-u_predict  = [first(phi([x],res.minimizer)) for x in xs]
-
-@test u_predict ≈ u_real atol = 0.1
-x_plot = collect(xs)
-plot(x_plot ,u_real)
-plot!(x_plot ,u_predict)
-
+# x_plot = collect(xs)
+# plot(x_plot ,u_real)
+# plot!(x_plot ,u_predict)
 
 ## Example 4, system of pde
 println("Example 4, system of pde")
