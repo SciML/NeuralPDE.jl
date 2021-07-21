@@ -371,8 +371,8 @@ We can use NeuralPDE to solve the linear parabolic system of PDEs:
 
 ```math
 \begin{aligned}
-\frac{\partial u}{\partial t} &= a * frac{\partial^2 u}{\partial x^2} + b_1 u + c_1 w \\
-\frac{\partial w}{\partial t} &= a * frac{\partial^2 w}{\partial x^2} + b_2 u + c_2 w \\
+\frac{\partial u}{\partial t} &= a * \frac{\partial^2 u}{\partial x^2} + b_1 u + c_1 w \\
+\frac{\partial w}{\partial t} &= a * \frac{\partial^2 w}{\partial x^2} + b_2 u + c_2 w \\
 \end{aligned}
 ```
 
