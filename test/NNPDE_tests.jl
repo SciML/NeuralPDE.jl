@@ -13,6 +13,7 @@ using QuasiMonteCarlo
 using SciMLBase
 using OrdinaryDiffEq
 import ModelingToolkit: Interval, infimum, supremum
+using DomainSets
 
 using Random
 Random.seed!(100)
@@ -577,7 +578,6 @@ p_ = res.minimizer[end-2:end]
 # u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 # plot(sol)
 # plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
-using DomainSets
 @parameters t
 @variables i(..)
 Di = Differential(t)
@@ -603,4 +603,29 @@ phi = discretization.phi
 analytic_sol_func(t) = 1/2*(exp(-t))*(sin(2*t))
 u_real  = [analytic_sol_func(t) for t in ts]
 u_predict  = [first(phi([t],res.minimizer)) for t in ts]
+@test Flux.mse(u_real, u_predict) < 0.001
+
+## Simple Integral Test
+@parameters x
+@variables u(..)
+Ix = Integral(x, DomainSets.ClosedInterval(0, x))
+eq = Ix(u(x)) ~ (x^3)/3
+bcs = [u(0.) ~ 0.0]
+domains = [x ∈ Interval(0.0,1.00)]
+chain = Chain(Dense(1,15,Flux.σ),Dense(15,1))
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+strategy_ = NeuralPDE.GridTraining(0.05)
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy_;
+                                             init_params = nothing,
+                                             phi = nothing,
+                                             derivative = nothing,
+                                             )
+pde_system = PDESystem(eq,bcs,domains,[x],[u])
+prob = NeuralPDE.discretize(pde_system,discretization)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
+xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+phi = discretization.phi
+u_predict  = [first(phi([x],res.minimizer)) for x in xs]
+u_real  = [x^2 for x in xs]
 @test Flux.mse(u_real, u_predict) < 0.001
