@@ -79,12 +79,12 @@ plot(p1,p2,p3)
 Now let's solve the 1-dimensional wave equation with damping. 
 
 ```math
- \begin{aligned}
- \frac{\partial^2 u}{\partial x^2} &=  \frac{1}{c^2} * \frac{\partial^2 u}{\partial t^2} + v u + \frac{\partial u}{\partial t} \\
- u(0, t) = u(1, t) = 0 \\
- u(x, 0) = x(1-x) \\
- u_t(x, 0) = 1 - 2x \\
- \end{aligned}
+\begin{aligned}
+\frac{\partial^2 u(t,x)}{\partial x^2} = \frac{1}{c^2} \frac{\partial^2 u(t,x)}{\partial t^2} + v \frac{\partial u(t,x)}{\partial t} \\
+u(t, 0) = u(t, L) = 0 \\
+u(0, x) = x(1-x) \\
+u_t(0, x) = 1 - 2x \\
+\end{aligned}
 ```
 
 with grid discretization `dx = 0.1` and physics-informed neural networks.
@@ -182,7 +182,7 @@ plot(p1,p2,p3)
 
 We can see the results here:
 
-<img width="718" alt="1D_damped_wave_predict" src="https://user-images.githubusercontent.com/26853713/126751465-176b2d4e-4c18-407c-b828-07e8956dd423.png">
+![1Dwave_damped_result](https://user-images.githubusercontent.com/26853713/126751465-176b2d4e-4c18-407c-b828-07e8956dd423.png)
 
 Plotted as a line one can see the analytical solution here:
 
