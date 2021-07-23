@@ -85,7 +85,7 @@ Now let's solve the 1-dimensional wave equation with damping.
  u(x, 0) = x(1-x) \\
  u_t(x, 0) = 1 - 2x \\
  \end{aligned}
- ```
+```
 
 with grid discretization `dx = 0.1` and physics-informed neural networks.
 
@@ -182,13 +182,15 @@ plot(p1,p2,p3)
 
 We can see the results here:
 
-<img width="718" alt="Screenshot 2021-07-23 at 09 40 18" src="https://user-images.githubusercontent.com/26853713/126751465-176b2d4e-4c18-407c-b828-07e8956dd423.png">
+<img width="718" alt="1D_damped_wave_predict" src="https://user-images.githubusercontent.com/26853713/126751465-176b2d4e-4c18-407c-b828-07e8956dd423.png">
 
 Plotted as a line one can see the analytical solution here:
 
-https://user-images.githubusercontent.com/26853713/126750073-ca7f9dbe-eaf6-4ac6-bce2-62062de162f5.gif![image](https://user-images.githubusercontent.com/26853713/126751496-17527977-12b1-4a97-a8f8-117d5321d653.png)
+![1Dwave_damped](https://user-images.githubusercontent.com/26853713/126773099-55b40b64-94ac-4e78-928d-427d99fd3da7.gif)
+
 
 And the prediction here:
-https://user-images.githubusercontent.com/26853713/126750075-d85584e0-44f3-4403-bd26-853987fbff8f.gif![image](https://user-images.githubusercontent.com/26853713/126751507-cf8bbba5-6ae6-428e-8e9b-28eb38bf5eae.png)
+
+![1Dwave_damped_predict](https://user-images.githubusercontent.com/26853713/126773109-d51c9a6d-984e-45ff-a482-32413f959a5f.gif)
 
 
