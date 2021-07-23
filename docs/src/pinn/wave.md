@@ -159,6 +159,9 @@ a_n(k) = 2 / (L * μ_n(k)) * -(L^2 * (((2 * π * L - π) * c * k * sin(π * k) +
 # Line plots
 analytic_sol_func(t,x) = sum([sin((k * π * x) / L) * exp(-v^2 * c * t / 2) * (a_n(k) * sin(μ_n(k) * t) + b_n(k) * cos(μ_n(k) * t)) for k in 1:2:100]) # TODO replace 10 with 500
 
+using Plots
+using Printf
+
 anim = @animate for t ∈ ts
     @info "Time $t..."
     sol =  [analytic_sol_func(t, x) for x in xs]
