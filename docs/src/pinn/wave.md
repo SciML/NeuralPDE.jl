@@ -108,13 +108,13 @@ L = 1
 @assert c > 0 && c < 2π / (L * v)
 
 # 1D damped wave
-eq = Dxx(u(t, x)) ~ 1 / c^2 * Dtt(u(t, x)) + v * Dt(u(t, x)) 
+eq = Dxx(u(t, x)) ~ 1 / c^2 * Dtt(u(t, x)) + v * Dt(u(t, x))
 
 # Initial and boundary conditions
 bcs = [u(t, 0) ~ 0.,# for all t > 0
        u(t, L) ~ 0.,# for all t > 0
        u(0, x) ~ x * (1. - x), # for all 0 < x < 1
-       Dt(u(0, x)) ~ 1 - 2x # for all  0 < x < 1 
+       Dt(u(0, x)) ~ 1 - 2x # for all  0 < x < 1
        ]
 
 # Space and time domains
@@ -122,7 +122,8 @@ domains = [t ∈ Interval(0.0, 1.0),
            x ∈ Interval(0.0, 1.0)]
 
 # Neural network
-chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))
+af = Flux.tanh
+chain = FastChain(FastDense(2, 16, af), FastDense(16, 16, af), FastDense(16, 1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 
 dx = 0.1
@@ -149,7 +150,7 @@ res = GalacticOptim.solve(prob, opt; cb=cb, maxiters=1400)
 phi = discretization.phi
 
 # Analysis
-ts, xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+ts, xs = [infimum(d.domain):dx/5:supremum(d.domain) for d in domains]
 
 μ_n(k) = (v * sqrt(4 * k^2 * π^2 - c^2 * L^2 * v^2)) / (2 * L)
 b_n(k) = 2 / L * -((2 * π * L - π) * k * sin(π * L * k) + ((π^2 * L - π^2 * L^2) * k^2 + 2) * cos(π * L * k) - 2) / (π^3 * k^3) # vegas((x, ϕ) -> ϕ[1] = sin(k * π * x[1]) * f(x[1])).integral[1]
@@ -157,17 +158,16 @@ a_n(k) = 2 / (L * μ_n(k)) * -(L^2 * (((2 * π * L - π) * c * k * sin(π * k) +
 
 # Line plots
 analytic_sol_func(t,x) = sum([sin((k * π * x) / L) * exp(-v^2 * c * t / 2) * (a_n(k) * sin(μ_n(k) * t) + b_n(k) * cos(μ_n(k) * t)) for k in 1:2:100]) # TODO replace 10 with 500
-anim = @animate for t ∈ ts
-    sol =  [analytic_sol_func(t, x) for x in xs]
-    plot(sol, label="wave", ylims=[0, 0.1])
-end
-gif(anim, "1Dwave_damped.gif", fps=100)
 
 anim = @animate for t ∈ ts
-    sol =  [first(phi([t,x], res.minimizer)) for x in xs]
-    plot(sol, label="wave", ylims=[0, 0.1])
+    @info "Time $t..."
+    sol =  [analytic_sol_func(t, x) for x in xs]
+    sol_p =  [first(phi([t,x], res.minimizer)) for x in xs]
+    plot(sol, label="analitic", ylims=[0, 0.1])
+    title = @sprintf("t = %.3f", t)
+    plot!(sol_p, label="predict", ylims=[0, 0.1],title=title)
 end
-gif(anim, "1Dwave_damped_predict.gif", fps=100)
+gif(anim, "1Dwave_damped.gif", fps=200)
 
 # Surface plot
 u_predict = reshape([first(phi([t,x], res.minimizer)) for t in ts for x in xs], (length(ts), length(xs)))
@@ -182,15 +182,11 @@ plot(p1,p2,p3)
 
 We can see the results here:
 
-![1Dwave_damped_result](https://user-images.githubusercontent.com/26853713/126751465-176b2d4e-4c18-407c-b828-07e8956dd423.png)
+![1Dwave_damped](https://user-images.githubusercontent.com/12683885/126818842-446d43b7-7099-4690-9a61-412c4eccfa70.png)
 
-Plotted as a line one can see the analytical solution here:
+Plotted as a line one can see the analytical solution and the prediction here:
 
-![1Dwave_damped](https://user-images.githubusercontent.com/26853713/126773099-55b40b64-94ac-4e78-928d-427d99fd3da7.gif)
+![1Dwave_damped_gif](https://user-images.githubusercontent.com/12683885/126818855-c9ae78ce-b976-4ed8-9ddb-f6d6d0fe6311.gif)
 
-
-And the prediction here:
-
-![1Dwave_damped_predict](https://user-images.githubusercontent.com/26853713/126773109-d51c9a6d-984e-45ff-a482-32413f959a5f.gif)
 
 
