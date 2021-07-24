@@ -307,14 +307,13 @@ indvars = [x,t]
 depvars = [u]
 dim = length(domains)
 quadrature_strategy = NeuralPDE.QuadratureTraining()
-
-
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,
+integral = NeuralPDE.get_numeric_integral(quadrature_strategy, indvars, depvars, chain, derivative)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,integral,
                                                    chain,initθ,quadrature_strategy)
 _pde_loss_function(rand(2,10), initθ)
 
 bc_indvars = NeuralPDE.get_argument(bcs,indvars,depvars)
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,integral,
                                                     chain,initθ,quadrature_strategy,
                                                     bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 map(loss_f -> loss_f(rand(1,10), initθ),_bc_loss_functions)
@@ -578,6 +577,7 @@ p_ = res.minimizer[end-2:end]
 # u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 # plot(sol)
 # plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
+println("Integral Tests")
 @parameters t
 @variables i(..)
 Di = Differential(t)
