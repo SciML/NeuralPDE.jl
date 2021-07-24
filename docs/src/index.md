@@ -15,20 +15,13 @@ at a greatly reduced cost and greatly increased generality compared with classic
 
 ## Citation
 
-If you use NeuralPDE.jl in your work, please cite:
+If you use NeuralPDE.jl in your research, please cite [this paper](https://arxiv.org/abs/2107.09443):
 
-```latex
-@article{DifferentialEquations.jl-2017,
- author = {Rackauckas, Christopher and Nie, Qing},
- doi = {10.5334/jors.151},
- journal = {The Journal of Open Research Software},
- keywords = {Applied Mathematics},
- note = {Exported from https://app.dimensions.ai on 2019/05/05},
- number = {1},
- pages = {},
- title = {DifferentialEquations.jl – A Performant and Feature-Rich Ecosystem for Solving Differential Equations in Julia},
- url = {https://app.dimensions.ai/details/publication/pub.1085583166 and http://openresearchsoftware.metajnl.com/articles/10.5334/jors.151/galley/245/download/},
- volume = {5},
- year = {2017}
+```tex
+@article{zubov2021neuralpde,
+  title={NeuralPDE: Automating Physics-Informed Neural Networks (PINNs) with Error Approximations},
+  author={Zubov, Kirill and McCarthy, Zoe and Ma, Yingbo and Calisto, Francesco and Pagliarino, Valerio and Azeglio, Simone and Bottero, Luca and Luj{\'a}n, Emmanuel and Sulzer, Valentin and Bharambe, Ashutosh and others},
+  journal={arXiv preprint arXiv:2107.09443},
+  year={2021}
 }
 ```
