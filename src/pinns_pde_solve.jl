@@ -695,7 +695,7 @@ function get_numeric_derivative()
         end
 end
 
-function get_numeric_integral(strategy, _indvars, _depvars, dict_indvars, chain, derivative)
+function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     integral =
         (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ ;strategy=strategy, indvars=indvars, depvars=depvars, dict_indvars=dict_indvars, dict_depvars=dict_depvars)->
@@ -884,7 +884,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
-    global integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, dict_indvars, chain, derivative)
+    global integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, chain, derivative)
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -942,7 +942,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
-    global integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, dict_indvars, chain, derivative)
+    global integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, chain, derivative)
     if !(eqs isa Array)
         eqs = [eqs]
     end
