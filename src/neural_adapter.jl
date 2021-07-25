@@ -107,12 +107,25 @@ function get_loss_function_(loss,initθ,pde_system,strategy::QuadratureTraining)
 end
 
 
-function neurural_adapter(loss,initθ,pde_system,strategy)
+function neural_adapter(loss,initθ,pde_system,strategy)
     loss_function__ = get_loss_function_(loss,initθ,pde_system,strategy)
 
     function loss_function_(θ,p)
         loss_function__(θ)
     end
+    f_ = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
+    prob = GalacticOptim.OptimizationProblem(f_, initθ)
+end
+
+function neural_adapter(losses::Array,initθ,pde_systems::Array,strategy)
+    loss_functions_ = map(zip(losses,pde_systems)) do (l,p)
+        get_loss_function_(l,initθ,p,strategy)
+    end
+    loss_function__ = θ -> sum(map(l->l(θ) ,loss_functions_))
+    function loss_function_(θ,p)
+        loss_function__(θ)
+    end
+
     f_ = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
     prob = GalacticOptim.OptimizationProblem(f_, initθ)
 end

@@ -22,6 +22,9 @@ const is_CI = haskey(ENV,"CI")
   if GROUP == "All" || GROUP == "NNPDE"
       @time @safetestset "NNPDE" begin include("NNPDE_tests.jl") end
   end
+  if GROUP == "All" || GROUP == "neural_adapter"
+      @time @safetestset "neural_adapter" begin include("  neural_adapter_tests.jl") end
+  end
   if GROUP == "All" || GROUP == "NNKOLMOGOROV"
       @time @safetestset "NNKolmogorov" begin include("NNKolmogorov_tests.jl") end
   end
