@@ -127,3 +127,16 @@ pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 @time ans = solve(prob, pdealg, verbose=true, maxiters=100, trajectories=100,
                             alg=EM(), dt=1.2, pabstol=1f-2)
 ```
+
+### Citation
+
+If you use NeuralPDE.jl in your research, please cite [this paper](https://arxiv.org/abs/2107.09443):
+
+```tex
+@article{zubov2021neuralpde,
+  title={NeuralPDE: Automating Physics-Informed Neural Networks (PINNs) with Error Approximations},
+  author={Zubov, Kirill and McCarthy, Zoe and Ma, Yingbo and Calisto, Francesco and Pagliarino, Valerio and Azeglio, Simone and Bottero, Luca and Luj{\'a}n, Emmanuel and Sulzer, Valentin and Bharambe, Ashutosh and others},
+  journal={arXiv preprint arXiv:2107.09443},
+  year={2021}
+}
+```
