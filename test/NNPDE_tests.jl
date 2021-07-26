@@ -214,9 +214,9 @@ u_predict  = [first(phi(x,res.minimizer)) for x in xs]
 
 @test u_predict ≈ u_real atol = 10^-4
 
-x_plot = collect(xs)
-plot(x_plot ,u_real)
-plot!(x_plot ,u_predict)
+# x_plot = collect(xs)
+# plot(x_plot ,u_real)
+# plot!(x_plot ,u_predict)
 
 ## Example 4, system of pde
 println("Example 4, system of pde")

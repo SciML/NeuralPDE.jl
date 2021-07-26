@@ -144,7 +144,7 @@ bcs = [u(0,y) ~ 0.0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
 
 # Space
 x_0 = 0.0
-x_end =1.0
+x_end = 1.0
 x_domain = Interval(x_0, x_end)
 y_domain = Interval(0.0, 1.0)
 
@@ -189,14 +189,15 @@ for i in 1:count_decomp
     println("decomposition $i")
     domains_ = domains_map[i]
     phi_in(cord) = phis[i-1](cord,reses[i-1].minimizer)
-    phi_bound(x,y) = if (x isa Matrix)  phi_in(vcat(x, fill(y,size(x)))) else  phi_in(vcat(fill(x,size(y)),y)) end
+    # phi_bound(x,y) = if (x isa Matrix)  phi_in(vcat(x, fill(y,size(x)))) else  phi_in(vcat(fill(x,size(y)),y)) end
+    phi_bound(x,y) = phi_in(vcat(x,y))
     @register phi_bound(x,y)
     #TODO fix broadcast
     Base.Broadcast.broadcasted(::typeof(phi_bound), x,y) = phi_bound(x,y)
     bcs_ = create_bcs(bcs,domains_[1].domain, phi_bound)
     pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u])
     push!(pde_system_map,pde_system_)
-    strategy = NeuralPDE.GridTraining([0.02,0.02])
+    strategy = NeuralPDE.GridTraining([0.1/count_decomp, 0.1])
 
     discretization = NeuralPDE.PhysicsInformedNN(chains[i], strategy; init_params=initθs[i])
 
@@ -225,6 +226,7 @@ af = Flux.tanh
 chain2 = FastChain(FastDense(2,inner_,af),
                    FastDense(inner_,inner_,af),
                    FastDense(inner_,inner_,af),
+                   FastDense(inner_,inner_,af),
                    FastDense(inner_,1))
 
 initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
@@ -238,10 +240,10 @@ losses = map(1:count_decomp) do i
     loss(cord,θ) = chain2(cord,θ) .- phis[i](cord,reses[i].minimizer)
 end
 
-prob_ = NeuralPDE.neural_adapter(losses,initθ2, pde_system_map,NeuralPDE.GridTraining(0.1))
-res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=500)
-prob_ = NeuralPDE.neural_adapter(losses,res_.minimizer, pde_system_map, NeuralPDE.GridTraining(0.05))
-res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=100)
+prob_ = NeuralPDE.neural_adapter(losses,initθ2, pde_system_map,NeuralPDE.GridTraining([0.1/count_decomp,0.1]))
+res_ = GalacticOptim.solve(prob_, BFGS();cb=cb, maxiters=2000)
+prob_ = NeuralPDE.neural_adapter(losses,res_.minimizer, pde_system_map, NeuralPDE.GridTraining(0.01))
+res_ = GalacticOptim.solve(prob_, BFGS();cb=cb,  maxiters=1000)
 
 parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
 phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
@@ -249,9 +251,9 @@ phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
 xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_predict_ = reshape([first(phi_([x,y],res_.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
-diff_u = abs.(u_predict_ .- u_real)
+diff_u = (u_predict_ .- u_real)
 
-@test u_predict_ ≈ u_real rtol = 0.01
+@test u_predict_ ≈ u_real rtol = 0.1
 
 # p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
 # p2 = plot(xs, ys, u_predict_, linetype=:contourf,title = "predict");
