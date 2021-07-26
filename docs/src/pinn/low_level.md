@@ -1,8 +1,14 @@
 # 1-D Burgers' Equation With Low-Level API
 
-Let's consider the Burgers’ equation:
+Let's consider the Burgers' equation:
 
-![burgers](https://user-images.githubusercontent.com/12683885/90985032-b6e19380-e581-11ea-89ee-cdfdc4ecf075.png)
+```math
+\begin{gather*}
+∂_t u + u ∂_x u - (0.01 / \pi) ∂_x^2 u = 0 \, , \quad x \in [-1, 1], t \in [0, 1] \, , \\
+u(0, x) = - \sin(\pi x) \, , \\
+u(t, -1) = u(t, 1) = 0 \, ,
+\end{gather*}
+```
 
 with Physics-Informed Neural Networks. Here is an example of using the low-level API:
 

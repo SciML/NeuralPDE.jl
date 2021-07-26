@@ -2,7 +2,15 @@
 
 Let's consider the ODE with a 3rd-order derivative:
 
-![hdode](https://user-images.githubusercontent.com/12683885/107214983-c2cfed80-6a1b-11eb-9c1a-8e7b021a11bf.png)
+```math
+\begin{align*}
+∂^3_x u(x) &= \cos(\pi x) \, ,\\
+u(0) &= 0 \, ,\\
+u(1) &= \cos(\pi) \, ,\\
+∂_x u(0) &= 1 \, ,\\
+x &\in [0, 1] \, ,
+\end{align*}
+```
 
 We will use physics-informed neural networks.
 

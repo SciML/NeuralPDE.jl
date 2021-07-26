@@ -2,8 +2,14 @@
 
 Let's solve this 1-dimensional wave equation:
 
-![wave](https://user-images.githubusercontent.com/12683885/91465006-ecde8a80-e895-11ea-935e-2c1d60e3d1f2.png)
-
+```math
+\begin{align*}
+∂^2_t u(x, t) = c^2 ∂^2_x u(x, t) \quad & \textsf{for all } 0 < x < 1 \text{ and } t > 0 \, , \\
+u(0, t) = u(1, t) = 0 \quad & \textsf{for all } t > 0 \, , \\
+u(x, 0) = x (1-x)     \quad & \textsf{for all } 0 < x < 1 \, , \\
+∂_t u(x, 0) = 0       \quad & \textsf{for all } 0 < x < 1 \, , \\
+\end{align*}
+```
 
 with grid discretization `dx = 0.1` and physics-informed neural networks.
 

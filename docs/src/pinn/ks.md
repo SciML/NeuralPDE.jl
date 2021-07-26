@@ -2,13 +2,29 @@
 
 Let's consider the Kuramoto–Sivashinsky equation, which contains a 4th-order derivative:
 
-![KS](https://user-images.githubusercontent.com/12683885/91025423-09fb2b00-e602-11ea-8f5c-61e49e4fb54e.png)
+```math
+∂_t u(x, t) + u(x, t) ∂_x u(x, t) + \alpha ∂^2_x u(x, t) + \beta ∂^3_x u(x, t) + \gamma ∂^4_x u(x, t) =  0 \, ,
+```
 
-with the initial and boundary conditions:
+where ``\alpha = \gamma = 1`` and ``\beta = 4``. The exact solution is:
 
-![bs](https://user-images.githubusercontent.com/12683885/91025570-3fa01400-e602-11ea-8fd7-5b0e250a67a4.png)
+```math
+u_e(x, t) = 11 + 15 \tanh \theta - 15 \tanh^2 \theta - 15 \tanh^3 \theta \, ,
+```
 
-with physics-informed neural networks.
+where ``\theta = 1 - x/2`` and with initial and boundary conditions:
+
+```math
+\begin{align*}
+    u(  x, 0) &=     u_e(  x, 0) \, ,\\
+    u( 10, t) &=     u_e( 10, t) \, ,\\
+    u(-10, t) &=     u_e(-10, t) \, ,\\
+∂_x u( 10, t) &= ∂_x u_e( 10, t) \, ,\\
+∂_x u(-10, t) &= ∂_x u_e(-10, t) \, .
+\end{align*}
+```
+
+We use physics-informed neural networks.
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux

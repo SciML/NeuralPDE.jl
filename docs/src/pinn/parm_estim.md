@@ -1,10 +1,16 @@
 # Optimising Parameters of a Lorenz System
  Consider a Lorenz System ,
 
-![lorenzSystem](https://user-images.githubusercontent.com/43771652/110070232-8172f980-7d9f-11eb-9d18-f1cf7e89c857.png)
+```math
+\begin{align*}
+    \frac{\mathrm{d} x}{\mathrm{d}t} &= \sigma (y -x) \, ,\\
+    \frac{\mathrm{d} y}{\mathrm{d}t} &= x (\rho - z) - y \, ,\\
+    \frac{\mathrm{d} z}{\mathrm{d}t} &= x y - \beta z \, ,\\
+\end{align*}
+```
 
-with Physics-Informed Neural Networks.
-Now we would consider the case where we want to optimise the parameters σ, β  and ρ.
+with Physics-Informed Neural Networks. Now we would consider the case where we want to optimise the parameters ``\sigma``, ``\beta``,  and ``\rho``.
+
 We start by defining the the problem,
 
 ```julia
