@@ -69,8 +69,6 @@ initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
 function loss(cord,θ)
     chain2(cord,θ) .- phi(cord,res.minimizer)
 end
-prob_ = NeuralPDE.neural_adapter(loss,initθ2,pde_system, grid_strategy)
-res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=500)
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
 quadrature_strategy = NeuralPDE.QuadratureTraining(reltol=1e-2,abstol=1e-2,
