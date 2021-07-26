@@ -2,15 +2,21 @@
 
 Let's consider the Fokker-Planck equation:
 
-![fke](https://user-images.githubusercontent.com/12683885/91547965-58c00200-e92d-11ea-8d7b-f20ba79ed7c1.png)
+```math
+- \frac{∂}{∂x} \left [ \left( \alpha x - \beta x^3\right) p(x)\right ] + \frac{\sigma^2}{2} \frac{∂^2}{∂x^2} p(x) = 0 \, ,
+```
 
 which must satisfy the normalization condition:
 
-![nc](https://user-images.githubusercontent.com/12683885/91548028-74c3a380-e92d-11ea-8ee4-ac2a1c780808.png)
+```math
+\Delta t \, p(x) = 1
+```
 
 with the boundary conditions:
 
-![bc](https://user-images.githubusercontent.com/12683885/91548102-902eae80-e92d-11ea-8956-736a54e9591e.png)
+```math
+p(-2.2) = p(2.2) = 0
+```
 
 with Physics-Informed Neural Networks.
 
