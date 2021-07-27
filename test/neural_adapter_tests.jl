@@ -70,7 +70,7 @@ function loss(cord,θ)
     chain2(cord,θ) .- phi(cord,res.minimizer)
 end
 
-grid_strategy = NeuralPDE.GridTraining(0.1)
+grid_strategy = NeuralPDE.GridTraining(0.01)
 quadrature_strategy = NeuralPDE.QuadratureTraining(reltol=1e-2,abstol=1e-2,
                                                    maxiters =50, batch=100)
 stochastic_strategy = NeuralPDE.StochasticTraining(400)
@@ -115,7 +115,7 @@ u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),l
 
 @test u_predict ≈ u_real rtol = 0.1
 map(u_predicts[1:2]) do upred
-    @test upred ≈ u_real rtol = 0.1
+    @test upred ≈ u_real rtol = 0.2
 end
 map(u_predicts[3:end]) do upred
     @test upred ≈ u_real rtol = 0.3
