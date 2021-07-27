@@ -234,7 +234,7 @@ initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
 domains = [x ∈ x_domain,
            y ∈ y_domain]
 pde_system = PDESystem(eq, bcs, domains, [x, y], [u])
-symprob = NeuralPDE.symbolic_discretize(pde_system_,discretization)
+symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
 losses = map(1:count_decomp) do i
     loss(cord,θ) = chain2(cord,θ) .- phis[i](cord,reses[i].minimizer)
