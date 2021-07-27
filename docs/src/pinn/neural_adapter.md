@@ -1,8 +1,8 @@
 ## Neural Adapter
 
-![image](https://user-images.githubusercontent.com/12683885/127149639-c2a8066f-9a25-4889-b313-5d4403567300.png)
+Using the example of 2D Poisson equation, it is shown how, using method neural_adapter, to retrain the prediction of one neural network to another.
 
-2D Poisson equation with Neural adapter
+![image](https://user-images.githubusercontent.com/12683885/127149639-c2a8066f-9a25-4889-b313-5d4403567300.png)
 
 ```julia
 @parameters x y
@@ -82,6 +82,9 @@ plot(p1,p2,p3,p4,p5)
 ```
 
 ## Domain decomposition
+
+In this example, we first obtain a prediction of 2D Poisson equation on subdomains. We split up full domain into 10 sub problems by x, and  create separate neural networks for each sub interval. If x domain ∈ [x_0, x_end] so, it is decomposed on 10 part: sub x domains = {[x_0, x_1], ... [x_i,x_i+1], ..., x_9,x_end]}.
+And then using the method neural_adapter, we retrain the banch of 10 predictions to the one prediction for full domain of task.
 
 ![domain_decomposition](https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png)
 
