@@ -57,7 +57,7 @@ sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS();  maxiters=2000)
 phi = discretization.phi
 
-inner_ = 8
+inner_ = 10
 af = Flux.tanh
 chain2 = FastChain(FastDense(2,inner_,af),
                    FastDense(inner_,inner_,af),
@@ -70,8 +70,8 @@ function loss(cord,θ)
     chain2(cord,θ) .- phi(cord,res.minimizer)
 end
 
-grid_strategy = NeuralPDE.GridTraining(0.01)
-quadrature_strategy = NeuralPDE.QuadratureTraining(reltol=1e-2,abstol=1e-2,
+grid_strategy = NeuralPDE.GridTraining(0.05)
+quadrature_strategy = NeuralPDE.QuadratureTraining(reltol=1e-5,abstol=1e-5,
                                                    maxiters =50, batch=100)
 stochastic_strategy = NeuralPDE.StochasticTraining(400)
 quasirandom_strategy = NeuralPDE.QuasiRandomTraining(400,resampling =false,minibatch = 200)
@@ -82,15 +82,17 @@ strategies1 = [grid_strategy,quadrature_strategy]
 reses_1 = map(strategies1) do strategy_
     println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
     prob_ = NeuralPDE.neural_adapter(loss,initθ2,pde_system, strategy_)
-    res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=1000)
+    res_ = GalacticOptim.solve(prob_, ADAM(0.01); maxiters=8000)
+    prob_ = remake(prob_,u0=res_.minimizer)
+    res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=200)
 end
 strategies2 = [stochastic_strategy,quasirandom_strategy]# quasirandom_strategy_resampling]
 reses_2 = map(strategies2) do strategy_
     println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
     prob_ = NeuralPDE.neural_adapter(loss,initθ2,pde_system, strategy_)
-    res_ = GalacticOptim.solve(prob_, ADAM(0.01); maxiters=3000)
+    res_ = GalacticOptim.solve(prob_, ADAM(0.01); maxiters=8000)
     prob_ = remake(prob_,u0=res_.minimizer)
-    res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=500)
+    res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=200)
 end
 reses_ = [reses_1;reses_2;]
 
@@ -114,10 +116,8 @@ end
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 
 @test u_predict ≈ u_real rtol = 0.1
-map(u_predicts[1:2]) do upred
-    @test upred ≈ u_real rtol = 0.2
-end
-map(u_predicts[3:end]) do upred
+@test u_predicts[1] ≈ u_real rtol = 0.2
+map(u_predicts[2:end]) do upred
     @test upred ≈ u_real rtol = 0.3
 end
 
@@ -244,9 +244,9 @@ losses = map(1:count_decomp) do i
 end
 
 prob_ = NeuralPDE.neural_adapter(losses,initθ2, pde_system_map,NeuralPDE.GridTraining([0.1/count_decomp,0.1]))
-res_ = GalacticOptim.solve(prob_, BFGS();cb=cb, maxiters=2000)
+res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=2000)
 prob_ = NeuralPDE.neural_adapter(losses,res_.minimizer, pde_system_map, NeuralPDE.GridTraining(0.01))
-res_ = GalacticOptim.solve(prob_, BFGS();cb=cb,  maxiters=1000)
+res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=1000)
 
 parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
 phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
