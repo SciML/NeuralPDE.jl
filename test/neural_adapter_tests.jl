@@ -232,7 +232,15 @@ function append_(dx)
     ys = infimum(domains[2].domain):dx:supremum(domains[2].domain)
     xs_ = infimum(x_domain):dx:supremum(x_domain)
     xs = collect(xs_)
+    function index_of_interval(x_)
+        for (i,x_domain) in enumerate(xs_domain)
+            if x_<= x_domain[2] && x_>= x_domain[1]
+                return i
+            end
+        end
+    end
     for x_ in xs
+        i = index_of_interval(x_)
         u_predict_sub = [first(phis[i]([x_,y],reses[i].minimizer)) for y in ys]
         u_real_sub = [analytic_sol_func(x_,y)  for y in ys]
         diff_u_sub = abs.(u_predict_sub .- u_real_sub)

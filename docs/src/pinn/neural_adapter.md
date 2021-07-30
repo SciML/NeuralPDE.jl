@@ -84,9 +84,8 @@ p4 = plot(xs, ys, diff_u,linetype=:contourf,title = "error 1");
 p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = "error 2");
 plot(p1,p2,p3,p4,p5)
 
-![neural_adapter](https://user-images.githubusercontent.com/12683885/127645487-24226cc0-fff6-4bb9-8509-77cf3e120563.png)
-
 ```
+![neural_adapter](https://user-images.githubusercontent.com/12683885/127645487-24226cc0-fff6-4bb9-8509-77cf3e120563.png)
 
 ## Domain decomposition
 
@@ -176,14 +175,21 @@ for i in 1:count_decomp
     push!(phis, phi)
 end
 
-
 function append_(dx)
     u_predict_array = Float64[]
     diff_u_array = Float64[]
     ys = infimum(domains[2].domain):dx:supremum(domains[2].domain)
     xs_ = infimum(x_domain):dx:supremum(x_domain)
     xs = collect(xs_)
+    function index_of_interval(x_)
+        for (i,x_domain) in enumerate(xs_domain)
+            if x_<= x_domain[2] && x_>= x_domain[1]
+                return i
+            end
+        end
+    end
     for x_ in xs
+        i = index_of_interval(x_)
         u_predict_sub = [first(phis[i]([x_,y],reses[i].minimizer)) for y in ys]
         u_real_sub = [analytic_sol_func(x_,y)  for y in ys]
         diff_u_sub = abs.(u_predict_sub .- u_real_sub)
