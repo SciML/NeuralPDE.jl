@@ -244,7 +244,6 @@ u_real = [analytic_sol_func(t,x,y) for t in ts for x in xs for y in ys]
 u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs for y in ys]
 
 @test u_predict ≈ u_real rtol = 3.0
-# @test u_predict ≈ u_real atol = 20.0
 
 # using Plots
 # using Printf
