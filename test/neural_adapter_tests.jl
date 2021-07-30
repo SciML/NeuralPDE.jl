@@ -243,7 +243,7 @@ function append_(dx)
         i = index_of_interval(x_)
         u_predict_sub = [first(phis[i]([x_,y],reses[i].minimizer)) for y in ys]
         u_real_sub = [analytic_sol_func(x_,y)  for y in ys]
-        diff_u_sub = abs.(u_predict_sub .- u_real_sub)
+        diff_u_sub = u_predict_sub .- u_real_sub
         append!(u_predict_array,u_predict_sub)
         append!(diff_u_array,diff_u_sub)
     end
@@ -285,7 +285,7 @@ u_predict_ = reshape([first(phi_([x,y],res_.minimizer)) for x in xs for y in ys]
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 diff_u_ = u_predict_ .- u_real
 
-@test u_predict ≈ u_real rtol = 0.4
+@test u_predict ≈ u_real rtol = 0.1
 @test u_predict_ ≈ u_real rtol = 0.1
 
 # p1 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict 1");

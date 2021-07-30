@@ -249,4 +249,4 @@ p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = "error 2");
 plot(p1,p2,p3,p4,p5)
 ```
 
-![decomp](https://user-images.githubusercontent.com/12683885/127645567-e1bf7882-b537-48a9-9856-ea616ae7582b.png)
+![decomp](https://user-images.githubusercontent.com/12683885/127651866-87ba95ad-10a8-471e-b4a5-093210a86c0e.png)
