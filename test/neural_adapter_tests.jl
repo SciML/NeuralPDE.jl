@@ -150,6 +150,8 @@ x_0 = 0.0
 x_end = 1.0
 x_domain = Interval(x_0, x_end)
 y_domain = Interval(0.0, 1.0)
+domains = [x ∈ x_domain,
+           y ∈ y_domain]
 
 count_decomp = 10
 
@@ -222,7 +224,29 @@ end
 #     p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 #     plot(p1,p2,p3)
 # end
-# ps =[plot_(i) for i in 1:10]
+# ps =[plot_(i) for i in 1:count_decomp]
+
+function append_(dx)
+    u_predict_array = Float64[]
+    diff_u_array = Float64[]
+    ys = infimum(domains[2].domain):dx:supremum(domains[2].domain)
+    xs_ = infimum(x_domain):dx:supremum(x_domain)
+    xs = collect(xs_)
+    for x_ in xs
+        u_predict_sub = [first(phis[i]([x_,y],reses[i].minimizer)) for y in ys]
+        u_real_sub = [analytic_sol_func(x_,y)  for y in ys]
+        diff_u_sub = abs.(u_predict_sub .- u_real_sub)
+        append!(u_predict_array,u_predict_sub)
+        append!(diff_u_array,diff_u_sub)
+    end
+    xs,ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+    u_predict = reshape(u_predict_array,(length(xs),length(ys)))
+    diff_u = reshape(diff_u_array, (length(xs),length(ys)))
+    u_predict, diff_u
+end
+dx= 0.01
+u_predict, diff_u = append_(dx)
+
 
 inner_ = 18
 af = Flux.tanh
@@ -234,8 +258,6 @@ chain2 = FastChain(FastDense(2,inner_,af),
 
 initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
 
-domains = [x ∈ x_domain,
-           y ∈ y_domain]
 pde_system = PDESystem(eq, bcs, domains, [x, y], [u])
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -251,14 +273,17 @@ res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=1000)
 parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
 phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
 
-xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+xs,ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 u_predict_ = reshape([first(phi_([x,y],res_.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
-diff_u = (u_predict_ .- u_real)
+diff_u_ = u_predict_ .- u_real
 
+@test u_predict ≈ u_real rtol = 0.4
 @test u_predict_ ≈ u_real rtol = 0.1
 
-# p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-# p2 = plot(xs, ys, u_predict_, linetype=:contourf,title = "predict");
-# p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-# plot(p1,p2,p3)
+# p1 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict 1");
+# p2 = plot(xs, ys, u_predict_,linetype=:contourf,title = "predict 2");
+# p3 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+# p4 = plot(xs, ys, diff_u,linetype=:contourf,title = "error 1");
+# p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = "error 2");
+# plot(p1,p2,p3,p4,p5)

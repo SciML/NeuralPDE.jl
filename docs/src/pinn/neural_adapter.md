@@ -5,6 +5,9 @@ Using the example of 2D Poisson equation, it is shown how, using method neural_a
 ![image](https://user-images.githubusercontent.com/12683885/127149639-c2a8066f-9a25-4889-b313-5d4403567300.png)
 
 ```julia
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, DiffEqBase
+import ModelingToolkit: Interval, infimum, supremum
+
 @parameters x y
 @variables u(..)
 Dxx = Differential(x)^2
@@ -39,7 +42,7 @@ sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS();  maxiters=2000)
 phi = discretization.phi
 
-inner_ = 8
+inner_ = 12
 af = Flux.tanh
 chain2 = FastChain(FastDense(2,inner_,af),
                    FastDense(inner_,inner_,af),
@@ -52,12 +55,14 @@ function loss(cord,θ)
     chain2(cord,θ) .- phi(cord,res.minimizer)
 end
 
-quadrature_strategy = NeuralPDE.QuadratureTraining(reltol=1e-2,abstol=1e-2,
-                                                   maxiters =50, batch=100)
+strategy = NeuralPDE.GridTraining(0.02)
 
-
-prob_ = NeuralPDE.neural_adapter(loss, initθ2, pde_system, quadrature_strategy)
-res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=1000)
+prob_ = NeuralPDE.neural_adapter(loss, initθ2, pde_system, strategy)
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+res_ = GalacticOptim.solve(prob_, BFGS();cb=cb, maxiters=1000)
 
 parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
 phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
@@ -68,16 +73,18 @@ analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
 u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
 u_predict_ =  reshape([first(phi_([x,y],res_.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+diff_u = u_predict .- u_real
+diff_u_ = u_predict_ .- u_real
 
 using Plots
-diff_u = u_predict .- u_real
-diff_u_ = u_predicts .- u_real
 p1 = plot(xs, ys, u_predict, linetype=:contourf,title = "first predict");
-p2 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-p4 = plot(xs, ys, u_predicts[i],linetype=:contourf,title = "second predict");
-p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = "error_");
+p2 = plot(xs, ys, u_predict_,linetype=:contourf,title = "second predict");
+p3 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+p4 = plot(xs, ys, diff_u,linetype=:contourf,title = "error 1");
+p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = "error 2");
 plot(p1,p2,p3,p4,p5)
+
+![neural_adapter](https://user-images.githubusercontent.com/12683885/127645487-24226cc0-fff6-4bb9-8509-77cf3e120563.png)
 
 ```
 
@@ -89,7 +96,7 @@ And then using the method neural_adapter, we retrain the banch of 10 predictions
 ![domain_decomposition](https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png)
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, DiffEqBase
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -107,6 +114,8 @@ x_0 = 0.0
 x_end = 1.0
 x_domain = Interval(x_0, x_end)
 y_domain = Interval(0.0, 1.0)
+domains = [x ∈ x_domain,
+           y ∈ y_domain]
 
 count_decomp = 10
 
@@ -167,18 +176,28 @@ for i in 1:count_decomp
     push!(phis, phi)
 end
 
-using Plots
-function plot_(i)
-    xs, ys = [infimum(d.domain):dx:supremum(d.domain) for (dx,d) in zip([0.001,0.01], domains_map[i])]
-    u_predict = reshape([first(phis[i]([x,y],reses[i].minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-    u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
-    diff_u = abs.(u_predict .- u_real)
-    p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-    p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-    p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-    plot(p1,p2,p3)
+
+function append_(dx)
+    u_predict_array = Float64[]
+    diff_u_array = Float64[]
+    ys = infimum(domains[2].domain):dx:supremum(domains[2].domain)
+    xs_ = infimum(x_domain):dx:supremum(x_domain)
+    xs = collect(xs_)
+    for x_ in xs
+        u_predict_sub = [first(phis[i]([x_,y],reses[i].minimizer)) for y in ys]
+        u_real_sub = [analytic_sol_func(x_,y)  for y in ys]
+        diff_u_sub = abs.(u_predict_sub .- u_real_sub)
+        append!(u_predict_array,u_predict_sub)
+        append!(diff_u_array,diff_u_sub)
+    end
+    xs,ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+    u_predict = reshape(u_predict_array,(length(xs),length(ys)))
+    diff_u = reshape(diff_u_array, (length(xs),length(ys)))
+    u_predict, diff_u
 end
-ps =[plot_(i) for i in 1:10]
+dx= 0.01
+u_predict, diff_u = append_(dx)
+
 
 inner_ = 18
 af = Flux.tanh
@@ -190,8 +209,6 @@ chain2 = FastChain(FastDense(2,inner_,af),
 
 initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
 
-domains = [x ∈ x_domain,
-           y ∈ y_domain]
 pde_system = PDESystem(eq, bcs, domains, [x, y], [u])
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -212,15 +229,19 @@ res_ = GalacticOptim.solve(prob_, BFGS();cb=cb,  maxiters=1000)
 parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
 phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
 
-xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+xs,ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 u_predict_ = reshape([first(phi_([x,y],res_.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
-diff_u = u_predict_ .- u_real
+diff_u_ = u_predict_ .- u_real
 
-p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-p2 = plot(xs, ys, u_predict_, linetype=:contourf,title = "predict");
-p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-plot(p1,p2,p3)
+using Plots
+
+p1 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict 1");
+p2 = plot(xs, ys, u_predict_,linetype=:contourf,title = "predict 2");
+p3 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+p4 = plot(xs, ys, diff_u,linetype=:contourf,title = "error 1");
+p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = "error 2");
+plot(p1,p2,p3,p4,p5)
 ```
 
-![decomp](https://user-images.githubusercontent.com/12683885/127161424-46222366-8831-4f94-b44a-989dd22b0eb0.png)
+![decomp](https://user-images.githubusercontent.com/12683885/127645567-e1bf7882-b537-48a9-9856-ea616ae7582b.png)
