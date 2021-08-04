@@ -155,7 +155,7 @@ u(r,\theta), \, x(r,\theta), \, y(r,\theta)
 ```
 
 ```julia
-@paameters r,\theta
+@parameters r,\theta
 @variables u(..)
 
 x = r*cos(\theta)
