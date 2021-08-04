@@ -146,81 +146,83 @@ end
 plt = meshplt(xs,ys,u_predict)
 ```
 
-## Detailed Description
+## Coordinate Transform and Differential Operators
 
-The ModelingToolkit PDE interface for this example looks like this:
+We represent the field vairable, ``u``, and physical coordinates ``x,y`` in terms of reference variables ``r,\theta``:
+
+```math
+u(r,\theta), \, x(r,\theta), \, y(r,\theta)
+```
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
-import ModelingToolkit: Interval, infimum, supremum
-
-@parameters x y
+@paameters r,\theta
 @variables u(..)
-@derivatives Dxx''~x
-@derivatives Dyy''~y
 
-# 2D PDE
-eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
-
-# Boundary conditions
-bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
-# Space and time domains
-domains = [x ∈ Interval(0.0,1.0),
-           y ∈ Interval(0.0,1.0)]
+x = r*cos(\theta)
+y = r*sin(\theta)
 ```
 
-Here, we define the neural network, where the input of NN equals the number of dimensions and output equals the number of equations in the system.
+To obtain derivateives with respect to ``x`` and ``y``, we employ the chain rule:
+
+```math
+\begin{align}
+\partial_x u(r,s) &= u_r(r,s)\partial_x r + u_s(x,y)\partial_x s\\
+\partial_y u(r,s) &= u_r(r,s)\partial_y r + u_s(x,y)\partial_y s
+\end{align}
+
+\implies
+\begin{bmatrix} \partial_x \\ \partial_y \end{bmatrix} u(r,s)
+=
+\begin{bmatrix} r_x & \theta_x\\ r_y & \theta_y \end{bmatrix}
+\begin{bmatrix} \partial_r \\ \partial_s \end{bmatrix} u(r,s)
+```
+
+To take gradients with respect to ``x,y``, we need to find ``r_x,\, r_y,\, \theta_x,\, \theta_y``. We begin by observing that
+```math
+\begin{align}
+\partial_x x(r,s) &= 1,\\
+\partial_y x(r,s) &= 0,\\
+\partial_x y(r,s) &= 0,\\
+\partial_y y(r,s) &= 1
+\end{align}
+
+\implies
+\begin{bmatrix} 1 & 0\\ 0 & 1 \end{bmatrix}
+=
+\begin{bmatrix} r_x & \theta_x\\ r_y & \theta_y \end{bmatrix}
+\begin{bmatrix} x_r & y_r\\ x_\theta & y_\theta \end{bmatrix}
+
+\implies
+\begin{bmatrix} r_x & \theta_x\\ r_y & \theta_y \end{bmatrix}
+=
+(1/J)
+\begin{bmatrix} y_\theta & -y_r\\ -x_\theta & x_r \end{bmatrix}
+```
+The gradients are implemented as follows:
+```julia
+Dr = Differential(r)
+Dθ = Differential(θ)
+
+xr = Dr(x); yr = Dr(y)
+xθ = Dθ(x); yθ = Dθ(y)
+
+J  = xr*yθ - xθ*yr
+Ji = 1 / J
+
+rx =  Ji * yθ
+ry = -Ji * xθ
+θx = -Ji * yr
+θy =  Ji * xr
+
+Dx(v) = rx*Dr(v) + θx*Dθ(v)
+Dy(v) = ry*Dr(v) + θy*Dθ(v)
+```
+
+The second derivaties are obtained by by composing first derivaties:
 
 ```julia
-# Neural network
-dim = 2 # number of dimensions
-chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+Dxx = Dx ∘ Dx
+Dyy = Dy ∘ Dy
 ```
 
-Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretization and `strategy` stores information for choosing a training strategy.
-```julia
-# Discretization
-dx = 0.05
-discretization = PhysicsInformedNN(chain, GridTraining(dx))
-```
-
-As described in the API docs, we now need to define the `PDESystem` and create PINNs problem using the `discretize` method.
-
-```julia
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
-prob = discretize(pde_system,discretization)
-```
-
-Here, we define the callback function and the optimizer. And now we can solve the PDE using PINNs
-(with the number of epochs `maxiters=1000`).
-
-```julia
-#Optimizer
-opt = Optim.BFGS()
-
-cb = function (p,l)
-    println("Current loss is: $l")
-    return false
-end
-
-res = GalacticOptim.solve(prob, opt, cb = cb, maxiters=1000)
-phi = discretization.phi
-```
-
-We can plot the predicted solution of the PDE and compare it with the analytical solution in order to plot the relative error.
-
-```julia
-xs,ys = [infimum(d.domain):dx/10:supremum(d.domain) for d in domains]
-analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
-
-u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
-diff_u = abs.(u_predict .- u_real)
-
-p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-plot(p1,p2,p3)
-```
-![poissonplot](https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png)
+![poisson_annulus_plot](https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png)
