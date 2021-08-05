@@ -225,4 +225,4 @@ Dxx = Dx ∘ Dx
 Dyy = Dy ∘ Dy
 ```
 
-![poisson_annulus_plot](https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png)
+![poisson_annulus](https://user-images.githubusercontent.com/36345239/128362706-b39a6160-370c-43b1-b939-46214e5c3730.png)
