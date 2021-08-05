@@ -16,7 +16,7 @@ The stock price will follow a standard geometric brownian motion given by:
 ```
 And thus our final aim will be to calculate:
 
-[american_option]("https://raw.githubusercontent.com/ashutosh-b-b/github-doc-images/master/Price%20of%20American%20Option.png")
+![american_option]("https://raw.githubusercontent.com/ashutosh-b-b/github-doc-images/master/Price%20of%20American%20Option.png")
 
 We will be using a `SDEProblem` to denote a problem of this type. We can define this as a `SDEProblem` and add a terminal condition `g` in order to price the American Options.
 
