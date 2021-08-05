@@ -1,4 +1,4 @@
-## Neural Adapter
+## Transfer Learning with Neural Adapter
 
 Using the example of 2D Poisson equation, it is shown how, using method neural_adapter, to retrain the prediction of one neural network to another.
 
