@@ -527,14 +527,15 @@ len = length(data[2])
 function additional_loss(phi, θ , p)
     return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
 end
-testθ =reduce(vcat,initθs)
-additional_loss(discretization.phi, testθ, nothing)
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              NeuralPDE.GridTraining(dt);
                                              init_params =initθs,
                                              param_estim=true,
                                              additional_loss=additional_loss)
+testθ =reduce(vcat,initθs)
+additional_loss(discretization.phi, testθ, nothing)
+
 pde_system = PDESystem(eqs,bcs,domains,
                       [t],[x, y, z],[σ_, ρ, β],
                       defaults=Dict([p => 1.0 for p in [σ_, ρ, β]]))
