@@ -39,7 +39,7 @@ dt = tspan[2]/(N - 1)
 ```
 The final part is the payoff function:
 
-[payoff_func]("https://raw.githubusercontent.com/ashutosh-b-b/github-doc-images/master/payoff_function.png")
+![payoff_func]("https://raw.githubusercontent.com/ashutosh-b-b/github-doc-images/master/payoff_function.png")
 
 The discounted payoff function is:
 
