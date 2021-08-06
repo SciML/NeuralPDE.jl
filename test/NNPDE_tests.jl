@@ -581,7 +581,7 @@ println("Integral Tests")
 @parameters t
 @variables i(..)
 Di = Differential(t)
-Ii = Integral(t, DomainSets.ClosedInterval(0, t))
+Ii = Integral(t, t in DomainSets.ClosedInterval(0, t))
 eq = Di(i(t)) + 2*i(t) + 5*Ii(i(t)) ~ 1
 bcs = [i(0.) ~ 0.0]
 domains = [t ∈ Interval(0.0,2.0)]
@@ -608,7 +608,7 @@ u_predict  = [first(phi([t],res.minimizer)) for t in ts]
 ## Simple Integral Test
 @parameters x
 @variables u(..)
-Ix = Integral(x, DomainSets.ClosedInterval(0, x))
+Ix = Integral(x, x in DomainSets.ClosedInterval(0, x))
 eq = Ix(u(x)) ~ (x^3)/3
 bcs = [u(0.) ~ 0.0]
 domains = [x ∈ Interval(0.0,1.00)]

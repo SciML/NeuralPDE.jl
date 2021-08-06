@@ -164,6 +164,15 @@ function get_ε(dim, der_num,eltypeθ)
     ε
 end
 
+function get_limits(domain)
+    if domain isa AbstractInterval
+        return DomainSets.endpoints(domain)
+    else
+        return (Vector(infimum(domain)), Vector(supremum(domain)))
+    end
+end
+
+
 θ = gensym("θ")
 
 """
@@ -225,19 +234,24 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                 end
                 break
             elseif e isa Symbolics.Integral
-                integrating_variable = toexpr(_args[1].x)
-                integrating_var_id = dict_indvars[integrating_variable]
+                if _args[1].x isa Vector
+                    integrating_variable = toexpr.(_args[1].x)
+                    integrating_var_id = [dict_indvars[i] for i in integrating_variable]
+                else
+                    integrating_variable = toexpr(_args[1].x)
+                    integrating_var_id = [dict_indvars[integrating_variable]]
+                end
                 integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,initθ; is_integral = true)
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative_, nothing, chain, initθ, strategy, integrand = integrand,eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
                 # integrand = repr(integrand)
-                lb, ub = DomainSets.endpoints(_args[1].domain)
+                lb, ub = get_limits(_args[1].domain.domain)
                 lb = toexpr(lb)
                 ub = toexpr(ub)
                 lb_definite, ub_definite = false , false
-                if (lb isa Number || lb isa Matrix)
+                if (lb isa Number || lb isa Vector)
                     lb_definite = true
                 end
-                if (ub isa Number || ub isa Matrix)
+                if (ub isa Number || ub isa Vector)
                     ub_definite = true
                 end
                 if !(lb_definite && ub_definite)
@@ -704,7 +718,7 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                 function integration_(cord, lb, ub, flat_θ)
                     cord_ = cord
                     function integrand_(x , p)
-                        @Zygote.ignore cord_[integrating_var_id] = x[1]
+                        @Zygote.ignore @views(cord_[integrating_var_id]) .= x
                         return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)
                     end
                     prob_ = QuadratureProblem(integrand_,lb, ub ,flat_θ)
@@ -713,10 +727,10 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                 end
                 integration_arr = reshape([], 1, 0)
                 lb_definite, ub_definite = false , false
-                if (lb isa Number || lb isa Matrix)
+                if (lb isa Number || lb isa Vector)
                     lb_definite = true
                 end
-                if (ub isa Number || ub isa Matrix)
+                if (ub isa Number || ub isa Vector)
                     ub_definite = true
                 end
                 if !lb_definite
