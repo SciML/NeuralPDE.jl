@@ -1,6 +1,57 @@
-import Base.Broadcast
-Base.Broadcast.dottable(x::Function) = true
+using Base.Broadcast
+
+"""
+Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
+
+# Example
+
+```julia
+julia> e = :(1 + $sin(x))
+:(1 + (sin)(x))
+
+julia> Broadcast.__dot__(e)
+:((+).(1, (sin)(x)))
+
+julia> _dot_(e)
+:((+).(1, (sin).(x)))
+```
+"""
+
+dottable_(x) = Broadcast.dottable(x)
+dottable_(x::Function) = true
+
+_dot_(x) = x
+function _dot_(x::Expr)
+    dotargs = Base.mapany(_dot_, x.args)
+    if x.head === :call && dottable_(x.args[1])
+        Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
+    elseif x.head === :comparison
+        Expr(:comparison, (iseven(i) && dottable_(arg) && arg isa Symbol && isoperator(arg) ?
+                               Symbol('.', arg) : arg for (i, arg) in pairs(dotargs))...)
+    elseif x.head === :$
+        x.args[1]
+    elseif x.head === :let # don't add dots to `let x=...` assignments
+        Expr(:let, undot(dotargs[1]), dotargs[2])
+    elseif x.head === :for # don't add dots to for x=... assignments
+        Expr(:for, undot(dotargs[1]), dotargs[2])
+    elseif (x.head === :(=) || x.head === :function || x.head === :macro) &&
+           Meta.isexpr(x.args[1], :call) # function or macro definition
+        Expr(x.head, x.args[1], dotargs[2])
+    elseif x.head === :(<:) || x.head === :(>:)
+        tmp = x.head === :(<:) ? :.<: : :.>:
+        Expr(:call, tmp, dotargs...)
+    else
+        head = String(x.head)::String
+        if last(head) == '=' && first(head) != '.' || head == "&&" || head == "||"
+            Expr(Symbol('.', head), dotargs...)
+        else
+            Expr(x.head, dotargs...)
+        end
+    end
+end
+
 RuntimeGeneratedFunctions.init(@__MODULE__)
+
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
 
@@ -270,8 +321,8 @@ function parse_equation(eq,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
 
     left_expr = transform_expression(toexpr(eq_lhs),dict_indvars,dict_depvars,chain,eltypeθ,strategy)
     right_expr = transform_expression(toexpr(eq_rhs),dict_indvars,dict_depvars,chain,eltypeθ,strategy)
-    left_expr = Broadcast.__dot__(left_expr)
-    right_expr = Broadcast.__dot__(right_expr)
+    left_expr = _dot_(left_expr)
+    right_expr = _dot_(right_expr)
     loss_func = :($left_expr .- $right_expr)
 end
 
