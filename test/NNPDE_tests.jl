@@ -629,3 +629,31 @@ phi = discretization.phi
 u_predict  = [first(phi([x],res.minimizer)) for x in xs]
 u_real  = [x^2 for x in xs]
 @test Flux.mse(u_real, u_predict) < 0.001
+
+#simple multidimensitonal integral test
+@parameters x,y
+@variables u(..)
+Dx = Differential(x)
+Dy = Differential(y)
+Ix = Integral([x,y], (x,y) in DomainSets.UnitSquare())
+eq = Ix(u(x,y)) ~ 1/3
+bcs = [u(0., 0.) ~ 1, Dx(u(x,y)) ~ -2*x , Dy(u(x ,y)) ~ -2*y ]
+domains = [x ∈ Interval(0.0,1.00), y ∈ Interval(0.0,1.00)]
+chain = Chain(Dense(2,15,Flux.σ),Dense(15,1))
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+strategy_ = NeuralPDE.GridTraining(0.05)
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy_;
+                                             init_params = nothing,
+                                             phi = nothing,
+                                             derivative = nothing,
+                                             )
+pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+prob = NeuralPDE.discretize(pde_system,discretization)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
+xs = 0.00:0.01:1.00
+ys = 0.00:0.01:1.00
+phi = discretization.phi
+u_predict  = [first(phi([x,y],res.minimizer)) for (x,y) in zip(xs,ys)]
+u_real  = [ 1 - x^2 - y^2 for (x,y) in zip(xs,ys)]
+@test Flux.mse(u_real, u_predict) < 0.001
