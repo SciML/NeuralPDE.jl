@@ -460,8 +460,8 @@ function build_loss_function(eqs,indvars,depvars,
 end
 
 function get_vars(indvars_, depvars_)
-    depvars = [nameof(d.f) for d in depvars_]
-    indvars = [nameof(i.val) for i in indvars_]
+    depvars = ModelingToolkit.getname.(depvars_)
+    indvars = ModelingToolkit.getname.(indvars_)
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     return depvars,indvars,dict_indvars,dict_depvars
@@ -835,7 +835,8 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
 
     # dimensionality of equation
     dim = length(domains)
-    depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.ivs,pde_system.dvs)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(ModelingToolkit.get_ivs(pde_system),
+                                                         ModelingToolkit.get_dvs(pde_system))
 
     chain = discretization.chain
     initθ = discretization.init_params
