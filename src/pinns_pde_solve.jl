@@ -835,8 +835,10 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
 
     # dimensionality of equation
     dim = length(domains)
-    depvars,indvars,dict_indvars,dict_depvars = get_vars(ModelingToolkit.get_ivs(pde_system),
-                                                         ModelingToolkit.get_dvs(pde_system))
+
+    #TODO fix it in MTK 6.0.0+v: ModelingToolkit.get_ivs(pde_system)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.ivs,
+                                                         pde_system.dvs)
 
     chain = discretization.chain
     initθ = discretization.init_params
