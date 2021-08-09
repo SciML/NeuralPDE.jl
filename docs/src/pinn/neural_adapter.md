@@ -175,7 +175,7 @@ for i in 1:count_decomp
     push!(phis, phi)
 end
 
-function append_(dx)
+function compose_result(dx)
     u_predict_array = Float64[]
     diff_u_array = Float64[]
     ys = infimum(domains[2].domain):dx:supremum(domains[2].domain)
@@ -202,7 +202,7 @@ function append_(dx)
     u_predict, diff_u
 end
 dx= 0.01
-u_predict, diff_u = append_(dx)
+u_predict, diff_u = compose_result(dx)
 
 
 inner_ = 18
