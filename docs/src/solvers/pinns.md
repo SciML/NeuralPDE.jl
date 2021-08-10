@@ -77,6 +77,22 @@ List of training strategies that are available now:
 
   See the [Quadrature.jl](https://github.com/SciML/Quadrature.jl) documentation for the choices of quadrature methods.
 
+##  Transfer Learning with neural_adapter
+Transfer learning is a machine learning technique where a model trained on one task is re-purposed on a second related task.
+- `neural_adapter(loss_function,initθ,pde_system,strategy)`: the method that trains a neural network using the results from one already obtained prediction.  
+  Keyword arguments:
+  - `loss_function`:the body of loss function,
+  - `initθ`: the initial parameter of new neural networks,
+  - `pde_system`: PDE are defined using the ModelingToolkit.jl ,
+  - `strategy`: determines which training strategy will be used,
+
+- `neural_adapter(loss_functions::Array,initθ,pde_systems::Array,strategy)`: the method that trains a neural network using the results from many already obtained predictions.
+  Keyword arguments:
+  - `loss_functions`: the body of loss functions,
+  - `initθ`: the initial parameter of the neural network,
+  - `pde_systems`: PDEs are defined using the ModelingToolkit.jl,
+  - `strategy`: determines which training strategy will be used.
+
 ## Low-level API
 
 These additional methods exist to help with introspection:

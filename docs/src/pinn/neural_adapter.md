@@ -1,5 +1,12 @@
 ## Transfer Learning with Neural Adapter
 
+Transfer learning is a machine learning technique where a model trained on one task is re-purposed on a second related task.
+
+`neural_adapter` is method that trains a neural network using the results from an already obtained prediction.
+
+This allows reusing the obtained prediction results and pre-training states of the neural network to get a new prediction, or reuse the results of predictions to train a related task (for example, the same task with a different domain).
+It makes it possible to create more flexible training schemes.
+
 Using the example of 2D Poisson equation, it is shown how, using method neural_adapter, to retrain the prediction of one neural network to another.
 
 ![image](https://user-images.githubusercontent.com/12683885/127149639-c2a8066f-9a25-4889-b313-5d4403567300.png)
@@ -51,6 +58,7 @@ chain2 = FastChain(FastDense(2,inner_,af),
 
 initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
 
+# the rule by which the training will take place is described here in loss function
 function loss(cord,θ)
     chain2(cord,θ) .- phi(cord,res.minimizer)
 end
