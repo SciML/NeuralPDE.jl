@@ -150,9 +150,9 @@ Dict{Symbol,Int64} with 3 entries:
 get_dict_vars(vars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(vars)])
 
 # Wrapper for _transform_expression
-function transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ;is_integral=false)
+function transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ;is_integral=false)
     if ex isa Expr
-        ex = _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ;is_integral = is_integral)
+        ex = _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ;is_integral = is_integral)
     end
     return ex
 end
@@ -191,7 +191,7 @@ where
  order - order of derivative
  θ - weight in neural network
 """
-function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,initθ;is_integral=false)
+function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,integral,initθ;is_integral=false)
     _args = ex.args
     for (i,e) in enumerate(_args)
         if e isa Function && !(e isa ModelingToolkit.Differential || e isa Symbolics.Integral)
@@ -241,7 +241,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                     integrating_variable = toexpr(_args[1].x)
                     integrating_var_id = [dict_indvars[integrating_variable]]
                 end
-                integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,initθ; is_integral = true)
+                integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = true)
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative_, nothing, chain, initθ, strategy, integrand = integrand,eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
                 # integrand = repr(integrand)
                 lb, ub = get_limits(_args[1].domain.domain)
@@ -269,7 +269,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                 break
             end
         else
-            ex.args[i] = _transform_expression(ex.args[i],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
+            ex.args[i] = _transform_expression(ex.args[i],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
         end
     end
     return ex
@@ -305,15 +305,15 @@ Example:
 
 function build_symbolic_equation(eq,_indvars,_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
-    parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
+    parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
 end
 
 
-function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
+function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
-    left_expr = transform_expression(toexpr(eq_lhs),indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
-    right_expr = transform_expression(toexpr(eq_rhs),indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
+    left_expr = transform_expression(toexpr(eq_lhs),indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
+    right_expr = transform_expression(toexpr(eq_rhs),indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
     left_expr = Broadcast.__dot__(left_expr)
     right_expr = Broadcast.__dot__(right_expr)
     loss_func = :($left_expr .- $right_expr)
@@ -393,7 +393,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         eltypeθ = eltype(initθ)
     end
     if integrand isa Nothing
-        loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
+        loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
     else
         loss_function = integrand
     end
@@ -898,7 +898,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
-    global integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, chain, derivative)
+    integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, chain, derivative)
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -956,7 +956,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
-    global integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, chain, derivative)
+    integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, chain, derivative)
     if !(eqs isa Array)
         eqs = [eqs]
     end
