@@ -533,11 +533,15 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              init_params =initθs,
                                              param_estim=true,
                                              additional_loss=additional_loss)
+testθ =reduce(vcat,initθs)
+additional_loss(discretization.phi, testθ, nothing)
+
 pde_system = PDESystem(eqs,bcs,domains,
                       [t],[x, y, z],[σ_, ρ, β],
-                      defaults=Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
+                      defaults=Dict([p => 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+prob.f.f.loss_function([testθ;ones(3)])
 
 res = GalacticOptim.solve(prob, Optim.BFGS(); cb = cb, maxiters=6000)
 p_ = res.minimizer[end-2:end]

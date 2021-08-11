@@ -939,9 +939,12 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
             return loss_function(θ)
         else
             function _additional_loss(phi,θ)
-                θ_ = θ[1:end - length(default_p)]
-                p = θ[(end - length(default_p) + 1):end]
-                return additional_loss(phi,θ_,p)
+                (θ_,p_) = if (param_estim == true)
+                    θ[1:end - length(default_p)], θ[(end - length(default_p) + 1):end]
+                else
+                    θ, nothing
+                end
+                return additional_loss(phi,θ,p_)
             end
             return loss_function(θ) + _additional_loss(phi,θ)
         end
