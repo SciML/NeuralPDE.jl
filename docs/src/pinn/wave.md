@@ -93,50 +93,58 @@ u_t(0, x) = 1 - 2x \\
 \end{aligned}
 ```
 
-with grid discretization `dx = 0.1` and physics-informed neural networks.
+with grid discretization `dx = 0.05` and physics-informed neural networks. Here we take advantage of adaptive derivative to increase accuracy.
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
-using Plots
-using Quadrature,Cubature
+using Plots, Printf
+using Quadrature,Cubature, Cuba
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
-@variables u(..)
+@variables u(..) Dxu(..) Dtu(..) O1(..) O2(..)
 Dxx = Differential(x)^2
 Dtt = Differential(t)^2
 Dt = Differential(t)
 
 # Constants
-c = 2
 v = 3
-L = 1
-@assert c > 0 && c < 2π / (L * v)
+b = 2
+L = 1.0
+@assert b > 0 && b < 2π / (L * v)
 
 # 1D damped wave
-eq = Dxx(u(t, x)) ~ 1 / c^2 * Dtt(u(t, x)) + v * Dt(u(t, x))
+eq = Dx(Dxu(t, x)) ~ 1 / v^2 * Dt(Dtu(t, x)) + b * Dtu(t, x)
 
 # Initial and boundary conditions
-bcs = [u(t, 0) ~ 0.,# for all t > 0
+bcs_ = [u(t, 0) ~ 0.,# for all t > 0
        u(t, L) ~ 0.,# for all t > 0
        u(0, x) ~ x * (1. - x), # for all 0 < x < 1
-       Dt(u(0, x)) ~ 1 - 2x # for all  0 < x < 1
+       Dtu(0, x) ~ 1 - 2x # for all  0 < x < 1 
        ]
 
+ep = (cbrt(eps(eltype(Float64))))^2 / 6
+
+der = [Dxu(t, x) ~ Dx(u(t, x)) + ep * O1(t, x),
+       Dtu(t, x) ~  Dt(u(t, x)) + ep * O2(t, x)]
+
+bcs = [bcs_;der]
+
 # Space and time domains
-domains = [t ∈ Interval(0.0, 1.0),
-           x ∈ Interval(0.0, 1.0)]
+domains = [t ∈ Interval(0.0, L),
+           x ∈ Interval(0.0, L)]
 
 # Neural network
-af = Flux.tanh
-chain = FastChain(FastDense(2, 16, af), FastDense(16, 16, af), FastDense(16, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = [[FastChain(FastDense(2, 16, Flux.tanh), FastDense(16, 16, Flux.tanh), FastDense(16, 16, Flux.tanh), FastDense(16, 1)) for _ in 1:3];
+         [FastChain(FastDense(2, 6, Flux.tanh), FastDense(6, 1)) for _ in 1:2];]
 
-dx = 0.1
+initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
+
+dx = 0.05
 strategy = GridTraining(dx)
 discretization = PhysicsInformedNN(chain, strategy; init_params=initθ)
 
-pde_system = PDESystem(eq, bcs, domains, [t, x], [u])
+pde_system = PDESystem(eq, bcs, domains, [t, x], [u, Dxu, Dtu, O1, O2])
 prob = discretize(pde_system, discretization)
 
 pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
@@ -151,32 +159,30 @@ cb = function (p, l)
 end
 
 # Optimizer
-opt = Optim.BFGS()
-res = GalacticOptim.solve(prob, opt; cb=cb, maxiters=1400)
-phi = discretization.phi
+res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=1000)
+prob = remake(prob, u0=res.minimizer)
+res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=3000)
+
+phi = discretization.phi[1]
 
 # Analysis
-ts, xs = [infimum(d.domain):dx/5:supremum(d.domain) for d in domains]
+ts, xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 
-μ_n(k) = (v * sqrt(4 * k^2 * π^2 - c^2 * L^2 * v^2)) / (2 * L)
-b_n(k) = 2 / L * -((2 * π * L - π) * k * sin(π * L * k) + ((π^2 * L - π^2 * L^2) * k^2 + 2) * cos(π * L * k) - 2) / (π^3 * k^3) # vegas((x, ϕ) -> ϕ[1] = sin(k * π * x[1]) * f(x[1])).integral[1]
-a_n(k) = 2 / (L * μ_n(k)) * -(L^2 * (((2 * π * L - π) * c * k * sin(π * k) + ((π^2 - π^2 * L) * c * k^2 + 2 * L * c) * cos(π * k) - 2 * L * c) * v^2 + (8 * π * L - 2 * π) * k * sin(π * k) + ((2 * π^2 - 4 * π^2 * L) * k^2 + 8 * L) * cos(π * k) - 8 * L)) / (2 * π^3 * k^3) # vegas((x, ϕ) -> ϕ[1] = (sin((k * π * x[1]) / L) * (g(x[1]) + (v^2 * c) / 2 * f(x[1])))).integral[1]
+μ_n(k) = (v * sqrt(4 * k^2 * π^2 - b^2 * L^2 * v^2)) / (2 * L)
+b_n(k) = 2 / L * -(L^2 * ((2 * π * L - π) * k * sin(π * k) + ((π^2 - π^2 * L) * k^2 + 2 * L) * cos(π * k) - 2 * L)) / (π^3 * k^3) # vegas((x, ϕ) -> ϕ[1] = sin(k * π * x[1]) * f(x[1])).integral[1]
+a_n(k) = 2 / -(L * μ_n(k)) * (L * (((2 * π * L^2 - π * L) * b * k * sin(π * k) + ((π^2 * L - π^2 * L^2) * b * k^2 + 2 * L^2 * b) * cos(π * k) - 2 * L^2 * b) * v^2 + 4 * π * L * k * sin(π * k) + (2 * π^2 - 4 * π^2 * L) * k^2 * cos(π * k) - 2 * π^2 * k^2)) / (2 * π^3 * k^3)
 
-# Line plots
-analytic_sol_func(t,x) = sum([sin((k * π * x) / L) * exp(-v^2 * c * t / 2) * (a_n(k) * sin(μ_n(k) * t) + b_n(k) * cos(μ_n(k) * t)) for k in 1:2:100]) # TODO replace 10 with 500
-
-using Plots
-using Printf
-
+# Plot
+analytic_sol_func(t,x) = sum([sin((k * π * x) / L) * exp(-v^2 * b * t / 2) * (a_n(k) * sin(μ_n(k) * t) + b_n(k) * cos(μ_n(k) * t)) for k in 1:2:100]) # TODO replace 10 with 500
 anim = @animate for t ∈ ts
     @info "Time $t..."
     sol =  [analytic_sol_func(t, x) for x in xs]
     sol_p =  [first(phi([t,x], res.minimizer)) for x in xs]
-    plot(sol, label="analitic", ylims=[0, 0.1])
+    plot(sol, label="analytic", ylims=[0, 0.1])
     title = @sprintf("t = %.3f", t)
-    plot!(sol_p, label="predict", ylims=[0, 0.1],title=title)
+    plot!(sol_p, label="predict", ylims=[0, 0.1], title=title)
 end
-gif(anim, "1Dwave_damped.gif", fps=200)
+gif(anim, "1Dwave_damped_adaptive.gif", fps=200)
 
 # Surface plot
 u_predict = reshape([first(phi([t,x], res.minimizer)) for t in ts for x in xs], (length(ts), length(xs)))
@@ -191,11 +197,13 @@ plot(p1,p2,p3)
 
 We can see the results here:
 
-![1Dwave_damped](https://user-images.githubusercontent.com/12683885/126818842-446d43b7-7099-4690-9a61-412c4eccfa70.png)
+![Damped_wave_sol_adaptive_u](https://user-images.githubusercontent.com/26853713/128976158-2cf113c9-cec8-4e81-94a8-4c5a814d57c2.png)
 
 Plotted as a line one can see the analytical solution and the prediction here:
 
-![1Dwave_damped_gif](https://user-images.githubusercontent.com/12683885/126818855-c9ae78ce-b976-4ed8-9ddb-f6d6d0fe6311.gif)
+![1Dwave_damped_adaptive](https://user-images.githubusercontent.com/26853713/128976095-e772be8f-eb92-4ddf-a3bb-32700e9e2112.gif)
+
+
 
 
 
