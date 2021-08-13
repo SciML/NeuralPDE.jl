@@ -511,8 +511,8 @@ function build_loss_function(eqs,indvars,depvars,
 end
 
 function get_vars(indvars_, depvars_)
-    depvars = [nameof(value(d)) for d in depvars_]
-    indvars = [nameof(value(i)) for i in indvars_]
+    depvars = ModelingToolkit.getname.(depvars_)
+    indvars = ModelingToolkit.getname.(indvars_)
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     return depvars,indvars,dict_indvars,dict_depvars
@@ -884,7 +884,10 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
 
     # dimensionality of equation
     dim = length(domains)
-    depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars,pde_system.depvars)
+
+    #TODO fix it in MTK 6.0.0+v: ModelingToolkit.get_ivs(pde_system)
+    depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.ivs,
+                                                         pde_system.dvs)
 
     chain = discretization.chain
     initθ = discretization.init_params
@@ -985,9 +988,12 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
             return loss_function(θ)
         else
             function _additional_loss(phi,θ)
-                θ_ = θ[1:end - length(default_p)]
-                p = θ[(end - length(default_p) + 1):end]
-                return additional_loss(phi,θ_,p)
+                (θ_,p_) = if (param_estim == true)
+                    θ[1:end - length(default_p)], θ[(end - length(default_p) + 1):end]
+                else
+                    θ, nothing
+                end
+                return additional_loss(phi,θ,p_)
             end
             return loss_function(θ) + _additional_loss(phi,θ)
         end

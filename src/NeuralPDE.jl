@@ -16,8 +16,9 @@ using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 using Statistics
+using ArrayInterface
 import Tracker, Optim
-import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
+import ModelingToolkit: toexpr, build_expr, expand_derivatives
 import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly
 using Flux: @nograd

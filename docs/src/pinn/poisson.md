@@ -2,15 +2,26 @@
 
 In this example, we will solve a Poisson equation:
 
-![poisson](https://user-images.githubusercontent.com/12683885/86838505-ee1ae480-c0a8-11ea-8d3c-7da53a9a7091.png)
+```math
+∂^2_x u(x, y) + ∂^2_y u(x, y) = - \sin(\pi x) \sin(\pi y) \, ,
+```
 
 with the boundary conditions:
 
-![boundary](https://user-images.githubusercontent.com/12683885/86621678-437ec500-bfc7-11ea-8fe7-23a46a524cbe.png)
+```math
+\begin{align*}
+u(0, y) &= 0 \, ,\\
+u(1, y) &= - \sin(\pi) \sin(\pi y) \, ,\\
+u(x, 0) &= 0 \, ,\\
+u(x, 1) &=  - \sin(\pi x) \sin(\pi) \, ,
+\end{align*}
+```
 
 on the space domain:
 
-![spaces](https://user-images.githubusercontent.com/12683885/86621460-e8e56900-bfc6-11ea-9b64-826ac84c36c9.png)
+```math
+x \in [0, 1] \, , \ y \in [0, 1] \, ,
+```
 
 with grid discretization `dx = 0.1`. We will use physics-informed neural networks.
 

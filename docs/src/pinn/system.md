@@ -2,15 +2,33 @@
 
 In this example, we will solve the PDE system:
 
-![pdesystem](https://user-images.githubusercontent.com/12683885/90978370-22157080-e556-11ea-92b3-d65cb9aa3115.png)
+```math
+\begin{align*}
+∂_t u_1(t, x) & = ∂_x^2 u_1(t, x) + u_3(t, x) \, \sin(\pi x) \, ,\\
+∂_t u_2(t, x) & = ∂_x^2 u_2(t, x) + u_3(t, x) \, \cos(\pi x) \, ,\\
+0 & = u_1(t, x) \sin(\pi x) + u_2(t, x) \cos(\pi x) - e^{-t} \, ,
+\end{align*}
+```
 
 with the initial conditions:
 
-![Initial](https://user-images.githubusercontent.com/12683885/90978670-322e4f80-e558-11ea-8157-a0b6ec84e121.png)
+```math
+\begin{align*}
+u_1(0, x) & = \sin(\pi x) \, ,\\
+∂_t u_1(0, x) & = - \sin(\pi x) \, ,\\
+u_2(0, x) & = \cos(\pi x) \, ,\\
+∂_t u_2(0, x) & = - \cos(\pi x) \, ,
+\end{align*}
+```
 
 and the boundary conditions:
 
-![boundary](https://user-images.githubusercontent.com/12683885/90978689-4c682d80-e558-11ea-8e51-080bd02a1856.png)
+```math
+\begin{align*}
+u_1(t, 0) & = u_1(t, 1) = 0 \, ,\\
+u_2(t, 0) & = - u_2(t, 1) = e^{-t} \, ,
+\end{align*}
+```
 
 with physics-informed neural networks.
 
