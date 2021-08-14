@@ -17,10 +17,10 @@ using RuntimeGeneratedFunctions
 using SciMLBase
 using Statistics
 import Tracker, Optim
-import ModelingToolkit: toexpr, build_expr, expand_derivatives
-import ModelingToolkit: Interval, infimum, supremum #,Ball
-import SciMLBase: @add_kwonly
-using Flux: @nograd
+import ModelingToolkit: toexpr, value, build_expr, expand_derivatives
+import ModelingToolkit: Interval, infimum, supremum # ,Ball
+import SciMLBase:@add_kwonly
+using Flux:@nograd
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
     TerminalPDEProblem(g, f, μ, σ, x0, tspan)
@@ -45,19 +45,16 @@ struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,A,UD,K} <: DiffEqBase.DEProblem
     A::A
     u_domain::UD
     kwargs::K
-    TerminalPDEProblem(g,f,μ,σ,X0,tspan,p=nothing;A=nothing,u_domain=nothing,kwargs...) = new{typeof(g),typeof(f),
-                                                         typeof(μ),typeof(σ),
-                                                         typeof(X0),eltype(tspan),
-                                                         typeof(p),typeof(A),typeof(u_domain),typeof(kwargs)}(
+    TerminalPDEProblem(g, f, μ, σ, X0, tspan, p=nothing;A=nothing,u_domain=nothing,kwargs...) = new{typeof(g),typeof(f),typeof(μ),typeof(σ),typeof(X0),eltype(tspan),typeof(p),typeof(A),typeof(u_domain),typeof(kwargs)}(
                                                          g,f,μ,σ,X0,tspan,p,A,u_domain,kwargs)
 end
 
 Base.summary(prob::TerminalPDEProblem) = string(nameof(typeof(prob)))
 
 function Base.show(io::IO, A::TerminalPDEProblem)
-  println(io,summary(A))
-  print(io,"timespan: ")
-  show(io,A.tspan)
+  println(io, summary(A))
+  print(io, "timespan: ")
+  show(io, A.tspan)
 end
 
 """
@@ -72,7 +69,7 @@ A standard Kolmogorov PDE Problem.
 * `d`: The dimensions of the input x.
 * `noise_rate_prototype`: A prototype type instance for the noise rates, that is the output g.
 """
-struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, ND} <: DiffEqBase.DEProblem
+struct KolmogorovPDEProblem{F,G,Phi,X,T,D,P,U0,ND} <: DiffEqBase.DEProblem
     f::F
     g::G
     phi::Phi
@@ -82,30 +79,30 @@ struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, ND} <: DiffEqBase.DEPro
     p::P
     u0::U0
     noise_rate_prototype::ND
-    KolmogorovPDEProblem( f, g, phi , xspan , tspan , d, p=nothing, u0=0 , noise_rate_prototype= nothing) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p),typeof(u0),typeof(noise_rate_prototype)}(f,g,phi,xspan,tspan,d,p,u0,noise_rate_prototype)
+    KolmogorovPDEProblem(f, g, phi, xspan, tspan, d, p=nothing, u0=0, noise_rate_prototype=nothing) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p),typeof(u0),typeof(noise_rate_prototype)}(f, g, phi, xspan, tspan, d, p, u0, noise_rate_prototype)
 end
 
 Base.summary(prob::KolmogorovPDEProblem) = string(nameof(typeof(prob)))
 function Base.show(io::IO, A::KolmogorovPDEProblem)
-  println(io,summary(A))
-  print(io,"timespan: ")
-  show(io,A.tspan)
-  print(io,"xspan: ")
-  show(io,A.xspan)
-  println(io , "μ")
-  show(io , A.f)
-  println(io,"Sigma")
-  show(io , A.g)
+  println(io, summary(A))
+  print(io, "timespan: ")
+  show(io, A.tspan)
+  print(io, "xspan: ")
+  show(io, A.xspan)
+  println(io, "μ")
+  show(io, A.f)
+  println(io, "Sigma")
+  show(io, A.g)
 end
 
 abstract type ParametersDomain end
-struct KolmogorovParamDomain{T} <:ParametersDomain
+struct KolmogorovParamDomain{T} <: ParametersDomain
            sigma::Tuple{T,T}
            mu::Tuple{T,T}
            phi::Tuple{T,T}
 end
 
-struct ParamKolmogorovPDEProblem{ F, G, Phi, X , T , D, YD , P,U0 , YSP , YMP ,YPH, NP} <: DiffEqBase.DEProblem
+struct ParamKolmogorovPDEProblem{F,G,Phi,X,T,D,YD,P,U0,YSP,YMP,YPH,NP} <: DiffEqBase.DEProblem
     f::F
     g::G
     phi::Phi
@@ -119,20 +116,20 @@ struct ParamKolmogorovPDEProblem{ F, G, Phi, X , T , D, YD , P,U0 , YSP , YMP ,Y
     Y_mu_prototype::YMP
     Y_phi_prototype::YPH
     noise_rate_prototype::NP
-    ParamKolmogorovPDEProblem( f, g, phi , xspan , tspan , d, Y_domain, p=nothing, u0=0 ; Y_sigma_prototype=nothing , Y_mu_prototype=nothing , Y_phi_prototype=nothing , noise_rate_prototype= nothing) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(Y_domain),typeof(p),typeof(u0),typeof(Y_sigma_prototype),typeof(Y_mu_prototype),typeof(Y_phi_prototype),typeof(noise_rate_prototype)}(f,g,phi,xspan,tspan,d,Y_domain,p,u0 , Y_sigma_prototype,Y_mu_prototype,Y_phi_prototype,noise_rate_prototype)
+    ParamKolmogorovPDEProblem(f, g, phi, xspan, tspan, d, Y_domain, p=nothing, u0=0 ; Y_sigma_prototype=nothing , Y_mu_prototype=nothing , Y_phi_prototype=nothing , noise_rate_prototype=nothing) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(Y_domain),typeof(p),typeof(u0),typeof(Y_sigma_prototype),typeof(Y_mu_prototype),typeof(Y_phi_prototype),typeof(noise_rate_prototype)}(f, g, phi, xspan, tspan, d, Y_domain, p, u0, Y_sigma_prototype, Y_mu_prototype, Y_phi_prototype, noise_rate_prototype)
 end
 
 Base.summary(prob::ParamKolmogorovPDEProblem) = string(nameof(typeof(prob)))
 function Base.show(io::IO, A::ParamKolmogorovPDEProblem)
-  println(io,summary(A))
-  print(io,"timespan: ")
-  show(io,A.tspan)
-  print(io,"xspan: ")
-  show(io,A.xspan)
-  println(io , "μ")
-  show(io , A.f)
-  println(io,"Sigma")
-  show(io , A.g)
+  println(io, summary(A))
+  print(io, "timespan: ")
+  show(io, A.tspan)
+  print(io, "xspan: ")
+  show(io, A.xspan)
+  println(io, "μ")
+  show(io, A.f)
+  println(io, "Sigma")
+  show(io, A.g)
 end
 
 """
@@ -152,17 +149,17 @@ struct NNODE{C,O,P,K} <: NeuralPDEAlgorithm
     autodiff::Bool
     kwargs::K
 end
-function NNODE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
+function NNODE(chain, opt=Optim.BFGS(), init_params=nothing;autodiff=false,kwargs...)
     if init_params === nothing
         if chain isa FastChain
             initθ = DiffEqFlux.initial_params(chain)
         else
-            initθ,re  = Flux.destructure(chain)
+            initθ, re  = Flux.destructure(chain)
         end
     else
         initθ = init_params
     end
-    NNODE(chain,opt,initθ,autodiff,kwargs)
+    NNODE(chain, opt, initθ, autodiff, kwargs)
 end
 
 
