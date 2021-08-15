@@ -1058,6 +1058,60 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     GalacticOptim.OptimizationProblem(f, flat_initθ)
 end
 
+
+
+#= 
+@parameters t, x
+@variables u1(..), u2(..), u3(..)
+Dt = Differential(t)
+Dtt = Differential(t)^2
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+eqs = [Dtt(u1(t, x)) ~ Dxx(u1(t, x)) + u3(t, x) * sin(pi * x),
+       Dtt(u2(t, x)) ~ Dxx(u2(t, x)) + u3(t, x) * cos(pi * x),
+       0. ~ u1(t, x) * sin(pi * x) + u2(t, x) * cos(pi * x) - exp(-t)]
+
+bcs = [u1(0, x) ~ sin(pi * x),
+       u2(0, x) ~ cos(pi * x),
+       Dt(u1(0, x)) ~ -sin(pi * x),
+       Dt(u2(0, x)) ~ -cos(pi * x),
+       u1(t, 0) ~ 0.,
+       u2(t, 0) ~ exp(-t),
+       u1(t, 1) ~ 0.,
+       u2(t, 1) ~ -exp(-t)]
+
+
+# Space and time domains
+domains = [t ∈ Interval(0.0, 1.0),
+           x ∈ Interval(0.0, 1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain = [FastChain(FastDense(input_, n, Flux.σ), FastDense(n, n, Flux.σ), FastDense(n, 1)) for _ in 1:3]
+initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
+
+_strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
+
+pde_system = PDESystem(eqs, bcs, domains, [t,x], [u1,u2,u3])
+prob = discretize(pde_system, discretization)
+sym_prob = symbolic_discretize(pde_system, discretization)
+
+pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
+bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+
+cb = function (p, l)
+    println("loss: ", l)
+    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+    return false
+end
+
+res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=5)
+
+
 import ModelingToolkit: Interval, infimum, supremum
 # 2d wave equation, neumann boundary condition
 @parameters x, t
@@ -1373,4 +1427,4 @@ end
 
 # optimizer
 opt = BFGS()
-res = GalacticOptim.solve(prob, opt; cb=cb_, maxiters=2)
+res = GalacticOptim.solve(prob, opt; cb=cb_, maxiters=2) =#
