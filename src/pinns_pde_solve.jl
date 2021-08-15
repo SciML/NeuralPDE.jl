@@ -166,9 +166,9 @@ end
 
 function get_limits(domain)
     if domain isa AbstractInterval
-        return DomainSets.endpoints(domain)
-    else
-        return (Vector(infimum(domain)), Vector(supremum(domain)))
+        return [leftendpoint(domain)], [rightendpoint(domain)]
+    elseif domain isa ProductDomain
+        return collect(map(leftendpoint , DomainSets.components(domain))), collect(map(rightendpoint , DomainSets.components(domain)))
     end
 end
 
@@ -245,27 +245,31 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative_, nothing, chain, initθ, strategy, integrand = integrand,eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
                 # integrand = repr(integrand)
                 lb, ub = get_limits(_args[1].domain.domain)
-                lb = toexpr(lb)
-                ub = toexpr(ub)
-                lb_definite, ub_definite = false , false
-                if (lb isa Number || lb isa Vector)
-                    lb_definite = true
-                end
-                if (ub isa Number || ub isa Vector)
-                    ub_definite = true
-                end
-                if !(lb_definite && ub_definite)
-                    if !(lb_definite)
-                        lb = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = lb, param_estim =false, default_p = nothing)
-                        lb = @RuntimeGeneratedFunction(lb)
-                    end
-                    if !(ub_definite)
-                        ub = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = ub, param_estim =false, default_p = nothing)
-                        ub = @RuntimeGeneratedFunction(ub)
+                lb = toexpr.(lb)
+                ub = toexpr.(ub)
+                ub_ = []
+                lb_ = []
+                for l in lb
+                    if l isa Number
+                        push!(lb_, l)
+                    else
+                        l = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = l, param_estim =false, default_p = nothing)
+                        l = @RuntimeGeneratedFunction(l)
+                        push!(lb_, l)
                     end
                 end
+                for u_ in ub
+                    if u_ isa Number
+                        push!(ub_, u_)
+                    else
+                        u_ = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = u_, param_estim =false, default_p = nothing)
+                        u_ = @RuntimeGeneratedFunction(u_)
+                        push!(ub_, u_)
+                    end
+                end
+
                 integrand_func = @RuntimeGeneratedFunction(integrand)
-                ex.args = [:($integral), :u, :cord, :phi, integrating_var_id, integrand_func, lb, ub,  :($θ)]
+                ex.args = [:($integral), :u, :cord, :phi, integrating_var_id, integrand_func, lb_, ub_,  :($θ)]
                 break
             end
         else
@@ -726,31 +730,24 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                     return sol
                 end
                 integration_arr = reshape([], 1, 0)
-                lb_definite, ub_definite = false , false
-                if (lb isa Number || lb isa Vector)
-                    lb_definite = true
-                end
-                if (ub isa Number || ub isa Vector)
-                    ub_definite = true
-                end
-                if !lb_definite
-                    lb_ = lb(cord , flat_θ, phi, derivative, nothing, u, nothing)
-                else
-                    if lb isa Number
-                        lb_ = fill(lb, 1, size(cord)[2])
+
+                lb_ = zeros(size(lb)[1], size(cord)[2])
+                ub_ = zeros(size(ub)[1], size(cord)[2])
+                for (i, l) in enumerate(lb)
+                    if l isa Number
+                        @Zygote.ignore lb_[i, :] = fill(l, 1, size(cord)[2])
                     else
-                        lb_ = repeat(lb, 1, size(cord)[2])
+                        @Zygote.ignore lb_[i, :] = l(cord , flat_θ, phi, derivative, nothing, u, nothing)
                     end
                 end
-                if !ub_definite
-                    ub_ = ub(cord , flat_θ, phi, derivative, nothing, u, nothing)
-                else
-                    if ub isa Number
-                        ub_ = fill(ub, 1 , size(cord)[2])
+                for (i, u_) in enumerate(ub)
+                    if u_ isa Number
+                        @Zygote.ignore ub_[i, :] = fill(u_, 1, size(cord)[2])
                     else
-                        ub_ = repeat(ub, 1, size(cord)[2])
+                        @Zygote.ignore ub_[i, :] = u_(cord , flat_θ, phi, derivative, nothing, u, nothing)
                     end
                 end
+
                 for i in 1:size(cord)[2]
                     ub__ = @Zygote.ignore getindex(ub_, :,  i)
                     lb__ = @Zygote.ignore getindex(lb_, :,  i)
