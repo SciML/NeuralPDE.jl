@@ -286,8 +286,6 @@ Example:
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 
-dict_depvars
-
 function build_symbolic_equation(eq, _indvars, _depvars, chain, eltypeθ, strategy)
     depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
     parse_equation(eq, dict_indvars, dict_depvars, dict_depvar_input, chain, eltypeθ, strategy)
@@ -458,7 +456,8 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         :(1)
     end
     left_arg_pairs, right_arg_pairs = [integration_indvars; :($:batch_size)], [indvars_ex; batch_size_variable]
-    vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, left_arg_pairs))
+    @info "in build_symbolic_loss_function"
+    vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
     vcat_expr_loss_functions = loss_function # TODO rename
     
     @show indvars_ex
@@ -824,7 +823,7 @@ function get_loss_function(loss_function, bound, eltypeθ, parameterless_type_θ
 end
 
 function get_loss_function(loss_function, lb, ub, eltypeθ, parameterless_type_θ, strategy::QuadratureTraining;τ=nothing)
-
+    @info "in get_loss_function"
     if length(lb) == 0
         loss = (θ) -> mean(abs2, loss_function(rand(eltypeθ, 1, 10), θ))
         return loss
@@ -846,6 +845,9 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, parameterless_type_�
               abstol=strategy.abstol,
               maxiters=strategy.maxiters)[1]
     end
+    
+    @show f_
+    @show area
     loss = (θ) -> 1 / area * f_(lb, ub, loss_function, θ)
     return loss
 end
@@ -936,7 +938,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
 
     flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, adapt(typeof(flat_initθ), default_p)) end
-    phi = discretization.phi
+        phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
     if !(eqs isa Array)
@@ -1111,7 +1113,6 @@ dphi2 = derivative(phi, u_, [1.,2.], [[0.0,  0.0049215667]], 1, initθ)
 isapprox(dphi[1][1], dphi1, atol=1e-8)
 isapprox(dphi[1][2], dphi2, atol=1e-8) =#
 
-
 _pde_loss_function = NeuralPDE.build_loss_function(eq, _indvars, _depvars, dict_depvar_input, phi, derivative, chain, initθ, strategy)
 
 expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq, indvars, depvars, dict_depvar_input, phi, derivative, chain, initθ, strategy)
@@ -1205,7 +1206,7 @@ println("loss: ", l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=5)
 
 
 
@@ -1216,7 +1217,7 @@ res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
  Dy = Differential(y)
 
  # 2D PDE
- eq  = p(x) + q(y) + Dx(r(x, y)) + s(y, x) ~ 0
+ eq  = p(x) + q(y) + Dx(r(x, y)) + s(x, y) ~ 0
  # eq  = Dx(p(x)) + Dy(q(y)) + Dx(r(x, y)) + Dy(s(y, x)) + p(x) + q(y) + r(x, y) + s(y, x) ~ 0
 
  # Initial and boundary conditions
@@ -1226,7 +1227,7 @@ res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
  # bcs = [s(y, 1) ~ 0.0f0]
  # Space and time domains
  domains = [x ∈ IntervalDomain(0.0, 1.0),
-             y ∈ IntervalDomain(-1.0, 0.0)]
+y ∈ IntervalDomain(-1.0, 0.0)]
 
  # chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
  numhid = 3
@@ -1244,6 +1245,7 @@ discretization = NeuralPDE.PhysicsInformedNN(fastchains,
  sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
  prob = NeuralPDE.discretize(pde_system, discretization)
  initθ = discretization.init_params
+ prob
  initθvec = vcat(initθ...)
  prob.f(initθvec, [])
  res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=3)
@@ -1292,3 +1294,83 @@ discretization = NeuralPDE.PhysicsInformedNN(fastchains,
                                                  dict_indvars,dict_depvars,dict_depvar_input,
                                                  phi, derivative,chain, initθ, strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p;
                                                  bc_indvars=bc_indvar) for (bc, bc_indvar) in zip(bcs, bc_indvars)] 
+
+
+
+######### NORMAL EXAMPLE
+@parameters t, x
+@variables u(..)
+Dt = Differential(t)
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+# 2D PDE
+eq  = Dt(u(t, x)) + u(t, x) * Dx(u(t, x)) - (0.01 / pi) * Dxx(u(t, x)) ~ 0
+
+# Initial and boundary conditions
+bcs = [u(0, x) ~ -sin(pi * x),
+       u(t, -1) ~ 0.,
+       u(t, 1) ~ 0.,
+       u(t, -1) ~ u(t, 1)]
+
+# Space and time domains
+domains = [t ∈ Interval(0.0, 1.0),
+           x ∈ Interval(-1.0, 1.0)]
+# Discretization
+dx = 0.05
+# Neural network
+chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+eltypeθ = eltype(initθ)
+parameterless_type_θ = DiffEqBase.parameterless_type(initθ)
+strategy = NeuralPDE.GridTraining(dx)
+
+phi = NeuralPDE.get_phi(chain, parameterless_type_θ)
+derivative = NeuralPDE.get_numeric_derivative()
+
+
+_indvars = [t,x]
+_depvars = [u]
+
+depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
+
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars, dict_depvar_input,
+                                                   phi,derivative,chain,initθ,strategy)
+
+bc_indvars = NeuralPDE.get_variables(bcs, indvars, depvars)
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,dict_depvar_input,
+                                                    phi,derivative,chain,initθ,strategy,
+                                                    bc_indvars=bc_indvar) for (bc, bc_indvar) in zip(bcs, bc_indvars)]
+
+train_sets = NeuralPDE.generate_training_sets(domains, dx, [eq], bcs, eltypeθ, indvars, depvars)
+train_domain_set, train_bound_set = train_sets
+
+
+pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
+                                                train_domain_set[1],
+                                                eltypeθ,parameterless_type_θ,
+                                                strategy)
+
+bc_loss_functions = [NeuralPDE.get_loss_function(loss,set,
+                                                 eltypeθ, parameterless_type_θ,
+                                                 strategy) for (loss, set) in zip(_bc_loss_functions, train_bound_set)]
+
+
+loss_functions = [pde_loss_function; bc_loss_functions]
+loss_function__ = θ -> sum(map(l -> l(θ), loss_functions))
+
+function loss_function_(θ, p)
+    return loss_function__(θ)
+end
+
+f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
+prob = GalacticOptim.OptimizationProblem(f, initθ)
+
+cb_ = function (p, l)
+    println("loss: ", l, "losses: ", map(l -> l(p), loss_functions))
+    return false
+end
+
+# optimizer
+opt = BFGS()
+res = GalacticOptim.solve(prob, opt; cb=cb_, maxiters=2)
