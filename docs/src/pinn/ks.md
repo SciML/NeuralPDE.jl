@@ -62,7 +62,7 @@ dx = 0.4; dt = 0.2
 chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 
 discretization = PhysicsInformedNN(chain, GridTraining([dx,dt]))
-pde_system = PDESystem(eq,bcs,domains,[x,t],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,t],[u])
 prob = discretize(pde_system,discretization)
 
 cb = function (p,l)

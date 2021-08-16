@@ -49,7 +49,7 @@ function test_ode(strategy_)
                                                  derivative = nothing,
                                                  )
 
-    pde_system = PDESystem(eq,bcs,domains,[θ],[u])
+    @named pde_system = PDESystem(eq,bcs,domains,[θ],[u])
     prob = NeuralPDE.discretize(pde_system,discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -116,7 +116,7 @@ function test_2d_poisson_equation(chain_, strategy_)
     discretization = NeuralPDE.PhysicsInformedNN(chain_,
                                                  strategy_)
 
-    pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+    @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
     prob = NeuralPDE.discretize(pde_system,discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
     res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=2000)
@@ -187,7 +187,7 @@ quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,quasirandom_strategy;init_params = initθ)
-pde_system = PDESystem(eq,bcs,domains,[x],[u,Dxu,Dxxu])
+@named pde_system = PDESystem(eq,bcs,domains,[x],[u,Dxu,Dxxu])
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -247,7 +247,7 @@ strategy = NeuralPDE.QuadratureTraining()
 chain = [chain1,chain2]
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; init_params = initθ)
-pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
+@named pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -395,7 +395,7 @@ strategy = NeuralPDE.QuadratureTraining()
 chain = FastChain(FastDense(2,12,Flux.tanh),FastDense(12,12,Flux.tanh),FastDense(12,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 discretization = NeuralPDE.PhysicsInformedNN(chain, strategy; init_params = initθ)
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
 res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=1000)
@@ -465,7 +465,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              init_params = initθ,
                                              additional_loss=norm_loss_function)
 
-pde_system = PDESystem(eq,bcs,domains,[x],[p])
+@named pde_system = PDESystem(eq,bcs,domains,[x],[p])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
 pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
@@ -556,7 +556,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 testθ =reduce(vcat,initθs)
 additional_loss(discretization.phi, testθ, nothing)
 
-pde_system = PDESystem(eqs,bcs,domains,
+@named pde_system = PDESystem(eqs,bcs,domains,
                       [t],[x, y, z],[σ_, ρ, β],
                       defaults=Dict([p => 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
@@ -606,7 +606,7 @@ initθ = Float64.(DiffEqFlux.initial_params(chain))
 strategy = NeuralPDE.GridTraining(0.01)
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
-pdesys = PDESystem(eq,bc,domain,[x],[u])
+@named pdesys = PDESystem(eq,bc,domain,[x],[u])
 prob = NeuralPDE.discretize(pdesys,discretization)
 
 res  = GalacticOptim.solve(prob,ADAM(0.1),maxiters=500)
@@ -641,7 +641,7 @@ initθ = DiffEqFlux.initial_params(chain)
 strategy = NeuralPDE.GridTraining(0.01)
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
-pdesys = PDESystem(eq,bc,domain,[x],[u])
+@named pdesys = PDESystem(eq,bc,domain,[x],[u])
 prob = NeuralPDE.discretize(pdesys,discretization)
 
 res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
@@ -683,7 +683,7 @@ initθ = Float64.(DiffEqFlux.initial_params(chain))
 
 strategy = NeuralPDE.GridTraining(d)
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
-pdesys = PDESystem(eq,bc,domain,[x,y],[u])
+@named pdesys = PDESystem(eq,bc,domain,[x,y],[u])
 prob = NeuralPDE.discretize(pdesys,discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 prob.f.f.loss_function(initθ)
@@ -745,7 +745,7 @@ phi = discretization.phi
 phi(xs, initθ)
 additional_loss_(phi, initθ , nothing)
 
-pdesys = PDESystem(eq,bc,domain,[x],[u])
+@named pdesys = PDESystem(eq,bc,domain,[x],[u])
 prob = NeuralPDE.discretize(pdesys,discretization)
 
 res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
