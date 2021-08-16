@@ -54,7 +54,7 @@ chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(1
 dx = 0.05
 discretization = PhysicsInformedNN(chain,GridTraining(dx))
 
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)
 
 #Optimizer
@@ -126,7 +126,7 @@ discretization = PhysicsInformedNN(chain, GridTraining(dx))
 As described in the API docs, we now need to define the `PDESystem` and create PINNs problem using the `discretize` method.
 
 ```julia
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)
 ```
 

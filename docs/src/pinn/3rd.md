@@ -38,7 +38,7 @@ domains = [x ∈ Interval(0.0,1.0)]
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 
 discretization = PhysicsInformedNN(chain, QuasiRandomTraining(20))
-pde_system = PDESystem(eq,bcs,domains,[x],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = discretize(pde_system,discretization)
 
 cb = function (p,l)

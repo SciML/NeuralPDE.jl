@@ -62,7 +62,7 @@ chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(1
 
 discretization = PhysicsInformedNN(chain, QuadratureTraining())
 
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = discretize(pde_system,discretization)
 
 cb = function (p,l)

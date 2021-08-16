@@ -74,7 +74,7 @@ end
 Then finally defining and optimising using the `PhysicsInformedNN` interface.
 ```julia
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
-pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], defaults=Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
+@named pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], defaults=Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
 cb = function (p,l)
     println("Current loss is: $l")

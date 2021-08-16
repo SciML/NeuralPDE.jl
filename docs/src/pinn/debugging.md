@@ -141,7 +141,7 @@ julia> bcs_bounds
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy)
 
-pde_system = PDESystem(eq,bcs,domains,indvars,depvars)
+@named pde_system = PDESystem(eq,bcs,domains,indvars,depvars)
 prob = NeuralPDE.discretize(pde_system,discretization)
 
 expr_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)

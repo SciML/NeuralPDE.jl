@@ -46,7 +46,7 @@ chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 discretization = PhysicsInformedNN(chain, GridTraining(dx); init_params = initθ)
 
-pde_system = PDESystem(eq,bcs,domains,[t,x],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[t,x],[u])
 prob = discretize(pde_system,discretization)
 
 cb = function (p,l)
@@ -144,7 +144,7 @@ dx = 0.05
 strategy = GridTraining(dx)
 discretization = PhysicsInformedNN(chain, strategy; init_params=initθ)
 
-pde_system = PDESystem(eq, bcs, domains, [t, x], [u, Dxu, Dtu, O1, O2])
+@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u, Dxu, Dtu, O1, O2])
 prob = discretize(pde_system, discretization)
 
 pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
