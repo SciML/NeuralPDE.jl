@@ -71,7 +71,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 _strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, _strategy, init_params= initθ)
 
-pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1,u2,u3])
+@named pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1,u2,u3])
 prob = discretize(pde_system,discretization)
 sym_prob = symbolic_discretize(pde_system,discretization)
 
@@ -286,7 +286,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              init_params= initθ)
 
 vars = [u1,u2,u3,Dxu1,Dtu1,Dxu2,Dtu2]
-pde_system = PDESystem(eqs_,bcs__,domains,[t,x],vars)
+@named pde_system = PDESystem(eqs_,bcs__,domains,[t,x],vars)
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -459,7 +459,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 _strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
 
-pde_system = PDESystem(eqs, bcs, domains, [t,x], [u,w])
+@named pde_system = PDESystem(eqs, bcs, domains, [t,x], [u,w])
 prob = discretize(pde_system, discretization)
 sym_prob = symbolic_discretize(pde_system, discretization)
 
@@ -586,7 +586,7 @@ _strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
 
 vars = [u,w,Dxu,Dyu,Dxw,Dyw]
-pde_system = PDESystem(eqs_, bcs__, domains, [x,y], vars)
+@named pde_system = PDESystem(eqs_, bcs__, domains, [x,y], vars)
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
@@ -719,7 +719,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 _strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
 
-pde_system = PDESystem(eqs, bcs, domains, [t,x], [u,w])
+@named pde_system = PDESystem(eqs, bcs, domains, [t,x], [u,w])
 prob = discretize(pde_system, discretization)
 sym_prob = symbolic_discretize(pde_system, discretization)
 
