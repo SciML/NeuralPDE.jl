@@ -42,7 +42,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain1,
                                              quadrature_strategy;
                                              init_params = initθ)
 
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -169,7 +169,7 @@ for i in 1:count_decomp
     @register phi_bound(x,y)
     Base.Broadcast.broadcasted(::typeof(phi_bound), x,y) = phi_bound(x,y)
     bcs_ = create_bcs(bcs,domains_[1].domain, phi_bound)
-    pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u])
+    @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u])
     push!(pde_system_map,pde_system_)
     strategy = NeuralPDE.GridTraining([0.1/count_decomp, 0.1])
 
@@ -223,7 +223,7 @@ chain2 = FastChain(FastDense(2,inner_,af),
 
 initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
 
-pde_system = PDESystem(eq, bcs, domains, [x, y], [u])
+@named pde_system = PDESystem(eq, bcs, domains, [x, y], [u])
 
 losses = map(1:count_decomp) do i
     loss(cord,θ) = chain2(cord,θ) .- phis[i](cord,reses[i].minimizer)
