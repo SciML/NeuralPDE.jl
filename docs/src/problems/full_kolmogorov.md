@@ -1,0 +1,3 @@
+#  Full Kolmogorov PDE
+
+TODO
