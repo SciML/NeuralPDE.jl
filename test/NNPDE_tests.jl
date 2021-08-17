@@ -779,7 +779,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              phi = nothing,
                                              derivative = nothing,
                                              )
-pde_system = PDESystem(eq,bcs,domains,[t],[i])
+@named pde_system = PDESystem(eq,bcs,domains,[t],[i])
 prob = NeuralPDE.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
 ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
@@ -806,7 +806,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              phi = nothing,
                                              derivative = nothing,
                                              )
-pde_system = PDESystem(eq,bcs,domains,[x],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
@@ -833,7 +833,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              phi = nothing,
                                              derivative = nothing,
                                              )
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
 xs = 0.00:0.01:1.00
@@ -860,7 +860,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              phi = nothing,
                                              derivative = nothing,
                                              )
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
 xs = 0.00:0.01:1.00
