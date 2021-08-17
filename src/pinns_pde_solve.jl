@@ -246,12 +246,9 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
                         arg
                     else
                         :(fill($arg, (1, $:batch_size)))
-                        @show :(fill($arg, (1, $:batch_size)))
                     end
                 end
-                @show interior_u_args
                 input_cord = :(adapt(DiffEqBase.parameterless_type($θ), vcat($(interior_u_args...))))
-                @show input_cord
                 ex.args = if !(typeof(chain) <: AbstractVector)
                     [:($(Expr(:$, :u))), cord, :($θ), :phi]
                 else
@@ -259,9 +256,6 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
                 end
                 break
             elseif e isa ModelingToolkit.Differential
-                @info "differential"
-                @show _args
-                @show e
                 derivative_variables = Symbol[]
                 order = 0
                 while (_args[1] isa ModelingToolkit.Differential)
@@ -275,8 +269,6 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
                 cord = :cord
                 dim_l = length(indvars)
                 εs = [get_ε(dim_l, d, eltypeθ) for d in 1:dim_l]
-                @show depvar
-                @show dict_depvar_input
                 dict_interior_indvars = Dict([indvar .=> j for (j, indvar) in enumerate(dict_depvar_input[depvar])])
                 undv = [dict_interior_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
@@ -285,7 +277,6 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
                         arg
                     else
                         :(fill($arg, (1, $:batch_size)))
-                        @show :(fill($arg, (1, $:batch_size)))
                     end
                 end
                 input_cord = :(adapt(DiffEqBase.parameterless_type($θ), vcat($(interior_u_args...))))
@@ -475,23 +466,6 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         push!(ex.args,  params_eq)
     end
 
-    #= 
-    if strategy isa QuadratureTraining
-
-        indvars_ex = get_indvars_ex(bc_indvars)
-
-        left_arg_pairs, right_arg_pairs = indvars, indvars_ex
-        vcat_expr =  :(cord = vcat($(indvars...)))
-        vcat_expr_loss_functions = Expr(:block, vcat_expr, loss_function) # TODO rename
-        vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
-
-    else
-        indvars_ex = [:($:cord[[$i],:]) for (i, u) ∈ enumerate(indvars)]
-        left_arg_pairs, right_arg_pairs = indvars, indvars_ex
-        vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
-        vcat_expr_loss_functions = loss_function # TODO rename
-    end =#
-
     indvars_ex = [:($:cord[[$i],:]) for (i, u) ∈ enumerate(integration_indvars)]
     batch_size_variable = if length(integration_indvars) > 0
         :(size($:cord[[1], :])[2])
@@ -499,102 +473,14 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         :(1)
     end
     left_arg_pairs, right_arg_pairs = [integration_indvars; :($:batch_size)], [indvars_ex; batch_size_variable]
-    @info "in build_symbolic_loss_function"
     vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
     vcat_expr_loss_functions = loss_function # TODO rename
-    
-    @show indvars_ex
-    @show left_arg_pairs, right_arg_pairs
-    @show vars_eq
-    @show vcat_expr_loss_functions
 
     let_ex = Expr(:let, vars_eq, vcat_expr_loss_functions)
     push!(ex.args,  let_ex)
 
     expr_loss_function = :(($vars) -> begin $ex end)
 end
-
-
-######### NORMAL EXAMPLE
-@parameters t, x
-@variables u(..)
-Dt = Differential(t)
-Dx = Differential(x)
-Dxx = Differential(x)^2
-
-# 2D PDE
-eq  = Dt(u(t, x)) + u(t, x) * Dx(u(t, x)) - (0.01 / pi) * Dxx(u(t, x)) ~ 0
-
-# Initial and boundary conditions
-bcs = [u(0, x) ~ -sin(pi * x),
-       u(t, -1) ~ 0.,
-       u(t, 1) ~ 0.,
-       u(t, -1) ~ u(t, 1)]
-
-# Space and time domains
-domains = [t ∈ Interval(0.0, 1.0),
-           x ∈ Interval(-1.0, 1.0)]
-# Discretization
-dx = 0.05
-# Neural network
-chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
-eltypeθ = eltype(initθ)
-parameterless_type_θ = DiffEqBase.parameterless_type(initθ)
-strategy = NeuralPDE.GridTraining(dx)
-
-phi = NeuralPDE.get_phi(chain, parameterless_type_θ)
-derivative = NeuralPDE.get_numeric_derivative()
-
-
-_indvars = [t,x]
-_depvars = [u]
-
-depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
-
-Base.Broadcast.broadcasted(::typeof(transform_expression(eq, dict_indvars, dict_depvars, dict_depvar_input, chain, eltypeθ, strategy)), cord, θ, phi) = transform_expression(eq, dict_indvars, dict_depvars, dict_depvar_input, chain, eltypeθ, strategy)(cord, θ, phi)
-
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars, dict_depvar_input,
-                                                   phi,derivative,chain,initθ,strategy)
-
-bc_indvars = NeuralPDE.get_variables(bcs, indvars, depvars)
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,dict_depvar_input,
-                                                    phi,derivative,chain,initθ,strategy,
-                                                    bc_indvars=bc_indvar) for (bc, bc_indvar) in zip(bcs, bc_indvars)]
-
-train_sets = NeuralPDE.generate_training_sets(domains, dx, [eq], bcs, eltypeθ, indvars, depvars)
-train_domain_set, train_bound_set = train_sets
-
-
-pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
-                                                train_domain_set[1],
-                                                eltypeθ,parameterless_type_θ,
-                                                strategy)
-
-bc_loss_functions = [NeuralPDE.get_loss_function(loss,set,
-                                                 eltypeθ, parameterless_type_θ,
-                                                 strategy) for (loss, set) in zip(_bc_loss_functions, train_bound_set)]
-
-
-loss_functions = [pde_loss_function; bc_loss_functions]
-loss_function__ = θ -> sum(map(l -> l(θ), loss_functions))
-
-function loss_function_(θ, p)
-    return loss_function__(θ)
-end
-
-f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
-prob = GalacticOptim.OptimizationProblem(f, initθ)
-
-cb_ = function (p, l)
-    println("loss: ", l, "losses: ", map(l -> l(p), loss_functions))
-    return false
-end
-
-# optimizer
-opt = BFGS()
-res = GalacticOptim.solve(prob, opt; cb=cb_, maxiters=2) 
-
 
 function build_loss_function(eqs,_indvars,_depvars, dict_depvar_input, phi,derivative,
                              chain,initθ,strategy;
@@ -790,9 +676,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
     span = map(p -> get(dict_upper_bound, p, p), pd)
         map(s -> adapt(eltypeθ, s) - cbrt(eps(eltypeθ)), span)
     end
-    @info "in get_bounds by pde_bounds"
-    @show pde_upper_bounds
-    @show pde_lower_bounds
+
     pde_bounds = [pde_lower_bounds,pde_upper_bounds]
 
    
@@ -861,9 +745,6 @@ function get_numeric_derivative()
         return (derivative(phi, u, x .+ ε, εs, order - 1, θ)
                       .- derivative(phi, u, x .- ε, εs, order - 1, θ)) .* _epsilon
             else
-                @show length(x)
-                @show length(ε)
-@show length(θ)
                 return (u(x .+ ε, θ, phi) .- u(x .- ε, θ, phi)) .* _epsilon
             end
         end
@@ -873,7 +754,6 @@ derivative = get_numeric_derivative()
 # Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
 
     function get_loss_function(loss_function, train_set, eltypeθ, parameterless_type_θ, strategy::GridTraining;τ=nothing)
-    @info "in get_loss_function"
     loss = (θ) -> mean(abs2, loss_function(train_set, θ))
 end
             
@@ -955,7 +835,6 @@ function get_loss_function(loss_function, bound, eltypeθ, parameterless_type_θ
 end
 
 function get_loss_function(loss_function, lb, ub, eltypeθ, parameterless_type_θ, strategy::QuadratureTraining;τ=nothing)
-    @info "in get_loss_function"
     if length(lb) == 0
         loss = (θ) -> mean(abs2, loss_function(rand(eltypeθ, 1, 10), θ))
         return loss
@@ -978,8 +857,6 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, parameterless_type_�
               maxiters=strategy.maxiters)[1]
     end
     
-    @show f_
-    @show area
     loss = (θ) -> 1 / area * f_(lb, ub, loss_function, θ)
     return loss
 end
@@ -1017,8 +894,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
         get_variables(eqs, dict_indvars, dict_depvars)
     end
     pde_integration_vars = get_integration_variables(eqs, dict_indvars, dict_depvars)
-    @info "in symbolic discretize"
-    @show dict_depvar_input
+
     symbolic_pde_loss_functions = [build_symbolic_loss_function(eq,indvars,depvars,
                                                                 dict_indvars,dict_depvars,dict_depvar_input,
                                                                 phi, derivative,chain,initθ,strategy;eq_params=eq_params,param_estim=param_estim,default_p=default_p,
@@ -1189,295 +1065,4 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, flat_initθ)
 end
-
-
-
-
-@parameters t, x
-@variables u1(..), u2(..), u3(..)
-Dt = Differential(t)
-Dtt = Differential(t)^2
-Dx = Differential(x)
-Dxx = Differential(x)^2
-
-eqs = [Dtt(u1(t, x)) ~ Dxx(u1(t, x)) + u3(t, x) * sin(pi * x),
-       Dtt(u2(t, x)) ~ Dxx(u2(t, x)) + u3(t, x) * cos(pi * x),
-       0. ~ u1(t, x) * sin(pi * x) + u2(t, x) * cos(pi * x) - exp(-t)]
-
-bcs = [u1(0, x) ~ sin(pi * x),
-       u2(0, x) ~ cos(pi * x),
-       Dt(u1(0, x)) ~ -sin(pi * x),
-       Dt(u2(0, x)) ~ -cos(pi * x),
-       u1(t, 0) ~ 0.,
-       u2(t, 0) ~ exp(-t),
-       u1(t, 1) ~ 0.,
-       u2(t, 1) ~ -exp(-t)]
-
-
-# Space and time domains
-domains = [t ∈ Interval(0.0, 1.0),
-           x ∈ Interval(0.0, 1.0)]
-
-# Neural network
-input_ = length(domains)
-n = 15
-chain = [FastChain(FastDense(input_, n, Flux.σ), FastDense(n, n, Flux.σ), FastDense(n, 1)) for _ in 1:3]
-initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
-
-_strategy = QuadratureTraining()
-discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
-
-pde_system = PDESystem(eqs, bcs, domains, [t,x], [u1,u2,u3])
-prob = discretize(pde_system, discretization)
-sym_prob = symbolic_discretize(pde_system, discretization)
-
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
-
-cb = function (p, l)
-    println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-    return false
-end
-
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=5)
-
-
-import ModelingToolkit: Interval, infimum, supremum
-# 2d wave equation, neumann boundary condition
-@parameters x, t
-@variables u(..) w(..)
-Dx = Differential(x)
-Dtt = Differential(t)^2
-Dt = Differential(t)
-# 2D PDE
-eq  = 0 ~ Dx(u(x)) + w(x, t)
-
-# Initial and boundary conditions
-bcs = [u(0) ~ 0.,
-       u(1) ~ 0.,
-       w(0, t) ~ 0,
-       w(1, t) ~ exp(-t)]
-
-# Space and time domains
-domains = [x ∈ Interval(0.0, 1.0),
-           t ∈ Interval(0.0, 1.0)]
-
-# Neural network
-chain = [FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1)), FastChain(FastDense(1, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))]
-
-eltypeθ = eltype(initθ[1])
-initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
-flat_initθ = reduce(vcat, initθ)
-
-_indvars = [x,t]
-_depvars = [u(x), w(x, t)]
-dim = length(domains)
-dx = 0.1
-quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
-                                                     reltol=1e-3,abstol=1e-3,
-                                                     maxiters=50, batch=100)
-depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
-
-parameterless_type_θ = DiffEqBase.parameterless_type(initθ[1])
-phi = NeuralPDE.get_phi.(chain, parameterless_type_θ)
-
-# map(phi_ -> phi_(rand(2,10), flat_initθ),phi)
-derivative = NeuralPDE.get_numeric_derivative()
-
-#= 
-u_ = (cord, θ, phi) -> sum(phi(cord, θ))
-
-phi([1,2], initθ)
-
-phi_ = (p) -> phi(p, initθ)[1]
-dphi = Zygote.gradient(phi_, [1.,2.])
-
-dphi1 = derivative(phi, u_, [1.,2.], [[ 0.0049215667, 0.0]], 1, initθ)
-dphi2 = derivative(phi, u_, [1.,2.], [[0.0,  0.0049215667]], 1, initθ)
-isapprox(dphi[1][1], dphi1, atol=1e-8)
-isapprox(dphi[1][2], dphi2, atol=1e-8) =#
-
-_pde_loss_function = NeuralPDE.build_loss_function(eq, _indvars, _depvars, dict_depvar_input, phi, derivative, chain, initθ, strategy)
-
-expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq, indvars, depvars, dict_depvar_input, phi, derivative, chain, initθ, strategy)
-
-@show expr_pde_loss_function
-#= expected
-:((cord, var"##θ#529", phi, derivative, u)->begin
-          begin
-              let (x, t) = (cord[[1], :], cord[[2], :])
-                  derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667], [0.0, 0.0049215667]], 2, var"##θ#529") .- derivative.(phi, u, cord, Array{Float32,1}[[0.0049215667, 0.0], [0.0049215667, 0.0]], 2, var"##θ#529")
-              end
-          end
-      end) =#
-
-
-bc_indvars = NeuralPDE.get_variables(bcs, indvars, depvars)
-@show bc_indvars
-#= expected
-4-element Array{Array{Any,1},1}:
- [:t]
- [:t]
- [:x]
- [:x] =#
-
-
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, dict_depvar_input,
-                                                     phi,derivative,chain,initθ,strategy,
-                                                     bc_indvars=bc_indvar) for (bc, bc_indvar) in zip(bcs, bc_indvars)]
-
-expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars, dict_depvar_input,
-                                                                        phi,derivative,chain,initθ,strategy,
-                                                                        bc_indvars=bc_indvar) for (bc, bc_indvar) in zip(bcs, bc_indvars)]
-#= 
-4-element Array{Expr,1}:
- :((cord, var"##θ#529", phi, derivative, u)->begin
-          begin
-              let (x, t) = (cord[[1], :], cord[[2], :])
-                  u.(cord, var"##θ#529", phi) .- 0.0
-              end
-          end
-      end)
- :((cord, var"##θ#529", phi, derivative, u)->begin
-          begin
-              let (x, t) = (cord[[1], :], cord[[2], :])
-                  u.(cord, var"##θ#529", phi) .- 0.0
-              end
-          end
-      end)
- :((cord, var"##θ#529", phi, derivative, u)->begin
-          begin
-              let (x, t) = (cord[[1], :], cord[[2], :])
-                  u.(cord, var"##θ#529", phi) .- (*).(x, (+).(1.0, (*).(-1, x)))
-              end
-          end
-      end)
- :((cord, var"##θ#529", phi, derivative, u)->begin
-          begin
-              let (x, t) = (cord[[1], :], cord[[2], :])
-                  derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667]], 1, var"##θ#529") .- 0.0
-end
-          end
-      end) =#
-train_sets = NeuralPDE.generate_training_sets(domains, dx, [eq], bcs, eltypeθ, indvars, depvars)
-pde_train_set, bcs_train_set = train_sets
-
-pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains, [eq], bcs, eltypeθ, indvars, depvars, NeuralPDE.StochasticTraining(100))
-
-@show pde_bounds
-#= expected
-1-element Vector{Vector{Any}}:
- [Float32[0.01, 0.99], Float32[0.01, 0.99]] =#
-
-@show bcs_bounds
-#= expected
-4-element Vector{Vector{Any}}:
- [0, Float32[0.0, 1.0]]
- [1, Float32[0.0, 1.0]]
- [Float32[0.0, 1.0], 0]
- [Float32[0.0, 1.0], 0] =#
-
-discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
-
-pde_system = PDESystem(eq, bcs, domains, indvars, depvars)
-prob = NeuralPDE.discretize(pde_system, discretization)
-
-expr_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-expr_pde_loss_function, expr_bc_loss_functions = expr_prob
-
-cb = function (p, l)
-println("loss: ", l)
-    return false
-end
-
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=5)
-
-
-
-######### ZOE EXAMPLE
- @parameters x y
- @variables p(..) q(..) r(..) s(..)
- Dx = Differential(x)
- Dy = Differential(y)
-
- # 2D PDE
- eq  = p(x) + q(y) + Dx(r(x, y)) + s(x, y) ~ 0
- # eq  = Dx(p(x)) + Dy(q(y)) + Dx(r(x, y)) + Dy(s(y, x)) + p(x) + q(y) + r(x, y) + s(y, x) ~ 0
-
- # Initial and boundary conditions
- bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0,
-         r(x, -1) ~ 0.f0, r(1, y) ~ 0.0f0, 
-         s(x, 1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
- # bcs = [s(y, 1) ~ 0.0f0]
- # Space and time domains
- domains = [x ∈ IntervalDomain(0.0, 1.0),
-y ∈ IntervalDomain(-1.0, 0.0)]
-
- # chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
- numhid = 3
- fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];
-               [FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2]]
-strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
-               reltol=1e-3,abstol=1e-3,
-               maxiters=50, batch=100)
-discretization = NeuralPDE.PhysicsInformedNN(fastchains,
-                                                 strategy)
-
- pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(x,y)])
-
-
- sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
- prob = NeuralPDE.discretize(pde_system, discretization)
- initθ = discretization.init_params
- prob
- initθvec = vcat(initθ...)
- prob.f(initθvec, [])
- res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=3)
- phi = discretization.phi
- eqs = pde_system.eqs
- bcs = pde_system.bcs
-
- domains = pde_system.domain
- eq_params = pde_system.ps
- defaults = pde_system.defaults
- default_p = eq_params == SciMLBase.NullParameters() ? nothing : [defaults[ep] for ep in eq_params]
-
- param_estim = discretization.param_estim
- additional_loss = discretization.additional_loss
-
- # dimensionality of equation
- dim = length(domains)
- depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = NeuralPDE.get_vars(pde_system.indvars, pde_system.depvars)
-
-chain = discretization.chain
- initθ = discretization.init_params
- flat_initθ = if (typeof(chain) <: AbstractVector) vcat(initθ...) else  initθ end
- flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, adapt(DiffEqBase.parameterless_type(flat_initθ), default_p)) end
- phi = discretization.phi
- derivative = discretization.derivative
- strategy = discretization.strategy
- if !(eqs isa Array)
-     eqs = [eqs]
-    end
- pde_indvars = if strategy isa QuadratureTraining
-NeuralPDE.get_argument(eqs, dict_indvars, dict_depvars)
- else
-         NeuralPDE.get_variables(eqs, dict_indvars, dict_depvars)
- end
- _pde_loss_functions = [NeuralPDE.build_loss_function(eq,indvars,depvars,
-                                             dict_indvars,dict_depvars,dict_depvar_input,
-                                             phi, derivative,chain, initθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p,
-                                             bc_indvars=pde_indvar) for (eq, pde_indvar) in zip(eqs, pde_indvars)]
- bc_indvars = if strategy isa QuadratureTraining
-         get_argument(bcs, dict_indvars, dict_depvars)
- else
-         get_variables(bcs, dict_indvars, dict_depvars)
- end
-
- _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
-                                                 dict_indvars,dict_depvars,dict_depvar_input,
-                                                 phi, derivative,chain, initθ, strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p;
-                                                 bc_indvars=bc_indvar) for (bc, bc_indvar) in zip(bcs, bc_indvars)] 
 
