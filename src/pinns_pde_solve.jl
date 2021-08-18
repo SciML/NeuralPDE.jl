@@ -229,6 +229,7 @@ where
 """
 
 function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input, chain, eltypeθ, strategy)
+    @info "in transform exp"
     _args = ex.args
     for (i, e) in enumerate(_args)
         if e isa Function && !(e isa ModelingToolkit.Differential)
@@ -236,11 +237,15 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
         end
         if !(e isa Expr)
             if e in keys(dict_depvars)
+                @info "depvar"
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
                 cord = :cord
                 # map all the indvars
+                @show e
+                @show ex
+                @show _args[2:end]
                 interior_u_args = map(_args[2:end]) do arg
                     if arg isa Symbol
                         arg
@@ -249,13 +254,16 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
                     end
                 end
                 input_cord = :(adapt(DiffEqBase.parameterless_type($θ), vcat($(interior_u_args...))))
+                @show input_cord
                 ex.args = if !(typeof(chain) <: AbstractVector)
-                    [:($(Expr(:$, :u))), cord, :($θ), :phi]
+                    [:($(Expr(:$, :u))), input_cord, :($θ), :phi]
                 else
-                    [:($(Expr(:$, :u))), cord, Symbol(:($θ), num_depvar), Symbol(:phi, num_depvar)]
+                    [:($(Expr(:$, :u))), input_cord, Symbol(:($θ), num_depvar), Symbol(:phi, num_depvar)]
                 end
+                @show ex.args
                 break
             elseif e isa ModelingToolkit.Differential
+                @info "diff"
                 derivative_variables = Symbol[]
                 order = 0
                 while (_args[1] isa ModelingToolkit.Differential)
@@ -282,11 +290,13 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
                         :(fill($arg, (1, $:batch_size)))
                     end
                 end
+                @show interior_u_args
                 input_cord = :(adapt(DiffEqBase.parameterless_type($θ), vcat($(interior_u_args...))))
+                @show input_cord
                 ex.args = if !(typeof(chain) <: AbstractVector)
-                    [:($(Expr(:$, :derivative))), :phi, :u, cord, εs_dnv, order, :($θ)]
+                    [:($(Expr(:$, :derivative))), :phi, :u, input_cord, εs_dnv, order, :($θ)]
                 else
-                    [:($(Expr(:$, :derivative))), Symbol(:phi, num_depvar), :u, cord, εs_dnv, order, Symbol(:($θ), num_depvar)]
+                    [:($(Expr(:$, :derivative))), Symbol(:phi, num_depvar), :u, input_cord, εs_dnv, order, Symbol(:($θ), num_depvar)]
                 end
                 break
             end
@@ -296,19 +306,6 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
     end
     return ex
 end
-
-dict_interior_indvars = Dict(:y => 2, :x => 1)
-length(dict_interior_indvars)
-derivative_variables = [:y]
-εs = Vector{Float32}[[0.0049215667]]
-
-indv = [dict_interior_indvars[d_p] for d_p  in derivative_variables]
-@show indv
-
-εs[1]
-εs_dnv = [εs[d] for d in [1]]
-
-
 
 ######### ZOE EXAMPLE
 @parameters x y
@@ -342,61 +339,20 @@ depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indv
 
 pde_system = PDESystem(eq, bcs, domains, indvars, depvars)
 
-
+setsss_ = [0.40136755 0.704465 0.069869 0.8384493 0.72307074 0.4502584 0.6972632 0.46530226 0.75416523 0.43737194 0.62737805 0.6521258 0.21973646 0.44404075 0.911472 0.7107335 0.30569234 0.66586447 0.1194233 0.41656706 0.80742735 0.48238173 0.71084094 0.63632953 0.39184996 0.8749528 0.24200587 0.44462878 0.3848931 0.62560624; -0.06836277 -0.13397652 -0.37723696 -0.45254463 -0.34913975 -0.90144444 -0.8725639 -0.932939 -0.2544769 -0.9407378 -0.88603485 -0.4414277 -0.8630776 -0.31055832 -0.11011958 -0.7183315 -0.18631804 -0.47328267 -0.45478857 -0.66520095 -0.8956851 -0.44854254 -0.6132654 -0.39343238 -0.48372605 -0.59090626 -0.5562341 -0.19097847 -0.41618901 -0.52332556]
+θaaa    = [-0.062293943, 0.9323234, -0.82898414, 0.0, 0.0, 0.0, 0.8810315, -0.3185346, 0.9586625, -0.2908678, -0.17903686, -0.54440975, 0.8926482, -0.328125, 0.33700752, 0.0, 0.0, 0.0, -0.5524525, 0.03627949, -0.77225435, 0.0, -0.051846698, 1.1631777, 0.049984016, 0.0, 0.0, 0.0, -0.9567752, -0.9386449, -0.5028229, -0.6725855, -0.38631248, 0.02646637, -0.023957253, -0.9518578, -0.3175881, 0.0, 0.0, 0.0, -0.15163136, -0.67478263, 1.0079472, 0.0, -0.20985997, 0.40347564, -0.7307892, 0.70543224, 0.7323536, -0.23591316, 0.0, 0.0, 0.0, -0.063780546, -0.86524796, 0.120111465, 0.7825141, -0.7279432, -0.11632395, -0.9403703, 0.7753737, 0.26416016, 0.0, 0.0, 0.0, -0.9964102, -0.61114603, -0.99411154, 0.0, -0.94278294, 0.7553707, -1.0250689, 0.30077714, -0.5927146, -0.6905393, 0.0, 0.0, 0.0, 0.63447714, -0.18382907, 0.94959235, -0.31560135, 0.672626, -0.5795827, 0.54956126, -0.702023, 0.06161475, 0.0, 0.0, 0.0, -0.015384707, -0.99465525, 1.2201216, 0.0]
+cordddd = [0.6039247 0.4226434 0.9661964 0.69797283 0.6429463 0.107871085 0.61200637 0.5266776 0.80304205 0.5659698 0.7050573 0.2218363 0.61081904 0.11918287 0.3277783 0.6476572 0.48891237 0.7216076 0.5558591 0.4625266 0.32780388 0.062060624 0.9496044 0.41055134 0.89235944 0.57247907 0.78768617 0.9620081 0.12989005 0.6283247; -0.9488204 -0.25864047 -0.25646418 -0.4927406 -0.36540967 -0.5310041 -0.50703365 -0.36960596 -0.7540624 -0.5388944 -0.42452496 -0.69983304 -0.69311655 -0.2614218 -0.2709704 -0.3113289 -0.8028923 -0.5761955 -0.56809914 -0.6660326 -0.4653743 -0.2482732 -0.9462466 -0.1386829 -0.25287586 -0.7583902 -0.6221267 -0.8483174 -0.3223796 -0.80618453]
 
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 prob = NeuralPDE.discretize(pde_system, discretization)
 initθ = discretization.init_params
 initθvec = vcat(initθ...)
-prob.f(initθvec, [])
+# prob.f(initθvec, [])
 res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=3)
 phi = discretization.phi
-eqs = pde_system.eqs
-bcs = pde_system.bcs
-
-domains = pde_system.domain
-eq_params = pde_system.ps
-defaults = pde_system.defaults
-default_p = eq_params == SciMLBase.NullParameters() ? nothing : [defaults[ep] for ep in eq_params]
- param_estim = discretization.param_estim
- additional_loss = discretization.additional_loss
-
- # dimensionality of equation
- dim = length(domains)
- depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = NeuralPDE.get_vars(pde_system.indvars, pde_system.depvars)
-
- chain = discretization.chain
- initθ = discretization.init_params
- flat_initθ = if (typeof(chain) <: AbstractVector) vcat(initθ...) else  initθ end
- flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, adapt(DiffEqBase.parameterless_type(flat_initθ), default_p)) end
- phi = discretization.phi
-derivative = discretization.derivative
- strategy = discretization.strategy
- if !(eqs isa Array)
-     eqs = [eqs]
- end
- pde_indvars = if strategy isa QuadratureTraining
-         NeuralPDE.get_argument(eqs, dict_indvars, dict_depvars)
- else
-         NeuralPDE.get_variables(eqs, dict_indvars, dict_depvars)
- end
- _pde_loss_functions = [NeuralPDE.build_loss_function(eq,indvars,depvars,
-                                             dict_indvars,dict_depvars,dict_depvar_input,
-                                             phi, derivative,chain, initθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p,
-                                             bc_indvars=pde_indvar) for (eq, pde_indvar) in zip(eqs, pde_indvars)]
- bc_indvars = if strategy isa QuadratureTraining
-         get_argument(bcs, dict_indvars, dict_depvars)
- else
-         get_variables(bcs, dict_indvars, dict_depvars)
- end
-
- _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
-                                                 dict_indvars,dict_depvars,dict_depvar_input,
-                                                 phi, derivative,chain, initθ, strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p;
-                                                 bc_indvars=bc_indvar) for (bc, bc_indvar) in zip(bcs, bc_indvars)] 
 
 
- prob.f(initθvec, [])
+
 
 """
 Parse ModelingToolkit equation form to the inner representation.
@@ -581,6 +537,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     vcat_expr_loss_functions = loss_function # TODO rename
 
     let_ex = Expr(:let, vars_eq, vcat_expr_loss_functions)
+
     push!(ex.args,  let_ex)
 
     expr_loss_function = :(($vars) -> begin $ex end)
@@ -621,7 +578,7 @@ function build_loss_function(eqs,indvars,depvars,
                                                        param_estim=param_estim,default_p=default_p)
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
-    loss_function = (cord, θ) -> begin
+    loss_function = (cord, θ) -> begin 
         _loss_function(cord, θ, phi, derivative, u, default_p)
     end
     return loss_function
@@ -1157,10 +1114,13 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
             if additional_loss isa Nothing
             return loss_function(θ)
         else
-            function _additional_loss(phi, θ)
-                θ_ = θ[1:end - length(default_p)]
-                p = θ[(end - length(default_p) + 1):end]
-                return additional_loss(phi, θ_, p)
+            function _additional_loss(phi,θ)
+                (θ_,p_) = if (param_estim == true)
+                    θ[1:end - length(default_p)], θ[(end - length(default_p) + 1):end]
+                else
+                    θ, nothing
+                end
+                return additional_loss(phi,θ,p_)
             end
             return loss_function(θ) + _additional_loss(phi, θ)
         end
@@ -1169,13 +1129,6 @@ end
     f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, flat_initθ)
 end
-
-
-
-
-
-
-
 
 
 
