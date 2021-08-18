@@ -402,7 +402,8 @@ quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
                                                     reltol=1e-8,abstol=1e-8,
                                                     maxiters =10, batch=100)
 # Neural network
-chain = FastChain(FastDense(2,12,Flux.tanh),FastDense(12,12,Flux.tanh),FastDense(12,1))
+inner =20
+chain = FastChain(FastDense(2,inner,Flux.tanh),FastDense(inner,inner,Flux.tanh),FastDense(inner,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 
 discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy; init_params = initθ)
@@ -410,7 +411,8 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy; init_pa
 
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,BFGS();cb=cb, maxiters=1500)
+res = GalacticOptim.solve(prob,BFGS(); maxiters=1500)
+@show res.original
 
 phi = discretization.phi
 
