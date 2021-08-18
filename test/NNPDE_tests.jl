@@ -190,7 +190,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,quasirandom_strategy;init_params = initθ)
 
-@named pde_system = PDESystem(eq,bcs,domains,[x],[u,Dxu,Dxxu])
+@named pde_system = PDESystem(eq,bcs,domains,[x],[u,Dxu,Dxxu,O1,O2])
 
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
