@@ -399,8 +399,8 @@ domains = [x ∈ Interval(0.0,1.0), y ∈ Interval(0.0,1.0)]
 
 
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
-                                                    reltol=1e-3,abstol=1e-3,
-                                                    maxiters =50, batch=100)
+                                                    reltol=1e-8,abstol=1e-8,
+                                                    maxiters =10, batch=100)
 # Neural network
 chain = FastChain(FastDense(2,12,Flux.tanh),FastDense(12,12,Flux.tanh),FastDense(12,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
@@ -410,7 +410,8 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy; init_pa
 
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,BFGS(); maxiters=1000)
+res = GalacticOptim.solve(prob,BFGS();cb=cb, maxiters=1500)
+
 phi = discretization.phi
 
 analytic_sol_func(x,y) = x + x*y +y^2/2
@@ -493,9 +494,9 @@ cb_ = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob,LBFGS(),cb = cb_,maxiters=400)
+res = GalacticOptim.solve(prob,LBFGS(),maxiters=400)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,BFGS(),cb = cb_,maxiters=2000)
+res = GalacticOptim.solve(prob,BFGS(),maxiters=2000)
 
 C = 142.88418699042
 analytic_sol_func(x) = C*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
