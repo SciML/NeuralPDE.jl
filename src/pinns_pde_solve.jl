@@ -236,9 +236,6 @@ where
 function _transform_expression(ex,dict_indvars,dict_depvars,chain,eltypeθ,strategy)
     _args = ex.args
     for (i,e) in enumerate(_args)
-        # if e isa Function && !(e isa ModelingToolkit.Differential)
-        #     ex.args[i] = Symbol(e)
-        # end
         if !(e isa Expr)
             if e in keys(dict_depvars)
                 depvar = _args[1]
@@ -688,7 +685,6 @@ function get_u()
     u = (cord, θ, phi)-> phi(cord, θ)
 end
 
-u = get_u()
 
 # the method to calculate the derivative
 function get_numeric_derivative()
@@ -707,8 +703,6 @@ function get_numeric_derivative()
             end
         end
 end
-
-derivative = get_numeric_derivative()
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
     loss = (θ) -> mean(abs2,loss_function(train_set, θ))
