@@ -221,10 +221,7 @@ chain = FastChain(FastDense(3,inner,Flux.σ),
 
 initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
 
-# strategy = NeuralPDE.QuasiRandomTraining(4000; #points
-#                                          sampling_alg = SobolSample(),
-#                                          minibatch = 3)
-strategy = NeuralPDE.GridTraining(0.1)
+strategy = NeuralPDE.GridTraining(0.05)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)
@@ -232,18 +229,18 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 @named pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u])
 prob = NeuralPDE.discretize(pde_system,discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob,ADAM(0.1);maxiters=2500)
-prob = remake(prob,u0=res.minimizer)
+
 res = GalacticOptim.solve(prob,ADAM(0.01);maxiters=2500)
 prob = remake(prob,u0=res.minimizer)
 res = GalacticOptim.solve(prob,ADAM(0.001);maxiters=2500)
+@show res.original
 
 phi = discretization.phi
 ts,xs,ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
 u_real = [analytic_sol_func(t,x,y) for t in ts for x in xs for y in ys]
 u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs for y in ys]
 
-@test u_predict ≈ u_real rtol = 3.0
+@test u_predict ≈ u_real rtol = 0.2
 
 # using Plots
 # using Printf
