@@ -230,6 +230,7 @@ where
 
 function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input, chain, eltypeθ, strategy)
     @info "in transform exp"
+    @show ex
     _args = ex.args
     for (i, e) in enumerate(_args)
         if e isa Function && !(e isa ModelingToolkit.Differential)
@@ -243,8 +244,7 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
                 indvars = _args[2:end]
                 cord = :cord
                 # map all the indvars
-                @show e
-                @show ex
+                @show e          
                 @show _args[2:end]
                 interior_u_args = map(_args[2:end]) do arg
                     if arg isa Symbol
@@ -253,6 +253,7 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
                         :(fill($arg, (1, $:batch_size)))
                     end
                 end
+                @show interior_u_args
                 input_cord = :(adapt(DiffEqBase.parameterless_type($θ), vcat($(interior_u_args...))))
                 @show input_cord
                 ex.args = if !(typeof(chain) <: AbstractVector)
@@ -292,7 +293,6 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
                 end
                 @show interior_u_args
                 input_cord = :(adapt(DiffEqBase.parameterless_type($θ), vcat($(interior_u_args...))))
-                @show input_cord
                 ex.args = if !(typeof(chain) <: AbstractVector)
                     [:($(Expr(:$, :derivative))), :phi, :u, input_cord, εs_dnv, order, :($θ)]
                 else
@@ -306,53 +306,6 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
     end
     return ex
 end
-
-######### ZOE EXAMPLE
-@parameters x y
-@variables p(..) q(..) r(..) s(..)
-Dx = Differential(x)
-Dy = Differential(y)
-
- # 2D PDE
-eq  = Dx(p(x)) + Dy(q(y)) + Dx(r(x, y)) + Dy(s(y, x)) + p(x) + q(y) + r(x, y) + s(y, x) ~ 0
-
- # Initial and boundary conditions
-bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0,
-         r(x, -1) ~ 0.f0, r(1, y) ~ 0.0f0, 
-         s(y, 1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
- # bcs = [s(y, 1) ~ 0.0f0]
- # Space and time domains
-domains = [x ∈ IntervalDomain(0.0, 1.0),
-             y ∈ IntervalDomain(-1.0, 0.0)]
-
- # chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
-numhid = 3
-fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];
-               [FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2]]
-discretization = NeuralPDE.PhysicsInformedNN(fastchains,
-                                                 StochasticTraining(30))
-
-_indvars = [x,y]
-_depvars = [p(x), q(y), r(x, y), s(y, x)]
-
-depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
-
-pde_system = PDESystem(eq, bcs, domains, indvars, depvars)
-
-setsss_ = [0.40136755 0.704465 0.069869 0.8384493 0.72307074 0.4502584 0.6972632 0.46530226 0.75416523 0.43737194 0.62737805 0.6521258 0.21973646 0.44404075 0.911472 0.7107335 0.30569234 0.66586447 0.1194233 0.41656706 0.80742735 0.48238173 0.71084094 0.63632953 0.39184996 0.8749528 0.24200587 0.44462878 0.3848931 0.62560624; -0.06836277 -0.13397652 -0.37723696 -0.45254463 -0.34913975 -0.90144444 -0.8725639 -0.932939 -0.2544769 -0.9407378 -0.88603485 -0.4414277 -0.8630776 -0.31055832 -0.11011958 -0.7183315 -0.18631804 -0.47328267 -0.45478857 -0.66520095 -0.8956851 -0.44854254 -0.6132654 -0.39343238 -0.48372605 -0.59090626 -0.5562341 -0.19097847 -0.41618901 -0.52332556]
-θaaa    = [-0.062293943, 0.9323234, -0.82898414, 0.0, 0.0, 0.0, 0.8810315, -0.3185346, 0.9586625, -0.2908678, -0.17903686, -0.54440975, 0.8926482, -0.328125, 0.33700752, 0.0, 0.0, 0.0, -0.5524525, 0.03627949, -0.77225435, 0.0, -0.051846698, 1.1631777, 0.049984016, 0.0, 0.0, 0.0, -0.9567752, -0.9386449, -0.5028229, -0.6725855, -0.38631248, 0.02646637, -0.023957253, -0.9518578, -0.3175881, 0.0, 0.0, 0.0, -0.15163136, -0.67478263, 1.0079472, 0.0, -0.20985997, 0.40347564, -0.7307892, 0.70543224, 0.7323536, -0.23591316, 0.0, 0.0, 0.0, -0.063780546, -0.86524796, 0.120111465, 0.7825141, -0.7279432, -0.11632395, -0.9403703, 0.7753737, 0.26416016, 0.0, 0.0, 0.0, -0.9964102, -0.61114603, -0.99411154, 0.0, -0.94278294, 0.7553707, -1.0250689, 0.30077714, -0.5927146, -0.6905393, 0.0, 0.0, 0.0, 0.63447714, -0.18382907, 0.94959235, -0.31560135, 0.672626, -0.5795827, 0.54956126, -0.702023, 0.06161475, 0.0, 0.0, 0.0, -0.015384707, -0.99465525, 1.2201216, 0.0]
-cordddd = [0.6039247 0.4226434 0.9661964 0.69797283 0.6429463 0.107871085 0.61200637 0.5266776 0.80304205 0.5659698 0.7050573 0.2218363 0.61081904 0.11918287 0.3277783 0.6476572 0.48891237 0.7216076 0.5558591 0.4625266 0.32780388 0.062060624 0.9496044 0.41055134 0.89235944 0.57247907 0.78768617 0.9620081 0.12989005 0.6283247; -0.9488204 -0.25864047 -0.25646418 -0.4927406 -0.36540967 -0.5310041 -0.50703365 -0.36960596 -0.7540624 -0.5388944 -0.42452496 -0.69983304 -0.69311655 -0.2614218 -0.2709704 -0.3113289 -0.8028923 -0.5761955 -0.56809914 -0.6660326 -0.4653743 -0.2482732 -0.9462466 -0.1386829 -0.25287586 -0.7583902 -0.6221267 -0.8483174 -0.3223796 -0.80618453]
-
-sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-prob = NeuralPDE.discretize(pde_system, discretization)
-initθ = discretization.init_params
-initθvec = vcat(initθ...)
-# prob.f(initθvec, [])
-res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=3)
-phi = discretization.phi
-
-
-
 
 """
 Parse ModelingToolkit equation form to the inner representation.
@@ -444,20 +397,6 @@ function build_symbolic_loss_function(eqs,_indvars,_depvars, dict_depvar_input,
                                         integration_indvars=integration_indvars)
 end
 
-function get_indvars_ex(bc_indvars)
-    i_ = 1
-    indvars_ex = map(bc_indvars) do u
-    if u isa Symbol
-             ex = :($:cord[[$i_],:])
-             i_ += 1
-             ex
-        else
-           :(fill($u, size($:cord[[1],:])))
-        end
-    end
-    indvars_ex
-end
-
 function build_symbolic_loss_function(eqs,indvars,depvars, 
                                       dict_indvars,dict_depvars,dict_depvar_input,
                                       phi,derivative,chain,initθ,strategy;
@@ -473,6 +412,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     end
 
     loss_function = parse_equation(eqs, dict_indvars, dict_depvars, dict_depvar_input, chain, eltypeθ, strategy)
+    @show loss_function
     vars = :(cord, $θ, phi, derivative, u, p)
     ex = Expr(:block)
     if typeof(chain) <: AbstractVector
@@ -488,7 +428,9 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         expr_phi = Expr[]
 
         acum =  [0;accumulate(+, length.(initθ))]
+        @show acum
         sep = [acum[i] + 1:acum[i + 1] for i in 1:length(acum) - 1]
+        @show sep
 
         for i in eachindex(depvars)
             push!(expr_θ, :($θ[$(sep[i])]))
@@ -527,6 +469,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     end
 
     indvars_ex = [:($:cord[[$i],:]) for (i, u) ∈ enumerate(integration_indvars)]
+    @show indvars_ex
     batch_size_variable = if length(integration_indvars) > 0
         :(size($:cord[[1], :])[2])
     else
@@ -820,13 +763,13 @@ end
             
 @nograd function generate_random_points(points, bound, eltypeθ)
             function f(b)
-      if b isa Number
-           fill(eltypeθ(b), (1, points))
-else
-lb, ub =  b[1], b[2]
-           lb .+ (ub .- lb) .* rand(eltypeθ, 1, points)
-       end
-    end
+                if b isa Number
+                    fill(eltypeθ(b), (1, points))
+                else
+                    lb, ub =  b[1], b[2]
+                    lb .+ (ub .- lb) .* rand(eltypeθ, 1, points)
+                end  
+            end
     vcat(f.(bound)...)
 end
 
@@ -1019,11 +962,11 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         get_variables(eqs, dict_indvars, dict_depvars)
     end
    pde_integration_vars = get_integration_variables(eqs, dict_indvars, dict_depvars)
-    _pde_loss_functions = [build_loss_function(eq,indvars,depvars, 
-                                               dict_indvars,dict_depvars,dict_depvar_input,
-                                               phi, derivative,chain, initθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p,
-                                               bc_indvars=pde_indvar, integration_indvars=integration_indvar
-                                               ) for (eq, pde_indvar, integration_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
+   _pde_loss_functions = [build_loss_function(eq,indvars,depvars,
+                                             dict_indvars,dict_depvars,dict_depvar_input,
+                                             phi, derivative,chain, initθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p,
+                                             bc_indvars = pde_indvar, integration_indvars = integration_indvar
+                                             ) for (eq, pde_indvar, integration_indvar) in zip(eqs,pde_indvars, pde_integration_vars)]
     bc_indvars = if strategy isa QuadratureTraining
          get_argument(bcs, dict_indvars, dict_depvars)
     else
@@ -1068,20 +1011,15 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                                                 for (_loss, _set) in zip(_bc_loss_functions, bcs_train_sets)]
         (pde_loss_functions, bc_loss_functions)
     elseif strategy isa StochasticTraining
-          bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-          pde_bounds, bcs_bounds = bounds
+          pde_loss_functions = [get_loss_function(_loss,
+                                                  bound, eltypeθ, parameterless_type_θ,
+                                                  strategy) for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
 
-          pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, parameterless_type_θ, strategy)
-                                                  for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
-
-          strategy_ = StochasticTraining(strategy.bcs_points)
-          bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, parameterless_type_θ, strategy_)
-                                                 for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
+          bc_loss_functions = [get_loss_function(_loss,
+                                                bound, eltypeθ, parameterless_type_θ,
+                                                strategy) for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
           (pde_loss_functions, bc_loss_functions)
     elseif strategy isa QuasiRandomTraining
-         bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-         pde_bounds, bcs_bounds = bounds
-
          pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, parameterless_type_θ, strategy)
                                                  for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
 
@@ -1093,9 +1031,6 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                                                 for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
          (pde_loss_functions, bc_loss_functions)
     elseif strategy isa QuadratureTraining
-        bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-        pde_bounds, bcs_bounds = bounds
-
         lbs, ubs = pde_bounds
         pde_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, parameterless_type_θ, strategy)
                                                 for (_loss, lb, ub) in zip(_pde_loss_functions, lbs, ubs)]
@@ -1131,6 +1066,55 @@ end
 end
 
 
+######### ZOE EXAMPLE
+@parameters x y
+@variables p(..) q(..) r(..) s(..)
+Dx = Differential(x)
+Dy = Differential(y)
+
+ # 2D PDE
+eq  = Dx(p(x)) + Dy(q(y)) + Dx(r(x, y)) + Dy(s(y, x)) + p(x) + q(y) + r(x, y) + s(y, x) ~ 0
+
+ # Initial and boundary conditions
+bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0,
+         r(x, -1) ~ 0.f0, r(1, y) ~ 0.0f0, 
+         s(y, 1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
+ # bcs = [s(y, 1) ~ 0.0f0]
+ # Space and time domains
+domains = [x ∈ IntervalDomain(0.0, 1.0),
+             y ∈ IntervalDomain(-1.0, 0.0)]
+
+ # chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+numhid = 3
+fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];
+               [FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2]]
+discretization = NeuralPDE.PhysicsInformedNN(fastchains,
+                                                 StochasticTraining(30))
+
+_indvars = [x,y]
+_depvars = [p(x), q(y), r(x, y), s(y, x)]
+
+depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
+
+pde_system = PDESystem(eq, bcs, domains, indvars, depvars)
+
+# setsss_ = [0.40136755 0.704465 0.069869 0.8384493 0.72307074 0.4502584 0.6972632 0.46530226 0.75416523 0.43737194 0.62737805 0.6521258 0.21973646 0.44404075 0.911472 0.7107335 0.30569234 0.66586447 0.1194233 0.41656706 0.80742735 0.48238173 0.71084094 0.63632953 0.39184996 0.8749528 0.24200587 0.44462878 0.3848931 0.62560624; -0.06836277 -0.13397652 -0.37723696 -0.45254463 -0.34913975 -0.90144444 -0.8725639 -0.932939 -0.2544769 -0.9407378 -0.88603485 -0.4414277 -0.8630776 -0.31055832 -0.11011958 -0.7183315 -0.18631804 -0.47328267 -0.45478857 -0.66520095 -0.8956851 -0.44854254 -0.6132654 -0.39343238 -0.48372605 -0.59090626 -0.5562341 -0.19097847 -0.41618901 -0.52332556]
+# θaaa    = [-0.062293943, 0.9323234, -0.82898414, 0.0, 0.0, 0.0, 0.8810315, -0.3185346, 0.9586625, -0.2908678, -0.17903686, -0.54440975, 0.8926482, -0.328125, 0.33700752, 0.0, 0.0, 0.0, -0.5524525, 0.03627949, -0.77225435, 0.0, -0.051846698, 1.1631777, 0.049984016, 0.0, 0.0, 0.0, -0.9567752, -0.9386449, -0.5028229, -0.6725855, -0.38631248, 0.02646637, -0.023957253, -0.9518578, -0.3175881, 0.0, 0.0, 0.0, -0.15163136, -0.67478263, 1.0079472, 0.0, -0.20985997, 0.40347564, -0.7307892, 0.70543224, 0.7323536, -0.23591316, 0.0, 0.0, 0.0, -0.063780546, -0.86524796, 0.120111465, 0.7825141, -0.7279432, -0.11632395, -0.9403703, 0.7753737, 0.26416016, 0.0, 0.0, 0.0, -0.9964102, -0.61114603, -0.99411154, 0.0, -0.94278294, 0.7553707, -1.0250689, 0.30077714, -0.5927146, -0.6905393, 0.0, 0.0, 0.0, 0.63447714, -0.18382907, 0.94959235, -0.31560135, 0.672626, -0.5795827, 0.54956126, -0.702023, 0.06161475, 0.0, 0.0, 0.0, -0.015384707, -0.99465525, 1.2201216, 0.0]
+# cordddd = [0.6039247 0.4226434 0.9661964 0.69797283 0.6429463 0.107871085 0.61200637 0.5266776 0.80304205 0.5659698 0.7050573 0.2218363 0.61081904 0.11918287 0.3277783 0.6476572 0.48891237 0.7216076 0.5558591 0.4625266 0.32780388 0.062060624 0.9496044 0.41055134 0.89235944 0.57247907 0.78768617 0.9620081 0.12989005 0.6283247; -0.9488204 -0.25864047 -0.25646418 -0.4927406 -0.36540967 -0.5310041 -0.50703365 -0.36960596 -0.7540624 -0.5388944 -0.42452496 -0.69983304 -0.69311655 -0.2614218 -0.2709704 -0.3113289 -0.8028923 -0.5761955 -0.56809914 -0.6660326 -0.4653743 -0.2482732 -0.9462466 -0.1386829 -0.25287586 -0.7583902 -0.6221267 -0.8483174 -0.3223796 -0.80618453]
+
+sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+prob = NeuralPDE.discretize(pde_system, discretization)
+initθ = discretization.init_params
+initθvec = vcat(initθ...)
+
+# prob.f(initθvec, [])
+res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=3)
+phi = discretization.phi
+
+ex = :((+)(p(x), q(y), (Differential(x))(p(x)), (Differential(y))(q(y)), (Differential(x))(r(x, y)), (Differential(y))(s(y, x)), r(x, y), s(y, x)))
+_transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input, chain, eltypeθ, strategy)
+build_symbolic_loss_function(eq,_indvars,_depvars, dict_depvar_input,
+                                      phi, derivative,chain,initθ,strategy)
 
 
 
@@ -1168,11 +1152,19 @@ strategy = NeuralPDE.GridTraining(dx)
 phi = NeuralPDE.get_phi(chain, parameterless_type_θ)
 derivative = NeuralPDE.get_numeric_derivative()
 
-
 _indvars = [t,x]
 _depvars = [u]
 
 depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
+
+discretization = NeuralPDE.PhysicsInformedNN(fastchains,
+                                                 StochasticTraining(30))
+
+depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
+
+pde_system = PDESystem(eq, bcs, domains, indvars, depvars)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+
 
 Base.Broadcast.broadcasted(::typeof(transform_expression(eq, dict_indvars, dict_depvars, dict_depvar_input, chain, eltypeθ, strategy)), cord, θ, phi) = transform_expression(eq, dict_indvars, dict_depvars, dict_depvar_input, chain, eltypeθ, strategy)(cord, θ, phi)
 
