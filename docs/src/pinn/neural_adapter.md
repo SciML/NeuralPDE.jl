@@ -1,4 +1,4 @@
-## Transfer Learning with Neural Adapter
+# Transfer Learning with Neural Adapter
 
 Transfer learning is a machine learning technique where a model trained on one task is re-purposed on a second related task.
 
@@ -6,6 +6,8 @@ Transfer learning is a machine learning technique where a model trained on one t
 
 This allows reusing the obtained prediction results and pre-training states of the neural network to get a new prediction, or reuse the results of predictions to train a related task (for example, the same task with a different domain).
 It makes it possible to create more flexible training schemes.
+
+## Retrain the prediction
 
 Using the example of 2D Poisson equation, it is shown how, using method neural_adapter, to retrain the prediction of one neural network to another.
 
