@@ -23,6 +23,7 @@ makedocs(
             "pinn/fp.md",
             "pinn/parm_estim.md",
             "pinn/debugging.md",
+            "pinn/neural_adapter.md",
         ],
         "Specialized Neural PDE Tutorials" => Any[
             "examples/100_HJB.md",
