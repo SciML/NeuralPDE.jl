@@ -397,10 +397,7 @@ bcs = [u(x,0) ~ x,
 # Space and time domains
 domains = [x ∈ Interval(0.0,1.0), y ∈ Interval(0.0,1.0)]
 
-
-quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
-                                                    reltol=1e-8,abstol=1e-8,
-                                                    maxiters =10, batch=100)
+quadrature_strategy = NeuralPDE.QuadratureTraining()
 # Neural network
 inner =20
 chain = FastChain(FastDense(2,inner,Flux.tanh),FastDense(inner,inner,Flux.tanh),FastDense(inner,1))
