@@ -301,7 +301,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                     if l isa Number
                         push!(lb_, l)
                     else
-                        l = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = l, param_estim =false, default_p = nothing)
+                        l = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative_, nothing, chain, θ, strategy, integrand = l, param_estim =false, default_p = nothing)
                         l = @RuntimeGeneratedFunction(l)
                         push!(lb_, l)
                     end
@@ -310,7 +310,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                     if u_ isa Number
                         push!(ub_, u_)
                     else
-                        u_ = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative, nothing, chain, θ, strategy, integrand = u_, param_estim =false, default_p = nothing)
+                        u_ = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, phi, derivative_, nothing, chain, θ, strategy, integrand = u_, param_estim =false, default_p = nothing)
                         u_ = @RuntimeGeneratedFunction(u_)
                         push!(ub_, u_)
                     end
@@ -321,7 +321,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                 break
             end
         else
-            ex.args[i] = _transform_expression(ex.args[i],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
+            ex.args[i] = _transform_expression(ex.args[i],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,integral,initθ)
         end
     end
     return ex
