@@ -16,6 +16,7 @@ jobs:
           - NNPDEHan
           - NNPDENS
           - NNPDE
+          - NeuralAdapter
           - NNSTOPPINGTIME
           - NNRODE
     steps:

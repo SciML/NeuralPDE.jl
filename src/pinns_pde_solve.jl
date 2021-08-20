@@ -1,6 +1,57 @@
-import Base.Broadcast
-# Base.Broadcast.dottable(x::Function) = true
+using Base.Broadcast
+
+"""
+Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
+
+# Example
+
+```julia
+julia> e = :(1 + $sin(x))
+:(1 + (sin)(x))
+
+julia> Broadcast.__dot__(e)
+:((+).(1, (sin)(x)))
+
+julia> _dot_(e)
+:((+).(1, (sin).(x)))
+```
+"""
+
+dottable_(x) = Broadcast.dottable(x)
+dottable_(x::Function) = true
+
+_dot_(x) = x
+function _dot_(x::Expr)
+    dotargs = Base.mapany(_dot_, x.args)
+    if x.head === :call && dottable_(x.args[1])
+        Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
+    elseif x.head === :comparison
+        Expr(:comparison, (iseven(i) && dottable_(arg) && arg isa Symbol && isoperator(arg) ?
+                               Symbol('.', arg) : arg for (i, arg) in pairs(dotargs))...)
+    elseif x.head === :$
+        x.args[1]
+    elseif x.head === :let # don't add dots to `let x=...` assignments
+        Expr(:let, undot(dotargs[1]), dotargs[2])
+    elseif x.head === :for # don't add dots to for x=... assignments
+        Expr(:for, undot(dotargs[1]), dotargs[2])
+    elseif (x.head === :(=) || x.head === :function || x.head === :macro) &&
+           Meta.isexpr(x.args[1], :call) # function or macro definition
+        Expr(x.head, x.args[1], dotargs[2])
+    elseif x.head === :(<:) || x.head === :(>:)
+        tmp = x.head === :(<:) ? :.<: : :.>:
+        Expr(:call, tmp, dotargs...)
+    else
+        head = String(x.head)::String
+        if last(head) == '=' && first(head) != '.' || head == "&&" || head == "||"
+            Expr(Symbol('.', head), dotargs...)
+        else
+            Expr(x.head, dotargs...)
+        end
+    end
+end
+
 RuntimeGeneratedFunctions.init(@__MODULE__)
+
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
 
@@ -194,16 +245,13 @@ where
 function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,integral,initθ;is_integral=false)
     _args = ex.args
     for (i,e) in enumerate(_args)
-        if e isa Function && !(e isa ModelingToolkit.Differential || e isa Symbolics.Integral)
-            ex.args[i] = Symbol(e)
-        end
         if !(e isa Expr)
             if e in keys(dict_depvars)
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
                 cord = :cord
-                var_ = is_integral ? :(u) : :($u)
+                var_ = is_integral ? :(u) : :($(Expr(:$, :u)))
                 ex.args = if !(typeof(chain) <: AbstractVector)
                     [var_, cord, :($θ), :phi]
                 else
@@ -222,7 +270,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
                 cord = :cord
-                var_ = is_integral ? :(derivative) : :($derivative)
+                var_ = is_integral ? :(derivative) : :($(Expr(:$, :derivative)))
                 dim_l = length(indvars)
                 εs = [get_ε(dim_l,d,eltypeθ) for d in 1:dim_l]
                 undv = [dict_indvars[d_p] for d_p  in derivative_variables]
@@ -269,7 +317,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                 end
 
                 integrand_func = @RuntimeGeneratedFunction(integrand)
-                ex.args = [:($integral), :u, :cord, :phi, integrating_var_id, integrand_func, lb_, ub_,  :($θ)]
+                ex.args = [:($(Expr(:$, :integral))), :u, :cord, :phi, integrating_var_id, integrand_func, lb_, ub_,  :($θ)]
                 break
             end
         else
@@ -316,10 +364,10 @@ end
 function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
-    left_expr = transform_expression(toexpr(eq_lhs),indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
-    right_expr = transform_expression(toexpr(eq_rhs),indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
-    left_expr = Broadcast.__dot__(left_expr)
-    right_expr = Broadcast.__dot__(right_expr)
+    left_expr = transform_expression(toexpr(eq_lhs),dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+    right_expr = transform_expression(toexpr(eq_rhs),dict_indvars,dict_depvars,chain,eltypeθ,strategy)
+    left_expr = _dot_(left_expr)
+    right_expr = _dot_(right_expr)
     loss_func = :($left_expr .- $right_expr)
 end
 
@@ -692,8 +740,6 @@ function get_u()
     u = (cord, θ, phi)-> phi(cord, θ)
 end
 
-u = get_u()
-# Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
 
 # the method to calculate the derivative
 function get_numeric_derivative()
@@ -757,10 +803,6 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
             end
 end
 
-derivative = get_numeric_derivative()
-
-
-# Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
     loss = (θ) -> mean(abs2,loss_function(train_set, θ))
