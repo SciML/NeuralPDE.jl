@@ -422,7 +422,7 @@ u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(l
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 diff_u = abs.(u_predict .- u_real)
 
-@test u_predict ≈ u_real atol = 1.0
+@test u_predict ≈ u_real rtol = 0.1
 
 # p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
 # p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
