@@ -10,9 +10,6 @@ const is_TRAVIS = haskey(ENV, "TRAVIS")
 const is_CI = haskey(ENV, "CI")
 
 @time begin
-    if GROUP == "All" || GROUP == "NNPDE"
-        @time @safetestset "NNPDE" begin include("NNPDE_tests.jl") end
-    end
     if GROUP == "All" || GROUP == "NNODE"
         @time @safetestset "NNODE" begin include("NNODE_tests.jl") end
     end
@@ -21,6 +18,12 @@ const is_CI = haskey(ENV, "CI")
     end
     if GROUP == "All" || GROUP == "NNPDENS"
         @time @safetestset "NNPDENS" begin include("NNPDENS_tests.jl") end
+    end
+    if GROUP == "All" || GROUP == "NNPDE"
+        @time @safetestset "NNPDE" begin include("NNPDE_tests.jl") end
+    end
+    if GROUP == "All" || GROUP == "NeuralAdapter"
+        @time @safetestset "NeuralAdapter" begin include("neural_adapter_tests.jl") end
     end
     if GROUP == "All" || GROUP == "NNKOLMOGOROV"
         @time @safetestset "NNKolmogorov" begin include("NNKolmogorov_tests.jl") end
@@ -32,7 +35,7 @@ const is_CI = haskey(ENV, "CI")
         @time @safetestset "NNRODE" begin include("NNRODE_tests.jl") end
         @time @safetestset "NNParamKolmogorov" begin include("NNParamKolmogorov_tests.jl") end
     end
-  
+
     if !is_APPVEYOR && GROUP == "GPU"
         @safetestset "NNPDE_gpu" begin include("NNPDE_tests_gpu.jl") end
     end

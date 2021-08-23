@@ -16,6 +16,7 @@ using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 using Statistics
+using ArrayInterface
 import Tracker, Optim
 import ModelingToolkit: toexpr, value, build_expr, expand_derivatives
 import ModelingToolkit: Interval, infimum, supremum # ,Ball
@@ -170,6 +171,7 @@ include("kolmogorov_solve.jl")
 include("rode_solve.jl")
 include("stopping_solve.jl")
 include("pinns_pde_solve.jl")
+include("neural_adapter.jl")
 include("param_kolmogorov_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,

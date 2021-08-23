@@ -2,12 +2,16 @@ using Base.Broadcast
 
 """
 Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
+
 # Example
+
 ```julia
 julia> e = :(1 + $sin(x))
 :(1 + (sin)(x))
+
 julia> Broadcast.__dot__(e)
 :((+).(1, (sin)(x)))
+
 julia> _dot_(e)
 :((+).(1, (sin).(x)))
 ```
@@ -46,6 +50,7 @@ function _dot_(x::Expr)
 end
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
+
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
 
@@ -235,10 +240,7 @@ function _transform_expression(ex, dict_indvars, dict_depvars, dict_depvar_input
     @show dict_indvars
     @show dict_depvar_input
     _args = ex.args
-    for (i, e) in enumerate(_args)
-        if e isa Function && !(e isa ModelingToolkit.Differential)
-            ex.args[i] = Symbol(e)
-        end
+    for (i,e) in enumerate(_args)
         if !(e isa Expr)
             if e in keys(dict_depvars)
                 @info "depvar"
@@ -762,8 +764,6 @@ function get_u()
     u = (cord, θ, phi) -> phi(cord, θ)
 end
 
-u = get_u()
-# Base.Broadcast.broadcasted(::typeof(get_u()), cord, θ, phi) = get_u()(cord, θ, phi)
 
 # the method to calculate the derivative
 function get_numeric_derivative()
@@ -783,11 +783,8 @@ function get_numeric_derivative()
         end
 end
 
-derivative = get_numeric_derivative()
-# Base.Broadcast.broadcasted(::typeof(get_numeric_derivative()), phi,u,x,εs,order,θ) = get_numeric_derivative()(phi,u,x,εs,order,θ)
-
-function get_loss_function(loss_function, train_set, eltypeθ, parameterless_type_θ, strategy::GridTraining;τ=nothing)
-    loss = (θ) -> mean(abs2, loss_function(train_set, θ))
+function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
+    loss = (θ) -> mean(abs2,loss_function(train_set, θ))
 end
             
 @nograd function generate_random_points(points, bound, eltypeθ)
