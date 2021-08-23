@@ -548,9 +548,9 @@ function build_loss_function(eqs,indvars,depvars,
                                                        eq_params=eq_params,
                                                        param_estim=param_estim,default_p=default_p)
     u = get_u()
-    @show expr_loss_function
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     loss_function = (cord, θ) -> begin 
+        @show cord
         _loss_function(cord, θ, phi, derivative, u, default_p)
     end
     return loss_function
@@ -1145,7 +1145,7 @@ eqs = u1(x, y) + Dx(u2(x)) ~ 0
       # 3*u1(x,0) ~ 2*u2(x,0)]
 
 # Initial and boundary conditions
-bcs = [u1(x,0) ~ u2(x)]
+bcs = [u1(x,0) ~ cos(x), u2(x) ~ 0]
 
 # Space and time domains
 domains = [x ∈ Interval(0.0,1.0), y ∈ Interval(0.0,1.0)]
@@ -1170,7 +1170,6 @@ sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 prob = SciMLBase.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob,BFGS(); maxiters=2)
 phi = discretization.phi
-
 
 
 println("MWE")
