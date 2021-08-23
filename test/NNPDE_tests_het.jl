@@ -24,97 +24,67 @@ end
 
 ## Example 1, heterogeneous equation
 function test_heterogeneous_equation(strategy_)
-	println("Example 1, 2D heterogeneous equation, strategy: $(nameof(typeof(strategy_)))")
-	@parameters x, y
-	@variables u1(..), u2(..)
+	println("Example 1, Simple Heterogeneous input PDE, strategy: $strategy_")
+	@parameters x y
+	@variables p(..) q(..) r(..) s(..)
 	Dx = Differential(x)
 	Dy = Differential(y)
 
-	# System of pde
-	eqs = u1(x, y) + Dx(u2(x)) ~ 0
+	# 2D PDE
+	eq  = p(x) + q(y) + r(x, y) + s(y, x) ~ 0
+	# eq  = Dx(p(x)) + Dy(q(y)) + Dx(r(x, y)) + Dy(s(y, x)) + p(x) + q(y) + r(x, y) + s(y, x) ~ 0
 
 	# Initial and boundary conditions
-	bcs = [u1(x, 0) ~ cos(x), u2(x) ~ 0]
-
+	bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0,
+			r(x, -1) ~ 0.f0, r(1, y) ~ 0.0f0, 
+			s(y, 1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
+	# bcs = [s(y, 1) ~ 0.0f0]
 	# Space and time domains
-	domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
+	domains = [x ∈ IntervalDomain(0.0, 1.0),
+				y ∈ IntervalDomain(-1.0, 0.0)]
 
+	# chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+	numhid = 3
+	fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];
+				[FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2]]
+	discretization = NeuralPDE.PhysicsInformedNN(fastchains,
+													strategy_)
 
-	# Neural network
-	chain1 = FastChain(FastDense(1, 15, Flux.tanh), FastDense(15, 1))
-	chain2 = FastChain(FastDense(2, 15, Flux.tanh), FastDense(15, 1))
-
-	chains = [chain1,chain2]
-	initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
-
-	discretization = NeuralPDE.PhysicsInformedNN(chains, strategy_; init_params=initθ)
-
-	pde_system = PDESystem(eqs, bcs, domains, [x,y], [u1(x, y),u2(x)])
-	sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-
-
-	res = GalacticOptim.solve(prob, ADAM(0.1); cb=cb, maxiters=1000)
-	prob = remake(prob, u0=res.minimizer)
-	res = GalacticOptim.solve(prob, ADAM(0.01); cb=cb, maxiters=1000)
-	prob = remake(prob, u0=res.minimizer)
-	res = GalacticOptim.solve(prob, ADAM(0.001); cb=cb, maxiters=1000)
-	phi = discretization.phi
-
-	# TODO change analytic solution here of course
-	analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
-	ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
-	u_real  = [analytic_sol_func(t) for t in ts]
-	u_predict  = [first(phi(t, res.minimizer)) for t in ts]
-
-	@test u_predict ≈ u_real atol = 0.1
+	pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
+	prob = SciMLBase.discretize(pde_system, discretization)
+	res = GalacticOptim.solve(prob, BFGS(); maxiters=2)
 end
 
 ## Example 2, heterogeneous system
-function test_heterogeneous_system()
-	println("Example 2, system of heterogeneous pdes: strategy: $(nameof(typeof(strategy_)))")
-	println("Example 4, system of pde")
-	@parameters x, y
-	@variables u1(..), u2(..)
+function test_heterogeneous_system(strategy_)
+	println("Example 2, Heterogeneous input PDE with derivatives, strategy: $strategy_")
+	@parameters x y
+	@variables p(..) q(..) r(..) s(..)
 	Dx = Differential(x)
 	Dy = Differential(y)
 
-	# System of pde
-	eqs = [Dx(u1(x, y)) + 4 * Dy(u2(x)) ~ 0,
-		Dx(u2(x)) + 9 * Dy(u1(x, y)) ~ 0]
+	# 2D PDE
+	eq = p(x) + Dx(q(y)) ~ 0
 
 	# Initial and boundary conditions
-	bcs = [u1(x, 0) ~ 2 * x, u2(x, 0) ~ 3 * x]
-
+	bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0,
+			r(x, -1) ~ 0.f0, r(1, y) ~ 0.0f0, 
+			s(y, 1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
+	# bcs = [s(y, 1) ~ 0.0f0]
 	# Space and time domains
-	domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
+	domains = [x ∈ IntervalDomain(0.0, 1.0),
+				y ∈ IntervalDomain(-1.0, 0.0)]
 
-	# Neural network
-	chain1 = FastChain(FastDense(2, 15, Flux.σ), FastDense(15, 1))
-	chain2 = FastChain(FastDense(2, 15, Flux.σ), FastDense(15, 1))
+	# chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+	numhid = 3
+	fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];
+				[FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2]]
+	discretization = NeuralPDE.PhysicsInformedNN(fastchains,
+													strategy_)
 
-	strategy = NeuralPDE.QuadratureTraining()
-	chain = [chain1,chain2]
-	initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
-	discretization = NeuralPDE.PhysicsInformedNN(chain, strategy; init_params=initθ)
-	pde_system = PDESystem(eqs, bcs, domains, [x,y], [u1,u2])
-	prob = NeuralPDE.discretize(pde_system, discretization)
-	sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-
-	res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=1000)
-	phi = discretization.phi
-
-	analytic_sol_func(x, y) = [1 / 3 * (6x - y), 1 / 2 * (6x - y)]
-	xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-	u_real  = [[analytic_sol_func(x, y)[i] for x in xs  for y in ys] for i in 1:2]
-
-	initθ = discretization.init_params
-	acum =  [0;accumulate(+, length.(initθ))]
-	sep = [acum[i] + 1:acum[i + 1] for i in 1:length(acum) - 1]
-	minimizers = [res.minimizer[s] for s in sep]
-	u_predict  = [[phi[i]([x,y], minimizers[i])[1] for x in xs  for y in ys] for i in 1:2]
-
-	@test u_predict[1] ≈ u_real[1] atol = 0.1
-	@test u_predict[2] ≈ u_real[2] atol = 0.1
+	pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
+	prob = SciMLBase.discretize(pde_system, discretization)
+	res = GalacticOptim.solve(prob, BFGS(); maxiters=2)
 end
     
     
