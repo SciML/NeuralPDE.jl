@@ -282,11 +282,12 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,chai
                 end
                 break
             elseif e isa Symbolics.Integral
-                if _args[1].x isa Vector
-                    integrating_variable = toexpr.(_args[1].x)
+                if _args[1].domain.variables isa Tuple
+                    integrating_variable_ = collect(_args[1].domain.variables)
+                    integrating_variable = toexpr.(integrating_variable_)
                     integrating_var_id = [dict_indvars[i] for i in integrating_variable]
                 else
-                    integrating_variable = toexpr(_args[1].x)
+                    integrating_variable = toexpr(_args[1].domain.variables)
                     integrating_var_id = [dict_indvars[integrating_variable]]
                 end
                 integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,chain,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = true)
