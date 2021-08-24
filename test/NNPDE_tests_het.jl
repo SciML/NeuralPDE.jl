@@ -31,7 +31,7 @@ function test_heterogeneous_equation(strategy_)
 	Dy = Differential(y)
 
 	# 2D PDE
-	eq  = p(x) + q(y) + r(x, y) + s(y, x) ~ 0
+	eq  = p(x) + q(y) + Dx(r(x, y)) + Dy(s(y, x)) ~ 0
 	# eq  = Dx(p(x)) + Dy(q(y)) + Dx(r(x, y)) + Dy(s(y, x)) + p(x) + q(y) + r(x, y) + s(y, x) ~ 0
 
 	# Initial and boundary conditions
@@ -41,7 +41,7 @@ function test_heterogeneous_equation(strategy_)
 	# bcs = [s(y, 1) ~ 0.0f0]
 	# Space and time domains
 	domains = [x ∈ IntervalDomain(0.0, 1.0),
-				y ∈ IntervalDomain(-1.0, 0.0)]
+				y ∈ IntervalDomain(0.0, 1.0)]
 
 	# chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 	numhid = 3
@@ -52,14 +52,14 @@ function test_heterogeneous_equation(strategy_)
 
 	pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
 	prob = SciMLBase.discretize(pde_system, discretization)
-	res = GalacticOptim.solve(prob, BFGS(); maxiters=2)
+	res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=2)
 end
 
 ## Example 2, heterogeneous system
 function test_heterogeneous_system(strategy_)
 	println("Example 2, Heterogeneous input PDE with derivatives, strategy: $strategy_")
 	@parameters x y
-	@variables p(..) q(..) r(..) s(..)
+	@variables p(..) q(..)
 	Dx = Differential(x)
 	Dy = Differential(y)
 
@@ -67,10 +67,8 @@ function test_heterogeneous_system(strategy_)
 	eq = p(x) + Dx(q(y)) ~ 0
 
 	# Initial and boundary conditions
-	bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0,
-			r(x, -1) ~ 0.f0, r(1, y) ~ 0.0f0, 
-			s(y, 1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
-	# bcs = [s(y, 1) ~ 0.0f0]
+	bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0]
+
 	# Space and time domains
 	domains = [x ∈ IntervalDomain(0.0, 1.0),
 				y ∈ IntervalDomain(-1.0, 0.0)]
@@ -84,7 +82,7 @@ function test_heterogeneous_system(strategy_)
 
 	pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
 	prob = SciMLBase.discretize(pde_system, discretization)
-	res = GalacticOptim.solve(prob, BFGS(); maxiters=2)
+	res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=2)
 end
     
     

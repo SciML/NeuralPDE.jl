@@ -10,6 +10,9 @@ const is_TRAVIS = haskey(ENV, "TRAVIS")
 const is_CI = haskey(ENV, "CI")
 
 @time begin
+    if GROUP == "All" || GROUP == "NNHET"
+        @time @safetestset "NNHET" begin include("NNPDE_tests_het.jl") end
+    end
     if GROUP == "All" || GROUP == "NNODE"
         @time @safetestset "NNODE" begin include("NNODE_tests.jl") end
     end
