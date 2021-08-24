@@ -436,6 +436,16 @@ function get_indvars_ex(bc_indvars) # , dict_this_eq_indvars)
     indvars_ex
 end
 
+function pair(eq, depvars, dict_depvars, dict_depvar_input)
+    expr = toexpr(eq)
+    pair_ = map(depvars) do depvar
+if !isempty(find_thing_in_expr(expr,  depvar))
+            dict_depvars[depvar] => dict_depvar_input[depvar]
+        end
+    end
+    Dict(filter(p -> p !== nothing, pair_))
+end
+
 function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,dict_depvar_input,
                                       phi,derivative,integral,chain,initθ,strategy;
@@ -1148,7 +1158,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                 end
                 return additional_loss(phi, θ, p_)
             end
-            return loss_function(θ) + _additional_loss(phi, θ)
+        return loss_function(θ) + _additional_loss(phi, θ)
         end
 end
 
