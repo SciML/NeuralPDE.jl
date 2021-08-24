@@ -18,7 +18,10 @@ using SciMLBase
 using Statistics
 using ArrayInterface
 import Tracker, Optim
-import ModelingToolkit: toexpr, value, build_expr, expand_derivatives
+using DomainSets
+using Symbolics
+import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
+import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum # ,Ball
 import SciMLBase:@add_kwonly
 using Flux:@nograd

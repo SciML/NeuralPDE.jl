@@ -80,7 +80,7 @@ function test_heterogeneous_system(strategy_)
 	discretization = NeuralPDE.PhysicsInformedNN(fastchains,
 													strategy_)
 
-	pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
+	pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y)])
 	prob = SciMLBase.discretize(pde_system, discretization)
 	res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=2)
 end
@@ -108,4 +108,6 @@ for strategy_ in strategies
 	test_heterogeneous_equation(strategy_)
 end
     
-test_heterogeneous_system()
+for strategy_ in strategies
+	test_heterogeneous_system(strategy_)
+end
