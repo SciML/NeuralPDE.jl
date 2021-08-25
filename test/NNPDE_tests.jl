@@ -466,7 +466,7 @@ lb = [x_0]
 ub = [x_end]
 function norm_loss_function(phi,θ,p)
     function inner_f(x,θ)
-         dx*phi(x, θ) .- 1
+        dx*phi(x, θ) .- 1
     end
     prob = QuadratureProblem(inner_f, lb, ub, θ)
     norm2 = solve(prob, HCubatureJL(), reltol = 1e-8, abstol = 1e-8, maxiters =10);
@@ -531,9 +531,9 @@ n = 8
 chain = [FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1)) for _ in 1:3]
 #Generate Data
 function lorenz!(du,u,p,t)
- du[1] = 10.0*(u[2]-u[1])
- du[2] = u[1]*(28.0-u[3]) - u[2]
- du[3] = u[1]*u[2] - (8/3)*u[3]
+    du[1] = 10.0*(u[2]-u[1])
+    du[2] = u[1]*(28.0-u[3]) - u[2]
+    du[3] = u[1]*u[2] - (8/3)*u[3]
 end
 
 u0 = [1.0;0.0;0.0]

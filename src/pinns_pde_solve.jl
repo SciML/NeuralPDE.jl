@@ -546,7 +546,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     expr_loss_function = :(($vars) -> begin $ex end)
 end
 
-function build_loss_function(eqs,_indvars,_depvars,dict_depvar_input, phi,derivative,integral,
+function build_loss_function(eqs,_indvars,_depvars, phi,derivative,integral,
                              chain,initθ,strategy;
                              bc_indvars=nothing,
                              eq_params=SciMLBase.NullParameters(),
