@@ -374,7 +374,7 @@ phi = NeuralPDE.get_phi(chain,parameterless_type_θ)
 derivative = NeuralPDE.get_numeric_derivative()
 
 indvars = [x,t]
-depvars = [u]
+depvars = [u(x, t)]
 dim = length(domains)
 
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
@@ -474,6 +474,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy; init_pa
 @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 
 prob = NeuralPDE.discretize(pde_system,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
 res = GalacticOptim.solve(prob,BFGS(); maxiters=1500)
 @show res.original
@@ -687,6 +688,7 @@ strategy = NeuralPDE.GridTraining(0.01)
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
 @named pdesys = PDESystem(eq,bc,domain,[x],[u(x)])
 prob = NeuralPDE.discretize(pdesys,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 
 res  = GalacticOptim.solve(prob,ADAM(0.1),maxiters=500)
 prob = remake(prob,u0=res.minimizer)
@@ -721,6 +723,7 @@ strategy = NeuralPDE.GridTraining(0.01)
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
 @named pdesys = PDESystem(eq,bc,domain,[x],[u(x)])
+sym_prob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 prob = NeuralPDE.discretize(pdesys,discretization)
 
 res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
