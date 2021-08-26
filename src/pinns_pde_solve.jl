@@ -76,9 +76,9 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,K} <: AbstractPINN{isinpla
 
   @add_kwonly function PhysicsInformedNN{iip}(chain,
                                              strategy;
-                                             init_params=nothing,
-                                             phi=nothing,
-                                             derivative=nothing,
+                                             init_params = nothing,
+                                             phi = nothing,
+                                             derivative = nothing,
                                              param_estim=false,
                                              additional_loss=nothing,
                                              kwargs...) where iip
@@ -202,7 +202,7 @@ get_dict_vars(vars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(vars)])
 # Wrapper for _transform_expression
 function transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ;is_integral=false)
     if ex isa Expr
-        ex = _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ;is_integral=is_integral)
+        ex = _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ;is_integral = is_integral)
     end
     return ex
 end
@@ -318,7 +318,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 integrand_func = @RuntimeGeneratedFunction(integrand)
-                ex.args = [:($(Expr(:$, :integral))), :u, :cord, :phi, integrating_var_id, integrand_func, lb_, ub_,  :($θ)]
+                ex.args = [:($(Expr(:$, :integral))), :u, Symbol(:cord, num_depvar), :phi, integrating_var_id, integrand_func, lb_, ub_,  :($θ)]
                 break
             end
         else
@@ -1090,6 +1090,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                                             dict_indvars,dict_depvars)
 
         # the points in the domain and on the boundary
+        pde_train_sets, bcs_train_sets = train_sets
         pde_train_sets = adapt.(parameterless_type_θ,pde_train_sets)
         bcs_train_sets =  adapt.(parameterless_type_θ,bcs_train_sets)
         pde_loss_functions = [get_loss_function(_loss,_set,eltypeθ,parameterless_type_θ,strategy)
