@@ -190,10 +190,10 @@ fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid
             FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1))]
 
 discretization = NeuralPDE.PhysicsInformedNN(fastchains, grid_strategy)
-@named pde_system_km = PDESystem(eq, bcs, domains, [a, t], [S(t), R(t), I(a, t)])
+@named pde_system_km = PDESystem(eqs, bcs, domains, [a, t], [S(t), R(t), I(a, t)])
 sym_prob = NeuralPDE.symbolic_discretize(pde_system_km,discretization)
-prob = NeuralPDE.discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=500)
+prob = NeuralPDE.discretize(pde_system_km,discretization)
+res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=5)
 
 ## Example 2, 2D Poisson equation
 function test_2d_poisson_equation(chain_, strategy_)
