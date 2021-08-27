@@ -863,7 +863,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              derivative = nothing,
                                              )
 @named pde_system = PDESystem(eq,bcs,domains,[t],[i(t)])
-# TODO problem here is probably that I am not loading the thing properly when it is an integral. Should be an
+sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 prob = NeuralPDE.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
 ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]

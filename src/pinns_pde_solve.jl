@@ -291,7 +291,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     integrating_var_id = [dict_indvars[integrating_variable]]
                 end
                 integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars, dict_depvar_input, chain,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = true)
-                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, dict_depvar_input, phi, derivative_, nothing, chain, initθ, strategy, integrand = integrand,eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
+                integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, dict_depvar_input, phi, derivative_, nothing, chain, initθ, strategy, integrand = integrand,eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
                 # integrand = repr(integrand)
                 lb, ub = get_limits(_args[1].domain.domain)
                 lb = toexpr.(lb)
@@ -435,6 +435,9 @@ function get_indvars_ex(bc_indvars) # , dict_this_eq_indvars)
     indvars_ex
 end
 
+"""
+Finds which dependent variables are being used in an equation.
+"""
 function pair(eq, depvars, dict_depvars, dict_depvar_input)
     expr = toexpr(eq)
     pair_ = map(depvars) do depvar
@@ -460,12 +463,17 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     else
         eltypeθ = eltype(initθ)
     end
-    this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
-    this_eq_indvars = sort(collect(Set(vcat(values(this_eq_pair)...))))
 
     if integrand isa Nothing
         loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
-    else
+        this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
+        this_eq_indvars = sort(collect(Set(vcat(values(this_eq_pair)...))))
+    else 
+        pair_ = map(depvars) do depvar
+            dict_depvars[depvar] => dict_depvar_input[depvar]
+        end
+        this_eq_pair =  Dict(filter(p -> p !== nothing, pair_))
+        this_eq_indvars = indvars
         loss_function = integrand
     end
     vars = :(cord, $θ, phi, derivative, integral,u,p)
