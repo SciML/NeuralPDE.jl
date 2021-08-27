@@ -290,6 +290,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     integrating_variable = toexpr(_args[1].domain.variables)
                     integrating_var_id = [dict_indvars[integrating_variable]]
                 end
+                num_depvar = dict_depvars[_args[2].args[1]]
                 integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars, dict_depvar_input, chain,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = true)
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, dict_depvar_input, phi, derivative_, nothing, chain, initθ, strategy, integrand = integrand,eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
                 # integrand = repr(integrand)
@@ -666,7 +667,7 @@ function get_argument(eqs,dict_indvars,dict_depvars)
         map(x -> first(x), f_vars)
     end
     args_ = map(vars) do _vars
-    ind_args_ = map(var -> var.args[2:end], _vars)
+        ind_args_ = map(var -> var.args[2:end], _vars)
         unionarg_ = union(ind_args_...)        
     end
     return args_ # TODO for all arguments
