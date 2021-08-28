@@ -54,7 +54,7 @@ chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(1
 dx = 0.05
 discretization = PhysicsInformedNN(chain,GridTraining(dx))
 
-@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = discretize(pde_system,discretization)
 
 #Optimizer
@@ -117,6 +117,7 @@ chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(1
 ```
 
 Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretization and `strategy` stores information for choosing a training strategy.
+
 ```julia
 # Discretization
 dx = 0.05
@@ -126,7 +127,7 @@ discretization = PhysicsInformedNN(chain, GridTraining(dx))
 As described in the API docs, we now need to define the `PDESystem` and create PINNs problem using the `discretize` method.
 
 ```julia
-@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = discretize(pde_system,discretization)
 ```
 
@@ -161,4 +162,5 @@ p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
 p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 plot(p1,p2,p3)
 ```
+
 ![poissonplot](https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png)

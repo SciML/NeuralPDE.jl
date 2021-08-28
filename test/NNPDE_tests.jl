@@ -91,8 +91,8 @@ function test_heterogeneous_equation(strategy_)
 			s(y, 1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
 	# bcs = [s(y, 1) ~ 0.0f0]
 	# Space and time domains
-	domains = [x ∈ IntervalDomain(0.0, 1.0),
-				y ∈ IntervalDomain(0.0, 1.0)]
+	domains = [x ∈ Interval(0.0, 1.0),
+				y ∈ Interval(0.0, 1.0)]
 
 	# chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 	numhid = 3
@@ -121,8 +121,8 @@ function test_heterogeneous_system(strategy_)
 	bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0]
 
 	# Space and time domains
-	domains = [x ∈ IntervalDomain(0.0, 1.0),
-				y ∈ IntervalDomain(-1.0, 0.0)]
+	domains = [x ∈ Interval(0.0, 1.0),
+				y ∈ Interval(-1.0, 0.0)]
 
 	# chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 	numhid = 3
@@ -183,7 +183,7 @@ bcs = [
         R(0) ~ 0.0
         ]
 
-domains = [t ∈ (0,40.0), a ∈ (0,40.0)]
+domains = [t ∈ Interval(0,40.0), a ∈ Interval(0,40.0)]
 
 numhid = 16
 fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];

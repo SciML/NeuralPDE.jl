@@ -1,4 +1,3 @@
-
 # Integro Differential Equations
 
 The integral of function u(x),
@@ -31,14 +30,16 @@ Similarly a rectangular or cuboidal domain can be defined using `ProductDomain` 
 Ix = Integral([x,y], (x,y) in DomainSets.ProductDomain(ClosedInterval(0 ,1), ClosedInterval(0 ,x)))
 ```
 
-
 ## 1-dimensional example
 
 Lets take an example of an integro differential equation:
+
 ```math
 \frac{∂}{∂x} u(x)  + 2u(x) + 5 \int_{0}^{x}u(t)dt = 1 for x \geq 0
 ```
+
 and boundary condition
+
 ```math
 u(0) = 0
 ```
@@ -63,7 +64,7 @@ discretization = PhysicsInformedNN(chain,
                                    init_params = nothing,
                                    phi = nothing,
                                    derivative = nothing)
-pde_system = PDESystem(eq,bcs,domains,[t],[i])
+pde_system = PDESystem(eq,bcs,domains,[t],[i(t)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 cb = function (p,l)
     println("Current loss is: $l")

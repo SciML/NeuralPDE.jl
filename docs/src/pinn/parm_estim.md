@@ -1,5 +1,6 @@
 # Optimising Parameters of a Lorenz System
- Consider a Lorenz System ,
+
+Consider a Lorenz System ,
 
 ```math
 \begin{align*}
@@ -9,7 +10,7 @@
 \end{align*}
 ```
 
-with Physics-Informed Neural Networks. Now we would consider the case where we want to optimise the parameters ``\sigma``, ``\beta``,  and ``\rho``.
+with Physics-Informed Neural Networks. Now we would consider the case where we want to optimise the parameters `\sigma`, `\beta`, and `\rho`.
 
 We start by defining the the problem,
 
@@ -27,7 +28,9 @@ bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
 domains = [t ∈ Interval(0.0,1.0)]
 dt = 0.01
 ```
+
 And the neural networks as,
+
 ```julia
 input_ = length(domains)
 n = 8
@@ -35,6 +38,7 @@ chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(
 chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
 ```
+
 We will add an additional loss term based on the data that we have in order to optimise the parameters.
 
 Here we simply calculate the solution of the lorenz system with [OrdinaryDiffEq.jl](https://diffeq.sciml.ai/v1.10/tutorials/ode_example.html#In-Place-Updates-1) based on the adaptivity of the ODE solver. This is used to introduce non-uniformity to the time series.
@@ -64,6 +68,7 @@ sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 (u_ , t_) = data
 len = length(data[2])
 ```
+
 Then we define the additional loss funciton `additional_loss(phi, θ , p)`, the function has three arguments, `phi` the trial solution, `θ` the parameters of neural networks, and the hyperparameters `p` .
 
 ```julia
@@ -71,10 +76,12 @@ function additional_loss(phi, θ , p)
     return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
 end
 ```
+
 Then finally defining and optimising using the `PhysicsInformedNN` interface.
+
 ```julia
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
-@named pde_system = PDESystem(eqs,bcs,domains,[t],[x, y, z],[σ_, ρ, β], defaults=Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
+@named pde_system = PDESystem(eqs,bcs,domains,[t],[x(t), y(t), z(t)],[σ_, ρ, β], defaults=Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
 cb = function (p,l)
     println("Current loss is: $l")
@@ -83,7 +90,9 @@ end
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=5000)
 p_ = res.minimizer[end-2:end] # p_ = [9.93, 28.002, 2.667]
 ```
+
 And then finally some analyisis by plotting.
+
 ```julia
 initθ = discretization.init_params
 acum =  [0;accumulate(+, length.(initθ))]
