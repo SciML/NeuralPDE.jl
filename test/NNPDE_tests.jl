@@ -166,10 +166,12 @@ println("Heterogeneous example 3, Kermack–McKendrick theory")
 @variables S(..) I(..) R(..)
 Dt = Differential(t)
 Da = Differential(a)
-It = Integral(a in DomainSets.ClosedInterval(0,40.0))
+It = Integral(a in DomainSets.ClosedInterval(0,1.0))
 
-β = 4
-γ = 2
+β = 0.05
+γ = 0.25
+t_end = 1.0
+a_end = 1.0
 
 eqs = [Dt(S(t)) ~ -β * S(t) * It(I(a,t)),
        Dt(I(a,t)) + Da(I(a,t)) ~ -γ*I(a,t),
@@ -177,19 +179,21 @@ eqs = [Dt(S(t)) ~ -β * S(t) * It(I(a,t)),
 
 bcs = [
         S(0) ~ 990.0,
+        S(t_end) ~ 0.0,
         I(0,t) ~ β*S(t)*It(I(a,t)),
         I(0,0) ~ 10.0,
         I(a,0) ~ 0.0,
-        R(0) ~ 0.0
+        R(0) ~ 0.0,
+        R(t_end) ~ 0.0,
         ]
 
-domains = [t ∈ Interval(0,40.0), a ∈ Interval(0,40.0)]
+domains = [t ∈ Interval(0,t_end), a ∈ Interval(0,a_end)]
 
 numhid = 16
 fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];
             FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1))]
 
-discretization = NeuralPDE.PhysicsInformedNN(fastchains, grid_strategy)
+discretization = NeuralPDE.PhysicsInformedNN(fastchains, QuadratureTraining())
 @named pde_system_km = PDESystem(eqs, bcs, domains, [a, t], [S(t), R(t), I(a, t)])
 sym_prob = NeuralPDE.symbolic_discretize(pde_system_km,discretization)
 prob = NeuralPDE.discretize(pde_system_km,discretization)
