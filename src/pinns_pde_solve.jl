@@ -468,7 +468,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     if integrand isa Nothing
         loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
-        this_eq_indvars = sort(collect(Set(vcat(values(this_eq_pair)...))))
+        this_eq_indvars = unique(vcat(values(this_eq_pair)...))
     else 
         pair_ = map(depvars) do depvar
             dict_depvars[depvar] => dict_depvar_input[depvar]
