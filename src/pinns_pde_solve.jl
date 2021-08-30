@@ -668,8 +668,19 @@ function get_argument(eqs,dict_indvars,dict_depvars)
     end
     args_ = map(vars) do _vars
         ind_args_ = map(var -> var.args[2:end], _vars)
-        # unites ind_args_ into a single array where symbols cannot repeat themselves but numbers can
-        vcat(unique([ind_arg for ind_arg in Iterators.flatten(ind_args_) if isa.(ind_arg, Symbol)]), [ind_arg for ind_arg in Iterators.flatten(ind_args_) if !isa.(ind_arg, Symbol)])
+        syms = Set{Symbol}()
+        filter(vcat(ind_args_...)) do ind_arg
+            if ind_arg isa Symbol
+                if ind_arg ∈ syms
+                    false
+                else
+                    push!(syms, ind_arg)
+                    true
+                end
+            else
+                true
+            end
+        end
     end
     return args_ # TODO for all arguments
 end

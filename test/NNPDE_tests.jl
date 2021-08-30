@@ -806,7 +806,6 @@ strategy = NeuralPDE.GridTraining(d)
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
 @named pdesys = PDESystem(eq,bc,domain,[x,y],[u(x, y)])
 prob = NeuralPDE.discretize(pdesys,discretization)
-# TODO problem is in bcs. I think the let condition is being filled incorrectly for some cases.
 symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 prob.f.f.loss_function(initθ)
 
