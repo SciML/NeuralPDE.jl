@@ -14,20 +14,20 @@ is defined as
 using ModelingToolkit
 @parameters t
 @variables i(..)
-Ii = Symbolics.Integral(t, t in DomainSets.ClosedInterval(0, t))
+Ii = Symbolics.Integral(t in DomainSets.ClosedInterval(0, t))
 ```
 
 In multidimensional case,
 
 ```julia
-Ix = Integral([x,y], (x,y) in DomainSets.UnitSquare())
+Ix = Integral((x,y) in DomainSets.UnitSquare())
 ```
 
 The UnitSquare domain ranges both x and y from 0 to 1.
 Similarly a rectangular or cuboidal domain can be defined using `ProductDomain` of ClosedIntervals.
 
 ```julia
-Ix = Integral([x,y], (x,y) in DomainSets.ProductDomain(ClosedInterval(0 ,1), ClosedInterval(0 ,x)))
+Ix = Integral((x,y) in DomainSets.ProductDomain(ClosedInterval(0 ,1), ClosedInterval(0 ,x)))
 ```
 
 ## 1-dimensional example
@@ -51,7 +51,7 @@ import ModelingToolkit: Interval, infimum, supremum
 @parameters t
 @variables i(..)
 Di = Differential(t)
-Ii = Integral(t, t in DomainSets.ClosedInterval(0, t))
+Ii = Integral(t in DomainSets.ClosedInterval(0, t))
 eq = Di(i(t)) + 2*i(t) + 5*Ii(i(t)) ~ 1
 bcs = [i(0.) ~ 0.0]
 domains = [t ∈ Interval(0.0,2.0)]
