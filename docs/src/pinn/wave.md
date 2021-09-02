@@ -46,7 +46,7 @@ chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 discretization = PhysicsInformedNN(chain, GridTraining(dx); init_params = initθ)
 
-@named pde_system = PDESystem(eq,bcs,domains,[t,x],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[t,x],[u(t,x)])
 prob = discretize(pde_system,discretization)
 
 cb = function (p,l)
@@ -77,12 +77,12 @@ p2 =plot(ts, xs, u_predict, linetype=:contourf,title = "predict");
 p3 = plot(ts, xs, diff_u,linetype=:contourf,title = "error");
 plot(p1,p2,p3)
 ```
-![waveplot](https://user-images.githubusercontent.com/12683885/101984293-74a7a380-3c91-11eb-8e78-72a50d88e3f8.png)
 
+![waveplot](https://user-images.githubusercontent.com/12683885/101984293-74a7a380-3c91-11eb-8e78-72a50d88e3f8.png)
 
 ## 1D Damped Wave Equation with Dirichlet boundary conditions
 
-Now let's solve the 1-dimensional wave equation with damping. 
+Now let's solve the 1-dimensional wave equation with damping.
 
 ```math
 \begin{aligned}
@@ -120,7 +120,7 @@ eq = Dx(Dxu(t, x)) ~ 1 / v^2 * Dt(Dtu(t, x)) + b * Dtu(t, x)
 bcs_ = [u(t, 0) ~ 0.,# for all t > 0
        u(t, L) ~ 0.,# for all t > 0
        u(0, x) ~ x * (1. - x), # for all 0 < x < 1
-       Dtu(0, x) ~ 1 - 2x # for all  0 < x < 1 
+       Dtu(0, x) ~ 1 - 2x # for all  0 < x < 1
        ]
 
 ep = (cbrt(eps(eltype(Float64))))^2 / 6
@@ -144,7 +144,7 @@ dx = 0.05
 strategy = GridTraining(dx)
 discretization = PhysicsInformedNN(chain, strategy; init_params=initθ)
 
-@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u, Dxu, Dtu, O1, O2])
+@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x), Dxu(t, x), Dtu(t, x), O1(t, x), O2(t, x)])
 prob = discretize(pde_system, discretization)
 
 pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
@@ -202,8 +202,3 @@ We can see the results here:
 Plotted as a line one can see the analytical solution and the prediction here:
 
 ![1Dwave_damped_adaptive](https://user-images.githubusercontent.com/26853713/128976095-e772be8f-eb92-4ddf-a3bb-32700e9e2112.gif)
-
-
-
-
-

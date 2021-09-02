@@ -141,7 +141,6 @@ end
 
 """
 Algorithm for solving differential equation using a neural network.
-
 Arguments:
 * `chain`: A Chain neural network
 * `opt`: The optimizer to train the neural network. Defaults to `BFGS()`.

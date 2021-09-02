@@ -69,7 +69,7 @@ discretization = PhysicsInformedNN(chain,
                                    init_params = initθ,
                                    additional_loss=norm_loss_function)
 
-@named pde_system = PDESystem(eq,bcs,domains,[x],[p])
+@named pde_system = PDESystem(eq,bcs,domains,[x],[p(x)])
 prob = discretize(pde_system,discretization)
 
 pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents

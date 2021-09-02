@@ -44,7 +44,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain1,
                                              quadrature_strategy;
                                              init_params = initθ)
 
-@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -95,11 +95,12 @@ p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = "error 2");
 plot(p1,p2,p3,p4,p5)
 
 ```
+
 ![neural_adapter](https://user-images.githubusercontent.com/12683885/127645487-24226cc0-fff6-4bb9-8509-77cf3e120563.png)
 
 ## Domain decomposition
 
-In this example, we first obtain a prediction of 2D Poisson equation on subdomains. We split up full domain into 10 sub problems by x, and  create separate neural networks for each sub interval. If x domain ∈ [x_0, x_end] so, it is decomposed on 10 part: sub x domains = {[x_0, x_1], ... [x_i,x_i+1], ..., x_9,x_end]}.
+In this example, we first obtain a prediction of 2D Poisson equation on subdomains. We split up full domain into 10 sub problems by x, and create separate neural networks for each sub interval. If x domain ∈ [x_0, x_end] so, it is decomposed on 10 part: sub x domains = {[x_0, x_1], ... [x_i,x_i+1], ..., x_9,x_end]}.
 And then using the method neural_adapter, we retrain the banch of 10 predictions to the one prediction for full domain of task.
 
 ![domain_decomposition](https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png)
@@ -171,7 +172,7 @@ for i in 1:count_decomp
     @register phi_bound(x,y)
     Base.Broadcast.broadcasted(::typeof(phi_bound), x,y) = phi_bound(x,y)
     bcs_ = create_bcs(bcs,domains_[1].domain, phi_bound)
-    @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u])
+    @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
     push!(pde_system_map,pde_system_)
     strategy = NeuralPDE.GridTraining([0.1/count_decomp, 0.1])
 
@@ -225,7 +226,7 @@ chain2 = FastChain(FastDense(2,inner_,af),
 
 initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
 
-@named pde_system = PDESystem(eq, bcs, domains, [x, y], [u])
+@named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
 losses = map(1:count_decomp) do i
     loss(cord,θ) = chain2(cord,θ) .- phis[i](cord,reses[i].minimizer)

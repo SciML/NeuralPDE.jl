@@ -73,6 +73,69 @@ function test_ode(strategy_)
     # plot!(t_plot ,u_predict)
 end
 
+## Heterogeneous equation
+function test_heterogeneous_equation(strategy_)
+	println("Simple Heterogeneous input PDE, strategy: $(nameof(typeof(strategy_)))")
+	@parameters x y
+	@variables p(..) q(..) r(..) s(..)
+	Dx = Differential(x)
+	Dy = Differential(y)
+
+	# 2D PDE
+	eq  = p(x) + q(y) + Dx(r(x, y)) + Dy(s(y, x)) ~ 0
+	# eq  = Dx(p(x)) + Dy(q(y)) + Dx(r(x, y)) + Dy(s(y, x)) + p(x) + q(y) + r(x, y) + s(y, x) ~ 0
+
+	# Initial and boundary conditions
+	bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0,
+			r(x, -1) ~ 0.f0, r(1, y) ~ 0.0f0, 
+			s(y, 1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
+	# bcs = [s(y, 1) ~ 0.0f0]
+	# Space and time domains
+	domains = [x ∈ Interval(0.0, 1.0),
+				y ∈ Interval(0.0, 1.0)]
+
+	# chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+	numhid = 3
+	fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];
+				[FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2]]
+	discretization = NeuralPDE.PhysicsInformedNN(fastchains,
+													strategy_)
+
+	@named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
+	prob = SciMLBase.discretize(pde_system, discretization)
+	res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+end
+
+## Heterogeneous system
+function test_heterogeneous_system(strategy_)
+	println("Heterogeneous input PDE with derivatives, strategy: $(nameof(typeof(strategy_)))")
+	@parameters x y
+	@variables p(..) q(..)
+	Dx = Differential(x)
+	Dy = Differential(y)
+
+	# 2D PDE
+	eq = p(x) + Dx(q(y)) ~ 0
+
+	# Initial and boundary conditions
+	bcs = [p(1) ~ 0.f0, q(-1) ~ 0.0f0]
+
+	# Space and time domains
+	domains = [x ∈ Interval(0.0, 1.0),
+				y ∈ Interval(-1.0, 0.0)]
+
+	# chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+	numhid = 3
+	fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];
+				[FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2]]
+	discretization = NeuralPDE.PhysicsInformedNN(fastchains,
+													strategy_)
+
+	@named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y)])
+	prob = SciMLBase.discretize(pde_system, discretization)
+	res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+end
+
 grid_strategy = NeuralPDE.GridTraining(0.1)
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
                                                     reltol=1e-3,abstol=1e-3,
@@ -93,6 +156,8 @@ strategies = [grid_strategy,stochastic_strategy, quadrature_strategy,quasirandom
 
 map(strategies) do strategy_
     test_ode(strategy_)
+    test_heterogeneous_system(strategy_)
+    test_heterogeneous_equation(strategy_)
 end
 
 ## Example 2, 2D Poisson equation
@@ -118,7 +183,7 @@ function test_2d_poisson_equation(chain_, strategy_)
                                                  strategy_;
                                                  init_params = initθ)
 
-    @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+    @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
     prob = NeuralPDE.discretize(pde_system,discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
     res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=500)
@@ -191,7 +256,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,quasirandom_strategy;init_params = initθ)
 
-@named pde_system = PDESystem(eq,bcs,domains,[x],[u,Dxu,Dxxu,O1,O2])
+@named pde_system = PDESystem(eq,bcs,domains,[x],[u(x),Dxu(x),Dxxu(x),O1(x),O2(x)])
 
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
@@ -252,7 +317,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,quadrature_strategy; init_params = initθ)
 
-@named pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1,u2])
+@named pde_system = PDESystem(eqs,bcs,domains,[x,y],[u1(x, y),u2(x, y)])
 
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
@@ -309,7 +374,7 @@ phi = NeuralPDE.get_phi(chain,parameterless_type_θ)
 derivative = NeuralPDE.get_numeric_derivative()
 
 indvars = [x,t]
-depvars = [u]
+depvars = [u(x, t)]
 dim = length(domains)
 
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
@@ -406,9 +471,10 @@ chain = FastChain(FastDense(2,inner,Flux.tanh),FastDense(inner,inner,Flux.tanh),
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 
 discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy; init_params = initθ)
-@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 
 prob = NeuralPDE.discretize(pde_system,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
 res = GalacticOptim.solve(prob,BFGS(); maxiters=1500)
 @show res.original
@@ -466,7 +532,7 @@ lb = [x_0]
 ub = [x_end]
 function norm_loss_function(phi,θ,p)
     function inner_f(x,θ)
-         dx*phi(x, θ) .- 1
+        dx*phi(x, θ) .- 1
     end
     prob = QuadratureProblem(inner_f, lb, ub, θ)
     norm2 = solve(prob, HCubatureJL(), reltol = 1e-8, abstol = 1e-8, maxiters =10);
@@ -479,7 +545,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              init_params = initθ,
                                              additional_loss=norm_loss_function)
 
-@named pde_system = PDESystem(eq,bcs,domains,[x],[p])
+@named pde_system = PDESystem(eq,bcs,domains,[x],[p(x)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
 pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
@@ -531,9 +597,9 @@ n = 8
 chain = [FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1)) for _ in 1:3]
 #Generate Data
 function lorenz!(du,u,p,t)
- du[1] = 10.0*(u[2]-u[1])
- du[2] = u[1]*(28.0-u[3]) - u[2]
- du[3] = u[1]*u[2] - (8/3)*u[3]
+    du[1] = 10.0*(u[2]-u[1])
+    du[2] = u[1]*(28.0-u[3]) - u[2]
+    du[3] = u[1]*u[2] - (8/3)*u[3]
 end
 
 u0 = [1.0;0.0;0.0]
@@ -571,7 +637,7 @@ testθ =reduce(vcat,initθs)
 additional_loss(discretization.phi, testθ, nothing)
 
 @named pde_system = PDESystem(eqs,bcs,domains,
-                      [t],[x, y, z],[σ_, ρ, β],
+                      [t],[x(t), y(t), z(t)],[σ_, ρ, β],
                       defaults=Dict([p => 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
@@ -620,8 +686,9 @@ initθ = Float64.(DiffEqFlux.initial_params(chain))
 strategy = NeuralPDE.GridTraining(0.01)
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
-@named pdesys = PDESystem(eq,bc,domain,[x],[u])
+@named pdesys = PDESystem(eq,bc,domain,[x],[u(x)])
 prob = NeuralPDE.discretize(pdesys,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 
 res  = GalacticOptim.solve(prob,ADAM(0.1),maxiters=500)
 prob = remake(prob,u0=res.minimizer)
@@ -655,7 +722,8 @@ initθ = DiffEqFlux.initial_params(chain)
 strategy = NeuralPDE.GridTraining(0.01)
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
-@named pdesys = PDESystem(eq,bc,domain,[x],[u])
+@named pdesys = PDESystem(eq,bc,domain,[x],[u(x)])
+sym_prob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 prob = NeuralPDE.discretize(pdesys,discretization)
 
 res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
@@ -697,7 +765,7 @@ initθ = Float64.(DiffEqFlux.initial_params(chain))
 
 strategy = NeuralPDE.GridTraining(d)
 discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=initθ)
-@named pdesys = PDESystem(eq,bc,domain,[x,y],[u])
+@named pdesys = PDESystem(eq,bc,domain,[x,y],[u(x, y)])
 prob = NeuralPDE.discretize(pdesys,discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 prob.f.f.loss_function(initθ)
@@ -759,7 +827,7 @@ phi = discretization.phi
 phi(xs, initθ)
 additional_loss_(phi, initθ , nothing)
 
-@named pdesys = PDESystem(eq,bc,domain,[x],[u])
+@named pdesys = PDESystem(eq,bc,domain,[x],[u(x)])
 prob = NeuralPDE.discretize(pdesys,discretization)
 
 res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
@@ -793,7 +861,8 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              phi = nothing,
                                              derivative = nothing,
                                              )
-@named pde_system = PDESystem(eq,bcs,domains,[t],[i])
+@named pde_system = PDESystem(eq,bcs,domains,[t],[i(t)])
+sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 prob = NeuralPDE.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
 ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
@@ -825,7 +894,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              phi = nothing,
                                              derivative = nothing,
                                              )
-@named pde_system = PDESystem(eq,bcs,domains,[x],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
@@ -857,7 +926,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              phi = nothing,
                                              derivative = nothing,
                                              )
-@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
 xs = 0.00:0.01:1.00
@@ -891,7 +960,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              phi = nothing,
                                              derivative = nothing,
                                              )
-@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
 xs = 0.00:0.01:1.00
