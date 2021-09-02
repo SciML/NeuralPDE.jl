@@ -29,7 +29,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain1,
                                              quadrature_strategy;
                                              init_params = initθ)
 
-@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -78,7 +78,7 @@ p3 = plot(xs, ys, u_real, linetype=:contourf,title = &quot;analytic&quot;);
 p4 = plot(xs, ys, diff_u,linetype=:contourf,title = &quot;error 1&quot;);
 p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = &quot;error 2&quot;);
 plot(p1,p2,p3,p4,p5)
-</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/127645487-24226cc0-fff6-4bb9-8509-77cf3e120563.png" alt="neural_adapter"/></p><h2 id="Domain-decomposition"><a class="docs-heading-anchor" href="#Domain-decomposition">Domain decomposition</a><a id="Domain-decomposition-1"></a><a class="docs-heading-anchor-permalink" href="#Domain-decomposition" title="Permalink"></a></h2><p>In this example, we first obtain a prediction of 2D Poisson equation on subdomains. We split up full domain into 10 sub problems by x, and  create separate neural networks for each sub interval. If x domain ∈ [x<em>0, x</em>end] so, it is decomposed on 10 part: sub x domains = {[x<em>0, x</em>1], ... [x<em>i,x</em>i+1], ..., x<em>9,x</em>end]}. And then using the method neural_adapter, we retrain the banch of 10 predictions to the one prediction for full domain of task.</p><p><img src="https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png" alt="domain_decomposition"/></p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, DiffEqBase
+</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/127645487-24226cc0-fff6-4bb9-8509-77cf3e120563.png" alt="neural_adapter"/></p><h2 id="Domain-decomposition"><a class="docs-heading-anchor" href="#Domain-decomposition">Domain decomposition</a><a id="Domain-decomposition-1"></a><a class="docs-heading-anchor-permalink" href="#Domain-decomposition" title="Permalink"></a></h2><p>In this example, we first obtain a prediction of 2D Poisson equation on subdomains. We split up full domain into 10 sub problems by x, and create separate neural networks for each sub interval. If x domain ∈ [x<em>0, x</em>end] so, it is decomposed on 10 part: sub x domains = {[x<em>0, x</em>1], ... [x<em>i,x</em>i+1], ..., x<em>9,x</em>end]}. And then using the method neural_adapter, we retrain the banch of 10 predictions to the one prediction for full domain of task.</p><p><img src="https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png" alt="domain_decomposition"/></p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, DiffEqBase
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -144,7 +144,7 @@ for i in 1:count_decomp
     @register phi_bound(x,y)
     Base.Broadcast.broadcasted(::typeof(phi_bound), x,y) = phi_bound(x,y)
     bcs_ = create_bcs(bcs,domains_[1].domain, phi_bound)
-    @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u])
+    @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
     push!(pde_system_map,pde_system_)
     strategy = NeuralPDE.GridTraining([0.1/count_decomp, 0.1])
 
@@ -198,7 +198,7 @@ chain2 = FastChain(FastDense(2,inner_,af),
 
 initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
 
-@named pde_system = PDESystem(eq, bcs, domains, [x, y], [u])
+@named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
 losses = map(1:count_decomp) do i
     loss(cord,θ) = chain2(cord,θ) .- phis[i](cord,reses[i].minimizer)
@@ -229,4 +229,4 @@ p2 = plot(xs, ys, u_predict_,linetype=:contourf,title = &quot;predict 2&quot;);
 p3 = plot(xs, ys, u_real, linetype=:contourf,title = &quot;analytic&quot;);
 p4 = plot(xs, ys, diff_u,linetype=:contourf,title = &quot;error 1&quot;);
 p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = &quot;error 2&quot;);
-plot(p1,p2,p3,p4,p5)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/127651866-87ba95ad-10a8-471e-b4a5-093210a86c0e.png" alt="decomp"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../debugging/">« Debugging PINN Solutions</a><a class="docs-footer-nextpage" href="../../examples/100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Monday 30 August 2021 20:22">Monday 30 August 2021</span>. Using Julia version 1.6.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(p1,p2,p3,p4,p5)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/127651866-87ba95ad-10a8-471e-b4a5-093210a86c0e.png" alt="decomp"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../debugging/">« Debugging PINN Solutions</a><a class="docs-footer-nextpage" href="../../examples/100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Thursday 2 September 2021 13:22">Thursday 2 September 2021</span>. Using Julia version 1.6.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
