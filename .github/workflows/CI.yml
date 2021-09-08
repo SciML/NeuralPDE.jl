@@ -17,6 +17,7 @@ jobs:
           - NNPDENS
           - NNPDE
           - NeuralAdapter
+          - IntegroDiff
           - NNSTOPPINGTIME
           - NNRODE
     steps:
