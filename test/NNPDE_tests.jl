@@ -73,7 +73,8 @@ function test_ode(strategy_)
     # plot!(t_plot ,u_predict)
 end
 
-## Heterogeneous equation
+#TODO There is little meaning in these tests without checking the correctness of the prediction.
+#TODO I propose to simply remove them.
 function test_heterogeneous_equation(strategy_)
 	println("Simple Heterogeneous input PDE, strategy: $(nameof(typeof(strategy_)))")
 	@parameters x y
@@ -103,7 +104,7 @@ function test_heterogeneous_equation(strategy_)
 
 	@named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
 	prob = SciMLBase.discretize(pde_system, discretization)
-	res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+	res = GalacticOptim.solve(prob, BFGS(); maxiters=100)
 end
 
 ## Heterogeneous system
@@ -115,6 +116,8 @@ function test_heterogeneous_system(strategy_)
 	Dy = Differential(y)
 
 	# 2D PDE
+	#TODO Dx(q(y)) = 0
+	#TODO so p(x) = 0, q = const is has only trivial solution
 	eq = p(x) + Dx(q(y)) ~ 0
 
 	# Initial and boundary conditions
@@ -133,7 +136,7 @@ function test_heterogeneous_system(strategy_)
 
 	@named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y)])
 	prob = SciMLBase.discretize(pde_system, discretization)
-	res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+	res = GalacticOptim.solve(prob, BFGS(); maxiters=100)
 end
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
@@ -156,9 +159,104 @@ strategies = [grid_strategy,stochastic_strategy, quadrature_strategy,quasirandom
 
 map(strategies) do strategy_
     test_ode(strategy_)
-    test_heterogeneous_system(strategy_)
-    test_heterogeneous_equation(strategy_)
 end
+# map(strategies) do strategy_
+#     test_heterogeneous_system(strategy_)
+# end
+# map(strategies) do strategy_
+#     test_heterogeneous_equation(strategy_)
+# end
+
+## Heterogeneous system
+println("Heterogeneous system")
+
+@parameters x,y,z
+@variables u(..), v(..), h(..), p(..)
+Dz = Differential(z)
+eqs = [
+    u(x,y,z) ~ x+y+z,
+    v(y,x) ~ x^2 + y^2,
+    h(z) ~ cos(z),
+    p(x,z) ~ exp(x)*exp(z),
+    u(x,y,z) + v(y,x)*Dz(h(z)) - p(x,z) ~ x+y+z - (x^2+y^2)*sin(z) - exp(x)*exp(z)
+]
+
+bcs = [u(0,0,0) ~ 0.0]
+
+domains = [x ∈ Interval(0.0, 1.0),
+           y ∈ Interval(0.0, 1.0),
+           z ∈ Interval(0.0, 1.0)]
+
+chain = [FastChain(FastDense(3,12,Flux.tanh),FastDense(12,12,Flux.tanh),FastDense(12,1)),
+         FastChain(FastDense(2,12,Flux.tanh),FastDense(12,12,Flux.tanh),FastDense(12,1)),
+         FastChain(FastDense(1,12,Flux.tanh),FastDense(12,12,Flux.tanh),FastDense(12,1)),
+         FastChain(FastDense(2,12,Flux.tanh),FastDense(12,12,Flux.tanh),FastDense(12,1))]
+
+initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
+
+
+grid_strategy = NeuralPDE.GridTraining(0.1)
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
+                                                    reltol=1e-3,abstol=1e-3,
+                                                    maxiters =50, batch=100)
+
+discretization = NeuralPDE.PhysicsInformedNN(chain,grid_strategy;init_params = initθ)
+
+@named pde_system = PDESystem(eqs,bcs,domains,[x,y,z],[u(x,y,z),v(y,x),h(z),p(x,z)])
+
+prob = NeuralPDE.discretize(pde_system,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+
+res = GalacticOptim.solve(prob, BFGS();maxiters=1000)
+phi = discretization.phi
+
+analytic_sol_func_ =
+[
+(x,y,z) -> x+y+z ,
+(x,y) -> x^2 + y^2,
+(z) -> cos(z),
+(x,z) -> exp(x)*exp(z)
+]
+
+xs,ys,zs = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
+
+u_real = [analytic_sol_func_[1](x,y,z) for x in xs  for y in ys for z in zs]
+v_real = [analytic_sol_func_[2](y,x) for y in ys for x in xs ]
+h_real = [analytic_sol_func_[3](z) for z in zs]
+p_real = [analytic_sol_func_[4](x,z) for x in xs for z in zs]
+
+real_ = [u_real,v_real,h_real,p_real]
+
+initθ = discretization.init_params
+acum =  [0;accumulate(+, length.(initθ))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+minimizers = [res.minimizer[s] for s in sep]
+
+
+u_predict = [phi[1]([x,y,z],minimizers[1])[1] for x in xs  for y in ys for z in zs]
+v_predict = [phi[2]([y,x],minimizers[2])[1] for y in ys for x in xs ]
+h_predict = [phi[3]([z],minimizers[3])[1] for z in zs]
+p_predict = [phi[4]([x,z],minimizers[4])[1] for x in xs for z in zs]
+predict = [u_predict,v_predict,h_predict,p_predict]
+
+for i in 1:4
+    @test predict[i] ≈ real_[i] rtol = 10^-3
+end
+
+# x_plot = collect(xs)
+# y_plot = collect(ys)
+# i=1
+# z=0
+# u_real = collect(analytic_sol_func_[1](x,y,z) for y in ys, x in xs);
+# u_predict = collect(phi[1]([x,y,z],minimizers[1])[1]  for y in ys, x in xs);
+# plot(x_plot,y_plot,u_real)
+# plot!(x_plot,y_plot,u_predict)
+
 
 ## Example 2, 2D Poisson equation
 function test_2d_poisson_equation(chain_, strategy_)
