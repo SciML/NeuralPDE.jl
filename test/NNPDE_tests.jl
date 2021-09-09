@@ -104,7 +104,7 @@ function test_heterogeneous_equation(strategy_)
 
 	@named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
 	prob = SciMLBase.discretize(pde_system, discretization)
-	res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+	res = GalacticOptim.solve(prob, BFGS(); maxiters=100)
 end
 
 ## Heterogeneous system
@@ -136,7 +136,7 @@ function test_heterogeneous_system(strategy_)
 
 	@named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y)])
 	prob = SciMLBase.discretize(pde_system, discretization)
-	res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+	res = GalacticOptim.solve(prob, BFGS(); maxiters=100)
 end
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
@@ -160,12 +160,12 @@ strategies = [grid_strategy,stochastic_strategy, quadrature_strategy,quasirandom
 map(strategies) do strategy_
     test_ode(strategy_)
 end
-map(strategies) do strategy_
-    test_heterogeneous_system(strategy_)
-end
-map(strategies) do strategy_
-    test_heterogeneous_equation(strategy_)
-end
+# map(strategies) do strategy_
+#     test_heterogeneous_system(strategy_)
+# end
+# map(strategies) do strategy_
+#     test_heterogeneous_equation(strategy_)
+# end
 
 ## Heterogeneous system
 println("Heterogeneous system")
