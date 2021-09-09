@@ -200,7 +200,7 @@ quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
                                                     reltol=1e-3,abstol=1e-3,
                                                     maxiters =50, batch=100)
 
-discretization = NeuralPDE.PhysicsInformedNN(chain,quadrature_strategy;init_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain,grid_strategy;init_params = initθ)
 
 @named pde_system = PDESystem(eqs,bcs,domains,[x,y,z],[u(x,y,z),v(y,x),h(z),p(x,z)])
 
