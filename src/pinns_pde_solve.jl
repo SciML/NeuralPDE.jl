@@ -867,12 +867,7 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                     end
                 end
 
-                for i in 1:size(cord)[2]
-                    ub__ = @Zygote.ignore getindex(ub_, :,  i)
-                    lb__ = @Zygote.ignore getindex(lb_, :,  i)
-                    integration_arr = hcat(integration_arr ,integration_(cord[:, i], lb__, ub__, flat_θ))
-                end
-                return integration_arr
+                return map((cord__,lb__,ub__) -> integration_(cord__,lb__,ub__,flat_θ), eachcol(cord), eachcol(lb_), eachcol(ub_))
             end
 end
 
