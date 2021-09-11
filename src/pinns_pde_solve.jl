@@ -867,7 +867,7 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                     end
                 end
 
-                integration_arr = map((cord__,lb__,ub__) -> integration_(cord__,lb__,ub__,flat_θ),  eachcol(cord__), eachcol(lb_), eachcol(ub_))
+                integration_arr = map((cord__,lb__,ub__) -> integration_(cord__,lb__,ub__,flat_θ),  eachcol(cord), eachcol(lb_), eachcol(ub_))
                 return reshape(integration_arr, :, length(integration_arr)) 
             end
 end
