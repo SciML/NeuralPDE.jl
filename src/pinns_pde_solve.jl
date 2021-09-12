@@ -839,7 +839,7 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
             begin
                 flat_θ = if (typeof(chain) <: AbstractVector) reduce(vcat,θ) else θ end
                 function integration_(cord, lb, ub, flat_θ)
-                    cord_ = cord #vcat maybe
+                    cord_ = cord
                     function integrand_(x , p)
                         @Zygote.ignore @views(cord_[integrating_var_id]) .= x
                         return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)
@@ -866,8 +866,7 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                         @Zygote.ignore ub_[i, :] = u_(cord , flat_θ, phi, derivative, nothing, u, nothing)
                     end
                 end
-
-                integration_arr = map((cord__,lb__,ub__) -> integration_(cord__,lb__,ub__,flat_θ),  eachcol(cord), eachcol(lb_), eachcol(ub_))
+                integration_arr = map((cord__,lb__,ub__) -> integration_(cord__,lb__,ub__,flat_θ), @views(eachcol(cord)), @views(eachcol(lb_)), @views(eachcol(ub_)))
                 return reshape(integration_arr, :, length(integration_arr)) 
             end
 end
