@@ -866,11 +866,10 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                         @Zygote.ignore ub_[i, :] = u_(cord , flat_θ, phi, derivative, nothing, u, nothing)
                     end
                 end
-                integration_arr = map((cord__,lb__,ub__) -> integration_(cord__,lb__,ub__,flat_θ), @views(eachcol(cord)), @views(eachcol(lb_)), @views(eachcol(ub_)))
+                integration_arr = map((cord__,lb__,ub__) -> integration_(cord__,lb__,ub__,flat_θ), eachcol(cord), eachcol(lb_), eachcol(ub_))
                 return reshape(integration_arr, :, length(integration_arr)) 
             end
 end
-
 
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
     loss = (θ) -> mean(abs2,loss_function(train_set, θ))
