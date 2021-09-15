@@ -40,8 +40,8 @@ Dyy = Differential(y)^2
 eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
 
 # Boundary conditions
-bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+bcs = [u(0,y) ~ 0.0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0) ~ 0.0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
 # Space and time domains
 domains = [x ∈ Interval(0.0,1.0),
            y ∈ Interval(0.0,1.0)]
@@ -103,8 +103,8 @@ import ModelingToolkit: Interval, infimum, supremum
 eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
 
 # Boundary conditions
-bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+bcs = [u(0,y) ~ 0.0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0) ~ 0.0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
 # Space and time domains
 domains = [x ∈ Interval(0.0,1.0),
            y ∈ Interval(0.0,1.0)]
