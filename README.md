@@ -132,7 +132,7 @@ pdealg = NNPDENS(u0, σᵀ∇u, opt=opt)
 
 If you use NeuralPDE.jl in your research, please cite [this paper](https://arxiv.org/abs/2107.09443):
 
-```tex
+```bib
 @article{zubov2021neuralpde,
   title={NeuralPDE: Automating Physics-Informed Neural Networks (PINNs) with Error Approximations},
   author={Zubov, Kirill and McCarthy, Zoe and Ma, Yingbo and Calisto, Francesco and Pagliarino, Valerio and Azeglio, Simone and Bottero, Luca and Luj{\'a}n, Emmanuel and Sulzer, Valentin and Bharambe, Ashutosh and others},
