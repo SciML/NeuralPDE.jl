@@ -28,9 +28,9 @@ the documentation, which contains the unreleased features.
 
 ## Features
 
-- Physics-Informed Neural Networks for automated PDE solving
-- Forward-Backwards Stochastic Differential Equation (FBSDE) methods for parabolic PDEs
-- Deep-learning-based solvers for optimal stopping time and Kolmogorov backwards equations
+- Physics-Informed Neural Networks for automated PDE solving.
+- Forward-Backwards Stochastic Differential Equation (FBSDE) methods for parabolic PDEs.
+- Deep-learning-based solvers for optimal stopping time and Kolmogorov backwards equations.
 
 ## Example: Solving 2D Poisson Equation via Physics-Informed Neural Networks
 
