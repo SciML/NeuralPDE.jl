@@ -837,14 +837,14 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
     integral =
         (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ ;strategy=strategy, indvars=indvars, depvars=depvars, dict_indvars=dict_indvars, dict_depvars=dict_depvars)->
             begin
-                flat_θ = if (typeof(chain) <: AbstractVector) reduce(vcat,θ) else θ end
-                function integration_(cord, lb, ub, flat_θ)
+                
+                function integration_(cord, lb, ub, θ)
                     cord_ = cord
                     function integrand_(x , p)
                         @Zygote.ignore @views(cord_[integrating_var_id]) .= x
                         return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)
                     end
-                    prob_ = QuadratureProblem(integrand_,lb, ub ,flat_θ)
+                    prob_ = QuadratureProblem(integrand_,lb, ub ,θ)
                     sol = solve(prob_,CubatureJLh(),reltol=1e-3,abstol=1e-3)[1]
                     return sol
                 end
@@ -856,18 +856,18 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                     if l isa Number
                         @Zygote.ignore lb_[i, :] = fill(l, 1, size(cord)[2])
                     else
-                        @Zygote.ignore lb_[i, :] = l(cord , flat_θ, phi, derivative, nothing, u, nothing)
+                        @Zygote.ignore lb_[i, :] = l(cord , θ, phi, derivative, nothing, u, nothing)
                     end
                 end
                 for (i, u_) in enumerate(ub)
                     if u_ isa Number
                         @Zygote.ignore ub_[i, :] = fill(u_, 1, size(cord)[2])
                     else
-                        @Zygote.ignore ub_[i, :] = u_(cord , flat_θ, phi, derivative, nothing, u, nothing)
+                        @Zygote.ignore ub_[i, :] = u_(cord , θ, phi, derivative, nothing, u, nothing)
                     end
                 end
-                integration_arr = map((cord__,lb__,ub__) -> integration_(cord__,lb__,ub__,flat_θ), eachcol(cord), eachcol(lb_), eachcol(ub_))
-                return reshape(integration_arr, :, length(integration_arr)) 
+                integration_arr = map((cord__,lb__,ub__) -> integration_(cord__,lb__,ub__,θ), eachcol(cord), eachcol(lb_), eachcol(ub_))
+                return reshape(integration_arr, :, length(integration_arr))
             end
 end
 
