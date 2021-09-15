@@ -60,7 +60,10 @@ dx = 0.1
 dim = 2 # number of dimensions
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = PhysicsInformedNN(chain, QuadratureTraining())
+# Initial parameters of Neural network
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+
+discretization = PhysicsInformedNN(chain, QuadratureTraining(),init_params =initθ)
 
 @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = discretize(pde_system,discretization)
