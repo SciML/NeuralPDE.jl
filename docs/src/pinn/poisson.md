@@ -119,11 +119,14 @@ chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(1
 ```
 
 Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretization and `strategy` stores information for choosing a training strategy.
+Convert weights of neural network from Float32 to Float64 in order to all inner calculation will be with Float64.
 
 ```julia
 # Discretization
 dx = 0.05
-discretization = PhysicsInformedNN(chain, GridTraining(dx))
+discretization = PhysicsInformedNN(chain, GridTraining(dx),init_params =initθ)
+# Initial parameters of Neural network
+initθ = Float64.(DiffEqFlux.initial_params(chain))
 ```
 
 As described in the API docs, we now need to define the `PDESystem` and create PINNs problem using the `discretize` method.
