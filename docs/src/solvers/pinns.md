@@ -100,19 +100,34 @@ These additional methods exist to help with introspection:
 - `symbolic_discretize(pde_system,discretization)`: This method is the same as `discretize` but instead
   returns the unevaluated Julia function to allow the user to see the generated training code.
 
-- `build_symbolic_loss_function(eqs,indvars,depvars, phi, derivative, initθ; bc_indvars=nothing)`: return symbolic inner representation for the loss function.
+- `build_symbolic_loss_function(eqs,_indvars,_depvars,phi,derivative,integral,
+                                chain,initθ,strategy;
+                                bc_indvars=nothing,
+                                eq_params=SciMLBase.NullParameters(),
+                                param_estim=false,
+                                default_p=nothing)`: return symbolic inner representation for the loss function.
     Keyword arguments:
     - `eqs`: equation or equations,
     - `indvars`: independent variables (the parameter of the equation),
     - `depvars`: dependent variables,
     - `phi`:trial solution,
     - `derivative`: method that calculates the derivative,
+    - `integral`: method that calculates the integral,
+    - `chain`:  the neural network with a d-dimensional input and a 1-dimensional output,
     - `initθ`: the initial parameter of the neural network,
-    - `bc_indvars`: independent variables for each boundary conditions.
+    - `bc_indvars`: independent variables for each boundary conditions,
+    - `eq_params`: independent parameters
+    - `param_estim`: flag for estimating the parameters
+    - `default_p`: default value of parameters
 
-- `build_symbolic_equation(eq,indvars,depvars)`: return symbolic inner representation for the equation.
+- `build_symbolic_equation(eq,_indvars,_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)`: return symbolic inner representation for the equation.
 
-- `build_loss_function(eqs, indvars, depvars, phi, derivative, initθ; bc_indvars=nothing)`: returns the body of loss function, which is the executable Julia function, for the main equation or boundary condition.
+- `build_loss_function(eqs,_indvars,_depvars,phi,derivative,integral,
+                       chain,initθ,strategy;
+                       bc_indvars=nothing,
+                       eq_params=SciMLBase.NullParameters(),
+                       param_estim=false,
+                       default_p=nothing`: returns the body of loss function, which is the executable Julia function, for the main equation or boundary condition.
 
 - `get_loss_function(loss_functions, train_sets, strategy::TrainingStrategies; τ = nothing)`: return the executable loss function.
    Keyword arguments:
@@ -125,12 +140,12 @@ These additional methods exist to help with introspection:
 
 - `get_numeric_derivative()`: return method that calculates the derivative.
 
-- `generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)`: return training sets for equations and boundary condition, that is used for GridTraining strategy.
+- `generate_training_sets(domains,dx,bcs,indvars::Array,depvars::Array)`: return training sets for equations and boundary condition, that is used for GridTraining strategy.
 
 - `get_variables(eqs,_indvars::Array,_depvars::Array)`: returns all variables that are used in each equations or boundary condition.
 
 - `get_argument(eqs,_indvars::Array,_depvars::Array)`: returns all arguments that are used in each equations or boundary condition.
 
-- `get_bounds(domains,bcs,_indvars::Array,_depvars::Array)`: return pairs with lower and upper bounds for all domains. It is used for all non-grid training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
+- `get_bounds(domains,eqs,bcs,eltypeθ,indvars::Array,depvars::Array,strategy)`: return pairs with lower and upper bounds for all domains. It is used for all non-grid training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
 
 See how this can be used in `Debugging` section or `2-D Burgers equation, low-level API`  examples.
