@@ -38,7 +38,7 @@ domains = [x ∈ Interval(0.0,1.0)]
 chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
 
 discretization = PhysicsInformedNN(chain, QuasiRandomTraining(20))
-@named pde_system = PDESystem(eq,bcs,domains,[x],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
 prob = discretize(pde_system,discretization)
 
 cb = function (p,l)
@@ -66,4 +66,5 @@ x_plot = collect(xs)
 plot(x_plot ,u_real,title = "real")
 plot!(x_plot ,u_predict,title = "predict")
 ```
+
 ![hodeplot](https://user-images.githubusercontent.com/12683885/90276340-69bc3e00-de6c-11ea-89a7-7d291123a38b.png)

@@ -50,8 +50,8 @@ Dyy = Differential(y)^2
 eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
 
 # Boundary conditions
-bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+bcs = [u(0,y) ~ 0.0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0) ~ 0.0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
 # Space and time domains
 domains = [x ∈ Interval(0.0,1.0),
            y ∈ Interval(0.0,1.0)]
@@ -62,9 +62,12 @@ dx = 0.1
 dim = 2 # number of dimensions
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 
-discretization = PhysicsInformedNN(chain, QuadratureTraining())
+# Initial parameters of Neural network
+initθ = Float64.(DiffEqFlux.initial_params(chain))
 
-@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+discretization = PhysicsInformedNN(chain, QuadratureTraining(),init_params =initθ)
+
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = discretize(pde_system,discretization)
 
 cb = function (p,l)

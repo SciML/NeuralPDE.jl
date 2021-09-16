@@ -18,7 +18,10 @@ using SciMLBase
 using Statistics
 using ArrayInterface
 import Tracker, Optim
-import ModelingToolkit: toexpr, build_expr, expand_derivatives
+using DomainSets
+using Symbolics
+import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
+import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly
 using Flux: @nograd
@@ -138,7 +141,6 @@ end
 
 """
 Algorithm for solving differential equation using a neural network.
-
 Arguments:
 * `chain`: A Chain neural network
 * `opt`: The optimizer to train the neural network. Defaults to `BFGS()`.
@@ -174,6 +176,7 @@ include("kolmogorov_solve.jl")
 include("rode_solve.jl")
 include("stopping_solve.jl")
 include("pinns_pde_solve.jl")
+include("neural_adapter.jl")
 include("param_kolmogorov_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,

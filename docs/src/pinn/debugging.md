@@ -49,7 +49,7 @@ isapprox(dphi[1][2], dphi2, atol=1e-8)
 
 
 indvars = [x,t]
-depvars = [u]
+depvars = [u(x, t)]
 dim = length(domains)
 dx = 0.1
 strategy = NeuralPDE.GridTraining(dx)

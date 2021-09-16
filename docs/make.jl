@@ -56,6 +56,8 @@ makedocs(
                              "pinn/ks.md",
                              "pinn/fp.md",
                              "pinn/parm_estim.md",
+                             "pinn/heterogeneous.md",
+                             "pinn/integro_diff.md",
                              "pinn/debugging.md",
                              "pinn/aprox_func.md"
                              ],
@@ -75,6 +77,7 @@ makedocs(
                           # callback
                           # float32_64
                           ]
+
         ],
 
         "Specialized Neural PDE Tutorials" => Any[
