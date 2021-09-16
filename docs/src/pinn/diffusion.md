@@ -4,7 +4,7 @@
 using NeuralPDE
 using Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
 using Quadrature, Cubature, Cuba
-using Plots, Printf
+import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t x
 @variables u(..), Dxu(..), O1(..)
@@ -53,12 +53,12 @@ end
 
 res = GalacticOptim.solve(prob, BFGS();cb=cb_,maxiters=1000,g_tol=10e-15)
 prob =remake(prob, u0=res.minimizer)
-res = GalacticOptim.solve(prob, BFGS();cb=cb_,maxiters=10000,g_tol=10e-15)
+res = GalacticOptim.solve(prob, BFGS();cb=cb_,maxiters=3000,g_tol=10e-15)
 
 phi = discretization.phi[1]
 
 # Analysis
-ts, xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 analytic_sol_func(t, x) = exp.(-t) * cos.(x)
 
 # Plot
@@ -72,8 +72,10 @@ diff_u = abs.(u_predict .- u_real)
 p1 = plot(ts, xs, u_real, linetype=:contourf, title="analytic");
 p2 = plot(ts, xs, u_predict, linetype=:contourf, title="predict");
 p3 = plot(ts, xs, diff_u, linetype=:contourf, title="error");
+plot(p1,p2,p3)
 ```
 
+![diffusion](https://user-images.githubusercontent.com/12683885/133618195-95b739ab-ac67-4660-bf4f-9e6d79052ad9.png)
 
 
 ##Advection diffusion
