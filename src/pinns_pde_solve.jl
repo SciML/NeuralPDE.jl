@@ -332,12 +332,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     end
                 end
 
-                #forget the logic here for now
-                lb_ = [-1.0]
-                ub_ = [1.0]
-
-                @show lb_
-                @show ub_
                 integrand_func = @RuntimeGeneratedFunction(integrand)
                 ex.args = [:($(Expr(:$, :integral))), :u, Symbol(:cord, num_depvar), :phi, integrating_var_id, integrand_func, lb_, ub_,  :($θ)]
                 break
