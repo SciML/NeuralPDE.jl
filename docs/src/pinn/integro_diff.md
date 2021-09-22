@@ -64,7 +64,7 @@ discretization = PhysicsInformedNN(chain,
                                    init_params = nothing,
                                    phi = nothing,
                                    derivative = nothing)
-pde_system = PDESystem(eq,bcs,domains,[t],[i(t)])
+@named pde_system = PDESystem(eq,bcs,domains,[t],[i(t)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 cb = function (p,l)
     println("Current loss is: $l")
