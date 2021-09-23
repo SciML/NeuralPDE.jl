@@ -116,7 +116,7 @@ domains_map = map(xs_domain) do (xs_dom)
 end
 
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
-function create_bcs(bcs,x_domain_,phi_bound)
+function create_bcs(x_domain_,phi_bound)
     x_0, x_e =  x_domain_.left, x_domain_.right
     if x_0 == 0.0
         bcs = [u(0,y) ~ 0.0,
@@ -143,7 +143,7 @@ for i in 1:count_decomp
     phi_bound(x,y) = phi_in(vcat(x,y))
     @register phi_bound(x,y)
     Base.Broadcast.broadcasted(::typeof(phi_bound), x,y) = phi_bound(x,y)
-    bcs_ = create_bcs(bcs,domains_[1].domain, phi_bound)
+    bcs_ = create_bcs(domains_[1].domain, phi_bound)
     @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
     push!(pde_system_map,pde_system_)
     strategy = NeuralPDE.GridTraining([0.1/count_decomp, 0.1])
@@ -229,4 +229,4 @@ p2 = plot(xs, ys, u_predict_,linetype=:contourf,title = &quot;predict 2&quot;);
 p3 = plot(xs, ys, u_real, linetype=:contourf,title = &quot;analytic&quot;);
 p4 = plot(xs, ys, diff_u,linetype=:contourf,title = &quot;error 1&quot;);
 p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = &quot;error 2&quot;);
-plot(p1,p2,p3,p4,p5)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/127651866-87ba95ad-10a8-471e-b4a5-093210a86c0e.png" alt="decomp"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../debugging/">« Debugging PINN Solutions</a><a class="docs-footer-nextpage" href="../../examples/100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.6 on <span class="colophon-date" title="Wednesday 22 September 2021 11:44">Wednesday 22 September 2021</span>. Using Julia version 1.6.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(p1,p2,p3,p4,p5)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/127651866-87ba95ad-10a8-471e-b4a5-093210a86c0e.png" alt="decomp"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../debugging/">« Debugging PINN Solutions</a><a class="docs-footer-nextpage" href="../../examples/100_HJB/">Solving a 100-dimensional Hamilton-Jacobi-Bellman Equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.6 on <span class="colophon-date" title="Thursday 23 September 2021 08:46">Thursday 23 September 2021</span>. Using Julia version 1.6.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
