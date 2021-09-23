@@ -144,7 +144,7 @@ domains_map = map(xs_domain) do (xs_dom)
 end
 
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
-function create_bcs(bcs,x_domain_,phi_bound)
+function create_bcs(x_domain_,phi_bound)
     x_0, x_e =  x_domain_.left, x_domain_.right
     if x_0 == 0.0
         bcs = [u(0,y) ~ 0.0,
@@ -171,7 +171,7 @@ for i in 1:count_decomp
     phi_bound(x,y) = phi_in(vcat(x,y))
     @register phi_bound(x,y)
     Base.Broadcast.broadcasted(::typeof(phi_bound), x,y) = phi_bound(x,y)
-    bcs_ = create_bcs(bcs,domains_[1].domain, phi_bound)
+    bcs_ = create_bcs(domains_[1].domain, phi_bound)
     @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
     push!(pde_system_map,pde_system_)
     strategy = NeuralPDE.GridTraining([0.1/count_decomp, 0.1])
