@@ -7,7 +7,7 @@ using DiffEqBase
 using Test, NeuralPDE
 println("Starting Soon!")
 using SciMLBase
-import ModelingToolkit: Interval, infimum, supremum
+import ModelingToolkit: Interval
 
 @testset "ODE" begin
     @parameters x
@@ -19,9 +19,9 @@ import ModelingToolkit: Interval, infimum, supremum
     domains = [x ∈ Interval(0.0,1.0)]
     chain = FastChain((x,p) -> x.^2)
 
-    chain([1],Float32[])
+    chain([1],Float64[])
     strategy_ = NeuralPDE.GridTraining(0.1)
-    discretization = NeuralPDE.PhysicsInformedNN(chain,strategy_)
+    discretization = NeuralPDE.PhysicsInformedNN(chain,strategy_;init_params = Float64[])
     @named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
     prob = NeuralPDE.discretize(pde_system,discretization)
 
@@ -29,7 +29,7 @@ import ModelingToolkit: Interval, infimum, supremum
     inner_loss =prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents[1].loss_function
 
     dudx(x) = @. 2*x
-    @test inner_loss(train_data, Float32[]) ≈ dudx(train_data) rtol = 0.001
+    @test inner_loss(train_data, Float64[]) ≈ dudx(train_data) rtol = 1e-8
 end
 
 @testset "derivatives" begin
