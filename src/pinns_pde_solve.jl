@@ -290,8 +290,18 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     integrating_variable = toexpr(_args[1].domain.variables)
                     integrating_var_id = [dict_indvars[integrating_variable]]
                 end
-                num_depvar = dict_depvars[_args[2].args[1]]
-                integrating_depvars = _args[2].args[1]
+
+                num_depvar = if last(_args[2].args) isa Symbol
+                                  dict_depvars[_args[2].args[1]]
+                                  @show dict_depvars[_args[2].args[1]]
+                             else dict_depvars[last(_args[2].args).args[1]]
+                             end
+
+                integrating_depvars = if last(_args[2].args) isa Symbol
+                                         first(_args[2].args)
+                                      else last(_args[2].args).args[1]
+                                      end
+
                 integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars, dict_depvar_input, chain,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = true)
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, dict_depvar_input, phi, derivative_, nothing, chain, initθ, strategy, integrand = integrand, integrating_depvars=integrating_depvars, eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
                 # integrand = repr(integrand)
@@ -324,7 +334,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 break
             end
         else
-            ex.args[i] = _transform_expression(ex.args[i],indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative_,integral,initθ)
+            ex.args[i] = _transform_expression(ex.args[i],indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = is_integral)
         end
     end
     return ex
