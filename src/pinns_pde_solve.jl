@@ -293,13 +293,18 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
 
                 num_depvar = if last(_args[2].args) isa Symbol
                                   dict_depvars[_args[2].args[1]]
-                                  @show dict_depvars[_args[2].args[1]]
                              else dict_depvars[last(_args[2].args).args[1]]
                              end
 
-                integrating_depvars = if last(_args[2].args) isa Symbol
-                                         first(_args[2].args)
-                                      else last(_args[2].args).args[1]
+                integrating_depvars = []
+                _integrating_depvars = if last(_args[2].args) isa Symbol
+                                           push!(integrating_depvars,  first(_args[2].args))
+                                       else 
+                                        for dep in _args[2].args[2:end]
+                                            if dep.args[1] ∈ depvars
+                                                push!(integrating_depvars, dep.args[1])
+                                            end
+                                        end
                                       end
 
                 integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars, dict_depvar_input, chain,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = true)
@@ -479,13 +484,13 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     else
         eltypeθ = eltype(initθ)
     end
-
+    
     if integrand isa Nothing
         loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
         this_eq_indvars = unique(vcat(values(this_eq_pair)...))
     else 
-        this_eq_pair = Dict(dict_depvars[integrating_depvars] => dict_depvar_input[integrating_depvars])
+        this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars], integrating_depvars))
         this_eq_indvars = unique(vcat(values(this_eq_pair)...))
         loss_function = integrand
     end
