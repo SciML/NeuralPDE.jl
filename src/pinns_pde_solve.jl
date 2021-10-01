@@ -300,9 +300,11 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 _integrating_depvars = if last(_args[2].args) isa Symbol
                                            push!(integrating_depvars,  first(_args[2].args))
                                        else 
-                                        for dep in _args[2].args[2:end]
-                                            if dep.args[1] ∈ depvars
-                                                push!(integrating_depvars, dep.args[1])
+                                        for dep in _args[2].args
+                                            if dep isa Expr
+                                                if dep.args[1] ∈ depvars
+                                                    push!(integrating_depvars, dep.args[1])
+                                                end
                                             end
                                         end
                                       end
