@@ -291,8 +291,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     integrating_var_id = [dict_indvars[integrating_variable]]
                 end
 
-                num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
-
                 integrating_depvars = []
                 _integrating_depvars = if last(_args[2].args) isa Symbol
                                            push!(integrating_depvars,  first(_args[2].args))
@@ -306,6 +304,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                         end
                                       end
                                 
+                num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
                 integrand = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars, dict_depvar_input, chain,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = true)
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars, dict_depvar_input, phi, derivative_, nothing, chain, initθ, strategy, integrand = integrand, integrating_depvars=integrating_depvars, eq_params=SciMLBase.NullParameters(), param_estim =false, default_p = nothing)
                 # integrand = repr(integrand)
