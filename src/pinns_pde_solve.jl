@@ -482,7 +482,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     else
         eltypeθ = eltype(initθ)
     end
-    
+
     if integrand isa Nothing
         loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
