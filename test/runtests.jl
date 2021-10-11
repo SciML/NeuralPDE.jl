@@ -38,6 +38,9 @@ const is_CI = haskey(ENV,"CI")
         @time @safetestset "NNRODE" begin include("NNRODE_tests.jl") end
         @time @safetestset "NNParamKolmogorov" begin include("NNParamKolmogorov_tests.jl") end
   end
+  if GROUP == "All" || GROUP == "Forward"
+        @time @safetestset "Forward" begin include("forward_tests.jl") end
+  end
 
   if !is_APPVEYOR && GROUP == "GPU"
      @safetestset "NNPDE_gpu" begin include("NNPDE_tests_gpu.jl") end
