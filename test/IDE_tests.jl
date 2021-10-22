@@ -62,25 +62,28 @@ println("Simple Integral Test")
 @parameters x
 @variables u(..)
 Ix = Integral(x in DomainSets.ClosedInterval(0, x))
-eq = Ix(u(x)) ~ (x^3)/3
+# eq = Ix(u(x)) ~ (x^3)/3
+eq = Ix(u(x)*cos(x))~ (x^3)/3
+
 bcs = [u(0.) ~ 0.0]
 domains = [x ∈ Interval(0.0,1.00)]
-chain = Chain(Dense(1,15,Flux.σ),Dense(15,1))
+# chain = Chain(Dense(1,15,Flux.σ),Dense(15,1))
+chain = FastChain(FastDense(1,15,Flux.σ),FastDense(15,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy_;
-                                             init_params = nothing,
+                                             init_params = initθ,
                                              phi = nothing,
                                              derivative = nothing,
                                              )
 @named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
 prob = NeuralPDE.discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict  = [first(phi([x],res.minimizer)) for x in xs]
-u_real  = [x^2 for x in xs]
+u_real  = [x^2/cos(x) for x in xs]
 @test Flux.mse(u_real, u_predict) < 0.001
 
 # plot(xs,u_real)
