@@ -878,7 +878,6 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                     sol = solve(prob_,CubatureJLh(),reltol=1e-3,abstol=1e-3)[1]
                     return sol
                 end
-                integration_arr = reshape([], 1, 0)
 
                 lb_ = zeros(size(lb)[1], size(cord)[2])
                 ub_ = zeros(size(ub)[1], size(cord)[2])
@@ -896,8 +895,13 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                         @Zygote.ignore ub_[i, :] = u_(cord , θ, phi, derivative, nothing, u, nothing)
                     end
                 end
-                integration_arr = map((cord__,lb__,ub__) -> integration_(cord__,lb__,ub__,θ), eachcol(cord), eachcol(lb_), eachcol(ub_))
-                return reshape(integration_arr, :, length(integration_arr))
+                integration_arr = Matrix{Float64}(undef, 1, 0)
+                for i in 1:size(cord)[2]
+                    # ub__ = @Zygote.ignore getindex(ub_, :,  i)
+                    # lb__ = @Zygote.ignore getindex(lb_, :,  i)
+                    integration_arr = hcat(integration_arr ,integration_(cord[:, i], lb_[:, i], ub_[:, i], θ))
+                end
+                return integration_arr
             end
 end
 
