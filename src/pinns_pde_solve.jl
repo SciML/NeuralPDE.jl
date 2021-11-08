@@ -19,7 +19,6 @@ julia> _dot_(e)
 dottable_(x) = Broadcast.dottable(x)
 dottable_(x::Function) = true
 
-
 _dot_(x) = x
 function _dot_(x::Expr)
     dotargs = Base.mapany(_dot_, x.args)
