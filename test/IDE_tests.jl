@@ -11,7 +11,6 @@ using Optim
 using Quadrature,Cubature, Cuba
 using QuasiMonteCarlo
 using SciMLBase
-using OrdinaryDiffEq
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 
@@ -159,3 +158,49 @@ u_predict = collect(Array(phi([x,y], res.minimizer))[1] for y in ys, x in xs);
 # p2 = plot(xs,ys,u_predict,linetype=:contourf,label = "predict")
 # p3 = plot(xs,ys,error_,linetype=:contourf,label = "error")
 # plot(p1,p2,p3)
+
+
+## Two variables Integral Test
+println("Two variables Integral Test")
+
+@parameters x
+@variables u(..) w(..)
+Dx = Differential(x)
+Ix = Integral(x in DomainSets.ClosedInterval(1, x))
+# Iinf = Integral(x in DomainSets.ClosedInterval(1, Inf))
+
+eqs =  [Ix(u(x)*w(x)) ~ log(abs(x)),
+        Dx(w(x)) ~ -2/(x^3),
+        u(x) ~ x ]
+
+bcs = [u(1.) ~ 1.0, w(1.) ~ 1.0]
+domains = [x ∈ Interval(1.0,2.0)]
+
+chains = [FastChain(FastDense(1,15,Flux.σ),FastDense(15,1)) for _ in 1:2]
+initθ = map(chain -> Float64.(DiffEqFlux.initial_params(chain)),chains)
+strategy_ = NeuralPDE.GridTraining(0.1)
+discretization = NeuralPDE.PhysicsInformedNN(chains,
+                                             strategy_;
+                                             init_params = initθ
+                                             )
+@named pde_system = PDESystem(eqs,bcs,domains,[x],[u(x), w(x)])
+prob = NeuralPDE.discretize(pde_system,discretization)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=200)
+xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+phi = discretization.phi
+initθ = discretization.init_params
+acum =  [0;accumulate(+, length.(initθ))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+minimizers = [res.minimizer[s] for s in sep]
+
+u_predict  = [(phi[1]([x],minimizers[1]))[1] for x in xs]
+w_predict  = [(phi[2]([x],minimizers[2]))[1] for x in xs]
+u_real  = [x for x in xs]
+w_real  = [1/x^2 for x in xs]
+@test Flux.mse(u_real, u_predict) < 0.001
+@test Flux.mse(w_real, w_predict) < 0.001
+
+# plot(xs,u_real)
+# plot!(xs,u_predict)
+# plot(xs,w_real)
+# plot!(xs,w_predict)
