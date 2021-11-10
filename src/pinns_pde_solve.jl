@@ -308,8 +308,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                         end
                     end
                 end
-                @show integrating_depvars
-
+ 
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
                 integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
                                                 dict_depvar_input, chain,eltypeθ,strategy,
