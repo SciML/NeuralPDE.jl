@@ -292,17 +292,23 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 integrating_depvars = []
-                if last(_args[2].args) isa Symbol
-                    push!(integrating_depvars,  first(_args[2].args))
-                else
-                    for dep in _args[2].args
-                        if dep isa Expr
-                            if dep.args[1] ∈ depvars
-                                push!(integrating_depvars, dep.args[1])
+                for arg in _args[2].args
+                    if arg ∈ depvars
+                        push!(integrating_depvars,  arg)
+                    elseif arg isa Expr
+                        if arg.args[1] ∈ depvars
+                            push!(integrating_depvars,  arg.args[1])
+                        else
+                            for d in depvars
+                                d_ex = find_thing_in_expr(arg,d)
+                                if !isempty(d_ex)
+                                    push!(integrating_depvars,  d_ex[1].args[1])
+                                end
                             end
                         end
                     end
                 end
+                @show integrating_depvars
 
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
                 integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
