@@ -292,20 +292,11 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 integrating_depvars = []
-                for arg in _args[2].args
-                    if arg ∈ depvars
-                        push!(integrating_depvars,  arg)
-                    elseif arg isa Expr
-                        if arg.args[1] ∈ depvars
-                            push!(integrating_depvars,  arg.args[1])
-                        else
-                            for d in depvars
-                                d_ex = find_thing_in_expr(arg,d)
-                                if !isempty(d_ex)
-                                    push!(integrating_depvars,  d_ex[1].args[1])
-                                end
-                            end
-                        end
+                integrand_expr =_args[2]
+                for d in depvars
+                    d_ex = find_thing_in_expr(integrand_expr,d)
+                    if !isempty(d_ex)
+                        push!(integrating_depvars, d_ex[1].args[1])
                     end
                 end
  
@@ -483,7 +474,7 @@ Finds which dependent variables are being used in an equation.
 function pair(eq, depvars, dict_depvars, dict_depvar_input)
     expr = toexpr(eq)
     pair_ = map(depvars) do depvar
-if !isempty(find_thing_in_expr(expr,  depvar))
+        if !isempty(find_thing_in_expr(expr,  depvar))
             dict_depvars[depvar] => dict_depvar_input[depvar]
         end
     end
@@ -679,8 +670,11 @@ function get_number(eqs,dict_indvars,dict_depvars)
     bc_args = get_argument(eqs,dict_indvars,dict_depvars)
     return map(barg -> filter(x -> x isa Number, barg), bc_args)
 end
-            
-function find_thing_in_expr(ex::Expr, thing; ans = Expr[])
+
+function find_thing_in_expr(ex::Expr, thing; ans = [])
+    if thing in ex.args
+        push!(ans,ex)
+    end
     for e in ex.args
         if e isa Expr
             if thing in e.args
