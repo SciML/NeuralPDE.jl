@@ -329,12 +329,23 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     lb = 0.00.*_semiup + -1.00.*_inf + -1.00.*_semilw +  _none.*lb
                     ub = 1.00.*_semiup + 1.00.*_inf  + 0.00.*_semilw  + _none.*ub
                     
-                    # define new indvars, dict_depvar_input, and etc
-                    # define new integrand
+                    function v_inf(t)
+                        return t ./ (1 .- t.^2)
+                    end
+                    
+                    function v_semiinf(t , a , upto_inf)
+                        if upto_inf == true
+                            return a .+ (t ./ (1 .- t))
+                        else
+                            return a .+ (t ./ (1 .+ t))
+                        end
+                    end
 
+                    function v(t)
+                        return t.*_none + v_inf(t).*_inf + v_semiinf(t , lb , 1).*semiup + v_semiinf(t , ub , 0).*semilw
+                    end
 
-                    # transform t -> f(τ) into https://github.com/stevengj/cubature#infinite-intervals (do I need to create a new var?)
-                    # change integral expression as well 
+                    # TODO define new integrand by replacing integrating_variable with v(integrating_variable)
                 end
 
                 lb = toexpr.(lb)
@@ -372,7 +383,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 integrand_func = @RuntimeGeneratedFunction(integrand)
-                # need to transform lb, ub, and integrand_func. (and maybe integrating_var_id)
+                # need to transform lb, ub, and integrand_func.
                 ex.args = [:($(Expr(:$, :integral))), :u, Symbol(:cord, num_depvar[1]), :phi, integrating_var_id, integrand_func, lb_, ub_,  :($θ)]
                 break
             end
