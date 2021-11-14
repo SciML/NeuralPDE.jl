@@ -311,8 +311,32 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                                          integrating_depvars=integrating_depvars,
                                                          eq_params=SciMLBase.NullParameters(),
                                                          param_estim =false, default_p = nothing)
+
+                @show integrand
+                @show integrand__
+
                 # integrand = repr(integrand)
                 lb, ub = get_limits(_args[1].domain.domain)
+
+                if -Inf in lb || Inf in ub
+                    lbb = lb .== -Inf
+                    ubb = ub .== Inf
+                    _none = .!lbb .& .!ubb
+                    _inf = lbb .& ubb
+                    _semiup = .!lbb .& ubb
+                    _semilw = lbb  .& .!ubb
+            
+                    lb = 0.00.*_semiup + -1.00.*_inf + -1.00.*_semilw +  _none.*lb
+                    ub = 1.00.*_semiup + 1.00.*_inf  + 0.00.*_semilw  + _none.*ub
+                    
+                    # define new indvars, dict_depvar_input, and etc
+                    # define new integrand
+
+
+                    # transform t -> f(τ) into https://github.com/stevengj/cubature#infinite-intervals (do I need to create a new var?)
+                    # change integral expression as well 
+                end
+
                 lb = toexpr.(lb)
                 ub = toexpr.(ub)
                 ub_ = []
@@ -348,6 +372,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 integrand_func = @RuntimeGeneratedFunction(integrand)
+                # need to transform lb, ub, and integrand_func. (and maybe integrating_var_id)
                 ex.args = [:($(Expr(:$, :integral))), :u, Symbol(:cord, num_depvar[1]), :phi, integrating_var_id, integrand_func, lb_, ub_,  :($θ)]
                 break
             end
