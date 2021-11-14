@@ -305,17 +305,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                                 dict_depvar_input, chain,eltypeθ,strategy,
                                                 phi,derivative_,integral,initθ; is_integral = false)
                 integrand__ = _dot_(integrand_)
-                integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
-                                                         dict_depvar_input, phi, derivative_, nothing, chain,
-                                                         initθ, strategy, integrand = integrand__,
-                                                         integrating_depvars=integrating_depvars,
-                                                         eq_params=SciMLBase.NullParameters(),
-                                                         param_estim =false, default_p = nothing)
 
-                @show integrand
-                @show integrand__
-
-                # integrand = repr(integrand)
                 lb, ub = get_limits(_args[1].domain.domain)
 
                 if -Inf in lb || Inf in ub
@@ -341,12 +331,29 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                         end
                     end
 
-                    function v(t)
+                    function transform_indvars(t)
                         return t.*_none + v_inf(t).*_inf + v_semiinf(t , lb , 1).*semiup + v_semiinf(t , ub , 0).*semilw
                     end
 
-                    # TODO define new integrand by replacing integrating_variable with v(integrating_variable)
+                    # transformed_integrand__ = []
+                    # integrand__ = :(u(cord1, var"##θ#257", phi))
+                    # find indvars in integrand_
+                            # transform_indvars(t)
+                            # push to transformed_integrand__
+
                 end
+                
+                integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
+                                                         dict_depvar_input, phi, derivative_, nothing, chain,
+                                                         initθ, strategy, integrand = integrand__,
+                                                         integrating_depvars=integrating_depvars,
+                                                         eq_params=SciMLBase.NullParameters(),
+                                                         param_estim =false, default_p = nothing)
+
+                @show integrand
+                @show integrand__
+
+                # integrand = repr(integrand)
 
                 lb = toexpr.(lb)
                 ub = toexpr.(ub)

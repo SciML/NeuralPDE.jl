@@ -1,4 +1,3 @@
-
 using ModelingToolkit
 using Flux
 using NeuralPDE
@@ -51,7 +50,6 @@ prob = SciMLBase.discretize(pde_system, discretization)
 
 @parameters x
 @variables u(..)
-domains = [x ∈ Interval(0.0,1.00)]
 chain = FastChain(FastDense(1,15,Flux.σ),FastDense(15,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 strategy = NeuralPDE.GridTraining(0.1)
@@ -68,21 +66,20 @@ lb, ub = [-1.], [1.]
 derivative = NeuralPDE.get_numeric_derivative()
 integral = NeuralPDE.get_numeric_integral(strategy, indvars, depvars, chain, derivative)
 
-tf(τ) = τ ./ (1 .- τ.^2)
+transform(τ) = τ ./ (1 .- τ.^2)
 integral_f = (cord, var"##θ#332", phi, derivative, integral, u_, p)->begin
           begin
-              let (tf(x),) = (cord[[1], :],)
+              let (x,) = (cord[[1], :],)
                   begin
-                      cord1 = vcat(tf(x))
+                      cord1 = vcat(x)
                   end
-                  (*).(tf(x), u_(cord1, var"##θ#332", phi))
+                  u_(transform(cord1), var"##θ#332", phi)
               end
           end
       end
-      
+
 integral_f(cord, θ, phi, derivative, nothing, u_, nothing)
 inyf_ = (θ) -> sum(abs2,integral_f(cord, θ, phi, derivative, nothing, u_, nothing))
 inyf_(θ)
 
-Zygote.gradient(inyf_,θ)
-
+@show Zygote.gradient(inyf_,θ)
