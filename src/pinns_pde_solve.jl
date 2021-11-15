@@ -317,7 +317,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
                                                 dict_depvar_input, chain,eltypeθ,strategy,
                                                 phi,derivative_,integral,initθ; is_integral = false)
-                integrand__ = _dot_(integrand_)
 
                 lb, ub = get_limits(_args[1].domain.domain)
 
@@ -332,10 +331,12 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     lb = 0.00.*_semiup + -1.00.*_inf + -1.00.*_semilw +  _none.*lb
                     ub = 1.00.*_semiup + 1.00.*_inf  + 0.00.*_semilw  + _none.*ub
                     
+                    # TODO test this so it works with symbols
                     function v_inf(t)
                         return t ./ (1 .- t.^2)
                     end
                     
+                    # TODO test this so it works with symbols
                     function v_semiinf(t , a , upto_inf)
                         if upto_inf == true
                             return a .+ (t ./ (1 .- t))
@@ -348,10 +349,12 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                         return t.*_none + v_inf(t).*_inf + v_semiinf(t , lb , 1).*semiup + v_semiinf(t , ub , 0).*semilw
                     end
 
-                    integrand_ = transform_inf_expr(integrand_, integrating_variable,transform_indvars)
-                    integrand__ = _dot_(integrand_)
+                    j = 0# TODO
+                    transformed_integrand_ = transform_inf_expr(integrand_, integrating_variable,transform_indvars)
+                    integrand_ = Expr() # TODO multiply it with jacobian
                 end
 
+                integrand__ = _dot_(integrand_)
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
                                                          dict_depvar_input, phi, derivative_, nothing, chain,
                                                          initθ, strategy, integrand = integrand__,
