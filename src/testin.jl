@@ -46,37 +46,50 @@ prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
 
 
-### transformations
+############### transformations
 indvars = [:t, :x, :v]
 integrating_variable = [:v, :x]
 _args = :((*)(v, f(0, x, v)))
-# result should be _args = :((*)(tr(v), f(0, tr(x), tr(v))))
 
-_args.args
-transform(τ) =  τ #τ ./ (1 .- τ.^2)
+lb = -Inf
+ub = Inf
+lbb = lb .== -Inf
+ubb = ub .== Inf
+_none = .!lbb .& .!ubb
+_inf = lbb .& ubb
+_semiup = .!lbb .& ubb
+_semilw = lbb  .& .!ubb
 
-a = :(f(0, x, v))
-Expr(:call, a.args...)
+lb = 0.00.*_semiup + -1.00.*_inf + -1.00.*_semilw +  _none.*lb
+ub = 1.00.*_semiup + 1.00.*_inf  + 0.00.*_semilw  + _none.*ub
 
-find_thing_in_expr(a,:v)
-for ar in a.args 
-    ar ∈ integrating_variable
-        
+function v_inf(t)
+    return :($t ./ (1 .- $t.^2))
 end
 
-transformed_args = []
-for a in _args.args
-    if a isa Expr
-        @show a
-        # push!(transformed_args, transform(a))
-    elseif a ∈ integrating_variable
-        push!(transformed_args, transform(a))
+function v_semiinf(t , a , upto_inf)
+    if upto_inf == true
+        return :($a .+ ($t ./ (1 .- $t)))
     else
-        push!(transformed_args, a)
+        return :($a .+ ($t ./ (1 .+ $t)))
     end
 end
-transformed_args
-transf_ex = Expr(_args.head, transformed_args...)
+
+# TODO make sure this multiplication works with symbols
+function transform_indvars(t)
+    return t.*_none + v_inf(t).*_inf + v_semiinf(t , lb , 1).*semiup + v_semiinf(t , ub , 0).*semilw
+end
+
+:(:x * :x)
+
+tes(t) = :($t ./ (1 .- $t.^2))
+
+transform_inf_expr(_args, integrating_variable, v_inf)
+# TODO multiply with jacobian.
+# check symbolic representation. It might be broken
+
+######################
+# result should be _args = :((*)(tr(v), f(0, tr(x), tr(v))))
 
 # place the heads in the right places
 function transform_inf_expr(ex, integrating_variables, transform; ans = [])
@@ -95,47 +108,6 @@ end
 transform_inf_expr(_args, integrating_variable, transform)
 
 
-a
-# :((*)(v, f(0, x, v)))
-
-b = Any[:*, :v, a]
-Expr(:call, b...)
-# 1. target the transformation correctly
-# 2. write transform function
-# 3. write jacobian function
-
-function replace_thing_in_expr(ex::Expr, thing, replace; ans = [])
-    if thing in ex.args
-        push!(ans,ex)
-    end
-    for e in ex.args
-        if e isa Expr
-            if thing in e.args
-                push!(ans,replace(e))
-            end
-            replace_thing_in_expr(e,thing, replace; ans=ans)
-        end
-    end
-    return collect(Set(ans))
-end
-
-replace_thing_in_expr(_args, integrating_variable[2], transform)
-
-
-function find_thing_in_expr(ex::Expr, thing; ans = [])
-    if thing in ex.args
-        push!(ans,ex)
-    end
-    for e in ex.args
-        if e isa Expr
-            if thing in e.args
-                push!(ans,e)
-            end
-            find_thing_in_expr(e,thing; ans=ans)
-        end
-    end
-    return collect(Set(ans))
-end
 ### MWE
 
 @parameters x

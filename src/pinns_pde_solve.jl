@@ -331,17 +331,15 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     lb = 0.00.*_semiup + -1.00.*_inf + -1.00.*_semilw +  _none.*lb
                     ub = 1.00.*_semiup + 1.00.*_inf  + 0.00.*_semilw  + _none.*ub
                     
-                    # TODO test this so it works with symbols
                     function v_inf(t)
-                        return t ./ (1 .- t.^2)
+                        return :($t ./ (1 .- $t.^2))
                     end
                     
-                    # TODO test this so it works with symbols
                     function v_semiinf(t , a , upto_inf)
                         if upto_inf == true
-                            return a .+ (t ./ (1 .- t))
+                            return :($a .+ ($t ./ (1 .- $t)))
                         else
-                            return a .+ (t ./ (1 .+ t))
+                            return :($a .+ ($t ./ (1 .+ $t)))
                         end
                     end
 
