@@ -46,6 +46,96 @@ prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
 
 
+### transformations
+indvars = [:t, :x, :v]
+integrating_variable = [:v, :x]
+_args = :((*)(v, f(0, x, v)))
+# result should be _args = :((*)(tr(v), f(0, tr(x), tr(v))))
+
+_args.args
+transform(τ) =  τ #τ ./ (1 .- τ.^2)
+
+a = :(f(0, x, v))
+Expr(:call, a.args...)
+
+find_thing_in_expr(a,:v)
+for ar in a.args 
+    ar ∈ integrating_variable
+        
+end
+
+transformed_args = []
+for a in _args.args
+    if a isa Expr
+        @show a
+        # push!(transformed_args, transform(a))
+    elseif a ∈ integrating_variable
+        push!(transformed_args, transform(a))
+    else
+        push!(transformed_args, a)
+    end
+end
+transformed_args
+transf_ex = Expr(_args.head, transformed_args...)
+
+# place the heads in the right places
+function transform_inf_expr(ex, integrating_variables, transform; ans = [])
+    for arg in ex.args
+        @show arg
+        if arg isa Expr
+            push!(ans, transform_inf_expr(arg, integrating_variables, transform))
+        elseif arg ∈ integrating_variables
+            push!(ans, transform(arg))
+        else
+            push!(ans, arg)
+        end
+    end
+    return Expr(ex.head, ans...)
+end
+transform_inf_expr(_args, integrating_variable, transform)
+
+
+a
+# :((*)(v, f(0, x, v)))
+
+b = Any[:*, :v, a]
+Expr(:call, b...)
+# 1. target the transformation correctly
+# 2. write transform function
+# 3. write jacobian function
+
+function replace_thing_in_expr(ex::Expr, thing, replace; ans = [])
+    if thing in ex.args
+        push!(ans,ex)
+    end
+    for e in ex.args
+        if e isa Expr
+            if thing in e.args
+                push!(ans,replace(e))
+            end
+            replace_thing_in_expr(e,thing, replace; ans=ans)
+        end
+    end
+    return collect(Set(ans))
+end
+
+replace_thing_in_expr(_args, integrating_variable[2], transform)
+
+
+function find_thing_in_expr(ex::Expr, thing; ans = [])
+    if thing in ex.args
+        push!(ans,ex)
+    end
+    for e in ex.args
+        if e isa Expr
+            if thing in e.args
+                push!(ans,e)
+            end
+            find_thing_in_expr(e,thing; ans=ans)
+        end
+    end
+    return collect(Set(ans))
+end
 ### MWE
 
 @parameters x
