@@ -222,6 +222,19 @@ function get_limits(domain)
     end
 end
 
+function transform_inf_expr(ex, integrating_variables, transform; ans = [])
+    for arg in ex.args
+        @show arg
+        if arg isa Expr
+            push!(ans, transform_inf_expr(arg, integrating_variables, transform))
+        elseif arg ∈ integrating_variables
+            push!(ans, transform(arg))
+        else
+            push!(ans, arg)
+        end
+    end
+    return Expr(ex.head, ans...)
+end
 
 θ = gensym("θ")
 
@@ -335,14 +348,10 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                         return t.*_none + v_inf(t).*_inf + v_semiinf(t , lb , 1).*semiup + v_semiinf(t , ub , 0).*semilw
                     end
 
-                    # transformed_integrand__ = []
-                    # integrand__ = :(u(cord1, var"##θ#257", phi))
-                    # find indvars in integrand_
-                            # transform_indvars(t)
-                            # push to transformed_integrand__
-
+                    integrand_ = transform_inf_expr(integrand_, integrating_variable,transform_indvars)
+                    integrand__ = _dot_(integrand_)
                 end
-                
+
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
                                                          dict_depvar_input, phi, derivative_, nothing, chain,
                                                          initθ, strategy, integrand = integrand__,
