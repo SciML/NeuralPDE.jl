@@ -222,22 +222,6 @@ function get_limits(domain)
     end
 end
 
-function transform_inf_expr(ex, integrating_variables, transform; ans = [])
-    if !(integrating_variables isa Array)
-        integrating_variables = [integrating_variables]
-    end
-
-    for arg in ex.args
-        if arg isa Expr
-            push!(ans, transform_inf_expr(arg, integrating_variables, transform))
-        elseif arg ∈ integrating_variables
-            push!(ans, transform(arg))
-        else
-            push!(ans, arg)
-        end
-    end
-    return Expr(ex.head, ans...)
-end
 
 θ = gensym("θ")
 
@@ -259,7 +243,6 @@ where
 """
 function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative_,integral,initθ;is_integral=false)
     _args = ex.args
-    @show _args
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
             if e in keys(dict_depvars)
@@ -317,54 +300,10 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     end
                 end
  
-                @show _args[2]
-
-                lb, ub = get_limits(_args[1].domain.domain)
-
-                if -Inf in lb || Inf in ub
-                    lbb = lb .== -Inf
-                    ubb = ub .== Inf
-                    _none = .!lbb .& .!ubb
-                    _inf = lbb .& ubb
-                    _semiup = .!lbb .& ubb
-                    _semilw = lbb  .& .!ubb
-            
-                    lb = 0.00.*_semiup + -1.00.*_inf + -1.00.*_semilw +  _none.*lb
-                    ub = 1.00.*_semiup + 1.00.*_inf  + 0.00.*_semilw  + _none.*ub
-                    
-                    function v_inf(t)
-                        return :($t ./ (1 .- $t.^2))
-                    end
-                    
-                    function v_semiinf(t , a , upto_inf)
-                        if upto_inf == true
-                            return :($a .+ ($t ./ (1 .- $t)))
-                        else
-                            return :($a .+ ($t ./ (1 .+ $t)))
-                        end
-                    end
-
-                    function transform_indvars(t)
-                        return t.*_none + v_inf(t).*_inf + v_semiinf(t , lb , 1).*semiup + v_semiinf(t , ub , 0).*semilw
-                    end
-
-                    j = 0# TODO
-                    # is there a version of Symbolics.substitute that can handle expressions?
-                    # if so we could leave v_inf, v_semiinf as is
-                    # if not, then should I do all this transformation in a different function?
-                    @show _args[2]
-                    @show integrating_variable
-                    _args[2] = transform_inf_expr(_args[2], integrating_variable,v_inf)
-                    #_args[2] = Expr() # TODO multiply it with jacobian 
-                end
-
-                @show _args[2]
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
                 integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
                                                 dict_depvar_input, chain,eltypeθ,strategy,
                                                 phi,derivative_,integral,initθ; is_integral = false)
-                @show _args[2]
-
                 integrand__ = _dot_(integrand_)
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
                                                          dict_depvar_input, phi, derivative_, nothing, chain,
@@ -372,10 +311,8 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                                          integrating_depvars=integrating_depvars,
                                                          eq_params=SciMLBase.NullParameters(),
                                                          param_estim =false, default_p = nothing)
-
-                @show integrand
                 # integrand = repr(integrand)
-
+                lb, ub = get_limits(_args[1].domain.domain)
                 lb = toexpr.(lb)
                 ub = toexpr.(ub)
                 ub_ = []
@@ -411,7 +348,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 integrand_func = @RuntimeGeneratedFunction(integrand)
-                # need to transform lb, ub, and integrand_func.
                 ex.args = [:($(Expr(:$, :integral))), :u, Symbol(:cord, num_depvar[1]), :phi, integrating_var_id, integrand_func, lb_, ub_,  :($θ)]
                 break
             end
@@ -526,6 +462,7 @@ function get_indvars_ex(bc_indvars) # , dict_this_eq_indvars)
              i_+=1
              ex
         else
+            @show u
            :(fill($u,size($:cord[[1],:])))
         end
     end
@@ -689,8 +626,6 @@ function build_loss_function(eqs,indvars,depvars,
 end
 
 function get_vars(indvars_, depvars_)
-    @show indvars_
-    @show depvars_
     indvars = ModelingToolkit.getname.(indvars_)
     depvars = Symbol[]
     dict_depvar_input = Dict{Symbol,Vector{Symbol}}()
@@ -759,11 +694,13 @@ function get_argument(eqs,_indvars::Array,_depvars::Array)
 end
 function get_argument(eqs,dict_indvars,dict_depvars)
     exprs = toexpr.(eqs)
+    @show eqs
     vars = map(exprs) do expr
         _vars =  map(depvar -> find_thing_in_expr(expr,  depvar), collect(keys(dict_depvars)))
         f_vars = filter(x -> !isempty(x), _vars)
         map(x -> first(x), f_vars)
     end
+    @show vars
     args_ = map(vars) do _vars
         ind_args_ = map(var -> var.args[2:end], _vars)
         syms = Set{Symbol}()
@@ -780,6 +717,7 @@ function get_argument(eqs,dict_indvars,dict_depvars)
             end
         end
     end
+    @show args_
     return args_ # TODO for all arguments
 end
 
@@ -851,11 +789,13 @@ function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy:
     pde_args = get_argument(eqs,dict_indvars,dict_depvars)
 
     pde_lower_bounds= map(pde_args) do pd
-        span = map(p -> get(dict_lower_bound, p, p), pd)
+        span = map(p -> get(dict_lower_bound, p, p isa Expr ? adapt(eltype, 0) : p), pd)
+        @show span
         map(s -> adapt(eltypeθ,s) + cbrt(eps(eltypeθ)), span)
     end
     pde_upper_bounds= map(pde_args) do pd
-        span = map(p -> get(dict_upper_bound, p, p), pd)
+        span = map(p -> get(dict_upper_bound, p, p isa Expr ? adapt(eltype, 0) : p), pd)
+        @show span
         map(s -> adapt(eltypeθ,s) - cbrt(eps(eltypeθ)), span)
     end
     pde_bounds= [pde_lower_bounds,pde_upper_bounds]
@@ -881,7 +821,7 @@ function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
 
     pde_bounds= map(pde_args) do pd
         span = map(p -> get(dict_span, p, p), pd)
-        map(s -> adapt(eltypeθ,s), span)
+        map(s -> adapt(eltypeθ,ss), span)
     end
 
     bound_args = get_argument(bcs,dict_indvars,dict_depvars)
