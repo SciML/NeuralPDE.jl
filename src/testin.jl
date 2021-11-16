@@ -6,6 +6,28 @@ using DiffEqFlux
 using DomainSets
 import ModelingToolkit: Interval, infimum, supremum
 
+@parameters t
+@variables i(..)
+Di = Differential(t)
+Ii = Integral(t in DomainSets.ClosedInterval(-Inf, Inf))
+eq = Di(i(t)) + 2*i(t) + 5*Ii(i(t)) ~ 1
+bcs = [i(0.) ~ 0.0]
+domains = [t ∈ Interval(0.0,2.0)]
+chain = Chain(Dense(1,15,Flux.σ),Dense(15,1))
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+strategy_ = NeuralPDE.GridTraining(0.1)
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy_;
+                                             init_params = nothing,
+                                             phi = nothing,
+                                             derivative = nothing,
+                                             )
+@named pde_system = PDESystem(eq,bcs,domains,[t],[i(t)])
+sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+prob = NeuralPDE.discretize(pde_system,discretization)
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
+
+
 @parameters t x v
 @variables f(..) E(..)
 Dx = Differential(x)
@@ -25,8 +47,12 @@ v_th = sqrt(2)
 # Integrals
 
 Iv = Integral((v,x) in DomainSets.ProductDomain(ClosedInterval(-Inf ,Inf), ClosedInterval(-Inf ,Inf)))
-
-eqs = [Dt(f(t, x, v)) ~ -v * Dx(f(t, x, v)) - e / m_e * E(t, x) * Dv(f(t, x, v))]
+eqs = [Iv(f(t, x, v)) ~ 0]
+@parameters τ
+function v_if(t)
+    return t ./ (1 .- t.^2)
+end
+eqs = Symbolics.substitute(eqs,  Dict(x => v_if(τ)))
 
 bcs = [f(0, x, v) ~ 1 / (v_th * sqrt(2π)) * exp(-v^2 / (2 * v_th^2)),
     E(0, x) ~ e * n_0 / ε_0 * (Iv(f(0, x, v) * v) - 1)]
@@ -43,8 +69,10 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 discretization = NeuralPDE.PhysicsInformedNN(chain, QuadratureTraining(), init_params = initθ)
 @named pde_system = PDESystem(eqs, bcs, domains, [t, x, v], [f(t, x, v), E(t, x)])
 prob = SciMLBase.symbolic_discretize(pde_system, discretization)
+pde_system.eqs
 prob = SciMLBase.discretize(pde_system, discretization)
 
+eqs = Iv(f(t, x, v)) ~ 0
 
 ############### transformations
 indvars = [:t, :x, :v]
@@ -80,11 +108,10 @@ function transform_indvars(t)
     return t.*_none + v_inf(t).*_inf + v_semiinf(t , lb , 1).*semiup + v_semiinf(t , ub , 0).*semilw
 end
 
-:(:x * :x)
 
 tes(t) = :($t ./ (1 .- $t.^2))
 
-transform_inf_expr(_args, integrating_variable, v_inf)
+transform_inf_expr(:(i(t)), [:i], v_inf)
 # TODO multiply with jacobian.
 # check symbolic representation. It might be broken
 
@@ -145,3 +172,4 @@ inyf_ = (θ) -> sum(abs2,integral_f(cord, θ, phi, derivative, nothing, u_, noth
 inyf_(θ)
 
 @show Zygote.gradient(inyf_,θ)
+

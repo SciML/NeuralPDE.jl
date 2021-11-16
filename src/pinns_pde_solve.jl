@@ -223,8 +223,11 @@ function get_limits(domain)
 end
 
 function transform_inf_expr(ex, integrating_variables, transform; ans = [])
+    if !(integrating_variables isa Array)
+        integrating_variables = [integrating_variables]
+    end
+
     for arg in ex.args
-        @show arg
         if arg isa Expr
             push!(ans, transform_inf_expr(arg, integrating_variables, transform))
         elseif arg ∈ integrating_variables
@@ -256,6 +259,7 @@ where
 """
 function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative_,integral,initθ;is_integral=false)
     _args = ex.args
+    @show _args
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
             if e in keys(dict_depvars)
@@ -313,10 +317,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     end
                 end
  
-                num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
-                integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
-                                                dict_depvar_input, chain,eltypeθ,strategy,
-                                                phi,derivative_,integral,initθ; is_integral = false)
+                @show _args[2]
 
                 lb, ub = get_limits(_args[1].domain.domain)
 
@@ -348,9 +349,21 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     end
 
                     j = 0# TODO
-                    transformed_integrand_ = transform_inf_expr(integrand_, integrating_variable,transform_indvars)
-                    integrand_ = Expr() # TODO multiply it with jacobian
+                    # is there a version of Symbolics.substitute that can handle expressions?
+                    # if so we could leave v_inf, v_semiinf as is
+                    # if not, then should I do all this transformation in a different function?
+                    @show _args[2]
+                    @show integrating_variable
+                    _args[2] = transform_inf_expr(_args[2], integrating_variable,v_inf)
+                    #_args[2] = Expr() # TODO multiply it with jacobian 
                 end
+
+                @show _args[2]
+                num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
+                integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
+                                                dict_depvar_input, chain,eltypeθ,strategy,
+                                                phi,derivative_,integral,initθ; is_integral = false)
+                @show _args[2]
 
                 integrand__ = _dot_(integrand_)
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
@@ -361,8 +374,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                                          param_estim =false, default_p = nothing)
 
                 @show integrand
-                @show integrand__
-
                 # integrand = repr(integrand)
 
                 lb = toexpr.(lb)
@@ -678,6 +689,8 @@ function build_loss_function(eqs,indvars,depvars,
 end
 
 function get_vars(indvars_, depvars_)
+    @show indvars_
+    @show depvars_
     indvars = ModelingToolkit.getname.(indvars_)
     depvars = Symbol[]
     dict_depvar_input = Dict{Symbol,Vector{Symbol}}()
