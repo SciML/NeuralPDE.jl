@@ -313,6 +313,19 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                                          param_estim =false, default_p = nothing)
                 # integrand = repr(integrand)
                 lb, ub = get_limits(_args[1].domain.domain)
+
+                if -Inf in lb || Inf in ub
+                    lbb = lb .== -Inf
+                    ubb = ub .== Inf
+                    _none = .!lbb .& .!ubb
+                    _inf = lbb .& ubb
+                    _semiup = .!lbb .& ubb
+                    _semilw = lbb  .& .!ubb
+
+                    lb = 0.00.*_semiup + -1.00.*_inf + -1.00.*_semilw +  _none.*lb
+                    ub = 1.00.*_semiup + 1.00.*_inf  + 0.00.*_semilw  + _none.*ub
+                end
+
                 lb = toexpr.(lb)
                 ub = toexpr.(ub)
                 ub_ = []
@@ -462,7 +475,6 @@ function get_indvars_ex(bc_indvars) # , dict_this_eq_indvars)
              i_+=1
              ex
         else
-            @show u
            :(fill($u,size($:cord[[1],:])))
         end
     end
@@ -694,13 +706,11 @@ function get_argument(eqs,_indvars::Array,_depvars::Array)
 end
 function get_argument(eqs,dict_indvars,dict_depvars)
     exprs = toexpr.(eqs)
-    @show eqs
     vars = map(exprs) do expr
         _vars =  map(depvar -> find_thing_in_expr(expr,  depvar), collect(keys(dict_depvars)))
         f_vars = filter(x -> !isempty(x), _vars)
         map(x -> first(x), f_vars)
     end
-    @show vars
     args_ = map(vars) do _vars
         ind_args_ = map(var -> var.args[2:end], _vars)
         syms = Set{Symbol}()
@@ -717,7 +727,6 @@ function get_argument(eqs,dict_indvars,dict_depvars)
             end
         end
     end
-    @show args_
     return args_ # TODO for all arguments
 end
 
@@ -790,12 +799,10 @@ function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy:
 
     pde_lower_bounds= map(pde_args) do pd
         span = map(p -> get(dict_lower_bound, p, p isa Expr ? adapt(eltype, 0) : p), pd)
-        @show span
         map(s -> adapt(eltypeθ,s) + cbrt(eps(eltypeθ)), span)
     end
     pde_upper_bounds= map(pde_args) do pd
         span = map(p -> get(dict_upper_bound, p, p isa Expr ? adapt(eltype, 0) : p), pd)
-        @show span
         map(s -> adapt(eltypeθ,s) - cbrt(eps(eltypeθ)), span)
     end
     pde_bounds= [pde_lower_bounds,pde_upper_bounds]

@@ -37,7 +37,13 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, QuadratureTraining(), init_p
 @named pde_system = PDESystem(eqs_, bcs, domains, [t,x,v], [f(t,x,v)])
 prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
-res = GalacticOptim.solve(prob, BFGS(), maxiters=100)
+
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+
+res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
 
 
 #### messing around with get_bounds
