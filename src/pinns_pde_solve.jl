@@ -222,6 +222,22 @@ function get_limits(domain)
     end
 end
 
+function transform_inf_expr(ex, integrating_variables, transform; ans = [])
+    if !(integrating_variables isa Array)
+        integrating_variables = [integrating_variables]
+    end
+
+    for arg in ex.args
+        if arg isa Expr
+            push!(ans, transform_inf_expr(arg, integrating_variables, transform))
+        elseif arg ∈ integrating_variables
+            push!(ans, transform(arg))
+        else
+            push!(ans, arg)
+        end
+    end
+    return Expr(ex.head, ans...)
+end
 
 θ = gensym("θ")
 
@@ -243,9 +259,13 @@ where
 """
 function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative_,integral,initθ;is_integral=false)
     _args = ex.args
+    @info "in _transform_expression"
+    @show _args
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
             if e in keys(dict_depvars)
+                @info "in keys dict_depvars"
+                @show e
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
@@ -255,8 +275,11 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 else
                     [var_, Symbol(:cord, num_depvar), Symbol(:($θ), num_depvar), Symbol(:phi, num_depvar)]
                 end
+                @show ex.args
                 break
             elseif e isa ModelingToolkit.Differential
+                @info "in differential"
+                @show e
                 derivative_variables = Symbol[]
                 order = 0
                 while (_args[1] isa ModelingToolkit.Differential)
@@ -280,6 +303,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 else
                     [var_, Symbol(:phi, num_depvar), :u, Symbol(:cord, num_depvar), εs_dnv, order, Symbol(:($θ), num_depvar)]
                 end
+                @show ex.args
                 break
             elseif e isa Symbolics.Integral
                 if _args[1].domain.variables isa Tuple
@@ -291,6 +315,8 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     integrating_var_id = [dict_indvars[integrating_variable]]
                 end
 
+                @show _args[1]
+
                 integrating_depvars = []
                 integrand_expr =_args[2]
                 for d in depvars
@@ -299,20 +325,10 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                         push!(integrating_depvars, d_ex[1].args[1])
                     end
                 end
- 
-                num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
-                integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
-                                                dict_depvar_input, chain,eltypeθ,strategy,
-                                                phi,derivative_,integral,initθ; is_integral = false)
-                integrand__ = _dot_(integrand_)
-                integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
-                                                         dict_depvar_input, phi, derivative_, nothing, chain,
-                                                         initθ, strategy, integrand = integrand__,
-                                                         integrating_depvars=integrating_depvars,
-                                                         eq_params=SciMLBase.NullParameters(),
-                                                         param_estim =false, default_p = nothing)
-                # integrand = repr(integrand)
+
                 lb, ub = get_limits(_args[1].domain.domain)
+
+                num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
 
                 if -Inf in lb || Inf in ub
                     lbb = lb .== -Inf
@@ -321,10 +337,50 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     _inf = lbb .& ubb
                     _semiup = .!lbb .& ubb
                     _semilw = lbb  .& .!ubb
-
+            
                     lb = 0.00.*_semiup + -1.00.*_inf + -1.00.*_semilw +  _none.*lb
                     ub = 1.00.*_semiup + 1.00.*_inf  + 0.00.*_semilw  + _none.*ub
+                    
+                    function v_inf(t)
+                        return :($t ./ (1 .- $t.^2))
+                    end
+                    
+                    function v_semiinf(t , a , upto_inf)
+                        if upto_inf == true
+                            return :($a .+ ($t ./ (1 .- $t)))
+                        else
+                            return :($a .+ ($t ./ (1 .+ $t)))
+                        end
+                    end
+
+                    function transform_indvars(t)
+                        return t.*_none + v_inf(t).*_inf + v_semiinf(t , lb , 1).*semiup + v_semiinf(t , ub , 0).*semilw
+                    end
+
+                    j = 0# TODO
+                    integrand_expr = transform_inf_expr(integrand_expr, integrating_variable,v_inf)
+                    # integrand_ = Expr() # TODO multiply it with jacobian
                 end
+
+                @show integrand_expr
+
+                integrand_ = transform_expression(integrand_expr,indvars,depvars,dict_indvars,dict_depvars,
+                                                dict_depvar_input, chain,eltypeθ,strategy,
+                                                phi,derivative_,integral,initθ; is_integral = false)
+
+                @show integrand_
+
+                integrand__ = _dot_(integrand_)
+                integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
+                                                         dict_depvar_input, phi, derivative_, nothing, chain,
+                                                         initθ, strategy, integrand = integrand__,
+                                                         integrating_depvars=integrating_depvars,
+                                                         eq_params=SciMLBase.NullParameters(),
+                                                         param_estim =false, default_p = nothing)
+
+                @show integrand
+
+                # integrand = repr(integrand)
 
                 lb = toexpr.(lb)
                 ub = toexpr.(ub)
@@ -365,11 +421,50 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 break
             end
         else
+            @info "one more round"
+            @show e
+            @show i
+            @show ex.args
             ex.args[i] = _transform_expression(ex.args[i],indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = is_integral)
         end
     end
     return ex
 end
+
+@parameters v x t
+@variables f(..)
+Iv = Integral(t in DomainSets.ClosedInterval(-Inf ,Inf))
+Dx = Differential(x)
+eqs_ = [Iv(f(t, x, v)*x) ~ 0]
+
+# transform
+@parameters τ
+function v_if(t)
+    return t ./ (1 .- t.^2)
+end
+eqs = Symbolics.substitute(eqs_,  Dict([t => v_if(τ)]))
+
+bcs = [f(0,x,v) ~ 2]
+
+domains = [t ∈ Interval(0.0, 1.0),
+           x ∈ Interval(0.0, 1.0), 
+           v ∈ Interval(0.0, 1.0)]
+
+# Neural Network
+chain = [FastChain(FastDense(3, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))]
+initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
+
+discretization = NeuralPDE.PhysicsInformedNN(chain, QuadratureTraining(), init_params= initθ)
+@named pde_system = PDESystem(eqs_, bcs, domains, [t,x,v], [f(t,x,v)])
+prob = SciMLBase.symbolic_discretize(pde_system, discretization)
+prob = SciMLBase.discretize(pde_system, discretization)
+
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+
+res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
 
 """
 Parse ModelingToolkit equation form to the inner representation.
@@ -399,7 +494,7 @@ Example:
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 
-function build_symbolic_equation(eq,_indvars,_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
+function build_symbolic_equation(eq,_indvars,_depvars,chain,eltypeθ,strategy,phi,derivative, integral,initθ)
     depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
     parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
 end
@@ -413,6 +508,51 @@ function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,dict_depvar
     right_expr = _dot_(right_expr)
     loss_func = :($left_expr .- $right_expr)
 end
+
+# eq test
+@parameters x y
+@variables u(..)
+I = Integral((x,y) in DomainSets.ProductDomain(ClosedInterval(-Inf ,Inf),ClosedInterval(-Inf ,Inf)))
+
+chain = FastChain(FastDense(1, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+Dx = Differential(x)
+strategy = QuadratureTraining()
+depvars = [u(x, y)]
+indvars = [x, y]
+eqs = I(u(x, y)*x) * Dx(u(x)) ~ 0
+eltypeθ = Float64
+phi = NeuralPDE.get_phi(chain,parameterless_type_θ)
+derivative = NeuralPDE.get_numeric_derivative()
+integral = NeuralPDE.get_numeric_integral(strategy, indvars, depvars, chain, derivative)
+
+# equation-version
+args = []
+if !(eqs.rhs isa Number || eqs.rhs isa Symbol)
+    append!(args, arguments(eqs.rhs))
+end
+if !(eqs.lhs isa Number || eqs.lhs isa Symbol)
+    append!(args, arguments(eqs.lhs))
+end
+args
+
+for arg in args
+    if typeof(operation(arg)) == Integral{Symbolics.VarDomainPairing}
+        lb, ub = get_limits(operation(arg).domain.domain)
+
+        if -Inf in lb || Inf in ub
+            integrating_variables_ = operation(arg).domain.variables
+            integrating_variables = [var for var in integrating_variables_]
+            τs = Symbolics.variables(:τ, 1:length(integrating_variables))
+
+            if first(arguments(first(arguments(arg)))) ∈ integrating_variables
+                @show first(arguments(first(arguments(arg))))
+            end
+        end
+    end
+end
+#
+
 
 """
 Build a loss function for a PDE or a boundary condition
@@ -828,7 +968,7 @@ function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
 
     pde_bounds= map(pde_args) do pd
         span = map(p -> get(dict_span, p, p), pd)
-        map(s -> adapt(eltypeθ,ss), span)
+        map(s -> adapt(eltypeθ,s), span)
     end
 
     bound_args = get_argument(bcs,dict_indvars,dict_depvars)
