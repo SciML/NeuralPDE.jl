@@ -604,12 +604,14 @@ for arg in args
 
         if -Inf in lb || Inf in ub
             integrating_variables_ = operation(arg).domain.variables
-            integrating_variables = [var for var in integrating_variables_]
+            integrating_variables = [Symbolics.tosymbol(var) for var in integrating_variables_]
             τs = Symbolics.variables(:τ, 1:length(integrating_variables))
             @show integrating_variables
+            @show arg
+            @show first(arguments(arg))
 
-            if first(arguments(first(arguments(arg)))) ∈ integrating_variables
-                Symbolics.substitute(eqs,  Dict([x => v_if(τ)]))
+            if Symbolics.tosymbol(first(arguments(first(arguments(arg))))) ∈ integrating_variables
+                Symbolics.substitute(eqs,  Dict([first(arguments(arg)) => v_if(τ)]))
             end
         end
     end
