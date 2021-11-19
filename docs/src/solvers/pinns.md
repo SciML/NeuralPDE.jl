@@ -122,7 +122,8 @@ These additional methods exist to help with introspection:
     - `τ`: normalizing coefficient for loss function. If `τ` is nothing, then it is automatically set to `1/n` where `n` is the number of points checked in the loss function.
 
 - `get_phi(chain, parameterless_type_θ)`: return function for trial solution.
-
+    - `chain`: neural network, 
+    - `parameterless_type_θ`: number format type(Float64/Float32) of weights of neural network. 
 - `get_numeric_derivative()`: return method that calculates the derivative.
 
 - `generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)`: return training sets for equations and boundary condition, that is used for GridTraining strategy.
