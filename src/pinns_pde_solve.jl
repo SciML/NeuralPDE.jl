@@ -239,6 +239,74 @@ function transform_inf_expr(ex, integrating_variables, transform; ans = [])
     return Expr(ex.head, ans...)
 end
 
+
+_semiup = Bool[1]
+
+_semiup[1]
+
+function transform_infinite_integral(ex)
+    _args = ex.args
+    for (i,e) in enumerate(_args)
+        if !(e isa Expr)
+            if e isa Symbolics.Integral
+                lb, ub = get_limits(_args[1].domain.domain)
+
+                if -Inf in lb || Inf in ub
+                    lbb = lb .== -Inf
+                    ubb = ub .== Inf
+                    _none = .!lbb .& .!ubb
+                    _inf = lbb .& ubb
+                    _semiup = .!lbb .& ubb
+                    _semilw = lbb  .& .!ubb
+                
+                    lb = 0.00.*_semiup + -1.00.*_inf + -1.00.*_semilw +  _none.*lb
+                    ub = 1.00.*_semiup + 1.00.*_inf  + 0.00.*_semilw  + _none.*ub
+
+                    function v_inf(t)
+                        return :($t ./ (1 .- $t.^2))
+                    end
+                    
+                    function v_semiinf(t , a , upto_inf)
+                        if upto_inf == true
+                            return :(a .+ $t ./ (1 .- $t))
+                        else
+                            return :(a .+ $t ./ (1 .+ $t))
+                        end
+                    end
+                
+                    @show _semiup
+                    function transform_indvars(t)
+                        if _none[1]
+                            return t
+                        elseif _inf[1]
+                            return v_inf(t)
+                        elseif _semiup[1]
+                            return v_semiinf(t , lb , 1)
+                        elseif _semilw[1]
+                            return v_semiinf(t , ub , 0)
+                        end
+                    end
+
+                    if _args[1].domain.variables isa Tuple
+                        integrating_variable_ = collect(_args[1].domain.variables)
+                        integrating_variable = toexpr.(integrating_variable_)
+                    else
+                        integrating_variable = toexpr(_args[1].domain.variables)
+                    end
+
+                    ex.args[i+1] = transform_inf_expr(ex.args[i+1], integrating_variable,transform_indvars)
+                end
+
+                break
+            end
+        else
+            ex.args[i] = transform_infinite_integral(ex.args[i])
+        end
+    end
+
+    return ex 
+end
+
 θ = gensym("θ")
 
 """
@@ -258,7 +326,10 @@ where
  θ - weight in neural network
 """
 function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative_,integral,initθ;is_integral=false)
+    @show ex
+    # ex = transform_infinite_integral(ex) # HANDLE ALL THE LOGIC HERE AND IT WILL BE CARRIED OVER EVERYWHERE
     _args = ex.args
+    @show ex
     @info "in _transform_expression"
     @show _args
     for (i,e) in enumerate(_args)
@@ -306,6 +377,8 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 @show ex.args
                 break
             elseif e isa Symbolics.Integral
+                @info "in integral"
+                @show e
                 if _args[1].domain.variables isa Tuple
                     integrating_variable_ = collect(_args[1].domain.variables)
                     integrating_variable = toexpr.(integrating_variable_)
@@ -315,10 +388,8 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     integrating_var_id = [dict_indvars[integrating_variable]]
                 end
 
-                @show _args[1]
-
                 integrating_depvars = []
-                integrand_expr =_args[2]
+                integrand_expr = _args[2]
                 for d in depvars
                     d_ex = find_thing_in_expr(integrand_expr,d)
                     if !isempty(d_ex)
@@ -327,7 +398,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 lb, ub = get_limits(_args[1].domain.domain)
-
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
 
                 if -Inf in lb || Inf in ub
@@ -337,38 +407,52 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     _inf = lbb .& ubb
                     _semiup = .!lbb .& ubb
                     _semilw = lbb  .& .!ubb
-            
+                
                     lb = 0.00.*_semiup + -1.00.*_inf + -1.00.*_semilw +  _none.*lb
                     ub = 1.00.*_semiup + 1.00.*_inf  + 0.00.*_semilw  + _none.*ub
-                    
+
                     function v_inf(t)
                         return :($t ./ (1 .- $t.^2))
                     end
                     
                     function v_semiinf(t , a , upto_inf)
                         if upto_inf == true
-                            return :($a .+ ($t ./ (1 .- $t)))
+                            return :(a .+ $t ./ (1 .- $t))
                         else
-                            return :($a .+ ($t ./ (1 .+ $t)))
+                            return :(a .+ $t ./ (1 .+ $t))
+                        end
+                    end
+                
+                    @show _semiup
+                    function transform_indvars(t)
+                        if _none[1]
+                            return t
+                        elseif _inf[1]
+                            return v_inf(t)
+                        elseif _semiup[1]
+                            return v_semiinf(t , lb , 1)
+                        elseif _semilw[1]
+                            return v_semiinf(t , ub , 0)
                         end
                     end
 
-                    function transform_indvars(t)
-                        return t.*_none + v_inf(t).*_inf + v_semiinf(t , lb , 1).*semiup + v_semiinf(t , ub , 0).*semilw
-                    end
+                    @show ex
+                    @show ex.args[i+1]
+                    ex.args[i+1] = transform_inf_expr(ex.args[i+1], integrating_variable,transform_indvars)
+                    @show ex.args[i+1]
+                    @show ex
 
-                    j = 0# TODO
-                    integrand_expr = transform_inf_expr(integrand_expr, integrating_variable,v_inf)
-                    # integrand_ = Expr() # TODO multiply it with jacobian
                 end
 
+                @info "after inf transform, but before transformation"
                 @show integrand_expr
 
                 integrand_ = transform_expression(integrand_expr,indvars,depvars,dict_indvars,dict_depvars,
                                                 dict_depvar_input, chain,eltypeθ,strategy,
                                                 phi,derivative_,integral,initθ; is_integral = false)
 
-                @show integrand_
+                @info "transformed"
+                @show integrand_expr
 
                 integrand__ = _dot_(integrand_)
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
@@ -378,7 +462,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                                          eq_params=SciMLBase.NullParameters(),
                                                          param_estim =false, default_p = nothing)
 
-                @show integrand
 
                 # integrand = repr(integrand)
 
@@ -435,9 +518,8 @@ end
 @variables f(..)
 Iv = Integral(t in DomainSets.ClosedInterval(-Inf ,Inf))
 Dx = Differential(x)
-eqs_ = [Iv(f(t, x, v)*x) ~ 0]
+eqs_ = [Iv(f(t, x, v)*x) + Dx(f(t,x,v)) ~ π]
 
-# transform
 @parameters τ
 function v_if(t)
     return t ./ (1 .- t.^2)
@@ -522,7 +604,7 @@ depvars = [u(x, y)]
 indvars = [x, y]
 eqs = I(u(x, y)*x) * Dx(u(x)) ~ 0
 eltypeθ = Float64
-phi = NeuralPDE.get_phi(chain,parameterless_type_θ)
+phi = NeuralPDE.get_phi(chain,eltypeθ)
 derivative = NeuralPDE.get_numeric_derivative()
 integral = NeuralPDE.get_numeric_integral(strategy, indvars, depvars, chain, derivative)
 
@@ -544,14 +626,25 @@ for arg in args
             integrating_variables_ = operation(arg).domain.variables
             integrating_variables = [var for var in integrating_variables_]
             τs = Symbolics.variables(:τ, 1:length(integrating_variables))
+            @show integrating_variables
 
             if first(arguments(first(arguments(arg)))) ∈ integrating_variables
-                @show first(arguments(first(arguments(arg))))
+                Symbolics.substitute(eqs,  Dict([x => v_if(τ)]))
             end
         end
     end
 end
 #
+integrating_variables = [x, y]
+if first(arguments(first(arguments(args[2])))) == [x]
+    @show true
+end
+
+first(arguments((args[2])))
+
+for intvar in integrating_variables
+
+end
 
 
 """
@@ -652,11 +745,17 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     end
 
     if integrand isa Nothing
+        @info "integrand is nothing"
         loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
+        @show loss_function
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
+        @show this_eq_pair
         this_eq_indvars = unique(vcat(values(this_eq_pair)...))
     else 
+        @info "integrand is something"
         this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars], integrating_depvars))
+        @show this_eq_pair
+        @show integrand
         this_eq_indvars = unique(vcat(values(this_eq_pair)...))
         loss_function = integrand
     end
@@ -725,7 +824,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex 
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
     else
-        indvars_ex = [:($:cord[[$i],:]) for (i, u) ∈ enumerate(this_eq_indvars)]
+        indvars_ex = get_indvars_ex(this_eq_indvars)
         left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
     end
