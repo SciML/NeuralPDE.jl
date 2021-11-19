@@ -239,11 +239,6 @@ function transform_inf_expr(ex, integrating_variables, transform; ans = [])
     return Expr(ex.head, ans...)
 end
 
-
-_semiup = Bool[1]
-
-_semiup[1]
-
 function transform_infinite_integral(ex)
     _args = ex.args
     for (i,e) in enumerate(_args)
@@ -326,17 +321,11 @@ where
  θ - weight in neural network
 """
 function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative_,integral,initθ;is_integral=false)
-    @show ex
-    # ex = transform_infinite_integral(ex) # HANDLE ALL THE LOGIC HERE AND IT WILL BE CARRIED OVER EVERYWHERE
+    # ex = transform_infinite_integral(ex)
     _args = ex.args
-    @show ex
-    @info "in _transform_expression"
-    @show _args
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
             if e in keys(dict_depvars)
-                @info "in keys dict_depvars"
-                @show e
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
@@ -349,8 +338,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 @show ex.args
                 break
             elseif e isa ModelingToolkit.Differential
-                @info "in differential"
-                @show e
                 derivative_variables = Symbol[]
                 order = 0
                 while (_args[1] isa ModelingToolkit.Differential)
@@ -444,15 +431,9 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
 
                 end
 
-                @info "after inf transform, but before transformation"
-                @show integrand_expr
-
                 integrand_ = transform_expression(integrand_expr,indvars,depvars,dict_indvars,dict_depvars,
                                                 dict_depvar_input, chain,eltypeθ,strategy,
                                                 phi,derivative_,integral,initθ; is_integral = false)
-
-                @info "transformed"
-                @show integrand_expr
 
                 integrand__ = _dot_(integrand_)
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
@@ -461,7 +442,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                                          integrating_depvars=integrating_depvars,
                                                          eq_params=SciMLBase.NullParameters(),
                                                          param_estim =false, default_p = nothing)
-
 
                 # integrand = repr(integrand)
 
