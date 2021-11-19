@@ -121,7 +121,7 @@ These additional methods exist to help with introspection:
     - `strategy`: training strategy,
     - `τ`: normalizing coefficient for loss function. If `τ` is nothing, then it is automatically set to `1/n` where `n` is the number of points checked in the loss function.
 
-- `get_phi(chain)`: return function for trial solution.
+- `get_phi(chain, parameterless_type_θ)`: return function for trial solution.
 
 - `get_numeric_derivative()`: return method that calculates the derivative.
 
