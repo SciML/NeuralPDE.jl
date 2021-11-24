@@ -1031,7 +1031,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
 
     chain = discretization.chain
     initθ = discretization.init_params
-    flat_initθ = if (typeof(chain) <: AbstractVector) reduce(vcat,initθ) else initθ end
+    flat_initθ = if (typeof(chain) <: AbstractVector) reshape(initθ, :) else initθ end
     eltypeθ = eltype(flat_initθ)
     parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
     phi = discretization.phi
