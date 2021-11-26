@@ -237,6 +237,33 @@ function transform_inf_expr(args, integrating_variables, transform; ans = [])
     return ans
 end
 
+integrating_variable = [:v, :t]
+integrating_variable = :t
+
+
+_semiup = Bool[0]
+_inf = Bool[1]
+
+if !(integrating_variable isa Array)
+    integrating_variable = [integrating_variable]
+end
+
+j = []
+for var in integrating_variable
+   @show var
+    if _inf[1]
+        append!(j, [:((1+$var^2)/(1-$var^2)^2)])
+    elseif _semiup[1] || _semilw[1]
+        append!(j, [:(1/(1-$var)^2)])
+    end
+end
+j = Expr(:call, :*, j...)
+
+@show j
+
+
+
+
 θ = gensym("θ")
 
 """
@@ -318,6 +345,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
 
                 lb, ub = get_limits(_args[1].domain.domain)
 
+                # transform infinite 
                 if -Inf in lb || Inf in ub
                     lbb = lb .== -Inf
                     ubb = ub .== Inf
@@ -341,7 +369,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                         end
                     end
 
-                    @show _semiup
                     function transform_indvars(t)
                         if _none[1]
                             return t
@@ -361,12 +388,29 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                         integrating_variable = toexpr(_args[1].domain.variables)
                     end
 
-                    @show bc_indvars
-
                     bc_indvars = transform_inf_expr(bc_indvars, integrating_variable,transform_indvars)
+
+                    # get jacobian
+                    if !(integrating_variable isa Array)
+                        integrating_variable = [integrating_variable]
+                    end
+                    
+                    j = []
+                    for var in integrating_variable
+                       @show var
+                        if _inf[1]
+                            append!(j, [:((1+$var^2)/(1-$var^2)^2)])
+                        elseif _semiup[1] || _semilw[1]
+                            append!(j, [:(1/(1-$var)^2)])
+                        end
+                    end
+                    j = Expr(:call, :*, j...)
+
+                    _args[2] = Expr(:call, :*, _args[2], j)
                 end
 
                 @show bc_indvars
+                @show _args[2]
 
 
                 @info "call transform_expression"
@@ -377,6 +421,8 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 integrand__ = _dot_(integrand_)
 
                 @show bc_indvars
+
+                @show _args[2]
 
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
                                                          dict_depvar_input, phi, derivative_, nothing, chain,
@@ -1295,7 +1341,7 @@ end
 
 @parameters v x t
 @variables f(..)
-Iv = Integral(t in DomainSets.ClosedInterval(-Inf ,Inf))
+Iv = Integral(t in ClosedInterval(-Inf, Inf))
 Dx = Differential(x)
 eqs_ = Iv(f(t, x, v)*x) + Dx(f(t,x,v)) ~ π
 
