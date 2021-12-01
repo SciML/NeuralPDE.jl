@@ -1,8 +1,9 @@
 
-function transform_inf_expr(dict_depvar_input, integrating_depvars, integrating_variables, transform)
+function transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars, integrating_variables, transform)
     τs = Symbolics.variables(:τ, 1:length(integrating_variables))
     τs = Symbol.(τs)
     dict_transformation_vars = Dict()
+    dict_depvar_input_ = Dict()
 
     for depvar in integrating_depvars
         indvars = dict_depvar_input[depvar]
@@ -17,10 +18,10 @@ function transform_inf_expr(dict_depvar_input, integrating_depvars, integrating_
             end
         end
 
-        dict_depvar_input[depvar] = ans
+        dict_depvar_input_[depvar] = ans
     end
 
-    this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars], integrating_depvars))
+    this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input_[intvars], integrating_depvars))
     this_eq_indvars = unique(vcat(values(this_eq_pair)...))
 
     return dict_transformation_vars, this_eq_indvars
@@ -53,7 +54,7 @@ function get_inf_transformation_jacobian(integrating_variable, _inf, _semiup, _s
     return j
 end
 
-function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars, dict_depvar_input, integrating_variable)
+function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable)
     if -Inf in lb || Inf in ub
 
         if !(integrating_variable isa Array)
@@ -82,10 +83,7 @@ function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars, dic
             end
         end
 
-        @show dict_depvar_input[integrating_depvars[1]]
-        @show integrating_depvars
-        @show dict_depvar_input
-        dict_transformation_vars, transformation_vars = transform_inf_expr(dict_depvar_input, integrating_depvars, integrating_variable,transform_indvars)
+        dict_transformation_vars, transformation_vars = transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable,transform_indvars)
 
         j = get_inf_transformation_jacobian(integrating_variable, _inf, _semiup, _semilw)     
         

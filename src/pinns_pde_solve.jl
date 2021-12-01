@@ -300,8 +300,10 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 lb, ub = get_limits(_args[1].domain.domain)
-                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb, ub, _args[2],integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable)
-            
+                @show dict_depvar_input
+                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb, ub, _args[2],integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable)            
+                @show dict_depvar_input
+
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
                 integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
                                                 dict_depvar_input, chain,eltypeθ,strategy,
@@ -1241,7 +1243,7 @@ println("Simple Integral Test")
 @variables u(..)
 Ix = Integral(x in DomainSets.ClosedInterval(0, Inf))
 # eq = Ix(u(x)) ~ (x^3)/3
-eq = Ix(u(x)*cos(x))~ (x^3)/3
+eq = Ix(u(x))~ (x^3)/3
 
 bcs = [u(0.) ~ 0.0]
 domains = [x ∈ Interval(0.0,1.00)]
