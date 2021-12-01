@@ -1235,7 +1235,7 @@ end
     f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, flat_initθ)
 end
-
+#=
 
 println("Simple Integral Test")
 
@@ -1243,7 +1243,7 @@ println("Simple Integral Test")
 @variables u(..)
 Ix = Integral(x in DomainSets.ClosedInterval(0, Inf))
 # eq = Ix(u(x)) ~ (x^3)/3
-eq = Ix(u(x))~ (x^3)/3
+eq = Ix(u(x)) ~ 
 
 bcs = [u(0.) ~ 0.0]
 domains = [x ∈ Interval(0.0,1.00)]
@@ -1260,6 +1260,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 @named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
 prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = NeuralPDE.discretize(pde_system,discretization)
+@show prob
 
 cb = function (p,l)
     println("Current loss is: $l")
@@ -1344,3 +1345,5 @@ integral(u, cord1, phi, [1], RuntimeGeneratedFunctions.RuntimeGeneratedFunction{
         end
     end
 end), Any[0.0], Any[1.0], var"##θ#331")
+
+=#
