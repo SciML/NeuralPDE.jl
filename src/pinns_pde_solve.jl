@@ -300,7 +300,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 lb, ub = get_limits(_args[1].domain.domain)
-                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb, ub, _args[2], integrating_depvars, dict_depvar_input, integrating_variable)
+                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb, ub, _args[2],integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable)
             
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
                 integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
@@ -1234,6 +1234,42 @@ end
     GalacticOptim.OptimizationProblem(f, flat_initθ)
 end
 
+
+println("Simple Integral Test")
+
+@parameters x
+@variables u(..)
+Ix = Integral(x in DomainSets.ClosedInterval(0, Inf))
+# eq = Ix(u(x)) ~ (x^3)/3
+eq = Ix(u(x)*cos(x))~ (x^3)/3
+
+bcs = [u(0.) ~ 0.0]
+domains = [x ∈ Interval(0.0,1.00)]
+# chain = Chain(Dense(1,15,Flux.σ),Dense(15,1))
+chain = FastChain(FastDense(1,15,Flux.σ),FastDense(15,1))
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+strategy_ = NeuralPDE.GridTraining(0.1)
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy_;
+                                             init_params = initθ,
+                                             phi = nothing,
+                                             derivative = nothing,
+                                             )
+@named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
+prob = SciMLBase.symbolic_discretize(pde_system, discretization)
+prob = NeuralPDE.discretize(pde_system,discretization)
+
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+
+res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=200)
+xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+phi = discretization.phi
+u_predict  = [first(phi([x],res.minimizer)) for x in xs]
+u_real  = [x^2/cos(x) for x in xs]
+@test Flux.mse(u_real, u_predict) < 0.001
 
 @parameters x y
 @variables u(..) w(..)
