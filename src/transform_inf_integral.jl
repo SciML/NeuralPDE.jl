@@ -1,13 +1,29 @@
 
-function transform_inf_expr(args, integrating_variables, transform; ans = [])
-    for arg in args
-        if arg ∈ integrating_variables
-            push!(ans, transform(arg))
-        else
-            push!(ans, arg)
+function transform_inf_expr(dict_depvar_input, integrating_depvars, integrating_variables, transform)
+    τs = Symbolics.variables(:τ, 1:length(integrating_variables))
+    τs = Symbol.(τs)
+    dict_transformation_vars = Dict()
+
+    for depvar in integrating_depvars
+        indvars = dict_depvar_input[depvar]
+        ans = []
+
+        for i in 1:length(indvars)
+            if indvars[i] ∈ integrating_variables
+                push!(ans, τs[i])
+                dict_transformation_vars[indvars[i]] = transform(τs[i])
+            else
+                push!(ans, indvars[i])
+            end
         end
+
+        dict_depvar_input[depvar] = ans
     end
-    return ans
+
+    this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars], integrating_depvars))
+    this_eq_indvars = unique(vcat(values(this_eq_pair)...))
+
+    return dict_transformation_vars, this_eq_indvars
 end
 
 function v_inf(t)
@@ -15,10 +31,12 @@ function v_inf(t)
 end
 
 function v_semiinf(t , a , upto_inf)
+    a = first(a)
+    
     if upto_inf == true
-        return :(a .+ $t ./ (1 .- $t))
+        return :($a .+ $t ./ (1 .- $t))
     else
-        return :(a .+ $t ./ (1 .+ $t))
+        return :($a .+ $t ./ (1 .+ $t))
     end
 end
 
@@ -35,7 +53,7 @@ function get_inf_transformation_jacobian(integrating_variable, _inf, _semiup, _s
     return j
 end
 
-function transform_inf_integral(lb, ub, integrating_ex, bc_indvars, integrating_variable)
+function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars, dict_depvar_input, integrating_variable)
     if -Inf in lb || Inf in ub
 
         if !(integrating_variable isa Array)
@@ -64,12 +82,18 @@ function transform_inf_integral(lb, ub, integrating_ex, bc_indvars, integrating_
             end
         end
 
-        bc_indvars = transform_inf_expr(bc_indvars, integrating_variable,transform_indvars)
+        @show dict_depvar_input[integrating_depvars[1]]
+        @show integrating_depvars
+        @show dict_depvar_input
+        dict_transformation_vars, transformation_vars = transform_inf_expr(dict_depvar_input, integrating_depvars, integrating_variable,transform_indvars)
 
         j = get_inf_transformation_jacobian(integrating_variable, _inf, _semiup, _semilw)     
         
         integrating_ex = Expr(:call, :*, integrating_ex, j...)
+    else
+        dict_transformation_vars, transformation_vars = nothing, nothing
     end
 
-    return lb, ub, integrating_ex, bc_indvars
+    return lb, ub, integrating_ex, dict_transformation_vars, transformation_vars
 end
+
