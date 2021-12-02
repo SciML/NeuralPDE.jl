@@ -21,11 +21,12 @@ jobs:
           - NNSTOPPINGTIME
           - NNRODE
           - Forward
+        version:
+          - '1'
+          - '1.6'
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
-        with:
-          version: 1
       - uses: actions/cache@v1
         env:
           cache-name: cache-artifacts
