@@ -300,7 +300,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 lb, ub = get_limits(_args[1].domain.domain)
-                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb, ub, _args[2],integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable)            
+                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb, ub, _args[2],integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable, eltypeθ)            
 
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
                 integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
@@ -898,6 +898,9 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                     end
                     prob_ = QuadratureProblem(integrand_,lb, ub ,θ)
                     sol = solve(prob_,CubatureJLh(),reltol=1e-3,abstol=1e-3)[1]
+
+                    @show sol
+                    @show cord_
                     return sol
                 end
 
@@ -1233,115 +1236,3 @@ end
     f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, flat_initθ)
 end
-#=
-
-println("Simple Integral Test")
-
-@parameters x
-@variables u(..)
-Ix = Integral(x in DomainSets.ClosedInterval(0, Inf))
-# eq = Ix(u(x)) ~ (x^3)/3
-eq = Ix(u(x)) ~ 
-
-bcs = [u(0.) ~ 0.0]
-domains = [x ∈ Interval(0.0,1.00)]
-# chain = Chain(Dense(1,15,Flux.σ),Dense(15,1))
-chain = FastChain(FastDense(1,15,Flux.σ),FastDense(15,1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
-strategy_ = NeuralPDE.GridTraining(0.1)
-discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy_;
-                                             init_params = initθ,
-                                             phi = nothing,
-                                             derivative = nothing,
-                                             )
-@named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
-prob = SciMLBase.symbolic_discretize(pde_system, discretization)
-prob = NeuralPDE.discretize(pde_system,discretization)
-@show prob
-
-cb = function (p,l)
-    println("Current loss is: $l")
-    return false
-end
-
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=200)
-xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
-phi = discretization.phi
-u_predict  = [first(phi([x],res.minimizer)) for x in xs]
-u_real  = [x^2/cos(x) for x in xs]
-@test Flux.mse(u_real, u_predict) < 0.001
-
-@parameters x y
-@variables u(..) w(..)
-I = Integral(x in ClosedInterval(0, 1))
-eqs_ = I(u(x)*x) ~ w(y)
-
-domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
-
-bcs = [u(0) ~ 0, w(y) ~ 1]
-
-# Neural Network
-chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))
-initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
-
-
-discretization = NeuralPDE.PhysicsInformedNN(chain, QuadratureTraining(), init_params= initθ)
-@named pde_system = PDESystem(eqs_, bcs, domains, [x, y], [u(x), w(y)])
-prob = SciMLBase.symbolic_discretize(pde_system, discretization)
-
-prob = SciMLBase.discretize(pde_system, discretization)
-
-cb = function (p,l)
-    println("Current loss is: $l")
-    return false
-end
-
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=200)
-
-
-# prettier
-integral(u, cord1, phi, [1], RuntimeGeneratedFunctions.RuntimeGeneratedFunction{(:cord, Symbol("##θ#331"), :phi, :derivative, :integral, :u, :p), Main.NeuralPDE.var"#_RGF_ModTag", Main.NeuralPDE.var"#_RGF_ModTag", (0x97804153, 0xbddad62a, 0x1d633763, 0x1eb852e8, 0x307245bf)}(quote
-    begin
-        let (τ₁,τ₂) = (cord[[1], :],cord[[2], :])
-            begin # new begin statement that handles transformations
-                (x,) = 0.0 .+ τ₁ ./ (1 .- τ₁)
-                (y,) = 0.0 .+ τ₂ ./ (1 .- τ₂)
-            end
-            begin
-                cord1 = vcat(x,y)
-            end
-            (*).(u(cord1, var"##θ#331", phi), (/).(1, (^).((-).(1, x), 2)))
-        end
-    end
-end), Any[0.0], Any[1.0], var"##θ#331")
-
-# (but equivalent to option 3)
-integral(u, cord1, phi, [1], RuntimeGeneratedFunctions.RuntimeGeneratedFunction{(:cord, Symbol("##θ#331"), :phi, :derivative, :integral, :u, :p), Main.NeuralPDE.var"#_RGF_ModTag", Main.NeuralPDE.var"#_RGF_ModTag", (0x97804153, 0xbddad62a, 0x1d633763, 0x1eb852e8, 0x307245bf)}(quote
-    begin
-        let (x,y) = (cord[[1], :],cord[[2], :])
-            begin
-                cord1 = vcat(x ./ (1 .- x),y)
-            end
-            (*).(u(cord1, var"##θ#331", phi), (/).(1, (^).((-).(1, x), 2)))
-        end
-    end
-end), Any[0.0], Any[1.0], var"##θ#331")
-
-# alternative – propagate it down
-integral(u, cord1, phi, [1], RuntimeGeneratedFunctions.RuntimeGeneratedFunction{(:cord, Symbol("##θ#331"), :phi, :derivative, :integral, :u, :p), Main.NeuralPDE.var"#_RGF_ModTag", Main.NeuralPDE.var"#_RGF_ModTag", (0x97804153, 0xbddad62a, 0x1d633763, 0x1eb852e8, 0x307245bf)}(quote
-    begin
-        let (x,y) = (cord[[1], :],cord[[2], :])
-            begin # new begin statement that handles transformations
-                (τ₁,) = 0.0 .+ x ./ (1 .- x)
-                (τ₂,) = 0.0 .+ y ./ (1 .- y)
-            end
-            begin
-                cord1 = vcat(τ₁,τ₂)
-            end
-            (*).(u(cord1, var"##θ#331", phi), (/).(1, (^).((-).(1, x), 2)))
-        end
-    end
-end), Any[0.0], Any[1.0], var"##θ#331")
-
-=#
