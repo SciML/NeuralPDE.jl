@@ -195,7 +195,8 @@ for i in 1:count_decomp
     phi_in(cord) = phis[i-1](cord,reses[i-1].minimizer)
     # phi_bound(x,y) = if (x isa Matrix)  phi_in(vcat(x, fill(y,size(x)))) else  phi_in(vcat(fill(x,size(y)),y)) end
     phi_bound(x,y) = phi_in(vcat(x,y))
-    @register phi_bound(x,y)
+    @register_symbolic phi_bound(x,y)
+    global phi_bound
     Base.Broadcast.broadcasted(::typeof(phi_bound), x,y) = phi_bound(x,y)
     bcs_ = create_bcs(domains_[1].domain, phi_bound)
     @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x,y)])
