@@ -4,6 +4,7 @@ function transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars
     τs = Symbol.(τs)
     dict_transformation_vars = Dict()
     dict_depvar_input_ = Dict()
+    integrating_var_transformation = []
 
     for depvar in integrating_depvars
         indvars = dict_depvar_input[depvar]
@@ -12,6 +13,7 @@ function transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars
         for i in 1:length(indvars)
             if indvars[i] ∈ integrating_variables
                 push!(ans, τs[i])
+                push!(integrating_var_transformation, τs[i])
                 dict_transformation_vars[indvars[i]] = transform(τs[i])
             else
                 push!(ans, indvars[i])
@@ -24,7 +26,7 @@ function transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars
     this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input_[intvars], integrating_depvars))
     this_eq_indvars = unique(vcat(values(this_eq_pair)...))
 
-    return dict_transformation_vars, this_eq_indvars
+    return dict_transformation_vars, this_eq_indvars,integrating_var_transformation
 end
 
 function v_inf(t)
@@ -86,9 +88,9 @@ function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars, dic
                 end
             end
 
-            dict_transformation_vars, transformation_vars = transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable,transform_indvars)
+            dict_transformation_vars, transformation_vars, integrating_var_transformation = transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable,transform_indvars)
 
-            j = get_inf_transformation_jacobian(integrating_variable, _inf, _semiup, _semilw)     
+            j = get_inf_transformation_jacobian(integrating_var_transformation, _inf, _semiup, _semilw)     
             
             integrating_ex = Expr(:call, :*, integrating_ex, j...)
         end
@@ -96,4 +98,3 @@ function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars, dic
 
     return lb, ub, integrating_ex, dict_transformation_vars, transformation_vars
 end
-

@@ -327,14 +327,11 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     if l isa Number
                         push!(lb_, l)
                     else
-
                         l_expr = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,
                                                                    dict_indvars,dict_depvars,
                                                                    dict_depvar_input, phi, derivative_,
                                                                    nothing, chain, initθ, strategy,
                                                                    integrand = l, integrating_depvars=integrating_depvars,
-                                                                   dict_transformation_vars = dict_transformation_vars, 
-                                                                   transformation_vars = transformation_vars,
                                                                    param_estim =false, default_p = nothing)
                         l_f = @RuntimeGeneratedFunction(l_expr)
                         push!(lb_, l_f)
@@ -349,8 +346,6 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                                                     dict_depvar_input, phi, derivative_,
                                                                     nothing, chain, initθ, strategy,
                                                                     integrand = u_, integrating_depvars=integrating_depvars,
-                                                                    dict_transformation_vars = dict_transformation_vars, 
-                                                                    transformation_vars = transformation_vars,
                                                                     param_estim =false, default_p = nothing)
                         u_f = @RuntimeGeneratedFunction(u_expr)
                         push!(ub_, u_f)
