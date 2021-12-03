@@ -691,8 +691,8 @@ domains = [t ∈ Interval(0.0,1.0)]
 dt = 0.05
 
 input_ = length(domains)
-n = 8
-chain = [FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1)) for _ in 1:3]
+n = 12
+chain = [FastChain(FastDense(input_,n,Flux.tanh),FastDense(n,n,Flux.σ),FastDense(n,1)) for _ in 1:3]
 #Generate Data
 function lorenz!(du,u,p,t)
     du[1] = 10.0*(u[2]-u[1])
