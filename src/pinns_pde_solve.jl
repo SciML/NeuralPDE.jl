@@ -894,8 +894,6 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
                     prob_ = QuadratureProblem(integrand_,lb, ub ,θ)
                     sol = solve(prob_,CubatureJLh(),reltol=1e-3,abstol=1e-3)[1]
 
-                    @show sol
-                    @show cord_
                     return sol
                 end
 
