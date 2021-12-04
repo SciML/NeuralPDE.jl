@@ -854,7 +854,7 @@ d = 0.4
 
 domain = [x ∈ Interval(x0, x_end), y ∈ Interval(y0, y_end)]
 
-hidden =15
+hidden =25
 chain = FastChain(FastDense(2,hidden, Flux.tanh),
                   FastDense(hidden, hidden, Flux.tanh),
                   FastDense(hidden, hidden, Flux.tanh),
