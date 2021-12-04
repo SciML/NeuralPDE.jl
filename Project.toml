@@ -65,7 +65,7 @@ SymbolicUtils = "0.18"
 Symbolics = "4"
 Tracker = "0.2"
 Zygote = "0.5, 0.6"
-julia = "1.5"
+julia = "1.6"
 
 [extras]
 DiffEqDevTools = "f3b72e0c-5b89-59e1-b016-84e28bfd966d"
