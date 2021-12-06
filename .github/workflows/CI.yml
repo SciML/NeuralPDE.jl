@@ -21,6 +21,7 @@ jobs:
           - NNSTOPPINGTIME
           - NNRODE
           - Forward
+          - ForwardDiffAD
         version:
           - '1'
           - '1.6'
