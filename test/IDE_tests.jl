@@ -204,3 +204,35 @@ w_real  = [1/x^2 for x in xs]
 # plot!(xs,u_predict)
 # plot(xs,w_real)
 # plot!(xs,w_predict)
+
+println("Indefinite Integral Test")
+
+@parameters x
+@variables u(..)
+I = Integral(x in ClosedInterval(1, Inf))
+eqs_ = I(u(x)) ~ 1
+
+domains = [x ∈ Interval(1.0, 2.0)]
+
+bcs = [u(1) ~ 1, u(2) ~ 1/4]
+
+# Neural Network
+chain = FastChain(FastDense(1, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))
+initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
+
+discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.1), init_params= initθ)
+@named pde_system = PDESystem(eqs_, bcs, domains, [x], [u(x)])
+prob = SciMLBase.symbolic_discretize(pde_system, discretization)
+prob = SciMLBase.discretize(pde_system, discretization)
+
+cb = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+
+res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+phi = discretization.phi
+u_predict  = [first(phi([x],res.minimizer)) for x in xs]
+u_real  = [1/x^2 for x in xs]
+@test Flux.mse(u_real, u_predict) < 0.001
