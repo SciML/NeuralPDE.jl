@@ -289,9 +289,18 @@ function _transform_expression(ex,indvars,depvars,
                 εs = [get_ε(dim_l, d, eltypeθ) for d in 1:dim_l]
                 undv = [dict_interior_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
-                order =size(derivative_variables)[1]
+
                 if AD == true
-                    ex.args = [var_,:phi,indvars..., order, :($θ)]
+                    order = size(derivative_variables)[1]
+                    dim = size(indvars)[1]
+                    indvars_ =  if length(indvars)==1
+                        [ indvars..., nothing]
+                    else
+                         indvars
+                    end
+                    num_var =  undv[1]
+                    # phi,x,y,θ,order,num_var,dim
+                    ex.args = [var_,:phi,indvars_..., :($θ), order, num_var,dim]
                 else
                     ex.args = if !(typeof(chain) <: AbstractVector)
                         [var_, :phi, :u, Symbol(:cord, num_depvar), εs_dnv, order, :($θ)]
@@ -901,40 +910,51 @@ end
 
 function derivative_x(f,θ,order)
     if order > 1
-        return (x,y,θ) -> ForwardDiff.derivative(y->derivative(f,θ,order-1)(x,y,θ),x)
+        return (x,y,θ) -> ForwardDiff.derivative(x->derivative_x(f,θ,order-1)(x,y,θ),x)
     else
-        return (x,y,θ) -> ForwardDiff.derivative(y->f(x,y,θ),x)[1]
+        return (x,y,θ) -> ForwardDiff.derivative(x->f(x,y,θ),x)[1]
     end
 end
 function derivative_y(f,θ,order)
     if order > 1
-        return (x,y,θ) -> ForwardDiff.derivative(y->derivative(f,θ,order-1)(x,y,θ),y)
+        return (x,y,θ) -> ForwardDiff.derivative(y->derivative_y(f,θ,order-1)(x,y,θ),y)
     else
         return (x,y,θ) -> ForwardDiff.derivative(y->f(x,y,θ),y)[1]
     end
 end
 
-function derivative_broadcast(f,θ,order)
+function derivative_broadcast_1dim(f,θ,order)
     der = derivative(f,θ,order)
     (x,θ) -> der.(x,Ref(θ))
 end
 
+function derivative_broadcast_2dim(f,θ,order,num_var)
+    der = if num_var == 1
+        derivative_x(f,θ,order)
+    elseif num_var == 2
+        derivative_y(f,θ,order)
+    else
+        @error "dim > 2 doesn't support yet"
+    end
+    (x,y,θ) -> der.(x,y,Ref(θ))
+end
+
 function get_ForwardDiff_AD_derivative()
     derivative =
-        (phi,x,order,θ) ->
+        (phi,x,y,θ,order,num_var,dim) ->
         begin
-           der = derivative_broadcast(phi,θ,order)
-           der(x,θ)
+           if dim == 1
+               der= derivative_broadcast_1dim(phi,θ,order)
+               return der(x,θ)
+           elseif dim == 2
+               u = (x,y,θ) -> phi(vcat(x,y), θ)
+               der = derivative_broadcast_2dim(u,θ,order,num_var)
+               return der(x,y,θ)
+           else
+               @error "dim > 2 doesn't support yet"
+           end
         end
 end
-# u = (c,θ) ->phi(c, initθ)[1]
-# f = (x,θ) ->x^4
-# fb1 = derivative_broadcast(f ,initθ,1)
-# # x^4, 4x^3, 12x^2, 24x
-# # # x,y = rand(1,10),rand(1,10)
-# fb1(2,initθ)
-# der = get_ForwardDiff_AD_derivative()
-# der(f,x,3, nothing)
 
 # the method to calculate the derivative
 function get_numeric_derivative()
