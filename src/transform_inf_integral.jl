@@ -71,11 +71,6 @@ function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars, dic
             _semiup = .!lbb .& ubb
             _semilw = lbb  .& .!ubb
 
-            ϵ = cbrt(eps(eltypeθ))
-
-            lb = 0.00.*_semiup + (-1.00+ϵ).*_inf + (-1.00+ϵ).*_semilw +  _none.*lb
-            ub = (1.00-ϵ).*_semiup + (1.00-ϵ).*_inf  + 0.00.*_semilw  + _none.*ub
-
             function transform_indvars(t)
                 if _none[1]
                     return t
@@ -89,6 +84,11 @@ function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars, dic
             end
 
             dict_transformation_vars, transformation_vars, integrating_var_transformation = transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable,transform_indvars)
+
+            ϵ = cbrt(eps(eltypeθ))
+
+            lb = 0.00.*_semiup + (-1.00+ϵ).*_inf + (-1.00+ϵ).*_semilw +  _none.*lb
+            ub = (1.00-ϵ).*_semiup + (1.00-ϵ).*_inf  + 0.00.*_semilw  + _none.*ub
 
             j = get_inf_transformation_jacobian(integrating_var_transformation, _inf, _semiup, _semilw)     
             
