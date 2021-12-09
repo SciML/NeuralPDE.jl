@@ -220,22 +220,16 @@ bcs = [u(1) ~ 1, u(2) ~ 1/4]
 chain = FastChain(FastDense(1, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.05), init_params= initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.1), init_params= initθ)
 @named pde_system = PDESystem(eqs_, bcs, domains, [x], [u(x)])
 prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
-
-cb = function (p,l)
-    println("Current loss is: $l")
-    return false
-end
-
 res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict  = [first(phi([x],res.minimizer)) for x in xs]
 u_real  = [1/x^2 for x in xs]
-@test Flux.mse(u_real, u_predict) < 0.001
+@test Flux.mse(u_real, u_predict) < 0.01
 
 
 println("Improper (Inf, -Inf) Integral Test")
@@ -253,19 +247,13 @@ bcs = [u(1) ~ 1/(exp(1)), u(2) ~ 2/exp(4)]
 chain = FastChain(FastDense(1, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.05), init_params= initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.1), init_params= initθ)
 @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
 prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
-
-cb = function (p,l)
-    println("Current loss is: $l")
-    return false
-end
-
 res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict  = [first(phi([x],res.minimizer)) for x in xs]
-u_real  = [1/x^2 for x in xs]
+u_real  = [x*exp(-x^2) for x in xs]
 @test Flux.mse(u_real, u_predict) < 0.01
