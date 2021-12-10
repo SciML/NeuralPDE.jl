@@ -219,7 +219,7 @@ bcs = [u(1.) ~ exp(1)/(exp(2) + 3)]
 # Neural Network
 chain = FastChain(FastDense(1, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
- 
+
 discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.1), init_params= initθ)
 @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
 prob = SciMLBase.symbolic_discretize(pde_system, discretization)
@@ -241,7 +241,7 @@ eqs = I(u(x)) ~ 0
 
 domains = [x ∈ Interval(1.0, 2.0)]
 
-bcs = [u(1) ~ 1/(exp(1)), u(2) ~ 2/exp(4)]
+bcs = [u(1) ~ 1/(exp(1))]
 
 # Neural Network
 chain = FastChain(FastDense(1, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))

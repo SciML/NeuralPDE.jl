@@ -57,43 +57,44 @@ function get_inf_transformation_jacobian(integrating_variable, _inf, _semiup, _s
 end
 
 function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable, eltypeθ; dict_transformation_vars = nothing, transformation_vars = nothing)
-    if !(Num in typeof.(lb)) && !(Num in typeof.(ub))
-        if -Inf in lb || Inf in ub
+    lb_ = Symbolics.tosymbol.(lb)
+    ub_ = Symbolics.tosymbol.(ub)
 
-            if !(integrating_variable isa Array)
-                integrating_variable = [integrating_variable]
-            end
+    if -Inf in lb_ || Inf in ub_
 
-            lbb = lb .== -Inf
-            ubb = ub .== Inf
-            _none = .!lbb .& .!ubb
-            _inf = lbb .& ubb
-            _semiup = .!lbb .& ubb
-            _semilw = lbb  .& .!ubb
-
-            function transform_indvars(t)
-                if _none[1]
-                    return t
-                elseif _inf[1]
-                    return v_inf(t)
-                elseif _semiup[1]
-                    return v_semiinf(t , lb , 1)
-                elseif _semilw[1]
-                    return v_semiinf(t , ub , 0)
-                end
-            end
-
-            dict_transformation_vars, transformation_vars, integrating_var_transformation = transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable,transform_indvars)
-
-            ϵ = cbrt(eps(eltypeθ))
-
-            lb = 0.00.*_semiup + (-1.00+ϵ).*_inf + (-1.00+ϵ).*_semilw +  _none.*lb
-            ub = (1.00-ϵ).*_semiup + (1.00-ϵ).*_inf  + 0.00.*_semilw  + _none.*ub
-
-            j = get_inf_transformation_jacobian(integrating_var_transformation, _inf, _semiup, _semilw)     
-            
-            integrating_ex = Expr(:call, :*, integrating_ex, j...)
+        if !(integrating_variable isa Array)
+            integrating_variable = [integrating_variable]
         end
+
+        lbb = lb_ .=== -Inf
+        ubb = ub_ .=== Inf
+        _none = .!lbb .& .!ubb
+        _inf = lbb .& ubb
+        _semiup = .!lbb .& ubb
+        _semilw = lbb  .& .!ubb
+
+        function transform_indvars(t)
+            if _none[1]
+                return t
+            elseif _inf[1]
+                return v_inf(t)
+            elseif _semiup[1]
+                return v_semiinf(t , lb , 1)
+            elseif _semilw[1]
+                return v_semiinf(t , ub , 0)
+            end
+        end
+
+        dict_transformation_vars, transformation_vars, integrating_var_transformation = transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable,transform_indvars)
+
+        ϵ = cbrt(eps(eltypeθ))
+
+        lb = 0.00.*_semiup + (-1.00+ϵ).*_inf + (-1.00+ϵ).*_semilw +  _none.*lb
+        ub = (1.00-ϵ).*_semiup + (1.00-ϵ).*_inf  + 0.00.*_semilw  + _none.*ub
+
+        j = get_inf_transformation_jacobian(integrating_var_transformation, _inf, _semiup, _semilw)     
+        
+        integrating_ex = Expr(:call, :*, integrating_ex, j...)
     end
 
     return lb, ub, integrating_ex, dict_transformation_vars, transformation_vars
