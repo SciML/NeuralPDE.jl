@@ -241,7 +241,7 @@ eqs = I(u(x)) ~ 0
 
 domains = [x ∈ Interval(1.0, 2.0)]
 
-bcs = [u(1) ~ 1/(exp(1))]
+bcs = [u(1) ~ 1/(exp(1)), u(2) ~ 2/exp(4)]
 
 # Neural Network
 chain = FastChain(FastDense(1, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))
