@@ -87,7 +87,7 @@ function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars, dic
 
         dict_transformation_vars, transformation_vars, integrating_var_transformation = transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable,transform_indvars)
 
-        ϵ = cbrt(eps(eltypeθ))
+        ϵ = 1/20 #cbrt(eps(eltypeθ))
 
         lb = 0.00.*_semiup + (-1.00+ϵ).*_inf + (-1.00+ϵ).*_semilw +  _none.*lb
         ub = (1.00-ϵ).*_semiup + (1.00-ϵ).*_inf  + 0.00.*_semilw  + _none.*ub
