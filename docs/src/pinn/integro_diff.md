@@ -35,7 +35,7 @@ Ix = Integral((x,y) in DomainSets.ProductDomain(ClosedInterval(0 ,1), ClosedInte
 Lets take an example of an integro differential equation:
 
 ```math
-\frac{∂}{∂x} u(x)  + 2u(x) + 5 \int_{0}^{x}u(t)dt = 1 for x \geq 0
+\frac{∂}{∂t} u(t)  + 2u(t) + 5 \int_{0}^{x}u(t)dt = 1 for t \geq 0
 ```
 
 and boundary condition
