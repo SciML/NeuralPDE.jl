@@ -79,3 +79,43 @@ end
     @test isapprox(hess_phi[2], dphi_xy, atol=1e-5)
     @test isapprox(hess_phi[4], dphi_yy, atol=1e-5)
 end
+
+
+@testset "Integral" begin
+    #semi-infinite intervals
+    @parameters x
+    @variables u(..)
+    I = Integral(x in ClosedInterval(0, Inf))
+    eq = I(u(x)) ~ 0
+    bcs = [u(1.) ~ exp(1)/(exp(2) + 3)]
+    domains = [x ∈ Interval(1.0, 2.0)]
+    chain = FastChain((x,p) -> exp.(x) ./ (exp.(2 .*x) .+ 3))
+    chain([1],Float64[])
+    strategy_ = NeuralPDE.GridTraining(0.1)
+    discretization = NeuralPDE.PhysicsInformedNN(chain,strategy_;init_params = Float64[])
+    @named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
+    sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
+    prob = NeuralPDE.discretize(pde_system,discretization)
+    inner_loss =prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents[1].loss_function
+    exact_u = π/(3*sqrt(3))
+    @test  inner_loss(ones(1,1), Float64[])[1] ≈ exact_u  rtol = 1e-5
+
+
+    #infinite intervals
+    @parameters x
+    @variables u(..)
+    I = Integral(x in ClosedInterval(-Inf, Inf))
+    eqs = I(u(x)) ~ 0
+    domains = [x ∈ Interval(1.0, 2.0)]
+    bcs = [u(1) ~ u(1)]
+    chain = FastChain((x,p) -> x .* exp.(-x .^2))
+    chain([1],Float64[])
+
+    discretization = NeuralPDE.PhysicsInformedNN(chain,strategy_;init_params = Float64[])
+    @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
+    prob = SciMLBase.symbolic_discretize(pde_system, discretization)
+    prob = SciMLBase.discretize(pde_system, discretization)
+    inner_loss =prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents[1].loss_function
+    exact_u = 0
+    @test  inner_loss(zeros(1,1), Float64[])[1] ≈ exact_u  rtol = 1e-9
+end
