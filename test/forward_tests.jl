@@ -7,6 +7,7 @@ using DiffEqBase
 using Test, NeuralPDE
 println("Starting Soon!")
 using SciMLBase
+using DomainSets
 import ModelingToolkit: Interval
 
 @testset "ODE" begin
@@ -113,9 +114,9 @@ end
 
     discretization = NeuralPDE.PhysicsInformedNN(chain,strategy_;init_params = Float64[])
     @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
-    prob = SciMLBase.symbolic_discretize(pde_system, discretization)
+    sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
     prob = SciMLBase.discretize(pde_system, discretization)
     inner_loss =prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents[1].loss_function
     exact_u = 0
-    @test  inner_loss(zeros(1,1), Float64[])[1] ≈ exact_u  rtol = 1e-9
+    @test  inner_loss(ones(1,1), Float64[])[1] ≈ exact_u  rtol = 1e-9
 end
