@@ -167,7 +167,6 @@ println("Two variables Integral Test")
 @variables u(..) w(..)
 Dx = Differential(x)
 Ix = Integral(x in DomainSets.ClosedInterval(1, x))
-# Iinf = Integral(x in DomainSets.ClosedInterval(1, Inf))
 
 eqs =  [Ix(u(x)*w(x)) ~ log(abs(x)),
         Dx(w(x)) ~ -2/(x^3),
@@ -205,55 +204,50 @@ w_real  = [1/x^2 for x in xs]
 # plot(xs,w_real)
 # plot!(xs,w_predict)
 
-println("Improper (0, Inf) Integral Test")
-
+## Infinity Integral Test
+println("Infinity Integral Test")
 @parameters x
 @variables u(..)
-I = Integral(x in ClosedInterval(0, Inf))
-eqs = I(u(x)) ~ π/(3*sqrt(3))
-
+I = Integral(x in ClosedInterval(1, x))
+Iinf = Integral(x in ClosedInterval(1, Inf))
+eqs = [I(u(x)) ~ Iinf(u(x)) - 1/x]
+bcs = [u(1) ~ 1]
 domains = [x ∈ Interval(1.0, 2.0)]
-
-bcs = [u(1.) ~ exp(1)/(exp(2) + 3)]
-
-# Neural Network
-chain = FastChain(FastDense(1, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))
+chain = FastChain(FastDense(1, 10, Flux.σ), FastDense(10, 1))
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
-
-discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.1), init_params= initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1), init_params= initθ)
 @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
-prob = SciMLBase.symbolic_discretize(pde_system, discretization)
+sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=300)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict  = [first(phi([x],res.minimizer)) for x in xs]
-u_real  = [exp(x)/(exp(2*x) + 3) for x in xs]
-@test Flux.mse(u_real, u_predict) < 0.01
+u_real  = [1/x^2 for x in xs]
+@test  u_real ≈ u_predict rtol = 10^-2
+# plot(xs,u_real)
+# plot!(xs,u_predict)
 
-
-println("Improper (Inf, -Inf) Integral Test")
-
+## Infinity Integral equation Test
+println("Infinity Integral equation Test")
 @parameters x
 @variables u(..)
-I = Integral(x in ClosedInterval(-Inf, Inf))
-eqs = I(u(x)) ~ 0
-
+I = Integral(x in ClosedInterval(x, Inf))
+eq = I(u(x)) ~ 1/x
 domains = [x ∈ Interval(1.0, 2.0)]
-
-bcs = [u(1) ~ 1/(exp(1)), u(2) ~ 2/exp(4)]
-
-# Neural Network
-chain = FastChain(FastDense(1, 16, Flux.σ), FastDense(16,16,Flux.σ), FastDense(16, 1))
-initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
-
-discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.1), init_params= initθ)
-@named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
-prob = SciMLBase.symbolic_discretize(pde_system, discretization)
+bcs = [u(1) ~ 1]
+chain = FastChain(FastDense(1, 12, Flux.tanh),FastDense(12, 1))
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1), init_params= initθ)
+@named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
+sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+prob.f(initθ, nothing)
+res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=300)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict  = [first(phi([x],res.minimizer)) for x in xs]
-u_real  = [x*exp(-x^2) for x in xs]
-@test Flux.mse(u_real, u_predict) < 0.015
+u_real  = [1/x^2 for x in xs]
+@test  u_real ≈ u_predict rtol = 10^-2
+# plot(xs,u_real)
+# plot!(xs,u_predict)
