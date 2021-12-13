@@ -281,7 +281,8 @@ function _transform_expression(ex,indvars,depvars,
                 end
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
-                indvars = _args[2:end]
+                # indvars_ = _args[2:end]
+                indvars_ = dict_depvar_input[depvar]
                 dict_interior_indvars = Dict([indvar .=> j for (j, indvar) in enumerate(dict_depvar_input[depvar])])
                 dim_l = length(dict_interior_indvars)
 
@@ -291,16 +292,9 @@ function _transform_expression(ex,indvars,depvars,
                 εs_dnv = [εs[d] for d in undv]
 
                 if AD == true
-                    order = size(derivative_variables)[1]
-                    dim = size(indvars)[1]
-                    indvars_ =  if length(indvars)==1
-                        [ indvars..., nothing]
-                    else
-                         indvars
-                    end
-                    num_var =  undv[1]
-                    # phi,x,y,θ,order,num_var,dim
-                    ex.args = [var_,:phi,indvars_..., :($θ), order, num_var,dim]
+                    derivative_expr = parser_derivative(phi,indvars,undv)
+                    der = eval(derivative_expr)
+                    ex.args = [var_,der,:($θ),indvars_...]
                 else
                     ex.args = if !(typeof(chain) <: AbstractVector)
                         [var_, :phi, :u, Symbol(:cord, num_depvar), εs_dnv, order, :($θ)]
@@ -545,6 +539,14 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     end
     vars = :(cord, $θ, phi, derivative, integral,u,p)
     ex = Expr(:block)
+    # if AD ==true
+    #     undv = [1,1]
+    #     derivative_expr = parser_derivative(phi,indvars,undv)
+    #     der = eval(derivative_expr)
+    #     # der(rand(1,10), initθ)
+    #     der_expr = Expr(:(=),:(derivative_), der)
+    #     push!(ex.args,  der_expr)
+    # end
     if typeof(chain) <: AbstractVector
         θ_nums = Symbol[]
         phi_nums = Symbol[]
@@ -655,6 +657,7 @@ function build_loss_function(eqs,indvars,depvars,
                                                        param_estim=param_estim,default_p=default_p,AD=AD)
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
+
     loss_function = (cord, θ) -> begin
         _loss_function(cord, θ, phi, derivative, integral, u, default_p)
     end
@@ -880,81 +883,104 @@ function get_u()
     u = (cord, θ, phi)-> phi(cord, θ)
 end
 
-# function inner_parser_derivative(f,vars,dervars_num, order)
-#     der_vars = vars[dervars_num[order]]
-#     if order > 1
-#         expr =  :(ForwardDiff.derivative($der_vars->$(inner_parser_derivative(f,vars,dervars_num, (order-1))),$der_vars))
-#         return expr
-#     else
-#         expr = :(ForwardDiff.derivative($der_vars->$f($(vars...),θ),$der_vars)[1])
-#         return expr
-#     end
-# end
-#
-# function parser_derivative(f,vars,dervars_num)
-#      order = size(dervars_num)[1]
-#     :(($(vars...),θ) -> $(inner_parser_derivative(f,vars,dervars_num, order)))
-# end
-# function parser_derivative_broadcast(vars,dervars_num,expr_der_func)
-#      # der_func =@RuntimeGeneratedFunction(expr_der_func)
-#     :(($(vars...),θ) -> $(der_func.($(vars...))))
-# end
-
-function derivative(f,θ,order)
+function inner_parser_derivative(f,vars,dervars_num, order)
+    der_var = vars[dervars_num[order]]
+    u = :(($(vars...),θ_) -> $f(vcat($(vars...)),θ_)[1])
     if order > 1
-        return (x,θ) -> ForwardDiff.derivative(x->derivative(f,θ,order-1)(x,θ),x)
+        expr =  :(ForwardDiff.derivative($der_var->$(inner_parser_derivative(f,vars,dervars_num, (order-1))),$der_var))
+        return expr
     else
-        return (x,θ) -> ForwardDiff.derivative(x->f(x,θ),x)[1]
+        expr = :(ForwardDiff.derivative($der_var->$u($(vars...),θ_),$der_var))
+        return expr
     end
 end
 
-function derivative_x(f,θ,order)
-    if order > 1
-        return (x,y,θ) -> ForwardDiff.derivative(x->derivative_x(f,θ,order-1)(x,y,θ),x)
-    else
-        return (x,y,θ) -> ForwardDiff.derivative(x->f(x,y,θ),x)[1]
-    end
-end
-function derivative_y(f,θ,order)
-    if order > 1
-        return (x,y,θ) -> ForwardDiff.derivative(y->derivative_y(f,θ,order-1)(x,y,θ),y)
-    else
-        return (x,y,θ) -> ForwardDiff.derivative(y->f(x,y,θ),y)[1]
-    end
-end
 
-function derivative_broadcast_1dim(f,θ,order)
-    der = derivative(f,θ,order)
-    (x,θ) -> der.(x,Ref(θ))
-end
-
-function derivative_broadcast_2dim(f,θ,order,num_var)
-    der = if num_var == 1
-        derivative_x(f,θ,order)
-    elseif num_var == 2
-        derivative_y(f,θ,order)
-    else
-        @error "dim > 2 doesn't support yet"
-    end
-    (x,y,θ) -> der.(x,y,Ref(θ))
+function parser_derivative(f,vars,dervars_num)
+     order = size(dervars_num)[1]
+    :((θ_,$(vars...)) -> $(inner_parser_derivative(f,vars,dervars_num, order)))
 end
 
 function get_ForwardDiff_AD_derivative()
-    derivative =
-        (phi,x,y,θ,order,num_var,dim) ->
-        begin
-           if dim == 1
-               der= derivative_broadcast_1dim(phi,θ,order)
-               return der(x,θ)
-           elseif dim == 2
-               u = (x,y,θ) -> phi(vcat(x,y), θ)
-               der = derivative_broadcast_2dim(u,θ,order,num_var)
-               return der(x,y,θ)
-           else
-               @error "dim > 2 doesn't support yet"
-           end
-        end
+    derivative = (func,θ_,x...) -> begin
+        func.(Ref(θ_),x...)
+    end
 end
+
+# derivative_expr = parser_derivative(phi,indvars,undv)
+# der = eval(derivative_expr)
+# der(initθ,rand(1,10))
+# derivative_ = get_ForwardDiff_AD_derivative()
+# derivative_(der, initθ, rand(1,10))
+#
+# indvars = [:x,:y]
+# undv = [1]
+# derivative_expr = parser_derivative(phi,indvars,undv)
+# der = eval(derivative_expr)
+# d = der(initθ,1,1)
+# der.(Ref(initθ),ones(1,10),ones(1,10))
+#
+# derivative_ = get_ForwardDiff_AD_derivative()
+# derivative_(der, initθ, rand(1,10),rand(1,10))
+#
+# phi(rand(2,10),initθ)
+
+#
+# function derivative(f,θ,order)
+#     if order > 1
+#         return (x,θ) -> ForwardDiff.derivative(x->derivative(f,θ,order-1)(x,θ),x)
+#     else
+#         return (x,θ) -> ForwardDiff.derivative(x->f(x,θ),x)[1]
+#     end
+# end
+#
+# function derivative_x(f,θ,order)
+#     if order > 1
+#         return (x,y,θ) -> ForwardDiff.derivative(x->derivative_x(f,θ,order-1)(x,y,θ),x)
+#     else
+#         return (x,y,θ) -> ForwardDiff.derivative(x->f(x,y,θ),x)[1]
+#     end
+# end
+# function derivative_y(f,θ,order)
+#     if order > 1
+#         return (x,y,θ) -> ForwardDiff.derivative(y->derivative_y(f,θ,order-1)(x,y,θ),y)
+#     else
+#         return (x,y,θ) -> ForwardDiff.derivative(y->f(x,y,θ),y)[1]
+#     end
+# end
+#
+# function derivative_broadcast_1dim(f,θ,order)
+#     der = derivative(f,θ,order)
+#     (x,θ) -> der.(x,Ref(θ))
+# end
+#
+# function derivative_broadcast_2dim(f,θ,order,num_var)
+#     der = if num_var == 1
+#         derivative_x(f,θ,order)
+#     elseif num_var == 2
+#         derivative_y(f,θ,order)
+#     else
+#         @error "dim > 2 doesn't support yet"
+#     end
+#     (x,y,θ) -> der.(x,y,Ref(θ))
+# end
+
+# function get_ForwardDiff_AD_derivative()
+#     derivative =
+#         (phi,x,y,θ,order,num_var,dim) ->
+#         begin
+#            if dim == 1
+#                der= derivative_broadcast_1dim(phi,θ,order)
+#                return der(x,θ)
+#            elseif dim == 2
+#                u = (x,y,θ) -> phi(vcat(x,y), θ)
+#                der = derivative_broadcast_2dim(u,θ,order,num_var)
+#                return der(x,y,θ)
+#            else
+#                @error "dim > 2 doesn't support yet"
+#            end
+#         end
+# end
 
 # the method to calculate the derivative
 function get_numeric_derivative()
@@ -1202,9 +1228,8 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     # dimensionality of equation
     dim = length(domains)
 
-    #TODO fix it in MTK 6.0.0+v: ModelingToolkit.get_ivs(pde_system)
-     depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = get_vars(pde_system.ivs,
-                                                         pde_system.dvs)
+    depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = get_vars(pde_system.ivs,
+                                                                            pde_system.dvs)
 
     chain = discretization.chain
     initθ = discretization.init_params

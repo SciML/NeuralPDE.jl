@@ -82,9 +82,11 @@ quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100;
 strategies = [grid_strategy,stochastic_strategy,quasirandom_strategy,quasirandom_strategy_resampling] #quadrature_strategy
 #TODO # quadrature_strategy get NaN
 
-map(strategies) do strategy_
-    test_ode(strategy_)
-end
+# map(strategies) do strategy_
+#     test_ode(strategy_)
+# end
+#
+# test_ode(quadrature_strategy)
 
 println("3rd-order ode")
 @parameters x
@@ -103,6 +105,11 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,strategy;init_params = initθ
 @named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+inner_loss =prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents[1]
+inner_loss(initθ)
+inner_lossbcs =prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents[1]
+inner_lossbcs(initθ)
+prob.f(initθ, nothing)
 res = GalacticOptim.solve(prob, BFGS();cb=cb, maxiters=1000)
 phi = discretization.phi
 
@@ -126,7 +133,7 @@ bcs = [u(0,y) ~ 0.0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
 	   u(x,0) ~ 0.0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
 domains = [x ∈ Interval(0.0,1.0),
 		   y ∈ Interval(0.0,1.0)]
-chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain_))
 strategy_ = NeuralPDE.GridTraining(0.1)
 # quasirandom_strategy = NeuralPDE.QuasiRandomTraining(50;sampling_alg = LatticeRuleSample())
@@ -140,10 +147,11 @@ discretization = NeuralPDE.PhysicsInformedNN(chain_,
 prob = NeuralPDE.discretize(pde_system,discretization)
 prob.f(initθ, nothing)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, ADAM(0.1);cb=cb, maxiters=500)
-prob = remake(prob,u0=res.minimizer)
+# res = GalacticOptim.solve(prob, ADAM(0.1);cb=cb, maxiters=500)
+# prob = remake(prob,u0=res.minimizer)
 res = GalacticOptim.solve(prob, BFGS();cb=cb, maxiters=1000)
 phi = discretization.phi
+phi(rand(2,10),initθ)
 
 xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
@@ -159,54 +167,53 @@ diff_u = abs.(u_predict .- u_real)
 # p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 # plot(p1,p2,p3)
 
-#TODO too long
-# ##Kuramoto–Sivashinsky equation
-# @parameters x, t
-# @variables u(..)
-# Dt = Differential(t)
-# Dx = Differential(x)
-# Dx2 = Differential(x)^2
-# Dx3 = Differential(x)^3
-# Dx4 = Differential(x)^4
-#
-# α = 1
-# β = 4
-# γ = 1
-# eq = Dt(u(x,t)) + u(x,t)*Dx(u(x,t)) + α*Dx2(u(x,t)) + β*Dx3(u(x,t)) + γ*Dx4(u(x,t)) ~ 0
-#
-# u_analytic(x,t;z = -x/2+t) = 11 + 15*tanh(z) -15*tanh(z)^2 - 15*tanh(z)^3
-# du(x,t;z = -x/2+t) = 15/2*(tanh(z) + 1)*(3*tanh(z) - 1)*sech(z)^2
-#
-# bcs = [u(x,0) ~ u_analytic(x,0),
-#        u(-10,t) ~ u_analytic(-10,t),
-#        u(10,t) ~ u_analytic(10,t),
-#        Dx(u(-10,t)) ~ du(-10,t),
-#        Dx(u(10,t)) ~ du(10,t)]
-# domains = [x ∈ Interval(-10.0,10.0),
-#            t ∈ Interval(0.0,1.0)]
-#
-# dx = 0.4; dt = 0.2
-# strategy = NeuralPDE.GridTraining([dx,dt])
-# chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
-# initθ = Float64.(DiffEqFlux.initial_params(chain))
-# discretization = NeuralPDE.PhysicsInformedNN(chain,strategy ,init_params = initθ, AD =true)
-# @named pde_system = PDESystem(eq,bcs,domains,[x,t],[u(x, t)])
-# prob = NeuralPDE.discretize(pde_system,discretization)
-# prob.f(initθ, nothing)
-# sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-# res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=200)
-# prob = remake(prob,u0=res.minimizer)
-# res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=100)
-# phi = discretization.phi
-#
-# xs,ts = [infimum(d.domain):dx:supremum(d.domain) for (d,dx) in zip(domains,[dx/10,dt])]
-# u_predict = [[first(phi([x,t],res.minimizer)) for x in xs] for t in ts]
-# u_real = [[u_analytic(x,t) for x in xs] for t in ts]
-# diff_u = [[abs(u_analytic(x,t) -first(phi([x,t],res.minimizer)))  for x in xs] for t in ts]
-#
-# @test u_predict ≈ u_real rtol = 10^-2
-#
-# # p1 =plot(xs,u_predict,title = "predict")
-# # p2 =plot(xs,u_real,title = "analytic")
-# # p3 =plot(xs,diff_u,title = "error")
-# # plot(p1,p2,p3)
+##Kuramoto–Sivashinsky equation
+@parameters x, t
+@variables u(..)
+Dt = Differential(t)
+Dx = Differential(x)
+Dx2 = Differential(x)^2
+Dx3 = Differential(x)^3
+Dx4 = Differential(x)^4
+
+α = 1
+β = 4
+γ = 1
+eq = Dt(u(x,t)) + u(x,t)*Dx(u(x,t)) + α*Dx2(u(x,t)) + β*Dx3(u(x,t)) + γ*Dx4(u(x,t)) ~ 0
+
+u_analytic(x,t;z = -x/2+t) = 11 + 15*tanh(z) -15*tanh(z)^2 - 15*tanh(z)^3
+du(x,t;z = -x/2+t) = 15/2*(tanh(z) + 1)*(3*tanh(z) - 1)*sech(z)^2
+
+bcs = [u(x,0) ~ u_analytic(x,0),
+       u(-10,t) ~ u_analytic(-10,t),
+       u(10,t) ~ u_analytic(10,t),
+       Dx(u(-10,t)) ~ du(-10,t),
+       Dx(u(10,t)) ~ du(10,t)]
+domains = [x ∈ Interval(-10.0,10.0),
+           t ∈ Interval(0.0,1.0)]
+
+dx = 0.4; dt = 0.2
+strategy = NeuralPDE.GridTraining([dx,dt])
+chain = FastChain(FastDense(2,8,Flux.σ),FastDense(8,1))
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+discretization = NeuralPDE.PhysicsInformedNN(chain,strategy ,init_params = initθ, AD =true)
+@named pde_system = PDESystem(eq,bcs,domains,[x,t],[u(x, t)])
+prob = NeuralPDE.discretize(pde_system,discretization)
+prob.f(initθ, nothing)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=200)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=100)
+phi = discretization.phi
+
+xs,ts = [infimum(d.domain):dx:supremum(d.domain) for (d,dx) in zip(domains,[dx/10,dt])]
+u_predict = [[first(phi([x,t],res.minimizer)) for x in xs] for t in ts]
+u_real = [[u_analytic(x,t) for x in xs] for t in ts]
+diff_u = [[abs(u_analytic(x,t) -first(phi([x,t],res.minimizer)))  for x in xs] for t in ts]
+
+@test u_predict ≈ u_real rtol = 10^-2
+
+# p1 =plot(xs,u_predict,title = "predict")
+# p2 =plot(xs,u_real,title = "analytic")
+# p3 =plot(xs,diff_u,title = "error")
+# plot(p1,p2,p3)
