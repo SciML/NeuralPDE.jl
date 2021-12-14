@@ -252,8 +252,8 @@ prob.f(flat_initθ, nothing)
 # ForwardDiff.gradient(θ -> prob.f(θ, nothing),flat_initθ)
 
 res = GalacticOptim.solve(prob,BFGS();cb=cb, maxiters=1000)
-# prob = remake(prob,u0=res.minimizer)
-# res = GalacticOptim.solve(prob,BFGS();cb=cb, maxiters=1000)
+prob = remake(prob,u0=res.minimizer)
+res = GalacticOptim.solve(prob,BFGS();cb=cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
@@ -267,8 +267,8 @@ minimizers = [res.minimizer[s] for s in sep]
 u_predict  = [[phi[i]([x,y],minimizers[i])[1] for x in xs  for y in ys] for i in 1:2]
 
 error_  = u_predict .- u_real
-@test u_predict[1] ≈ u_real[1] rtol = 10^-4
-@test u_predict[2] ≈ u_real[2] rtol = 10^-4
+@test u_predict[1] ≈ u_real[1] rtol = 10^-3
+@test u_predict[2] ≈ u_real[2] rtol = 10^-3
 
 # p1 =plot(xs, ys, u_predict, st=:surface);
 # p2 = plot(xs, ys, u_real, st=:surface);
