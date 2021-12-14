@@ -297,9 +297,6 @@ function _transform_expression(ex,indvars,depvars,
                         der = eval(derivative_expr)
                         [var_,der,:($θ),indvars_...]
                     else
-                        @show num_depvar
-                        @show indvars
-                        @show undv
                         derivative_expr = parser_derivative(phi[num_depvar],indvars_,undv)
                         der = eval(derivative_expr)
                         # der.(Ref(initθ[2]), rand(1,10),rand(1,10))

@@ -249,11 +249,11 @@ sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
 flat_initθ = reduce(vcat,initθ)
 prob.f(flat_initθ, nothing)
-ForwardDiff.gradient(θ -> prob.f(θ, nothing),flat_initθ)
+# ForwardDiff.gradient(θ -> prob.f(θ, nothing),flat_initθ)
 
 res = GalacticOptim.solve(prob,BFGS();cb=cb, maxiters=1000)
-prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,BFGS();cb=cb, maxiters=1000)
+# prob = remake(prob,u0=res.minimizer)
+# res = GalacticOptim.solve(prob,BFGS();cb=cb, maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
