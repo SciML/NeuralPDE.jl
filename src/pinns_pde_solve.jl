@@ -299,10 +299,8 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                     end
                 end
 
-                lb, ub = get_limits(_args[1].domain.domain) 
-                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb, ub, integrating_variable, _args[2], indvars, depvars, 
-                                                                                                        dict_indvars, dict_depvars, dict_depvar_input,
-                                                                                                        phi, derivative_, chain, initθ, strategy, integrating_depvars)            
+                lb, ub = get_limits(_args[1].domain.domain)
+                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb, ub, _args[2],integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable, eltypeθ)            
 
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
                 integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
@@ -593,12 +591,6 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
             push!(transformation_expr_, :($i = $u))
         end
         transformation_expr = Expr(:block, :($(transformation_expr_...)))
-
-        @show vcat_expr
-        vcat_expr = quote
-                cord1 = vcat(x2)
-                end
-                
         vcat_expr_loss_functions = Expr(:block, transformation_expr, vcat_expr, loss_function)
     end
 
