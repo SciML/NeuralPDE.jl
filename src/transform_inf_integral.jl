@@ -5,6 +5,7 @@ function transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars
     dict_transformation_vars = Dict()
     dict_depvar_input_ = Dict()
     integrating_var_transformation = []
+    j = 1
 
     for depvar in integrating_depvars
         indvars = dict_depvar_input[depvar]
@@ -12,9 +13,10 @@ function transform_inf_expr(integrating_depvars, dict_depvar_input, dict_depvars
 
         for i in 1:length(indvars)
             if indvars[i] ∈ integrating_variables
-                push!(ans, τs[i])
-                push!(integrating_var_transformation, τs[i])
-                dict_transformation_vars[indvars[i]] = transform(τs[i])
+                push!(ans, τs[j])
+                push!(integrating_var_transformation, τs[j])
+                dict_transformation_vars[indvars[i]] = transform(τs[j])
+                j += 1
             else
                 push!(ans, indvars[i])
             end
