@@ -546,14 +546,6 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     end
     vars = :(cord, $θ, phi, derivative, integral,u,p)
     ex = Expr(:block)
-    # if AD ==true
-    #     undv = [1,1]
-    #     derivative_expr = parser_derivative(phi,indvars,undv)
-    #     der = eval(derivative_expr)
-    #     # der(rand(1,10), initθ)
-    #     der_expr = Expr(:(=),:(derivative_), der)
-    #     push!(ex.args,  der_expr)
-    # end
     if typeof(chain) <: AbstractVector
         θ_nums = Symbol[]
         phi_nums = Symbol[]
@@ -914,25 +906,6 @@ function get_ForwardDiff_AD_derivative()
     end
 end
 
-# derivative_expr = parser_derivative(phi,indvars,undv)
-# der = eval(derivative_expr)
-# der(initθ,rand(1,10))
-# derivative_ = get_ForwardDiff_AD_derivative()
-# derivative_(der, initθ, rand(1,10))
-#
-# indvars = [:x,:y]
-# undv = [1]
-# derivative_expr = parser_derivative(phi,indvars,undv)
-# der = eval(derivative_expr)
-# d = der(initθ,1,1)
-# der.(Ref(initθ),ones(1,10),ones(1,10))
-#
-# derivative_ = get_ForwardDiff_AD_derivative()
-# derivative_(der, initθ, rand(1,10),rand(1,10))
-#
-# phi(rand(2,10),initθ)
-
-#
 # function derivative(f,θ,order)
 #     if order > 1
 #         return (x,θ) -> ForwardDiff.derivative(x->derivative(f,θ,order-1)(x,θ),x)
