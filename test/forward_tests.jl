@@ -7,6 +7,7 @@ using DiffEqBase
 using Test, NeuralPDE
 println("Starting Soon!")
 using SciMLBase
+using ForwardDiff
 import ModelingToolkit: Interval
 
 @testset "ODE" begin
