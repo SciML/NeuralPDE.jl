@@ -61,9 +61,9 @@ end
     dphi_x = derivative(phi,u_,[1.,2.],[eps_x],1,initθ)
     dphi_y = derivative(phi,u_,[1.,2.],[eps_y],1,initθ)
 
-    #first order derivatives
-    @test isapprox(dphi[1][1], dphi_x, atol=1e-8)
-    @test isapprox(dphi[1][2], dphi_y, atol=1e-8)
+    #first order numeric derivatives
+    @test isapprox(dphi[1][1], dphi_x, atol=1e-9)
+    @test isapprox(dphi[1][2], dphi_y, atol=1e-9)
 
     dphi_x = derivative(phi,u_,[1.,2.],[[ 0.0049215667, 0.0]],1,initθ)
     dphi_y = derivative(phi,u_,[1.,2.],[[0.0,  0.0049215667]],1,initθ)
@@ -74,8 +74,21 @@ end
     dphi_xy = derivative(phi,u_,[1.,2.],[eps_x,eps_y],2,initθ)
     dphi_yy = derivative(phi,u_,[1.,2.],[eps_y,eps_y],2,initθ)
 
-    #second order derivatives
+    #second order numeric derivatives
     @test isapprox(hess_phi[1], dphi_xx, atol=1e-5)
     @test isapprox(hess_phi[2], dphi_xy, atol=1e-5)
     @test isapprox(hess_phi[4], dphi_yy, atol=1e-5)
+
+    #second order derivatives AD
+    dphi_xad = eval(NeuralPDE.parser_derivative(phi,[:x,:y],[1]))
+    dphi_yad = eval(NeuralPDE.parser_derivative(phi,[:x,:y],[2]))
+    dphi_xxad = eval(NeuralPDE.parser_derivative(phi,[:x,:y],[1,1]))
+    dphi_yyad = eval(NeuralPDE.parser_derivative(phi,[:x,:y],[2,2]))
+    dphi_xyad = eval(NeuralPDE.parser_derivative(phi,[:x,:y],[1,2]))
+    dphi_yxad = eval(NeuralPDE.parser_derivative(phi,[:x,:y],[2,1]))
+
+    @test isapprox(hess_phi[1], dphi_xxad(initθ,1,2), atol=1e-9)
+    @test isapprox(hess_phi[4], dphi_yyad(initθ,1,2), atol=1e-9)
+    @test isapprox(hess_phi[2], dphi_xyad(initθ,1,2), atol=1e-9)
+    @test isapprox(hess_phi[2], dphi_yxad(initθ,1,2), atol=1e-9)
 end

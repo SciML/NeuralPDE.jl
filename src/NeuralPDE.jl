@@ -186,6 +186,6 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        build_loss_function, get_loss_function,
        generate_training_sets, get_variables, get_argument, get_bounds
        get_phi, get_numeric_derivative, get_numeric_integral
-       build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize
+       build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize, parser_derivative
 
 end # module
