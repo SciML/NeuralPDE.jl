@@ -208,9 +208,8 @@ w_real  = [1/x^2 for x in xs]
 println("Infinity Integral Test")
 @parameters x
 @variables u(..)
-I = Integral(x in ClosedInterval(1, x))
-Iinf = Integral(x in ClosedInterval(1, Inf))
-eqs = [I(u(x)) ~ Iinf(u(x)) - 1/x]
+I = Integral(x in ClosedInterval(x, Inf))
+eqs = [I(u(x)) ~ 1/x]
 bcs = [u(1) ~ 1]
 domains = [x ∈ Interval(1.0, 2.0)]
 chain = FastChain(FastDense(1, 10, Flux.σ), FastDense(10, 1))
