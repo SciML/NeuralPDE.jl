@@ -1191,9 +1191,13 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
 
     symbolic_pde_loss_functions = [build_symbolic_loss_function(eq,indvars,depvars,
                                                                 dict_indvars,dict_depvars,dict_depvar_input,
-                                                                phi, derivative,integral, chain,initθ,strategy;eq_params=eq_params,param_estim=param_estim,default_p=default_p,
-                                                                bc_indvars=pde_indvar, integration_indvars=integration_indvar,AD=AD
-                                                                ) for (eq, pde_indvar, integration_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
+                                                                phi, derivative,integral, chain,initθ,strategy;
+                                                                eq_params=eq_params,
+                                                                param_estim=param_estim,
+                                                                default_p=default_p,
+                                                                bc_indvars=pde_indvar,
+                                                                AD=AD
+                                                                ) for (eq, pde_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
 
     bc_indvars = if strategy isa QuadratureTraining
          get_argument(bcs,dict_indvars,dict_depvars)
@@ -1203,14 +1207,14 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
     bc_integration_vars = get_integration_variables(bcs, dict_indvars, dict_depvars)
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars, dict_depvar_input,
-                                                               phi, derivative,integral,chain,initθ,strategy,
+                                                               phi, derivative,integral,chain,initθ,strategy;
                                                                eq_params=eq_params,
                                                                param_estim=param_estim,
-                                                               default_p=default_p;
+                                                               default_p=default_p,
                                                                bc_indvars=bc_indvar,
-                                                               integration_indvars=integration_indvar,AD=AD)
-                                                               for (bc, bc_indvar, integration_indvar) in zip(bcs, bc_indvars, bc_integration_vars)]
-    
+                                                               AD=AD)
+                                                               for (bc, bc_indvar) in zip(bcs, bc_indvars, bc_integration_vars)]
+
     symbolic_pde_loss_functions, symbolic_bc_loss_functions
 end
 
@@ -1256,8 +1260,13 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
    pde_integration_vars = get_integration_variables(eqs, dict_indvars, dict_depvars)
    _pde_loss_functions = [build_loss_function(eq,indvars,depvars,
                                              dict_indvars,dict_depvars,dict_depvar_input,
-                                             phi, derivative,integral, chain, initθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p,
-                                             bc_indvars=pde_indvar, integration_indvars=integration_indvar,AD=AD
+                                             phi, derivative,integral, chain, initθ,strategy,
+                                             eq_params=eq_params,
+                                             param_estim=param_estim,
+                                             default_p=default_p,
+                                             bc_indvars=pde_indvar,
+                                             integration_indvars=integration_indvar,
+                                             AD=AD
                                              ) for (eq, pde_indvar, integration_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
     bc_indvars = if strategy isa QuadratureTraining
          get_argument(bcs,dict_indvars,dict_depvars)
@@ -1273,7 +1282,9 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                                               param_estim=param_estim,
                                               default_p=default_p,
                                               bc_indvars=bc_indvar,
-                                              integration_indvars=integration_indvar,AD=AD) for (bc, bc_indvar, integration_indvar) in zip(bcs, bc_indvars, bc_integration_vars)]
+                                              integration_indvars=integration_indvar,
+                                              AD=AD
+                                              ) for (bc, bc_indvar, integration_indvar) in zip(bcs, bc_indvars, bc_integration_vars)]
 
     pde_loss_functions, bc_loss_functions =
     if strategy isa GridTraining
