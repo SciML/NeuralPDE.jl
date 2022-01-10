@@ -38,7 +38,7 @@ Consider `du/dt = l(u) + f(u)`; where l is the nonlinear Lipschitz function
 * `x0`: The initial X for the problem.
 * `tspan`: The timespan of the problem.
 """
-struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,A,UD,K} <: DiffEqBase.DEProblem
+struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,A,UD,K} <: SciMLBase.SciMLProblem
     g::G
     f::F
     μ::Mu
