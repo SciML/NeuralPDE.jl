@@ -105,6 +105,7 @@ import ModelingToolkit: Interval, infimum, supremum
 @variables u(..) Dxu(..) Dtu(..) O1(..) O2(..)
 Dxx = Differential(x)^2
 Dtt = Differential(t)^2
+Dx = Differential(x)
 Dt = Differential(t)
 
 # Constants

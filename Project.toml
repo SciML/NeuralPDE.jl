@@ -1,7 +1,7 @@
 name = "NeuralPDE"
 uuid = "315f7962-48a3-4962-8226-d0f33b1235f0"
 authors = ["Chris Rackauckas <accounts@chrisrackauckas.com>"]
-version = "4.2.0"
+version = "4.4.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -38,7 +38,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 Adapt = "2.0, 3.0"
-ArrayInterface = "3.1"
+ArrayInterface = "3.1, 4"
 CUDA = "3.0"
 Cuba = "2.1.0"
 Cubature = "1.5.1"
