@@ -163,9 +163,9 @@ cb = function (p, l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); maxiters=2000)
+res = GalacticOptim.solve(prob, BFGS();cb=cb, maxiters=2000)
 prob = remake(prob, u0=res.minimizer)
-res = GalacticOptim.solve(prob, BFGS(); maxiters=2000)
+res = GalacticOptim.solve(prob, BFGS();cb=cb, maxiters=2000)
 
 phi = discretization.phi[1]
 
