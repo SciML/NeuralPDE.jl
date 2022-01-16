@@ -98,7 +98,6 @@ with grid discretization `dx = 0.05` and physics-informed neural networks. Here 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
 using Plots, Printf
-using Quadrature,Cubature, Cuba
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -136,13 +135,18 @@ domains = [t ∈ Interval(0.0, L),
            x ∈ Interval(0.0, L)]
 
 # Neural network
-chain = [[FastChain(FastDense(2, 16, Flux.tanh), FastDense(16, 16, Flux.tanh), FastDense(16, 16, Flux.tanh), FastDense(16, 1)) for _ in 1:3];
-         [FastChain(FastDense(2, 6, Flux.tanh), FastDense(6, 1)) for _ in 1:2];]
+inn = 25
+innd = 4
+chain = [[FastChain(FastDense(2, inn, Flux.tanh),
+                    FastDense(inn, inn, Flux.tanh),
+                    FastDense(inn, inn, Flux.tanh),
+                    FastDense(inn, 1)) for _ in 1:3];
+         [FastChain(FastDense(2, innd, Flux.tanh), FastDense(innd, 1)) for _ in 1:2];]
 
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-dx = 0.05
-strategy = GridTraining(dx)
+strategy = GridTraining(0.02)
+
 discretization = PhysicsInformedNN(chain, strategy; init_params=initθ)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x), Dxu(t, x), Dtu(t, x), O1(t, x), O2(t, x)])
@@ -159,15 +163,14 @@ cb = function (p, l)
     return false
 end
 
-# Optimizer
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=1000)
+res = GalacticOptim.solve(prob, BFGS(); maxiters=2000)
 prob = remake(prob, u0=res.minimizer)
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=3000)
+res = GalacticOptim.solve(prob, BFGS(); maxiters=2000)
 
 phi = discretization.phi[1]
 
 # Analysis
-ts, xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+ts, xs = [infimum(d.domain):0.05:supremum(d.domain) for d in domains]
 
 μ_n(k) = (v * sqrt(4 * k^2 * π^2 - b^2 * L^2 * v^2)) / (2 * L)
 b_n(k) = 2 / L * -(L^2 * ((2 * π * L - π) * k * sin(π * k) + ((π^2 - π^2 * L) * k^2 + 2 * L) * cos(π * k) - 2 * L)) / (π^3 * k^3) # vegas((x, ϕ) -> ϕ[1] = sin(k * π * x[1]) * f(x[1])).integral[1]
@@ -186,6 +189,7 @@ end
 gif(anim, "1Dwave_damped_adaptive.gif", fps=200)
 
 # Surface plot
+ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_predict = reshape([first(phi([t,x], res.minimizer)) for t in ts for x in xs], (length(ts), length(xs)))
 u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs], (length(ts), length(xs)))
 
@@ -198,8 +202,8 @@ plot(p1,p2,p3)
 
 We can see the results here:
 
-![Damped_wave_sol_adaptive_u](https://user-images.githubusercontent.com/26853713/128976158-2cf113c9-cec8-4e81-94a8-4c5a814d57c2.png)
+![Damped_wave_sol_adaptive_u](https://user-images.githubusercontent.com/12683885/149665332-d4daf7d0-682e-4933-a2b4-34f403881afb.png)
 
 Plotted as a line one can see the analytical solution and the prediction here:
 
-![1Dwave_damped_adaptive](https://user-images.githubusercontent.com/26853713/128976095-e772be8f-eb92-4ddf-a3bb-32700e9e2112.gif)
+![1Dwave_damped_adaptive](https://user-images.githubusercontent.com/12683885/149665327-69d04c01-2240-45ea-981e-a7b9412a3b58.gif)
