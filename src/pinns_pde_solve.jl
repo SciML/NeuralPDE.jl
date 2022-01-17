@@ -540,6 +540,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     end
 
     dict_bc_indvars =  dict_arguments
+    #TODO
     if integrand isa Nothing
         loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ,dict_bc_indvars)
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
@@ -623,15 +624,16 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     vcat_expr = Expr(:block, :($(eq_pair_expr2...)))
     vcat_expr_loss_functions = Expr(:block, vcat_expr, loss_function) # TODO rename
 
-    # if strategy isa QuadratureTraining
-    #     indvars_ex = get_indvars_ex(bc_indvars)
-    #     left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-    #     vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
-    # else
+    if strategy isa QuadratureTraining
+        bc_indvars_ =  get_variables([eqs],dict_indvars,dict_depvars)[1]
+        indvars_ex = get_indvars_ex(bc_indvars_)
+        left_arg_pairs, right_arg_pairs = bc_indvars_, indvars_ex
+        vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
+    else
         indvars_ex = [:($:cord[[$i],:]) for (i, u) ∈ enumerate(this_eq_indvars)]
         left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
-    # end
+    end
 
     if !(dict_transformation_vars isa Nothing)
         transformation_expr_ = Expr[]
@@ -781,7 +783,7 @@ function get_argument2(eq,dict_indvars,dict_depvars)
     f_vars = filter(x -> !isempty(x), _vars)
     flat_vars = reduce(vcat,f_vars)
     args_ = map(var -> var.args[2:end], flat_vars)
-    return args_
+    return collect(Set(args_))
 end
 
 function get_argument(eqs,dict_indvars,dict_depvars)
@@ -1158,12 +1160,6 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
                                                                 bc_indvars=pde_indvar
                                                                 ) for (eq, pde_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
 
-    # bc_indvars = if strategy isa QuadratureTraining
-    #      get_argument2(bcs,dict_indvars,dict_depvars)
-    # else
-    #      get_variables(bcs,dict_indvars,dict_depvars)
-    # end
-
 
     bc_integration_vars = get_integration_variables(bcs, dict_indvars, dict_depvars)
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
@@ -1233,7 +1229,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     # else
     #      get_variables(bcs,dict_indvars,dict_depvars)
     # end
-    # bc_indvars = [get_argument2(bc,dict_indvars,dict_depvars) for bc  in bcs]
+
     bc_integration_vars = get_integration_variables(bcs, dict_indvars, dict_depvars)
 
     _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
