@@ -616,10 +616,14 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     # dict_bc_indvars = Dict(b => i for (i,b) in enumerate(pde_indvars))
     eq_pair_expr2 = Expr[]
     # bc_pair = get_indvars_ex2(pde_indvars[1])
+    flat_initθ = if (typeof(chain) <: AbstractVector) reduce(vcat,initθ) else  initθ end
+    eltypeθ = eltype(flat_initθ)
+    parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
     bc_pair = get_indvars_ex2.(bc_indvars)
     # bc_pair = get_indvars_ex2.([indvars])
+    # :($adapt($parameterless_type_θ,$x_))
     for i in 1:length(bc_pair)
-        push!(eq_pair_expr2, :( $(Symbol(:cord, :($(dict_bc_indvars[bc_indvars[i]])))) = vcat($(bc_pair[i]...))))
+        push!(eq_pair_expr2, :( $(Symbol(:cord, :($(dict_bc_indvars[bc_indvars[i]])))) = $adapt($parameterless_type_θ,vcat($(bc_pair[i]...)))))
     end
     vcat_expr = Expr(:block, :($(eq_pair_expr2...)))
     vcat_expr_loss_functions = Expr(:block, vcat_expr, loss_function) # TODO rename
@@ -662,6 +666,7 @@ function build_loss_function(eqs,_indvars,_depvars,phi,derivative,integral,
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_loss_function(eqs,indvars,depvars,
                                dict_indvars,dict_depvars,dict_depvar_input,
+                               dict_arguments,
                                phi,derivative,integral,chain,initθ,strategy;
                                bc_indvars=bc_indvars,
                                integration_indvars=indvars,
