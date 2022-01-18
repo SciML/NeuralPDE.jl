@@ -64,7 +64,7 @@ Arguments:
 """
 abstract type AbstractPINN{isinplace} <: SciMLBase.SciMLProblem end
 
-struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,K} <: AbstractPINN{isinplace}
+struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN{isinplace}
   chain::C
   strategy::T
   init_params::P
@@ -73,6 +73,9 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,K} <: AbstractPINN{isi
   param_estim::PE
   additional_loss::AL
   adaptive_loss::ADA
+  logger::LOG
+  iteration::Vector{Int64}
+  self_increment::Bool
   kwargs::K
 
   @add_kwonly function PhysicsInformedNN{iip}(chain,
@@ -83,6 +86,8 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,K} <: AbstractPINN{isi
                                              param_estim=false,
                                              additional_loss=nothing,
                                              adaptive_loss=nothing,
+                                             logger=nothing,
+                                             iteration=nothing,
                                              kwargs...) where iip
         if init_params == nothing
             if chain isa AbstractArray
@@ -119,8 +124,16 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,K} <: AbstractPINN{isi
             _adaptive_loss = adaptive_loss
         end
 
-        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(_adaptive_loss),typeof(kwargs)}(
-            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,_adaptive_loss,kwargs)
+        if iteration == nothing
+            _iteration = [1]
+            self_increment = true
+        else
+            _iteration = iteration
+            self_increment = false
+        end
+
+        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(_adaptive_loss),typeof(logger),typeof(kwargs)}(
+            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,_adaptive_loss,logger,_iteration,self_increment,kwargs)
     end
 end
 PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
@@ -207,12 +220,11 @@ struct ReturnOne end
 Base.getindex(::ReturnOne, i) = 1
 Base.length(::ReturnOne) = 1
 mutable struct NonAdaptiveLossWeights{T <: Real} <: AbstractAdaptiveLoss
-    i::Int64  # TODO: this is the iteration counter. currently very gross, I need a new way to reference outer iteration num within the inner iteration
     pde_loss_weights::Vector{T}
     bc_loss_weights::Vector{T}
     additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function NonAdaptiveLossWeights{T}(;i=0, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
-        new(convert(Int64, i), vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
+    SciMLBase.@add_kwonly function NonAdaptiveLossWeights{T}(;pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
+        new(vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
     end
 end
 
@@ -221,13 +233,12 @@ Adaptive Loss struct for
 """
 mutable struct GradientNormAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     reweight_every::Int64
-    i::Int64 # TODO: this is the iteration counter. currently very gross, I need a new way to reference outer iteration num within the inner iteration
     learningrate::T
     pde_loss_weights::Vector{T} 
     bc_loss_weights::Vector{T} 
     additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function GradientNormAdaptiveLoss{T}(reweight_every; i=0, learningrate=0.9, pde_loss_weights=1e-4, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
-        new(convert(Int64, reweight_every), convert(Int64, i), convert(T, learningrate), vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
+    SciMLBase.@add_kwonly function GradientNormAdaptiveLoss{T}(reweight_every; learningrate=0.9, pde_loss_weights=1e-4, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
+        new(convert(Int64, reweight_every), convert(T, learningrate), vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
     end
 end
 
@@ -237,14 +248,13 @@ Adaptive Loss struct for minimax adaptive loss structure.
 """
 mutable struct MiniMaxAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss # TODO: change the internal optimizer to a parameterized type
     reweight_every::Int64
-    i::Int64 # TODO: this is the iteration counter. currently very gross, I need a new way to reference outer iteration num within the inner iteration
     pde_learningrate::T
     bc_learningrate::T
     pde_loss_weights::Vector{T} 
     bc_loss_weights::Vector{T} 
     additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T}(reweight_every; i=0, α_pde=1e-4, α_bc=0.5, pde_loss_weights=1e-4, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
-        new(convert(Int64, reweight_every), convert(Int64, i), convert(T, α_pde), convert(T, α_bc), 
+    SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T}(reweight_every; α_pde=1e-4, α_bc=0.5, pde_loss_weights=1e-4, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
+        new(convert(Int64, reweight_every), convert(T, α_pde), convert(T, α_bc), 
             vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
     end
 end
@@ -1265,6 +1275,9 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     num_additional_loss = additional_loss isa Nothing ? 0 : 1 
 
     adaloss_T = eltype(adaloss.pde_loss_weights)
+    logger = discretization.logger
+    iteration = discretization.iteration
+    self_increment = discretization.self_increment
 
     # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
     adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .* adaloss.pde_loss_weights
@@ -1272,17 +1285,29 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .* adaloss.additional_loss_weights
 
 
+    function logvector(v, name)
+        if logger isa TBLogger
+            for j in 1:length(v)
+                log_value(logger, "$(name)/$(j)", v[j], step=iteration[1])
+            end
+        end
+    end
+
+    function logscalar(s, name)
+        if logger isa TBLogger
+            log_value(logger, "$(name)", s, step=iteration[1])
+        end
+    end
+
     reweight_losses_func = 
     if adaloss isa GradientNormAdaptiveLoss
         # initialize gradient norm adaptive loss data structures 
         println("In gradient norm adaptive loss setup")
 
-        dump(adaloss)
 
         function run_loss_gradients_adaptive_loss(θ)
             println("In adaptive loss")
-            adaloss.i += 1
-            if adaloss.i % adaloss.reweight_every == 0
+            if iteration[1] % adaloss.reweight_every == 0
                 println("Doing adaptive loss reweighting")
 
                 pde_grads_mean = [mean(abs.(Zygote.gradient(pde_loss_function, θ)[1])) for pde_loss_function in pde_loss_functions]
@@ -1290,8 +1315,6 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
 
                 #pde_grad_max = maximum(abs.(pde_grad))
                 #bc_grad_mean = mean(abs.(bc_grad))
-                @show pde_grads_mean
-                @show bc_grads_mean
 
                 # note: this is an adaptation of the original formula. 
                 # the original formula assumes that there is only one pde equation / loss, and then does not rescale the pde loss.
@@ -1301,6 +1324,14 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                 learningrate = discretization.adaptive_loss.learningrate
                 adaloss.pde_loss_weights .= learningrate .* adaloss.pde_loss_weights .+ (1 .- learningrate) .* pde_loss_weights_new
                 adaloss.bc_loss_weights .= learningrate .* adaloss.bc_loss_weights .+ (1 .- learningrate) .* bc_loss_weights_new
+                if logger isa TBLogger
+                    logvector(pde_grads_mean, "pde_grad_mean")
+                    logvector(bc_grads_mean, "bc_grad_mean")
+                    logvector(adaloss.pde_loss_weights, "pde_loss_weights")
+                    logvector(adaloss.bc_loss_weights, "bc_loss_weights")
+                end
+                @show pde_grads_mean
+                @show bc_grads_mean
                 @show adaloss.pde_loss_weights
                 @show adaloss.bc_loss_weights
             end
@@ -1317,16 +1348,18 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         pde_max_opt = ADAM(pde_learningrate)
         bc_max_opt = ADAM(bc_learningrate)
 
-        dump(adaloss)
 
         function run_minimax_adaptive_loss(θ, pde_losses, bc_losses) # take in the losses as input, otherwise this re-does work
             println("In adaptive loss")
-            adaloss.i += 1
-            if adaloss.i % adaloss.reweight_every == 0
+            if iteration[1] % adaloss.reweight_every == 0
                 println("Doing adaptive loss reweighting")
 
                 Flux.Optimise.update!(pde_max_opt, adaloss.pde_loss_weights, -pde_losses)
                 Flux.Optimise.update!(bc_max_opt, adaloss.bc_loss_weights, -bc_losses)
+                if logger isa TBLogger
+                    logvector(adaloss.pde_loss_weights, "pde_loss_weights")
+                    logvector(adaloss.bc_loss_weights, "bc_loss_weights")
+                end
                 @show adaloss.pde_loss_weights
                 @show adaloss.bc_loss_weights
             end
@@ -1336,39 +1369,21 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     elseif adaloss isa NonAdaptiveLossWeights
         function run_nonadaptive_loss(θ)
             println("No adaptive loss")
-            adaloss.i += 1
             nothing
         end
     end
 
-    """
-    pde_loss_function = θ -> sum(map(l->l(θ) ,pde_loss_functions))
-    bcs_loss_function = θ -> sum(map(l->l(θ) ,bc_loss_functions))
-    loss_function = θ -> pde_loss_function(θ) + bcs_loss_function(θ)
-
-    function loss_function_(θ,p)
-        if additional_loss isa Nothing
-            return loss_function(θ)
-        else
-            function _additional_loss(phi,θ)
-                (θ_,p_) = if (param_estim == true)
-                    θ[1:end - length(default_p)], θ[(end - length(default_p) + 1):end]
-                else
-                    θ, nothing
-                end
-                return additional_loss(phi, θ, p_)
-            end
-            return loss_function(θ) + _additional_loss(phi, θ)
-        end
-    end
-    """
     function loss_function_(θ,p)
 
         # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
         pde_losses = [pde_loss_function(θ) for pde_loss_function in pde_loss_functions]
         bc_losses = [bc_loss_function(θ) for bc_loss_function in bc_loss_functions]
-        #@nograd begin 
-        begin
+
+        Zygote.@ignore if self_increment
+            iteration[1] += 1
+        end
+
+        Zygote.@ignore begin
             if adaloss isa MiniMaxAdaptiveLoss
                 reweight_losses_func(θ, pde_losses, bc_losses)
             else
@@ -1378,15 +1393,10 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
         weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
 
-        #@nograd begin
-        begin 
-            @show weighted_pde_losses
-            @show weighted_bc_losses
-            @show adaloss.pde_loss_weights
-            @show adaloss.bc_loss_weights
-        end
 
-        weighted_loss_before_additional = sum(weighted_pde_losses) + sum(weighted_bc_losses)
+        sum_weighted_pde_losses = sum(weighted_pde_losses)
+        sum_weighted_bc_losses = sum(weighted_bc_losses)
+        weighted_loss_before_additional = sum_weighted_pde_losses + sum_weighted_bc_losses
         full_weighted_loss = 
         if additional_loss isa Nothing
             weighted_loss_before_additional
@@ -1401,6 +1411,29 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
             end
             weighted_additional_loss_val = adaloss.additional_loss_weights[1] * _additional_loss(phi, θ)
             weighted_loss_before_additional + weighted_additional_loss_val
+        end
+
+        Zygote.@ignore begin
+            if logger isa TBLogger
+                logvector(pde_losses, "pde_losses")
+                logvector(bc_losses, "bc_losses")
+                logvector(weighted_pde_losses, "weighted_pde_losses")
+                logvector(weighted_bc_losses, "weighted_bc_losses")
+                logscalar(sum_weighted_pde_losses, "sum_weighted_pde_losses")
+                logscalar(sum_weighted_bc_losses, "sum_weighted_bc_losses")
+                logscalar(full_weighted_loss, "full_weighted_loss")
+                if iteration[1] % 100 == 0
+                    logvector(adaloss.pde_loss_weights, "pde_loss_weights")
+                    logvector(adaloss.bc_loss_weights, "bc_loss_weights")
+                    @show adaloss.pde_loss_weights
+                    @show adaloss.bc_loss_weights
+                end
+            end
+            @show weighted_pde_losses
+            @show weighted_bc_losses
+            @show sum_weighted_pde_losses
+            @show sum_weighted_bc_losses
+            @show full_weighted_loss
         end
 
         return full_weighted_loss

@@ -20,6 +20,7 @@ using ArrayInterface
 import Tracker, Optim
 using DomainSets
 using Symbolics
+using TensorBoardLogger
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
@@ -187,7 +188,7 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        generate_training_sets, get_variables, get_argument, get_bounds,
        get_phi, get_numeric_derivative, get_numeric_integral,
        build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
-       AbstractAdaptiveLoss, NonAdaptiveLossWeights, LossGradientsAdaptiveLoss, MiniMaxAdaptiveLoss
+       AbstractAdaptiveLoss, NonAdaptiveLossWeights, GradientNormAdaptiveLoss, MiniMaxAdaptiveLoss
 
 
 end # module

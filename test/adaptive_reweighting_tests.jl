@@ -14,22 +14,21 @@ using QuasiMonteCarlo
 using SciMLBase
 #using OrdinaryDiffEq
 using Plots
+using TensorBoardLogger
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
-
-end
-begin
 using Random
 
-cb = function (p,l)
-    println("Current loss is: $l")
-    return false
-end
 
-## Example 2, 2D Poisson equation
 end
-function test_2d_poisson_equation(adaptive_loss, seed=100)
+## Example 2, 2D Poisson equation
+function test_2d_poisson_equation(adaptive_loss, run, seed=100)
     Random.seed!(seed)
+    loggerloc = joinpath("test", "testlogs", "$run")
+    if isdir(loggerloc)
+        rm(loggerloc, recursive=true)
+    end
+    logger = TBLogger(loggerloc, tb_append) #create tensorboard logger
     hid = 40
     chain_ = FastChain(FastDense(2,hid,Flux.σ),FastDense(hid,hid,Flux.σ),FastDense(hid,1))
     alg = CubatureJLp() #CubatureJLh(),
@@ -53,44 +52,71 @@ function test_2d_poisson_equation(adaptive_loss, seed=100)
                y ∈ Interval(0.0,1.0)]
 
     initθ = Float64.(DiffEqFlux.initial_params(chain_))
+    iteration = [0]
     discretization = NeuralPDE.PhysicsInformedNN(chain_,
                                                  strategy_;
                                                  init_params = initθ,
-                                                 adaptive_loss = adaptive_loss)
+                                                 adaptive_loss = adaptive_loss,
+                                                 logger = logger,
+                                                 iteration=iteration)
+
 
     @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
     prob = NeuralPDE.discretize(pde_system,discretization)
-    sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-    res = GalacticOptim.solve(prob, ADAM(0.03); maxiters=4000)
     phi = discretization.phi
+    sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+    maxiters = 4800
+
 
     xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
+    u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+
+    cb = function (p,l)
+        iteration[1] += 1
+        println("Current loss is: $l, iteration is $(iteration[1])")
+        log_value(logger, "scalar/loss", l, step=iteration[1])
+        if iteration[1] % 30 == 0
+            u_predict = reshape([first(phi([x,y],p)) for x in xs for y in ys],(length(xs),length(ys)))
+            diff_u = abs.(u_predict .- u_real)
+            total_diff = sum(diff_u)
+            log_value(logger, "scalar/total_diff", total_diff, step=iteration[1])
+            total_diff_sq = sum(diff_u .^ 2)
+            log_value(logger, "scalar/total_diff_sq", total_diff_sq, step=iteration[1])
+        end
+        return false
+    end
+    res = GalacticOptim.solve(prob, ADAM(0.03); maxiters=maxiters, cb=cb)
 
     u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-    u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
     diff_u = abs.(u_predict .- u_real)
 
     p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
     p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
     p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-    plot(p1,p2,p3)
+    (plot=plot(p1,p2,p3), error=sum(diff_u), percent_error=sum(abs.(u_real)))
 end
 
 begin 
 
+loggerloc = joinpath("test", "testlogs")
+for dir in readdir(loggerloc)
+    fullpath = joinpath(loggerloc, dir)
+    @show "deleting $fullpath"
+    rm(fullpath, recursive=true)
+end
 nonadaptive_loss = NeuralPDE.NonAdaptiveLossWeights{Float64}(pde_loss_weights=1, bc_loss_weights=1)
 gradnormadaptive_loss = NeuralPDE.GradientNormAdaptiveLoss{Float64}(100, pde_loss_weights=1, bc_loss_weights=1)
 adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss{Float64}(100; pde_loss_weights=1, bc_loss_weights=1)
 adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss,adaptive_loss]
 #adaptive_losses = [adaptive_loss]
 
-plots = map(test_2d_poisson_equation, adaptive_losses)
+plots_diffs = map(test_2d_poisson_equation, adaptive_losses, 1:length(adaptive_losses))
 
 end
-plots[1]
-plots[2]
-plots[3]
+plots_diffs[1][:plot]
+plots_diffs[2][:plot]
+plots_diffs[3][:plot]
 
 
 end
