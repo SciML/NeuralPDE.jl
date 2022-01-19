@@ -495,12 +495,12 @@ function get_indvars_ex(bc_indvars) # , dict_this_eq_indvars)
 end
 
 
-function get_indvars_ex2(bc_indvars) # , dict_this_eq_indvars)
-    indvars_ex = map(bc_indvars) do u
-        if u isa Symbol
-             u
+function get_indvars_ex2(bc_indvars,parameterless_type_θ)
+    indvars_ex = map(bc_indvars) do vars
+        if vars isa Symbol
+             vars
         else
-           :(fill($u,size(cord[[1],:])))
+           :($adapt($parameterless_type_θ,fill($vars,size(cord[[1],:]))))
         end
     end
     indvars_ex
@@ -538,7 +538,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     else
         eltypeθ = eltype(initθ)
     end
-
+    #TODO
     dict_bc_indvars =  dict_arguments
     #TODO
     if integrand isa Nothing
@@ -619,11 +619,11 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     flat_initθ = if (typeof(chain) <: AbstractVector) reduce(vcat,initθ) else  initθ end
     eltypeθ = eltype(flat_initθ)
     parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
-    bc_pair = get_indvars_ex2.(bc_indvars)
+    bc_pair = get_indvars_ex2.(bc_indvars,parameterless_type_θ)
     # bc_pair = get_indvars_ex2.([indvars])
     # :($adapt($parameterless_type_θ,$x_))
     for i in 1:length(bc_pair)
-        push!(eq_pair_expr2, :( $(Symbol(:cord, :($(dict_bc_indvars[bc_indvars[i]])))) = $adapt($parameterless_type_θ,vcat($(bc_pair[i]...)))))
+        push!(eq_pair_expr2, :( $(Symbol(:cord, :($(dict_bc_indvars[bc_indvars[i]])))) = vcat($(bc_pair[i]...))))
     end
     vcat_expr = Expr(:block, :($(eq_pair_expr2...)))
     vcat_expr_loss_functions = Expr(:block, vcat_expr, loss_function) # TODO rename
@@ -1142,12 +1142,6 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
     if !(eqs isa Array)
         eqs = [eqs]
     end
-
-    # pde_indvars = if strategy isa QuadratureTraining
-    #     get_argument(eqs,dict_indvars,dict_depvars)
-    # else
-    #     get_variables(eqs,dict_indvars,dict_depvars)
-    # end
     pde_indvars = [get_argument2(eq,dict_indvars,dict_depvars) for eq  in eqs]
     bc_indvars = [get_argument2(bc,dict_indvars,dict_depvars) for bc  in bcs]
      arguments_ =  collect(Set(reduce(vcat,[pde_indvars;bc_indvars;])))
@@ -1212,11 +1206,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     if !(eqs isa Array)
         eqs = [eqs]
     end
-    # pde_indvars = if strategy isa QuadratureTraining
-    #     get_argument(eqs,dict_indvars,dict_depvars)
-    # else
-    #     get_variables(eqs,dict_indvars,dict_depvars)
-    # end
+   #TODO Dict
    pde_indvars = [get_argument2(eq,dict_indvars,dict_depvars) for eq  in eqs]
    bc_indvars = [get_argument2(bc,dict_indvars,dict_depvars) for bc  in bcs]
    arguments_ =  collect(Set(reduce(vcat,[pde_indvars;bc_indvars;])))
@@ -1229,11 +1219,6 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                                              phi, derivative,integral, chain, initθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p,
                                              bc_indvars=pde_indvar, integration_indvars=integration_indvar
                                              ) for (eq, pde_indvar, integration_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
-    # bc_indvars = if strategy isa QuadratureTraining
-    #      get_argument(bcs,dict_indvars,dict_depvars)
-    # else
-    #      get_variables(bcs,dict_indvars,dict_depvars)
-    # end
 
     bc_integration_vars = get_integration_variables(bcs, dict_indvars, dict_depvars)
 
@@ -1260,7 +1245,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         bcs_train_sets =  adapt.(parameterless_type_θ,bcs_train_sets)
         pde_loss_functions = [get_loss_function(_loss,_set,eltypeθ,parameterless_type_θ,strategy)
                                                  for (_loss,_set) in zip(_pde_loss_functions,pde_train_sets)]
-
+        #TODO train set
         bc_loss_functions =  [get_loss_function(_loss,pde_train_sets[1],eltypeθ,parameterless_type_θ,strategy)
                                                  for (_loss,_set) in zip(_bc_loss_functions, bcs_train_sets)]
         (pde_loss_functions, bc_loss_functions)
