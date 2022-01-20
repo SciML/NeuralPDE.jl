@@ -476,8 +476,8 @@ depvars = [u(x, t)]
 dim = length(domains)
 
 depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = NeuralPDE.get_vars(indvars,depvars)
-pde_indvars = [get_argument2(eq,dict_indvars,dict_depvars)]
-bc_indvars = [get_argument2(bc,dict_indvars,dict_depvars) for bc  in bcs]
+pde_indvars = [NeuralPDE.get_argument2(eq,dict_indvars,dict_depvars)]
+bc_indvars = [NeuralPDE.get_argument2(bc,dict_indvars,dict_depvars) for bc  in bcs]
 arguments_ =  collect(Set(reduce(vcat,[pde_indvars;bc_indvars;])))
 dict_arguments = Dict(b => i for (i,b) in enumerate(arguments_))
 
