@@ -69,17 +69,17 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, max
     cb = function (p,l)
         iteration[1] += 1
         println("Current loss is: $l, iteration is $(iteration[1])")
-        log_value(logger, "scalar/loss", l, step=iteration[1])
+        log_value(logger, "outer_error/loss", l, step=iteration[1])
         if iteration[1] % 30 == 0
             u_predict = reshape([first(phi([x,y],p)) for x in xs for y in ys],(length(xs),length(ys)))
             diff_u = abs.(u_predict .- u_real)
             total_diff = sum(diff_u)
-            log_value(logger, "scalar/total_diff", total_diff, step=iteration[1])
+            log_value(logger, "outer_error/total_diff", total_diff, step=iteration[1])
             total_u = sum(abs.(u_real))
             total_diff_rel = total_diff / total_u
-            log_value(logger, "scalar/total_diff_rel", total_diff_rel, step=iteration[1])
+            log_value(logger, "outer_error/total_diff_rel", total_diff_rel, step=iteration[1])
             total_diff_sq = sum(diff_u .^ 2)
-            log_value(logger, "scalar/total_diff_sq", total_diff_sq, step=iteration[1])
+            log_value(logger, "outer_error/total_diff_sq", total_diff_sq, step=iteration[1])
         end
         return false
     end
@@ -106,8 +106,8 @@ for dir in readdir(loggerloc)
     @show "deleting $fullpath"
     rm(fullpath, recursive=true)
 end
-nonadaptive_loss = NeuralPDE.NonAdaptiveLossWeights(pde_loss_weights=1, bc_loss_weights=1)
-gradnormadaptive_loss = NeuralPDE.GradientNormAdaptiveLoss(100, pde_loss_weights=1e3, bc_loss_weights=1)
+nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights=1, bc_loss_weights=1)
+gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weights=1e3, bc_loss_weights=1)
 adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights=1, bc_loss_weights=1)
 adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss,adaptive_loss]
 maxiters=4000
@@ -121,6 +121,7 @@ plots_diffs = map(test_2d_poisson_equation_adaptive_loss_run_seediters, adaptive
 @show plots_diffs[2][:total_diff_rel]
 @show plots_diffs[3][:total_diff_rel]
 # accuracy tests, these work for this specific seed but might not for others
+# note that this doesn't test that the adaptive losses are outperforming the nonadaptive loss, which is not guaranteed
 @test plots_diffs[1][:total_diff_rel] < 0.1
 @test plots_diffs[2][:total_diff_rel] < 0.1
 @test plots_diffs[3][:total_diff_rel] < 0.1
@@ -134,5 +135,3 @@ end
 #plots_diffs[2][:plot]
 #plots_diffs[3][:plot]
 
-
-end
