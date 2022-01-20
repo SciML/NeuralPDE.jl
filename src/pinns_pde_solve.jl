@@ -320,7 +320,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                                 dict_transformation_vars = dict_transformation_vars,
                                                 transformation_vars = transformation_vars)
                 integrand__ = _dot_(integrand_)
-
+                #TODO
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
                                                          dict_depvar_input, phi, derivative_, nothing, chain,
                                                          initθ, strategy, integrand = integrand__,
@@ -660,7 +660,8 @@ function build_loss_function(eqs,_indvars,_depvars,phi,derivative,integral,
                              bc_indvars=nothing,
                              eq_params=SciMLBase.NullParameters(),
                              param_estim=false,
-                             default_p=nothing)
+                             default_p=nothing,
+                             dict_arguments =nothing)
     # dictionaries: variable -> unique number
     depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars

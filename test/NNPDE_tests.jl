@@ -475,19 +475,26 @@ indvars = [x,t]
 depvars = [u(x, t)]
 dim = length(domains)
 
+depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = NeuralPDE.get_vars(indvars,depvars)
+pde_indvars = [get_argument2(eq,dict_indvars,dict_depvars)]
+bc_indvars = [get_argument2(bc,dict_indvars,dict_depvars) for bc  in bcs]
+arguments_ =  collect(Set(reduce(vcat,[pde_indvars;bc_indvars;])))
+dict_arguments = Dict(b => i for (i,b) in enumerate(arguments_))
+
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
                                                     reltol=1e-3,abstol=1e-3,
                                                     maxiters =50, batch=100)
 
 integral = NeuralPDE.get_numeric_integral(quadrature_strategy, indvars, depvars, chain, derivative)
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,integral,
-                                                   chain,initθ,quadrature_strategy)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,nothing,
+                                                   chain,initθ,quadrature_strategy;
+                                                   bc_indvars=pde_indvars[1],
+                                                   dict_arguments=dict_arguments)
 _pde_loss_function(rand(2,10), initθ)
-
-bc_indvars = NeuralPDE.get_argument(bcs,indvars,depvars)
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,integral,
                                                     chain,initθ,quadrature_strategy,
-                                                    bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+                                                    bc_indvars = bc_indvar,
+                                                    dict_arguments=dict_arguments) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 map(loss_f -> loss_f(rand(1,10), initθ),_bc_loss_functions)
 
 dx = 0.1
@@ -519,6 +526,7 @@ end
 
 f_ = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
 prob = GalacticOptim.OptimizationProblem(f_, initθ)
+prob.f(initθ, nothing)
 
 cb_ = function (p,l)
     println("loss: ", l )
