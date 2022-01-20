@@ -156,7 +156,7 @@ count_decomp = 10
 
 # Neural network
 af = Flux.tanh
-inner = 10
+inner = 12
 chains = [FastChain(FastDense(2, inner, af), FastDense(inner, inner, af), FastDense(inner, 1)) for _ in 1:count_decomp]
 initθs = map(c -> Float64.(c), DiffEqFlux.initial_params.(chains))
 
@@ -195,7 +195,8 @@ for i in 1:count_decomp
     phi_in(cord) = phis[i-1](cord,reses[i-1].minimizer)
     # phi_bound(x,y) = if (x isa Matrix)  phi_in(vcat(x, fill(y,size(x)))) else  phi_in(vcat(fill(x,size(y)),y)) end
     phi_bound(x,y) = phi_in(vcat(x,y))
-    @register phi_bound(x,y)
+    @register_symbolic phi_bound(x,y)
+    global phi_bound
     Base.Broadcast.broadcasted(::typeof(phi_bound), x,y) = phi_bound(x,y)
     bcs_ = create_bcs(domains_[1].domain, phi_bound)
     @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x,y)])
@@ -206,7 +207,8 @@ for i in 1:count_decomp
 
     prob = NeuralPDE.discretize(pde_system_,discretization)
     symprob = NeuralPDE.symbolic_discretize(pde_system_,discretization)
-    res_ = GalacticOptim.solve(prob, BFGS(), maxiters=1000)
+    res_ = GalacticOptim.solve(prob, BFGS(), maxiters=1500)
+    @show res_.minimum
     phi = discretization.phi
     push!(reses, res_)
     push!(phis, phi)
@@ -272,8 +274,10 @@ end
 
 prob_ = NeuralPDE.neural_adapter(losses,initθ2, pde_system_map,NeuralPDE.GridTraining([0.1/count_decomp,0.1]))
 res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=2000)
+@show res_.minimum
 prob_ = NeuralPDE.neural_adapter(losses,res_.minimizer, pde_system_map, NeuralPDE.GridTraining(0.01))
 res_ = GalacticOptim.solve(prob_, BFGS(); maxiters=1000)
+@show res_.minimum
 
 parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
 phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
