@@ -188,7 +188,8 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        generate_training_sets, get_variables, get_argument, get_bounds,
        get_phi, get_numeric_derivative, get_numeric_integral,
        build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
-       AbstractAdaptiveLoss, NonAdaptiveLossWeights, GradientNormAdaptiveLoss, MiniMaxAdaptiveLoss
+       AbstractAdaptiveLoss, NonAdaptiveLossWeights, GradientNormAdaptiveLoss, MiniMaxAdaptiveLoss,
+       LogOptions
 
 
 end # module

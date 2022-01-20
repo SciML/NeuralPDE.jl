@@ -74,6 +74,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
   additional_loss::AL
   adaptive_loss::ADA
   logger::LOG
+  log_options::LogOptions
   iteration::Vector{Int64}
   self_increment::Bool
   kwargs::K
@@ -87,6 +88,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
                                              additional_loss=nothing,
                                              adaptive_loss=nothing,
                                              logger=nothing,
+                                             log_options=nothing,
                                              iteration=nothing,
                                              kwargs...) where iip
         if init_params == nothing
@@ -124,6 +126,12 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
             _adaptive_loss = adaptive_loss
         end
 
+        if log_options == nothing
+            _log_options = LogOptions()
+        else
+            _log_options = log_options
+        end
+
         if iteration == nothing
             _iteration = [1]
             self_increment = true
@@ -133,7 +141,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
         end
 
         new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(_adaptive_loss),typeof(logger),typeof(kwargs)}(
-            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,_adaptive_loss,logger,_iteration,self_increment,kwargs)
+            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,_adaptive_loss,logger,_log_options,_iteration,self_increment,kwargs)
     end
 end
 PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
@@ -206,6 +214,8 @@ end
 
 abstract type AbstractAdaptiveLoss end
 
+"""
+"""
 function vectorify(x, t::Type{T}) where T <: Real
     convertfunc(y) = convert(t, y)
     returnval = 
@@ -270,6 +280,22 @@ end
 SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss(reweight_every; pde_learningrate=1e-4, bc_learningrate=0.5, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1)
     MiniMaxAdaptiveLoss{Float64}(reweight_every; pde_learningrate=pde_learningrate, bc_learningrate=bc_learningrate,
         pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
+end
+
+
+"""
+"""
+struct LogOptions 
+    log_frequency::Int64
+    # TODO: add in an option for saving plots in the log. this is undone because the type of plot is dependent on the PDESystem
+    #       possible solution: pass in a plot function?  
+    #       this is somewhat important because we want to support plotting adaptive weights that depend on pde independent variables 
+    #       and not just one weight for each loss function, i.e. pde_loss_weights(i, t, x) and since this would be function-internal, 
+    #       we'd want the plot to happen internally as well
+
+    SciMLBase.@add_kwonly function LogOptions(;log_frequency=50)
+        new(convert(Int64, log_frequency))
+    end
 end
 
 """
@@ -1289,6 +1315,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
 
     adaloss_T = eltype(adaloss.pde_loss_weights)
     logger = discretization.logger
+    log_frequency = discretization.log_options.log_frequency
     iteration = discretization.iteration
     self_increment = discretization.self_increment
 
@@ -1312,81 +1339,48 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         end
     end
 
+    # this is the function that gets called to do the adaptive reweighting, a function specific to the 
+    # type of adaptive reweighting being performed
     reweight_losses_func = 
     if adaloss isa GradientNormAdaptiveLoss
-        # initialize gradient norm adaptive loss data structures 
-        println("In gradient norm adaptive loss setup")
-
-
         function run_loss_gradients_adaptive_loss(θ)
-            println("In adaptive loss")
             if iteration[1] % adaloss.reweight_every == 0
-                println("Doing adaptive loss reweighting")
-
-                #pde_grads_mean = [mean(abs.(Zygote.gradient(pde_loss_function, θ)[1])) for pde_loss_function in pde_loss_functions]
                 pde_grads_maxes = [maximum(abs.(Zygote.gradient(pde_loss_function, θ)[1])) for pde_loss_function in pde_loss_functions]
                 pde_grads_max = maximum(pde_grads_maxes)
                 bc_grads_mean = [mean(abs.(Zygote.gradient(bc_loss_function, θ)[1])) for bc_loss_function in bc_loss_functions]
 
-                #pde_grad_max = maximum(abs.(pde_grad))
-                #bc_grad_mean = mean(abs.(bc_grad))
-
-                # note: this is an adaptation of the original formula. 
-                # the original formula assumes that there is only one pde equation / loss, and then does not rescale the pde loss.
-                # 
-                #pde_loss_weights_new = 1 ./ (pde_grads_mean .+ convert(adaloss_T, 1e-7))
-                nonzero_divisor =  adaloss_T isa Float64 ? Float64(1e-11) : convert(adaloss_T, 1e-7)
-                bc_loss_weights_new = pde_grads_max ./ (bc_grads_mean .+ nonzero_divisor)
+                nonzero_divisor_eps =  adaloss_T isa Float64 ? Float64(1e-11) : convert(adaloss_T, 1e-7)
+                bc_loss_weights_proposed = pde_grads_max ./ (bc_grads_mean .+ nonzero_divisor_eps)
                 weight_change_inertia = discretization.adaptive_loss.weight_change_inertia
-                #adaloss.pde_loss_weights .= weight_change_inertia .* adaloss.pde_loss_weights .+ (1 .- weight_change_inertia) .* pde_loss_weights_new
-                adaloss.bc_loss_weights .= weight_change_inertia .* adaloss.bc_loss_weights .+ (1 .- weight_change_inertia) .* bc_loss_weights_new
-                if logger isa TBLogger
+                adaloss.bc_loss_weights .= weight_change_inertia .* adaloss.bc_loss_weights .+ (1 .- weight_change_inertia) .* bc_loss_weights_proposed
+                if logger isa TBLogger # always log when it changes
                     logscalar(pde_grads_max, "pde_grad_max")
                     logvector(pde_grads_maxes, "pde_grad_maxes")
                     logvector(bc_grads_mean, "bc_grad_mean")
-                    #logvector(adaloss.pde_loss_weights, "pde_loss_weights")
                     logvector(adaloss.bc_loss_weights, "bc_loss_weights")
                 end
-                @show pde_grads_max
-                @show pde_grads_maxes
-                @show bc_grads_mean
-                #@show adaloss.pde_loss_weights
-                @show adaloss.bc_loss_weights
             end
-
             nothing
         end
-
     elseif adaloss isa MiniMaxAdaptiveLoss
         # initialize adaptive loss data structures 
-        println("In adaptive loss setup")
-
         pde_learningrate = adaloss.pde_learningrate
         bc_learningrate = adaloss.bc_learningrate
         pde_max_opt = ADAM(pde_learningrate)
         bc_max_opt = ADAM(bc_learningrate)
-
-
         function run_minimax_adaptive_loss(θ, pde_losses, bc_losses) # take in the losses as input, otherwise this re-does work
-            println("In adaptive loss")
             if iteration[1] % adaloss.reweight_every == 0
-                println("Doing adaptive loss reweighting")
-
                 Flux.Optimise.update!(pde_max_opt, adaloss.pde_loss_weights, -pde_losses)
                 Flux.Optimise.update!(bc_max_opt, adaloss.bc_loss_weights, -bc_losses)
-                if logger isa TBLogger
+                if logger isa TBLogger # always log when it changes
                     logvector(adaloss.pde_loss_weights, "pde_loss_weights")
                     logvector(adaloss.bc_loss_weights, "bc_loss_weights")
                 end
-                @show adaloss.pde_loss_weights
-                @show adaloss.bc_loss_weights
             end
-
             nothing
         end
     elseif adaloss isa NonAdaptiveLossWeights
         function run_nonadaptive_loss(θ)
-            println("No adaptive loss")
             nothing
         end
     end
@@ -1397,7 +1391,8 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         pde_losses = [pde_loss_function(θ) for pde_loss_function in pde_loss_functions]
         bc_losses = [bc_loss_function(θ) for bc_loss_function in bc_loss_functions]
 
-        Zygote.@ignore if self_increment
+        # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
+        Zygote.@ignore if self_increment 
             iteration[1] += 1
         end
 
@@ -1411,10 +1406,10 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
         weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
 
-
         sum_weighted_pde_losses = sum(weighted_pde_losses)
         sum_weighted_bc_losses = sum(weighted_bc_losses)
         weighted_loss_before_additional = sum_weighted_pde_losses + sum_weighted_bc_losses
+
         full_weighted_loss = 
         if additional_loss isa Nothing
             weighted_loss_before_additional
@@ -1432,7 +1427,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
         end
 
         Zygote.@ignore begin
-            if logger isa TBLogger
+            if logger isa TBLogger && iteration[1] % log_frequency == 0
                 logvector(pde_losses, "pde_losses")
                 logvector(bc_losses, "bc_losses")
                 logvector(weighted_pde_losses, "weighted_pde_losses")
@@ -1440,18 +1435,9 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                 logscalar(sum_weighted_pde_losses, "sum_weighted_pde_losses")
                 logscalar(sum_weighted_bc_losses, "sum_weighted_bc_losses")
                 logscalar(full_weighted_loss, "full_weighted_loss")
-                if iteration[1] % 100 == 0
-                    logvector(adaloss.pde_loss_weights, "pde_loss_weights")
-                    logvector(adaloss.bc_loss_weights, "bc_loss_weights")
-                    @show adaloss.pde_loss_weights
-                    @show adaloss.bc_loss_weights
-                end
+                logvector(adaloss.pde_loss_weights, "pde_loss_weights")
+                logvector(adaloss.bc_loss_weights, "bc_loss_weights")
             end
-            @show weighted_pde_losses
-            @show weighted_bc_losses
-            @show sum_weighted_pde_losses
-            @show sum_weighted_bc_losses
-            @show full_weighted_loss
         end
 
         return full_weighted_loss

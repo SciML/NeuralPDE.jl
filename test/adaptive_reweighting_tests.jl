@@ -1,27 +1,26 @@
 begin
+println("adaptive_reweighting_tests")
 using Flux
-println("NNPDE_tests")
 using DiffEqFlux
-println("Starting Soon!")
 using ModelingToolkit
 using DiffEqBase
 using Test, NeuralPDE
-println("Starting Soon!")
 using GalacticOptim
 using Optim
 using Quadrature,Cubature, Cuba
 using QuasiMonteCarlo
 using SciMLBase
-using Plots
 using TensorBoardLogger
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 using Random
+#using Plots
+println("Starting Soon!")
 
 
 end
-## Example 2, 2D Poisson equation
-function test_2d_poisson_equation(adaptive_loss, run; seed=60, maxiters=4000)
+## 2D Poisson equation
+function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, maxiters=4000)
     Random.seed!(seed)
     loggerloc = joinpath("test", "testlogs", "$run")
     if isdir(loggerloc)
@@ -30,11 +29,8 @@ function test_2d_poisson_equation(adaptive_loss, run; seed=60, maxiters=4000)
     logger = TBLogger(loggerloc, tb_append) #create tensorboard logger
     hid = 40
     chain_ = FastChain(FastDense(2,hid,Flux.σ),FastDense(hid,hid,Flux.σ),FastDense(hid,1))
-    alg = CubatureJLp() #CubatureJLh(),
-    #strategy_ =  NeuralPDE.QuadratureTraining(quadrature_alg = alg,reltol=1e-4,abstol=1e-3,maxiters=200, batch=10)
     strategy_ =  NeuralPDE.StochasticTraining(256)
-#main()
-    println("Example 2, 2D Poisson equation, chain: $(nameof(typeof(chain_))), strategy: $(nameof(typeof(strategy_)))")
+    println("adaptive reweighting test, 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) ")
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -95,10 +91,11 @@ function test_2d_poisson_equation(adaptive_loss, run; seed=60, maxiters=4000)
     total_u = sum(abs.(u_real))
     total_diff_rel = total_diff / total_u
 
-    p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-    p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-    p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-    (plot=plot(p1,p2,p3), error=total_diff, total_diff_rel=total_diff_rel)
+    #p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+    #p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
+    #p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
+    #(plot=plot(p1,p2,p3), error=total_diff, total_diff_rel=total_diff_rel)
+    (error=total_diff, total_diff_rel=total_diff_rel)
 end
 
 begin 
@@ -113,25 +110,29 @@ nonadaptive_loss = NeuralPDE.NonAdaptiveLossWeights(pde_loss_weights=1, bc_loss_
 gradnormadaptive_loss = NeuralPDE.GradientNormAdaptiveLoss(100, pde_loss_weights=1e3, bc_loss_weights=1)
 adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights=1, bc_loss_weights=1)
 adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss,adaptive_loss]
-#adaptive_losses = [adaptive_loss]
 maxiters=4000
 seed=60
 
-test_2d_poisson_equation_run_seediters(adaptive_loss, run) = test_2d_poisson_equation(adaptive_loss, run; seed=seed, maxiters=maxiters)
+test_2d_poisson_equation_adaptive_loss_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=seed, maxiters=maxiters)
 
-plots_diffs = map(test_2d_poisson_equation_run_seediters, adaptive_losses, 1:length(adaptive_losses))
+plots_diffs = map(test_2d_poisson_equation_adaptive_loss_run_seediters, adaptive_losses, 1:length(adaptive_losses))
 
 @show plots_diffs[1][:total_diff_rel]
 @show plots_diffs[2][:total_diff_rel]
 @show plots_diffs[3][:total_diff_rel]
+# accuracy tests, these work for this specific seed but might not for others
 @test plots_diffs[1][:total_diff_rel] < 0.1
 @test plots_diffs[2][:total_diff_rel] < 0.1
 @test plots_diffs[3][:total_diff_rel] < 0.1
+# make sure that the logger is actually putting logs in there, but not testing the contents of the logs
+@test length(readdir(joinpath(loggerloc, "1"))) > 0
+@test length(readdir(joinpath(loggerloc, "2"))) > 0
+@test length(readdir(joinpath(loggerloc, "3"))) > 0
 
 end
-plots_diffs[1][:plot]
-plots_diffs[2][:plot]
-plots_diffs[3][:plot]
+#plots_diffs[1][:plot]
+#plots_diffs[2][:plot]
+#plots_diffs[3][:plot]
 
 
 end
