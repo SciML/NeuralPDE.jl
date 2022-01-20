@@ -216,9 +216,6 @@ function vectorify(x, t::Type{T}) where T <: Real
     end
 end
 
-struct ReturnOne end
-Base.getindex(::ReturnOne, i) = 1
-Base.length(::ReturnOne) = 1
 mutable struct NonAdaptiveLossWeights{T <: Real} <: AbstractAdaptiveLoss
     pde_loss_weights::Vector{T}
     bc_loss_weights::Vector{T}
@@ -228,18 +225,28 @@ mutable struct NonAdaptiveLossWeights{T <: Real} <: AbstractAdaptiveLoss
     end
 end
 
+# default to Float64
+SciMLBase.@add_kwonly function NonAdaptiveLossWeights(;pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
+    NonAdaptiveLossWeights{Float64}(;pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
+end
+
 """
 Adaptive Loss struct for 
 """
 mutable struct GradientNormAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     reweight_every::Int64
-    learningrate::T
+    weight_change_inertia::T
     pde_loss_weights::Vector{T} 
     bc_loss_weights::Vector{T} 
     additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function GradientNormAdaptiveLoss{T}(reweight_every; learningrate=0.9, pde_loss_weights=1e-4, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
-        new(convert(Int64, reweight_every), convert(T, learningrate), vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
+    SciMLBase.@add_kwonly function GradientNormAdaptiveLoss{T}(reweight_every; weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
+        new(convert(Int64, reweight_every), convert(T, weight_change_inertia), vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
     end
+end
+# default to Float64
+SciMLBase.@add_kwonly function GradientNormAdaptiveLoss(reweight_every; weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
+    GradientNormAdaptiveLoss{Float64}(reweight_every; weight_change_inertia=weight_change_inertia, 
+        pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
 end
 
 
@@ -253,10 +260,16 @@ mutable struct MiniMaxAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss # TODO: ch
     pde_loss_weights::Vector{T} 
     bc_loss_weights::Vector{T} 
     additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T}(reweight_every; α_pde=1e-4, α_bc=0.5, pde_loss_weights=1e-4, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
-        new(convert(Int64, reweight_every), convert(T, α_pde), convert(T, α_bc), 
+    SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T}(reweight_every; pde_learningrate=1e-4, bc_learningrate=0.5, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
+        new(convert(Int64, reweight_every), convert(T, pde_learningrate), convert(T, bc_learningrate), 
             vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
     end
+end
+
+# default to Float64
+SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss(reweight_every; pde_learningrate=1e-4, bc_learningrate=0.5, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1)
+    MiniMaxAdaptiveLoss{Float64}(reweight_every; pde_learningrate=pde_learningrate, bc_learningrate=bc_learningrate,
+        pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
 end
 
 """
@@ -1310,7 +1323,9 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
             if iteration[1] % adaloss.reweight_every == 0
                 println("Doing adaptive loss reweighting")
 
-                pde_grads_mean = [mean(abs.(Zygote.gradient(pde_loss_function, θ)[1])) for pde_loss_function in pde_loss_functions]
+                #pde_grads_mean = [mean(abs.(Zygote.gradient(pde_loss_function, θ)[1])) for pde_loss_function in pde_loss_functions]
+                pde_grads_maxes = [maximum(abs.(Zygote.gradient(pde_loss_function, θ)[1])) for pde_loss_function in pde_loss_functions]
+                pde_grads_max = maximum(pde_grads_maxes)
                 bc_grads_mean = [mean(abs.(Zygote.gradient(bc_loss_function, θ)[1])) for bc_loss_function in bc_loss_functions]
 
                 #pde_grad_max = maximum(abs.(pde_grad))
@@ -1319,20 +1334,23 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                 # note: this is an adaptation of the original formula. 
                 # the original formula assumes that there is only one pde equation / loss, and then does not rescale the pde loss.
                 # 
-                pde_loss_weights_new = 1 ./ (pde_grads_mean .+ convert(adaloss_T, 1e-7))
-                bc_loss_weights_new = 1 ./ (bc_grads_mean .+ convert(adaloss_T, 1e-7))
-                learningrate = discretization.adaptive_loss.learningrate
-                adaloss.pde_loss_weights .= learningrate .* adaloss.pde_loss_weights .+ (1 .- learningrate) .* pde_loss_weights_new
-                adaloss.bc_loss_weights .= learningrate .* adaloss.bc_loss_weights .+ (1 .- learningrate) .* bc_loss_weights_new
+                #pde_loss_weights_new = 1 ./ (pde_grads_mean .+ convert(adaloss_T, 1e-7))
+                nonzero_divisor =  adaloss_T isa Float64 ? Float64(1e-11) : convert(adaloss_T, 1e-7)
+                bc_loss_weights_new = pde_grads_max ./ (bc_grads_mean .+ nonzero_divisor)
+                weight_change_inertia = discretization.adaptive_loss.weight_change_inertia
+                #adaloss.pde_loss_weights .= weight_change_inertia .* adaloss.pde_loss_weights .+ (1 .- weight_change_inertia) .* pde_loss_weights_new
+                adaloss.bc_loss_weights .= weight_change_inertia .* adaloss.bc_loss_weights .+ (1 .- weight_change_inertia) .* bc_loss_weights_new
                 if logger isa TBLogger
-                    logvector(pde_grads_mean, "pde_grad_mean")
+                    logscalar(pde_grads_max, "pde_grad_max")
+                    logvector(pde_grads_maxes, "pde_grad_maxes")
                     logvector(bc_grads_mean, "bc_grad_mean")
-                    logvector(adaloss.pde_loss_weights, "pde_loss_weights")
+                    #logvector(adaloss.pde_loss_weights, "pde_loss_weights")
                     logvector(adaloss.bc_loss_weights, "bc_loss_weights")
                 end
-                @show pde_grads_mean
+                @show pde_grads_max
+                @show pde_grads_maxes
                 @show bc_grads_mean
-                @show adaloss.pde_loss_weights
+                #@show adaloss.pde_loss_weights
                 @show adaloss.bc_loss_weights
             end
 
