@@ -20,7 +20,7 @@ println("Starting Soon!")
 ## 2D Poisson equation
 function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, maxiters=4000)
     Random.seed!(seed)
-    loggerloc = joinpath("test", "testlogs", "$run")
+    loggerloc = joinpath(@__DIR__, "testlogs", "$run")
     if isdir(loggerloc)
         rm(loggerloc, recursive=true)
     end
@@ -98,6 +98,8 @@ end
 
 
 loggerloc = joinpath(@__DIR__, "testlogs")
+println("test logger logs going into folder:")
+@show loggerloc
 if !isdir(loggerloc)
     mkdir(loggerloc)
 end
