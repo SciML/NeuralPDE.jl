@@ -124,9 +124,9 @@ plots_diffs = map(test_2d_poisson_equation_adaptive_loss_run_seediters, adaptive
 @show plots_diffs[3][:total_diff_rel]
 # accuracy tests, these work for this specific seed but might not for others
 # note that this doesn't test that the adaptive losses are outperforming the nonadaptive loss, which is not guaranteed, and seed/arch/hyperparam/pde etc dependent
-@test plots_diffs[1][:total_diff_rel] < 0.1
-@test plots_diffs[2][:total_diff_rel] < 0.1
-@test plots_diffs[3][:total_diff_rel] < 0.1
+@test plots_diffs[1][:total_diff_rel] < 0.4
+@test plots_diffs[2][:total_diff_rel] < 0.4
+@test plots_diffs[3][:total_diff_rel] < 0.4
 # make sure that the logger is actually putting logs in there, but not testing the contents of the logs
 @test length(readdir(joinpath(loggerloc, "1"))) > 0
 @test length(readdir(joinpath(loggerloc, "2"))) > 0
