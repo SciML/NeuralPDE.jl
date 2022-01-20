@@ -1,4 +1,3 @@
-begin
 println("adaptive_reweighting_tests")
 using Flux
 using DiffEqFlux
@@ -18,7 +17,6 @@ using Random
 println("Starting Soon!")
 
 
-end
 ## 2D Poisson equation
 function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, maxiters=4000)
     Random.seed!(seed)
@@ -98,9 +96,11 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, max
     (error=total_diff, total_diff_rel=total_diff_rel)
 end
 
-begin 
 
-loggerloc = joinpath("test", "testlogs")
+loggerloc = joinpath(@__DIR__, "testlogs")
+if !isdir(loggerloc)
+    mkdir(loggerloc)
+end
 for dir in readdir(loggerloc)
     fullpath = joinpath(loggerloc, dir)
     @show "deleting $fullpath"
@@ -130,7 +130,6 @@ plots_diffs = map(test_2d_poisson_equation_adaptive_loss_run_seediters, adaptive
 @test length(readdir(joinpath(loggerloc, "2"))) > 0
 @test length(readdir(joinpath(loggerloc, "3"))) > 0
 
-end
 #plots_diffs[1][:plot]
 #plots_diffs[2][:plot]
 #plots_diffs[3][:plot]

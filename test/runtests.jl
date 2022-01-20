@@ -28,6 +28,9 @@ const is_CI = haskey(ENV,"CI")
   if GROUP == "All" || GROUP == "IntegroDiff"
       @time @safetestset "IntegroDiff" begin include("IDE_tests.jl") end
   end
+  if GROUP == "All" || GROUP == "AdaptiveLoss"
+      @time @safetestset "AdaptiveLoss" begin include("adaptive_loss_tests.jl") end
+  end
   if GROUP == "All" || GROUP == "NNKOLMOGOROV"
       @time @safetestset "NNKolmogorov" begin include("NNKolmogorov_tests.jl") end
   end
