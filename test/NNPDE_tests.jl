@@ -64,8 +64,9 @@ function test_ode(strategy_)
     analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
     ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     u_real  = [analytic_sol_func(t) for t in ts]
-    u_predict  = [first(phi(t,res.minimizer)) for t in ts]
 
+    u_predict  = [first(phi([t],res.minimizer)) for t in ts]
+	# phi(collect(ts)',res.minimizer)'
     @test u_predict ≈ u_real atol = 0.1
     # using Plots
     # t_plot = collect(ts)
@@ -376,7 +377,7 @@ analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
 
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
-u_predict  = [first(phi(x,res.minimizer)) for x in xs]
+u_predict  = [first(phi([x],res.minimizer)) for x in xs]
 
 @test u_predict ≈ u_real atol = 10^-4
 
@@ -667,7 +668,7 @@ C = 142.88418699042
 analytic_sol_func(x) = C*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
 xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
-u_predict  = [first(phi(x,res.u)) for x in xs]
+u_predict  = [first(phi([x],res.u)) for x in xs]
 
 @test u_predict ≈ u_real rtol = 1e-3
 
