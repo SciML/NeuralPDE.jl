@@ -99,7 +99,7 @@ analytic_sol_func(x) = C*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
 
 xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
-u_predict  = [first(phi(x,res.minimizer)) for x in xs]
+u_predict  = [first(phi([x],res.minimizer)) for x in xs]
 
 plot(xs ,u_real, label = "analytic")
 plot!(xs ,u_predict, label = "predict")

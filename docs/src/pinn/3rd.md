@@ -60,7 +60,7 @@ analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
 dx = 0.05
 xs = [infimum(d.domain):dx/10:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
-u_predict  = [first(phi(x,res.minimizer)) for x in xs]
+u_predict  = [first(phi([x],res.minimizer)) for x in xs]
 
 x_plot = collect(xs)
 plot(x_plot ,u_real,title = "real")
