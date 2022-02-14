@@ -26,6 +26,7 @@ makedocs(
             "pinn/integro_diff.md",
             "pinn/debugging.md",
             "pinn/neural_adapter.md",
+            "pinn/adaptive_loss.md",
         ],
         "Specialized Neural PDE Tutorials" => Any[
             "examples/100_HJB.md",
