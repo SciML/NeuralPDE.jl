@@ -7,6 +7,7 @@ using DocStringExtensions
 using Reexport, Statistics
 @reexport using DiffEqBase
 
+using Distributed
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
 using ModelingToolkit
@@ -180,6 +181,8 @@ include("transform_inf_integral.jl")
 include("pinns_pde_solve.jl")
 include("neural_adapter.jl")
 include("param_kolmogorov_solve.jl")
+include("hyperparameters.jl")
+#include("experiment_manager.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,ParamKolmogorovPDEProblem,KolmogorovParamDomain, NNParamKolmogorov,
@@ -190,7 +193,13 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        get_phi, get_numeric_derivative, get_numeric_integral,
        build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
        AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss, MiniMaxAdaptiveLoss,
-       LogOptions
+       LogOptions,
+       CompositeHyperParameter, AbstractHyperParameter, generate_hyperparameters,
+       StructGenerator, RandomChoice, 
+       AbstractHyperParameterSweep, StructGeneratorHyperParameterSweep,
+       GELUNonLin, SigmoidNonLin, GlorotUniformParams,
+       AbstractOptimiser, SequenceOfOptimisers, BFGSOptimiser, ADAMOptimiser, RADAMOptimiser, 
+       AbstractNN, SimpleFeedForwardNetwork
 
 
 end # module
