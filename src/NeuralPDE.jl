@@ -182,7 +182,7 @@ include("pinns_pde_solve.jl")
 include("neural_adapter.jl")
 include("param_kolmogorov_solve.jl")
 include("hyperparameters.jl")
-#include("experiment_manager.jl")
+include("experiment_manager.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,ParamKolmogorovPDEProblem,KolmogorovParamDomain, NNParamKolmogorov,
