@@ -76,14 +76,15 @@ end
 @everywhere workers() @show Pkg.project()
 
 #@everywhere workers() begin; mkdir("$(myid())"); end
+"""
 
-@everywhere function loggerdata(params)
+function loggerdata(params)
     function loggerdataparams()
-        loggerloc = joinpath("scalarlogs", "$(myid())")
+        id = myid()
+        loggerloc = joinpath(homedir(), "logs", "experiment_manager_test_logs", "$id")
         if isdir(loggerloc)
             rm(loggerloc, recursive=true)
         end
-        id = myid()
         logger = TBLogger(loggerloc, tb_append) #create tensorboard logger
 
         ################log scalars example: y = x²################
@@ -126,6 +127,7 @@ end
 end
 
 
+"""
 channels = [RemoteChannel(loggerdata(id - 1), id) for id in workers()]
 if isdir("scalarlogs")
     rm("scalarlogs", recursive=true)
@@ -142,13 +144,15 @@ for (id, channel) in zip(workers(), channels)
         end
     end
 end
+"""
 
+
+
+
+"""
 
 log1 = "1/scalarlogs/events.out.tfevents.1.639904028536489e9.hecate"
 read(log1, String)
-
-
-
 @everywhere function sleeprandom()
     t = rand()
     sleep(t)

@@ -16,6 +16,8 @@ begin
 @everywhere using Logging, TensorBoardLogger
 @everywhere using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
 @everywhere workers() @show Pkg.project()
+@everywhere workers() @show pwd()
+@everywhere workers() @show homedir()
 end
 
 begin
@@ -43,10 +45,10 @@ sg = StructGenerator(
 
 hyperparametersweep = StructGeneratorHyperParameterSweep(1, 16, sg)
 hyperparameters = generate_hyperparameters(hyperparametersweep)
-end
 
 neuralpde_workers = map(NeuralPDE.NeuralPDEWorker, workers())
 experiment_manager = NeuralPDE.ExperimentManager(neuralpde_workers, hyperparameters)
+end
 #NeuralPDE.initialize_envs(experiment_manager) # eh try this again later maybe
 
 @everywhere function get_pde_system()
@@ -87,7 +89,30 @@ end
 
 hyperparam = hyperparameters[1]
 
-res, phi, pdefunc = NeuralPDE.run_neuralpde(pde_system, hyperparam, get_cb())
+#res, phi, pdefunc = NeuralPDE.run_neuralpde(pde_system, hyperparam, get_cb())
 
 #Distributed.rmprocs(workers())
 
+channels = [RemoteChannel(NeuralPDE.loggerdata(id - 1), id) for id in workers()]
+experiment_manager_log_dir = joinpath(pwd(), "logs", "experiment_manager_test_logs")
+if isdir(experiment_manager_log_dir)
+    rm(experiment_manager_log_dir, recursive=true)
+    mkdir(experiment_manager_log_dir)
+end
+for (id, channel) in zip(workers(), channels)
+    while true
+        (dir, file, contents) = take!(channel)
+        if dir == "nomoredata"
+            break
+        else
+            @show dir
+            @show file
+            split_dir = splitpath(dir)
+            local_dir = joinpath(vcat(pwd(), split_dir[4:length(split_dir)]))
+            @show local_dir
+            mkpath(local_dir)
+            fileloc = joinpath(local_dir, file)
+            write(fileloc, contents)
+        end
+    end
+end
