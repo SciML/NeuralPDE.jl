@@ -1,23 +1,52 @@
+begin
 using NeuralPDE
 using Distributed
+end
+
+begin
 @show Distributed.nprocs()
 Distributed.addprocs(2)
 @show Distributed.nprocs()
 test_env = pwd()
+end
 
-# from scratch
-#@everywhere workers() begin; using Pkg; Pkg.activate("."); Pkg.update(); Pkg.add(["Distributed", "JSON", "DiffEqBase", "TensorBoardLogger", "Logging", "NeuralPDE", "ModelingToolkit", "Symbolics", "DiffEqFlux", "Flux", "Parameters", "ImageCore"]); Pkg.instantiate(); end
-#@everywhere workers() begin; using Pkg; Pkg.activate("."); Pkg.instantiate(); using Logging, TensorBoardLogger, NeuralPDE, ModelingToolkit, Symbolics, DiffEqFlux, Flux, Parameters; end
-
-# not from scratch
+begin
 @everywhere workers() begin; using Pkg; Pkg.activate($test_env); end
 @everywhere import ModelingToolkit: Interval, infimum, supremum
 @everywhere using Logging, TensorBoardLogger
 @everywhere using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
 @everywhere workers() @show Pkg.project()
+end
+
+begin
+
+sg = StructGenerator(
+    :CompositeHyperParameter,
+    RandomChoice(1:2^10), # seed
+    StructGenerator( # nn
+        :SimpleFeedForwardNetwork, # type/constructor name
+        RandomChoice(1:2),
+        RandomChoice(10, 20, 30),
+        RandomChoice(:GELUNonLin, :SigmoidNonLin),
+        :GlorotUniformParams
+    ),
+    StructGenerator( # training
+        :GridTraining,
+        RandomChoice(0.1, 0.2, 0.06)
+    ),
+    RandomChoice( # optimizer
+        StructGenerator(:BFGSOptimiser, 1000),
+        StructGenerator(:ADAMOptimiser, 1000, 1e-3)
+    )
+)
 
 
-experiment_manager = NeuralPDE.ExperimentManager(workers())
+hyperparametersweep = StructGeneratorHyperParameterSweep(1, 16, sg)
+hyperparameters = generate_hyperparameters(hyperparametersweep)
+end
+
+neuralpde_workers = map(NeuralPDE.NeuralPDEWorker, workers())
+experiment_manager = NeuralPDE.ExperimentManager(neuralpde_workers, hyperparameters)
 #NeuralPDE.initialize_envs(experiment_manager) # eh try this again later maybe
 
 @everywhere function get_pde_system()
@@ -56,29 +85,6 @@ end
     return cb
 end
 
-sg = StructGenerator(
-    :CompositeHyperParameter,
-    RandomChoice(1:2^10), # seed
-    StructGenerator( # nn
-        :SimpleFeedForwardNetwork, # type/constructor name
-        RandomChoice(1:2),
-        RandomChoice(10, 20, 30),
-        RandomChoice(:GELUNonLin, :SigmoidNonLin),
-        :GlorotUniformParams
-    ),
-    StructGenerator( # training
-        :GridTraining,
-        RandomChoice(0.1, 0.2, 0.06)
-    ),
-    RandomChoice( # optimizer
-        StructGenerator(:BFGSOptimiser, 1000),
-        StructGenerator(:ADAMOptimiser, 1000, 1e-3)
-    )
-)
-
-
-hyperparametersweep = StructGeneratorHyperParameterSweep(1, 16, sg)
-hyperparameters = generate_hyperparameters(hyperparametersweep)
 hyperparam = hyperparameters[1]
 
 res, phi, pdefunc = NeuralPDE.run_neuralpde(pde_system, hyperparam, get_cb())

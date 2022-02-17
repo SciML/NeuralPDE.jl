@@ -8,6 +8,7 @@ using Reexport, Statistics
 @reexport using DiffEqBase
 
 using Distributed
+using DataStructures
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
 using ModelingToolkit

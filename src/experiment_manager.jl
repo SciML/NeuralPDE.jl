@@ -193,25 +193,35 @@ begin
 end
 """
 
-
-struct ExperimentManager
-    workers::Vector{NeuralPDEWorker}
-    experiment_queue::Queue{AbstractHyperParameter}
-    experiments_in_progress::Vector{Tuple{NeuralPDEWorker, AbstractHyperParameter, RemoteChannel{Tuple{String, String, String}}}}
-    SciMLBase.@add_kwonly function ExperimentManager(workers::Vector{NeuralPDEWorker}, experiment_vector::Vector{AbstractHyperParameter})
-        experiment_queue = Queue{AbstractHyperParameter}()
-        empty_in_progress = Vector{Tuple{NeuralPDEWorker, AbstractHyperParameter, RemoteChannel{Tuple{String, String, String}}}}()
-        new(workers, experiment_queue, empty_in_progress)
-    end
-end
-
 struct NeuralPDEWorker
     pid::Int64
     has_gpu::Bool
-    SciMLBase.@add_kwonly function NeuralPDEWorker(pid::Integer; has_gpu=false)
-        new(convert(Int64, log_frequency), convert(Bool, has_gpu))
+    SciMLBase.@add_kwonly function NeuralPDEWorker(pid::Integer; has_gpu=false)  # default to no gpu for workers
+        new(convert(Int64, pid), convert(Bool, has_gpu))
     end
 end
+
+
+struct ExperimentInProgress{H <: AbstractHyperParameter}
+    hyperparam::H
+    remote_channel::RemoteChannel{Channel{Tuple{String, String, String}}}
+end
+
+struct ExperimentManager{H <: AbstractHyperParameter}
+    workers::Vector{NeuralPDEWorker}
+    experiment_queue::Queue{H} 
+    experiments_in_progress::Vector{Union{ExperimentInProgress{H}, Nothing}}
+    SciMLBase.@add_kwonly function ExperimentManager(workers::Vector{NeuralPDEWorker}, experiment_vector::Vector{H}) where H <: AbstractHyperParameter
+        experiment_queue = Queue{H}()
+        for experiment in experiment_vector
+            enqueue!(experiment_queue, experiment)
+        end
+        num_workers = length(workers)
+        nothing_in_progress = Vector{Union{ExperimentInProgress{H}, Nothing}}(nothing, num_workers)
+        new{H}(workers, experiment_queue, nothing_in_progress)
+    end
+end
+
 
 
 """
