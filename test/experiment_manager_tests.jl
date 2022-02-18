@@ -5,7 +5,7 @@ end
 
 begin
 @show Distributed.nprocs()
-Distributed.addprocs(8)
+Distributed.addprocs(16)
 @show Distributed.nprocs()
 test_env = pwd()
 end
