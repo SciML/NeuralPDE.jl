@@ -5,7 +5,7 @@ end
 
 begin
 @show Distributed.nprocs()
-Distributed.addprocs(2)
+Distributed.addprocs(8)
 @show Distributed.nprocs()
 test_env = pwd()
 end
@@ -19,8 +19,8 @@ begin
 @everywhere workers() @show pwd()
 @everywhere workers() @show homedir()
 end
-
 begin
+
 
 sg = StructGenerator(
     :CompositeHyperParameter,
@@ -37,18 +37,15 @@ sg = StructGenerator(
         RandomChoice(0.1, 0.2, 0.06)
     ),
     RandomChoice( # optimizer
-        StructGenerator(:BFGSOptimiser, 1000),
-        StructGenerator(:ADAMOptimiser, 1000, 1e-3)
+        StructGenerator(:BFGSOptimiser, 10000),
+        StructGenerator(:ADAMOptimiser, 10000, 1e-3)
     )
 )
 
 
-hyperparametersweep = StructGeneratorHyperParameterSweep(1, 2, sg)
+hyperparametersweep = StructGeneratorHyperParameterSweep(1, 64, sg)
 hyperparameters = generate_hyperparameters(hyperparametersweep)
 
-neuralpde_workers = map(NeuralPDE.NeuralPDEWorker, workers())
-experiment_manager = NeuralPDE.ExperimentManager(neuralpde_workers, hyperparameters)
-end
 #NeuralPDE.initialize_envs(experiment_manager) # eh try this again later maybe
 
 @everywhere function get_pde_system()
@@ -77,45 +74,24 @@ end
 end
 
 
-@everywhere pde_system = get_pde_system()
+pde_system = get_pde_system()
 
 @everywhere function get_cb()
     cb = function (p,l)
-        println("Current loss is: $l")
         return false
     end
     return cb
 end
 
-hyperparam = hyperparameters[1]
+neuralpde_workers = map(NeuralPDE.NeuralPDEWorker, workers())
+cb_func = get_cb()
+end
+experiment_manager = NeuralPDE.ExperimentManager(pde_system, hyperparameters, cb_func, neuralpde_workers)
+
+
+NeuralPDE.run_experiment_queue(experiment_manager)
 
 #res, phi, pdefunc = NeuralPDE.run_neuralpde(pde_system, hyperparam, get_cb())
 
 #Distributed.rmprocs(workers())
 
-worker_hyperparam_pair = zip(workers(), hyperparameters)
-@everywhere cb_func = get_cb()
-
-channels = [RemoteChannel(NeuralPDE.remote_run_neuralpde_with_logs(pde_system, hyperparam, cb_func), id) for (id, hyperparam) in worker_hyperparam_pair]
-experiment_manager_log_dir = joinpath(pwd(), "logs", "experiment_manager_test_logs")
-if isdir(experiment_manager_log_dir)
-    rm(experiment_manager_log_dir, recursive=true)
-    mkdir(experiment_manager_log_dir)
-end
-for (id, channel) in zip(workers(), channels)
-    while true
-        (dir, file, contents) = take!(channel)
-        if dir == "nomoredata"  # this could possibly break but they'd have to be taking log data in dir "nomoredata", not "/nomoredata" and I don't even know if that's possible
-            break
-        else
-            @show dir
-            @show file
-            split_dir = splitpath(dir)
-            local_dir = joinpath(vcat(pwd(), split_dir[4:length(split_dir)]))
-            @show local_dir
-            mkpath(local_dir)
-            fileloc = joinpath(local_dir, file)
-            write(fileloc, contents)
-        end
-    end
-end

@@ -1,21 +1,3 @@
-"""
-@everywhere begin
-    using Pkg
-    Pkg.activate(".")
-    println(Pkg.installed())
-end
-"""
-
-using Distributed
-#@everywhere using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
-#@everywhere import ModelingToolkit: Interval, infimum, supremum
-
-#@show Distributed.nprocs()
-#@show Threads.nthreads()
-
-i = t = id = 0
-
-
 
 function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter, cb_func; logger=nothing)
     @show hyperparam
@@ -49,64 +31,22 @@ function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter
     return (res=res, phis=phis, pdefunc=tx->map(phi->phi(tx, res)[1], phis) )
 end
 
-"""
-
-begin
-end
-begin
-    res, phi, pdefunc = run_neuralpde(get_pde_system(), hyperparam, get_cb())
-    @show pdefunc([0.0, 0.5])
-end
-"""
-
-# distributed experiment queue
-
-"""
-@everywhere workers() begin; using Pkg; Pkg.activate("."); Pkg.update(); Pkg.add(["Distributed", "JSON", "DiffEqBase", "TensorBoardLogger", "Logging", "NeuralPDE", "ModelingToolkit", "Symbolics", "DiffEqFlux", "Flux", "Parameters", "ImageCore"]); Pkg.instantiate(); end
-@everywhere workers() begin; using Pkg; Pkg.activate("."); Pkg.instantiate(); using Logging, TensorBoardLogger, NeuralPDE, ModelingToolkit, Symbolics, DiffEqFlux, Flux, Parameters; end
-
-@everywhere workers() @show Pkg.project()
-
-#@everywhere workers() begin; mkdir("$(myid())"); end
-"""
-
-function remote_run_neuralpde_with_logs(pde_system::PDESystem, hyperparam::AbstractHyperParameter, cb_func)
+function remote_run_neuralpde_with_logs(pde_system::PDESystem, hyperparam::AbstractHyperParameter, cb_func, experiment_index)
     function inner_run_neuralpde_with_logs()
-        id = myid()
-        loggerloc = joinpath(homedir(), "logs", "experiment_manager_test_logs", "$id")
-        if isdir(loggerloc)
-            rm(loggerloc, recursive=true)
-        end
-        logger = TBLogger(loggerloc, tb_append) #create tensorboard logger
-
-        res, phis, pdefunc = run_neuralpde(pde_system, hyperparam, cb_func; logger=logger)
-
-        """
-        ################log scalars example: y = x²################
-        #using logger interface
-        #with_logger(logger) do
-        for x in 1:20
-            #@info "scalar/loggerinterface" y = x*x *(-id)
-            log_value(logger, "scalar/loggerinterface", x*x *(id) * params; step=x)
-        end
-        #end
-        #using explicit function interface
-        for x in 1:20
-            log_value(logger, "scalar/explicitinterface", x*x*id; step = x)
-        end
-
-
-        ################log scalar example: y = x-xi################
-        #with_logger(logger) do
-        for x in 1:20
-            z = x-x*im + id - im*id
-            #@info "scalar/complex" y = z
-            log_value(logger, "scalar/complex", z; step=x)
-        end
-        #end
-        """
-
         function producer(c::Channel)
+            loggerloc = joinpath(homedir(), "logs", "experiment_manager_test_logs", "$experiment_index")
+
+            # TODO: this is mostly for testing iteration, remove this (in actual use you'd want to make more than one run w/ same hyperparams visible under the same namespace)
+            if isdir(loggerloc)
+                rm(loggerloc, recursive=true)
+            end
+            logger = TBLogger(loggerloc, tb_append) #create tensorboard logger
+
+            res, phis, pdefunc = run_neuralpde(pde_system, hyperparam, cb_func; logger=logger)
+
+            # transfer the log files at the end of the run.  this could probably be done more elegantly, with scp or rsync or something,
+            # but this only requires a julia worker connection, and it uses the tunneled ssh connection, so it will work behind firewalls
+            # and whatnot if you're able to connect past it
             for (root, _, files) in walkdir(loggerloc)
                 for file in files
                     fileloc = joinpath(root, file)
@@ -114,6 +54,7 @@ function remote_run_neuralpde_with_logs(pde_system::PDESystem, hyperparam::Abstr
                     put!(c, (root, file, filecontents))
                 end
             end
+            # dir == "nomoredata" is the signal to the consumer that there are no more files to send, tidy up the experiment and move on
             put!(c, ("nomoredata", "", ""))
         end
 
@@ -124,7 +65,7 @@ end
 
 struct NeuralPDEWorker
     pid::Int64
-    has_gpu::Bool
+    has_gpu::Bool # currently unused but I've defined it so that it's easy to use it later
     SciMLBase.@add_kwonly function NeuralPDEWorker(pid::Integer; has_gpu=false)  # default to no gpu for workers
         new(convert(Int64, pid), convert(Bool, has_gpu))
     end
@@ -136,21 +77,94 @@ struct ExperimentInProgress{H <: AbstractHyperParameter}
     remote_channel::RemoteChannel{Channel{Tuple{String, String, String}}}
 end
 
-struct ExperimentManager{H <: AbstractHyperParameter}
+struct ExperimentManager{H <: AbstractHyperParameter, C}
+    pde_system::PDESystem
+    hyperparameter_queue::Queue{H} 
+    cb_func::C
     workers::Vector{NeuralPDEWorker}
-    experiment_queue::Queue{H} 
     experiments_in_progress::Vector{Union{ExperimentInProgress{H}, Nothing}}
-    SciMLBase.@add_kwonly function ExperimentManager(workers::Vector{NeuralPDEWorker}, experiment_vector::Vector{H}) where H <: AbstractHyperParameter
-        experiment_queue = Queue{H}()
-        for experiment in experiment_vector
-            enqueue!(experiment_queue, experiment)
+    SciMLBase.@add_kwonly function ExperimentManager(pde_system::PDESystem, hyperparameters::Vector{H}, 
+        cb_func::C, workers::Vector{NeuralPDEWorker}) where {H <: AbstractHyperParameter, C}
+        hyperparameter_queue = Queue{H}()
+        for hyperparameter in hyperparameters
+            enqueue!(hyperparameter_queue, hyperparameter)
         end
         num_workers = length(workers)
         nothing_in_progress = Vector{Union{ExperimentInProgress{H}, Nothing}}(nothing, num_workers)
-        new{H}(workers, experiment_queue, nothing_in_progress)
+        new{H, C}(pde_system, hyperparameter_queue, cb_func, workers, nothing_in_progress)
     end
 end
 
+
+function run_experiment_queue(experiment_manager::ExperimentManager{H}) where {H <: AbstractHyperParameter}
+    pde_system = experiment_manager.pde_system
+    cb_func = experiment_manager.cb_func
+    experiments_in_progress = experiment_manager.experiments_in_progress
+    hyperparameter_queue = experiment_manager.hyperparameter_queue
+    workers = experiment_manager.workers
+    num_workers = length(experiment_manager.workers)
+    println("executing $(length(hyperparameter_queue)) hyperparameters")
+    experiment_index = 1
+
+    while true
+        # first check for break condition
+        no_experiments_running = all(map(isnothing, experiments_in_progress))
+        @show no_experiments_running
+        num_hyperparameters_in_queue = length(hyperparameter_queue)
+        @show num_hyperparameters_in_queue
+        if no_experiments_running && num_hyperparameters_in_queue == 0 # all done!
+            break
+        end
+
+        # then iterate through the free workers and assign them an experiment and remote call it
+        for worker_index in 1:num_workers
+            # free worker and an unassigned hyperparameter, give it a job
+            if experiments_in_progress[worker_index] isa Nothing && num_hyperparameters_in_queue > 0
+                pid = workers[worker_index].pid
+                # grab next hyperparameter and maintain the count 
+                hyperparam = dequeue!(hyperparameter_queue)
+                num_hyperparameters_in_queue -= 1
+
+                # remote call and store RemoteChannel for the logs
+                remote_channel = RemoteChannel(NeuralPDE.remote_run_neuralpde_with_logs(pde_system, hyperparam, cb_func, experiment_index), pid)
+                experiment_index += 1
+
+                # change experiment_in_progress data structure
+                experiments_in_progress[worker_index] = ExperimentInProgress{H}(hyperparam, remote_channel)
+            end
+        end
+
+
+        # then gather results of finished experiments and clean up experiment_in_progress data structure
+        for worker_index in 1:num_workers
+            if !(experiments_in_progress[worker_index] isa Nothing)
+                remote_channel = experiments_in_progress[worker_index].remote_channel
+                if isready(remote_channel) # the experiment is done, get all the data out
+                    println("experiment done! reading channel from $worker_index")
+                    while true 
+                        (dir, file, contents) = take!(remote_channel)
+                        # this could possibly break but they'd have to be taking log data in dir "nomoredata", not "/nomoredata" and I don't even know if that's possible
+                        if dir == "nomoredata"  
+                            break
+                        else
+                            @show dir
+                            @show file
+                            split_dir = splitpath(dir)
+                            local_dir = joinpath(vcat(pwd(), split_dir[4:length(split_dir)]))
+                            @show local_dir
+                            mkpath(local_dir)
+                            fileloc = joinpath(local_dir, file)
+                            write(fileloc, contents)
+                        end
+                    end
+                    # clean up data structures 
+                    experiments_in_progress[worker_index] = nothing
+                end
+            end
+        end
+    end
+    println("experiments all done!")
+end
 
 
 """
