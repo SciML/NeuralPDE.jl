@@ -43,7 +43,7 @@ sg = StructGenerator(
 )
 
 
-hyperparametersweep = StructGeneratorHyperParameterSweep(1, 16, sg)
+hyperparametersweep = StructGeneratorHyperParameterSweep(1, 2, sg)
 hyperparameters = generate_hyperparameters(hyperparametersweep)
 
 neuralpde_workers = map(NeuralPDE.NeuralPDEWorker, workers())
@@ -93,7 +93,10 @@ hyperparam = hyperparameters[1]
 
 #Distributed.rmprocs(workers())
 
-channels = [RemoteChannel(NeuralPDE.loggerdata(id - 1), id) for id in workers()]
+worker_hyperparam_pair = zip(workers(), hyperparameters)
+@everywhere cb_func = get_cb()
+
+channels = [RemoteChannel(NeuralPDE.remote_run_neuralpde_with_logs(pde_system, hyperparam, cb_func), id) for (id, hyperparam) in worker_hyperparam_pair]
 experiment_manager_log_dir = joinpath(pwd(), "logs", "experiment_manager_test_logs")
 if isdir(experiment_manager_log_dir)
     rm(experiment_manager_log_dir, recursive=true)
@@ -102,7 +105,7 @@ end
 for (id, channel) in zip(workers(), channels)
     while true
         (dir, file, contents) = take!(channel)
-        if dir == "nomoredata"
+        if dir == "nomoredata"  # this could possibly break but they'd have to be taking log data in dir "nomoredata", not "/nomoredata" and I don't even know if that's possible
             break
         else
             @show dir
