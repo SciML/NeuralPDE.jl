@@ -5,7 +5,7 @@ end
 
 begin
 @show Distributed.nprocs()
-Distributed.addprocs(16)
+Distributed.addprocs(4)
 @show Distributed.nprocs()
 test_env = pwd()
 end
@@ -43,10 +43,9 @@ sg = StructGenerator(
 )
 
 
-hyperparametersweep = StructGeneratorHyperParameterSweep(1, 64, sg)
+hyperparametersweep = StructGeneratorHyperParameterSweep(1, 16, sg)
 hyperparameters = generate_hyperparameters(hyperparametersweep)
 
-#NeuralPDE.initialize_envs(experiment_manager) # eh try this again later maybe
 
 @everywhere function get_pde_system()
 

@@ -161,26 +161,4 @@ function run_experiment_queue(experiment_manager::ExperimentManager{H}) where {H
 end
 
 
-"""
-# eh, just assume that the top level script activates and imports the right packages for now. this is hard
-function initialize_envs(experiment_manager::ExperimentManager, env_string::AbstractString)
-    activated_results_futures = map(experiment_manager.pids) do pid
-        remotecall(worker_initialize_env, pid, env_string)
-    end
-    activated_results = map(activated_results_futures) do result_future
-        fetch(result_future)
-    end
-    activated_results
-end
-
-
-function worker_initialize_env(env_string::AbstractString)
-    try 
-        Pkg.activate(env_string)
-    catch e
-        return e
-    end
-    true
-end
-"""
 
