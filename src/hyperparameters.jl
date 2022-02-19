@@ -205,29 +205,3 @@ function generate_hyperparameters(hyperparametersweep::StructGeneratorHyperParam
     hyperrng = Random.MersenneTwister(hyperparametersweep.hyperseed)
     hyperparameters = map(_ -> generate_struct(hyperrng, hyperparametersweep.structgenerator), 1:hyperparametersweep.iters)
 end
-
-
-sg = StructGenerator(
-    :CompositeHyperParameter,
-    RandomChoice(1:2^10), # seed
-    StructGenerator( # nn
-        :SimpleFeedForwardNetwork, # type/constructor name
-        RandomChoice(3:6),
-        RandomChoice(32, 64, 128),
-        RandomChoice(:GELUNonLin, :SigmoidNonLin),
-        :GlorotUniformParams
-    ),
-    StructGenerator( # training
-        :GridTraining,
-        RandomChoice(0.1, 0.04, 0.02)
-    ),
-    RandomChoice( # optimizer
-        StructGenerator(:BFGSOptimiser, 1000),
-        StructGenerator(:ADAMOptimiser, 1000, 1e-3)
-    )
-)
-
-
-hyperparametersweep = StructGeneratorHyperParameterSweep(1, 16, sg)
-hyperparameters = generate_hyperparameters(hyperparametersweep)
-
