@@ -1,11 +1,23 @@
 begin
 using NeuralPDE
 using Distributed
+function rm_subdirs(dir)
+    map(readdir(dir; join=true)) do subdir
+        println("rming subdir $subdir")
+        rm(subdir;recursive=true), 
+    end
+end
+receive_logdir = joinpath(["logs", "experiment_manager_test_logs"])
+remote_logdir = joinpath([homedir(), "logs", "experiment_manager_test_logs"])
+mkpath(receive_logdir)
+rm_subdirs(receive_logdir)
+mkpath(remote_logdir)
+rm_subdirs(remote_logdir)
 end
 
 begin
 @show Distributed.nprocs()
-Distributed.addprocs(4)
+Distributed.addprocs(16)
 @show Distributed.nprocs()
 test_env = pwd()
 end
@@ -37,13 +49,13 @@ sg = StructGenerator(
         RandomChoice(0.1, 0.2, 0.06)
     ),
     RandomChoice( # optimizer
-        StructGenerator(:BFGSOptimiser, 10000),
+        StructGenerator(:ADAMOptimiser, 10000, 1e-2),
         StructGenerator(:ADAMOptimiser, 10000, 1e-3)
     )
 )
 
 
-hyperparametersweep = StructGeneratorHyperParameterSweep(1, 16, sg)
+hyperparametersweep = StructGeneratorHyperParameterSweep(1, 64, sg)
 hyperparameters = generate_hyperparameters(hyperparametersweep)
 
 

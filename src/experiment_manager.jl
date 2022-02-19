@@ -102,37 +102,28 @@ function run_experiment_queue(experiment_manager::ExperimentManager{H}) where {H
     while true
         # first check for break condition
         no_experiments_running = all(map(isnothing, experiments_in_progress))
-        #@show no_experiments_running
-        num_hyperparameters_in_queue = length(hyperparameter_queue)
-        #@show num_hyperparameters_in_queue
-        if no_experiments_running && num_hyperparameters_in_queue == 0 # all done!
+        if no_experiments_running && length(hyperparameter_queue) == 0 # all done!
             break
         end
 
         # then iterate through the free workers and assign them an experiment and remote call it
-        #println("assigning experiments")
         for worker_index in 1:num_workers
             # free worker and an unassigned hyperparameter, give it a job
-            if experiments_in_progress[worker_index] isa Nothing && num_hyperparameters_in_queue > 0
+            if experiments_in_progress[worker_index] isa Nothing && length(hyperparameter_queue) > 0
                 pid = workers[worker_index].pid
                 # grab next hyperparameter and maintain the count 
                 hyperparam = dequeue!(hyperparameter_queue)
-                num_hyperparameters_in_queue -= 1
 
-                # remote call and store Future for the logs
-                future = Future()
-                errormonitor(@async put!(future, remotecall_fetch(NeuralPDE.remote_run_neuralpde_with_logs, pid, pde_system, hyperparam, cb_func, experiment_index)))
-                experiment_index += 1
+                # change experiment_in_progress data structure and make a new future to store results in
+                experiments_in_progress[worker_index] = ExperimentInProgress{H}(hyperparam, Future(myid()))
+                errormonitor(@async put!(experiments_in_progress[worker_index].future, remotecall_fetch(NeuralPDE.remote_run_neuralpde_with_logs, pid, pde_system, hyperparam, cb_func, experiment_index)))
                 println("assigned experiment $experiment_index to worker $(workers[worker_index].pid)")
-                println("$num_hyperparameters_in_queue hyperparameters left in queue")
+                println("$(length(hyperparameter_queue)) hyperparameters left in queue")
+                experiment_index += 1
 
-                # change experiment_in_progress data structure
-                experiments_in_progress[worker_index] = ExperimentInProgress{H}(hyperparam, future)
             end
         end
 
-
-        #println("checking for completed experiments")
         # then gather results of finished experiments and clean up experiment_in_progress data structure
         for worker_index in 1:num_workers
             if !(experiments_in_progress[worker_index] isa Nothing)
@@ -141,21 +132,21 @@ function run_experiment_queue(experiment_manager::ExperimentManager{H}) where {H
                     worker_pid = workers[worker_index].pid
                     println("experiment done! reading future from worker $worker_pid")
                     log_vector = fetch(future)
-                    for (dir, file, contents) in log_vector
-                        @show dir
-                        @show file
+                    for (dir, filename, contents) in log_vector
                         split_dir = splitpath(dir)
                         local_dir = joinpath(vcat(pwd(), split_dir[4:length(split_dir)]))
-                        @show local_dir
                         mkpath(local_dir)
-                        fileloc = joinpath(local_dir, file)
-                        write(fileloc, contents)
+                        filepath = joinpath(local_dir, filename)
+                        write(filepath, contents)
                     end
                     # clean up data structures 
                     experiments_in_progress[worker_index] = nothing
                 end
             end
         end
+        # sleep for a bit (to not waste cycles and to do the async fetching if on only one thread) 
+        # and then loop again until all experiments are finished
+        sleep(2)
     end
     println("experiments all done!")
 end
