@@ -1502,7 +1502,7 @@ end
 
 # Convert a PDE problem into an OptimizationProblem
 function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    discretized_functions = discretize_full_functions(pde_system.pde_functions, discretization)
+    discretized_functions = discretize_full_functions(pde_system, discretization)
     f = OptimizationFunction(discretized_functions.full_loss_function, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, discretized_functions.flat_initθ)
 end
