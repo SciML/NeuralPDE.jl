@@ -358,9 +358,10 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,quasirandom_strategy;init_par
 
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+discretized_functions = NeuralPDE.discretize_full_functions(pde_system,discretization)
 
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+pde_inner_loss_functions = discretized_functions.pde_loss_functions
+bcs_inner_loss_functions = discretized_functions.bc_loss_functions
 
 cb_ = function (p,l)
     println("loss: ", l )
@@ -645,9 +646,10 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 
 @named pde_system = PDESystem(eq,bcs,domains,[x],[p(x)])
 prob = NeuralPDE.discretize(pde_system,discretization)
+discretized_functions = NeuralPDE.discretize_full_functions(pde_system,discretization)
 
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+pde_inner_loss_functions = discretized_functions.pde_loss_functions
+bcs_inner_loss_functions = discretized_functions.bc_loss_functions
 
 phi = discretization.phi
 
