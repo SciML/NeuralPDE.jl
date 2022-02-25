@@ -26,7 +26,7 @@ function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter
     # Optimizer
     opt, maxiters = NeuralPDE.getopt(hyperparam)
 
-    res = GalacticOptim.solve(prob,opt; cb = wrapped_iteration_cb_func, maxiters=maxiters)
+    res = GalacticOptim.solve(prob, opt; cb=wrapped_iteration_cb_func, maxiters=maxiters)
     phis = discretization.phi
     return (res=res, phis=phis, pdefunc=tx->map(phi->phi(tx, res)[1], phis) )
 end
@@ -139,7 +139,7 @@ function run_experiment_queue(experiment_manager::ExperimentManager{H}) where {H
                         filepath = joinpath(local_dir, filename)
                         write(filepath, contents)
                     end
-                    # clean up data structures 
+                    # clean up data structure 
                     experiments_in_progress[worker_index] = nothing
                 end
             end
