@@ -17,6 +17,7 @@ jobs:
           - NNPDEHan
           - NNPDENS
           - NNPDE
+          - AdaptiveLoss
           - NeuralAdapter
           - IntegroDiff
           - NNSTOPPINGTIME
