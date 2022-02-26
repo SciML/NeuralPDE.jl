@@ -4,7 +4,7 @@ using Distributed
 function rm_subdirs(dir)
     map(readdir(dir; join=true)) do subdir
         println("rming subdir $subdir")
-        rm(subdir;recursive=true), 
+        rm(subdir;recursive=true) 
     end
 end
 receive_logdir = joinpath(["logs", "experiment_manager_test_logs"])
