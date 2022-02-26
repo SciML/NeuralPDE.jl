@@ -1497,7 +1497,9 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
         return full_weighted_loss
     end
 
-    (bc_loss_functions=bc_loss_functions, pde_loss_functions=pde_loss_functions, full_loss_function=loss_function_, additional_loss_function=additional_loss, flat_initθ=flat_initθ)
+    (bc_loss_functions=bc_loss_functions, pde_loss_functions=pde_loss_functions, full_loss_function=loss_function_, 
+        additional_loss_function=additional_loss, flat_initθ=flat_initθ, 
+        inner_pde_loss_functions=_pde_loss_functions, inner_bc_loss_functions=_bc_loss_functions)
 end
 
 # Convert a PDE problem into an OptimizationProblem
