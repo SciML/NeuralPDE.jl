@@ -10,12 +10,14 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         group:
           - NNODE
           - NNPDEHan
           - NNPDENS
           - NNPDE
+          - AdaptiveLoss
           - NeuralAdapter
           - IntegroDiff
           - NNSTOPPINGTIME
