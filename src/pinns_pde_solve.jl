@@ -53,7 +53,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 
 """
 """
-struct LogOptions 
+struct LogOptions{PlotFunction}
     log_frequency::Int64
     # TODO: add in an option for saving plots in the log. this is currently not done because the type of plot is dependent on the PDESystem
     #       possible solution: pass in a plot function?  
@@ -61,9 +61,11 @@ struct LogOptions
     #       and not just one weight for each loss function, i.e. pde_loss_weights(i, t, x) and since this would be function-internal, 
     #       we'd want the plot & log to happen internally as well
     #       plots of the learned function can happen in the outer callback, but we might want to offer that here too
+    # function that takes in (phi, θ, adaloss) and outputs an array of namedtuples with fields: (name::AbstractString, image::Image, format::TensorBoardLogger.ImageFormat
+    plot_function::PlotFunction
 
-    SciMLBase.@add_kwonly function LogOptions(;log_frequency=50)
-        new(convert(Int64, log_frequency))
+    SciMLBase.@add_kwonly function LogOptions(;log_frequency=50, plot_function=nothing)
+        new{typeof(plot_function)}(convert(Int64, log_frequency), plot_function)
     end
 end
 
@@ -1369,6 +1371,7 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
     adaloss_T = eltype(adaloss.pde_loss_weights)
     logger = discretization.logger
     log_frequency = discretization.log_options.log_frequency
+    plot_function = discretization.log_options.plot_function
     iteration = discretization.iteration
     self_increment = discretization.self_increment
 
@@ -1380,14 +1383,14 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
     function logvector(v, name)
         if logger isa TBLogger
             for j in 1:length(v)
-                log_value(logger, "$(name)/$(j)", v[j], step=iteration[1])
+                log_value(logger, "$(name)/$(j)", v[j]; step=iteration[1])
             end
         end
     end
 
     function logscalar(s, name)
         if logger isa TBLogger
-            log_value(logger, "$(name)", s, step=iteration[1])
+            log_value(logger, "$(name)", s; step=iteration[1])
         end
     end
 
@@ -1491,6 +1494,14 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
                 logscalar(full_weighted_loss, "weighted_loss/full_weighted_loss")
                 logvector(adaloss.pde_loss_weights, "adaptive_loss/pde_loss_weights")
                 logvector(adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights")
+
+                if !(plot_function isa Nothing)
+                    plots = plot_function(phi, θ, adaloss)
+                    for plot in plots
+                        log_image(logger, plot.name, plot.image; step=iteration[1])
+
+                    end
+                end
             end
         end
 

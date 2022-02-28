@@ -1,6 +1,7 @@
 begin
 using NeuralPDE
 using Distributed
+using Plots
 function rm_subdirs(dir)
     map(readdir(dir; join=true)) do subdir
         println("rming subdir $subdir")
@@ -17,7 +18,7 @@ end
 
 begin
 @show Distributed.nprocs()
-Distributed.addprocs(16)
+Distributed.addprocs(2)
 @show Distributed.nprocs()
 test_env = pwd()
 end
@@ -25,8 +26,9 @@ end
 begin
 @everywhere workers() begin; using Pkg; Pkg.activate($test_env); end
 @everywhere import ModelingToolkit: Interval, infimum, supremum
-@everywhere using Logging, TensorBoardLogger
+@everywhere using Logging, TensorBoardLogger, ImageIO, ImageMagick
 @everywhere using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+@everywhere using Plots
 @everywhere workers() @show Pkg.project()
 @everywhere workers() @show pwd()
 @everywhere workers() @show homedir()
@@ -55,7 +57,7 @@ sg = StructGenerator(
 )
 
 
-hyperparametersweep = StructGeneratorHyperParameterSweep(1, 64, sg)
+hyperparametersweep = StructGeneratorHyperParameterSweep(1, 2, sg)
 hyperparameters = generate_hyperparameters(hyperparametersweep)
 
 
@@ -81,11 +83,13 @@ hyperparameters = generate_hyperparameters(hyperparametersweep)
     domains = [t ∈ Interval(0.0,1.0),
             x ∈ Interval(0.0,1.0)]
 
-    return @named pde_system = PDESystem(eq,bcs,domains,[t,x],[u(t,x)])
+    @named pde_system = PDESystem(eq,bcs,domains,[t,x],[u(t,x)])
+
+    return (pde_system=pde_system, domains=domains)
 end
 
 
-pde_system = get_pde_system()
+pde_system, domains = get_pde_system()
 
 @everywhere function get_cb()
     cb = function (p,l)
@@ -94,10 +98,29 @@ pde_system = get_pde_system()
     return cb
 end
 
+@everywhere function get_plot_function()
+    xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+    analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
+    u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
+    p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+    function plot_function(phi, θ, adaloss)
+        u_predict = reshape([first(phi[1]([x,y],θ)) for x in xs for y in ys],(length(xs),length(ys)))
+        diff_u = abs.(u_predict .- u_real)
+
+
+        p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
+        p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
+        [(name="analytic", image=p1), (name="predict", image=p2), (name="error", image=p3)]
+    end
+    return plot_function
+end
+
+log_options = NeuralPDE.LogOptions(;plot_function=get_plot_function())
+
 neuralpde_workers = map(NeuralPDE.NeuralPDEWorker, workers())
 cb_func = get_cb()
 end
-experiment_manager = NeuralPDE.ExperimentManager(pde_system, hyperparameters, cb_func, neuralpde_workers)
+experiment_manager = NeuralPDE.ExperimentManager(pde_system, hyperparameters, cb_func, log_options, neuralpde_workers)
 
 
 NeuralPDE.run_experiment_queue(experiment_manager)
