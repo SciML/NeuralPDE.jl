@@ -18,7 +18,7 @@ end
 
 begin
 @show Distributed.nprocs()
-Distributed.addprocs(2)
+Distributed.addprocs(16)
 @show Distributed.nprocs()
 test_env = pwd()
 end
@@ -57,33 +57,30 @@ sg = StructGenerator(
 )
 
 
-hyperparametersweep = StructGeneratorHyperParameterSweep(1, 2, sg)
+hyperparametersweep = StructGeneratorHyperParameterSweep(1, 16, sg)
 hyperparameters = generate_hyperparameters(hyperparametersweep)
 
 
 @everywhere function get_pde_system()
 
-    @parameters t, x
+    @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
-    Dtt = Differential(t)^2
-    Dt = Differential(t)
+    Dyy = Differential(y)^2
 
     #2D PDE
-    C=1
-    eq  = Dtt(u(t,x)) ~ C^2*Dxx(u(t,x))
+    eqs  = [Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)]
 
     # Initial and boundary conditions
-    bcs = [u(t,0) ~ 0.,# for all t > 0
-        u(t,1) ~ 0.,# for all t > 0
-        u(0,x) ~ x*(1. - x), #for all 0 < x < 1
-        Dt(u(0,x)) ~ 0. ] #for all  0 < x < 1]
+    bcs = [u(0,y) ~ 0.0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+           u(x,0) ~ 0.0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+
 
     # Space and time domains
-    domains = [t ∈ Interval(0.0,1.0),
-            x ∈ Interval(0.0,1.0)]
+    domains = [x ∈ Interval(0.0,1.0),
+            y ∈ Interval(0.0,1.0)]
 
-    @named pde_system = PDESystem(eq,bcs,domains,[t,x],[u(t,x)])
+    @named pde_system = PDESystem(eqs,bcs,domains,[x,y],[u(x,y)])
 
     return (pde_system=pde_system, domains=domains)
 end
