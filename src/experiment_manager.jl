@@ -3,9 +3,15 @@ function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter
     #@show hyperparam
 
     iteration = [0]
+    logdir = logger.logdir
+    log_text(logger, "hyperparam_string", string(hyperparam), step=0)
     function wrapped_iteration_cb_func(p, l) # useful for making sure the user doesn't need to iterate
+        if iteration[1] % 500 == 0
+            writedlm(joinpath([logdir, "params_$(iteration[1]).csv"]), p, ", ")
+        end
+        cb_return = cb_func(p, l)
         iteration[1] += 1
-        cb_func(p, l)
+        cb_return
     end
 
     seed = NeuralPDE.getseed(hyperparam)
@@ -19,8 +25,9 @@ function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter
     chains, init_params = NeuralPDE.getfunction(hyperparam, num_ivs_for_dvs)
 
     training = NeuralPDE.gettraining(hyperparam)
+    adaptive_loss = NeuralPDE.getadaptiveloss(hyperparam)
 
-    discretization = PhysicsInformedNN(chains, training; init_params=init_params, logger=logger, iteration=iteration, log_options=log_options)
+    discretization = PhysicsInformedNN(chains, training; init_params=init_params, logger=logger, iteration=iteration, log_options=log_options, adaptive_loss=adaptive_loss)
     prob = discretize(pde_system,discretization)
 
     # Optimizer

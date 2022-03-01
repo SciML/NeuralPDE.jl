@@ -62,7 +62,7 @@ struct LogOptions{PlotFunction}
     #       and not just one weight for each loss function, i.e. pde_loss_weights(i, t, x) and since this would be function-internal, 
     #       we'd want the plot & log to happen internally as well
     #       plots of the learned function can happen in the outer callback, but we might want to offer that here too
-    # function that takes in (phi, θ, adaloss) and outputs an array of namedtuples with fields: (name::AbstractString, image::Image, format::TensorBoardLogger.ImageFormat
+    # function that takes in (logger, step, phi, θ, adaloss) and outputs an array of namedtuples with fields: (name::AbstractString, image::Image, format::TensorBoardLogger.ImageFormat
     plot_function::PlotFunction
 
     SciMLBase.@add_kwonly function LogOptions(;log_frequency=50, plot_frequency=500, plot_function=nothing)
@@ -1376,6 +1376,10 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
     plot_function = discretization.log_options.plot_function
     iteration = discretization.iteration
     self_increment = discretization.self_increment
+    param_lengths = length.(discretization.init_params)
+    indices_in_params = map(zip(param_lengths, cumsum(param_lengths))) do (param_length, cumsum_param)
+            cumsum_param - (param_length - 1) : cumsum_param
+    end
 
     # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
     adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .* adaloss.pde_loss_weights
@@ -1499,7 +1503,7 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
 
             end
             if logger isa TBLogger && iteration[1] % plot_frequency == 0 && !(plot_function isa Nothing)
-                plots = plot_function(phi, θ, adaloss)
+                plots = plot_function(logger, iteration[1], phi, θ, indices_in_params, adaloss)
                 for plot in plots
                     log_image(logger, plot.name, plot.image; step=iteration[1])
 

@@ -37,10 +37,11 @@ end
 
 
 
-struct CompositeHyperParameter{NN <: AbstractNN, TRAINING <: NeuralPDE.TrainingStrategies, OPT <: AbstractOptimiser} <: AbstractHyperParameter
+struct CompositeHyperParameter{NN <: AbstractNN, TRAINING <: NeuralPDE.TrainingStrategies, ADAPTIVELOSS <: AbstractAdaptiveLoss, OPT <: AbstractOptimiser} <: AbstractHyperParameter
     seed::Int64
     nn::NN
     training::TRAINING
+    adaptive_loss::ADAPTIVELOSS
     opt::OPT
 end
 
@@ -54,6 +55,10 @@ end
 
 function getseed(hyperparam::CompositeHyperParameter)
     hyperparam.seed
+end
+
+function getadaptiveloss(hyperparam::CompositeHyperParameter)
+    hyperparam.adaptive_loss
 end
 
 function getopt(hyperparam::CompositeHyperParameter)

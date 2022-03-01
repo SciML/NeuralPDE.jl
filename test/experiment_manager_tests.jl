@@ -100,7 +100,7 @@ end
     analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
     u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
     p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-    function plot_function(phi, θ, adaloss)
+    function plot_function(logger, step, phi, θ, adaloss)
         u_predict = reshape([first(phi[1]([x,y],θ)) for x in xs for y in ys],(length(xs),length(ys)))
         diff_u = abs.(u_predict .- u_real)
 

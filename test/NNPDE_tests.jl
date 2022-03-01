@@ -296,19 +296,17 @@ function test_2d_poisson_equation(chain_, strategy_)
 
     @test u_predict ≈ u_real atol = 2.0
 
-     p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-     p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-     p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-     return plot(p1,p2,p3)
+     #p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+     #p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
+     #p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
+     #return plot(p1,p2,p3)
 end
 
 fastchain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
 fluxchain = Chain(Dense(2,12,Flux.σ),Dense(12,12,Flux.σ),Dense(12,1))
 chains = [fluxchain, fastchain]
-chains = [fastchain]
-plotted = test_2d_poisson_equation(chains[1], grid_strategy)
-plots = for chain in chains
-    plotted = test_2d_poisson_equation(chain, grid_strategy)
+for chain in chains
+    test_2d_poisson_equation(chain, grid_strategy)
 end
 
 for strategy_ in strategies
