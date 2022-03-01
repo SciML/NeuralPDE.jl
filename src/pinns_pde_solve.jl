@@ -119,7 +119,6 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
         end
         type_initθ = if (typeof(chain) <: AbstractVector) Base.promote_typeof.(initθ)[1] else  Base.promote_typeof(initθ) end
         parameterless_type_θ = DiffEqBase.parameterless_type(type_initθ)
-        @show parameterless_type_θ
 
         if phi == nothing
             if chain isa AbstractArray
@@ -139,10 +138,8 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
 
         if !(typeof(adaptive_loss) <: AbstractAdaptiveLoss)
             floattype = eltype(initθ)
-            @show floattype
             if floattype <: Vector
                 floattype = eltype(floattype)
-                @show floattype
             end
             adaptive_loss = NonAdaptiveLoss{floattype}()
         end
