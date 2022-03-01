@@ -137,7 +137,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
         end
 
         if !(typeof(adaptive_loss) <: AbstractAdaptiveLoss)
-            adaptive_loss = NonAdaptiveLoss{eltype(init_params)}()
+            adaptive_loss = NonAdaptiveLoss{eltype(init_θ)}()
         end
 
         if iteration isa Vector{Int64}
