@@ -55,6 +55,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 """
 struct LogOptions{PlotFunction}
     log_frequency::Int64
+    plot_frequency::Int64
     # TODO: add in an option for saving plots in the log. this is currently not done because the type of plot is dependent on the PDESystem
     #       possible solution: pass in a plot function?  
     #       this is somewhat important because we want to support plotting adaptive weights that depend on pde independent variables 
@@ -64,8 +65,8 @@ struct LogOptions{PlotFunction}
     # function that takes in (phi, θ, adaloss) and outputs an array of namedtuples with fields: (name::AbstractString, image::Image, format::TensorBoardLogger.ImageFormat
     plot_function::PlotFunction
 
-    SciMLBase.@add_kwonly function LogOptions(;log_frequency=50, plot_function=nothing)
-        new{typeof(plot_function)}(convert(Int64, log_frequency), plot_function)
+    SciMLBase.@add_kwonly function LogOptions(;log_frequency=50, plot_frequency=500, plot_function=nothing)
+        new{typeof(plot_function)}(convert(Int64, log_frequency), convert(Int64, plot_frequency), plot_function)
     end
 end
 
@@ -1371,6 +1372,7 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
     adaloss_T = eltype(adaloss.pde_loss_weights)
     logger = discretization.logger
     log_frequency = discretization.log_options.log_frequency
+    plot_frequency = discretization.log_options.plot_frequency
     plot_function = discretization.log_options.plot_function
     iteration = discretization.iteration
     self_increment = discretization.self_increment
@@ -1495,12 +1497,12 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
                 logvector(adaloss.pde_loss_weights, "adaptive_loss/pde_loss_weights")
                 logvector(adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights")
 
-                if !(plot_function isa Nothing)
-                    plots = plot_function(phi, θ, adaloss)
-                    for plot in plots
-                        log_image(logger, plot.name, plot.image; step=iteration[1])
+            end
+            if logger isa TBLogger && iteration[1] % plot_frequency == 0 && !(plot_function isa Nothing)
+                plots = plot_function(phi, θ, adaloss)
+                for plot in plots
+                    log_image(logger, plot.name, plot.image; step=iteration[1])
 
-                    end
                 end
             end
         end

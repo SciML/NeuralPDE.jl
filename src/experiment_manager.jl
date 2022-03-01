@@ -32,7 +32,7 @@ function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter
 end
 
 function remote_run_neuralpde_with_logs(pde_system::PDESystem, hyperparam::AbstractHyperParameter, cb_func, log_options, experiment_index)
-    loggerloc = joinpath(homedir(), "logs", "experiment_manager_test_logs", "$experiment_index")
+    loggerloc = joinpath(homedir(), "logs", "experiment_manager_test_logs", "$(string(hyperparam))")
 
     # TODO: this is mostly for testing iteration, remove this (in actual use you'd want to make more than one run w/ same hyperparams visible under the same namespace)
     if isdir(loggerloc)
