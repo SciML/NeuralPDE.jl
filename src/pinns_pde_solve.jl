@@ -104,7 +104,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
                                              additional_loss=nothing,
                                              adaptive_loss=nothing,
                                              logger=nothing,
-                                             log_options=nothing,
+                                             log_options=LogOptions(),
                                              iteration=nothing,
                                              kwargs...) where iip
         if init_params == nothing
@@ -136,30 +136,19 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
             _derivative = derivative
         end
 
-        if typeof(adaptive_loss) <: AbstractAdaptiveLoss 
-            _adaptive_loss = adaptive_loss
-        elseif adaptive_loss == nothing
-            _adaptive_loss = NonAdaptiveLoss{Float64}()
-        else
-            throw(ArgumentError("adaptive_loss must be an AbstractAdaptiveLoss or nothing"))
+        if !(typeof(adaptive_loss) <: AbstractAdaptiveLoss)
+            adaptive_loss = NonAdaptiveLoss{eltype(init_params)}()
         end
 
-        if log_options == nothing
-            _log_options = LogOptions()
-        else
-            _log_options = log_options
-        end
-
-        if iteration == nothing
-            _iteration = [1]
-            self_increment = true
-        else
-            _iteration = iteration
+        if iteration isa Vector{Int64}
             self_increment = false
+        else
+            iteration = [1]
+            self_increment = true
         end
 
-        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(_adaptive_loss),typeof(logger),typeof(kwargs)}(
-            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,_adaptive_loss,logger,_log_options,_iteration,self_increment,kwargs)
+        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(adaptive_loss),typeof(logger),typeof(kwargs)}(
+            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,adaptive_loss,logger,log_options,iteration,self_increment,kwargs)
     end
 end
 PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
