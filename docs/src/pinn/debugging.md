@@ -50,15 +50,17 @@ isapprox(dphi[1][2], dphi2, atol=1e-8)
 
 indvars = [x,t]
 depvars = [u(x, t)]
+dict_depvars_input = Dict(:u => [:x, :t])
 dim = length(domains)
 dx = 0.1
 strategy = NeuralPDE.GridTraining(dx)
+integral = NeuralPDE.get_numeric_integral(strategy, indvars, depvars, chain, derivative)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,chain,initθ,strategy)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,integral,chain,initθ,strategy)
 
-julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,phi,derivative,chain,initθ,strategy)
+julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,chain,initθ,strategy)
 
-:((cord, var"##θ#529", phi, derivative, u)->begin
+:((cord, var"##θ#529", phi, derivative, integral, u)->begin
           begin
               let (x, t) = (cord[[1], :], cord[[2], :])
                   derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667], [0.0, 0.0049215667]], 2, var"##θ#529") .- derivative.(phi, u, cord, Array{Float32,1}[[0.0049215667, 0.0], [0.0049215667, 0.0]], 2, var"##θ#529")
@@ -74,35 +76,35 @@ julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
  [:x]
 
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
-                                                     phi,derivative,chain,initθ,strategy,
+                                                     phi,derivative,integral,chain,initθ,strategy,
                                                      bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
-julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,
-                                                                        phi,derivative,chain,initθ,strategy,
+julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,dict_depvars_input,
+                                                                        phi,derivative,integral,chain,initθ,strategy,
                                                                         bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 4-element Array{Expr,1}:
- :((cord, var"##θ#529", phi, derivative, u)->begin
+ :((cord, var"##θ#529", phi, derivative, integral, u)->begin
           begin
               let (x, t) = (cord[[1], :], cord[[2], :])
                   u.(cord, var"##θ#529", phi) .- 0.0
               end
           end
       end)
- :((cord, var"##θ#529", phi, derivative, u)->begin
+ :((cord, var"##θ#529", phi, derivative, integral, u)->begin
           begin
               let (x, t) = (cord[[1], :], cord[[2], :])
                   u.(cord, var"##θ#529", phi) .- 0.0
               end
           end
       end)
- :((cord, var"##θ#529", phi, derivative, u)->begin
+ :((cord, var"##θ#529", phi, derivative, integral, u)->begin
           begin
               let (x, t) = (cord[[1], :], cord[[2], :])
                   u.(cord, var"##θ#529", phi) .- (*).(x, (+).(1.0, (*).(-1, x)))
               end
           end
       end)
- :((cord, var"##θ#529", phi, derivative, u)->begin
+ :((cord, var"##θ#529", phi, derivative, integral, u)->begin
           begin
               let (x, t) = (cord[[1], :], cord[[2], :])
                   derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667]], 1, var"##θ#529") .- 0.0
