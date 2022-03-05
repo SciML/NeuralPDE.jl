@@ -19,8 +19,9 @@ nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights=1, bc_loss_weights
 gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weights=1e3, bc_loss_weights=1)
 adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights=1, bc_loss_weights=1)
 adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss,adaptive_loss]
-maxiters_logs=4000
-maxiters_no_logs=200
+maxiters_no_logs_first=4000
+maxiters_no_logs_after_import=400
+maxiters_logs=400
 seed=60
 
 ## 2D Poisson equation
@@ -118,47 +119,49 @@ end
 
 
 
-println("making sure that there are no logs without having imported NeuralPDELogging")
+println("making sure that there are no logs without having imported NeuralPDELogging and test that the adaptive loss methods roughly succeed")
 no_logger_loc = joinpath(@__DIR__, "testlogs", "no_logs")
-test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, no_logger_loc, false; seed=seed, maxiters=maxiters_no_logs)
+test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, no_logger_loc, false; seed=seed, maxiters=maxiters_no_logs_first)
 error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters, adaptive_losses, 1:length(adaptive_losses))
 
 # make sure that that no logger is putting logs in there
 @test length(readdir(no_logger_loc)) == 0
+
+# accuracy tests
+@show error_results_no_logs[1][:total_diff_rel]
+@show error_results_no_logs[2][:total_diff_rel]
+@show error_results_no_logs[3][:total_diff_rel]
+# accuracy tests, these work for this specific seed but might not for others
+# note that this doesn't test that the adaptive losses are outperforming the nonadaptive loss, which is not guaranteed, and seed/arch/hyperparam/pde etc dependent
+@test error_results_no_logs[1][:total_diff_rel] < 0.4
+@test error_results_no_logs[2][:total_diff_rel] < 0.4
+@test error_results_no_logs[3][:total_diff_rel] < 0.4
+
+#plots_diffs[1][:plot]
+#plots_diffs[2][:plot]
+#plots_diffs[3][:plot]
 
 # this should recompile the logging stuff
 using NeuralPDELogging
 
 println("making sure that there are still no logs now that we have imported NeuralPDELogging")
 no_logger_after_import_loc = joinpath(@__DIR__, "testlogs", "no_logs_after_import")
-test_2d_poisson_equation_adaptive_loss_no_logs_after_import_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, no_logger_after_import_loc, false; seed=seed, maxiters=maxiters_no_logs)
-error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_after_import_run_seediters, adaptive_losses, 1:length(adaptive_losses))
+test_2d_poisson_equation_adaptive_loss_no_logs_after_import_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, no_logger_after_import_loc, false; seed=seed, maxiters=maxiters_no_logs_after_import)
+error_results_no_logs_after_import = map(test_2d_poisson_equation_adaptive_loss_no_logs_after_import_run_seediters, adaptive_losses, 1:length(adaptive_losses))
 
 # make sure that that no logger is putting logs in there
 @test length(readdir(no_logger_after_import_loc)) == 0
 
 logger_loc = joinpath(@__DIR__, "testlogs", "logs")
-println("test logger logs going into folder:")
-
+println("making sure that logs are generated now if we use a logger")
 
 test_2d_poisson_equation_adaptive_loss_with_logs_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, logger_loc, true; seed=seed, maxiters=maxiters_logs)
 error_results_with_logs = map(test_2d_poisson_equation_adaptive_loss_with_logs_run_seediters, adaptive_losses, 1:length(adaptive_losses))
 
-@show error_results_with_logs[1][:total_diff_rel]
-@show error_results_with_logs[2][:total_diff_rel]
-@show error_results_with_logs[3][:total_diff_rel]
-# accuracy tests, these work for this specific seed but might not for others
-# note that this doesn't test that the adaptive losses are outperforming the nonadaptive loss, which is not guaranteed, and seed/arch/hyperparam/pde etc dependent
-@test error_results_with_logs[1][:total_diff_rel] < 0.4
-@test error_results_with_logs[2][:total_diff_rel] < 0.4
-@test error_results_with_logs[3][:total_diff_rel] < 0.4
 # make sure that the logger is actually putting logs in there, but not testing the contents of the logs
-@test length(readdir(joinpath(loggerloc, "1"))) > 0
-@test length(readdir(joinpath(loggerloc, "2"))) > 0
-@test length(readdir(joinpath(loggerloc, "3"))) > 0
+@test length(readdir(joinpath(logger_loc, "1"))) > 0
+@test length(readdir(joinpath(logger_loc, "2"))) > 0
+@test length(readdir(joinpath(logger_loc, "3"))) > 0
 
 
-#plots_diffs[1][:plot]
-#plots_diffs[2][:plot]
-#plots_diffs[3][:plot]
 
