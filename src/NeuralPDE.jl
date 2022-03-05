@@ -20,7 +20,6 @@ using ArrayInterface
 import Tracker, Optim
 using DomainSets
 using Symbolics
-using TensorBoardLogger
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball

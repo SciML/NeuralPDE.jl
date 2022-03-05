@@ -1,0 +1,8 @@
+name = "NeuralPDELogging"
+uuid = "7c138fc3-9327-4ab8-b9a3-c864f3475625"
+authors = ["Zoe McCarthy <zoemccarthy12@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"

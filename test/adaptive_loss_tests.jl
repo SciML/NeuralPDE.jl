@@ -9,26 +9,42 @@ using Optim
 using Quadrature,Cubature, Cuba
 using QuasiMonteCarlo
 using SciMLBase
-using TensorBoardLogger
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 using Random
 #using Plots
 println("Starting Soon!")
 
+nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights=1, bc_loss_weights=1)
+gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weights=1e3, bc_loss_weights=1)
+adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights=1, bc_loss_weights=1)
+adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss,adaptive_loss]
+maxiters_logs=4000
+maxiters_no_logs=200
+seed=60
 
 ## 2D Poisson equation
-function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, maxiters=4000)
-    Random.seed!(seed)
-    loggerloc = joinpath(@__DIR__, "testlogs", "$run")
-    if isdir(loggerloc)
-        rm(loggerloc, recursive=true)
+function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, haslogger; seed=60, maxiters=4000)
+    println
+    if !isdir(outdir)
+        mkpath(outdir)
     end
-    logger = TBLogger(loggerloc, tb_append) #create tensorboard logger
+    for dir in readdir(outdir)
+        fullpath = joinpath(outdir, dir)
+        @show "deleting $fullpath"
+        rm(fullpath, recursive=true)
+    end
+    if haslogger
+        loggerloc = joinpath(outdir, "$run")
+        logger = TBLogger(loggerloc, tb_append) #create tensorboard logger
+    else
+        logger = nothing
+    end
+    Random.seed!(seed)
     hid = 40
     chain_ = FastChain(FastDense(2,hid,Flux.σ),FastDense(hid,hid,Flux.σ),FastDense(hid,1))
     strategy_ =  NeuralPDE.StochasticTraining(256)
-    println("adaptive reweighting test, 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) ")
+    println("adaptive reweighting test outdir: $(outdir), maxiters: $(maxiters), 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) ")
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -66,18 +82,22 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, max
 
     cb = function (p,l)
         iteration[1] += 1
-        println("Current loss is: $l, iteration is $(iteration[1])")
-        log_value(logger, "outer_error/loss", l, step=iteration[1])
-        if iteration[1] % 30 == 0
-            u_predict = reshape([first(phi([x,y],p)) for x in xs for y in ys],(length(xs),length(ys)))
-            diff_u = abs.(u_predict .- u_real)
-            total_diff = sum(diff_u)
-            log_value(logger, "outer_error/total_diff", total_diff, step=iteration[1])
-            total_u = sum(abs.(u_real))
-            total_diff_rel = total_diff / total_u
-            log_value(logger, "outer_error/total_diff_rel", total_diff_rel, step=iteration[1])
-            total_diff_sq = sum(diff_u .^ 2)
-            log_value(logger, "outer_error/total_diff_sq", total_diff_sq, step=iteration[1])
+        if iteration[1] % 100 == 0
+            println("Current loss is: $l, iteration is $(iteration[1])")
+        end
+        if haslogger
+            log_value(logger, "outer_error/loss", l, step=iteration[1])
+            if iteration[1] % 30 == 0
+                u_predict = reshape([first(phi([x,y],p)) for x in xs for y in ys],(length(xs),length(ys)))
+                diff_u = abs.(u_predict .- u_real)
+                total_diff = sum(diff_u)
+                log_value(logger, "outer_error/total_diff", total_diff, step=iteration[1])
+                total_u = sum(abs.(u_real))
+                total_diff_rel = total_diff / total_u
+                log_value(logger, "outer_error/total_diff_rel", total_diff_rel, step=iteration[1])
+                total_diff_sq = sum(diff_u .^ 2)
+                log_value(logger, "outer_error/total_diff_sq", total_diff_sq, step=iteration[1])
+            end
         end
         return false
     end
@@ -97,40 +117,49 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, max
 end
 
 
-loggerloc = joinpath(@__DIR__, "testlogs")
+
+println("making sure that there are no logs without having imported NeuralPDELogging")
+no_logger_loc = joinpath(@__DIR__, "testlogs", "no_logs")
+test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, no_logger_loc, false; seed=seed, maxiters=maxiters_no_logs)
+error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters, adaptive_losses, 1:length(adaptive_losses))
+
+# make sure that that no logger is putting logs in there
+@test length(readdir(no_logger_loc)) == 0
+
+## 2D Poisson equation with logs
+
+# this should recompile the logging stuff
+using NeuralPDELogging
+
+
+println("making sure that there are still no logs now that we have imported NeuralPDELogging")
+no_logger_after_import_loc = joinpath(@__DIR__, "testlogs", "no_logs_after_import")
+test_2d_poisson_equation_adaptive_loss_no_logs_after_import_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, no_logger_after_import_loc, false; seed=seed, maxiters=maxiters_no_logs)
+error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_after_import_run_seediters, adaptive_losses, 1:length(adaptive_losses))
+
+# make sure that that no logger is putting logs in there
+@test length(readdir(no_logger_after_import_loc)) == 0
+
+logger_loc = joinpath(@__DIR__, "testlogs", "logs")
 println("test logger logs going into folder:")
-@show loggerloc
-if !isdir(loggerloc)
-    mkdir(loggerloc)
-end
-for dir in readdir(loggerloc)
-    fullpath = joinpath(loggerloc, dir)
-    @show "deleting $fullpath"
-    rm(fullpath, recursive=true)
-end
-nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights=1, bc_loss_weights=1)
-gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weights=1e3, bc_loss_weights=1)
-adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights=1, bc_loss_weights=1)
-adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss,adaptive_loss]
-maxiters=4000
-seed=60
 
-test_2d_poisson_equation_adaptive_loss_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=seed, maxiters=maxiters)
 
-plots_diffs = map(test_2d_poisson_equation_adaptive_loss_run_seediters, adaptive_losses, 1:length(adaptive_losses))
+test_2d_poisson_equation_adaptive_loss_with_logs_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, logger_loc, true; seed=seed, maxiters=maxiters_logs)
+error_results_with_logs = map(test_2d_poisson_equation_adaptive_loss_with_logs_run_seediters, adaptive_losses, 1:length(adaptive_losses))
 
-@show plots_diffs[1][:total_diff_rel]
-@show plots_diffs[2][:total_diff_rel]
-@show plots_diffs[3][:total_diff_rel]
+@show error_results_with_logs[1][:total_diff_rel]
+@show error_results_with_logs[2][:total_diff_rel]
+@show error_results_with_logs[3][:total_diff_rel]
 # accuracy tests, these work for this specific seed but might not for others
 # note that this doesn't test that the adaptive losses are outperforming the nonadaptive loss, which is not guaranteed, and seed/arch/hyperparam/pde etc dependent
-@test plots_diffs[1][:total_diff_rel] < 0.4
-@test plots_diffs[2][:total_diff_rel] < 0.4
-@test plots_diffs[3][:total_diff_rel] < 0.4
+@test error_results_with_logs[1][:total_diff_rel] < 0.4
+@test error_results_with_logs[2][:total_diff_rel] < 0.4
+@test error_results_with_logs[3][:total_diff_rel] < 0.4
 # make sure that the logger is actually putting logs in there, but not testing the contents of the logs
 @test length(readdir(joinpath(loggerloc, "1"))) > 0
 @test length(readdir(joinpath(loggerloc, "2"))) > 0
 @test length(readdir(joinpath(loggerloc, "3"))) > 0
+
 
 #plots_diffs[1][:plot]
 #plots_diffs[2][:plot]
