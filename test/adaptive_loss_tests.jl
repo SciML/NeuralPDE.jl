@@ -126,11 +126,8 @@ error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_s
 # make sure that that no logger is putting logs in there
 @test length(readdir(no_logger_loc)) == 0
 
-## 2D Poisson equation with logs
-
 # this should recompile the logging stuff
 using NeuralPDELogging
-
 
 println("making sure that there are still no logs now that we have imported NeuralPDELogging")
 no_logger_after_import_loc = joinpath(@__DIR__, "testlogs", "no_logs_after_import")
