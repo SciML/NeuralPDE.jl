@@ -788,9 +788,9 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=init
 prob = NeuralPDE.discretize(pdesys,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 
-res  = GalacticOptim.solve(prob,ADAM(0.1),maxiters=1000)
+res  = GalacticOptim.solve(prob,ADAM(0.05),maxiters=1000)
 prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(),maxiters=500)
+res  = GalacticOptim.solve(prob,BFGS(initial_stepnorm = 0.01),maxiters=500)
 
 @test discretization.phi(xs',res.u) ≈ func(xs') rtol = 0.01
 
