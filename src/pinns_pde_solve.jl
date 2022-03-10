@@ -68,11 +68,13 @@ struct LogOptions
 end
 
 """This function is defined here as stubs to be overriden by the subpackage NeuralPDELogging if imported"""
-function logvector(logger, v, name, step)
+function logvector(logger, v::AbstractVector{R}, name::AbstractString, step::Integer) where R <: Real
+    nothing
 end
 
 """This function is defined here as stubs to be overriden by the subpackage NeuralPDELogging if imported"""
-function logscalar(logger, s, name, step)
+function logscalar(logger, s::R, name::AbstractString, step::Integer) where R <: Real
+    nothing
 end
 
 """

@@ -4,4 +4,4 @@
 Manifest.toml
 *.pdf
 .vscode/settings.json
-test/testlogs
+*/testlogs

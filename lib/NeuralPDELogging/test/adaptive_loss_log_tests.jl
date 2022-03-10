@@ -1,16 +1,9 @@
-@info "adaptive_reweighting_tests"
-using Flux
+@info "adaptive_loss_logging_tests"
 using DiffEqFlux
 using ModelingToolkit
-using DiffEqBase
 using Test, NeuralPDE
 using GalacticOptim
-using Optim
-using Quadrature,Cubature, Cuba
-using QuasiMonteCarlo
-using SciMLBase
 import ModelingToolkit: Interval, infimum, supremum
-using DomainSets
 using Random
 #using Plots
 @info "Starting Soon!"
@@ -19,16 +12,22 @@ nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights=1, bc_loss_weights
 gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weights=1e3, bc_loss_weights=1)
 adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights=1, bc_loss_weights=1)
 adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss,adaptive_loss]
-maxiters=4000
+maxiters=800
 seed=60
 
 ## 2D Poisson equation
-function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, maxiters=4000)
+function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, haslogger; seed=60, maxiters=800)
+    logdir = joinpath(outdir, string(run))
+    if haslogger
+        logger = TBLogger(logdir)
+    else
+        logger = nothing
+    end
     Random.seed!(seed)
     hid = 40
     chain_ = FastChain(FastDense(2,hid,Flux.σ),FastDense(hid,hid,Flux.σ),FastDense(hid,1))
     strategy_ =  NeuralPDE.StochasticTraining(256)
-    @info "adaptive reweighting test outdir: $(outdir), maxiters: $(maxiters), 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) "
+    @info "adaptive reweighting test logdir: $(logdir), maxiters: $(maxiters), 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) "
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -50,7 +49,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, max
                                                  strategy_;
                                                  init_params = initθ,
                                                  adaptive_loss = adaptive_loss,
-                                                 logger = nothing,
+                                                 logger = logger,
                                                  iteration=iteration)
 
 
@@ -69,6 +68,20 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, max
         if iteration[1] % 100 == 0
             @info "Current loss is: $l, iteration is $(iteration[1])"
         end
+        if haslogger
+            log_value(logger, "outer_error/loss", l, step=iteration[1])
+            if iteration[1] % 30 == 0
+                u_predict = reshape([first(phi([x,y],p)) for x in xs for y in ys],(length(xs),length(ys)))
+                diff_u = abs.(u_predict .- u_real)
+                total_diff = sum(diff_u)
+                log_value(logger, "outer_error/total_diff", total_diff, step=iteration[1])
+                total_u = sum(abs.(u_real))
+                total_diff_rel = total_diff / total_u
+                log_value(logger, "outer_error/total_diff_rel", total_diff_rel, step=iteration[1])
+                total_diff_sq = sum(diff_u .^ 2)
+                log_value(logger, "outer_error/total_diff_sq", total_diff_sq, step=iteration[1])
+            end
+        end
         return false
     end
     res = GalacticOptim.solve(prob, ADAM(0.03); maxiters=maxiters, cb=cb)
@@ -86,22 +99,30 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, max
     (error=total_diff, total_diff_rel=total_diff_rel)
 end
 
+possible_logger_dir = mktempdir()
+if ENV["LOG_SETTING"] == "NoImport"
+    haslogger = false
+    expected_log_folders = 0
+elseif ENV["LOG_SETTING"] == "ImportNoUse"
+    using NeuralPDELogging
+    haslogger = false
+    expected_log_folders = 0
+elseif ENV["LOG_SETTING"] == "ImportUse"
+    using NeuralPDELogging
+    using TensorBoardLogger
+    haslogger = true
+    expected_log_folders = 3
+end
 
+@info "has logger: $(haslogger), expected log folders: $(expected_log_folders)"
 
-@info "testing that the adaptive loss methods roughly succeed"
-test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=seed, maxiters=maxiters)
-error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters, adaptive_losses, 1:length(adaptive_losses))
+test_2d_poisson_equation_adaptive_loss_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, possible_logger_dir, haslogger; seed=seed, maxiters=maxiters)
+error_results = map(test_2d_poisson_equation_adaptive_loss_run_seediters, adaptive_losses, 1:length(adaptive_losses))
 
-# accuracy tests
-@show error_results_no_logs[1][:total_diff_rel]
-@show error_results_no_logs[2][:total_diff_rel]
-@show error_results_no_logs[3][:total_diff_rel]
-# accuracy tests, these work for this specific seed but might not for others
-# note that this doesn't test that the adaptive losses are outperforming the nonadaptive loss, which is not guaranteed, and seed/arch/hyperparam/pde etc dependent
-@test error_results_no_logs[1][:total_diff_rel] < 0.4
-@test error_results_no_logs[2][:total_diff_rel] < 0.4
-@test error_results_no_logs[3][:total_diff_rel] < 0.4
-
-#plots_diffs[1][:plot]
-#plots_diffs[2][:plot]
-#plots_diffs[3][:plot]
+@test length(readdir(possible_logger_dir)) == expected_log_folders
+if expected_log_folders > 0
+    @info "dirs at $(possible_logger_dir): $(string(readdir(possible_logger_dir)))"
+    for logdir in readdir(possible_logger_dir)
+        @test length(readdir(joinpath(possible_logger_dir, logdir))) > 0
+    end
+end

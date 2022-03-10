@@ -44,7 +44,9 @@ const is_CI = haskey(ENV,"CI")
   if GROUP == "All" || GROUP == "Forward"
         @time @safetestset "Forward" begin include("forward_tests.jl") end
   end
-
+  if GROUP == "All" || GROUP == "Logging"
+        @time @safetestset "Logging" begin include("logging_tests.jl") end
+  end
   if !is_APPVEYOR && GROUP == "GPU"
      @safetestset "NNPDE_gpu" begin include("NNPDE_tests_gpu.jl") end
  end

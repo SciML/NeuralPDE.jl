@@ -21,6 +21,7 @@ jobs:
           - IntegroDiff
           - NNSTOPPINGTIME
           - NNRODE
+          - Logging
           - Forward
         version:
           - '1'
