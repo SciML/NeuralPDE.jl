@@ -23,12 +23,12 @@ maxiters=4000
 seed=60
 
 ## 2D Poisson equation
-function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=60, maxiters=4000)
+function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed=60, maxiters=4000)
     Random.seed!(seed)
     hid = 40
     chain_ = FastChain(FastDense(2,hid,Flux.σ),FastDense(hid,hid,Flux.σ),FastDense(hid,1))
     strategy_ =  NeuralPDE.StochasticTraining(256)
-    @info "adaptive reweighting test outdir: $(outdir), maxiters: $(maxiters), 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) "
+    @info "adaptive reweighting test outdir:, maxiters: $(maxiters), 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) "
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -89,8 +89,8 @@ end
 
 
 @info "testing that the adaptive loss methods roughly succeed"
-test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters(adaptive_loss, run) = test_2d_poisson_equation_adaptive_loss(adaptive_loss, run; seed=seed, maxiters=maxiters)
-error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters, adaptive_losses, 1:length(adaptive_losses))
+test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters(adaptive_loss) = test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed=seed, maxiters=maxiters)
+error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters, adaptive_losses)
 
 # accuracy tests
 @show error_results_no_logs[1][:total_diff_rel]
