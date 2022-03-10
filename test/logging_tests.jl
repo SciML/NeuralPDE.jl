@@ -1,22 +1,17 @@
 import Pkg
-Pkg.activate(;temp=true)
-Pkg.update()
 
-neuralpde_dir = dirname(abspath(joinpath(@__DIR__, "..")))
+neuralpde_dir = abspath(joinpath(@__DIR__, ".."))
 @info "neuralpde_directory: $(neuralpde_dir)"
-neuralpde = Pkg.PackageSpec(path = neuralpde_dir)
-Pkg.develop(neuralpde)
 
-neuralpdelogging_dir = joinpath(neuralpde_dir, "lib", "NeuralPDELogging")
+neuralpdelogging_dir = abspath(joinpath(neuralpde_dir, "lib", "NeuralPDELogging"))
 @info "developing NeuralPDELogging subpackage at dir: $(neuralpdelogging_dir)"
 neuralpdelogging = Pkg.PackageSpec(path = neuralpdelogging_dir)
-Pkg.develop(neuralpdelogging)
-
-@info "building with NeuralPDELogging subpackage"
-Pkg.build()
-Pkg.precompile()
+@info "neuralpdelogging: $(string(neuralpdelogging))"
 
 @info "testing NeuralPDELogging subpackage"
 inner_is_CI = haskey(ENV,"CI")
-Pkg.test(neuralpdelogging; coverage = inner_is_CI)
+@info "inner_is_CI: $(inner_is_CI)"
+Pkg.activate(neuralpdelogging_dir)
+@info Pkg.project()
+Pkg.test(; coverage = inner_is_CI)
 

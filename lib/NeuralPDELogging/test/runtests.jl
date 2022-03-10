@@ -7,7 +7,7 @@ const is_APPVEYOR = Sys.iswindows() && haskey(ENV,"APPVEYOR")
 
 const is_TRAVIS = haskey(ENV,"TRAVIS")
 
-const is_CI = haskey(ENV,"CI")
+is_CI = haskey(ENV,"CI")
 
 
 @time begin
