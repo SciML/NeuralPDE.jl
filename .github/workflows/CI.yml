@@ -16,10 +16,12 @@ jobs:
           - NNPDEHan
           - NNPDENS
           - NNPDE
+          - AdaptiveLoss
           - NeuralAdapter
           - IntegroDiff
           - NNSTOPPINGTIME
           - NNRODE
+          - Logging
           - Forward
         version:
           - '1'

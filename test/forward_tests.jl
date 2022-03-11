@@ -25,12 +25,27 @@ import ModelingToolkit: Interval
     discretization = NeuralPDE.PhysicsInformedNN(chain,strategy_;init_params = Float64[])
     @named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
     prob = NeuralPDE.discretize(pde_system,discretization)
+    discretized_functions = NeuralPDE.discretize_inner_functions(pde_system,discretization)
 
-    train_data =prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents[1].train_set
-    inner_loss =prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents[1].loss_function
+    eqs = pde_system.eqs
+    bcs = pde_system.bcs
+    domains = pde_system.domain
+    dx = strategy_.dx
+    eltypeθ = eltype(discretized_functions.flat_initθ)
+    depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = NeuralPDE.get_vars(pde_system.ivs,
+                                                        pde_system.dvs)
+
+    train_sets = generate_training_sets(domains,dx,eqs,bcs,eltypeθ,
+                                        dict_indvars,dict_depvars)
+
+    pde_train_sets, bcs_train_sets = train_sets
+    pde_train_sets = NeuralPDE.adapt(eltypeθ,pde_train_sets)[1]
+
+    train_data =pde_train_sets
+    pde_loss_function = discretized_functions.inner_pde_loss_functions[1]
 
     dudx(x) = @. 2*x
-    @test inner_loss(train_data, Float64[]) ≈ dudx(train_data) rtol = 1e-8
+    @test pde_loss_function(train_data, Float64[]) ≈ dudx(train_data) rtol = 1e-8
 end
 
 @testset "derivatives" begin
@@ -97,7 +112,8 @@ end
     @named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
     sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
     prob = NeuralPDE.discretize(pde_system,discretization)
-    inner_loss =prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents[1].loss_function
+    discretized_functions = NeuralPDE.discretize_inner_functions(pde_system,discretization)
+    inner_loss =discretized_functions.inner_pde_loss_functions[1]
     exact_u = π/(3*sqrt(3))
     @test  inner_loss(ones(1,1), Float64[])[1] ≈ exact_u  rtol = 1e-5
 
@@ -116,7 +132,8 @@ end
     @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
     sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
     prob = SciMLBase.discretize(pde_system, discretization)
-    inner_loss =prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents[1].loss_function
+    discretized_functions = NeuralPDE.discretize_inner_functions(pde_system,discretization)
+    inner_loss =discretized_functions.inner_pde_loss_functions[1]
     exact_u = 0
     @test  inner_loss(ones(1,1), Float64[])[1] ≈ exact_u  rtol = 1e-9
 end
