@@ -53,12 +53,12 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 
 """
 """
-struct LogOptions 
+struct LogOptions
     log_frequency::Int64
     # TODO: add in an option for saving plots in the log. this is currently not done because the type of plot is dependent on the PDESystem
-    #       possible solution: pass in a plot function?  
-    #       this is somewhat important because we want to support plotting adaptive weights that depend on pde independent variables 
-    #       and not just one weight for each loss function, i.e. pde_loss_weights(i, t, x) and since this would be function-internal, 
+    #       possible solution: pass in a plot function?
+    #       this is somewhat important because we want to support plotting adaptive weights that depend on pde independent variables
+    #       and not just one weight for each loss function, i.e. pde_loss_weights(i, t, x) and since this would be function-internal,
     #       we'd want the plot & log to happen internally as well
     #       plots of the learned function can happen in the outer callback, but we might want to offer that here too
 
@@ -99,6 +99,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
   param_estim::PE
   additional_loss::AL
   adaptive_loss::ADA
+  adaptive_activation_function::ADF
   logger::LOG
   log_options::LogOptions
   iteration::Vector{Int64}
@@ -113,6 +114,7 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
                                              param_estim=false,
                                              additional_loss=nothing,
                                              adaptive_loss=nothing,
+                                             adaptive_activation_function=false,
                                              logger=nothing,
                                              log_options=LogOptions(),
                                              iteration=nothing,
@@ -161,8 +163,8 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
             self_increment = true
         end
 
-        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(adaptive_loss),typeof(logger),typeof(kwargs)}(
-            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,adaptive_loss,logger,log_options,iteration,self_increment,kwargs)
+        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(adaptive_loss),typeof(adaptive_function),typeof(logger),typeof(kwargs)}(
+            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,adaptive_loss,adaptive_activation_function,logger,log_options,iteration,self_increment,kwargs)
     end
 end
 PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
@@ -237,7 +239,7 @@ abstract type AbstractAdaptiveLoss end
 
 function vectorify(x, t::Type{T}) where T <: Real
     convertfunc(y) = convert(t, y)
-    returnval = 
+    returnval =
     if x isa Vector
         convertfunc.(x)
     else
@@ -255,16 +257,38 @@ A way of weighting the components of the loss function in the total sum that doe
 mutable struct NonAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     pde_loss_weights::Vector{T}
     bc_loss_weights::Vector{T}
-    additional_loss_weights::Vector{T} 
+    additional_loss_weights::Vector{T}
     SciMLBase.@add_kwonly function NonAdaptiveLoss{T}(;pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
         new(vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
     end
 end
 
 # default to Float64
-SciMLBase.@add_kwonly function NonAdaptiveLoss(;pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
+SciMLBase.@add_kwonly function NonAdaptiveLoss(;pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1)
     NonAdaptiveLoss{Float64}(;pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
 end
+
+
+"""
+A way to increase the training speed, by adding an activation slope based slope recovery term in the loss function, which further accelerates convergence, thereby reducing the training cost.
+
+* `scaling_factor`:
+* `parameter_a`: (these are not final)
+
+from papers
+https://arxiv.org/pdf/1906.01170.pdf and https://arxiv.org/pdf/1909.12228.pdf
+with code reference
+https://github.com/AmeyaJagtap/Locally-Adaptive-Activation-Functions-Neural-Networks-
+"""
+mutable struct AdaptiveActivationFunction{T <: Real}
+    scaling_factor::Int64
+    parameter_a::Vector{T} # if user wants to pass in their own vector of values to test/optimize
+    # or could also be unnecessary since the type would not be vector(?)
+
+    #
+
+end
+
 
 """
 A way of adaptively reweighting the components of the loss function in the total sum such that BC_i loss weights are scaled by the exponential moving average of max(|∇pde_loss|)/mean(|∇bc_i_loss|) )
@@ -276,7 +300,7 @@ A way of adaptively reweighting the components of the loss function in the total
 * `additional_loss_weights`: a scalar which describes the weight the additional loss function has in the full loss sum, this is currently not adaptive and will be constant with this adaptive loss,
 
 from paper
-Understanding and mitigating gradient pathologies in physics-informed neural networks 
+Understanding and mitigating gradient pathologies in physics-informed neural networks
 Sifan Wang, Yujun Teng, Paris Perdikaris
 https://arxiv.org/abs/2001.04536v1
 with code reference
@@ -285,16 +309,16 @@ https://github.com/PredictiveIntelligenceLab/GradientPathologiesPINNs
 mutable struct GradientScaleAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     reweight_every::Int64
     weight_change_inertia::T
-    pde_loss_weights::Vector{T} 
-    bc_loss_weights::Vector{T} 
-    additional_loss_weights::Vector{T} 
+    pde_loss_weights::Vector{T}
+    bc_loss_weights::Vector{T}
+    additional_loss_weights::Vector{T}
     SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss{T}(reweight_every; weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
         new(convert(Int64, reweight_every), convert(T, weight_change_inertia), vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
     end
 end
 # default to Float64
-SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss(reweight_every; weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
-    GradientScaleAdaptiveLoss{Float64}(reweight_every; weight_change_inertia=weight_change_inertia, 
+SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss(reweight_every; weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1)
+    GradientScaleAdaptiveLoss{Float64}(reweight_every; weight_change_inertia=weight_change_inertia,
         pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
 end
 
@@ -314,16 +338,16 @@ Self-Adaptive Physics-Informed Neural Networks using a Soft Attention Mechanism
 Levi McClenny, Ulisses Braga-Neto
 https://arxiv.org/abs/2009.04544
 """
-mutable struct MiniMaxAdaptiveLoss{T <: Real, PDE_OPT <: Flux.Optimise.AbstractOptimiser, BC_OPT <: Flux.Optimise.AbstractOptimiser} <: AbstractAdaptiveLoss 
+mutable struct MiniMaxAdaptiveLoss{T <: Real, PDE_OPT <: Flux.Optimise.AbstractOptimiser, BC_OPT <: Flux.Optimise.AbstractOptimiser} <: AbstractAdaptiveLoss
     reweight_every::Int64
     pde_max_optimiser::PDE_OPT
     bc_max_optimiser::BC_OPT
-    pde_loss_weights::Vector{T} 
-    bc_loss_weights::Vector{T} 
-    additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T, PDE_OPT, BC_OPT}(reweight_every; pde_max_optimiser=Flux.ADAM(1e-4), bc_max_optimiser=Flux.ADAM(0.5), 
+    pde_loss_weights::Vector{T}
+    bc_loss_weights::Vector{T}
+    additional_loss_weights::Vector{T}
+    SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T, PDE_OPT, BC_OPT}(reweight_every; pde_max_optimiser=Flux.ADAM(1e-4), bc_max_optimiser=Flux.ADAM(0.5),
             pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where {T <: Real, PDE_OPT <: Flux.Optimise.AbstractOptimiser, BC_OPT <: Flux.Optimise.AbstractOptimiser}
-        new(convert(Int64, reweight_every), convert(PDE_OPT, pde_max_optimiser), convert(BC_OPT, bc_max_optimiser), 
+        new(convert(Int64, reweight_every), convert(PDE_OPT, pde_max_optimiser), convert(BC_OPT, bc_max_optimiser),
             vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
     end
 end
@@ -422,7 +446,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
-                dict_interior_indvars = Dict([indvar .=> j for (j, indvar) in enumerate(dict_depvar_input[depvar])])                
+                dict_interior_indvars = Dict([indvar .=> j for (j, indvar) in enumerate(dict_depvar_input[depvar])])
                 dim_l = length(dict_interior_indvars)
 
                 var_ = is_integral ? :(derivative) : :($(Expr(:$, :derivative)))
@@ -456,13 +480,13 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 end
 
                 lb, ub = get_limits(_args[1].domain.domain)
-                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb, ub, _args[2],integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable, eltypeθ)            
+                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb, ub, _args[2],integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable, eltypeθ)
 
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
                 integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
                                                 dict_depvar_input, chain,eltypeθ,strategy,
-                                                phi,derivative_,integral,initθ; is_integral = false, 
-                                                dict_transformation_vars = dict_transformation_vars, 
+                                                phi,derivative_,integral,initθ; is_integral = false,
+                                                dict_transformation_vars = dict_transformation_vars,
                                                 transformation_vars = transformation_vars)
                 integrand__ = _dot_(integrand_)
 
@@ -471,7 +495,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                                                          initθ, strategy, integrand = integrand__,
                                                          integrating_depvars=integrating_depvars,
                                                          eq_params=SciMLBase.NullParameters(),
-                                                         dict_transformation_vars = dict_transformation_vars, 
+                                                         dict_transformation_vars = dict_transformation_vars,
                                                          transformation_vars = transformation_vars,
                                                          param_estim =false, default_p = nothing)
                 # integrand = repr(integrand)
@@ -594,7 +618,7 @@ function build_symbolic_loss_function(eqs,_indvars,_depvars,dict_depvar_input,
                                       param_estim = false,
                                       default_p=nothing,
                                       integrand=nothing,
-                                      dict_transformation_vars = nothing, 
+                                      dict_transformation_vars = nothing,
                                       transformation_vars = nothing,
                                       integrating_depvars=nothing)
     # dictionaries: variable -> unique number
@@ -609,7 +633,7 @@ function build_symbolic_loss_function(eqs,_indvars,_depvars,dict_depvar_input,
                                         param_estim = param_estim,
                                         default_p=default_p,
                                         integrand=integrand,
-                                        dict_transformation_vars = dict_transformation_vars, 
+                                        dict_transformation_vars = dict_transformation_vars,
                                         transformation_vars = transformation_vars,
                                         integrating_depvars=integrating_depvars)
 end
@@ -651,7 +675,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
                                       default_p=default_p,
                                       bc_indvars=indvars,
                                       integrand=nothing,
-                                      dict_transformation_vars = nothing, 
+                                      dict_transformation_vars = nothing,
                                       transformation_vars = nothing,
                                       integrating_depvars=depvars,
                                       )
@@ -665,7 +689,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
         this_eq_indvars = unique(vcat(values(this_eq_pair)...))
-    else 
+    else
         this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars], integrating_depvars))
         this_eq_indvars = transformation_vars isa Nothing ? unique(vcat(values(this_eq_pair)...)) : transformation_vars
         loss_function = integrand
@@ -732,7 +756,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
 
     if strategy isa QuadratureTraining
         indvars_ex = get_indvars_ex(bc_indvars)
-        left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex 
+        left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
     else
         indvars_ex = [:($:cord[[$i],:]) for (i, u) ∈ enumerate(this_eq_indvars)]
@@ -1040,7 +1064,7 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
     integral =
         (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ ;strategy=strategy, indvars=indvars, depvars=depvars, dict_indvars=dict_indvars, dict_depvars=dict_depvars)->
             begin
-                
+
                 function integration_(cord, lb, ub, θ)
                     cord_ = cord
                     function integrand_(x , p)
@@ -1082,7 +1106,7 @@ end
 function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
     loss = (θ) -> mean(abs2,loss_function(train_set, θ))
 end
-            
+
 @nograd function generate_random_points(points, bound, eltypeθ)
     function f(b)
       if b isa Number
@@ -1190,7 +1214,7 @@ end
 function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     eqs = pde_system.eqs
     bcs = pde_system.bcs
-    
+
     domains = pde_system.domain
     eq_params = pde_system.ps
     defaults = pde_system.defaults
@@ -1216,7 +1240,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
         eqs = [eqs]
     end
 
-    pde_indvars = if strategy isa QuadratureTraining 
+    pde_indvars = if strategy isa QuadratureTraining
         get_argument(eqs,dict_indvars,dict_depvars)
     else
         get_variables(eqs,dict_indvars,dict_depvars)
@@ -1259,7 +1283,7 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
     param_estim = discretization.param_estim
     additional_loss = discretization.additional_loss
     adaloss = discretization.adaptive_loss
-    
+
     # dimensionality of equation
     dim = length(domains)
 
@@ -1332,7 +1356,7 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
          pde_loss_functions = [get_loss_function(_loss,bound,eltypeθ,parameterless_type_θ,strategy)
                                                  for (_loss,bound) in zip(_pde_loss_functions, pde_bounds)]
 
-          bc_loss_functions = [get_loss_function(_loss,bound,eltypeθ,parameterless_type_θ,strategy) 
+          bc_loss_functions = [get_loss_function(_loss,bound,eltypeθ,parameterless_type_θ,strategy)
                                                  for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
           (pde_loss_functions, bc_loss_functions)
     elseif strategy isa QuasiRandomTraining
@@ -1363,11 +1387,24 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
         (pde_loss_functions, bc_loss_functions)
     end
 
+    # setup for adaptive function
+    num_parameter_a = length(chain) # length of the chain, so we can create the parameter_a vector
+    parameter_a = ones(num_parameter_a - 1)
+
+    # the loss term to be added
+    min_activation_fn_error = 0
+    for iter in parameter_a
+      min_er += exp(mean(iter)) # to be changed
+
+    min_er = 1 / min_er # to be added to main loss term
+
+    # the main activation function would also need to be changed to include the new required terms
+
     # setup for all adaptive losses
     num_pde_losses = length(pde_loss_functions)
     num_bc_losses = length(bc_loss_functions)
     # assume one single additional loss function if there is one. this means that the user needs to lump all their functions into a single one,
-    num_additional_loss = additional_loss isa Nothing ? 0 : 1 
+    num_additional_loss = additional_loss isa Nothing ? 0 : 1
 
     adaloss_T = eltype(adaloss.pde_loss_weights)
     logger = discretization.logger
@@ -1381,12 +1418,12 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
     adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .* adaloss.additional_loss_weights
 
 
-    # this is the function that gets called to do the adaptive reweighting, a function specific to the 
-    # type of adaptive reweighting being performed. 
+    # this is the function that gets called to do the adaptive reweighting, a function specific to the
+    # type of adaptive reweighting being performed.
     # TODO: I'd love to pull this out and then dispatch on it via the AbstractAdaptiveLoss, so that users can implement their own
     #       currently this is kind of tricky since the different methods need different types of information, and the loss functions
     #       are generated internal to the code
-    reweight_losses_func = 
+    reweight_losses_func =
     if adaloss isa GradientScaleAdaptiveLoss
         weight_change_inertia = discretization.adaptive_loss.weight_change_inertia
         function run_loss_gradients_adaptive_loss(θ)
@@ -1409,7 +1446,7 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
     elseif adaloss isa MiniMaxAdaptiveLoss
         pde_max_optimiser = adaloss.pde_max_optimiser
         bc_max_optimiser = adaloss.bc_max_optimiser
-        function run_minimax_adaptive_loss(θ, pde_losses, bc_losses) 
+        function run_minimax_adaptive_loss(θ, pde_losses, bc_losses)
             if iteration[1] % adaloss.reweight_every == 0
                 Flux.Optimise.update!(pde_max_optimiser, adaloss.pde_loss_weights, -pde_losses)
                 Flux.Optimise.update!(bc_max_optimiser, adaloss.bc_loss_weights, -bc_losses)
@@ -1432,7 +1469,7 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
 
         # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
         # that's why we prefer the user to maintain the increment in the outer loop callback during optimization
-        Zygote.@ignore if self_increment 
+        Zygote.@ignore if self_increment
             iteration[1] += 1
         end
 
@@ -1442,7 +1479,7 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
             else
                 reweight_losses_func(θ)
             end
-        end 
+        end
         weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
         weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
 
@@ -1450,7 +1487,7 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
         sum_weighted_bc_losses = sum(weighted_bc_losses)
         weighted_loss_before_additional = sum_weighted_pde_losses + sum_weighted_bc_losses
 
-        full_weighted_loss = 
+        full_weighted_loss =
         if additional_loss isa Nothing
             weighted_loss_before_additional
         else
@@ -1483,8 +1520,8 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
         return full_weighted_loss
     end
 
-    (bc_loss_functions=bc_loss_functions, pde_loss_functions=pde_loss_functions, full_loss_function=loss_function_, 
-        additional_loss_function=additional_loss, flat_initθ=flat_initθ, 
+    (bc_loss_functions=bc_loss_functions, pde_loss_functions=pde_loss_functions, full_loss_function=loss_function_,
+        additional_loss_function=additional_loss, flat_initθ=flat_initθ,
         inner_pde_loss_functions=_pde_loss_functions, inner_bc_loss_functions=_bc_loss_functions)
 end
 
