@@ -8,6 +8,11 @@ Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 NeuralPDE = "315f7962-48a3-4962-8226-d0f33b1235f0"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 
+[compat]
+NeuralPDE = "4"
+TensorBoardLogger = "0.1"
+julia = "1.6"
+
 [extras]
 DiffEqFlux = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"
 GalacticOptim = "a75be94c-b780-496d-a8a9-0878b188d577"
