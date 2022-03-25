@@ -1455,6 +1455,9 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
                 logvector(logger, pde_grads_std_all, "adaptive_loss/pde_grad_std_all", iteration[1])
                 logvector(logger, bc_grads_std, "adaptive_loss/bc_grad_std", iteration[1])
                 logvector(logger, adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights", iteration[1])
+            end
+            nothing
+        end
     elseif adaloss isa MiniMaxAdaptiveLoss
         pde_max_optimiser = adaloss.pde_max_optimiser
         bc_max_optimiser = adaloss.bc_max_optimiser
