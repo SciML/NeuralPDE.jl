@@ -315,7 +315,6 @@ https://iopscience.iop.org/article/10.1088/2632-2153/ac3712/pdf
 with code reference
 https://github.com/mosaic-group/inverse-dirichlet-pinn
 """
-
 mutable struct InverseDirichletAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     reweight_every::Int64
     weight_change_inertia::T
