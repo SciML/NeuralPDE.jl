@@ -54,10 +54,10 @@ List of training strategies that are available now:
    `dx` is a scalar, then `dx` corresponds to the spacing in each direction. If `dx`
    is a vector, then it should be sized to match the number of dimensions and corresponds
    to the spacing per direction.
- - `StochasticTraining(points:bcs_points = ponits)`: `points` is number of stochastically sampled points from the domain,
+ - `StochasticTraining(points;bcs_points = points)`: `points` is number of stochastically sampled points from the domain,
     `bcs_points` is number of points for boundary conditions(by default, it equals `points`).   
    In each optimization iteration, we randomly select a new subset of points from a full training set.
- - `QuasiRandomTraining(points;bcs_points = ponits, sampling_alg = UniformSample(), resampling = true, minibatch=500)`:
+ - `QuasiRandomTraining(points;bcs_points = points, sampling_alg = UniformSample(), resampling = true, minibatch=500)`:
    The training set is generated on quasi-random low discrepency sequences.
    `points` is the number of quasi-random points in every subset or set, `bcs_points` is number of points for boundary conditions(by default, it equals `points`), `sampling_alg` is the quasi-Monte Carlo sampling algorithm. `if resampling = false`, the full training set is generated in advance before training, and at each iteration, one subset is randomly selected out of the batch.`minibatch` is the number of subsets in full training set.
    The number of the total points is `length(lb) * points * minibatch`, where `lb` is the lower bound and `length(lb)` is the dimensionality.
