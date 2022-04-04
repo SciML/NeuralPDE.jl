@@ -99,7 +99,6 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
   param_estim::PE
   additional_loss::AL
   adaptive_loss::ADA
-  adaptive_activation_function::ADF
   logger::LOG
   log_options::LogOptions
   iteration::Vector{Int64}
@@ -114,7 +113,6 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
                                              param_estim=false,
                                              additional_loss=nothing,
                                              adaptive_loss=nothing,
-                                             adaptive_activation_function=false,
                                              logger=nothing,
                                              log_options=LogOptions(),
                                              iteration=nothing,
@@ -163,8 +161,8 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
             self_increment = true
         end
 
-        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(adaptive_loss),typeof(adaptive_function),typeof(logger),typeof(kwargs)}(
-            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,adaptive_loss,adaptive_activation_function,logger,log_options,iteration,self_increment,kwargs)
+        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(adaptive_loss),typeof(logger),typeof(kwargs)}(
+            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,adaptive_loss,logger,log_options,iteration,self_increment,kwargs)
     end
 end
 PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
@@ -267,28 +265,6 @@ end
 SciMLBase.@add_kwonly function NonAdaptiveLoss(;pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1)
     NonAdaptiveLoss{Float64}(;pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
 end
-
-
-"""
-A way to increase the training speed, by adding an activation slope based slope recovery term in the loss function, which further accelerates convergence, thereby reducing the training cost.
-
-* `scaling_factor`:
-* `parameter_a`: (these are not final)
-
-from papers
-https://arxiv.org/pdf/1906.01170.pdf and https://arxiv.org/pdf/1909.12228.pdf
-with code reference
-https://github.com/AmeyaJagtap/Locally-Adaptive-Activation-Functions-Neural-Networks-
-"""
-mutable struct AdaptiveActivationFunction{T <: Real}
-    scaling_factor::Int64
-    parameter_a::Vector{T} # if user wants to pass in their own vector of values to test/optimize
-    # or could also be unnecessary since the type would not be vector(?)
-
-    #
-
-end
-
 
 """
 A way of adaptively reweighting the components of the loss function in the total sum such that BC_i loss weights are scaled by the exponential moving average of max(|∇pde_loss|)/mean(|∇bc_i_loss|) )
@@ -1386,19 +1362,6 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
 
         (pde_loss_functions, bc_loss_functions)
     end
-
-    # setup for adaptive function
-    num_parameter_a = length(chain) # length of the chain, so we can create the parameter_a vector
-    parameter_a = ones(num_parameter_a - 1)
-
-    # the loss term to be added
-    min_activation_fn_error = 0
-    for iter in parameter_a
-      min_er += exp(mean(iter)) # to be changed
-
-    min_er = 1 / min_er # to be added to main loss term
-
-    # the main activation function would also need to be changed to include the new required terms
 
     # setup for all adaptive losses
     num_pde_losses = length(pde_loss_functions)
