@@ -1438,22 +1438,29 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
             end
             nothing
         end
-    if adaloss isa InverseDirichletAdaptiveLoss
+    elseif adaloss isa InverseDirichletAdaptiveLoss
+        # TODO I think the numerator and denominator are not quite right here. 
         weight_change_inertia = discretization.adaptive_loss.weight_change_inertia
-        function run_loss_inverse_dirichlet_adaptive_loss(0)
+        function run_loss_inverse_dirichlet_adaptive_loss(θ)
             if iteration[1] % adaloss.reweight_every == 0
-                pde_grads_std_all = [std(Zygote.gradient(pde_loss_function, 0)[1]) for pde_loss_function in pde_loss_function]
-                pde_grads_std_max = maximum(pde_grads_std_all)
-                bc_grads_std = [std(Zygote.gradient(bc_loss_function, 0)[1]) for bc_loss_function in bc_loss_funcitons]
+                pde_grads_std = [std(Zygote.gradient(pde_loss_function, θ)[1]) for pde_loss_function in pde_loss_functions]
+                bc_grads_std = [std(Zygote.gradient(bc_loss_function, θ)[1]) for bc_loss_function in bc_loss_functions]
+                pde_grads_std_max = maximum(pde_grads_std)
+                bc_grads_std_max = maximum(bc_grads_std)
+                grads_std_max = max(pde_grads_std_max, bc_grads_std_max)
 
                 nonzero_divisor_eps =  adaloss_T isa Float64 ? Float64(1e-11) : convert(adaloss_T, 1e-7)
-                bc_loss_weights_proposed = pde_grad_std_max ./ (bc_grads_std .+ nonzero_divisor_eps)
-                adaloss.bc_loss_weights .= weight_change_intertia .* adaloss.bc_loss_weights .+ (1 .- weight_change_inertia) .* bc_loss_weights_proposed
+                bc_loss_weights_proposed = grads_std_max ./ (bc_grads_std .+ nonzero_divisor_eps)
+                adaloss.bc_loss_weights .= weight_change_inertia .* adaloss.bc_loss_weights .+ (1 .- weight_change_inertia) .* bc_loss_weights_proposed
 
-                logscalar(logger, pde_grads_std_max, "adaptive_loss/pde_grad_std_max", iteration[1])
-                logvector(logger, pde_grads_std_all, "adaptive_loss/pde_grad_std_all", iteration[1])
+                pde_loss_weights_proposed = grads_std_max ./ (pde_grads_std .+ nonzero_divisor_eps)
+                adaloss.pde_loss_weights .= weight_change_inertia .* adaloss.pde_loss_weights .+ (1 .- weight_change_inertia) .* pde_loss_weights_proposed
+
+                logscalar(logger, grads_std_max, "adaptive_loss/grads_std_max", iteration[1])
+                logvector(logger, pde_grads_std, "adaptive_loss/pde_grad_std", iteration[1])
                 logvector(logger, bc_grads_std, "adaptive_loss/bc_grad_std", iteration[1])
                 logvector(logger, adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights", iteration[1])
+                logvector(logger, adaloss.pde_loss_weights, "adaptive_loss/pde_loss_weights", iteration[1])
             end
             nothing
         end
@@ -1538,6 +1545,7 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
         additional_loss_function=additional_loss, flat_initθ=flat_initθ, 
         inner_pde_loss_functions=_pde_loss_functions, inner_bc_loss_functions=_bc_loss_functions)
 end
+
 
 # Convert a PDE problem into an OptimizationProblem
 function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
