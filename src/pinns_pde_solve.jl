@@ -321,12 +321,12 @@ mutable struct InverseDirichletAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     pde_loss_weights::Vector{T} 
     bc_loss_weights::Vector{T} 
     additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function InverseDirichletAdaptiveLoss{T}(reweight_every; weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
+    SciMLBase.@add_kwonly function InverseDirichletAdaptiveLoss{T}(reweight_every; weight_change_inertia=0.5, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
         new(convert(Int64, reweight_every), convert(T, weight_change_inertia), vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
     end
 end
 # default to Float64
-SciMLBase.@add_kwonly function InverseDirichletAdaptiveLoss(reweight_every; weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
+SciMLBase.@add_kwonly function InverseDirichletAdaptiveLoss(reweight_every; weight_change_inertia=0.5, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
     InverseDirichletAdaptiveLoss{Float64}(reweight_every; weight_change_inertia=weight_change_inertia, 
         pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
 end
