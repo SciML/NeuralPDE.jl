@@ -7,7 +7,7 @@ makedocs(
     doctest=false,
     modules=[NeuralPDE],
 
-    format=Documenter.HTML(# analytics = "",
+    format=Documenter.HTML(  analytics = "UA-90474609-3",
                              assets=["assets/favicon.ico"],
                              canonical="https://neuralpde.sciml.ai/stable/"),
     pages=[
