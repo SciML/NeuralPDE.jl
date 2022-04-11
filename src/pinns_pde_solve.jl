@@ -1449,11 +1449,10 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
                 bc_grads_std_max = maximum(bc_grads_std)
                 grads_std_max = max(pde_grads_std_max, bc_grads_std_max)
 
-                nonzero_divisor_eps =  adaloss_T isa Float64 ? Float64(1e-11) : convert(adaloss_T, 1e-7)
-                bc_loss_weights_proposed = grads_std_max ./ (bc_grads_std .+ nonzero_divisor_eps)
+                bc_loss_weights_proposed = grads_std_max ./ (bc_grads_std)
                 adaloss.bc_loss_weights .= weight_change_inertia .* adaloss.bc_loss_weights .+ (1 .- weight_change_inertia) .* bc_loss_weights_proposed
 
-                pde_loss_weights_proposed = grads_std_max ./ (pde_grads_std .+ nonzero_divisor_eps)
+                pde_loss_weights_proposed = grads_std_max ./ (pde_grads_std)
                 adaloss.pde_loss_weights .= weight_change_inertia .* adaloss.pde_loss_weights .+ (1 .- weight_change_inertia) .* pde_loss_weights_proposed
 
                 logscalar(logger, grads_std_max, "adaptive_loss/grads_std_max", iteration[1])
