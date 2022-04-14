@@ -70,7 +70,7 @@ struct LogOptions{PlotFunction}
 
 
     SciMLBase.@add_kwonly function LogOptions(;checkpoint_frequency=500, log_frequency=50, plot_frequency=500, plot_function=nothing, log_dir=".")
-        new{typeof(plot_function)}(checkpoint_frequency, convert(Int64, log_frequency), convert(Int64, plot_frequency), plot_function, log_dir)
+        new{typeof(plot_function)}(convert(Int64, checkpoint_frequency), convert(Int64, log_frequency), convert(Int64, plot_frequency), plot_function, log_dir)
     end
 end
 
@@ -1507,7 +1507,7 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
 
             end
             if logger isa TBLogger && iteration[1] % plot_frequency == 0 && !(plot_function isa Nothing)
-                plots = plot_function(logger, iteration[1], phi, θ, indices_in_params, adaloss)
+                plots = plot_function(θ, adaloss)
                 for plot in plots
                     log_image(logger, plot.name, plot.image; step=iteration[1])
                 end

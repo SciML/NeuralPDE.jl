@@ -20,7 +20,14 @@ function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter
     param_cumsums = vcat([0], cumsum(param_lengths))
     param_indices = [param_cumsums[i] + 1 : param_cumsums[i+1] for i in 1:length(param_lengths)]
 
-    cb_func = get_cb_func(logger, iteration, chains, param_indices)
+    if !(log_options.plot_function isa Nothing)
+        plot_function = log_options.plot_function(logger, iteration, chains)
+        log_options = LogOptions(;checkpoint_frequency=log_options.checkpoint_frequency, log_frequency=log_options.log_frequency, 
+            plot_frequency=log_options.plot_frequency, plot_function=plot_function, log_dir=log_options.log_dir)
+    end
+
+
+    cb_func = get_cb_func(logger, iteration, chains)
 
     function wrapped_iteration_cb_func(p, l) # useful for making sure the user doesn't need to iterate
         if iteration[1] % log_options.checkpoint_frequency == 0
@@ -106,7 +113,7 @@ struct ExperimentManager{H <: AbstractHyperParameter, C, PlotFunction}
 end
 
 
-function run_experiment_queue(experiment_manager::ExperimentManager{H}; remote=true) where {H <: AbstractHyperParameter}
+function run_experiment_queue(experiment_manager::ExperimentManager{H}; remote=true, startat=1) where {H <: AbstractHyperParameter}
     pde_system = experiment_manager.pde_system
     cb_func = experiment_manager.cb_func
     experiments_in_progress = experiment_manager.experiments_in_progress
@@ -114,8 +121,11 @@ function run_experiment_queue(experiment_manager::ExperimentManager{H}; remote=t
     workers = experiment_manager.workers
     log_options = experiment_manager.log_options
     num_workers = length(experiment_manager.workers)
+    for i in 1:startat-1
+        dequeue!(hyperparameter_queue)
+    end
     println("executing $(length(hyperparameter_queue)) experiments")
-    experiment_index = 1
+    experiment_index = startat
 
     while true
         # first check for break condition
