@@ -54,6 +54,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 """
 """
 struct LogOptions{PlotFunction}
+    checkpoint_frequency::Int64
     log_frequency::Int64
     plot_frequency::Int64
     # TODO: add in an option for saving plots in the log. this is currently not done because the type of plot is dependent on the PDESystem
@@ -65,8 +66,11 @@ struct LogOptions{PlotFunction}
     # function that takes in (logger, step, phi, θ, adaloss) and outputs an array of namedtuples with fields: (name::AbstractString, image::Image, format::TensorBoardLogger.ImageFormat
     plot_function::PlotFunction
 
-    SciMLBase.@add_kwonly function LogOptions(;log_frequency=50, plot_frequency=500, plot_function=nothing)
-        new{typeof(plot_function)}(convert(Int64, log_frequency), convert(Int64, plot_frequency), plot_function)
+    log_dir::AbstractString
+
+
+    SciMLBase.@add_kwonly function LogOptions(;checkpoint_frequency=500, log_frequency=50, plot_frequency=500, plot_function=nothing, log_dir=".")
+        new{typeof(plot_function)}(checkpoint_frequency, convert(Int64, log_frequency), convert(Int64, plot_frequency), plot_function, log_dir)
     end
 end
 
@@ -293,7 +297,7 @@ mutable struct GradientScaleAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     end
 end
 # default to Float64
-SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss(reweight_every; weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
+SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss(;reweight_every=50, weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
     GradientScaleAdaptiveLoss{Float64}(reweight_every; weight_change_inertia=weight_change_inertia, 
         pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
 end
@@ -329,7 +333,7 @@ mutable struct MiniMaxAdaptiveLoss{T <: Real, PDE_OPT <: Flux.Optimise.AbstractO
 end
 
 # default to Float64, ADAM, ADAM
-SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss(reweight_every; pde_max_optimiser=Flux.ADAM(1e-4), bc_max_optimiser=Flux.ADAM(0.5), pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1)
+SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss(;reweight_every=50, pde_max_optimiser=Flux.ADAM(1e-4), bc_max_optimiser=Flux.ADAM(0.5), pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1)
     MiniMaxAdaptiveLoss{Float64, typeof(pde_max_optimiser), typeof(bc_max_optimiser)}(
         reweight_every; pde_max_optimiser=pde_max_optimiser, bc_max_optimiser=bc_max_optimiser,
         pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
@@ -1506,7 +1510,6 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
                 plots = plot_function(logger, iteration[1], phi, θ, indices_in_params, adaloss)
                 for plot in plots
                     log_image(logger, plot.name, plot.image; step=iteration[1])
-
                 end
             end
         end

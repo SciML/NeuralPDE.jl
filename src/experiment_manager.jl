@@ -1,18 +1,10 @@
 
-function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter, cb_func; logger=nothing, log_options=nothing)
+function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter, get_cb_func; logger=nothing, log_options=nothing)
     #@show hyperparam
 
     iteration = [0]
     logdir = logger.logdir
     log_text(logger, "hyperparam_string", string(hyperparam), step=0)
-    function wrapped_iteration_cb_func(p, l) # useful for making sure the user doesn't need to iterate
-        if iteration[1] % 500 == 0
-            writedlm(joinpath([logdir, "params_$(iteration[1]).csv"]), p, ", ")
-        end
-        cb_return = cb_func(p, l)
-        iteration[1] += 1
-        cb_return
-    end
 
     seed = NeuralPDE.getseed(hyperparam)
     Random.seed!(seed)
@@ -24,11 +16,26 @@ function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter
     end
     chains, init_params = NeuralPDE.getfunction(hyperparam, num_ivs_for_dvs)
 
+    param_lengths = length.(init_params)
+    param_cumsums = vcat([0], cumsum(param_lengths))
+    param_indices = [param_cumsums[i] + 1 : param_cumsums[i+1] for i in 1:length(param_lengths)]
+
+    cb_func = get_cb_func(logger, iteration, chains, param_indices)
+
+    function wrapped_iteration_cb_func(p, l) # useful for making sure the user doesn't need to iterate
+        if iteration[1] % log_options.checkpoint_frequency == 0
+            writedlm(joinpath([logdir, "params_$(iteration[1]).csv"]), p, ", ")
+        end
+        cb_return = cb_func(p, l)
+        iteration[1] += 1
+        cb_return
+    end
+
     training = NeuralPDE.gettraining(hyperparam)
     adaptive_loss = NeuralPDE.getadaptiveloss(hyperparam)
 
     discretization = PhysicsInformedNN(chains, training; init_params=init_params, logger=logger, iteration=iteration, log_options=log_options, adaptive_loss=adaptive_loss)
-    prob = discretize(pde_system,discretization)
+    prob = discretize(pde_system, discretization)
 
     # Optimizer
     opt, maxiters = NeuralPDE.getopt(hyperparam)
@@ -38,8 +45,8 @@ function run_neuralpde(pde_system::PDESystem, hyperparam::AbstractHyperParameter
     return (res=res, phis=phis, pdefunc=tx->map(phi->phi(tx, res)[1], phis) )
 end
 
-function remote_run_neuralpde_with_logs(pde_system::PDESystem, hyperparam::AbstractHyperParameter, cb_func, log_options, experiment_index)
-    loggerloc = joinpath(homedir(), "logs", "experiment_manager_test_logs", "$(experiment_index)")
+function remote_run_neuralpde_with_logs(pde_system::PDESystem, hyperparam::AbstractHyperParameter, cb_func, log_options, experiment_index, remote)
+    loggerloc = joinpath(log_options.log_dir, "$(experiment_index)")
 
     # TODO: this is mostly for testing iteration, remove this (in actual use you'd want to make more than one run w/ same hyperparams visible under the same namespace)
     if isdir(loggerloc)
@@ -47,17 +54,19 @@ function remote_run_neuralpde_with_logs(pde_system::PDESystem, hyperparam::Abstr
     end
     logger = TBLogger(loggerloc, tb_append) #create tensorboard logger
 
-    res, phis, pdefunc = run_neuralpde(pde_system, hyperparam, cb_func; logger=logger, log_options)
+    res, phis, pdefunc = run_neuralpde(pde_system, hyperparam, cb_func; logger=logger, log_options=log_options)
 
     # transfer the log files at the end of the run.  this could probably be done more elegantly, with scp or rsync or something,
     # but this only requires a julia worker connection, and it uses the tunneled ssh connection, so it will work behind firewalls
     # and whatnot if you're able to connect past it
     log_vector = Vector{Tuple{String, String, String}}()
-    for (root, _, files) in walkdir(loggerloc)
-        for file in files
-            fileloc = joinpath(root, file)
-            filecontents = read(fileloc, String)
-            push!(log_vector, (root, file, filecontents))
+    if remote # only send back data if we are remote
+        for (root, _, files) in walkdir(loggerloc)
+            for file in files
+                fileloc = joinpath(root, file)
+                filecontents = read(fileloc, String)
+                push!(log_vector, (root, file, filecontents))
+            end
         end
     end
     log_vector
@@ -97,7 +106,7 @@ struct ExperimentManager{H <: AbstractHyperParameter, C, PlotFunction}
 end
 
 
-function run_experiment_queue(experiment_manager::ExperimentManager{H}) where {H <: AbstractHyperParameter}
+function run_experiment_queue(experiment_manager::ExperimentManager{H}; remote=true) where {H <: AbstractHyperParameter}
     pde_system = experiment_manager.pde_system
     cb_func = experiment_manager.cb_func
     experiments_in_progress = experiment_manager.experiments_in_progress
@@ -125,7 +134,7 @@ function run_experiment_queue(experiment_manager::ExperimentManager{H}) where {H
 
                 # change experiment_in_progress data structure and make a new future to store results in
                 experiments_in_progress[worker_index] = ExperimentInProgress{H}(hyperparam, Future(myid()))
-                errormonitor(@async put!(experiments_in_progress[worker_index].future, remotecall_fetch(NeuralPDE.remote_run_neuralpde_with_logs, pid, pde_system, hyperparam, cb_func, log_options, experiment_index)))
+                errormonitor(@async put!(experiments_in_progress[worker_index].future, remotecall_fetch(NeuralPDE.remote_run_neuralpde_with_logs, pid, pde_system, hyperparam, cb_func, log_options, experiment_index, remote)))
                 println("assigned experiment $experiment_index to worker $(workers[worker_index].pid)")
                 println("$(length(hyperparameter_queue)) hyperparameters left in queue")
                 experiment_index += 1
