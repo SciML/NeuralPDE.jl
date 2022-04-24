@@ -1,13 +1,13 @@
 #
 using NeuralPDE, DiffEqFlux, ModelingToolkit, GalacticOptim
 import ModelingToolkit: Interval, infimum, supremum
-using LinearAlgebra#, Plots
+using LinearAlgebra, Plots
 
 r0 = 0.5f0 # inner radius
 r1 = 1.0f0 # outer radius
 
 # coordinate transformation
-polar(r, θ) = r * cos(θ), r * sin(θ)
+polar(r, θ) = r .* cos.(θ), r .* sin.(θ)
 
 function get_xy_deriv(x,y,r,s)
     Dr = Differential(r)
@@ -92,7 +92,6 @@ phi  = discr.phi
 
 # evaulate solution
 function eval_sol(phi, minimizer, domain; nsample=50)
-    nsample = 50
     rs,θs=[Array(range(infimum(d.domain),supremum(d.domain),length=nsample))
                                                 for d in pdesys.domain]
     
@@ -100,24 +99,22 @@ function eval_sol(phi, minimizer, domain; nsample=50)
     rs = rs * o'
     θs = o  * θs'
     
-    xs,ys = @. polar(rs,θs)
+    xs,ys = polar(rs,θs)
     
     v = zeros(Float32,2,nsample*nsample)
     v[1,:] = rs[:]
     v[2,:] = θs[:]
     
-    u_predict = phi(v,minimizer)
-    u_predict = reshape(u_predict,nsample,nsample)
+    upred = phi(v,minimizer)
+    upred = reshape(upred,nsample,nsample)
 
-    #=
     function meshplt(x,y,u;a=45,b=60)
         p = plot(x,y,u,legend=false,c=:grays,camera=(a,b))
         p = plot!(x',y',u',legend=false,c=:grays,camera=(a,b))
         return p
     end
     
-    plt = meshplt(xs,ys,u_predict)
-    =#
+    plt = meshplt(xs,ys,upred)
 end
 
 eval_sol(phi, minimizer, domain)
