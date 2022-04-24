@@ -1,149 +1,25 @@
 # Poisson Equation
 
-In this example, we solve the Poisson equation on an annulus to demostrate how NeuralPDE can solve differential equations in complex geometries.
+In this example, we demonstrate how `NeuralPDE.jl` can be used to solve partial differential equations on complex geometries. We solve the poisson equation on an annulus domain.
 
 ```math
-\begin{align}
+\begin{align*}
 -(∂^2_x + ∂^2_y)u &= 1 \, (x,y)\in\Omega, \\
 \Omega &= \{(x,y) | 0.5 \leq x^2 + y^2 \leq 1.0 \}
-\end{align}
+\end{align*}
 ```
 
 We represent *physical* coordinates, ``(x,y)``, and field variable ``u`` in terms of reference coordinates ``r,\theta`` which stand for *radius*, and *angle* respectively. We apply the following boundary conditions:
 
 ```math
+\begin{align*}
 u|_{r=0.5} = u|_{r=1.0} = 0
+\end{align*}
 ```
 
 ## Copy-Pastable Code
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
-import ModelingToolkit: Interval, infimum, supremum
-using Quadrature, Cuba, QuasiMonteCarlo
-using CUDA, LinearAlgebra
-
-using Plots
-
-using ParameterSchedulers:Scheduler,Sin,SinExp
-
-r0 = 0.5f0 # inner radius
-r1 = 1.0f0 # outer radius
-
-@parameters r θ
-@variables u(..)
-
-x = r*cos(θ)
-y = r*sin(θ)
-
-Dr = Differential(r)
-Dθ = Differential(θ)
-
-xr = Dr(x); yr = Dr(y)
-xθ = Dθ(x); yθ = Dθ(y)
-
-J  = xr*yθ - xθ*yr
-Ji = 1 / J
-
-rx =  Ji * yθ
-ry = -Ji * xθ
-θx = -Ji * yr
-θy =  Ji * xr
-
-Dx(v) = rx*Dr(v) + θx*Dθ(v)
-Dy(v) = ry*Dr(v) + θy*Dθ(v)
-
-Dxx = Dx ∘ Dx
-Dyy = Dy ∘ Dy
-
-# 2D PDE
-eq = -(Dxx(u(r,θ)) + Dyy(u(r,θ))) ~ 1.0f0
-
-# Boundary conditions
-bcs = [u(r0, θ) ~ 0.f0       # Dirichlet, inner
-      ,u(r1, θ) ~ 0.f0       # Dirichlet, outer
-      ,u(r,0f0) ~ u(r,2f0pi) # Periodic
-      ]
-
-domains = [r ∈ Interval(r0 ,r1),
-           θ ∈ Interval(0f0,2f0pi)]
-
-pdesys = PDESystem(eq, bcs, domains, [r, θ], [u])
-
-
-# Discretization
-ndim  = 2
-width = 32
-depth = 2
-act   = σ
-
-NN = Chain(Dense(ndim,width,act)
-          ,Chain([Dense(width,width,act) for i in 1:(depth-1)]...)
-          ,Dense(width,1))
-
-
-initθ    = DiffEqFlux.initial_params(NN)
-strategy = QuadratureTraining()
-discr    = PhysicsInformedNN(NN,strategy,init_params=initθ)
-prob     = discretize(pdesys,discr)
-
-# callback function
-iter = []
-loss = []
-i = 0
-ifv = true # verbose flag
-function cb(p,l)
-    ifv && ((i % 10) == 0) && println("Iter: $i, loss: $l")
-    global i += 1
-    push!(iter,i)
-    push!(loss,l)
-    (l < 1e-6) && return true # 5x machine epsilon for float32
-    return false
-end
-
-# training
-maxiters_opt1 = 500
-maxiters_opt2 = 300
-
-sch  = SinExp(λ0=1e-3,λ1=1e-1,γ=0.5,period=100)
-opt1 = Scheduler(sch,ADAM())
-opt2 = BFGS()
-
-res  = GalacticOptim.solve(prob,opt1;cb=cb,maxiters=maxiters_opt1)
-prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,opt2;cb=cb,maxiters=maxiters_opt2)
-
-# solution
-phi  = discr.phi
-minimizer = res.minimizer
-
-# evaulate solution
-ns = 50
-rs,θs=[Array(range(infimum(d.domain),supremum(d.domain),length=ns))
-                                            for d in pdesys.domain]
-
-o  = ones(ns)
-rs = rs * o'
-θs = o  * θs'
-
-coord(r,θ) = @. r*cos(θ), r*sin(θ)
-
-xs,ys = coord(rs,θs)
-
-v = zeros(Float32,2,ns*ns)
-v[1,:] = rs[:]
-v[2,:] = θs[:]
-
-u_predict = phi(v,minimizer)
-u_predict = reshape(u_predict,ns,ns)
-
-function meshplt(x,y,u;a=45,b=60)
-    p = plot(x,y,u,legend=false,c=:grays,camera=(a,b))
-    p = plot!(x',y',u',legend=false,c=:grays,camera=(a,b))
-    return p
-end
-
-plt = meshplt(xs,ys,u_predict)
 ```
 
 ## Coordinate Transform and Differential Operators
@@ -155,11 +31,6 @@ u(r,\theta), \, x(r,\theta), \, y(r,\theta)
 ```
 
 ```julia
-@parameters r,\theta
-@variables u(..)
-
-x = r*cos(\theta)
-y = r*sin(\theta)
 ```
 
 To obtain derivateives with respect to ``x`` and ``y``, we employ the chain rule:
@@ -200,29 +71,11 @@ To take gradients with respect to ``x,y``, we need to find ``r_x,\, r_y,\, \thet
 ```
 The gradients are implemented as follows:
 ```julia
-Dr = Differential(r)
-Dθ = Differential(θ)
-
-xr = Dr(x); yr = Dr(y)
-xθ = Dθ(x); yθ = Dθ(y)
-
-J  = xr*yθ - xθ*yr
-Ji = 1 / J
-
-rx =  Ji * yθ
-ry = -Ji * xθ
-θx = -Ji * yr
-θy =  Ji * xr
-
-Dx(v) = rx*Dr(v) + θx*Dθ(v)
-Dy(v) = ry*Dr(v) + θy*Dθ(v)
 ```
 
 The second derivaties are obtained by by composing first derivaties:
 
 ```julia
-Dxx = Dx ∘ Dx
-Dyy = Dy ∘ Dy
 ```
 
 ![poisson_annulus](https://user-images.githubusercontent.com/36345239/128362706-b39a6160-370c-43b1-b939-46214e5c3730.png)
