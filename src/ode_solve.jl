@@ -10,8 +10,6 @@ function DiffEqBase.solve(
     verbose = false,
     maxiters = 100)
 
-    DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
-
     u0 = prob.u0
     tspan = prob.tspan
     f = prob.f

@@ -7,7 +7,7 @@ makedocs(
     doctest=false,
     modules=[NeuralPDE],
 
-    format=Documenter.HTML(# analytics = "",
+    format=Documenter.HTML(  analytics = "UA-90474609-3",
                              assets=["assets/favicon.ico"],
                              canonical="https://neuralpde.sciml.ai/stable/"),
     pages=[
@@ -22,8 +22,11 @@ makedocs(
             "pinn/ks.md",
             "pinn/fp.md",
             "pinn/parm_estim.md",
+            "pinn/heterogeneous.md",
+            "pinn/integro_diff.md",
             "pinn/debugging.md",
             "pinn/poisson_annulus.md",
+            "pinn/neural_adapter.md",
         ],
         "Specialized Neural PDE Tutorials" => Any[
             "examples/100_HJB.md",

@@ -15,7 +15,8 @@ The stock price will follow a standard geometric brownian motion given by:
   dS_t = rS_tdt + σS_tdW_t
 ```
 And thus our final aim will be to calculate:
-<img src="https://raw.githubusercontent.com/ashutosh-b-b/github-doc-images/master/Price%20of%20American%20Option.png">
+
+![american_option]("https://raw.githubusercontent.com/ashutosh-b-b/github-doc-images/master/Price%20of%20American%20Option.png")
 
 We will be using a `SDEProblem` to denote a problem of this type. We can define this as a `SDEProblem` and add a terminal condition `g` in order to price the American Options.
 
@@ -38,7 +39,7 @@ dt = tspan[2]/(N - 1)
 ```
 The final part is the payoff function:
 
-  <img src="https://raw.githubusercontent.com/ashutosh-b-b/github-doc-images/master/payoff_function.png">
+![payoff_func]("https://raw.githubusercontent.com/ashutosh-b-b/github-doc-images/master/payoff_function.png")
 
 The discounted payoff function is:
 

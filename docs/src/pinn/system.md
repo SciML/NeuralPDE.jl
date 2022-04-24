@@ -71,7 +71,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 _strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, _strategy, init_params= initθ)
 
-pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1,u2,u3])
+@named pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
 prob = discretize(pde_system,discretization)
 sym_prob = symbolic_discretize(pde_system,discretization)
 
@@ -90,9 +90,7 @@ res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=5000)
 phi = discretization.phi
 ```
 
-
 Low-level api
-
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
@@ -197,9 +195,7 @@ end
 res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb_, maxiters=5000)
 ```
 
-
 And some analysis for both low and high level api:
-
 
 ```julia
 using Plots
@@ -229,18 +225,15 @@ end
 
 ![sol_uq3](https://user-images.githubusercontent.com/12683885/122979288-0e1de380-d3a0-11eb-9005-bfb501959b83.png)
 
-
 ## Derivative neural network approximation
 
 The accuracy and stability of numerical derivative decreases with each successive order.
 The accuracy of the entire solution is determined by the worst accuracy of one of the variables, in our case - the highest degree of the derivative.
 Derivative neural network approximation is such an approach that using lower-order numeric derivatives and estimates higher-order derivatives with a neural network so that allows an increase in the marginal precision for all optimization.
 
-Since `u3` is only in the first and second equations, that its accuracy during training is determined by the accuracy of the second numerical derivative `u3(t,x)  ~  (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)`.
+Since `u3` is only in the first and second equations, that its accuracy during training is determined by the accuracy of the second numerical derivative `u3(t,x) ~ (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)`.
 
 We approximate the derivative of the neural network with another neural network `Dt(u1(t,x)) ~ Dtu1(t,x)` and train it along with other equations, and thus we avoid using the second numeric derivative `Dt(Dtu1(t,x))`.
-
-
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
@@ -285,8 +278,8 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              grid_strategy,
                                              init_params= initθ)
 
-vars = [u1,u2,u3,Dxu1,Dtu1,Dxu2,Dtu2]
-pde_system = PDESystem(eqs_,bcs__,domains,[t,x],vars)
+vars = [u1(t,x),u2(t,x),u3(t,x),Dxu1(t,x),Dtu1(t,x),Dxu2(t,x),Dtu2(t,x)]
+@named pde_system = PDESystem(eqs_,bcs__,domains,[t,x],vars)
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
@@ -310,9 +303,7 @@ res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=10000)
 phi = discretization.phi
 ```
 
-
 And some analysis:
-
 
 ```julia
 using Plots
@@ -348,22 +339,17 @@ for i in 1:7
 end
 ```
 
-
 ![aprNN_sol_u1](https://user-images.githubusercontent.com/12683885/122998551-de79d600-d3b5-11eb-8f5d-59d00178c2ab.png)
 
 ![aprNN_sol_u2](https://user-images.githubusercontent.com/12683885/122998567-e3d72080-d3b5-11eb-9024-4072f4b66cda.png)
 
 ![aprNN_sol_u3](https://user-images.githubusercontent.com/12683885/122998578-e6d21100-d3b5-11eb-96a5-f64e5593b35e.png)
 
-
-
 ## Comparison of the second numerical derivative and numerical + neural network derivative
-
 
 ![DDu1](https://user-images.githubusercontent.com/12683885/123113394-3280cb00-d447-11eb-88e3-a8541bbf089f.png)
 
 ![DDu2](https://user-images.githubusercontent.com/12683885/123113413-36ace880-d447-11eb-8f6a-4c3caa86e359.png)
-
 
 ## Solving Matrices of PDEs
 
@@ -382,7 +368,6 @@ eqs  = @. [(Dxx(u_(x,y)) + Dyy(u_(x,y))) for u_ in u] ~ -sin(pi*x)*sin(pi*y)*[0 
 bcs = [u[1](x,0) ~ x, u[2](x,0) ~ 2, u[3](x,0) ~ 3, u[4](x,0) ~ 4]
 ```
 
-
 ## Linear parabolic system of PDEs
 
 We can use NeuralPDE to solve the linear parabolic system of PDEs:
@@ -398,16 +383,15 @@ with initial and boundary conditions:
 
 ```math
 \begin{aligned}
-u(0, x) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot cos(\frac{x}{a}) \\ 
-w(0, x) = 0 \\ 
-u(t, 0) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} \\ w(t, 0) = \frac{e^{\lambda_1}-e^{\lambda_2}}{\lambda_1 - \lambda_2} \\ 
-u(t, 1) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} * cos(\frac{x}{a}) \\ 
+u(0, x) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot cos(\frac{x}{a}) \\
+w(0, x) = 0 \\
+u(t, 0) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} \\ w(t, 0) = \frac{e^{\lambda_1}-e^{\lambda_2}}{\lambda_1 - \lambda_2} \\
+u(t, 1) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} * cos(\frac{x}{a}) \\
 w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\lambda_1 - \lambda_2}
 \end{aligned}
 ```
 
 with a physics-informed neural network.
-
 
 ```julia
 using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
@@ -459,7 +443,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 _strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
 
-pde_system = PDESystem(eqs, bcs, domains, [t,x], [u,w])
+@named pde_system = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
 prob = discretize(pde_system, discretization)
 sym_prob = symbolic_discretize(pde_system, discretization)
 
@@ -500,14 +484,13 @@ end
 ![linear_parabolic_sol_u1](https://user-images.githubusercontent.com/26853713/125745625-49c73760-0522-4ed4-9bdd-bcc567c9ace3.png)
 ![linear_parabolic_sol_u2](https://user-images.githubusercontent.com/26853713/125745637-b12e1d06-e27b-46fe-89f3-076d415fcd7e.png)
 
-
 ## Nonlinear elliptic system of PDEs
 
 We can also solve nonlinear systems such as the system of nonlinear elliptic PDEs
 
 ```math
 \begin{aligned}
-\frac{\partial^2u}{\partial x^2} + \frac{\partial^2u}{\partial y^2} = uf(\frac{u}{w}) + \frac{u}{w}h(\frac{u}{w}) \\ 
+\frac{\partial^2u}{\partial x^2} + \frac{\partial^2u}{\partial y^2} = uf(\frac{u}{w}) + \frac{u}{w}h(\frac{u}{w}) \\
 \frac{\partial^2w}{\partial x^2} + \frac{\partial^2w}{\partial y^2} = wg(\frac{u}{w}) + h(\frac{u}{w}) \\
 \end{aligned}
 ```
@@ -516,14 +499,15 @@ where f, g, h are arbitrary functions. With initial and boundary conditions:
 
 ```math
 \begin{aligned}
-u(0,y) = y + 1 \\ 
-w(1, y) = [cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\ 
-w(x,0) = cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)}) \\ 
-w(0,y) = k(y + 1) \\ 
-u(1, y) = k[cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\ 
+u(0,y) = y + 1 \\
+w(1, y) = [cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
+w(x,0) = cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)}) \\
+w(0,y) = k(y + 1) \\
+u(1, y) = k[cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
 u(x,0) = k[cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})] \\
 \end{aligned}
 ```
+
 where k is a root of the algebraic (transcendental) equation f(k) = g(k).
 
 This is done using a derivative neural network approximation.
@@ -585,8 +569,8 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 _strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
 
-vars = [u,w,Dxu,Dyu,Dxw,Dyw]
-pde_system = PDESystem(eqs_, bcs__, domains, [x,y], vars)
+vars = [u(x,y),w(x,y),Dxu(x,y),Dyu(x,y),Dxw(x,y),Dyw(x,y)]
+@named pde_system = PDESystem(eqs_, bcs__, domains, [x,y], vars)
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
@@ -630,14 +614,13 @@ end
 ![non_linear_elliptic_sol_u1](https://user-images.githubusercontent.com/26853713/125745550-0b667c10-b09a-4659-a543-4f7a7e025d6c.png)
 ![non_linear_elliptic_sol_u2](https://user-images.githubusercontent.com/26853713/125745571-45a04739-7838-40ce-b979-43b88d149028.png)
 
-
 ## Nonlinear hyperbolic system of PDEs
 
 Lastly, we may also solve hyperbolic systems like the following
 
 ```math
 \begin{aligned}
-\frac{\partial^2u}{\partial t^2} = \frac{a}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + u f(\frac{u}{w})  \\ 
+\frac{\partial^2u}{\partial t^2} = \frac{a}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + u f(\frac{u}{w})  \\
 \frac{\partial^2w}{\partial t^2} = \frac{b}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + w g(\frac{u}{w})  \\
 \end{aligned}
 ```
@@ -646,14 +629,15 @@ where f and g are arbitrary functions. With initial and boundary conditions:
 
 ```math
 \begin{aligned}
-u(0,x) = k * [j0(ξ(0, x)) + y0(ξ(0, x))] \\ 
-u(t,0) = k * [j0(ξ(t, 0)) + y0(ξ(t, 0))] \\ 
-u(t,1) = k * [j0(ξ(t, 1)) + y0(ξ(t, 1))] \\ 
-w(0,x) = j0(ξ(0, x)) + y0(ξ(0, x)) \\ 
-w(t,0) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\ 
-w(t,1) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\ 
+u(0,x) = k * [j0(ξ(0, x)) + y0(ξ(0, x))] \\
+u(t,0) = k * [j0(ξ(t, 0)) + y0(ξ(t, 0))] \\
+u(t,1) = k * [j0(ξ(t, 1)) + y0(ξ(t, 1))] \\
+w(0,x) = j0(ξ(0, x)) + y0(ξ(0, x)) \\
+w(t,0) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
+w(t,1) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
 \end{aligned}
 ```
+
 where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and y0 are the Bessel functions, and ξ(t, x) is:
 
 ```math
@@ -691,12 +675,12 @@ root(x) = g(x) - f(x)
 k = find_zero(root, (0, 1), Bisection())                # k is a root of the algebraic (transcendental) equation f(x) = g(x)
 ξ(t, x) = sqrt(f(k)) / sqrt(a) * sqrt(a * (t + 1)^2 - (x + 1)^2)
 θ(t, x) = besselj0(ξ(t, x)) + bessely0(ξ(t, x))                     # Analytical solution to Klein-Gordon equation
-w_analytic(t, x) = θ(t, x)  
-u_analytic(t, x) = k * θ(t, x) 
+w_analytic(t, x) = θ(t, x)
+u_analytic(t, x) = k * θ(t, x)
 
 # Nonlinear system of hyperbolic equations
 eqs = [Dtt(u(t, x)) ~ a / (x^n) * Dx(x^n * Dx(u(t, x))) + u(t, x) * f(u(t, x) / w(t, x)),
-       Dtt(w(t, x)) ~ b / (x^n) * Dx(x^n * Dx(w(t, x))) + w(t, x) * g(u(t, x) / w(t, x))] 
+       Dtt(w(t, x)) ~ b / (x^n) * Dx(x^n * Dx(w(t, x))) + w(t, x) * g(u(t, x) / w(t, x))]
 
 # Boundary conditions
 bcs = [u(0, x) ~ u_analytic(0, x),
@@ -704,7 +688,7 @@ bcs = [u(0, x) ~ u_analytic(0, x),
        u(t, 0) ~ u_analytic(t, 0),
        w(t, 0) ~ w_analytic(t, 0),
        u(t, 1) ~ u_analytic(t, 1),
-       w(t, 1) ~ w_analytic(t, 1)] 
+       w(t, 1) ~ w_analytic(t, 1)]
 
 # Space and time domains
 domains = [t ∈ Interval(0.0, 1.0),
@@ -719,7 +703,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 _strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
 
-pde_system = PDESystem(eqs, bcs, domains, [t,x], [u,w])
+@named pde_system = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
 prob = discretize(pde_system, discretization)
 sym_prob = symbolic_discretize(pde_system, discretization)
 
@@ -759,5 +743,3 @@ end
 
 ![nonlinear_hyperbolic_sol_u1](https://user-images.githubusercontent.com/26853713/126457614-d19e7a4d-f9e3-4e78-b8ae-1e58114a744e.png)
 ![nonlinear_hyperbolic_sol_u2](https://user-images.githubusercontent.com/26853713/126457617-ee26c587-a97f-4a2e-b6b7-b326b1f117af.png)
-
-

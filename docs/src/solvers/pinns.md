@@ -13,7 +13,7 @@ where time t is a special component of x, and Ω contains the temporal domain.
 PDEs are defined using the ModelingToolkit.jl `PDESystem`:
 
 ```julia
-pde_system = PDESystem(eq,bcs,domains,param,var)
+@named pde_system = PDESystem(eq,bcs,domains,param,var)
 ```
 
 Here, `eq` is the equation, `bcs` represents the boundary conditions, `param` is
@@ -54,10 +54,10 @@ List of training strategies that are available now:
    `dx` is a scalar, then `dx` corresponds to the spacing in each direction. If `dx`
    is a vector, then it should be sized to match the number of dimensions and corresponds
    to the spacing per direction.
- - `StochasticTraining(points:bcs_points = ponits)`: `points` is number of stochastically sampled points from the domain,
+ - `StochasticTraining(points;bcs_points = points)`: `points` is number of stochastically sampled points from the domain,
     `bcs_points` is number of points for boundary conditions(by default, it equals `points`).   
    In each optimization iteration, we randomly select a new subset of points from a full training set.
- - `QuasiRandomTraining(points;bcs_points = ponits, sampling_alg = UniformSample(), resampling = true, minibatch=500)`:
+ - `QuasiRandomTraining(points;bcs_points = points, sampling_alg = UniformSample(), resampling = true, minibatch=500)`:
    The training set is generated on quasi-random low discrepency sequences.
    `points` is the number of quasi-random points in every subset or set, `bcs_points` is number of points for boundary conditions(by default, it equals `points`), `sampling_alg` is the quasi-Monte Carlo sampling algorithm. `if resampling = false`, the full training set is generated in advance before training, and at each iteration, one subset is randomly selected out of the batch.`minibatch` is the number of subsets in full training set.
    The number of the total points is `length(lb) * points * minibatch`, where `lb` is the lower bound and `length(lb)` is the dimensionality.
@@ -76,6 +76,22 @@ List of training strategies that are available now:
   - `batch`: the preferred number of points to batch. If `batch` = 0, the number of points in the batch is determined adaptively by the algorithm.
 
   See the [Quadrature.jl](https://github.com/SciML/Quadrature.jl) documentation for the choices of quadrature methods.
+
+##  Transfer Learning with neural_adapter
+Transfer learning is a machine learning technique where a model trained on one task is re-purposed on a second related task.
+- `neural_adapter(loss_function,initθ,pde_system,strategy)`: the method that trains a neural network using the results from one already obtained prediction.  
+  Keyword arguments:
+  - `loss_function`:the body of loss function,
+  - `initθ`: the initial parameter of new neural networks,
+  - `pde_system`: PDE are defined using the ModelingToolkit.jl ,
+  - `strategy`: determines which training strategy will be used,
+
+- `neural_adapter(loss_functions::Array,initθ,pde_systems::Array,strategy)`: the method that trains a neural network using the results from many already obtained predictions.
+  Keyword arguments:
+  - `loss_functions`: the body of loss functions,
+  - `initθ`: the initial parameter of the neural network,
+  - `pde_systems`: PDEs are defined using the ModelingToolkit.jl,
+  - `strategy`: determines which training strategy will be used.
 
 ## Low-level API
 
@@ -105,8 +121,9 @@ These additional methods exist to help with introspection:
     - `strategy`: training strategy,
     - `τ`: normalizing coefficient for loss function. If `τ` is nothing, then it is automatically set to `1/n` where `n` is the number of points checked in the loss function.
 
-- `get_phi(chain)`: return function for trial solution.
-
+- `get_phi(chain, parameterless_type_θ)`: return function for trial solution.
+    - `chain`: neural network, 
+    - `parameterless_type_θ`: number format type(Float64/Float32) of weights of neural network. 
 - `get_numeric_derivative()`: return method that calculates the derivative.
 
 - `generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)`: return training sets for equations and boundary condition, that is used for GridTraining strategy.

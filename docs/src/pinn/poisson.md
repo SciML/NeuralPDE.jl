@@ -40,8 +40,8 @@ Dyy = Differential(y)^2
 eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
 
 # Boundary conditions
-bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+bcs = [u(0,y) ~ 0.0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0) ~ 0.0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
 # Space and time domains
 domains = [x ∈ Interval(0.0,1.0),
            y ∈ Interval(0.0,1.0)]
@@ -49,12 +49,14 @@ domains = [x ∈ Interval(0.0,1.0),
 # Neural network
 dim = 2 # number of dimensions
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+# Initial parameters of Neural network
+initθ = Float64.(DiffEqFlux.initial_params(chain))
 
 # Discretization
 dx = 0.05
-discretization = PhysicsInformedNN(chain,GridTraining(dx))
+discretization = PhysicsInformedNN(chain,GridTraining(dx),init_params =initθ)
 
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = discretize(pde_system,discretization)
 
 #Optimizer
@@ -101,8 +103,8 @@ import ModelingToolkit: Interval, infimum, supremum
 eq  = Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
 
 # Boundary conditions
-bcs = [u(0,y) ~ 0.f0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
-       u(x,0) ~ 0.f0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
+bcs = [u(0,y) ~ 0.0, u(1,y) ~ -sin(pi*1)*sin(pi*y),
+       u(x,0) ~ 0.0, u(x,1) ~ -sin(pi*x)*sin(pi*1)]
 # Space and time domains
 domains = [x ∈ Interval(0.0,1.0),
            y ∈ Interval(0.0,1.0)]
@@ -110,23 +112,33 @@ domains = [x ∈ Interval(0.0,1.0),
 
 Here, we define the neural network, where the input of NN equals the number of dimensions and output equals the number of equations in the system.
 
+
 ```julia
 # Neural network
 dim = 2 # number of dimensions
 chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 ```
 
-Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretization and `strategy` stores information for choosing a training strategy.
+Convert weights of neural network from Float32 to Float64 in order to all inner calculation will be with Float64.
+
+```julia
+# Initial parameters of Neural network
+initθ = Float64.(DiffEqFlux.initial_params(chain))
+```
+
+Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretization, `strategy` stores information for choosing a training strategy and
+`init_params =initθ` initial parameters of neural network.
+
 ```julia
 # Discretization
 dx = 0.05
-discretization = PhysicsInformedNN(chain, GridTraining(dx))
+discretization = PhysicsInformedNN(chain, GridTraining(dx),init_params =initθ)
 ```
 
 As described in the API docs, we now need to define the `PDESystem` and create PINNs problem using the `discretize` method.
 
 ```julia
-pde_system = PDESystem(eq,bcs,domains,[x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = discretize(pde_system,discretization)
 ```
 
@@ -161,4 +173,5 @@ p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
 p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
 plot(p1,p2,p3)
 ```
+
 ![poissonplot](https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png)

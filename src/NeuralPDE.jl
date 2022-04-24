@@ -16,8 +16,12 @@ using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 using Statistics
+using ArrayInterface
 import Tracker, Optim
+using DomainSets
+using Symbolics
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
+import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly
 using Flux: @nograd
@@ -34,7 +38,7 @@ Consider `du/dt = l(u) + f(u)`; where l is the nonlinear Lipschitz function
 * `x0`: The initial X for the problem.
 * `tspan`: The timespan of the problem.
 """
-struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,A,UD,K} <: DiffEqBase.DEProblem
+struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,A,UD,K} <: SciMLBase.SciMLProblem
     g::G
     f::F
     μ::Mu
@@ -137,7 +141,6 @@ end
 
 """
 Algorithm for solving differential equation using a neural network.
-
 Arguments:
 * `chain`: A Chain neural network
 * `opt`: The optimizer to train the neural network. Defaults to `BFGS()`.
@@ -172,16 +175,21 @@ include("pde_solve_ns.jl")
 include("kolmogorov_solve.jl")
 include("rode_solve.jl")
 include("stopping_solve.jl")
+include("transform_inf_integral.jl")
 include("pinns_pde_solve.jl")
+include("neural_adapter.jl")
 include("param_kolmogorov_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,ParamKolmogorovPDEProblem,KolmogorovParamDomain, NNParamKolmogorov,
        PhysicsInformedNN, discretize,
-       GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
+       GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
        build_loss_function, get_loss_function,
-       generate_training_sets, get_variables, get_argument, get_bounds
-       get_phi, get_numeric_derivative,
-       build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize
+       generate_training_sets, get_variables, get_argument, get_bounds,
+       get_phi, get_numeric_derivative, get_numeric_integral,
+       build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
+       AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss, MiniMaxAdaptiveLoss,
+       LogOptions
+
 
 end # module

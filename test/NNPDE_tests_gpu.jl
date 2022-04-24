@@ -23,6 +23,7 @@ CUDA.allowscalar(false)
 #const gpuones = cu(ones(1))
 
 ## ODE
+println("ode")
 @parameters θ
 @variables u(..)
 Dθ = Differential(θ)
@@ -54,10 +55,10 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              init_params = initθ
                                              )
 
-pde_system = PDESystem(eq,bcs,domains,[θ],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[θ],[u(θ)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, ADAM(1e-2); cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob, ADAM(1e-2); maxiters=2000)
 phi = discretization.phi
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -72,6 +73,7 @@ u_predict  = [first(Array(phi([t],res.minimizer))) for t in ts]
 # plot!(t_plot ,u_predict)
 
 ## 1D PDE Dirichlet boundary conditions
+println("1D PDE Dirichlet boundary conditions")
 @parameters t x
 @variables u(..)
 Dt = Differential(t)
@@ -85,7 +87,7 @@ bcs = [u(0,x) ~ cos(x),
 domains = [t ∈ Interval(0.0,1.0),
           x ∈ Interval(0.0,1.0)]
 
-pdesys = PDESystem(eq,bcs,domains,[t,x],[u])
+@named pdesys = PDESystem(eq,bcs,domains,[t,x],[u(t, x)])
 
 inner = 30
 chain = FastChain(FastDense(2,inner,Flux.σ),
@@ -104,9 +106,9 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 prob = NeuralPDE.discretize(pdesys,discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, ADAM(0.01);maxiters=1000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=1000)
+res = GalacticOptim.solve(prob,ADAM(0.001);maxiters=1000)
 phi = discretization.phi
 
 u_exact = (t,x) -> exp.(-t) * cos.(x)
@@ -123,6 +125,7 @@ diff_u = abs.(u_predict .- u_real)
 # plot(p1,p2,p3)
 
 ## 1D PDE Neumann boundary conditions and Float64 accuracy
+println("1D PDE Neumann boundary conditions and Float64 accuracy")
 @parameters t x
 @variables u(..)
 Dt = Differential(t)
@@ -140,7 +143,7 @@ domains = [t ∈ Interval(0.0,1.0),
         x ∈ Interval(0.0,1.0)]
 
 # PDE system
-pdesys = PDESystem(eq,bcs,domains,[t,x],[u])
+@named pdesys = PDESystem(eq,bcs,domains,[t,x],[u(t, x)])
 
 inner = 20
 chain = FastChain(FastDense(2,inner,Flux.σ),
@@ -160,9 +163,9 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 prob = NeuralPDE.discretize(pdesys,discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=2000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=2000)
+res = GalacticOptim.solve(prob,ADAM(0.01); maxiters=2000)
 phi = discretization.phi
 
 u_exact = (t,x) -> exp(-t) * cos(x)
@@ -179,6 +182,7 @@ diff_u = abs.(u_predict .- u_real)
 # plot(p1,p2,p3)
 
 ## 2D PDE
+println("2D PDE")
 @parameters t x y
 @variables u(..)
 Dxx = Differential(x)^2
@@ -217,29 +221,26 @@ chain = FastChain(FastDense(3,inner,Flux.σ),
 
 initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
 
-# strategy = NeuralPDE.QuasiRandomTraining(4000; #points
-#                                          sampling_alg = SobolSample(),
-#                                          minibatch = 3)
-strategy = NeuralPDE.GridTraining(0.1)
+strategy = NeuralPDE.GridTraining(0.05)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = initθ)
 
-pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u])
+@named pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u(t,x,y)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob,ADAM(0.1);cb=cb,maxiters=2500)
+
+res = GalacticOptim.solve(prob,ADAM(0.01);maxiters=2500)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.01);cb=cb,maxiters=2500)
-prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.001);cb=cb,maxiters=2500)
+res = GalacticOptim.solve(prob,ADAM(0.001);maxiters=2500)
+@show res.original
 
 phi = discretization.phi
 ts,xs,ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
 u_real = [analytic_sol_func(t,x,y) for t in ts for x in xs for y in ys]
 u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs for y in ys]
 
-@test u_predict ≈ u_real atol = 20.0
+@test u_predict ≈ u_real rtol = 0.2
 
 # using Plots
 # using Printf
