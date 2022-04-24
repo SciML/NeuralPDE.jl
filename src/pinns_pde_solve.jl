@@ -326,10 +326,7 @@ mutable struct InverseDirichletAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     end
 end
 # default to Float64
-SciMLBase.@add_kwonly function InverseDirichletAdaptiveLoss(reweight_every; weight_change_inertia=0.5, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
-    InverseDirichletAdaptiveLoss{Float64}(reweight_every; weight_change_inertia=weight_change_inertia, 
-        pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
-end
+InverseDirichletAdaptiveLoss(args...; kwargs...) = InverseDirichletAdaptiveLoss{Float64}(args...; kwargs...)
 
 """
 A way of adaptively reweighting the components of the loss function in the total sum such that the loss weights are maximized by an internal optimiser, which leads to a behavior where loss functions that have not been satisfied get a greater weight,
