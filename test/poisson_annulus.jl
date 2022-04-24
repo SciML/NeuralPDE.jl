@@ -75,20 +75,16 @@ prob     = discretize(pdesys,discr)
 
 function cb(p,l)
     println("Loss: $l")
-    return false
+    return <(l,1e-5)
 end
 
 # training
 function train(prob; cb=cb)
-    res  = GalacticOptim.solve(prob, ADAM(); cb=cb, maxiters=100)
+    res  = GalacticOptim.solve(prob, ADAM(); cb=cb, maxiters=200)
     prob = remake(prob, u0=res.minimizer)
-    res  = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=100)
+    res  = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=200)
     minimizer = res.minimizer
 end
-
-# solution
-minimizer = train(prob)
-phi  = discr.phi
 
 # evaulate solution
 function eval_sol(phi, minimizer, domain; nsample=50)
@@ -117,7 +113,10 @@ function eval_sol(phi, minimizer, domain; nsample=50)
     plt = meshplt(xs,ys,upred)
 end
 
-eval_sol(phi, minimizer, domain)
+# solution
+#min1 = train(prob)
+#phi  = discr.phi
+#eval_sol(phi, min1, domain)
 
 #@test loss < 1e-4
 
@@ -129,6 +128,7 @@ Dθ = Differential(θ)
 eq = -1/r * Dr(r * Dr(u(r,θ))) ~ 1.0f0
 
 @named pdesys = PDESystem(eq, bcs, domain, [r, θ], [u])
-minimizer = train(prob)
-eval_sol(phi, minimizer, domain)
-
+prob = discretize(pdesys,discr)
+min2 = train(prob)
+eval_sol(phi, min2, domain)
+#
