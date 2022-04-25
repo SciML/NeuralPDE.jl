@@ -44,14 +44,14 @@ eq = -(Dxx(u(r,θ)) + Dyy(u(r,θ))) ~ 1.0f0
 
 # Boundary conditions
 bcs = [
-       u(r0, θ) ~ 0.f0       # Dirichlet, inner
-      ,u(r1, θ) ~ 0.f0       # Dirichlet, outer
-      ,u(r,0f0) ~ u(r,2f0pi) # Periodic
+       u(r0, θ) ~ 0.f0,       # Dirichlet, inner
+       u(r1, θ) ~ 0.f0,       # Dirichlet, outer
+       u(r,0f0) ~ u(r,2f0pi), # Periodic
       ]
 
 domain = [
           r ∈ Interval(r0 ,r1),
-          θ ∈ Interval(0f0,2f0pi)
+          θ ∈ Interval(0f0,2f0pi),
          ]
 
 @named pdesys = PDESystem(eq, bcs, domain, [r, θ], [u])
@@ -87,6 +87,12 @@ function train(prob; cb=cb)
 end
 
 # evaulate solution
+function meshplt(x,y,u;a=45,b=60)
+    p = plot(x,y,u,legend=false,c=:grays,camera=(a,b))
+    p = plot!(x',y',u',legend=false,c=:grays,camera=(a,b))
+    return p
+end
+
 function eval_sol(phi, minimizer, domain; nsample=50)
     rs,θs=[Array(range(infimum(d.domain),supremum(d.domain),length=nsample))
                                                 for d in pdesys.domain]
@@ -94,22 +100,16 @@ function eval_sol(phi, minimizer, domain; nsample=50)
     o  = ones(nsample)
     rs = rs * o'
     θs = o  * θs'
-    
+
     xs,ys = polar(rs,θs)
-    
+
     v = zeros(Float32,2,nsample*nsample)
     v[1,:] = rs[:]
     v[2,:] = θs[:]
-    
+
     upred = phi(v,minimizer)
     upred = reshape(upred,nsample,nsample)
 
-    function meshplt(x,y,u;a=45,b=60)
-        p = plot(x,y,u,legend=false,c=:grays,camera=(a,b))
-        p = plot!(x',y',u',legend=false,c=:grays,camera=(a,b))
-        return p
-    end
-    
     plt = meshplt(xs,ys,upred)
 end
 

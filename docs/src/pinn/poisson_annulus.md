@@ -13,6 +13,12 @@ To solve partial differential equations in nonstandard geometries, one would nee
 
 For example, to solve the poisson equation on a cylindrical domain, the user can write the poisson equation in cylindrical coordinates as follows
 
+```math
+\begin{align*}
+-\frac{1}{r}
+\end{align*}
+```
+
 We represent *physical* coordinates, ``(x,y)``, and field variable ``u`` in terms of reference coordinates ``r,\theta`` which stand for *radius*, and *angle* respectively. We apply the following boundary conditions:
 
 ```math
