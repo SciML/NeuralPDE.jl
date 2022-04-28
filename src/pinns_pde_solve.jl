@@ -325,7 +325,7 @@ mutable struct MiniMaxAdaptiveLoss{T <: Real, PDE_OPT <: Flux.Optimise.AbstractO
     pde_loss_weights::Vector{T} 
     bc_loss_weights::Vector{T} 
     additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T, PDE_OPT, BC_OPT}(reweight_every; pde_max_optimiser=Flux.ADAM(1e-4), bc_max_optimiser=Flux.ADAM(0.5), 
+    SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T, PDE_OPT, BC_OPT}(reweight_every; pde_max_optimiser=Flux.ADAM(0.2), bc_max_optimiser=Flux.ADAM(0.5), 
             pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where {T <: Real, PDE_OPT <: Flux.Optimise.AbstractOptimiser, BC_OPT <: Flux.Optimise.AbstractOptimiser}
         new(convert(Int64, reweight_every), convert(PDE_OPT, pde_max_optimiser), convert(BC_OPT, bc_max_optimiser), 
             vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
@@ -333,7 +333,7 @@ mutable struct MiniMaxAdaptiveLoss{T <: Real, PDE_OPT <: Flux.Optimise.AbstractO
 end
 
 # default to Float64, ADAM, ADAM
-SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss(;reweight_every=50, pde_max_optimiser=Flux.ADAM(1e-4), bc_max_optimiser=Flux.ADAM(0.5), pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1)
+SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss(;reweight_every=50, pde_max_optimiser=Flux.ADAM(0.2), bc_max_optimiser=Flux.ADAM(0.5), pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1)
     MiniMaxAdaptiveLoss{Float64, typeof(pde_max_optimiser), typeof(bc_max_optimiser)}(
         reweight_every; pde_max_optimiser=pde_max_optimiser, bc_max_optimiser=bc_max_optimiser,
         pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
