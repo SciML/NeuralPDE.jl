@@ -7,6 +7,7 @@ using DocStringExtensions
 using Reexport, Statistics
 @reexport using DiffEqBase
 
+using LinearAlgebra
 using Distributed
 using DataStructures
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
@@ -29,6 +30,7 @@ import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly
 using Flux: @nograd
+using IfElse
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
     TerminalPDEProblem(g, f, μ, σ, x0, tspan)
