@@ -557,12 +557,20 @@ function build_symbolic_equation(eq,_indvars,_depvars,chain,eltypeθ,strategy,ph
 end
 
 function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
+    #@show eq.lhs
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
+    #@show eq_lhs
+    #@show eq.rhs
+    #@show expand_derivatives(eq.rhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
+    #@show eq_rhs
     left_expr = transform_expression(toexpr(eq_lhs),indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
-     right_expr = transform_expression(toexpr(eq_rhs),indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
+    #@show toexpr(eq_rhs)
+    right_expr = transform_expression(toexpr(eq_rhs),indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
+    #@show right_expr
     left_expr = _dot_(left_expr)
     right_expr = _dot_(right_expr)
+    #@show right_expr
     loss_func = :($left_expr .- $right_expr)
 end
 
@@ -600,8 +608,12 @@ function build_symbolic_loss_function(eqs,_indvars,_depvars,dict_depvar_input,
                                       integrand=nothing,
                                       dict_transformation_vars = nothing, 
                                       transformation_vars = nothing,
-                                      integrating_depvars=nothing)
+                                      integrating_depvars=nothing,
+                                      subdomain_relations=nothing, 
+                                      eq_integration_domain=nothing,
+                                      )
     # dictionaries: variable -> unique number
+    @show "build_symbolic_loss 602"
     depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars == nothing ? indvars : bc_indvars
     integrating_depvars = integrating_depvars == nothing ? depvars : integrating_depvars
@@ -615,7 +627,10 @@ function build_symbolic_loss_function(eqs,_indvars,_depvars,dict_depvar_input,
                                         integrand=integrand,
                                         dict_transformation_vars = dict_transformation_vars, 
                                         transformation_vars = transformation_vars,
-                                        integrating_depvars=integrating_depvars)
+                                        integrating_depvars=integrating_depvars,
+                                        subdomain_relations=subdomain_relations, 
+                                        eq_integration_domain=eq_integration_domain,
+                                        )
 end
 
 function get_indvars_ex(bc_indvars) # , dict_this_eq_indvars)
@@ -637,13 +652,39 @@ end
 """
 Finds which dependent variables are being used in an equation.
 """
-function pair(eq, depvars, dict_depvars, dict_depvar_input)
+function pair(eq, depvars, dict_depvars, dict_depvar_input, subdomain_relations, eq_integration_domain)
+    println("")
+    println(" in pair")
+    @show eq
+    @show depvars
+    @show dict_depvars
+    @show dict_depvar_input
+    @show subdomain_relations
+    @show eq_integration_domain
+    replace_indvar_dict = Dict{Symbol,Symbol}()
+    if (!isnothing(subdomain_relations)) && (!isnothing(eq_integration_domain)) 
+        println("in pair: subdomain_relations and eq_integration_domain are both not nothing. let's replace dict_depvar_input")
+        for (subdomain_indvar, superdomain_indvar) in subdomain_relations
+            if superdomain_indvar in eq_integration_domain
+                replace_indvar_dict[subdomain_indvar] = superdomain_indvar
+            end
+            if subdomain_indvar in eq_integration_domain
+                replace_indvar_dict[superdomain_indvar] = subdomain_indvar
+            end
+        end
+    end
+    @show replace_indvar_dict
     expr = toexpr(eq)
     pair_ = map(depvars) do depvar
         if !isempty(find_thing_in_expr(expr,  depvar))
-            dict_depvars[depvar] => dict_depvar_input[depvar]
+            depvar_indvars = dict_depvar_input[depvar]
+            depvar_indvars = map(depvar_indvars) do indvar
+                get(replace_indvar_dict, indvar, indvar)
+            end
+            dict_depvars[depvar] => depvar_indvars
         end
     end
+    println("")
     Dict(filter(p -> p !== nothing, pair_))
 end
 
@@ -658,7 +699,16 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_transformation_vars = nothing, 
                                       transformation_vars = nothing,
                                       integrating_depvars=depvars,
+                                      subdomain_relations=nothing, 
+                                      eq_integration_domain=nothing,
                                       )
+    println("")
+    @show "build_symbolic_loss 670"
+    @show eqs
+    @show typeof(eqs)
+    @show subdomain_relations
+    @show eq_integration_domain
+    @show integrating_depvars
     if chain isa AbstractArray
         eltypeθ = eltype(initθ[1])
     else
@@ -667,13 +717,20 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
 
     if integrand isa Nothing
         loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
-        this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
+        @show loss_function
+        @show eqs
+        @show depvars
+        @show dict_depvars
+        @show dict_depvar_input
+        this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input, subdomain_relations, eq_integration_domain)
+        @show this_eq_pair
         this_eq_indvars = unique(vcat(values(this_eq_pair)...))
     else 
         this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars], integrating_depvars))
         this_eq_indvars = transformation_vars isa Nothing ? unique(vcat(values(this_eq_pair)...)) : transformation_vars
         loss_function = integrand
     end
+    println("")
     vars = :(cord, $θ, phi, derivative, integral,u,p)
     ex = Expr(:block)
     if typeof(chain) <: AbstractVector
@@ -758,6 +815,8 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     push!(ex.args,  let_ex)
 
     expr_loss_function = :(($vars) -> begin $ex end)
+    #@show expr_loss_function
+    expr_loss_function
 end
 
 function build_loss_function(eqs,_indvars,_depvars,phi,derivative,integral,
@@ -765,8 +824,12 @@ function build_loss_function(eqs,_indvars,_depvars,phi,derivative,integral,
                              bc_indvars=nothing,
                              eq_params=SciMLBase.NullParameters(),
                              param_estim=false,
-                             default_p=nothing)
+                             default_p=nothing,
+                             subdomain_relations=nothing, 
+                             eq_integration_domain=nothing,
+                             )
     # dictionaries: variable -> unique number
+    @show "build loss 789"
     depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_loss_function(eqs,indvars,depvars,
@@ -776,7 +839,10 @@ function build_loss_function(eqs,_indvars,_depvars,phi,derivative,integral,
                                integration_indvars=indvars,
                                eq_params=eq_params,
                                param_estim=param_estim,
-                               default_p=default_p)
+                               default_p=default_p,
+                               subdomain_relations=subdomain_relations, 
+                               eq_integration_domain=eq_integration_domain,
+                               )
 end
 
 function build_loss_function(eqs,indvars,depvars,
@@ -786,13 +852,20 @@ function build_loss_function(eqs,indvars,depvars,
                              integration_indvars=indvars,
                              eq_params=SciMLBase.NullParameters(),
                              param_estim=false,
-                             default_p=nothing)
+                             default_p=nothing,
+                             subdomain_relations=nothing, 
+                             eq_integration_domain=nothing,
+                             )
+    @show "build loss 803"
      expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars, dict_depvar_input,
                                                        phi,derivative,integral,chain,initθ,strategy;
                                                        bc_indvars = bc_indvars,
                                                        eq_params = eq_params,
-                                                       param_estim=param_estim,default_p=default_p)
+                                                       param_estim=param_estim,default_p=default_p,
+                                                       subdomain_relations=subdomain_relations, 
+                                                       eq_integration_domain=eq_integration_domain,
+                               )
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     loss_function = (cord, θ) -> begin
@@ -864,17 +937,32 @@ function find_thing_in_expr(ex::Expr, thing; ans = [])
 end
 
 # Get arguments from boundary condition functions
+function get_argument(eqs,indvars,depvars,eqs_integration_domains::Vector{Nothing})
+    # default to analyzing the equations to find the relevant domains if eqs_integration_domains is not provided
+    get_argument(eqs, indvars, depvars)
+end
+function get_argument(eqs,indvars,depvars,eqs_integration_domains)
+    # return the input eqs_integration_domains if it exists (would be provided from elsewhere)
+    eqs_integration_domains
+end
 function get_argument(eqs,_indvars::Array,_depvars::Array)
     depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
     get_argument(eqs,dict_indvars,dict_depvars)
 end
 function get_argument(eqs,dict_indvars,dict_depvars)
+    println("")
+    println("in get_argument")
+    @show eqs
+    @show dict_depvars
+    #@show eqs_integration_domains
     exprs = toexpr.(eqs)
+    @show exprs
     vars = map(exprs) do expr
         _vars =  map(depvar -> find_thing_in_expr(expr,  depvar), collect(keys(dict_depvars)))
         f_vars = filter(x -> !isempty(x), _vars)
         map(x -> first(x), f_vars)
     end
+    @show vars
     args_ = map(vars) do _vars
         ind_args_ = map(var -> var.args[2:end], _vars)
         syms = Set{Symbol}()
@@ -891,6 +979,8 @@ function get_argument(eqs,dict_indvars,dict_depvars)
             end
         end
     end
+    @show args_
+    println("")
     return args_ # TODO for all arguments
 end
 
@@ -945,21 +1035,21 @@ function generate_training_sets(domains,dx,eqs,bcs,eltypeθ,dict_indvars::Dict,d
     [pde_train_sets,bcs_train_sets]
 end
 
-function get_bounds(domains,eqs,bcs,eltypeθ,_indvars::Array,_depvars::Array,strategy)
+function get_bounds(domains,eqs,bcs,eltypeθ,_indvars::Array,_depvars::Array,strategy,eqs_integration_domains,ics_bcs_integration_domains)
     depvars,indvars,dict_indvars,dict_depvars,dict_depvar_input = get_vars(_indvars, _depvars)
-    return get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
+    return get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,eqs_integration_domains,ics_bcs_integration_domains)
 end
 
-function get_bounds(domains,eqs,bcs,eltypeθ,_indvars::Array,_depvars::Array,strategy::QuadratureTraining)
+function get_bounds(domains,eqs,bcs,eltypeθ,_indvars::Array,_depvars::Array,strategy::QuadratureTraining,eqs_integration_domains,ics_bcs_integration_domains)
     depvars,indvars,dict_indvars,dict_depvars,dict_depvar_input = get_vars(_indvars, _depvars)
-    return get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
+    return get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,eqs_integration_domains,ics_bcs_integration_domains)
 end
 
-function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy::QuadratureTraining)
+function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy::QuadratureTraining,eqs_integration_domains,ics_bcs_integration_domains)
     dict_lower_bound = Dict([Symbol(d.variables) => infimum(d.domain) for d in domains])
     dict_upper_bound = Dict([Symbol(d.variables) => supremum(d.domain) for d in domains])
 
-    pde_args = get_argument(eqs,dict_indvars,dict_depvars)
+    pde_args = get_argument(eqs,dict_indvars,dict_depvars,eqs_integration_domains)
 
     pde_lower_bounds= map(pde_args) do pd
         span = map(p -> get(dict_lower_bound, p, p), pd)
@@ -984,24 +1074,32 @@ function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy:
     [pde_bounds, bcs_bounds]
 end
 
-function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
+function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,eqs_integration_domains,ics_bcs_integration_domains)
     dx = 1 / strategy.points
+    # interesting, didn't know it was doing this interior subtraction. why??? I guess it makes sense for grids and possibly 
+    # quadrature but the other methods you have 0 change of actually getting the boundary. perhaps do eps(eltypeθ) instead of this dx that depends on points
     dict_span = Dict([Symbol(d.variables) => [infimum(d.domain)+dx, supremum(d.domain)-dx] for d in domains])
+    @show dict_span
     # pde_bounds = [[infimum(d.domain),supremum(d.domain)] for d in domains]
-    pde_args = get_argument(eqs,dict_indvars,dict_depvars)
+    pde_args = get_argument(eqs,dict_indvars,dict_depvars,eqs_integration_domains)
+    @show pde_args
 
     pde_bounds= map(pde_args) do pd
         span = map(p -> get(dict_span, p, p), pd)
         map(s -> adapt(eltypeθ,s), span)
     end
+    @show pde_bounds
 
-    bound_args = get_argument(bcs,dict_indvars,dict_depvars)
+    bound_args = get_argument(bcs,dict_indvars,dict_depvars,ics_bcs_integration_domains)
+    @show bound_args
     dict_span = Dict([Symbol(d.variables) => [infimum(d.domain), supremum(d.domain)] for d in domains])
+    @show dict_span
 
     bcs_bounds= map(bound_args) do bt
         span = map(b -> get(dict_span, b, b), bt)
         map(s -> adapt(eltypeθ,s), span)
     end
+    @show bcs_bounds
     [pde_bounds,bcs_bounds]
 end
 
@@ -1105,7 +1203,14 @@ function get_loss_function(loss_function, bound, eltypeθ, parameterless_type_θ
     loss = (θ) -> begin
         sets = generate_random_points(points, bound,eltypeθ)
         sets_ = adapt(parameterless_type_θ,sets)
-        mean(abs2,loss_function(sets_, θ))
+        #println("in loss function")
+        #@show sets_
+        #@show size(sets_)
+        lossvals = loss_function(sets_, θ)
+        #println("in loss function again")
+        #@show lossvals
+        #@show size(lossvals)
+        mean(abs2,lossvals)
     end
     return loss
 end
@@ -1191,7 +1296,13 @@ function get_loss_function(loss_function, lb,ub ,eltypeθ, parameterless_type_θ
     return loss
 end
 
-function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+function SciMLBase.symbolic_discretize(
+        pde_system::PDESystem, 
+        discretization::PhysicsInformedNN; 
+        subdomain_relations=nothing, 
+        eqs_integration_domains=nothing,
+        ics_bcs_integration_domains=nothing,
+    )
     eqs = pde_system.eqs
     bcs = pde_system.bcs
     
@@ -1227,11 +1338,48 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
     end
     pde_integration_vars = get_integration_variables(eqs,dict_indvars,dict_depvars)
 
-    symbolic_pde_loss_functions = [build_symbolic_loss_function(eq,indvars,depvars,
-                                                                dict_indvars,dict_depvars,dict_depvar_input,
-                                                                phi, derivative,integral, chain,initθ,strategy;eq_params=eq_params,param_estim=param_estim,default_p=default_p,
-                                                                bc_indvars=pde_indvar
-                                                                ) for (eq, pde_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
+    #symbolic_pde_loss_functions = [build_symbolic_loss_function(eq,indvars,depvars,
+                                                                #dict_indvars,dict_depvars,dict_depvar_input,
+                                                                #phi, derivative,integral, chain,initθ,strategy;eq_params=eq_params,param_estim=param_estim,default_p=default_p,
+                                                                #bc_indvars=pde_indvar
+                                                                #) for (eq, pde_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
+
+    println("")
+    @show eqs_integration_domains
+    @show ics_bcs_integration_domains
+    @show subdomain_relations
+    println("")
+    if isnothing(eqs_integration_domains)
+        eqs_integration_domains = fill(nothing, length(eqs))
+    end
+    if isnothing(ics_bcs_integration_domains)
+        ics_bcs_integration_domains = fill(nothing, length(bcs))
+    end
+    # pde_integration_vars is no longer used for anything afaik. it used to be used for the purpose that eq_integration_domain now is used for in the initial heterogeneous domains implementation
+    symbolic_pde_loss_functions = map(zip(eqs, pde_indvars, pde_integration_vars, eqs_integration_domains)) do (eq, pde_indvar, pde_integration_vars, eq_integration_domain)
+        println("")
+        println("in symbolic_discretize: symbolic_pde_loss_functions")
+        @show eq
+        @show eq_integration_domain
+        @show pde_indvar
+        @show pde_integration_vars
+        # need this to be [:t :x] for [1, 2]
+        # and [:t :x_n], [:t, :x_p] for [3, 4]
+        println("")
+        #println(@which build_symbolic_loss_function(eq,indvars,depvars,
+                                        #dict_indvars,dict_depvars,dict_depvar_input,
+                                        #phi, derivative,integral, chain,initθ,strategy;eq_params=eq_params,param_estim=param_estim,default_p=default_p,
+                                        #bc_indvars=pde_indvar,
+                                    #))
+        build_symbolic_loss_function(eq,indvars,depvars,
+                                        dict_indvars,dict_depvars,dict_depvar_input,
+                                        phi, derivative,integral, chain,initθ,strategy;eq_params=eq_params,param_estim=param_estim,default_p=default_p,
+                                        bc_indvars=pde_indvar,
+                                        eq_integration_domain=eq_integration_domain,
+                                        subdomain_relations=subdomain_relations,
+                                    )
+    end
+    println("")
 
     bc_indvars = if strategy isa QuadratureTraining
          get_argument(bcs,dict_indvars,dict_depvars)
@@ -1239,19 +1387,29 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
          get_variables(bcs,dict_indvars,dict_depvars)
     end
     bc_integration_vars = get_integration_variables(bcs, dict_indvars, dict_depvars)
+    # bc_integration_vars is no longer used for anything afaik. it used to be used for the purpose that eq_integration_domain now is used for in the initial heterogeneous domains implementation
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars, dict_depvar_input,
                                                                phi, derivative,integral,chain,initθ,strategy,
                                                                eq_params=eq_params,
                                                                param_estim=param_estim,
                                                                default_p=default_p;
-                                                               bc_indvars=bc_indvar)
-                                                               for (bc, bc_indvar) in zip(bcs, bc_indvars, bc_integration_vars)]
+                                                               bc_indvars=bc_indvar,
+                                                               eq_integration_domain=ic_bc_integration_domain,
+                                                               subdomain_relations=subdomain_relations,
+                                                               )
+                                                               for (bc, bc_indvar, bc_integration_vars, ic_bc_integration_domain) in zip(bcs, bc_indvars, bc_integration_vars, ics_bcs_integration_domains)]
     symbolic_pde_loss_functions, symbolic_bc_loss_functions
 end
 
 
-function discretize_full_functions(pde_system::PDESystem, discretization::PhysicsInformedNN)
+function discretize_full_functions(
+        pde_system::PDESystem, 
+        discretization::PhysicsInformedNN;
+        subdomain_relations=nothing, 
+        eqs_integration_domains=nothing,
+        ics_bcs_integration_domains=nothing,
+    )
     eqs = pde_system.eqs
     bcs = pde_system.bcs
 
@@ -1263,6 +1421,18 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
     param_estim = discretization.param_estim
     additional_loss = discretization.additional_loss
     adaloss = discretization.adaptive_loss
+
+    println("")
+    @show eqs_integration_domains
+    @show ics_bcs_integration_domains
+    @show subdomain_relations
+    println("")
+    if isnothing(eqs_integration_domains)
+        eqs_integration_domains = fill(nothing, length(eqs))
+    end
+    if isnothing(ics_bcs_integration_domains)
+        ics_bcs_integration_domains = fill(nothing, length(bcs))
+    end
     
     # dimensionality of equation
     dim = length(domains)
@@ -1294,8 +1464,11 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
    _pde_loss_functions = [build_loss_function(eq,indvars,depvars,
                                              dict_indvars,dict_depvars,dict_depvar_input,
                                              phi, derivative,integral, chain, initθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p,
-                                             bc_indvars=pde_indvar, integration_indvars=integration_indvar
-                                             ) for (eq, pde_indvar, integration_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
+                                             bc_indvars=pde_indvar, 
+                                             integration_indvars=integration_indvar,
+                                             eq_integration_domain=eq_integration_domain,
+                                             subdomain_relations=subdomain_relations,
+                                             ) for (eq, pde_indvar, integration_indvar, eq_integration_domain) in zip(eqs, pde_indvars, pde_integration_vars, eqs_integration_domains)]
     bc_indvars = if strategy isa QuadratureTraining
          get_argument(bcs,dict_indvars,dict_depvars)
     else
@@ -1310,7 +1483,9 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
                                               param_estim=param_estim,
                                               default_p=default_p,
                                               bc_indvars=bc_indvar,
-                                              integration_indvars=integration_indvar) for (bc, bc_indvar, integration_indvar) in zip(bcs, bc_indvars, bc_integration_vars)]
+                                              eq_integration_domain=ic_bc_integration_domain,
+                                              subdomain_relations=subdomain_relations,
+                                              integration_indvars=integration_indvar,) for (bc, bc_indvar, integration_indvar, ic_bc_integration_domain) in zip(bcs, bc_indvars, bc_integration_vars, ics_bcs_integration_domains)]
 
     pde_loss_functions, bc_loss_functions =
     if strategy isa GridTraining
@@ -1330,7 +1505,7 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
                                                  for (_loss,_set) in zip(_bc_loss_functions, bcs_train_sets)]
         (pde_loss_functions, bc_loss_functions)
     elseif strategy isa StochasticTraining
-         bounds = get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
+         bounds = get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,eqs_integration_domains,ics_bcs_integration_domains)
          pde_bounds, bcs_bounds = bounds
 
          pde_loss_functions = [get_loss_function(_loss,bound,eltypeθ,parameterless_type_θ,strategy)
@@ -1340,7 +1515,7 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
                                                  for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
           (pde_loss_functions, bc_loss_functions)
     elseif strategy isa QuasiRandomTraining
-         bounds = get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
+         bounds = get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,eqs_integration_domains,ics_bcs_integration_domains)
          pde_bounds, bcs_bounds = bounds
 
          pde_loss_functions = [get_loss_function(_loss,bound,eltypeθ,parameterless_type_θ,strategy)
@@ -1354,7 +1529,7 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
                                                 for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
          (pde_loss_functions, bc_loss_functions)
     elseif strategy isa QuadratureTraining
-        bounds = get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
+        bounds = get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,eqs_integration_domains,ics_bcs_integration_domains)
         pde_bounds, bcs_bounds = bounds
 
         lbs,ubs = pde_bounds
@@ -1523,8 +1698,18 @@ function discretize_full_functions(pde_system::PDESystem, discretization::Physic
 end
 
 # Convert a PDE problem into an OptimizationProblem
-function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    discretized_functions = discretize_full_functions(pde_system, discretization)
+function SciMLBase.discretize(
+        pde_system::PDESystem, 
+        discretization::PhysicsInformedNN;
+        subdomain_relations=nothing, 
+        eqs_integration_domains=nothing,
+        ics_bcs_integration_domains=nothing,
+    )
+    discretized_functions = discretize_full_functions(pde_system, discretization;
+        subdomain_relations=subdomain_relations, 
+        eqs_integration_domains=eqs_integration_domains,
+        ics_bcs_integration_domains=ics_bcs_integration_domains,
+    )
     f = OptimizationFunction(discretized_functions.full_loss_function, GalacticOptim.AutoZygote())
     GalacticOptim.OptimizationProblem(f, discretized_functions.flat_initθ)
 end
