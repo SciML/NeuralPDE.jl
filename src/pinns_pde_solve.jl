@@ -51,6 +51,8 @@ end
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
+unzip(a) = map(x->getfield.(a, x), fieldnames(eltype(a)))
+
 """
 """
 struct LogOptions{PlotFunction}
@@ -800,6 +802,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs), build_expr(:tuple, right_arg_pairs))
     end
+    @show left_arg_pairs
 
     if !(dict_transformation_vars isa Nothing)
         transformation_expr_ = Expr[]
@@ -816,7 +819,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
 
     expr_loss_function = :(($vars) -> begin $ex end)
     #@show expr_loss_function
-    expr_loss_function
+    expr_loss_function, left_arg_pairs
 end
 
 function build_loss_function(eqs,_indvars,_depvars,phi,derivative,integral,
@@ -857,7 +860,7 @@ function build_loss_function(eqs,indvars,depvars,
                              eq_integration_domain=nothing,
                              )
     @show "build loss 803"
-     expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
+     expr_loss_function, indvar_arg_order = build_symbolic_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars, dict_depvar_input,
                                                        phi,derivative,integral,chain,initθ,strategy;
                                                        bc_indvars = bc_indvars,
@@ -871,7 +874,7 @@ function build_loss_function(eqs,indvars,depvars,
     loss_function = (cord, θ) -> begin
         _loss_function(cord, θ, phi, derivative, integral, u, default_p)
     end
-    return loss_function
+    return loss_function, indvar_arg_order
 end
 
 function get_vars(indvars_, depvars_)
@@ -937,13 +940,31 @@ function find_thing_in_expr(ex::Expr, thing; ans = [])
 end
 
 # Get arguments from boundary condition functions
-function get_argument(eqs,indvars,depvars,eqs_integration_domains::Vector{Nothing})
+function get_argument(eqs,indvars,depvars,eqs_integration_domains::Vector{Nothing},eqs_indvar_orders)
     # default to analyzing the equations to find the relevant domains if eqs_integration_domains is not provided
     get_argument(eqs, indvars, depvars)
 end
-function get_argument(eqs,indvars,depvars,eqs_integration_domains)
+function get_argument(eqs,indvars,depvars,eqs_integration_domains,eqs_indvar_orders)
     # return the input eqs_integration_domains if it exists (would be provided from elsewhere)
-    eqs_integration_domains
+    arg_vals = map(zip(eqs_integration_domains, eqs_indvar_orders)) do (eq_integration_domain, eq_indvar_order)
+        map(eq_indvar_order) do indvar
+            if indvar in eq_integration_domain
+                indvar
+            else
+                domain_var = 0.0
+                for integration_var in eq_integration_domain
+                    if integration_var isa Pair
+                        if indvar == integration_var.first
+                            domain_var = integration_var.second
+                        end
+                    end
+                end
+                domain_var
+            end
+        end
+    end
+    @show arg_vals
+    arg_vals
 end
 function get_argument(eqs,_indvars::Array,_depvars::Array)
     depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
@@ -1074,14 +1095,17 @@ function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy:
     [pde_bounds, bcs_bounds]
 end
 
-function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,eqs_integration_domains,ics_bcs_integration_domains)
+function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,eqs_integration_domains,ics_bcs_integration_domains,pde_indvar_orders,bc_indvar_orders)
     dx = 1 / strategy.points
+    #dx = eps(eltypeθ)
+    @show pde_indvar_orders
+    @show bc_indvar_orders
     # interesting, didn't know it was doing this interior subtraction. why??? I guess it makes sense for grids and possibly 
     # quadrature but the other methods you have 0 change of actually getting the boundary. perhaps do eps(eltypeθ) instead of this dx that depends on points
     dict_span = Dict([Symbol(d.variables) => [infimum(d.domain)+dx, supremum(d.domain)-dx] for d in domains])
     @show dict_span
     # pde_bounds = [[infimum(d.domain),supremum(d.domain)] for d in domains]
-    pde_args = get_argument(eqs,dict_indvars,dict_depvars,eqs_integration_domains)
+    pde_args = get_argument(eqs,dict_indvars,dict_depvars,eqs_integration_domains,pde_indvar_orders)
     @show pde_args
 
     pde_bounds= map(pde_args) do pd
@@ -1090,7 +1114,7 @@ function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,
     end
     @show pde_bounds
 
-    bound_args = get_argument(bcs,dict_indvars,dict_depvars,ics_bcs_integration_domains)
+    bound_args = get_argument(bcs,dict_indvars,dict_depvars,ics_bcs_integration_domains,bc_indvar_orders)
     @show bound_args
     dict_span = Dict([Symbol(d.variables) => [infimum(d.domain), supremum(d.domain)] for d in domains])
     @show dict_span
@@ -1203,12 +1227,20 @@ function get_loss_function(loss_function, bound, eltypeθ, parameterless_type_θ
     loss = (θ) -> begin
         sets = generate_random_points(points, bound,eltypeθ)
         sets_ = adapt(parameterless_type_θ,sets)
-        #println("in loss function")
-        #@show sets_
-        #@show size(sets_)
+        println("in loss function")
+        @show bound
+        @show sets
+        @show sets_
+        @show size(sets_)
         lossvals = loss_function(sets_, θ)
         #println("in loss function again")
-        #@show lossvals
+        @show lossvals
+        input_losses = map(1:size(sets_, 2)) do i
+            (sets_[:, i], lossvals[i])
+        end
+        if any(abs.(lossvals) .> 0.4)
+            @show input_losses
+        end
         #@show size(lossvals)
         mean(abs2,lossvals)
     end
@@ -1461,14 +1493,14 @@ function discretize_full_functions(
         get_variables(eqs,dict_indvars,dict_depvars)
     end
    pde_integration_vars = get_integration_variables(eqs, dict_indvars, dict_depvars)
-   _pde_loss_functions = [build_loss_function(eq,indvars,depvars,
+   _pde_loss_functions, _pde_indvar_orders = unzip([build_loss_function(eq,indvars,depvars,
                                              dict_indvars,dict_depvars,dict_depvar_input,
                                              phi, derivative,integral, chain, initθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p,
                                              bc_indvars=pde_indvar, 
                                              integration_indvars=integration_indvar,
                                              eq_integration_domain=eq_integration_domain,
                                              subdomain_relations=subdomain_relations,
-                                             ) for (eq, pde_indvar, integration_indvar, eq_integration_domain) in zip(eqs, pde_indvars, pde_integration_vars, eqs_integration_domains)]
+                                             ) for (eq, pde_indvar, integration_indvar, eq_integration_domain) in zip(eqs, pde_indvars, pde_integration_vars, eqs_integration_domains)])
     bc_indvars = if strategy isa QuadratureTraining
          get_argument(bcs,dict_indvars,dict_depvars)
     else
@@ -1476,7 +1508,7 @@ function discretize_full_functions(
     end
     bc_integration_vars = get_integration_variables(bcs, dict_indvars, dict_depvars)
 
-    _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
+    _bc_loss_functions, _bc_indvar_orders = unzip([build_loss_function(bc,indvars,depvars,
                                               dict_indvars,dict_depvars, dict_depvar_input,
                                               phi,derivative,integral,chain,initθ,strategy;
                                               eq_params=eq_params,
@@ -1485,7 +1517,7 @@ function discretize_full_functions(
                                               bc_indvars=bc_indvar,
                                               eq_integration_domain=ic_bc_integration_domain,
                                               subdomain_relations=subdomain_relations,
-                                              integration_indvars=integration_indvar,) for (bc, bc_indvar, integration_indvar, ic_bc_integration_domain) in zip(bcs, bc_indvars, bc_integration_vars, ics_bcs_integration_domains)]
+                                              integration_indvars=integration_indvar,) for (bc, bc_indvar, integration_indvar, ic_bc_integration_domain) in zip(bcs, bc_indvars, bc_integration_vars, ics_bcs_integration_domains)])
 
     pde_loss_functions, bc_loss_functions =
     if strategy isa GridTraining
@@ -1505,8 +1537,9 @@ function discretize_full_functions(
                                                  for (_loss,_set) in zip(_bc_loss_functions, bcs_train_sets)]
         (pde_loss_functions, bc_loss_functions)
     elseif strategy isa StochasticTraining
-         bounds = get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,eqs_integration_domains,ics_bcs_integration_domains)
+         bounds = get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy,eqs_integration_domains,ics_bcs_integration_domains,_pde_indvar_orders,_bc_indvar_orders)
          pde_bounds, bcs_bounds = bounds
+         @show pde_bounds, bcs_bounds
 
          pde_loss_functions = [get_loss_function(_loss,bound,eltypeθ,parameterless_type_θ,strategy)
                                                  for (_loss,bound) in zip(_pde_loss_functions, pde_bounds)]
