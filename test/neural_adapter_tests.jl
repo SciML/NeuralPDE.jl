@@ -114,6 +114,9 @@ end
 
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 
+@show u_predict
+@show u_real
+@show u_predict - u_real
 @test u_predict ≈ u_real rtol = 0.1
 @test u_predicts[1] ≈ u_real rtol = 0.2
 map(u_predicts[2:end]) do upred
