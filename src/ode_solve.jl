@@ -62,11 +62,11 @@ function DiffEqBase.solve(
     end
     loss(θ) = sum(abs2,[inner_loss(t,θ) for t in ts]) # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
 
-    cb = function (p,l)
+    callback = function (p,l)
         verbose && println("Current loss is: $l")
         l < abstol
     end
-    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters, alg.kwargs...)
+    res = DiffEqFlux.sciml_train(loss, initθ, opt; callback = cb, maxiters=maxiters, alg.kwargs...)
 
     #solutions at timepoints
     if u0 isa Number

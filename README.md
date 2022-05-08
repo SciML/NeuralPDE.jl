@@ -68,14 +68,14 @@ discretization = PhysicsInformedNN(chain, QuadratureTraining(),init_params =init
 @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = discretize(pde_system,discretization)
 
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
 
-res = GalacticOptim.solve(prob, ADAM(0.1); cb = cb, maxiters=4000)
+res = GalacticOptim.solve(prob, ADAM(0.1); callback = cb, maxiters=4000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob, ADAM(0.01); callback = cb, maxiters=2000)
 phi = discretization.phi
 ```
 

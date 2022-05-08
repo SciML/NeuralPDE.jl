@@ -161,12 +161,12 @@ function DiffEqBase.solve(
     #MSE Loss Function
     loss(x , y) =Flux.mse(chain(x) , y)
 
-    cb = function ()
+    callback = function ()
         l = loss(X, y)
         verbose && println("Current loss is: $l")
         l < abstol && Flux.stop()
     end
 
-    Flux.train!(loss, ps, data, opt; cb = cb)
+    Flux.train!(loss, ps, data, opt; callback = cb)
 
  end #solve

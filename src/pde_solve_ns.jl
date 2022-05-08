@@ -105,14 +105,14 @@ function DiffEqBase.solve(
 
     iters = eltype(X0)[]
 
-    cb = function ()
+    callback = function ()
         save_everystep && push!(iters, u0(X0)[1])
         l = loss_n_sde()
         verbose && println("Current loss is: $l")
         l < pabstol && Flux.stop()
     end
 
-    Flux.train!(loss_n_sde, ps, data, opt; cb = cb)
+    Flux.train!(loss_n_sde, ps, data, opt; callback = cb)
 
 
     if give_limit == false
@@ -147,13 +147,13 @@ function DiffEqBase.solve(
         loss_() = sum(sol_high())/trajectories_upper
 
         ps = Flux.params(u0, σᵀ∇u...)
-        cb = function ()
+        callback = function ()
             l = loss_()
             true && println("Current loss is: $l")
             l < 1e-6 && Flux.stop()
         end
         dataS = Iterators.repeated((), maxiters_upper)
-        Flux.train!(loss_, ps, dataS, ADAM(0.01); cb = cb)
+        Flux.train!(loss_, ps, dataS, ADAM(0.01); callback = cb)
         u_high = loss_()
         # Function to precalculate the f values over the domain
         function give_f_matrix(X,urange,σᵀ∇u,p,t)
