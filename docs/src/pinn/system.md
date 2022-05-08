@@ -33,7 +33,7 @@ u_2(t, 0) & = - u_2(t, 1) = e^{-t} \, ,
 with physics-informed neural networks.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -93,7 +93,7 @@ phi = discretization.phi
 Low-level api
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -192,7 +192,7 @@ cb_ = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); cb = cb_, maxiters=5000)
+res = GalacticOptim.solve(prob,GalacticOptimJL.BFGS(); cb = cb_, maxiters=5000)
 ```
 
 And some analysis for both low and high level api:
@@ -236,7 +236,7 @@ Since `u3` is only in the first and second equations, that its accuracy during t
 We approximate the derivative of the neural network with another neural network `Dt(u1(t,x)) ~ Dtu1(t,x)` and train it along with other equations, and thus we avoid using the second numeric derivative `Dt(Dtu1(t,x))`.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -394,7 +394,7 @@ w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\l
 with a physics-informed neural network.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
 using Plots
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
@@ -513,7 +513,7 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k).
 This is done using a derivative neural network approximation.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, DifferentialEquations, Roots
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux, DifferentialEquations, Roots
 using Plots
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
@@ -649,7 +649,7 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and
 We solve this with Neural:
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, Roots
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux, Roots
 using SpecialFunctions
 using Plots
 using Quadrature,Cubature

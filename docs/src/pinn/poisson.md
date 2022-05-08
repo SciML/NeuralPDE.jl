@@ -28,7 +28,7 @@ with grid discretization `dx = 0.1`. We will use physics-informed neural network
 ## Copy-Pastable Code
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -60,7 +60,7 @@ discretization = PhysicsInformedNN(chain,GridTraining(dx),init_params =initθ)
 prob = discretize(pde_system,discretization)
 
 #Optimizer
-opt = Optim.BFGS()
+opt = GalacticOptimJL.BFGS()
 
 #Callback function
 cb = function (p,l)
@@ -91,7 +91,7 @@ plot(p1,p2,p3)
 The ModelingToolkit PDE interface for this example looks like this:
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -147,7 +147,7 @@ Here, we define the callback function and the optimizer. And now we can solve th
 
 ```julia
 #Optimizer
-opt = Optim.BFGS()
+opt = GalacticOptimJL.BFGS()
 
 cb = function (p,l)
     println("Current loss is: $l")

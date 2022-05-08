@@ -15,7 +15,7 @@ with Physics-Informed Neural Networks. Now we would consider the case where we w
 We start by defining the the problem,
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux, OrdinaryDiffEq, Plots
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux, OrdinaryDiffEq, Plots
 import ModelingToolkit: Interval, infimum, supremum
 @parameters t ,σ_ ,β, ρ
 @variables x(..), y(..), z(..)

@@ -21,7 +21,7 @@ p(-2.2) = p(2.2) = 0
 with Physics-Informed Neural Networks.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 # the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x

@@ -24,7 +24,7 @@ W = WienerProcess(0.0,0.0,nothing)
 Then, we need to define our model. In order to define a model, we can use `Flux.chain` or `DiffEqFlux.FastChain`.
 
 ```julia
-chain = Flux.Chain(Dense(2,5,elu),Dense(5,1)) #Model using Flux
+chain = Flux.Chain(Dense(2,5,elu),Dense(5,1)) #Model using Flux, GalacticFlux
 ```
 
 ```julia
