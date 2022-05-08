@@ -97,7 +97,7 @@ function DiffEqBase.solve(
         l < abstol && Flux.stop()
     end
 
-    Flux.train!(loss, ps, data, opt; callback = cb)
+    Flux.train!(loss, ps, data, opt; callback = callback)
     chainout = chain(xi)
     xi , chainout
  end #solve

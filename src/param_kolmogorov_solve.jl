@@ -167,6 +167,6 @@ function DiffEqBase.solve(
         l < abstol && Flux.stop()
     end
 
-    Flux.train!(loss, ps, data, opt; callback = cb)
+    Flux.train!(loss, ps, data, opt; cb = callback)
 
  end #solve

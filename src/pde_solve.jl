@@ -64,7 +64,7 @@ function DiffEqBase.solve(
         l < abstol && Flux.stop()
     end
 
-    Flux.train!(loss, ps, data, opt; callback = cb)
+    Flux.train!(loss, ps, data, opt; cb = callback)
 
 
     if give_limit == false
@@ -101,7 +101,7 @@ function DiffEqBase.solve(
             l < abstol && Flux.stop()
         end
         dataS = Iterators.repeated((), maxiters_upper)
-        Flux.train!(loss_, ps, dataS, ADAM(0.01); callback = cb)
+        Flux.train!(loss_, ps, dataS, ADAM(0.01); cb = callback)
         u_high = loss_()
         ##Lower Limit
 

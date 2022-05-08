@@ -88,7 +88,7 @@ function DiffEqBase.solve(
         un = []
         println("Current loss is: $l")
     end
-    Flux.train!(loss, Flux.params(m), dataset, opt; callback = cb)
+    Flux.train!(loss, Flux.params(m), dataset, opt; cb = callback)
 
     Usum = 0
     ti = 0

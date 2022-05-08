@@ -112,7 +112,7 @@ function DiffEqBase.solve(
         l < pabstol && Flux.stop()
     end
 
-    Flux.train!(loss_n_sde, ps, data, opt; callback = cb)
+    Flux.train!(loss_n_sde, ps, data, opt; cb = callback)
 
 
     if give_limit == false
@@ -153,7 +153,7 @@ function DiffEqBase.solve(
             l < 1e-6 && Flux.stop()
         end
         dataS = Iterators.repeated((), maxiters_upper)
-        Flux.train!(loss_, ps, dataS, ADAM(0.01); callback = cb)
+        Flux.train!(loss_, ps, dataS, ADAM(0.01); cb = callback)
         u_high = loss_()
         # Function to precalculate the f values over the domain
         function give_f_matrix(X,urange,σᵀ∇u,p,t)

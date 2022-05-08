@@ -73,9 +73,9 @@ callback = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, ADAM(0.1); callback = cb, maxiters=4000)
+res = GalacticOptim.solve(prob, ADAM(0.1); callback = callback, maxiters=4000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob, ADAM(0.01); callback = cb, maxiters=2000)
+res = GalacticOptim.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
 phi = discretization.phi
 ```
 

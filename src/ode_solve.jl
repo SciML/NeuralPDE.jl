@@ -66,7 +66,7 @@ function DiffEqBase.solve(
         verbose && println("Current loss is: $l")
         l < abstol
     end
-    res = DiffEqFlux.sciml_train(loss, initθ, opt; callback = cb, maxiters=maxiters, alg.kwargs...)
+    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = callback, maxiters=maxiters, alg.kwargs...)
 
     #solutions at timepoints
     if u0 isa Number
