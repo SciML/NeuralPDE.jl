@@ -1,11 +1,11 @@
 @info "adaptive_reweighting_tests"
-using Flux
+using Flux, GalacticFlux
 using DiffEqFlux
 using ModelingToolkit
 using DiffEqBase
 using Test, NeuralPDE
 using GalacticOptim
-using Optim
+using GalacticOptimJL
 using Quadrature,Cubature, Cuba
 using QuasiMonteCarlo
 using SciMLBase

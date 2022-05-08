@@ -1,4 +1,4 @@
-using Flux
+using Flux, GalacticFlux
 println("NNPDE_tests")
 using DiffEqFlux
 println("Starting Soon!")
@@ -6,7 +6,7 @@ using ModelingToolkit
 using DiffEqBase
 using Test, NeuralPDE
 using GalacticOptim
-using Optim
+using GalacticOptimJL
 using CUDA
 using Quadrature
 using QuasiMonteCarlo

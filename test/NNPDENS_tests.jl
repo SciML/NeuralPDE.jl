@@ -1,4 +1,4 @@
-using Flux, Zygote, StochasticDiffEq
+using Flux, GalacticFlux, Zygote, StochasticDiffEq
 using LinearAlgebra, Statistics
 println("NNPDENS_tests")
 using Test, NeuralPDE

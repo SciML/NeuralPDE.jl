@@ -1,4 +1,4 @@
-using Flux
+using Flux, GalacticFlux
 println("neural_adapter_tests")
 using DiffEqFlux
 println("Starting Soon!")
@@ -7,7 +7,7 @@ using DiffEqBase
 using Test, NeuralPDE
 println("Starting Soon!")
 using GalacticOptim
-using Optim
+using GalacticOptimJL
 using Quadrature,Cubature, Cuba
 using QuasiMonteCarlo
 using SciMLBase
