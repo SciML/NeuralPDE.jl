@@ -114,6 +114,7 @@ end
 
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 
+using LinearAlgebra
 z = u_predict - u_real
 @show maximum(z), norm(z), rtol*max(norm(u_predict ),norm(u_real))
 @test u_predict ≈ u_real rtol = 0.1
