@@ -68,11 +68,11 @@ end
 strategy = NeuralPDE.GridTraining(0.02)
 
 prob_ = NeuralPDE.neural_adapter(loss, initθ2, pde_system, strategy)
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
-res_ = GalacticOptim.solve(prob_, BFGS();cb=cb, maxiters=1000)
+res_ = GalacticOptim.solve(prob_, BFGS();callback = callback, maxiters=1000)
 
 parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
 phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
@@ -232,15 +232,15 @@ losses = map(1:count_decomp) do i
     loss(cord,θ) = chain2(cord,θ) .- phis[i](cord,reses[i].minimizer)
 end
 
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
 
 prob_ = NeuralPDE.neural_adapter(losses,initθ2, pde_system_map,NeuralPDE.GridTraining([0.1/count_decomp,0.1]))
-res_ = GalacticOptim.solve(prob_, BFGS();cb=cb, maxiters=2000)
+res_ = GalacticOptim.solve(prob_, BFGS();callback = callback, maxiters=2000)
 prob_ = NeuralPDE.neural_adapter(losses,res_.minimizer, pde_system_map, NeuralPDE.GridTraining([0.05/count_decomp,0.05]))
-res_ = GalacticOptim.solve(prob_, BFGS();cb=cb,  maxiters=1000)
+res_ = GalacticOptim.solve(prob_, BFGS();callback = callback,  maxiters=1000)
 
 parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
 phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)

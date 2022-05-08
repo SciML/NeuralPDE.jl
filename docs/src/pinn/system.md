@@ -78,14 +78,14 @@ sym_prob = symbolic_discretize(pde_system,discretization)
 pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
 bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
 
-cb = function (p,l)
+callback = function (p,l)
     println("loss: ", l )
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
     return false
 end
 
-res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=5000)
+res = GalacticOptim.solve(prob,BFGS(); callback = callback, maxiters=5000)
 
 phi = discretization.phi
 ```
@@ -192,7 +192,7 @@ cb_ = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob,GalacticOptimJL.BFGS(); cb = cb_, maxiters=5000)
+res = GalacticOptim.solve(prob,GalacticOptimJL.BFGS(); callback = cb_, maxiters=5000)
 ```
 
 And some analysis for both low and high level api:
@@ -288,7 +288,7 @@ inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_function
 bcs_inner_loss_functions = inner_loss_functions[1:7]
 aprox_derivative_loss_functions = inner_loss_functions[9:end]
 
-cb = function (p,l)
+callback = function (p,l)
     println("loss: ", l )
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
@@ -296,9 +296,9 @@ cb = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,BFGS(); cb = cb, maxiters=10000)
+res = GalacticOptim.solve(prob,BFGS(); callback = callback, maxiters=10000)
 
 phi = discretization.phi
 ```
@@ -450,14 +450,14 @@ sym_prob = symbolic_discretize(pde_system, discretization)
 pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
 bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
 
-cb = function (p, l)
+callback = function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=5000)
+res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=5000)
 
 phi = discretization.phi
 
@@ -579,7 +579,7 @@ inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_function
 bcs_inner_loss_functions = inner_loss_functions[1:6]
 aprox_derivative_loss_functions = inner_loss_functions[7:end]
 
-cb = function (p, l)
+callback = function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
@@ -587,7 +587,7 @@ cb = function (p, l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=5000)
+res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=5000)
 
 phi = discretization.phi
 
@@ -710,14 +710,14 @@ sym_prob = symbolic_discretize(pde_system, discretization)
 pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
 bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
 
-cb = function (p, l)
+callback = function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=1000)
+res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=1000)
 
 phi = discretization.phi
 

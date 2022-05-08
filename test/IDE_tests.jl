@@ -17,7 +17,7 @@ using DomainSets
 using Random
 Random.seed!(100)
 
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
@@ -43,7 +43,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 @named pde_system = PDESystem(eq,bcs,domains,[t],[i(t)])
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 prob = NeuralPDE.discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
+res = GalacticOptim.solve(prob, BFGS(); callback = cb, maxiters=100)
 ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 
@@ -78,7 +78,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              )
 @named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
 prob = NeuralPDE.discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=200)
+res = GalacticOptim.solve(prob, BFGS(); callback = cb, maxiters=200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict  = [first(phi([x],res.minimizer)) for x in xs]
@@ -110,7 +110,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              )
 @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = NeuralPDE.discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
+res = GalacticOptim.solve(prob, BFGS(); callback = cb, maxiters=100)
 xs = 0.00:0.01:1.00
 ys = 0.00:0.01:1.00
 phi = discretization.phi
@@ -144,7 +144,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              )
 @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = NeuralPDE.discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
+res = GalacticOptim.solve(prob, BFGS(); callback = cb, maxiters=100)
 xs = 0.00:0.01:1.00
 ys = 0.00:0.01:1.00
 phi = discretization.phi
@@ -184,7 +184,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chains,
                                              )
 @named pde_system = PDESystem(eqs,bcs,domains,[x],[u(x), w(x)])
 prob = NeuralPDE.discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=200)
+res = GalacticOptim.solve(prob, BFGS(); callback = cb, maxiters=200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 initθ = discretization.init_params
@@ -219,7 +219,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1),
 @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
 sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=200)
+res = GalacticOptim.solve(prob, BFGS(); callback =cb, maxiters=200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict  = [first(phi([x],res.minimizer)) for x in xs]
@@ -243,7 +243,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1),
 sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
 prob.f(initθ, nothing)
-res = GalacticOptim.solve(prob, BFGS(); cb=cb, maxiters=300)
+res = GalacticOptim.solve(prob, BFGS(); callback =cb, maxiters=300)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict  = [first(phi([x],res.minimizer)) for x in xs]

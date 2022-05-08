@@ -66,11 +66,11 @@ discretization = PhysicsInformedNN(chain,
                                    derivative = nothing)
 @named pde_system = PDESystem(eq,bcs,domains,[t],[i(t)])
 prob = NeuralPDE.discretize(pde_system,discretization)
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=100)
+res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=100)
 ```
 
 Plotting the final solution and analytical solution

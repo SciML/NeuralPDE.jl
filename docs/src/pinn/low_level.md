@@ -90,7 +90,7 @@ end
 
 # optimizer
 opt = BFGS()
-res = GalacticOptim.solve(prob, opt; cb = cb_, maxiters=2000)
+res = GalacticOptim.solve(prob, opt; callback = cb_, maxiters=2000)
 ```
 
 And some analysis:

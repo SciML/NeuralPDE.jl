@@ -63,12 +63,12 @@ prob = discretize(pde_system,discretization)
 opt = GalacticOptimJL.BFGS()
 
 #Callback function
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
 
-res = GalacticOptim.solve(prob, opt, cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, opt, callback = callback, maxiters=1000)
 phi = discretization.phi
 
 using Plots
@@ -149,12 +149,12 @@ Here, we define the callback function and the optimizer. And now we can solve th
 #Optimizer
 opt = GalacticOptimJL.BFGS()
 
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
 
-res = GalacticOptim.solve(prob, opt, cb = cb, maxiters=1000)
+res = GalacticOptim.solve(prob, opt, callback = callback, maxiters=1000)
 phi = discretization.phi
 ```
 

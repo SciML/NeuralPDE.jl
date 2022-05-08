@@ -17,7 +17,7 @@ using Statistics
 using Random
 Random.seed!(100)
 
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end

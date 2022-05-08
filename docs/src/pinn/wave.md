@@ -49,14 +49,14 @@ discretization = PhysicsInformedNN(chain, GridTraining(dx); init_params = initθ
 @named pde_system = PDESystem(eq,bcs,domains,[t,x],[u(t,x)])
 prob = discretize(pde_system,discretization)
 
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
 
 # optimizer
 opt = GalacticOptimJL.BFGS()
-res = GalacticOptim.solve(prob,opt; cb = cb, maxiters=1200)
+res = GalacticOptim.solve(prob,opt; callback = callback, maxiters=1200)
 phi = discretization.phi
 ```
 
@@ -156,16 +156,16 @@ pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_fun
 inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
 bcs_inner_loss_functions = inner_loss_functions
 
-cb = function (p, l)
+callback = function (p, l)
     println("Current loss is: $l")
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS();cb=cb, maxiters=2000)
+res = GalacticOptim.solve(prob, BFGS();callback = callback, maxiters=2000)
 prob = remake(prob, u0=res.minimizer)
-res = GalacticOptim.solve(prob, BFGS();cb=cb, maxiters=2000)
+res = GalacticOptim.solve(prob, BFGS();callback = callback, maxiters=2000)
 
 phi = discretization.phi[1]
 

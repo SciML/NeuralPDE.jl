@@ -85,9 +85,9 @@ cb_ = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob,LBFGS(),cb = cb_,maxiters=400)
+res = GalacticOptim.solve(prob,LBFGS(),callback = cb_,maxiters=400)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,BFGS(),cb = cb_,maxiters=2000)
+res = GalacticOptim.solve(prob,BFGS(),callback = cb_,maxiters=2000)
 ```
 
 And some analysis:

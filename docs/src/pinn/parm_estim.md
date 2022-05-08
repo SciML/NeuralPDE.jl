@@ -83,11 +83,11 @@ Then finally defining and optimising using the `PhysicsInformedNN` interface.
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
 @named pde_system = PDESystem(eqs,bcs,domains,[t],[x(t), y(t), z(t)],[σ_, ρ, β], defaults=Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
-res = GalacticOptim.solve(prob, BFGS(); cb = cb, maxiters=5000)
+res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=5000)
 p_ = res.minimizer[end-2:end] # p_ = [9.93, 28.002, 2.667]
 ```
 
