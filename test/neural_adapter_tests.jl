@@ -118,10 +118,10 @@ using LinearAlgebra
 z = u_predict - u_real
 @show maximum(z), norm(z), 0.1*max(norm(u_predict ),norm(u_real))
     
-@test u_predict ≈ u_real rtol = 0.25
-@test u_predicts[1] ≈ u_real rtol = 0.2
+@test u_predict ≈ u_real atol = 1e-3
+@test u_predicts[1] ≈ u_real atol = 1e-2
 map(u_predicts[2:end]) do upred
-    @test upred ≈ u_real rtol = 0.3
+    @test upred ≈ u_real atol = 1e-2
 end
 
 #using Plots
