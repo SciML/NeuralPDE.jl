@@ -13,7 +13,7 @@ u(t, -1) = u(t, 1) = 0 \, ,
 with Physics-Informed Neural Networks. Here is an example of using the low-level API:
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -90,7 +90,7 @@ end
 
 # optimizer
 opt = BFGS()
-res = GalacticOptim.solve(prob, opt; cb = cb_, maxiters=2000)
+res = GalacticOptim.solve(prob, opt; callback = cb_, maxiters=2000)
 ```
 
 And some analysis:

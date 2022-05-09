@@ -27,7 +27,7 @@ where `\theta = 1 - x/2` and with initial and boundary conditions:
 We use physics-informed neural networks.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x, t
@@ -65,13 +65,13 @@ discretization = PhysicsInformedNN(chain, GridTraining([dx,dt]))
 @named pde_system = PDESystem(eq,bcs,domains,[x,t],[u(x, t)])
 prob = discretize(pde_system,discretization)
 
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
 
-opt = Optim.BFGS()
-res = GalacticOptim.solve(prob,opt; cb = cb, maxiters=2000)
+opt = GalacticOptimJL.BFGS()
+res = GalacticOptim.solve(prob,opt; callback = callback, maxiters=2000)
 phi = discretization.phi
 ```
 

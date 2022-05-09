@@ -5,7 +5,7 @@ The following is an example of solving a DifferentialEquations.jl
 networks approach specialized to 1-dimensional PDEs (ODEs).
 
 ```julia
-using Flux, Optim
+using Flux, GalacticFlux, GalacticOptimJL
 using NeuralPDE
 # Run a solve on scalars
 linear = (u, p, t) -> cos(2pi * t)

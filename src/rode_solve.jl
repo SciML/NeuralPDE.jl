@@ -81,14 +81,14 @@ function DiffEqBase.solve(
         sum(abs2,inner_loss(ts[i],W.W[i],θ) for i in 1:length(ts)) # sum(abs2,phi(tspan[1],θ) - u0)
     end
 
-    cb = function (p,l)
+    callback = function (p,l)
         Wprob = NoiseProblem(Wg,tspan)
         Wsol = solve(Wprob;dt=dt)
         W  = NoiseGrid(ts , Wsol.W)
         verbose && println("Current loss is: $l")
         l < abstol
     end
-    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = cb, maxiters=maxiters, alg.kwargs...)
+    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = callback, maxiters=maxiters, alg.kwargs...)
 
     #solutions at timepoints
     noiseproblem = NoiseProblem(Wg,tspan)

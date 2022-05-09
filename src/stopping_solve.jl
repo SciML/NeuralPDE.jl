@@ -83,12 +83,12 @@ function DiffEqBase.solve(
     end
     dataset = Iterators.repeated(() , maxiters)
 
-    cb = function ()
+    callback = function ()
         l = loss()
         un = []
         println("Current loss is: $l")
     end
-    Flux.train!(loss, Flux.params(m), dataset, opt; cb = cb)
+    Flux.train!(loss, Flux.params(m), dataset, opt; cb = callback)
 
     Usum = 0
     ti = 0

@@ -15,7 +15,7 @@ x &\in [0, 1] \, ,
 We will use physics-informed neural networks.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, Optim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x
@@ -41,12 +41,12 @@ discretization = PhysicsInformedNN(chain, QuasiRandomTraining(20))
 @named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
 prob = discretize(pde_system,discretization)
 
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
 
-res = GalacticOptim.solve(prob, ADAM(0.01); cb = cb, maxiters=2000)
+res = GalacticOptim.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
 phi = discretization.phi
 ```
 

@@ -63,7 +63,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
     analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
     u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 
-    cb = function (p,l)
+    callback = function (p,l)
         iteration[1] += 1
         if iteration[1] % 100 == 0
             @info "Current loss is: $l, iteration is $(iteration[1])"
@@ -84,7 +84,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
         end
         return false
     end
-    res = GalacticOptim.solve(prob, ADAM(0.03); maxiters=maxiters, cb=cb)
+    res = GalacticOptim.solve(prob, ADAM(0.03); maxiters=maxiters, callback=callback)
 
     u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
     diff_u = abs.(u_predict .- u_real)

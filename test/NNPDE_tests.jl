@@ -1,4 +1,4 @@
-using Flux
+using Flux, GalacticFlux
 println("NNPDE_tests")
 using DiffEqFlux
 println("Starting Soon!")
@@ -7,7 +7,7 @@ using DiffEqBase
 using Test, NeuralPDE
 println("Starting Soon!")
 using GalacticOptim
-using Optim
+using GalacticOptimJL
 using Quadrature,Cubature, Cuba
 using QuasiMonteCarlo
 using SciMLBase
@@ -18,7 +18,7 @@ using DomainSets
 using Random
 Random.seed!(100)
 
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
@@ -207,7 +207,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,grid_strategy;init_params = i
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-cb = function (p,l)
+callback = function (p,l)
     println("Current loss is: $l")
     return false
 end

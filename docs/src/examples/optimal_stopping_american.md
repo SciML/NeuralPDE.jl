@@ -52,7 +52,7 @@ Now, in order to define an optimal stopping problem, we will use the `SDEProblem
 ```julia
 prob  = SDEProblem(f , sigma , u0 , tspan ; g = g)
 ```
-Finally, let's build our neural network model using Flux.jl. Note that the final layer should be the softmax (Flux.softmax) function as we need the sum of probabilities at all stopping times to be 1. And then add an optimizer function.
+Finally, let's build our neural network model using Flux, GalacticFlux.jl. Note that the final layer should be the softmax (Flux.softmax) function as we need the sum of probabilities at all stopping times to be 1. And then add an optimizer function.
 ```julia
 m = Chain(Dense(d , 5, tanh), Dense(5, 16 , tanh)  , Dense(16 , N ), softmax)
 opt = Flux.ADAM(0.1)

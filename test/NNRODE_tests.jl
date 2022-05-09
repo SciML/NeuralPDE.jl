@@ -1,5 +1,5 @@
 println("RODE Tests")
-using Flux , StochasticDiffEq, DiffEqNoiseProcess , Optim, Test
+using Flux, GalacticFlux , StochasticDiffEq, DiffEqNoiseProcess , Optim, Test
 println("RODE_tests")
 using  NeuralPDE
 
