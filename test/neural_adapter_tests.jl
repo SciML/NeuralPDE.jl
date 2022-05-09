@@ -118,7 +118,7 @@ using LinearAlgebra
 z = u_predict - u_real
 @show maximum(z), norm(z), 0.1*max(norm(u_predict ),norm(u_real))
     
-@test u_predict ≈ u_real rtol = 0.1
+@test u_predict ≈ u_real rtol = 0.25
 @test u_predicts[1] ≈ u_real rtol = 0.2
 map(u_predicts[2:end]) do upred
     @test upred ≈ u_real rtol = 0.3
