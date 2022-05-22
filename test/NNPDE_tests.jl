@@ -8,7 +8,7 @@ using Test, NeuralPDE
 println("Starting Soon!")
 using GalacticOptim
 using GalacticOptimJL
-using Quadrature,Cubature, Cuba
+using Quadrature, QuadratureCubature, QuadratureCuba
 using QuasiMonteCarlo
 using SciMLBase
 using OrdinaryDiffEq

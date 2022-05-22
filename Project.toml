@@ -75,8 +75,9 @@ GalacticFlux = "08766a1d-66fd-4ddf-8f8a-8b0fccaded3b"
 GalacticOptimJL = "9d3c5eb1-403b-401b-8c0f-c11105342e6b"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+QuadratureCuba = "1e5cbd8a-c439-4026-92c2-98742b2c817b"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "SafeTestsets", "DiffEqDevTools", "GalacticFlux", "GalacticOptimJL", "Pkg", "OrdinaryDiffEq"]
+test = ["Test", "SafeTestsets", "DiffEqDevTools", "GalacticFlux", "GalacticOptimJL", "Pkg", "OrdinaryDiffEq", "QuadratureCuba"]
