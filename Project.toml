@@ -39,7 +39,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 Adapt = "2.0, 3.0"
-ArrayInterface = "3.1, 4, 5"
+ArrayInterface = "3.1, 4, 5, 6"
 CUDA = "3.0"
 Cuba = "2.1.0"
 Cubature = "1.5.1"
