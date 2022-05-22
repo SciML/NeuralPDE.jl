@@ -11,7 +11,7 @@ using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
 using ModelingToolkit
 using GalacticOptim
-using Quadrature,Cubature
+using Quadrature, QuadratureCubature
 using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
