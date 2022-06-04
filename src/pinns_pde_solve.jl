@@ -222,7 +222,7 @@ end
 For more information look: Quadrature.jl https://github.com/SciML/Quadrature.jl
 """
 struct QuadratureTraining <: TrainingStrategies
-    quadrature_alg::DiffEqBase.AbstractQuadratureAlgorithm
+    quadrature_alg::DiffEqBase.AbstractIntegralAlgorithm
     reltol::Float64
     abstol::Float64
     maxiters::Int64
