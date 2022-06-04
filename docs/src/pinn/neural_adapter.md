@@ -14,7 +14,7 @@ Using the example of 2D Poisson equation, it is shown how, using method neural_a
 ![image](https://user-images.githubusercontent.com/12683885/127149639-c2a8066f-9a25-4889-b313-5d4403567300.png)
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux, DiffEqBase
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux, DiffEqBase
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -48,7 +48,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain1,
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob, BFGS();  maxiters=2000)
+res = Optimization.solve(prob, BFGS();  maxiters=2000)
 phi = discretization.phi
 
 inner_ = 12
@@ -72,7 +72,7 @@ callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
-res_ = GalacticOptim.solve(prob_, BFGS();callback = callback, maxiters=1000)
+res_ = Optimization.solve(prob_, BFGS();callback = callback, maxiters=1000)
 
 parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
 phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
@@ -106,7 +106,7 @@ And then using the method neural_adapter, we retrain the banch of 10 predictions
 ![domain_decomposition](https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png)
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux, DiffEqBase
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux, DiffEqBase
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -180,7 +180,7 @@ for i in 1:count_decomp
 
     prob = NeuralPDE.discretize(pde_system_,discretization)
     symprob = NeuralPDE.symbolic_discretize(pde_system_,discretization)
-    res_ = GalacticOptim.solve(prob, BFGS(), maxiters=1000)
+    res_ = Optimization.solve(prob, BFGS(), maxiters=1000)
     phi = discretization.phi
     push!(reses, res_)
     push!(phis, phi)
@@ -238,9 +238,9 @@ callback = function (p,l)
 end
 
 prob_ = NeuralPDE.neural_adapter(losses,initθ2, pde_system_map,NeuralPDE.GridTraining([0.1/count_decomp,0.1]))
-res_ = GalacticOptim.solve(prob_, BFGS();callback = callback, maxiters=2000)
+res_ = Optimization.solve(prob_, BFGS();callback = callback, maxiters=2000)
 prob_ = NeuralPDE.neural_adapter(losses,res_.minimizer, pde_system_map, NeuralPDE.GridTraining([0.05/count_decomp,0.05]))
-res_ = GalacticOptim.solve(prob_, BFGS();callback = callback,  maxiters=1000)
+res_ = Optimization.solve(prob_, BFGS();callback = callback,  maxiters=1000)
 
 parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
 phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)

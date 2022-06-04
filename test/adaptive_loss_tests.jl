@@ -1,11 +1,11 @@
 @info "adaptive_reweighting_tests"
-using Flux, GalacticFlux
+using Flux, OptimizationFlux
 using DiffEqFlux
 using ModelingToolkit
 using DiffEqBase
 using Test, NeuralPDE
-using GalacticOptim
-using GalacticOptimJL
+using Optimization
+using OptimizationOptimJL
 using Quadrature,Cubature, Cuba
 using QuasiMonteCarlo
 using SciMLBase
@@ -71,7 +71,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed=60, maxiters
         end
         return false
     end
-    res = GalacticOptim.solve(prob, ADAM(0.03); maxiters=maxiters, callback =callback)
+    res = Optimization.solve(prob, ADAM(0.03); maxiters=maxiters, callback =callback)
 
     u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
     diff_u = abs.(u_predict .- u_real)

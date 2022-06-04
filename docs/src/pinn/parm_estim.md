@@ -15,7 +15,7 @@ with Physics-Informed Neural Networks. Now we would consider the case where we w
 We start by defining the the problem,
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux, OrdinaryDiffEq, Plots
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux, OrdinaryDiffEq, Plots
 import ModelingToolkit: Interval, infimum, supremum
 @parameters t ,σ_ ,β, ρ
 @variables x(..), y(..), z(..)
@@ -87,7 +87,7 @@ callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
-res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=5000)
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=5000)
 p_ = res.minimizer[end-2:end] # p_ = [9.93, 28.002, 2.667]
 ```
 

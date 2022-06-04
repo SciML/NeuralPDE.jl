@@ -10,7 +10,7 @@ using Reexport, Statistics
 using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
 using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
 using ModelingToolkit
-using GalacticOptim
+using Optimization
 using Quadrature, QuadratureCubature
 using QuasiMonteCarlo
 using RuntimeGeneratedFunctions

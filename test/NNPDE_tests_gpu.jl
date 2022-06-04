@@ -1,12 +1,12 @@
-using Flux, GalacticFlux
+using Flux, OptimizationFlux
 println("NNPDE_tests")
 using DiffEqFlux
 println("Starting Soon!")
 using ModelingToolkit
 using DiffEqBase
 using Test, NeuralPDE
-using GalacticOptim
-using GalacticOptimJL
+using Optimization
+using OptimizationOptimJL
 using CUDA
 using Quadrature
 using QuasiMonteCarlo
@@ -58,7 +58,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 @named pde_system = PDESystem(eq,bcs,domains,[θ],[u(θ)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-res = GalacticOptim.solve(prob, ADAM(1e-2); maxiters=2000)
+res = Optimization.solve(prob, ADAM(1e-2); maxiters=2000)
 phi = discretization.phi
 
 analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -106,9 +106,9 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 prob = NeuralPDE.discretize(pdesys,discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.01);maxiters=1000)
+res = Optimization.solve(prob, ADAM(0.01);maxiters=1000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.001);maxiters=1000)
+res = Optimization.solve(prob,ADAM(0.001);maxiters=1000)
 phi = discretization.phi
 
 u_exact = (t,x) -> exp.(-t) * cos.(x)
@@ -163,9 +163,9 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 prob = NeuralPDE.discretize(pdesys,discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys,discretization)
 
-res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=2000)
+res = Optimization.solve(prob, ADAM(0.1); maxiters=2000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.01); maxiters=2000)
+res = Optimization.solve(prob,ADAM(0.01); maxiters=2000)
 phi = discretization.phi
 
 u_exact = (t,x) -> exp(-t) * cos(x)
@@ -230,9 +230,9 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 prob = NeuralPDE.discretize(pde_system,discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,ADAM(0.01);maxiters=2500)
+res = Optimization.solve(prob,ADAM(0.01);maxiters=2500)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,ADAM(0.001);maxiters=2500)
+res = Optimization.solve(prob,ADAM(0.001);maxiters=2500)
 @show res.original
 
 phi = discretization.phi

@@ -2,7 +2,7 @@
 using DiffEqFlux
 using ModelingToolkit
 using Test, NeuralPDE
-using GalacticOptim
+using Optimization, OptimizationFlux
 import ModelingToolkit: Interval, infimum, supremum
 using Random
 #using Plots
@@ -84,7 +84,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
         end
         return false
     end
-    res = GalacticOptim.solve(prob, ADAM(0.03); maxiters=maxiters, callback=callback)
+    res = Optimization.solve(prob, ADAM(0.03); maxiters=maxiters, callback=callback)
 
     u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
     diff_u = abs.(u_predict .- u_real)

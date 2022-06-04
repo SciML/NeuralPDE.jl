@@ -15,7 +15,8 @@ julia = "1.6"
 
 [extras]
 DiffEqFlux = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"
-GalacticOptim = "a75be94c-b780-496d-a8a9-0878b188d577"
+Optimization = "7f7a1694-90dd-40f0-9382-eb1efda571ba"
+OptimizationFlux = "253f991c-a7b2-45f8-8852-8b9a9df78a86"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
@@ -23,4 +24,4 @@ SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "SafeTestsets", "Pkg", "DiffEqFlux", "GalacticOptim", "ModelingToolkit", "Random"]
+test = ["Test", "SafeTestsets", "Pkg", "DiffEqFlux", "Optimization", "OptimizationFlux", "ModelingToolkit", "Random"]
