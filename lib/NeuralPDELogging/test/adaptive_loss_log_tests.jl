@@ -2,7 +2,7 @@
 using DiffEqFlux
 using ModelingToolkit
 using Test, NeuralPDE
-using Optimization
+using Optimization, OptimizationFlux
 import ModelingToolkit: Interval, infimum, supremum
 using Random
 #using Plots
