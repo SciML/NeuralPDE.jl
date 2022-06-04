@@ -8,7 +8,7 @@
 u(0, t) = u(1, t) = 0 \quad &amp; \textsf{for all } t &gt; 0 \, , \\
 u(x, 0) = x (1-x)     \quad &amp; \textsf{for all } 0 &lt; x &lt; 1 \, , \\
 ∂_t u(x, 0) = 0       \quad &amp; \textsf{for all } 0 &lt; x &lt; 1 \, , \\
-\end{align*}\]</p><p>with grid discretization <code>dx = 0.1</code> and physics-informed neural networks.</p><p>Further, the solution of this equation with the given boundary conditions is presented.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+\end{align*}\]</p><p>with grid discretization <code>dx = 0.1</code> and physics-informed neural networks.</p><p>Further, the solution of this equation with the given boundary conditions is presented.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -48,7 +48,7 @@ end
 
 # optimizer
 opt = GalacticOptimJL.BFGS()
-res = GalacticOptim.solve(prob,opt; callback = callback, maxiters=1200)
+res = Optimization.solve(prob,opt; callback = callback, maxiters=1200)
 phi = discretization.phi</code></pre><p>We can plot the predicted solution of the PDE and compare it with the analytical solution in order to plot the relative error.</p><pre><code class="language-julia hljs">using Plots
 
 ts,xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
@@ -66,7 +66,7 @@ plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.co
 u(t, 0) = u(t, L) = 0 \\
 u(0, x) = x(1-x) \\
 u_t(0, x) = 1 - 2x \\
-\end{aligned}\]</p><p>with grid discretization <code>dx = 0.05</code> and physics-informed neural networks. Here we take advantage of adaptive derivative to increase accuracy.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+\end{aligned}\]</p><p>with grid discretization <code>dx = 0.05</code> and physics-informed neural networks. Here we take advantage of adaptive derivative to increase accuracy.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 using Plots, Printf
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -133,9 +133,9 @@ callback = function (p, l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS();callback = callback, maxiters=2000)
+res = Optimization.solve(prob, BFGS();callback = callback, maxiters=2000)
 prob = remake(prob, u0=res.minimizer)
-res = GalacticOptim.solve(prob, BFGS();callback = callback, maxiters=2000)
+res = Optimization.solve(prob, BFGS();callback = callback, maxiters=2000)
 
 phi = discretization.phi[1]
 
@@ -167,4 +167,4 @@ diff_u = abs.(u_predict .- u_real)
 p1 = plot(ts, xs, u_real, linetype=:contourf, title=&quot;analytic&quot;);
 p2 = plot(ts, xs, u_predict, linetype=:contourf, title=&quot;predict&quot;);
 p3 = plot(ts, xs, diff_u, linetype=:contourf, title=&quot;error&quot;);
-plot(p1,p2,p3)</code></pre><p>We can see the results here:</p><p><img src="https://user-images.githubusercontent.com/12683885/149665332-d4daf7d0-682e-4933-a2b4-34f403881afb.png" alt="Damped_wave_sol_adaptive_u"/></p><p>Plotted as a line one can see the analytical solution and the prediction here:</p><p><img src="https://user-images.githubusercontent.com/12683885/149665327-69d04c01-2240-45ea-981e-a7b9412a3b58.gif" alt="1Dwave_damped_adaptive"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../poisson/">« Poisson Equation</a><a class="docs-footer-nextpage" href="../2D/">2-dimensional PDEs with GPU »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.18 on <span class="colophon-date" title="Thursday 2 June 2022 12:58">Thursday 2 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(p1,p2,p3)</code></pre><p>We can see the results here:</p><p><img src="https://user-images.githubusercontent.com/12683885/149665332-d4daf7d0-682e-4933-a2b4-34f403881afb.png" alt="Damped_wave_sol_adaptive_u"/></p><p>Plotted as a line one can see the analytical solution and the prediction here:</p><p><img src="https://user-images.githubusercontent.com/12683885/149665327-69d04c01-2240-45ea-981e-a7b9412a3b58.gif" alt="1Dwave_damped_adaptive"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../poisson/">« Poisson Equation</a><a class="docs-footer-nextpage" href="../2D/">2-dimensional PDEs with GPU »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.18 on <span class="colophon-date" title="Saturday 4 June 2022 05:21">Saturday 4 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

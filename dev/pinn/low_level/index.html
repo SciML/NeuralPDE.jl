@@ -7,7 +7,7 @@
 ∂_t u + u ∂_x u - (0.01 / \pi) ∂_x^2 u = 0 \, , \quad x \in [-1, 1], t \in [0, 1] \, , \\
 u(0, x) = - \sin(\pi x) \, , \\
 u(t, -1) = u(t, 1) = 0 \, ,
-\end{gather*}\]</p><p>with Physics-Informed Neural Networks. Here is an example of using the low-level API:</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+\end{gather*}\]</p><p>with Physics-Informed Neural Networks. Here is an example of using the low-level API:</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -74,8 +74,8 @@ function loss_function_(θ,p)
     return loss_function__(θ)
 end
 
-f = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
-prob = GalacticOptim.OptimizationProblem(f, initθ)
+f = OptimizationFunction(loss_function_, Optimization.AutoZygote())
+prob = Optimization.OptimizationProblem(f, initθ)
 
 cb_ = function (p,l)
     println(&quot;loss: &quot;, l , &quot;losses: &quot;, map(l -&gt; l(p), loss_functions))
@@ -84,7 +84,7 @@ end
 
 # optimizer
 opt = BFGS()
-res = GalacticOptim.solve(prob, opt; callback = cb_, maxiters=2000)</code></pre><p>And some analysis:</p><pre><code class="language-julia hljs">using Plots
+res = Optimization.solve(prob, opt; callback = cb_, maxiters=2000)</code></pre><p>And some analysis:</p><pre><code class="language-julia hljs">using Plots
 
 ts,xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 u_predict_contourf = reshape([first(phi([t,x],res.minimizer)) for t in ts for x in xs] ,length(xs),length(ts))
@@ -94,4 +94,4 @@ u_predict = [[first(phi([t,x],res.minimizer)) for x in xs] for t in ts ]
 p1= plot(xs, u_predict[3],title = &quot;t = 0.1&quot;);
 p2= plot(xs, u_predict[11],title = &quot;t = 0.5&quot;);
 p3= plot(xs, u_predict[end],title = &quot;t = 1&quot;);
-plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90984874-a0870800-e580-11ea-9fd4-af8a4e3c523e.png" alt="burgers"/></p><p><img src="https://user-images.githubusercontent.com/12683885/90984856-8c430b00-e580-11ea-9206-1a88ebd24ca0.png" alt="burgers2"/></p><p><a href="pinn/@ref Physics-Informed Neural Networks">See low-level API</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../3rd/">« ODE with a 3rd-Order Derivative</a><a class="docs-footer-nextpage" href="../ks/">Kuramoto–Sivashinsky equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.18 on <span class="colophon-date" title="Thursday 2 June 2022 12:58">Thursday 2 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(p1,p2,p3)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90984874-a0870800-e580-11ea-9fd4-af8a4e3c523e.png" alt="burgers"/></p><p><img src="https://user-images.githubusercontent.com/12683885/90984856-8c430b00-e580-11ea-9206-1a88ebd24ca0.png" alt="burgers2"/></p><p><a href="pinn/@ref Physics-Informed Neural Networks">See low-level API</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../3rd/">« ODE with a 3rd-Order Derivative</a><a class="docs-footer-nextpage" href="../ks/">Kuramoto–Sivashinsky equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.18 on <span class="colophon-date" title="Saturday 4 June 2022 05:21">Saturday 4 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
