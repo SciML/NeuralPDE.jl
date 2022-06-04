@@ -44,7 +44,7 @@ The method `discretize` interprets from the ModelingToolkit PDE form to the PINN
 prob = discretize(pde_system, discretization)
 ```
 
-which outputs an `OptimizationProblem` for [GalacticOptim.jl](https://galacticoptim.sciml.ai/dev/).
+which outputs an `OptimizationProblem` for [Optimization.jl](https://Optimization.sciml.ai/dev/).
 
 ## Training strategy
 

@@ -1,4 +1,4 @@
-using GalacticFlux
+using OptimizationFlux
 println("forward_tests")
 using DiffEqFlux
 println("Starting Soon!")

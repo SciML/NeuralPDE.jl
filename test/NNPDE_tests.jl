@@ -1,4 +1,4 @@
-using Flux, GalacticFlux
+using Flux, OptimizationFlux
 println("NNPDE_tests")
 using DiffEqFlux
 println("Starting Soon!")
@@ -6,8 +6,8 @@ using ModelingToolkit
 using DiffEqBase
 using Test, NeuralPDE
 println("Starting Soon!")
-using GalacticOptim
-using GalacticOptimJL
+using Optimization
+using OptimizationOptimJL
 using Quadrature, QuadratureCubature, QuadratureCuba
 using QuasiMonteCarlo
 using SciMLBase
@@ -54,11 +54,11 @@ function test_ode(strategy_)
     prob = NeuralPDE.discretize(pde_system,discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-    res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=1000)
+    res = Optimization.solve(prob, ADAM(0.1); maxiters=1000)
     prob = remake(prob,u0=res.minimizer)
-    res = GalacticOptim.solve(prob, ADAM(0.01); maxiters=500)
+    res = Optimization.solve(prob, ADAM(0.01); maxiters=500)
     prob = remake(prob,u0=res.minimizer)
-    res = GalacticOptim.solve(prob, ADAM(0.001); maxiters=500)
+    res = Optimization.solve(prob, ADAM(0.001); maxiters=500)
     phi = discretization.phi
 
     analytic_sol_func(t) = exp(-(t^2)/2)/(1+t+t^3) + t^2
@@ -104,7 +104,7 @@ function test_heterogeneous_equation(strategy_)
 
 	@named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
 	prob = SciMLBase.discretize(pde_system, discretization)
-	res = GalacticOptim.solve(prob, BFGS(); maxiters=100)
+	res = Optimization.solve(prob, BFGS(); maxiters=100)
 end
 
 ## Heterogeneous system
@@ -136,7 +136,7 @@ function test_heterogeneous_system(strategy_)
 
 	@named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y)])
 	prob = SciMLBase.discretize(pde_system, discretization)
-	res = GalacticOptim.solve(prob, BFGS(); maxiters=100)
+	res = Optimization.solve(prob, BFGS(); maxiters=100)
 end
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
@@ -212,7 +212,7 @@ callback = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS();maxiters=1000)
+res = Optimization.solve(prob, BFGS();maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func_ =
@@ -284,7 +284,7 @@ function test_2d_poisson_equation(chain_, strategy_)
     @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
     prob = NeuralPDE.discretize(pde_system,discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-    res = GalacticOptim.solve(prob, ADAM(0.1); maxiters=500)
+    res = Optimization.solve(prob, ADAM(0.1); maxiters=500)
     phi = discretization.phi
 
     xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
@@ -370,7 +370,7 @@ cb_ = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); maxiters=1000)
+res = Optimization.solve(prob, BFGS(); maxiters=1000)
 phi = discretization.phi[1]
 
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
@@ -421,7 +421,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,quadrature_strategy; init_par
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,BFGS(); maxiters=1000)
+res = Optimization.solve(prob,BFGS(); maxiters=1000)
 phi = discretization.phi
 
 analytic_sol_func(x,y) =[1/3*(6x - y), 1/2*(6x - y)]
@@ -518,8 +518,8 @@ function loss_function(θ,p)
     sum(map(l->l(θ) ,loss_functions))
 end
 
-f_ = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
-prob = GalacticOptim.OptimizationProblem(f_, initθ)
+f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
+prob = Optimization.OptimizationProblem(f_, initθ)
 
 cb_ = function (p,l)
     println("loss: ", l )
@@ -527,7 +527,7 @@ cb_ = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob,Optim.BFGS(); maxiters=500,f_abstol=10^-6)
+res = Optimization.solve(prob,Optim.BFGS(); maxiters=500,f_abstol=10^-6)
 
 xs,ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 analytic_sol_func(x,t) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
@@ -575,7 +575,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy; init_pa
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-res = GalacticOptim.solve(prob,BFGS(); maxiters=1500)
+res = Optimization.solve(prob,BFGS(); maxiters=1500)
 @show res.original
 
 phi = discretization.phi
@@ -661,9 +661,9 @@ cb_ = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob,LBFGS(),maxiters=400)
+res = Optimization.solve(prob,LBFGS(),maxiters=400)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,BFGS(),maxiters=2000)
+res = Optimization.solve(prob,BFGS(),maxiters=2000)
 
 C = 142.88418699042
 analytic_sol_func(x) = C*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
@@ -744,7 +744,7 @@ sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 discretized_functions = NeuralPDE.discretize_inner_functions(pde_system,discretization)
 discretized_functions.full_loss_function([testθ;ones(3)], Float64[])
 
-res = GalacticOptim.solve(prob, Optim.BFGS(); maxiters=6000)
+res = Optimization.solve(prob, Optim.BFGS(); maxiters=6000)
 p_ = res.minimizer[end-2:end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1
@@ -791,9 +791,9 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=init
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-res  = GalacticOptim.solve(prob,ADAM(0.05),maxiters=1000)
+res  = Optimization.solve(prob,ADAM(0.05),maxiters=1000)
 prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(initial_stepnorm = 0.01),maxiters=500)
+res  = Optimization.solve(prob,BFGS(initial_stepnorm = 0.01),maxiters=500)
 
 @test discretization.phi(xs',res.u) ≈ func(xs') rtol = 0.01
 
@@ -827,9 +827,9 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,strategy; initial_params=init
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
+res  = Optimization.solve(prob,ADAM(0.01),maxiters=500)
 prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(),maxiters=1000)
+res  = Optimization.solve(prob,BFGS(),maxiters=1000)
 
 dx= 0.01
 xs = collect(x0:dx:x_end)
@@ -872,11 +872,11 @@ symprob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 discretized_functions = NeuralPDE.discretize_inner_functions(pde_system,discretization)
 discretized_functions.full_loss_function(initθ, Float64[])
 
-res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
+res  = Optimization.solve(prob,ADAM(0.01),maxiters=500)
 prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(),maxiters=1000)
+res  = Optimization.solve(prob,BFGS(),maxiters=1000)
 prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(),maxiters=500)
+res  = Optimization.solve(prob,BFGS(),maxiters=500)
 phi = discretization.phi
 
 xs = collect(x0:0.1:x_end)
@@ -932,9 +932,9 @@ additional_loss_(phi, initθ , nothing)
 @named pde_system = PDESystem(eq,bc,domain,[x],[u(x)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 
-res  = GalacticOptim.solve(prob,ADAM(0.01),maxiters=500)
+res  = Optimization.solve(prob,ADAM(0.01),maxiters=500)
 prob = remake(prob,u0=res.minimizer)
-res  = GalacticOptim.solve(prob,BFGS(),maxiters=500)
+res  = Optimization.solve(prob,BFGS(),maxiters=500)
 
 @test phi(xs,res.u) ≈ aproxf_(xs) rtol = 0.01
 

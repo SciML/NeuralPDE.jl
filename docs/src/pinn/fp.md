@@ -21,7 +21,7 @@ p(-2.2) = p(2.2) = 0
 with Physics-Informed Neural Networks.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 # the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x
@@ -85,9 +85,9 @@ cb_ = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob,LBFGS(),callback = cb_,maxiters=400)
+res = Optimization.solve(prob,LBFGS(),callback = cb_,maxiters=400)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,BFGS(),callback = cb_,maxiters=2000)
+res = Optimization.solve(prob,BFGS(),callback = cb_,maxiters=2000)
 ```
 
 And some analysis:

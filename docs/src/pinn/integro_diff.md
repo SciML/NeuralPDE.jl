@@ -45,7 +45,7 @@ u(0) = 0
 ```
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux, DomainSets
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux, DomainSets
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t
@@ -70,7 +70,7 @@ callback = function (p,l)
     println("Current loss is: $l")
     return false
 end
-res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=100)
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=100)
 ```
 
 Plotting the final solution and analytical solution

@@ -35,7 +35,7 @@ the documentation, which contains the unreleased features.
 ## Example: Solving 2D Poisson Equation via Physics-Informed Neural Networks
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, DiffEqFlux
 using Quadrature, Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -73,9 +73,9 @@ callback = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, ADAM(0.1); callback = callback, maxiters=4000)
+res = Optimization.solve(prob, ADAM(0.1); callback = callback, maxiters=4000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
+res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
 phi = discretization.phi
 ```
 

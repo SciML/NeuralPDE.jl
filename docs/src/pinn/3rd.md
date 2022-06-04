@@ -15,7 +15,7 @@ x &\in [0, 1] \, ,
 We will use physics-informed neural networks.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x
@@ -46,7 +46,7 @@ callback = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
+res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
 phi = discretization.phi
 ```
 

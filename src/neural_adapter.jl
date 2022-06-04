@@ -121,8 +121,8 @@ function neural_adapter(loss,initθ,pde_system,strategy)
     function loss_function_(θ,p)
         loss_function__(θ)
     end
-    f_ = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
-    prob = GalacticOptim.OptimizationProblem(f_, initθ)
+    f_ = OptimizationFunction(loss_function_, Optimization.AutoZygote())
+    prob = Optimization.OptimizationProblem(f_, initθ)
 end
 
 """
@@ -144,6 +144,6 @@ function neural_adapter(losses::Array,initθ,pde_systems::Array,strategy)
         loss_function__(θ)
     end
 
-    f_ = OptimizationFunction(loss_function_, GalacticOptim.AutoZygote())
-    prob = GalacticOptim.OptimizationProblem(f_, initθ)
+    f_ = OptimizationFunction(loss_function_, Optimization.AutoZygote())
+    prob = Optimization.OptimizationProblem(f_, initθ)
 end

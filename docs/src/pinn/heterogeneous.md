@@ -33,5 +33,5 @@ discretization = NeuralPDE.PhysicsInformedNN(fastchains, QuadratureTraining()
 
 @named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
 prob = SciMLBase.discretize(pde_system, discretization)
-res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=100)
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=100)
 ```

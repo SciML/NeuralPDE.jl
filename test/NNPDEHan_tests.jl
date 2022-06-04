@@ -1,4 +1,4 @@
-using Flux, GalacticFlux, Zygote, LinearAlgebra, Statistics
+using Flux, OptimizationFlux, Zygote, LinearAlgebra, Statistics
 println("NNPDEHAN_tests")
 using Test, StochasticDiffEq
 println("Starting Soon!")

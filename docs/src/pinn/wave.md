@@ -16,7 +16,7 @@ with grid discretization `dx = 0.1` and physics-informed neural networks.
 Further, the solution of this equation with the given boundary conditions is presented.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -56,7 +56,7 @@ end
 
 # optimizer
 opt = GalacticOptimJL.BFGS()
-res = GalacticOptim.solve(prob,opt; callback = callback, maxiters=1200)
+res = Optimization.solve(prob,opt; callback = callback, maxiters=1200)
 phi = discretization.phi
 ```
 
@@ -96,7 +96,7 @@ u_t(0, x) = 1 - 2x \\
 with grid discretization `dx = 0.05` and physics-informed neural networks. Here we take advantage of adaptive derivative to increase accuracy.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 using Plots, Printf
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -163,9 +163,9 @@ callback = function (p, l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS();callback = callback, maxiters=2000)
+res = Optimization.solve(prob, BFGS();callback = callback, maxiters=2000)
 prob = remake(prob, u0=res.minimizer)
-res = GalacticOptim.solve(prob, BFGS();callback = callback, maxiters=2000)
+res = Optimization.solve(prob, BFGS();callback = callback, maxiters=2000)
 
 phi = discretization.phi[1]
 

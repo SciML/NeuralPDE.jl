@@ -33,7 +33,7 @@ u_2(t, 0) & = - u_2(t, 1) = e^{-t} \, ,
 with physics-informed neural networks.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -85,7 +85,7 @@ callback = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob,BFGS(); callback = callback, maxiters=5000)
+res = Optimization.solve(prob,BFGS(); callback = callback, maxiters=5000)
 
 phi = discretization.phi
 ```
@@ -93,7 +93,7 @@ phi = discretization.phi
 Low-level api
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -182,8 +182,8 @@ function loss_function(θ,p)
     sum(map(l->l(θ) ,loss_functions))
 end
 
-f_ = OptimizationFunction(loss_function, GalacticOptim.AutoZygote())
-prob = GalacticOptim.OptimizationProblem(f_, flat_initθ)
+f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
+prob = Optimization.OptimizationProblem(f_, flat_initθ)
 
 cb_ = function (p,l)
     println("loss: ", l )
@@ -192,7 +192,7 @@ cb_ = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob,GalacticOptimJL.BFGS(); callback = cb_, maxiters=5000)
+res = Optimization.solve(prob,GalacticOptimJL.BFGS(); callback = cb_, maxiters=5000)
 ```
 
 And some analysis for both low and high level api:
@@ -236,7 +236,7 @@ Since `u3` is only in the first and second equations, that its accuracy during t
 We approximate the derivative of the neural network with another neural network `Dt(u1(t,x)) ~ Dtu1(t,x)` and train it along with other equations, and thus we avoid using the second numeric derivative `Dt(Dtu1(t,x))`.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -296,9 +296,9 @@ callback = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
+res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
 prob = remake(prob,u0=res.minimizer)
-res = GalacticOptim.solve(prob,BFGS(); callback = callback, maxiters=10000)
+res = Optimization.solve(prob,BFGS(); callback = callback, maxiters=10000)
 
 phi = discretization.phi
 ```
@@ -394,7 +394,7 @@ w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\l
 with a physics-informed neural network.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 using Plots
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
@@ -457,7 +457,7 @@ callback = function (p, l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=5000)
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=5000)
 
 phi = discretization.phi
 
@@ -513,7 +513,7 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k).
 This is done using a derivative neural network approximation.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux, DifferentialEquations, Roots
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux, DifferentialEquations, Roots
 using Plots
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
@@ -587,7 +587,7 @@ callback = function (p, l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=5000)
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=5000)
 
 phi = discretization.phi
 
@@ -649,7 +649,7 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and
 We solve this with Neural:
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux, Roots
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux, Roots
 using SpecialFunctions
 using Plots
 using Quadrature,Cubature
@@ -717,7 +717,7 @@ callback = function (p, l)
     return false
 end
 
-res = GalacticOptim.solve(prob, BFGS(); callback = callback, maxiters=1000)
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=1000)
 
 phi = discretization.phi
 

@@ -28,7 +28,7 @@ with grid discretization `dx = 0.1`. We will use physics-informed neural network
 ## Copy-Pastable Code
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -68,7 +68,7 @@ callback = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, opt, callback = callback, maxiters=1000)
+res = Optimization.solve(prob, opt, callback = callback, maxiters=1000)
 phi = discretization.phi
 
 using Plots
@@ -91,7 +91,7 @@ plot(p1,p2,p3)
 The ModelingToolkit PDE interface for this example looks like this:
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, GalacticOptim, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -154,7 +154,7 @@ callback = function (p,l)
     return false
 end
 
-res = GalacticOptim.solve(prob, opt, callback = callback, maxiters=1000)
+res = Optimization.solve(prob, opt, callback = callback, maxiters=1000)
 phi = discretization.phi
 ```
 
