@@ -187,6 +187,7 @@ include("neural_adapter.jl")
 include("param_kolmogorov_solve.jl")
 include("hyperparameters.jl")
 include("experiment_manager.jl")
+include("networks.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping,ParamKolmogorovPDEProblem,KolmogorovParamDomain, NNParamKolmogorov,
@@ -203,7 +204,8 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        AbstractHyperParameterSweep, StructGeneratorHyperParameterSweep,
        GELUNonLin, SigmoidNonLin, GlorotUniformParams,
        AbstractOptimiser, SequenceOfOptimisers, BFGSOptimiser, ADAMOptimiser, RADAMOptimiser, 
-       AbstractNN, SimpleFeedForwardNetwork
+       AbstractNN, SimpleFeedForwardNetwork,
+       VectorOfrMFNChain, rMFNLayer
 
 
 end # module
