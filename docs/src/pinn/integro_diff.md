@@ -45,7 +45,7 @@ u(0) = 0
 ```
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux, DomainSets
+using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DomainSets
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t
