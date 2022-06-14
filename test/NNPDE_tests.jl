@@ -284,7 +284,7 @@ function test_2d_poisson_equation(chain_, strategy_)
     @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
     prob = NeuralPDE.discretize(pde_system,discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
-    res = Optimization.solve(prob, ADAM(0.05); maxiters=1000)
+    res = Optimization.solve(prob, ADAM(0.1); maxiters=2000)
     phi = discretization.phi
 
     xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
