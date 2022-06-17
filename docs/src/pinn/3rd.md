@@ -15,7 +15,7 @@ x &\in [0, 1] \, ,
 We will use physics-informed neural networks.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x

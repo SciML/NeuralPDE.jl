@@ -16,7 +16,7 @@ with grid discretization `dx = 0.1` and physics-informed neural networks.
 Further, the solution of this equation with the given boundary conditions is presented.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -55,7 +55,7 @@ callback = function (p,l)
 end
 
 # optimizer
-opt = GalacticOptimJL.BFGS()
+opt = OptimizationOptimJL.BFGS()
 res = Optimization.solve(prob,opt; callback = callback, maxiters=1200)
 phi = discretization.phi
 ```
@@ -96,7 +96,7 @@ u_t(0, x) = 1 - 2x \\
 with grid discretization `dx = 0.05` and physics-informed neural networks. Here we take advantage of adaptive derivative to increase accuracy.
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 using Plots, Printf
 import ModelingToolkit: Interval, infimum, supremum
 

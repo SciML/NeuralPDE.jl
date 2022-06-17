@@ -24,7 +24,7 @@ W = WienerProcess(0.0,0.0,nothing)
 Then, we need to define our model. In order to define a model, we can use `Flux.chain` or `DiffEqFlux.FastChain`.
 
 ```julia
-chain = Flux.Chain(Dense(2,5,elu),Dense(5,1)) #Model using Flux, GalacticFlux
+chain = Flux.Chain(Dense(2,5,elu),Dense(5,1)) #Model using Flux, OptimizationOptimisers
 ```
 
 ```julia
@@ -32,7 +32,7 @@ chain = FastChain(FastDense(2,50,tanh), FastDense(50,2)) #Model using DiffEqFlux
 ```
 And let's define our optimizer function:
 ```julia
-opt = ADAM(1e-3)
+opt = Optimisers.Adam(1e-3)
 ```
 
 Now, let's pass all the parameters to the algorithm and then call the solver. If we already have some initial parameters, we can pass them into the `NNRODE` as well.

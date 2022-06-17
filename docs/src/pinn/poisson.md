@@ -91,7 +91,7 @@ plot(p1,p2,p3)
 The ModelingToolkit PDE interface for this example looks like this:
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
