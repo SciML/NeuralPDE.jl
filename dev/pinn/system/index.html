@@ -15,7 +15,7 @@ u_2(0, x) &amp; = \cos(\pi x) \, ,\\
 \end{align*}\]</p><p>and the boundary conditions:</p><p class="math-container">\[\begin{align*}
 u_1(t, 0) &amp; = u_1(t, 1) = 0 \, ,\\
 u_2(t, 0) &amp; = - u_2(t, 1) = e^{-t} \, ,
-\end{align*}\]</p><p>with physics-informed neural networks.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
+\end{align*}\]</p><p>with physics-informed neural networks.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -69,7 +69,7 @@ end
 
 res = Optimization.solve(prob,BFGS(); callback = callback, maxiters=5000)
 
-phi = discretization.phi</code></pre><p>Low-level api</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
+phi = discretization.phi</code></pre><p>Low-level api</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -168,7 +168,7 @@ cb_ = function (p,l)
     return false
 end
 
-res = Optimization.solve(prob,GalacticOptimJL.BFGS(); callback = cb_, maxiters=5000)</code></pre><p>And some analysis for both low and high level api:</p><pre><code class="language-julia hljs">using Plots
+res = Optimization.solve(prob,OptimizationOptimJL.BFGS(); callback = cb_, maxiters=5000)</code></pre><p>And some analysis for both low and high level api:</p><pre><code class="language-julia hljs">using Plots
 
 ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 
@@ -186,7 +186,7 @@ for i in 1:3
     p3 = plot(ts, xs, diff_u[i],linetype=:contourf,title = &quot;error&quot;);
     plot(p1,p2,p3)
     savefig(&quot;sol_u$i&quot;)
-end</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/122979254-03634e80-d3a0-11eb-985b-d3bae2dddfde.png" alt="sol_uq1"/></p><p><img src="https://user-images.githubusercontent.com/12683885/122979278-09592f80-d3a0-11eb-8fee-de3652f138d8.png" alt="sol_uq2"/></p><p><img src="https://user-images.githubusercontent.com/12683885/122979288-0e1de380-d3a0-11eb-9005-bfb501959b83.png" alt="sol_uq3"/></p><h2 id="Derivative-neural-network-approximation"><a class="docs-heading-anchor" href="#Derivative-neural-network-approximation">Derivative neural network approximation</a><a id="Derivative-neural-network-approximation-1"></a><a class="docs-heading-anchor-permalink" href="#Derivative-neural-network-approximation" title="Permalink"></a></h2><p>The accuracy and stability of numerical derivative decreases with each successive order. The accuracy of the entire solution is determined by the worst accuracy of one of the variables, in our case - the highest degree of the derivative. Derivative neural network approximation is such an approach that using lower-order numeric derivatives and estimates higher-order derivatives with a neural network so that allows an increase in the marginal precision for all optimization.</p><p>Since <code>u3</code> is only in the first and second equations, that its accuracy during training is determined by the accuracy of the second numerical derivative <code>u3(t,x) ~ (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)</code>.</p><p>We approximate the derivative of the neural network with another neural network <code>Dt(u1(t,x)) ~ Dtu1(t,x)</code> and train it along with other equations, and thus we avoid using the second numeric derivative <code>Dt(Dtu1(t,x))</code>.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
+end</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/122979254-03634e80-d3a0-11eb-985b-d3bae2dddfde.png" alt="sol_uq1"/></p><p><img src="https://user-images.githubusercontent.com/12683885/122979278-09592f80-d3a0-11eb-8fee-de3652f138d8.png" alt="sol_uq2"/></p><p><img src="https://user-images.githubusercontent.com/12683885/122979288-0e1de380-d3a0-11eb-9005-bfb501959b83.png" alt="sol_uq3"/></p><h2 id="Derivative-neural-network-approximation"><a class="docs-heading-anchor" href="#Derivative-neural-network-approximation">Derivative neural network approximation</a><a id="Derivative-neural-network-approximation-1"></a><a class="docs-heading-anchor-permalink" href="#Derivative-neural-network-approximation" title="Permalink"></a></h2><p>The accuracy and stability of numerical derivative decreases with each successive order. The accuracy of the entire solution is determined by the worst accuracy of one of the variables, in our case - the highest degree of the derivative. Derivative neural network approximation is such an approach that using lower-order numeric derivatives and estimates higher-order derivatives with a neural network so that allows an increase in the marginal precision for all optimization.</p><p>Since <code>u3</code> is only in the first and second equations, that its accuracy during training is determined by the accuracy of the second numerical derivative <code>u3(t,x) ~ (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)</code>.</p><p>We approximate the derivative of the neural network with another neural network <code>Dt(u1(t,x)) ~ Dtu1(t,x)</code> and train it along with other equations, and thus we avoid using the second numeric derivative <code>Dt(Dtu1(t,x))</code>.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -298,7 +298,7 @@ w(0, x) = 0 \\
 u(t, 0) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} \\ w(t, 0) = \frac{e^{\lambda_1}-e^{\lambda_2}}{\lambda_1 - \lambda_2} \\
 u(t, 1) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} * cos(\frac{x}{a}) \\
 w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\lambda_1 - \lambda_2}
-\end{aligned}\]</p><p>with a physics-informed neural network.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux
+\end{aligned}\]</p><p>with a physics-informed neural network.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 using Plots
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
@@ -392,7 +392,7 @@ w(x,0) = cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)}) \\
 w(0,y) = k(y + 1) \\
 u(1, y) = k[cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
 u(x,0) = k[cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})] \\
-\end{aligned}\]</p><p>where k is a root of the algebraic (transcendental) equation f(k) = g(k).</p><p>This is done using a derivative neural network approximation.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux, DifferentialEquations, Roots
+\end{aligned}\]</p><p>where k is a root of the algebraic (transcendental) equation f(k) = g(k).</p><p>This is done using a derivative neural network approximation.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DifferentialEquations, Roots
 using Plots
 using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
@@ -499,7 +499,7 @@ w(t,0) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
 w(t,1) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
 \end{aligned}\]</p><p>where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and y0 are the Bessel functions, and ξ(t, x) is:</p><p class="math-container">\[\begin{aligned}
 \frac{\sqrt[]{f(k)}}{\sqrt[]{\frac{a}{x^n}}}\sqrt[]{\frac{a}{x^n}(t+1)^2 - (x+1)^2}
-\end{aligned}\]</p><p>We solve this with Neural:</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, GalacticOptimJL, DiffEqFlux, Roots
+\end{aligned}\]</p><p>We solve this with Neural:</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, Roots
 using SpecialFunctions
 using Plots
 using Quadrature,Cubature
@@ -588,4 +588,4 @@ for i in 1:2
     p3 = plot(ts, xs, diff_u[i], linetype=:contourf, title=&quot;error&quot;);
     plot(p1, p2, p3)
     savefig(&quot;nonlinear_hyperbolic_sol_u$i&quot;)
-end</code></pre><p><img src="https://user-images.githubusercontent.com/26853713/126457614-d19e7a4d-f9e3-4e78-b8ae-1e58114a744e.png" alt="nonlinear_hyperbolic_sol_u1"/> <img src="https://user-images.githubusercontent.com/26853713/126457617-ee26c587-a97f-4a2e-b6b7-b326b1f117af.png" alt="nonlinear_hyperbolic_sol_u2"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../2D/">« 2-dimensional PDEs with GPU</a><a class="docs-footer-nextpage" href="../3rd/">ODE with a 3rd-Order Derivative »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.19 on <span class="colophon-date" title="Monday 13 June 2022 12:23">Monday 13 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><p><img src="https://user-images.githubusercontent.com/26853713/126457614-d19e7a4d-f9e3-4e78-b8ae-1e58114a744e.png" alt="nonlinear_hyperbolic_sol_u1"/> <img src="https://user-images.githubusercontent.com/26853713/126457617-ee26c587-a97f-4a2e-b6b7-b326b1f117af.png" alt="nonlinear_hyperbolic_sol_u2"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../2D/">« 2-dimensional PDEs with GPU</a><a class="docs-footer-nextpage" href="../3rd/">ODE with a 3rd-Order Derivative »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.19 on <span class="colophon-date" title="Friday 17 June 2022 12:43">Friday 17 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
