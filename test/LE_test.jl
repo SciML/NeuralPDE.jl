@@ -74,5 +74,11 @@ dn(x, m) = sin((2m + 1) * x * π/2)
 nd(x, m) = cos((2m + 1) * x * π/2)
 plot(ts, dn.(ts, 3); legend=false)
 plot(ts, nd.(ts, 1); legend=false)
+
+
+vec_lap_eig = NeuralPDE.generate_1d_vector_laplacian_eigenfunction(1, [1, 2, 4, 8, 16], Interval(0.0, 1.0), (:neumann, :neumann))
+xs = collect(hcat(range(0.0, 1.0, 100), range(0.0, 1.0, 100))')
+vec_lap_eig_vals = vec_lap_eig(xs)
+plot(xs[1, :], vec_lap_eig_vals')
 nothing
 

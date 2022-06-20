@@ -44,9 +44,9 @@ struct rMFNLayer{P, IN, HID, OUT, INP} <: DiffEqFlux.FastLayer
     hid::Int
     in::Int
     initial_params::P
-    out_fast_dense::OUT
-    hid_fast_dense::HID
-    in_fast_dense::IN
+    output_layer::OUT
+    hidden_layer::HID
+    input_layer::IN
     out_param_last_index::Int
     hid_param_last_index::Int
     in_param_last_index::Int
@@ -84,30 +84,92 @@ struct rMFNLayer{P, IN, HID, OUT, INP} <: DiffEqFlux.FastLayer
     end
 end
 
-function convert_boundary_conditions_to_Laplacian_Eigenfunction_initW_initb(domains::Vector{<: ClosedInterval}, boundary_conditions::Vector{Tuple{Symbol, Symbol}})
+
+function generate_1d_vector_laplacian_eigenfunction(input_dimension::Integer, modes::Vector{<:Integer}, domain::ClosedInterval, boundary_conditions::Tuple{Symbol, Symbol})
+    # generate_laplacian_eigenfunction(domains, boundary_conditions)
+    # Generate a Laplacian eigenfunction for the given domains and boundary conditions.
+    left_type, right_type = boundary_conditions
+    domain_length = domain.right - domain.left
+    left_start = domain.left
+    
+    if left_type == :neumann && right_type == :neumann
+        mode_vector = modes
+        w_multiplier = π / domain_length
+        full_W = reshape(mode_vector .* w_multiplier, (length(modes), 1))
+        b_adder = -left_start
+        return (x, p) -> cos.(full_W .* (@view x[input_dimension:input_dimension, :]) .+ b_adder)
+    elseif left_type == :dirichlet && right_type == :dirichlet
+        mode_vector = modes .+ 1
+        w_multiplier = π / domain_length
+        full_W = reshape(mode_vector .* w_multiplier, (length(modes), 1))
+        b_adder = -left_start
+        return (x, p) -> sin.(full_W .* (@view x[input_dimension:input_dimension, :]) .+ b_adder)
+    elseif left_type == :dirichlet && right_type == :neumann
+        mode_vector = (2 .* modes) .+ 1
+        w_multiplier = π / (2domain_length)
+        full_W = reshape(mode_vector .* w_multiplier, (length(modes), 1))
+        b_adder = -left_start
+        return (x, p) -> sin.(full_W .* (@view x[input_dimension:input_dimension, :]) .+ b_adder)
+    elseif left_type == :neumann && right_type == :dirichlet
+        mode_vector = (2 .* modes) .+ 1
+        w_multiplier = π / (2domain_length)
+        full_W = reshape(mode_vector .* w_multiplier, (length(modes), 1))
+        b_adder = -left_start
+        return (x, p) -> cos.(full_W .* (@view x[input_dimension:input_dimension, :]) .+ b_adder)
+    end
 end
 
-struct LaplacianEigenfunction{}
+struct LaplacianEigenfunctionInputLayer{FUN <: Function}
+    full_func::FUN
+    num_hidden::Int
+
+    function LaplacianEigenfunctionInputLayer(num_eigenvalues_per_dim::Integer, domains::Vector{<: ClosedInterval}, boundary_conditions::Vector{Tuple{Symbol, Symbol}})
+        # Generate a Laplacian eigenfunction for the given domains and boundary conditions.
+        modes = map(i->2^i, 0:num_eigenvalues_per_dim-1)
+        input_dim = length(domains)
+        functions = map(1:input_dim) do i
+            f = generate_1d_vector_laplacian_eigenfunction(i, modes, domains[i], boundary_conditions[i])
+        end
+        full_func = (x, p) -> vcat(begin
+            LE_evals_1D = map(functions) do f 
+                f(x, p)
+            end
+            LE_evals_mixed = deepcopy(LE_evals_1D)
+            for i in 1:input_dim, j in 1:input_dim
+                if j != i
+                    # multiply by the first mode of all the other dimensional eigenfunctions to ensure that it's a full eigenfunction
+                    LE_evals_mixed[i] .*= @view LE_evals_1D[j][1:1, :]
+                end
+            end
+            LE_evals_mixed
+        end
+        )
+        num_hidden = num_eigenvalues_per_dim * input_dim
+        new{typeof(full_func)}(full_func, num_hidden)
+    end
 end
 
-function RectangularLaplacianEigenfunctionrMFNLayer(in::Integer, num_eigenvalues_per_dim::Integer, out::Integer, 
+(f::LaplacianEigenfunctionInputLayer)(x, p) = f.full_func(x, p)
+
+
+function RectangularLaplacianEigenfunctionrMFNLayer(in_dim::Integer, num_eigenvalues_per_dim::Integer, out::Integer, 
         first_layer::Bool, last_layer::Bool, domains::Vector{<: ClosedInterval}, boundary_conditions::Vector{Tuple{Symbol, Symbol}};
         hid_bias = true, out_bias = true, 
         hid_initW = Flux.glorot_uniform, hid_initb = Flux.zeros32,
         out_initW = Flux.glorot_uniform, out_initb = Flux.zeros32)
 
-        hid = num_eigenvalues_per_dim * in
+        hid = num_eigenvalues_per_dim * in_dim
 
 
         # need to make sure that we multiply the fastdenses for each input with a mode index 0 version
         # assumes shared w and b
         #map(1:in) do k
         #end
-        W = zeros(Float32, num_eigenvalues_per_dim, in)
+        W = zeros(Float32, num_eigenvalues_per_dim, in_dim)
         b = zeros(Float32, num_eigenvalues_per_dim)
 
-        for i in 1:num_eigenvalues_per_dim, j in 1:in, k in 1:in
-            length = domains[j].right - domains[j].left
+        for i in 1:num_eigenvalues_per_dim, j in 1:in_dim, k in 1:in_dim
+            domain_length = domains[j].right - domains[j].left
             mode_index = j == k ? 2^(i-1) : 1 
             if boundary_conditions[k][1] == :neumann && boundary_conditions[k][2] == :neumann
                 mode_scale = (mode_index - 1)
@@ -129,11 +191,11 @@ function RectangularLaplacianEigenfunctionrMFNLayer(in::Integer, num_eigenvalues
                 error("unsupported boundary condition for domain $j, bc: $(boundary_conditions[j])")
             end
             if j == k
-                W_unrolled[i, j, k] =  mode_scale * scale * π / length
+                W_unrolled[i, j, k] =  mode_scale * scale * π / domain_length
             else
-                W_unrolled[i, j, k] =  mode_scale * scale * π / length
+                W_unrolled[i, j, k] =  mode_scale * scale * π / domain_length
             end
-            b_unrolled[i, j] = -domains[j].left * mode_scale * scale * π / length + phase
+            b_unrolled[i, j] = -domains[j].left * mode_scale * scale * π / domain_length + phase
         end
         W = reshape(W_unrolled, hid, in)
         b = reshape(b_unrolled, hid)
@@ -167,12 +229,12 @@ DiffEqFlux.initial_params(f::rMFNLayer) = f.initial_params
 (f::rMFNLayer)(x::Number, p::T) where {T <: AbstractArray} = f(DiffEqBase.parameterless_type(p)([x]), p)
 
 function (f::rMFNLayer)(x::AbstractArray, p)  
-    if f.hid_fast_dense isa FastDense # not first layer
+    if f.hidden_layer isa FastDense # not first layer
         throw("First rMFN layer should have first_layer = true")
     else
-        g_i = f.in_fast_dense(x, @view p[1:f.in_param_last_index])
+        g_i = f.input_layer(x, @view p[1:f.in_param_last_index])
         z_i = g_i
-        y_i = f.out_fast_dense(z_i, @view p[f.hid_param_last_index + 1:f.out_param_last_index])
+        y_i = f.output_layer(z_i, @view p[f.hid_param_last_index + 1:f.out_param_last_index])
         if f.last_layer
             y_i
         else
@@ -182,13 +244,13 @@ function (f::rMFNLayer)(x::AbstractArray, p)
 end
 
 function (f::rMFNLayer)(xzy::Tuple{<:AbstractArray, <:AbstractArray, <:AbstractArray}, p)  
-    if f.hid_fast_dense isa FastDense # not first layer
+    if f.hidden_layer isa FastDense # not first layer
         x = xzy[1]
         z_prev = xzy[2]
         y_prev = xzy[3]
-        g_i = f.in_fast_dense(x, @view p[1:f.in_param_last_index])
-        z_i = g_i .* f.hid_fast_dense(z_prev, @view p[f.in_param_last_index + 1:f.hid_param_last_index])
-        y_i = y_prev .+ f.out_fast_dense(z_i, @view p[f.hid_param_last_index + 1:f.out_param_last_index])
+        g_i = f.input_layer(x, @view p[1:f.in_param_last_index])
+        z_i = g_i .* f.hidden_layer(z_prev, @view p[f.in_param_last_index + 1:f.hid_param_last_index])
+        y_i = y_prev .+ f.output_layer(z_i, @view p[f.hid_param_last_index + 1:f.out_param_last_index])
         if f.last_layer
             y_i
         else
@@ -219,21 +281,21 @@ struct LErMFNLayer{P, IN, HID, OUT} <: DiffEqFlux.FastLayer
 end
 
 
-in_fast_dense  = FastDense(2, 4, sin; bias=true, initW=Flux.glorot_uniform, initb=Flux.zeros32)
-lay = rMFNLayer(2, 4, 1, true, false)
-θ_0 = DiffEqFlux.initial_params(lay)
-x = [0.0, 1.0]
-x2 = [0.0 1.0 1.0; 1.0 0.0 1.0]
-lay(x, θ_0)
+#in_fast_dense  = FastDense(2, 4, sin; bias=true, initW=Flux.glorot_uniform, initb=Flux.zeros32)
+#lay = rMFNLayer(2, 4, 1, true, false)
+#θ_0 = DiffEqFlux.initial_params(lay)
+#x = [0.0, 1.0]
+#x2 = [0.0 1.0 1.0; 1.0 0.0 1.0]
+#lay(x, θ_0)
 
-in_vec = [2]
-hid_vec = [4]
-out_vec = [1]
-num_layers = 4
-chains = VectorOfrMFNChain(in_vec, hid_vec, out_vec, num_layers)
-θ2_0 = DiffEqFlux.initial_params(chains[1])
-chains[1](x, θ2_0)
-chains[1](x2, θ2_0)
+#in_vec = [2]
+#hid_vec = [4]
+#out_vec = [1]
+#num_layers = 4
+#chains = VectorOfrMFNChain(in_vec, hid_vec, out_vec, num_layers)
+#θ2_0 = DiffEqFlux.initial_params(chains[1])
+#chains[1](x, θ2_0)
+#chains[1](x2, θ2_0)
 nothing
 
 
