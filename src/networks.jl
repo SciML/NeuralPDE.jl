@@ -152,7 +152,7 @@ struct LaplacianEigenfunctionInputLayer{FUN <: Function}
 
     function LaplacianEigenfunctionInputLayer(num_eigenvalues_per_dim::Integer, domains::Vector{<: ClosedInterval}, boundary_conditions::Vector{Tuple{Symbol, Symbol}})
         # Generate a Laplacian eigenfunction for the given domains and boundary conditions.
-        modes = map(i->2^i, 0:num_eigenvalues_per_dim-1)
+        modes = vcat([0], map(i->2^i, 0:num_eigenvalues_per_dim-2))
         input_dim = length(domains)
         functions = map(1:input_dim) do i
             f = generate_1d_vector_laplacian_eigenfunction(i, modes, domains[i], boundary_conditions[i])
@@ -161,13 +161,6 @@ struct LaplacianEigenfunctionInputLayer{FUN <: Function}
             LE_evals_1D = map(functions) do f 
                 f(x, p)
             end
-            #LE_evals_mixed = deepcopy(LE_evals_1D)
-            #for i in 1:input_dim, j in 1:input_dim
-                #if j != i
-                    # multiply by the first mode of all the other dimensional eigenfunctions to ensure that it's a full eigenfunction
-                    #LE_evals_mixed[i] .*= @view LE_evals_1D[j][1:1, :]
-                #end
-            #end
             LE_first_modes = map(1:input_dim) do i
                 LE_evals_1D[i][1:1, :]
             end
