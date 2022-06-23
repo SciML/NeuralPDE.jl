@@ -1,17 +1,14 @@
 # NeuralPDE.jl: Scientific Machine Learning for Partial Differential Equations
 
 [NeuralPDE.jl](https://github.com/SciML/NeuralPDE.jl)
-is a solver package which consists of neural network solvers for
-partial differential equations using scientific machine learning (SciML)
-techniques such as physics-informed neural networks (PINNs) and deep
-BSDE solvers. This package utilizes deep neural networks and
-neural stochastic differential equations to solve high-dimensional PDEs
-at a greatly reduced cost and greatly increased generality compared with classical methods.
+NeuralPDE.jl is a solver package which consists of neural network solvers for
+partial differential equations using physics-informed neural networks (PINNs). This package utilizes
+neural stochastic differential equations to solve PDEs at a greatly increased generality 
+compared with classical methods.
 
 ## Features
 
 - Physics-Informed Neural Networks for automated PDE solving
-- Forward-Backwards Stochastic Differential Equation (FBSDE) methods for parabolic PDEs
 - Deep-learning-based solvers for optimal stopping time and Kolmogorov backwards equations
 
 ## Citation
