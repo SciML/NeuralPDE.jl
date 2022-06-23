@@ -468,8 +468,8 @@ domains = [x ∈ Interval(0.0,1.0),
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 eltypeθ = eltype(initθ)
-phi = NeuralPDE.get_phi(chain)
-derivative = NeuralPDE.get_numeric_derivative()
+phi = NeuralPDE.Phi(chain)
+derivative = NeuralPDE.numeric_derivative
 
 indvars = [x,t]
 depvars = [u(x, t)]
