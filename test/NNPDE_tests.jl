@@ -303,7 +303,7 @@ function test_2d_poisson_equation(chain_, strategy_)
 end
 
 fastchain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
-fluxchain = Chain(Dense(2,12,Flux.σ),Dense(12,12,Flux.σ),Dense(12,1))
+fluxchain = Chain(Dense(2,12,Flux.σ),Dense(12,12,Flux.σ),Dense(12,1)) |> f64
 chains = [fluxchain, fastchain]
 for chain in chains
     test_2d_poisson_equation(chain, grid_strategy)
@@ -468,8 +468,7 @@ domains = [x ∈ Interval(0.0,1.0),
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 eltypeθ = eltype(initθ)
-parameterless_type_θ = DiffEqBase.parameterless_type(initθ)
-phi = NeuralPDE.get_phi(chain,parameterless_type_θ)
+phi = NeuralPDE.get_phi(chain)
 derivative = NeuralPDE.get_numeric_derivative()
 
 indvars = [x,t]
@@ -499,15 +498,14 @@ pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,[eq],bcs,eltypeθ,indvars,
 lbs,ubs = pde_bounds
 pde_loss_functions = [NeuralPDE.get_loss_function(_pde_loss_function,
                                                 lbs[1],ubs[1],
-                                                eltypeθ, parameterless_type_θ,
+                                                eltypeθ,
                                                 quadrature_strategy)]
 
 pde_loss_functions[1](initθ)
 
 lbs,ubs = bcs_bounds
 bc_loss_functions = [NeuralPDE.get_loss_function(_loss,lb,ub,
-                                                 eltypeθ, parameterless_type_θ,
-                                                 quadrature_strategy)
+                                                 eltypeθ,quadrature_strategy)
                                                  for (_loss,lb,ub) in zip(_bc_loss_functions, lbs,ubs)]
 
 map(l->l(initθ) ,bc_loss_functions)

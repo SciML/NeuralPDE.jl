@@ -16,10 +16,9 @@ function get_loss_function_(loss,initθ,pde_system,strategy::GridTraining)
     domains = pde_system.domain
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
     eltypeθ = eltype(initθ)
-    parameterless_type_θ =  DiffEqBase.parameterless_type(initθ)
     dx = strategy.dx
     train_set = generate_training_sets(domains,dx,eqs,eltypeθ)
-    get_loss_function(loss,train_set,eltypeθ,parameterless_type_θ,strategy)
+    get_loss_function(loss,train_set,eltypeθ,strategy)
 end
 
 
@@ -44,11 +43,9 @@ function get_loss_function_(loss,initθ,pde_system,strategy::StochasticTraining)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
 
     eltypeθ = eltype(initθ)
-    parameterless_type_θ =  DiffEqBase.parameterless_type(initθ)
-
     bound = get_bounds_(domains,eqs,eltypeθ,dict_indvars,dict_depvars,strategy)[1]
 
-    get_loss_function(loss,bound,eltypeθ,parameterless_type_θ,strategy)
+    get_loss_function(loss,bound,eltypeθ,strategy)
 end
 
 
@@ -62,11 +59,9 @@ function get_loss_function_(loss,initθ,pde_system,strategy::QuasiRandomTraining
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
 
     eltypeθ = eltype(initθ)
-    parameterless_type_θ =  DiffEqBase.parameterless_type(initθ)
-
     bound = get_bounds_(domains,eqs,eltypeθ,dict_indvars,dict_depvars,strategy)[1]
 
-    get_loss_function(loss,bound,eltypeθ,parameterless_type_θ,strategy)
+    get_loss_function(loss,bound,eltypeθ,strategy)
 end
 
 function get_bounds_(domains,eqs,eltypeθ,dict_indvars,dict_depvars,strategy::QuadratureTraining)
@@ -98,11 +93,9 @@ function get_loss_function_(loss,initθ,pde_system,strategy::QuadratureTraining)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
 
     eltypeθ = eltype(initθ)
-    parameterless_type_θ =  DiffEqBase.parameterless_type(initθ)
-
     bound = get_bounds_(domains,eqs,eltypeθ,dict_indvars,dict_depvars,strategy)
     lb,ub = bound
-    get_loss_function(loss,lb[1],ub[1],eltypeθ,parameterless_type_θ,strategy)
+    get_loss_function(loss,lb[1],ub[1],eltypeθ,strategy)
 end
 
 """

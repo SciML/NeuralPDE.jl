@@ -129,8 +129,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 flat_initθ = reduce(vcat,initθ )
 
 eltypeθ = eltype(initθ[1])
-parameterless_type_θ = DiffEqBase.parameterless_type(initθ[1])
-phi = NeuralPDE.get_phi.(chain,parameterless_type_θ)
+phi = NeuralPDE.get_phi.(chain)
 
 map(phi_ -> phi_(rand(2,10), flat_initθ),phi)
 
@@ -162,7 +161,7 @@ pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,eqs,bcs,eltypeθ,indvars,d
 plbs,pubs = pde_bounds
 pde_loss_functions = [NeuralPDE.get_loss_function(_loss,
                                                  lb,ub,
-                                                 eltypeθ, parameterless_type_θ,
+                                                 eltypeθ,
                                                  quadrature_strategy)
                                                  for (_loss,lb,ub) in zip(_pde_loss_functions, plbs,pubs)]
 
@@ -170,7 +169,7 @@ map(l->l(flat_initθ) ,pde_loss_functions)
 
 blbs,bubs = bcs_bounds
 bc_loss_functions = [NeuralPDE.get_loss_function(_loss,lb,ub,
-                                                 eltypeθ, parameterless_type_θ,
+                                                 eltypeθ,
                                                  quadrature_strategy)
                                                  for (_loss,lb,ub) in zip(_bc_loss_functions, blbs,bubs)]
 

@@ -53,8 +53,7 @@ end
     initθ = Float64.(DiffEqFlux.initial_params(chain))
 
     eltypeθ = eltype(initθ)
-    parameterless_type_θ = DiffEqBase.parameterless_type(initθ)
-    phi = NeuralPDE.get_phi(chain,parameterless_type_θ)
+    phi = NeuralPDE.get_phi(chain)
     derivative = NeuralPDE.get_numeric_derivative()
 
     u_ = (cord, θ, phi)->sum(phi(cord, θ))
