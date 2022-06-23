@@ -170,8 +170,6 @@ end
 
 
 include("ode_solve.jl")
-include("pde_solve.jl")
-include("pde_solve_ns.jl")
 include("kolmogorov_solve.jl")
 include("rode_solve.jl")
 include("stopping_solve.jl")

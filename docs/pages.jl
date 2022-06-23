@@ -16,8 +16,6 @@ pages = [
             "pinn/neural_adapter.md",
         ],
         "Specialized Neural PDE Tutorials" => Any[
-            "examples/100_HJB.md",
-            "examples/blackscholes.md",
             "examples/kolmogorovbackwards.md",
             "examples/optimal_stopping_american.md",
         ],
@@ -27,7 +25,6 @@ pages = [
         ],
         "API Documentation" => Any[
             "solvers/pinns.md",
-            "solvers/deep_fbsde.md",
             "solvers/kolmogorovbackwards_solver.md",
             "solvers/optimal_stopping.md",#TODO
             "solvers/ode.md",
