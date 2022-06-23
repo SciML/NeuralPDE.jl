@@ -15,7 +15,7 @@ with grid discretization `dx = 0.1` and physics-informed neural networks.
 
 Further, the solution of this equation with the given boundary conditions is presented.
 
-```julia
+```@example wave
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -62,7 +62,7 @@ phi = discretization.phi
 
 We can plot the predicted solution of the PDE and compare it with the analytical solution in order to plot the relative error.
 
-```julia
+```@example wave
 using Plots
 
 ts,xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
@@ -95,7 +95,7 @@ u_t(0, x) = 1 - 2x \\
 
 with grid discretization `dx = 0.05` and physics-informed neural networks. Here we take advantage of adaptive derivative to increase accuracy.
 
-```julia
+```@example wave2
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 using Plots, Printf
 import ModelingToolkit: Interval, infimum, supremum
