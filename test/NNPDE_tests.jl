@@ -479,7 +479,7 @@ quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg=CubatureJLh(),
                                                     reltol=1e-3,abstol=1e-3,
                                                     maxiters =50, batch=100)
 
-integral = NeuralPDE.get_numeric_integral(quadrature_strategy, indvars, depvars, chain, derivative)
+integral = NeuralPDE.get_numeric_integral(quadrature_strategy, indvars, depvars, chain isa AbstractArray, derivative)
 _pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,integral,
                                                    chain,initθ,quadrature_strategy)
 _pde_loss_function(rand(2,10), initθ)
