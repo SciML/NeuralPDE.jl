@@ -279,8 +279,7 @@ prob_ = NeuralPDE.neural_adapter(losses,res_.minimizer, pde_system_map, NeuralPD
 res_ = Optimization.solve(prob_, BFGS(); maxiters=1000)
 @show res_.minimum
 
-parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
-phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
+phi_ = NeuralPDE.Phi(chain2)
 
 xs,ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 u_predict_ = reshape([first(phi_([x,y],res_.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))

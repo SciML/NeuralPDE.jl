@@ -77,6 +77,9 @@ function logscalar(logger, s::R, name::AbstractString, step::Integer) where R <:
     nothing
 end
 
+
+abstract type AbstractPINN end
+
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
 
@@ -86,12 +89,8 @@ Arguments:
 * `init_params`: the initial parameter of the neural network,
 * `phi`: a trial solution,
 * `derivative`: method that calculates the derivative.
-
 """
-abstract type AbstractPINN{isinplace} <: SciMLBase.SciMLProblem end
-
-struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN{isinplace}
-  chain::C
+struct PhysicsInformedNN{T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
   strategy::T
   init_params::P
   phi::PH
@@ -103,45 +102,47 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
   log_options::LogOptions
   iteration::Vector{Int64}
   self_increment::Bool
+  multioutput::Bool
   kwargs::K
 
-  @add_kwonly function PhysicsInformedNN{iip}(chain,
-                                             strategy;
-                                             init_params = nothing,
-                                             phi = nothing,
-                                             derivative = nothing,
-                                             param_estim=false,
-                                             additional_loss=nothing,
-                                             adaptive_loss=nothing,
-                                             logger=nothing,
-                                             log_options=LogOptions(),
-                                             iteration=nothing,
-                                             kwargs...) where iip
-        if init_params == nothing
+  @add_kwonly function PhysicsInformedNN(chain,
+                                         strategy;
+                                         init_params = nothing,
+                                         phi = nothing,
+                                         derivative = nothing,
+                                         param_estim=false,
+                                         additional_loss=nothing,
+                                         adaptive_loss=nothing,
+                                         logger=nothing,
+                                         log_options=LogOptions(),
+                                         iteration=nothing,
+                                         kwargs...) where iip
+        if init_params === nothing
             if chain isa AbstractArray
                 initθ = DiffEqFlux.initial_params.(chain)
             else
                 initθ = DiffEqFlux.initial_params(chain)
             end
-
         else
             initθ = init_params
         end
-        type_initθ = if (typeof(chain) <: AbstractVector) Base.promote_typeof.(initθ)[1] else  Base.promote_typeof(initθ) end
-        parameterless_type_θ = DiffEqBase.parameterless_type(type_initθ)
 
-        if phi == nothing
-            if chain isa AbstractArray
-                _phi = get_phi.(chain,parameterless_type_θ)
+        multioutput = typeof(chain) <: AbstractArray
+
+        type_initθ = multioutput ? Base.promote_typeof.(initθ)[1] : Base.promote_typeof(initθ)
+
+        if phi === nothing
+            if multioutput
+                _phi = Phi.(chain)
             else
-                _phi = get_phi(chain,parameterless_type_θ)
+                _phi = Phi(chain)
             end
         else
             _phi = phi
         end
 
-        if derivative == nothing
-            _derivative = get_numeric_derivative()
+        if derivative === nothing
+            _derivative = numeric_derivative
         else
             _derivative = derivative
         end
@@ -161,79 +162,12 @@ struct PhysicsInformedNN{isinplace,C,T,P,PH,DER,PE,AL,ADA,LOG,K} <: AbstractPINN
             self_increment = true
         end
 
-        new{iip,typeof(chain),typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),typeof(additional_loss),typeof(adaptive_loss),typeof(logger),typeof(kwargs)}(
-            chain,strategy,initθ,_phi,_derivative,param_estim,additional_loss,adaptive_loss,logger,log_options,iteration,self_increment,kwargs)
+        new{typeof(strategy),typeof(initθ),typeof(_phi),typeof(_derivative),typeof(param_estim),
+            typeof(additional_loss),typeof(adaptive_loss),typeof(logger),typeof(kwargs)}(
+            strategy,initθ,_phi,_derivative,param_estim,additional_loss,adaptive_loss,logger,
+            log_options,iteration,self_increment,multioutput,kwargs)
     end
 end
-PhysicsInformedNN(chain,strategy,args...;kwargs...) = PhysicsInformedNN{true}(chain,strategy,args...;kwargs...)
-
-SciMLBase.isinplace(prob::PhysicsInformedNN{iip}) where iip = iip
-
-
-abstract type TrainingStrategies  end
-
-"""
-* `dx`: the discretization of the grid.
-"""
-struct GridTraining <: TrainingStrategies
-    dx
-end
-
-"""
-* `points`: number of points in random select training set,
-* `bcs_points`: number of points in random select training set for boundry conditions (by default, it equals `points`).
-"""
-struct StochasticTraining <:TrainingStrategies
-    points:: Int64
-    bcs_points:: Int64
-end
-function StochasticTraining(points;bcs_points = points)
-    StochasticTraining(points, bcs_points)
-end
-"""
-* `points`:  the number of quasi-random points in a sample,
-* `bcs_points`: the number of quasi-random points in a sample for boundry conditions (by default, it equals `points`),
-* `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
-* `resampling`: if it's false - the full training set is generated in advance before training,
-   and at each iteration, one subset is randomly selected out of the batch.
-   if it's true - the training set isn't generated beforehand, and one set of quasi-random
-   points is generated directly at each iteration in runtime. In this case `minibatch` has no effect,
-* `minibatch`: the number of subsets, if resampling == false.
-
-For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMonteCarlo.jl
-"""
-struct QuasiRandomTraining <:TrainingStrategies
-    points:: Int64
-    bcs_points:: Int64
-    sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
-    resampling:: Bool
-    minibatch:: Int64
-end
-function QuasiRandomTraining(points;bcs_points = points, sampling_alg = LatinHypercubeSample(),resampling =true, minibatch=0)
-    QuasiRandomTraining(points,bcs_points,sampling_alg,resampling,minibatch)
-end
-"""
-* `quadrature_alg`: quadrature algorithm,
-* `reltol`: relative tolerance,
-* `abstol`: absolute tolerance,
-* `maxiters`: the maximum number of iterations in quadrature algorithm,
-* `batch`: the preferred number of points to batch.
-
-For more information look: Quadrature.jl https://github.com/SciML/Quadrature.jl
-"""
-struct QuadratureTraining <: TrainingStrategies
-    quadrature_alg::SciMLBase.AbstractIntegralAlgorithm
-    reltol::Float64
-    abstol::Float64
-    maxiters::Int64
-    batch::Int64
-end
-
-function QuadratureTraining(;quadrature_alg=CubatureJLh(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=100)
-    QuadratureTraining(quadrature_alg,reltol,abstol,maxiters,batch)
-end
-
-abstract type AbstractAdaptiveLoss end
 
 function vectorify(x, t::Type{T}) where T <: Real
     convertfunc(y) = convert(t, y)
@@ -244,98 +178,6 @@ function vectorify(x, t::Type{T}) where T <: Real
         t[convertfunc(x)]
     end
 end
-
-"""
-A way of weighting the components of the loss function in the total sum that does not change during optimization
-
-* `pde_loss_weights`: either a scalar (which will be broadcast) or vector the size of the number of PDE equations, which describes the weight the respective PDE loss has in the full loss sum,
-* `bc_loss_weights`: either a scalar (which will be broadcast) or vector the size of the number of BC equations, which describes the weight the respective BC loss has in the full loss sum,
-* `additional_loss_weights`: a scalar which describes the weight the additional loss function has in the full loss sum,
-"""
-mutable struct NonAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
-    pde_loss_weights::Vector{T}
-    bc_loss_weights::Vector{T}
-    additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function NonAdaptiveLoss{T}(;pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
-        new(vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
-    end
-end
-
-# default to Float64
-SciMLBase.@add_kwonly function NonAdaptiveLoss(;pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
-    NonAdaptiveLoss{Float64}(;pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
-end
-
-"""
-A way of adaptively reweighting the components of the loss function in the total sum such that BC_i loss weights are scaled by the exponential moving average of max(|∇pde_loss|)/mean(|∇bc_i_loss|) )
-
-* `reweight_every`: how often to reweight the BC loss functions, measured in iterations.  reweighting is somewhat expensive since it involves evaluating the gradient of each component loss function,
-* `weight_change_inertia`: a real number that represents the inertia of the exponential moving average of the BC weight changes,
-* `pde_loss_weights`: either a scalar (which will be broadcast) or vector the size of the number of PDE equations, which describes the weight the respective PDE loss has in the full loss sum,
-* `bc_loss_weights`: either a scalar (which will be broadcast) or vector the size of the number of BC equations, which describes the initial weight the respective BC loss has in the full loss sum,
-* `additional_loss_weights`: a scalar which describes the weight the additional loss function has in the full loss sum, this is currently not adaptive and will be constant with this adaptive loss,
-
-from paper
-Understanding and mitigating gradient pathologies in physics-informed neural networks 
-Sifan Wang, Yujun Teng, Paris Perdikaris
-https://arxiv.org/abs/2001.04536v1
-with code reference
-https://github.com/PredictiveIntelligenceLab/GradientPathologiesPINNs
-"""
-mutable struct GradientScaleAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
-    reweight_every::Int64
-    weight_change_inertia::T
-    pde_loss_weights::Vector{T} 
-    bc_loss_weights::Vector{T} 
-    additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss{T}(reweight_every; weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where T <: Real
-        new(convert(Int64, reweight_every), convert(T, weight_change_inertia), vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
-    end
-end
-# default to Float64
-SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss(reweight_every; weight_change_inertia=0.9, pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) 
-    GradientScaleAdaptiveLoss{Float64}(reweight_every; weight_change_inertia=weight_change_inertia, 
-        pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
-end
-
-
-"""
-A way of adaptively reweighting the components of the loss function in the total sum such that the loss weights are maximized by an internal optimiser, which leads to a behavior where loss functions that have not been satisfied get a greater weight,
-
-* `reweight_every`: how often to reweight the PDE and BC loss functions, measured in iterations.  reweighting is cheap since it re-uses the value of loss functions generated during the main optimisation loop,
-* `pde_max_optimiser`: a Flux.Optimise.AbstractOptimiser that is used internally to maximize the weights of the PDE loss functions,
-* `bc_max_optimiser`: a Flux.Optimise.AbstractOptimiser that is used internally to maximize the weights of the BC loss functions,
-* `pde_loss_weights`: either a scalar (which will be broadcast) or vector the size of the number of PDE equations, which describes the initial weight the respective PDE loss has in the full loss sum,
-* `bc_loss_weights`: either a scalar (which will be broadcast) or vector the size of the number of BC equations, which describes the initial weight the respective BC loss has in the full loss sum,
-* `additional_loss_weights`: a scalar which describes the weight the additional loss function has in the full loss sum, this is currently not adaptive and will be constant with this adaptive loss,
-
-from paper
-Self-Adaptive Physics-Informed Neural Networks using a Soft Attention Mechanism
-Levi McClenny, Ulisses Braga-Neto
-https://arxiv.org/abs/2009.04544
-"""
-mutable struct MiniMaxAdaptiveLoss{T <: Real, PDE_OPT <: Flux.Optimise.AbstractOptimiser, BC_OPT <: Flux.Optimise.AbstractOptimiser} <: AbstractAdaptiveLoss 
-    reweight_every::Int64
-    pde_max_optimiser::PDE_OPT
-    bc_max_optimiser::BC_OPT
-    pde_loss_weights::Vector{T} 
-    bc_loss_weights::Vector{T} 
-    additional_loss_weights::Vector{T} 
-    SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T, PDE_OPT, BC_OPT}(reweight_every; pde_max_optimiser=Flux.ADAM(1e-4), bc_max_optimiser=Flux.ADAM(0.5), 
-            pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1) where {T <: Real, PDE_OPT <: Flux.Optimise.AbstractOptimiser, BC_OPT <: Flux.Optimise.AbstractOptimiser}
-        new(convert(Int64, reweight_every), convert(PDE_OPT, pde_max_optimiser), convert(BC_OPT, bc_max_optimiser), 
-            vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T), vectorify(additional_loss_weights, T))
-    end
-end
-
-# default to Float64, ADAM, ADAM
-SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss(reweight_every; pde_max_optimiser=Flux.ADAM(1e-4), bc_max_optimiser=Flux.ADAM(0.5), pde_loss_weights=1, bc_loss_weights=1, additional_loss_weights=1)
-    MiniMaxAdaptiveLoss{Float64, typeof(pde_max_optimiser), typeof(bc_max_optimiser)}(
-        reweight_every; pde_max_optimiser=pde_max_optimiser, bc_max_optimiser=bc_max_optimiser,
-        pde_loss_weights=pde_loss_weights, bc_loss_weights=bc_loss_weights, additional_loss_weights=additional_loss_weights)
-end
-
-
 
 """
 Create dictionary: variable => unique number for variable
@@ -356,9 +198,9 @@ Dict{Symbol,Int64} with 3 entries:
 get_dict_vars(vars) = Dict( [Symbol(v) .=> i for (i,v) in enumerate(vars)])
 
 # Wrapper for _transform_expression
-function transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ;is_integral=false, dict_transformation_vars = nothing, transformation_vars = nothing)
+function transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,multioutput::Bool,eltypeθ,strategy,phi,derivative,integral,initθ;is_integral=false, dict_transformation_vars = nothing, transformation_vars = nothing)
     if ex isa Expr
-        ex = _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ;is_integral = is_integral,  dict_transformation_vars = dict_transformation_vars, transformation_vars = transformation_vars)
+        ex = _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,multioutput,eltypeθ,strategy,phi,derivative,integral,initθ;is_integral = is_integral,  dict_transformation_vars = dict_transformation_vars, transformation_vars = transformation_vars)
     end
     return ex
 end
@@ -396,7 +238,7 @@ where
  order - order of derivative
  θ - weight in neural network
 """
-function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative_,integral,initθ;is_integral=false, dict_transformation_vars = nothing, transformation_vars = nothing)
+function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,multioutput::Bool,eltypeθ,strategy,phi,derivative_,integral,initθ;is_integral=false, dict_transformation_vars = nothing, transformation_vars = nothing)
     _args = ex.args
     for (i,e) in enumerate(_args)
         if !(e isa Expr)
@@ -405,7 +247,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
                 var_ = is_integral ? :(u) : :($(Expr(:$, :u)))
-                ex.args = if !(typeof(chain) <: AbstractVector)
+                ex.args = if !multioutput
                     [var_, Symbol(:cord, num_depvar), :($θ), :phi]
                 else
                     [var_, Symbol(:cord, num_depvar), Symbol(:($θ), num_depvar), Symbol(:phi, num_depvar)]
@@ -430,7 +272,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 undv = [dict_interior_indvars[d_p] for d_p  in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
 
-                ex.args = if !(typeof(chain) <: AbstractVector)
+                ex.args = if !multioutput
                     [var_, :phi, :u, Symbol(:cord, num_depvar), εs_dnv, order, :($θ)]
                 else
                     [var_, Symbol(:phi, num_depvar), :u, Symbol(:cord, num_depvar), εs_dnv, order, Symbol(:($θ), num_depvar)]
@@ -460,14 +302,14 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
 
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar], integrating_depvars)
                 integrand_ = transform_expression(_args[2],indvars,depvars,dict_indvars,dict_depvars,
-                                                dict_depvar_input, chain,eltypeθ,strategy,
+                                                dict_depvar_input, multioutput,eltypeθ,strategy,
                                                 phi,derivative_,integral,initθ; is_integral = false, 
                                                 dict_transformation_vars = dict_transformation_vars, 
                                                 transformation_vars = transformation_vars)
                 integrand__ = _dot_(integrand_)
 
                 integrand = build_symbolic_loss_function(nothing, indvars,depvars,dict_indvars,dict_depvars,
-                                                         dict_depvar_input, phi, derivative_, nothing, chain,
+                                                         dict_depvar_input, phi, derivative_, nothing, multioutput,
                                                          initθ, strategy, integrand = integrand__,
                                                          integrating_depvars=integrating_depvars,
                                                          eq_params=SciMLBase.NullParameters(),
@@ -486,7 +328,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                         l_expr = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,
                                                                    dict_indvars,dict_depvars,
                                                                    dict_depvar_input, phi, derivative_,
-                                                                   nothing, chain, initθ, strategy,
+                                                                   nothing, multioutput, initθ, strategy,
                                                                    integrand = _dot_(l), integrating_depvars=integrating_depvars,
                                                                    param_estim =false, default_p = nothing)
                         l_f = @RuntimeGeneratedFunction(l_expr)
@@ -500,7 +342,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                         u_expr = NeuralPDE.build_symbolic_loss_function(nothing, indvars,depvars,
                                                                     dict_indvars,dict_depvars,
                                                                     dict_depvar_input, phi, derivative_,
-                                                                    nothing, chain, initθ, strategy,
+                                                                    nothing, multioutput, initθ, strategy,
                                                                     integrand = _dot_(u_), integrating_depvars=integrating_depvars,
                                                                     param_estim =false, default_p = nothing)
                         u_f = @RuntimeGeneratedFunction(u_expr)
@@ -513,7 +355,7 @@ function _transform_expression(ex,indvars,depvars,dict_indvars,dict_depvars,dict
                 break
             end
         else
-            ex.args[i] = _transform_expression(ex.args[i],indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = is_integral, dict_transformation_vars = dict_transformation_vars, transformation_vars = transformation_vars)
+            ex.args[i] = _transform_expression(ex.args[i],indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,multioutput,eltypeθ,strategy,phi,derivative_,integral,initθ; is_integral = is_integral, dict_transformation_vars = dict_transformation_vars, transformation_vars = transformation_vars)
         end
     end
     return ex
@@ -547,16 +389,19 @@ Example:
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 
-function build_symbolic_equation(eq,_indvars,_depvars,chain,eltypeθ,strategy,phi,derivative,initθ)
+function build_symbolic_equation(eq,_indvars,_depvars,multioutput::Bool,eltypeθ,strategy,phi,derivative,initθ)
     depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = get_vars(_indvars, _depvars)
-    parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
+    parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,multioutput,eltypeθ,strategy,phi,derivative,integral,initθ)
 end
 
-function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
+function parse_equation(eq,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,multioutput::Bool,eltypeθ,
+                        strategy,phi,derivative,integral,initθ)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
-    left_expr = transform_expression(toexpr(eq_lhs),indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
-     right_expr = transform_expression(toexpr(eq_rhs),indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
+    left_expr = transform_expression(toexpr(eq_lhs),indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,multioutput,
+                                     eltypeθ,strategy,phi,derivative,integral,initθ)
+     right_expr = transform_expression(toexpr(eq_rhs),indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,multioutput,
+                                       eltypeθ,strategy,phi,derivative,integral,initθ)
     left_expr = _dot_(left_expr)
     right_expr = _dot_(right_expr)
     loss_func = :($left_expr .- $right_expr)
@@ -588,7 +433,7 @@ to
       end)
 """
 function build_symbolic_loss_function(eqs,_indvars,_depvars,dict_depvar_input,
-                                      phi, derivative,integral,chain,initθ,strategy;
+                                      phi, derivative,integral,multioutput::Bool,initθ,strategy;
                                       bc_indvars=nothing,
                                       eq_params = SciMLBase.NullParameters(),
                                       param_estim = false,
@@ -603,7 +448,7 @@ function build_symbolic_loss_function(eqs,_indvars,_depvars,dict_depvar_input,
     integrating_depvars = integrating_depvars == nothing ? depvars : integrating_depvars
     return build_symbolic_loss_function(eqs,indvars,depvars,
                                         dict_indvars,dict_depvars,dict_depvar_input,
-                                        phi,derivative,integral,chain,initθ,strategy;
+                                        phi,derivative,integral,multioutput,initθ,strategy;
                                         bc_indvars = bc_indvars,
                                         eq_params = eq_params,
                                         param_estim = param_estim,
@@ -645,7 +490,7 @@ end
 
 function build_symbolic_loss_function(eqs,indvars,depvars,
                                       dict_indvars,dict_depvars,dict_depvar_input,
-                                      phi,derivative,integral,chain,initθ,strategy;
+                                      phi,derivative,integral,multioutput::Bool,initθ,strategy;
                                       eq_params = SciMLBase.NullParameters(),
                                       param_estim = param_estim,
                                       default_p=default_p,
@@ -655,14 +500,14 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
                                       transformation_vars = nothing,
                                       integrating_depvars=depvars,
                                       )
-    if chain isa AbstractArray
+    if multioutput
         eltypeθ = eltype(initθ[1])
     else
         eltypeθ = eltype(initθ)
     end
 
     if integrand isa Nothing
-        loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,chain,eltypeθ,strategy,phi,derivative,integral,initθ)
+        loss_function = parse_equation(eqs,indvars,depvars,dict_indvars,dict_depvars,dict_depvar_input,multioutput,eltypeθ,strategy,phi,derivative,integral,initθ)
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
         this_eq_indvars = unique(vcat(values(this_eq_pair)...))
     else 
@@ -672,7 +517,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
     end
     vars = :(cord, $θ, phi, derivative, integral,u,p)
     ex = Expr(:block)
-    if typeof(chain) <: AbstractVector
+    if multioutput
         θ_nums = Symbol[]
         phi_nums = Symbol[]
         for v in depvars
@@ -757,7 +602,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
 end
 
 function build_loss_function(eqs,_indvars,_depvars,phi,derivative,integral,
-                             chain,initθ,strategy;
+                             multioutput::Bool,initθ,strategy;
                              bc_indvars=nothing,
                              eq_params=SciMLBase.NullParameters(),
                              param_estim=false,
@@ -767,7 +612,7 @@ function build_loss_function(eqs,_indvars,_depvars,phi,derivative,integral,
     bc_indvars = bc_indvars==nothing ? indvars : bc_indvars
     return build_loss_function(eqs,indvars,depvars,
                                dict_indvars,dict_depvars,dict_depvar_input,
-                               phi,derivative,integral,chain,initθ,strategy;
+                               phi,derivative,integral,multioutput,initθ,strategy;
                                bc_indvars=bc_indvars,
                                integration_indvars=indvars,
                                eq_params=eq_params,
@@ -777,7 +622,7 @@ end
 
 function build_loss_function(eqs,indvars,depvars,
                              dict_indvars,dict_depvars,dict_depvar_input,
-                             phi,derivative,integral,chain,initθ,strategy;
+                             phi,derivative,integral,multioutput::Bool,initθ,strategy;
                              bc_indvars = indvars,
                              integration_indvars=indvars,
                              eq_params=SciMLBase.NullParameters(),
@@ -785,7 +630,7 @@ function build_loss_function(eqs,indvars,depvars,
                              default_p=nothing)
      expr_loss_function = build_symbolic_loss_function(eqs,indvars,depvars,
                                                        dict_indvars,dict_depvars, dict_depvar_input,
-                                                       phi,derivative,integral,chain,initθ,strategy;
+                                                       phi,derivative,integral,multioutput,initθ,strategy;
                                                        bc_indvars = bc_indvars,
                                                        eq_params = eq_params,
                                                        param_estim=param_estim,default_p=default_p)
@@ -1001,41 +846,43 @@ function get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
     [pde_bounds,bcs_bounds]
 end
 
-function get_phi(chain,parameterless_type_θ)
-    # The phi trial solution
-    if chain isa FastChain
-        phi = (x,θ) -> chain(adapt(parameterless_type_θ,x),θ)
-    else
-        _,re  = Flux.destructure(chain)
-        phi = (x,θ) -> re(θ)(adapt(parameterless_type_θ,x))
-    end
-    phi
+"""
+An encoding of the test function phi that is used for calculating the PDE
+value at domain points x
+
+Fields:
+
+- `f`: A representation of the chain function. If FastChain, then `f(x,p)`,
+  if Chain then `f(p)(x)` (from Flux.destructure)
+"""
+struct Phi{C}
+    f::C
+    Phi(chain::FastChain) = new{typeof(chain)}(chain)
+    Phi(chain::Flux.Chain) =  (re = Flux.destructure(chain)[2]; new{typeof(re)}(re))
 end
+
+(f::Phi{<:FastChain})(x,θ) = f.f(adapt(parameterless_type(θ),x),θ)
+(f::Phi{<:Optimisers.Restructure})(x,θ) = f.f(θ)(adapt(parameterless_type(θ),x))
 
 function get_u()
     u = (cord, θ, phi)-> phi(cord, θ)
 end
 
-
 # the method to calculate the derivative
-function get_numeric_derivative()
-    derivative =
-        (phi,u,x,εs,order,θ) ->
-        begin
-            _epsilon = one(eltype(θ)) / (2*cbrt(eps(eltype(θ))))
-            ε = εs[order]
-            ε = adapt(DiffEqBase.parameterless_type(θ),ε)
-            x = adapt(DiffEqBase.parameterless_type(θ),x)
-            if order > 1
-                return (derivative(phi,u,x .+ ε,εs,order-1,θ)
-                      .- derivative(phi,u,x .- ε,εs,order-1,θ)) .* _epsilon
-            else
-                return (u(x .+ ε,θ,phi) .- u(x .- ε,θ,phi)) .* _epsilon
-            end
-        end
+function numeric_derivative(phi,u,x,εs,order,θ)
+    _epsilon = one(eltype(θ)) / (2*cbrt(eps(eltype(θ))))
+    ε = εs[order]
+    ε = adapt(parameterless_type(θ),ε)
+    x = adapt(parameterless_type(θ),x)
+    if order > 1
+        return (numeric_derivative(phi,u,x .+ ε,εs,order-1,θ)
+              .- numeric_derivative(phi,u,x .- ε,εs,order-1,θ)) .* _epsilon
+    else
+        return (u(x .+ ε,θ,phi) .- u(x .- ε,θ,phi)) .* _epsilon
+    end
 end
 
-function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
+function get_numeric_integral(strategy, _indvars, _depvars, multioutput::Bool, derivative)
     depvars,indvars,dict_indvars,dict_depvars = get_vars(_indvars, _depvars)
     integral =
         (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ ;strategy=strategy, indvars=indvars, depvars=depvars, dict_indvars=dict_indvars, dict_depvars=dict_depvars)->
@@ -1079,7 +926,7 @@ function get_numeric_integral(strategy, _indvars, _depvars, chain, derivative)
             end
 end
 
-function get_loss_function(loss_function, train_set, eltypeθ,parameterless_type_θ, strategy::GridTraining;τ=nothing)
+function get_loss_function(loss_function, train_set, eltypeθ,strategy::GridTraining;τ=nothing)
     loss = (θ) -> mean(abs2,loss_function(train_set, θ))
 end
             
@@ -1090,17 +937,18 @@ end
        else
            lb, ub =  b[1], b[2]
            lb .+ (ub .- lb) .* rand(eltypeθ,1,points)
+           lb .+ (ub .- lb) .* rand(eltypeθ,1,points)
        end
     end
     vcat(f.(bound)...)
 end
 
-function get_loss_function(loss_function, bound, eltypeθ, parameterless_type_θ, strategy::StochasticTraining;τ=nothing)
+function get_loss_function(loss_function, bound, eltypeθ, strategy::StochasticTraining;τ=nothing)
     points = strategy.points
 
     loss = (θ) -> begin
         sets = generate_random_points(points, bound,eltypeθ)
-        sets_ = adapt(parameterless_type_θ,sets)
+        sets_ = adapt(parameterless_type(θ),sets)
         mean(abs2,loss_function(sets_, θ))
     end
     return loss
@@ -1130,7 +978,7 @@ function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_al
     end
 end
 
-function get_loss_function(loss_function, bound, eltypeθ,parameterless_type_θ,strategy::QuasiRandomTraining;τ=nothing)
+function get_loss_function(loss_function, bound, eltypeθ,strategy::QuasiRandomTraining;τ=nothing)
     sampling_alg = strategy.sampling_alg
     points = strategy.points
     resampling = strategy.resampling
@@ -1144,7 +992,7 @@ function get_loss_function(loss_function, bound, eltypeθ,parameterless_type_θ,
         if resampling == true
             θ -> begin
                 sets = generate_quasi_random_points(points, bound, eltypeθ, sampling_alg)
-                sets_ = adapt(parameterless_type_θ,sets)
+                sets_ = adapt(parameterless_type(θ),sets)
                 mean(abs2,loss_function(sets_, θ))
             end
         else
@@ -1153,14 +1001,14 @@ function get_loss_function(loss_function, bound, eltypeθ,parameterless_type_θ,
                          point_batch[i] : point_batch[i][rand(1:minibatch)]
                                             for i in 1:length(point_batch)] #TODO
                 sets_ = vcat(sets...)
-                sets__ = adapt(parameterless_type_θ,sets_)
+                sets__ = adapt(parameterless_type(θ),sets_)
                 mean(abs2,loss_function(sets__, θ))
             end
         end
     return loss
 end
 
-function get_loss_function(loss_function, lb,ub ,eltypeθ, parameterless_type_θ,strategy::QuadratureTraining;τ=nothing)
+function get_loss_function(loss_function, lb,ub ,eltypeθ, strategy::QuadratureTraining;τ=nothing)
 
     if length(lb) == 0
         loss = (θ) -> mean(abs2,loss_function(rand(eltypeθ,1,10), θ))
@@ -1173,7 +1021,7 @@ function get_loss_function(loss_function, lb,ub ,eltypeθ, parameterless_type_θ
             # last_x = x
             # mean(abs2,loss_(x,θ), dims=2)
             # size_x = fill(size(x)[2],(1,1))
-            x = adapt(parameterless_type_θ,x)
+            x = adapt(parameterless_type(θ),x)
             sum(abs2,loss_(x,θ), dims=2) #./ size_x
         end
         prob = IntegralProblem(_loss,lb,ub,θ,batch = strategy.batch,nout=1)
@@ -1203,15 +1051,14 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
     dim = length(domains)
     depvars,indvars,dict_indvars,dict_depvars,dict_depvar_input = get_vars(pde_system.indvars, pde_system.depvars)
 
-    chain = discretization.chain
+    multioutput = discretization.multioutput
     initθ = discretization.init_params
-    flat_initθ = if (typeof(chain) <: AbstractVector) reduce(vcat,initθ) else initθ end
+    flat_initθ = multioutput ? reduce(vcat,initθ) : initθ
     eltypeθ = eltype(flat_initθ)
-    parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
-    integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, chain, derivative)
+    integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, multioutput, derivative)
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -1225,7 +1072,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
 
     symbolic_pde_loss_functions = [build_symbolic_loss_function(eq,indvars,depvars,
                                                                 dict_indvars,dict_depvars,dict_depvar_input,
-                                                                phi, derivative,integral, chain,initθ,strategy;eq_params=eq_params,param_estim=param_estim,default_p=default_p,
+                                                                phi, derivative,integral, multioutput,initθ,strategy;
+                                                                eq_params=eq_params,param_estim=param_estim,default_p=default_p,
                                                                 bc_indvars=pde_indvar
                                                                 ) for (eq, pde_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
 
@@ -1237,7 +1085,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ph
     bc_integration_vars = get_integration_variables(bcs, dict_indvars, dict_depvars)
     symbolic_bc_loss_functions = [build_symbolic_loss_function(bc,indvars,depvars,
                                                                dict_indvars,dict_depvars, dict_depvar_input,
-                                                               phi, derivative,integral,chain,initθ,strategy,
+                                                               phi, derivative,integral,multioutput,initθ,strategy,
                                                                eq_params=eq_params,
                                                                param_estim=param_estim,
                                                                default_p=default_p;
@@ -1267,17 +1115,16 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
      depvars,indvars,dict_indvars,dict_depvars, dict_depvar_input = get_vars(pde_system.ivs,
                                                          pde_system.dvs)
 
-    chain = discretization.chain
+    multioutput = discretization.multioutput
     initθ = discretization.init_params
-    flat_initθ = if (typeof(chain) <: AbstractVector) reduce(vcat,initθ) else  initθ end
+    flat_initθ = multioutput ? reduce(vcat,initθ) : initθ
     eltypeθ = eltype(flat_initθ)
-    parameterless_type_θ =  DiffEqBase.parameterless_type(flat_initθ)
 
-    flat_initθ = if param_estim == false flat_initθ else vcat(flat_initθ, adapt(typeof(flat_initθ),default_p)) end
+    flat_initθ = param_estim == false ? flat_initθ : vcat(flat_initθ, adapt(typeof(flat_initθ),default_p))
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
-    integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, chain, derivative)
+    integral = get_numeric_integral(strategy, pde_system.indvars, pde_system.depvars, multioutput, derivative)
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -1289,7 +1136,8 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
    pde_integration_vars = get_integration_variables(eqs, dict_indvars, dict_depvars)
    _pde_loss_functions = [build_loss_function(eq,indvars,depvars,
                                              dict_indvars,dict_depvars,dict_depvar_input,
-                                             phi, derivative,integral, chain, initθ,strategy,eq_params=eq_params,param_estim=param_estim,default_p=default_p,
+                                             phi, derivative,integral, multioutput, initθ,strategy;
+                                             eq_params=eq_params,param_estim=param_estim,default_p=default_p,
                                              bc_indvars=pde_indvar, integration_indvars=integration_indvar
                                              ) for (eq, pde_indvar, integration_indvar) in zip(eqs, pde_indvars, pde_integration_vars)]
     bc_indvars = if strategy isa QuadratureTraining
@@ -1301,7 +1149,7 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
 
     _bc_loss_functions = [build_loss_function(bc,indvars,depvars,
                                               dict_indvars,dict_depvars, dict_depvar_input,
-                                              phi,derivative,integral,chain,initθ,strategy;
+                                              phi,derivative,integral,multioutput,initθ,strategy;
                                               eq_params=eq_params,
                                               param_estim=param_estim,
                                               default_p=default_p,
@@ -1317,36 +1165,36 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
 
         # the points in the domain and on the boundary
         pde_train_sets, bcs_train_sets = train_sets
-        pde_train_sets = adapt.(parameterless_type_θ,pde_train_sets)
-        bcs_train_sets =  adapt.(parameterless_type_θ,bcs_train_sets)
-        pde_loss_functions = [get_loss_function(_loss,_set,eltypeθ,parameterless_type_θ,strategy)
+        pde_train_sets = adapt.(typeof(flat_initθ),pde_train_sets)
+        bcs_train_sets =  adapt.(typeof(flat_initθ),bcs_train_sets)
+        pde_loss_functions = [get_loss_function(_loss,_set,eltypeθ,strategy)
                                                  for (_loss,_set) in zip(_pde_loss_functions,pde_train_sets)]
 
-        bc_loss_functions =  [get_loss_function(_loss,_set,eltypeθ,parameterless_type_θ,strategy)
+        bc_loss_functions =  [get_loss_function(_loss,_set,eltypeθ,strategy)
                                                  for (_loss,_set) in zip(_bc_loss_functions, bcs_train_sets)]
         (pde_loss_functions, bc_loss_functions)
     elseif strategy isa StochasticTraining
          bounds = get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
          pde_bounds, bcs_bounds = bounds
 
-         pde_loss_functions = [get_loss_function(_loss,bound,eltypeθ,parameterless_type_θ,strategy)
+         pde_loss_functions = [get_loss_function(_loss,bound,eltypeθ,strategy)
                                                  for (_loss,bound) in zip(_pde_loss_functions, pde_bounds)]
 
-          bc_loss_functions = [get_loss_function(_loss,bound,eltypeθ,parameterless_type_θ,strategy) 
+          bc_loss_functions = [get_loss_function(_loss,bound,eltypeθ,strategy) 
                                                  for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
           (pde_loss_functions, bc_loss_functions)
     elseif strategy isa QuasiRandomTraining
          bounds = get_bounds(domains,eqs,bcs,eltypeθ,dict_indvars,dict_depvars,strategy)
          pde_bounds, bcs_bounds = bounds
 
-         pde_loss_functions = [get_loss_function(_loss,bound,eltypeθ,parameterless_type_θ,strategy)
+         pde_loss_functions = [get_loss_function(_loss,bound,eltypeθ,strategy)
                                                   for (_loss,bound) in zip(_pde_loss_functions, pde_bounds)]
 
          strategy_ = QuasiRandomTraining(strategy.bcs_points;
                                          sampling_alg = strategy.sampling_alg,
                                          resampling = strategy.resampling,
                                          minibatch = strategy.minibatch)
-         bc_loss_functions = [get_loss_function(_loss,bound,eltypeθ,parameterless_type_θ,strategy_)
+         bc_loss_functions = [get_loss_function(_loss,bound,eltypeθ,strategy_)
                                                 for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
          (pde_loss_functions, bc_loss_functions)
     elseif strategy isa QuadratureTraining
@@ -1354,10 +1202,10 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
         pde_bounds, bcs_bounds = bounds
 
         lbs,ubs = pde_bounds
-        pde_loss_functions = [get_loss_function(_loss,lb,ub,eltypeθ,parameterless_type_θ,strategy)
+        pde_loss_functions = [get_loss_function(_loss,lb,ub,eltypeθ,strategy)
                                                  for (_loss,lb,ub) in zip(_pde_loss_functions, lbs,ubs )]
         lbs,ubs = bcs_bounds
-        bc_loss_functions = [get_loss_function(_loss,lb,ub,eltypeθ,parameterless_type_θ,strategy)
+        bc_loss_functions = [get_loss_function(_loss,lb,ub,eltypeθ,strategy)
                                                 for (_loss,lb,ub) in zip(_bc_loss_functions, lbs,ubs)]
 
         (pde_loss_functions, bc_loss_functions)

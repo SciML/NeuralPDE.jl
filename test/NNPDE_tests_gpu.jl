@@ -35,7 +35,7 @@ eq = Dθ(u(θ)) ~ θ^3 + 2.f0*θ + (θ^2)*((1.f0+3*(θ^2))/(1.f0+θ+(θ^3))) - u
 bcs = [u(0.) ~ 1.0f0]
 
 # Space and time domains
-domains = [θ ∈ Interval(0.0,1.0)]
+domains = [θ ∈ Interval(0f0,1f0)]
 # Discretization
 dt = 0.1f0
 # Neural network

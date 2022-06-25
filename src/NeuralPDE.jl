@@ -23,8 +23,10 @@ using Symbolics
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
-import SciMLBase: @add_kwonly
+import SciMLBase: @add_kwonly, parameterless_type
 using Flux: @nograd
+import Optimisers
+
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
     TerminalPDEProblem(g, f, μ, σ, x0, tspan)
@@ -169,6 +171,8 @@ function NNODE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwarg
 end
 
 
+include("training_strategies.jl")
+include("adaptive_losses.jl")
 include("ode_solve.jl")
 include("kolmogorov_solve.jl")
 include("rode_solve.jl")

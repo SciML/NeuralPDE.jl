@@ -74,8 +74,7 @@ callback = function (p,l)
 end
 res_ = Optimization.solve(prob_, BFGS();callback = callback, maxiters=1000)
 
-parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
-phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
+phi_ = NeuralPDE.get_phi(chain2)
 
 xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
@@ -242,8 +241,7 @@ res_ = Optimization.solve(prob_, BFGS();callback = callback, maxiters=2000)
 prob_ = NeuralPDE.neural_adapter(losses,res_.minimizer, pde_system_map, NeuralPDE.GridTraining([0.05/count_decomp,0.05]))
 res_ = Optimization.solve(prob_, BFGS();callback = callback,  maxiters=1000)
 
-parameterless_type_θ = DiffEqBase.parameterless_type(initθ2)
-phi_ = NeuralPDE.get_phi(chain2,parameterless_type_θ)
+phi_ = NeuralPDE.get_phi(chain2)
 
 xs,ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 u_predict_ = reshape([first(phi_([x,y],res_.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))

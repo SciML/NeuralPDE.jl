@@ -40,10 +40,9 @@ dx = 0.05
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
 eltypeθ = eltype(initθ)
-parameterless_type_θ = DiffEqBase.parameterless_type(initθ)
 strategy = NeuralPDE.GridTraining(dx)
 
-phi = NeuralPDE.get_phi(chain,parameterless_type_θ)
+phi = NeuralPDE.get_phi(chain)
 derivative = NeuralPDE.get_numeric_derivative()
 
 
@@ -65,11 +64,11 @@ train_domain_set, train_bound_set = train_sets
 
 pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
                                                 train_domain_set[1],
-                                                eltypeθ,parameterless_type_θ,
+                                                eltypeθ,
                                                 strategy)
 
 bc_loss_functions = [NeuralPDE.get_loss_function(loss,set,
-                                                 eltypeθ, parameterless_type_θ,
+                                                 eltypeθ,
                                                  strategy) for (loss, set) in zip(_bc_loss_functions,train_bound_set)]
 
 
