@@ -485,8 +485,8 @@ _pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,deriva
 _pde_loss_function(rand(2,10), initθ)
 
 bc_indvars = NeuralPDE.get_argument(bcs,indvars,depvars)
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,integral,
-                                                    chain,initθ,quadrature_strategy,
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc, indvars, depvars, phi, derivative, integral,
+                                                    chain isa AbstractArray, initθ, quadrature_strategy,
                                                     bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 map(loss_f -> loss_f(rand(1,10), initθ),_bc_loss_functions)
 
