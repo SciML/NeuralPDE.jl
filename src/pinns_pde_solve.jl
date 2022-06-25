@@ -937,6 +937,7 @@ end
        else
            lb, ub =  b[1], b[2]
            lb .+ (ub .- lb) .* rand(eltypeθ,1,points)
+           lb .+ (ub .- lb) .* rand(eltypeθ,1,points)
        end
     end
     vcat(f.(bound)...)
@@ -1164,8 +1165,8 @@ function discretize_inner_functions(pde_system::PDESystem, discretization::Physi
 
         # the points in the domain and on the boundary
         pde_train_sets, bcs_train_sets = train_sets
-        pde_train_sets = adapt.(parameterless_type(θ),pde_train_sets)
-        bcs_train_sets =  adapt.(parameterless_type(θ),bcs_train_sets)
+        pde_train_sets = adapt.(typeof(flat_initθ),pde_train_sets)
+        bcs_train_sets =  adapt.(typeof(flat_initθ),bcs_train_sets)
         pde_loss_functions = [get_loss_function(_loss,_set,eltypeθ,strategy)
                                                  for (_loss,_set) in zip(_pde_loss_functions,pde_train_sets)]
 
