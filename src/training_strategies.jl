@@ -61,6 +61,7 @@ struct QuadratureTraining{Q<:SciMLBase.AbstractIntegralAlgorithm,T} <: AbstractT
     batch::Int64
 end
 
-function QuadratureTraining(;quadrature_alg=CubatureJLh(),reltol= 1e-6,abstol= 1e-3,maxiters=1e3,batch=100)
-    QuadratureTraining(quadrature_alg,reltol,abstol,maxiters,batch)
+function QuadratureTraining(; quadrature_alg = CubatureJLh(), reltol = 1e-6, abstol = 1e-3,
+                            maxiters = 1_000, batch = 100)
+    QuadratureTraining(quadrature_alg, reltol, abstol, maxiters, batch)
 end
