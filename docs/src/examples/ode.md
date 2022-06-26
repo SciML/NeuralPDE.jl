@@ -34,7 +34,7 @@ for ``t \in (0,1)`` and ``u_0 = 0`` with `NNODE`. First we define the `ODEProble
 with any other DifferentialEquations.jl solver. This looks like:
 
 ```@example nnode1
-using NeuralPDE
+using NeuralPDE, Flux
 
 linear(u, p, t) = cos(2pi * t)
 tspan = (0.0f0, 1.0f0)
