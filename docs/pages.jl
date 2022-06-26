@@ -24,10 +24,11 @@ pages = [
             "examples/nnrode_example.md",
         ],
         "API Documentation" => Any[
+            "solvers/ode.md",
             "solvers/pinns.md",
+            "solvers/training_strategies.md",
             "solvers/kolmogorovbackwards_solver.md",
             "solvers/optimal_stopping.md",#TODO
-            "solvers/ode.md",
             "solvers/nnrode.md",#TODO
         ]
     ]
