@@ -1,23 +1,25 @@
-abstract type TrainingStrategies  end
+abstract type AbstractTrainingStrategy end
 
 """
 * `dx`: the discretization of the grid.
 """
-struct GridTraining <: TrainingStrategies
-    dx
+struct GridTraining{T} <: AbstractTrainingStrategy
+    dx::T
 end
 
 """
 * `points`: number of points in random select training set,
 * `bcs_points`: number of points in random select training set for boundry conditions (by default, it equals `points`).
 """
-struct StochasticTraining <:TrainingStrategies
+struct StochasticTraining <:AbstractTrainingStrategy
     points:: Int64
     bcs_points:: Int64
 end
+
 function StochasticTraining(points;bcs_points = points)
     StochasticTraining(points, bcs_points)
 end
+
 """
 * `points`:  the number of quasi-random points in a sample,
 * `bcs_points`: the number of quasi-random points in a sample for boundry conditions (by default, it equals `points`),
@@ -30,16 +32,18 @@ end
 
 For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMonteCarlo.jl
 """
-struct QuasiRandomTraining <:TrainingStrategies
+struct QuasiRandomTraining <:AbstractTrainingStrategy
     points:: Int64
     bcs_points:: Int64
     sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
     resampling:: Bool
     minibatch:: Int64
 end
+
 function QuasiRandomTraining(points;bcs_points = points, sampling_alg = LatinHypercubeSample(),resampling =true, minibatch=0)
     QuasiRandomTraining(points,bcs_points,sampling_alg,resampling,minibatch)
 end
+
 """
 * `quadrature_alg`: quadrature algorithm,
 * `reltol`: relative tolerance,
@@ -47,12 +51,12 @@ end
 * `maxiters`: the maximum number of iterations in quadrature algorithm,
 * `batch`: the preferred number of points to batch.
 
-For more information look: Quadrature.jl https://github.com/SciML/Quadrature.jl
+For more information look: Integrals.jl https://github.com/SciML/Integrals.jl
 """
-struct QuadratureTraining <: TrainingStrategies
-    quadrature_alg::SciMLBase.AbstractIntegralAlgorithm
-    reltol::Float64
-    abstol::Float64
+struct QuadratureTraining{Q<:SciMLBase.AbstractIntegralAlgorithm,T} <: AbstractTrainingStrategy
+    quadrature_alg::Q
+    reltol::T
+    abstol::T
     maxiters::Int64
     batch::Int64
 end
