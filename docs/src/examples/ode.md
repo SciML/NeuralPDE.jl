@@ -64,8 +64,7 @@ Once these pieces are together, we call `solve` just like with any other `ODEPro
 Let's turn on `verbose` so we can see the loss over time during the training process:
 
 ```@example nnode1
-sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt=1 / 20f0, verbose=true,
-            abstol=1e-10, maxiters=200)
+sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose=true, abstol=1f-6, maxiters=200)
 ```
 
 And that's it: the neural network solution was computed by training the neural network and
