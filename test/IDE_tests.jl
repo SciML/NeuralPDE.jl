@@ -1,15 +1,6 @@
-using Flux, OptimizationFlux
-println("Integro Differential equation tests")
 using DiffEqFlux
-println("Starting Soon!")
-using ModelingToolkit
-using DiffEqBase
 using Test, NeuralPDE
-println("Starting Soon!")
-using Optimization
-using OptimizationOptimJL
-using Quadrature,Cubature, Cuba
-using QuasiMonteCarlo
+using Optimization, OptimizationOptimJL
 using SciMLBase
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets

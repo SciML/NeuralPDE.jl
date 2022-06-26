@@ -1,6 +1,5 @@
 @info "adaptive_loss_logging_tests"
 using DiffEqFlux
-using ModelingToolkit
 using Test, NeuralPDE
 using Optimization, OptimizationFlux
 import ModelingToolkit: Interval, infimum, supremum

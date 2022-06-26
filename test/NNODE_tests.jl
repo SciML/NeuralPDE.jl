@@ -1,9 +1,8 @@
 using Test, Flux, Optim
-println("NNODE Tests")
 using DiffEqDevTools
-println("Starting Soon!")
 using Random, NeuralPDE
 Random.seed!(100)
+
 # Run a solve on scalars
 linear = (u,p,t) -> cos(2pi*t)
 tspan = (0.0f0, 1.0f0)

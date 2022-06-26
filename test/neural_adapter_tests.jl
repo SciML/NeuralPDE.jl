@@ -1,16 +1,7 @@
 using Flux, OptimizationFlux
-println("neural_adapter_tests")
 using DiffEqFlux
-println("Starting Soon!")
-using ModelingToolkit
-using DiffEqBase
 using Test, NeuralPDE
-println("Starting Soon!")
-using Optimization
-using OptimizationOptimJL
-using Quadrature,Cubature, Cuba
-using QuasiMonteCarlo
-using SciMLBase
+using Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval, infimum, supremum
 using Statistics
 

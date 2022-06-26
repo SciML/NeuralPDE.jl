@@ -6,18 +6,18 @@ module NeuralPDE
 using DocStringExtensions
 using Reexport, Statistics
 @reexport using DiffEqBase
+@reexport using ModelingToolkit
 
-using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
-using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
-using ModelingToolkit
+using Flux, Zygote, ForwardDiff, Random, Distributions
+using DiffEqFlux, Adapt, DiffEqNoiseProcess, StochasticDiffEq
 using Optimization
-using Quadrature, QuadratureCubature
+using Integrals, IntegralsCubature
 using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 using Statistics
-using ArrayInterface
-import Tracker, Optim
+using ArrayInterfaceCore
+import Optim
 using DomainSets
 using Symbolics
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives

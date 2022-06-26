@@ -1,16 +1,7 @@
-using Flux, OptimizationFlux
-println("NNPDE_tests")
-using DiffEqFlux
-println("Starting Soon!")
-using ModelingToolkit
-using DiffEqBase
-using Test, NeuralPDE
-println("Starting Soon!")
-using Optimization
-using OptimizationOptimJL
-using Quadrature, QuadratureCubature, QuadratureCuba
+using Flux, DiffEqFlux, NeuralPDE, Test
+using Optimization, OptimizationOptimJL, OptimizationFlux
+using Integrals, IntegralsCubature
 using QuasiMonteCarlo
-using SciMLBase
 using OrdinaryDiffEq
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets

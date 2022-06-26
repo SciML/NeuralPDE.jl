@@ -1,6 +1,6 @@
 using Test, Flux, StochasticDiffEq
 println("Kolmogorov Tests")
-using DiffEqDevTools , NeuralPDE
+using NeuralPDE
 using Distributions
 
 using Random
