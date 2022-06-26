@@ -72,4 +72,4 @@ SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test",  "CUDA", "SafeTestsets", "DiffEqDevTools", "OptimizationFlux", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "QuadratureCuba"]
+test = ["Test",  "CUDA", "SafeTestsets", "DiffEqDevTools", "OptimizationFlux", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "IntegralsCuba"]
