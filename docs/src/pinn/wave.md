@@ -16,8 +16,8 @@ with grid discretization `dx = 0.1` and physics-informed neural networks.
 Further, the solution of this equation with the given boundary conditions is presented.
 
 ```@example wave
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
-import ModelingToolkit: Interval, infimum, supremum
+using NeuralPDE, Flux, Optimization, OptimizationOptimJL, DiffEqFlux
+import ModelingToolkit: Interval
 
 @parameters t, x
 @variables u(..)

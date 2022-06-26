@@ -1,6 +1,12 @@
 [deps]
+DiffEqFlux = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+Optimization = "7f7a1694-90dd-40f0-9382-eb1efda571ba"
+OptimizationFlux = "253f991c-a7b2-45f8-8852-8b9a9df78a86"
+OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
+OptimizationPolyalgorithms = "500b13db-7e66-49ce-bda4-eed966be6282"
+QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
 
 [compat]
 Documenter = "0.27"

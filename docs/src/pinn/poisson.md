@@ -28,7 +28,7 @@ with grid discretization `dx = 0.1` using physics-informed neural networks.
 ## Copy-Pastable Code
 
 ```@example
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using NeuralPDE, Flux, Optimization, OptimizationOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
