@@ -561,7 +561,7 @@ function build_symbolic_loss_function(eqs,indvars,depvars,
         params_symbols = Symbol[]
         expr_params = Expr[]
         for (i , eq_param) in enumerate(eq_params)
-            push!(expr_params, :(ArrayInterface.allowed_getindex(p,$i:$i)))
+            push!(expr_params, :(ArrayInterfaceCore.allowed_getindex(p,$i:$i)))
             push!(params_symbols, Symbol(:($eq_param)))
         end
         params_eq = Expr(:(=), build_expr(:tuple, params_symbols), build_expr(:tuple, expr_params))

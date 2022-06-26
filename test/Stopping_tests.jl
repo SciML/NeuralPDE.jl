@@ -1,5 +1,4 @@
 using Test, Flux , StochasticDiffEq , LinearAlgebra
-println("Optimal Stopping Time Test")
 using NeuralPDE
 
 using Random

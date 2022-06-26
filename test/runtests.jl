@@ -9,12 +9,21 @@ const is_TRAVIS = haskey(ENV,"TRAVIS")
 
 const is_CI = haskey(ENV,"CI")
 
+function dev_subpkg(subpkg)
+    subpkg_path = joinpath(dirname(@__DIR__), "lib", subpkg)
+    Pkg.develop(PackageSpec(path=subpkg_path))
+end
+
 @time begin
   if GROUP == "All" || GROUP == "NNODE"
       @time @safetestset "NNODE" begin include("NNODE_tests.jl") end
   end
-  if GROUP == "All" || GROUP == "NNPDE"
+  if GROUP == "All" || GROUP == "NNPDE1"
       @time @safetestset "NNPDE" begin include("NNPDE_tests.jl") end
+  end
+  if GROUP == "All" || GROUP == "NNPDE2"
+    @time @safetestset "Additional Loss" begin include("additional_loss_tests.jl") end
+    @time @safetestset "Direction Function Approximation" begin include("direct_function_tests.jl") end
   end
   if GROUP == "All" || GROUP == "NeuralAdapter"
       @time @safetestset "NeuralAdapter" begin include("neural_adapter_tests.jl") end
@@ -39,7 +48,9 @@ const is_CI = haskey(ENV,"CI")
         @time @safetestset "Forward" begin include("forward_tests.jl") end
   end
   if GROUP == "All" || GROUP == "Logging"
-        @time @safetestset "Logging" begin include("logging_tests.jl") end
+        dev_subpkg("NeuralPDELogging")
+        subpkg_path = joinpath(dirname(@__DIR__), "lib", "NeuralPDELogging")
+        Pkg.test(PackageSpec(name="NeuralPDELogging", path=subpkg_path))
   end
   if !is_APPVEYOR && GROUP == "GPU"
      @safetestset "NNPDE_gpu" begin include("NNPDE_tests_gpu.jl") end

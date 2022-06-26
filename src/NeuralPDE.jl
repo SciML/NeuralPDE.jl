@@ -6,18 +6,18 @@ module NeuralPDE
 using DocStringExtensions
 using Reexport, Statistics
 @reexport using DiffEqBase
+@reexport using ModelingToolkit
 
-using Flux, Zygote, DiffEqSensitivity, ForwardDiff, Random, Distributions
-using DiffEqFlux, Adapt, DiffEqNoiseProcess, CUDA, StochasticDiffEq
-using ModelingToolkit
+using Flux, Zygote, ForwardDiff, Random, Distributions
+using DiffEqFlux, Adapt, DiffEqNoiseProcess, StochasticDiffEq
 using Optimization
-using Quadrature, QuadratureCubature
+using Integrals, IntegralsCubature
 using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 using Statistics
-using ArrayInterface
-import Tracker, Optim
+using ArrayInterfaceCore
+import Optim
 using DomainSets
 using Symbolics
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
@@ -140,36 +140,6 @@ function Base.show(io::IO, A::ParamKolmogorovPDEProblem)
   println(io,"Sigma")
   show(io , A.g)
 end
-
-"""
-Algorithm for solving differential equation using a neural network.
-Arguments:
-* `chain`: A Chain neural network
-* `opt`: The optimizer to train the neural network. Defaults to `BFGS()`.
-* `initθ`: The initial parameter of the neural network.
-* `autodiff`: The switch between automatic and numerical differentiation for
-              the PDE operators. The reverse mode of the loss function is always AD.
-"""
-struct NNODE{C,O,P,K} <: NeuralPDEAlgorithm
-    chain::C
-    opt::O
-    initθ::P
-    autodiff::Bool
-    kwargs::K
-end
-function NNODE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
-    if init_params === nothing
-        if chain isa FastChain
-            initθ = DiffEqFlux.initial_params(chain)
-        else
-            initθ,re  = Flux.destructure(chain)
-        end
-    else
-        initθ = init_params
-    end
-    NNODE(chain,opt,initθ,autodiff,kwargs)
-end
-
 
 include("training_strategies.jl")
 include("adaptive_losses.jl")

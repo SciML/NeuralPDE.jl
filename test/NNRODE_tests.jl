@@ -1,6 +1,4 @@
-println("RODE Tests")
-using Flux, OptimizationFlux , StochasticDiffEq, DiffEqNoiseProcess , Optim, Test
-println("RODE_tests")
+using Flux, OptimizationFlux, StochasticDiffEq, DiffEqNoiseProcess, Optim, Test
 using  NeuralPDE
 
 using Random

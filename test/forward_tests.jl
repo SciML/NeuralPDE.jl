@@ -1,11 +1,5 @@
-using OptimizationFlux
-println("forward_tests")
 using DiffEqFlux
-println("Starting Soon!")
-using ModelingToolkit
-using DiffEqBase
 using Test, NeuralPDE
-println("Starting Soon!")
 using SciMLBase
 using DomainSets
 import ModelingToolkit: Interval

@@ -1,19 +1,9 @@
-@info "adaptive_reweighting_tests"
-using Flux, OptimizationFlux
+using Optimization, OptimizationFlux
 using DiffEqFlux
-using ModelingToolkit
-using DiffEqBase
 using Test, NeuralPDE
-using Optimization
-using OptimizationOptimJL
-using Quadrature,Cubature, Cuba
-using QuasiMonteCarlo
-using SciMLBase
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 using Random
-#using Plots
-@info "Starting Soon!"
 
 nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights=1, bc_loss_weights=1)
 gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weights=1e3, bc_loss_weights=1)

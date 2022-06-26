@@ -9,7 +9,7 @@ NeuralPDE = "315f7962-48a3-4962-8226-d0f33b1235f0"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 
 [compat]
-NeuralPDE = "4"
+NeuralPDE = "5"
 TensorBoardLogger = "0.1"
 julia = "1.6"
 

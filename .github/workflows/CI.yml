@@ -14,9 +14,8 @@ jobs:
       matrix:
         group:
           - NNODE
-          - NNPDEHan
-          - NNPDENS
-          - NNPDE
+          - NNPDE1
+          - NNPDE2
           - AdaptiveLoss
           - NeuralAdapter
           - IntegroDiff
