@@ -2,7 +2,7 @@ using Flux, OptimizationFlux
 using DiffEqFlux
 using Test, NeuralPDE
 using Optimization
-using CUDA
+using CUDA, QuasiMonteCarlo
 import ModelingToolkit: Interval, infimum, supremum
 
 using Random
