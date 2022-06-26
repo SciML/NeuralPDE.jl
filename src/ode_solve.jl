@@ -86,7 +86,7 @@ function DiffEqBase.solve(
     ts = tspan[1]:dt:tspan[2]
     initθ = alg.initθ
 
-    if !isinplace(prob)
+    if isinplace(prob)
         throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
     end
     

@@ -3,6 +3,9 @@ using Optimization, OptimizationOptimJL, OptimizationFlux
 using QuasiMonteCarlo
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
+using Random
+
+Random.seed!(100)
 
 ## Approximation of function 1D
 println("Approximation of function 1D")
