@@ -52,12 +52,13 @@ depvars = [u(x, t)]
 dict_depvars_input = Dict(:u => [:x, :t])
 dim = length(domains)
 dx = 0.1
+multioutput = chain isa AbstractArray
 strategy = NeuralPDE.GridTraining(dx)
-integral = NeuralPDE.get_numeric_integral(strategy, indvars, depvars, chain, derivative)
+integral = NeuralPDE.get_numeric_integral(strategy, indvars, multioutput, chain, derivative)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,integral,chain,initθ,strategy)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,integral,multioutput,initθ,strategy)
 
-julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,chain,initθ,strategy)
+julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,multioutput,initθ,strategy)
 
 :((cord, var"##θ#529", phi, derivative, integral, u)->begin
           begin
@@ -75,11 +76,11 @@ julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
  [:x]
 
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
-                                                     phi,derivative,integral,chain,initθ,strategy,
+                                                     phi,derivative,integral,multioutput,initθ,strategy,
                                                      bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,dict_depvars_input,
-                                                                        phi,derivative,integral,chain,initθ,strategy,
+                                                                        phi,derivative,integral,multioutput,initθ,strategy,
                                                                         bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 4-element Array{Expr,1}:
  :((cord, var"##θ#529", phi, derivative, integral, u)->begin

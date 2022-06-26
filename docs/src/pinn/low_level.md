@@ -48,14 +48,15 @@ derivative = NeuralPDE.get_numeric_derivative()
 
 indvars = [t,x]
 depvars = [u]
+multioutput = chain isa AbstractArray
 
 _pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,nothing,
-                                                   chain,initθ,strategy)
+                                                   multioutput,initθ,strategy)
 
 
 bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
-                                                    phi,derivative,nothing,chain,initθ,strategy,
+                                                    phi,derivative,nothing,multioutput,initθ,strategy,
                                                     bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 train_sets = NeuralPDE.generate_training_sets(domains,dx,[eq],bcs,eltypeθ,indvars,depvars)
