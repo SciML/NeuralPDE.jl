@@ -51,12 +51,13 @@ depvars = [u(x, t)]
 dict_depvars_input = Dict(:u =&gt; [:x, :t])
 dim = length(domains)
 dx = 0.1
+multioutput = chain isa AbstractArray
 strategy = NeuralPDE.GridTraining(dx)
-integral = NeuralPDE.get_numeric_integral(strategy, indvars, depvars, chain, derivative)
+integral = NeuralPDE.get_numeric_integral(strategy, indvars, multioutput, chain, derivative)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,integral,chain,initθ,strategy)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,integral,multioutput,initθ,strategy)
 
-julia&gt; expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,chain,initθ,strategy)
+julia&gt; expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,multioutput,initθ,strategy)
 
 :((cord, var&quot;##θ#529&quot;, phi, derivative, integral, u)-&gt;begin
           begin
@@ -74,11 +75,11 @@ julia&gt; bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
  [:x]
 
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
-                                                     phi,derivative,integral,chain,initθ,strategy,
+                                                     phi,derivative,integral,multioutput,initθ,strategy,
                                                      bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 julia&gt; expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,dict_depvars_input,
-                                                                        phi,derivative,integral,chain,initθ,strategy,
+                                                                        phi,derivative,integral,multioutput,initθ,strategy,
                                                                         bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 4-element Array{Expr,1}:
  :((cord, var&quot;##θ#529&quot;, phi, derivative, integral, u)-&gt;begin
@@ -146,4 +147,4 @@ prob = NeuralPDE.discretize(pde_system,discretization)
 
 expr_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 expr_pde_loss_function , expr_bc_loss_functions = expr_prob
-</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../integro_diff/">« Integro Differential Equations</a><a class="docs-footer-nextpage" href="../neural_adapter/">Transfer Learning with Neural Adapter »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.19 on <span class="colophon-date" title="Sunday 26 June 2022 00:07">Sunday 26 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../integro_diff/">« Integro Differential Equations</a><a class="docs-footer-nextpage" href="../neural_adapter/">Transfer Learning with Neural Adapter »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.19 on <span class="colophon-date" title="Sunday 26 June 2022 00:14">Sunday 26 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
