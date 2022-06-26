@@ -1,6 +1,6 @@
 """
 ```julia
-NNODE(chain,opt=Optim.BFGS(),init_params = nothing;
+NNODE(chain, opt=OptimizationPolyalgorithms.PolyOpt(), init_params = nothing;
                           autodiff=false,kwargs...)
 ```
 
@@ -9,9 +9,10 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Positional Arguments
 
-* `chain`: A Chain neural network
-* `opt`: The optimizer to train the neural network. Defaults to `BFGS()`.
-* `initθ`: The initial parameter of the neural network.
+* `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.Chain`.
+* `opt`: The optimizer to train the neural network. Defaults to `OptimizationPolyalgorithms.PolyOpt()`
+* `initθ`: The initial parameter of the neural network. By default this is `nothing`
+  which thus uses the random initialization provided by the neural network library.
 
 ## Keyword Arguments
 
@@ -28,7 +29,7 @@ tspan = (0.0f0, 1.0f0)
 u0 = 0.0f0
 prob = ODEProblem(linear, u0 ,tspan)
 chain = Flux.Chain(Dense(1,5,σ),Dense(5,1))
-opt = Flux.ADAM(0.1, (0.9, 0.95))
+opt = Flux.ADAM(0.1)
 sol = solve(prob, NeuralPDE.NNODE(chain,opt), dt=1/20f0, verbose = true,
             abstol=1e-10, maxiters = 200)
 ```
@@ -45,7 +46,7 @@ struct NNODE{C,O,P,K} <: NeuralPDEAlgorithm
     autodiff::Bool
     kwargs::K
 end
-function NNODE(chain,opt=Optim.BFGS(),init_params = nothing;autodiff=false,kwargs...)
+function NNODE(chain, opt, init_params = nothing; autodiff=false, kwargs...)
     if init_params === nothing
         if chain isa FastChain
             initθ = DiffEqFlux.initial_params(chain)
@@ -85,6 +86,10 @@ function DiffEqBase.solve(
     ts = tspan[1]:dt:tspan[2]
     initθ = alg.initθ
 
+    if !isinplace(prob)
+        throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
+    end
+    
     if chain isa FastChain
         #The phi trial solution
         if u0 isa Number
@@ -106,7 +111,7 @@ function DiffEqBase.solve(
         phi(t0 , initθ)
     catch err
         if isa(err , DimensionMismatch)
-            throw( throw(DimensionMismatch("Dimensions of the initial u0 and chain should match")))
+            throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
         else
             throw(err)
         end
@@ -115,7 +120,7 @@ function DiffEqBase.solve(
     if autodiff
         dfdx = (t,θ) -> ForwardDiff.derivative(t->phi(t,θ),t)
     else
-        dfdx = (t,θ) -> (phi(t+sqrt(eps(t)),θ) - phi(t,θ))/sqrt(eps(t))
+        dfdx = (t,θ) -> (phi(t+sqrt(eps(typeof(t))),θ) - phi(t,θ))/sqrt(eps(typeof(t)))
     end
 
     function inner_loss(t,θ)

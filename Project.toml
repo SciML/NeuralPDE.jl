@@ -62,7 +62,6 @@ julia = "1.6"
 
 [extras]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-DiffEqDevTools = "f3b72e0c-5b89-59e1-b016-84e28bfd966d"
 OptimizationFlux = "253f991c-a7b2-45f8-8852-8b9a9df78a86"
 OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
@@ -72,4 +71,4 @@ SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test",  "CUDA", "SafeTestsets", "DiffEqDevTools", "OptimizationFlux", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "IntegralsCuba"]
+test = ["Test",  "CUDA", "SafeTestsets", "OptimizationFlux", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "IntegralsCuba"]
