@@ -11,12 +11,12 @@ end
 * `points`: number of points in random select training set,
 * `bcs_points`: number of points in random select training set for boundry conditions (by default, it equals `points`).
 """
-struct StochasticTraining <:AbstractTrainingStrategy
-    points:: Int64
-    bcs_points:: Int64
+struct StochasticTraining <: AbstractTrainingStrategy
+    points::Int64
+    bcs_points::Int64
 end
 
-function StochasticTraining(points;bcs_points = points)
+function StochasticTraining(points; bcs_points = points)
     StochasticTraining(points, bcs_points)
 end
 
@@ -32,16 +32,18 @@ end
 
 For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMonteCarlo.jl
 """
-struct QuasiRandomTraining <:AbstractTrainingStrategy
-    points:: Int64
-    bcs_points:: Int64
+struct QuasiRandomTraining <: AbstractTrainingStrategy
+    points::Int64
+    bcs_points::Int64
     sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
-    resampling:: Bool
-    minibatch:: Int64
+    resampling::Bool
+    minibatch::Int64
 end
 
-function QuasiRandomTraining(points;bcs_points = points, sampling_alg = LatinHypercubeSample(),resampling =true, minibatch=0)
-    QuasiRandomTraining(points,bcs_points,sampling_alg,resampling,minibatch)
+function QuasiRandomTraining(points; bcs_points = points,
+                             sampling_alg = LatinHypercubeSample(), resampling = true,
+                             minibatch = 0)
+    QuasiRandomTraining(points, bcs_points, sampling_alg, resampling, minibatch)
 end
 
 """
@@ -53,7 +55,8 @@ end
 
 For more information look: Integrals.jl https://github.com/SciML/Integrals.jl
 """
-struct QuadratureTraining{Q<:SciMLBase.AbstractIntegralAlgorithm,T} <: AbstractTrainingStrategy
+struct QuadratureTraining{Q <: SciMLBase.AbstractIntegralAlgorithm, T} <:
+       AbstractTrainingStrategy
     quadrature_alg::Q
     reltol::T
     abstol::T

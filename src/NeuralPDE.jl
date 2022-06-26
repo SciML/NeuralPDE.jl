@@ -40,30 +40,33 @@ Consider `du/dt = l(u) + f(u)`; where l is the nonlinear Lipschitz function
 * `x0`: The initial X for the problem.
 * `tspan`: The timespan of the problem.
 """
-struct TerminalPDEProblem{G,F,Mu,Sigma,X,T,P,A,UD,K} <: SciMLBase.SciMLProblem
+struct TerminalPDEProblem{G, F, Mu, Sigma, X, T, P, A, UD, K} <: SciMLBase.SciMLProblem
     g::G
     f::F
     μ::Mu
     σ::Sigma
     X0::X
-    tspan::Tuple{T,T}
+    tspan::Tuple{T, T}
     p::P
     A::A
     u_domain::UD
     kwargs::K
-    TerminalPDEProblem(g,f,μ,σ,X0,tspan,p=nothing;A=nothing,u_domain=nothing,kwargs...) = new{typeof(g),typeof(f),
-                                                         typeof(μ),typeof(σ),
-                                                         typeof(X0),eltype(tspan),
-                                                         typeof(p),typeof(A),typeof(u_domain),typeof(kwargs)}(
-                                                         g,f,μ,σ,X0,tspan,p,A,u_domain,kwargs)
+    function TerminalPDEProblem(g, f, μ, σ, X0, tspan, p = nothing; A = nothing,
+                                u_domain = nothing, kwargs...)
+        new{typeof(g), typeof(f),
+            typeof(μ), typeof(σ),
+            typeof(X0), eltype(tspan),
+            typeof(p), typeof(A), typeof(u_domain), typeof(kwargs)}(g, f, μ, σ, X0, tspan,
+                                                                    p, A, u_domain, kwargs)
+    end
 end
 
 Base.summary(prob::TerminalPDEProblem) = string(nameof(typeof(prob)))
 
 function Base.show(io::IO, A::TerminalPDEProblem)
-  println(io,summary(A))
-  print(io,"timespan: ")
-  show(io,A.tspan)
+    println(io, summary(A))
+    print(io, "timespan: ")
+    show(io, A.tspan)
 end
 
 """
@@ -78,45 +81,52 @@ A standard Kolmogorov PDE Problem.
 * `d`: The dimensions of the input x.
 * `noise_rate_prototype`: A prototype type instance for the noise rates, that is the output g.
 """
-struct KolmogorovPDEProblem{ F, G, Phi, X , T , D ,P,U0, ND} <: DiffEqBase.DEProblem
+struct KolmogorovPDEProblem{F, G, Phi, X, T, D, P, U0, ND} <: DiffEqBase.DEProblem
     f::F
     g::G
     phi::Phi
-    xspan::Tuple{X,X}
-    tspan::Tuple{T,T}
+    xspan::Tuple{X, X}
+    tspan::Tuple{T, T}
     d::D
     p::P
     u0::U0
     noise_rate_prototype::ND
-    KolmogorovPDEProblem( f, g, phi , xspan , tspan , d, p=nothing, u0=0 , noise_rate_prototype= nothing) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(p),typeof(u0),typeof(noise_rate_prototype)}(f,g,phi,xspan,tspan,d,p,u0,noise_rate_prototype)
+    function KolmogorovPDEProblem(f, g, phi, xspan, tspan, d, p = nothing, u0 = 0,
+                                  noise_rate_prototype = nothing)
+        new{typeof(f), typeof(g), typeof(phi), eltype(tspan), eltype(xspan), typeof(d),
+            typeof(p), typeof(u0), typeof(noise_rate_prototype)}(f, g, phi, xspan, tspan, d,
+                                                                 p, u0,
+                                                                 noise_rate_prototype)
+    end
 end
 
 Base.summary(prob::KolmogorovPDEProblem) = string(nameof(typeof(prob)))
 function Base.show(io::IO, A::KolmogorovPDEProblem)
-  println(io,summary(A))
-  print(io,"timespan: ")
-  show(io,A.tspan)
-  print(io,"xspan: ")
-  show(io,A.xspan)
-  println(io , "μ")
-  show(io , A.f)
-  println(io,"Sigma")
-  show(io , A.g)
+    println(io, summary(A))
+    print(io, "timespan: ")
+    show(io, A.tspan)
+    print(io, "xspan: ")
+    show(io, A.xspan)
+    println(io, "μ")
+    show(io, A.f)
+    println(io, "Sigma")
+    show(io, A.g)
 end
 
 abstract type ParametersDomain end
-struct KolmogorovParamDomain{T} <:ParametersDomain
-           sigma::Tuple{T,T}
-           mu::Tuple{T,T}
-           phi::Tuple{T,T}
+struct KolmogorovParamDomain{T} <: ParametersDomain
+    sigma::Tuple{T, T}
+    mu::Tuple{T, T}
+    phi::Tuple{T, T}
 end
 
-struct ParamKolmogorovPDEProblem{ F, G, Phi, X , T , D, YD , P,U0 , YSP , YMP ,YPH, NP} <: DiffEqBase.DEProblem
+struct ParamKolmogorovPDEProblem{F, G, Phi, X, T, D, YD, P, U0, YSP, YMP, YPH, NP} <:
+       DiffEqBase.DEProblem
     f::F
     g::G
     phi::Phi
-    xspan::Tuple{X,X}
-    tspan::Tuple{T,T}
+    xspan::Tuple{X, X}
+    tspan::Tuple{T, T}
     d::D
     Y_domain::YD
     p::P
@@ -125,20 +135,39 @@ struct ParamKolmogorovPDEProblem{ F, G, Phi, X , T , D, YD , P,U0 , YSP , YMP ,Y
     Y_mu_prototype::YMP
     Y_phi_prototype::YPH
     noise_rate_prototype::NP
-    ParamKolmogorovPDEProblem( f, g, phi , xspan , tspan , d, Y_domain, p=nothing, u0=0 ; Y_sigma_prototype=nothing , Y_mu_prototype=nothing , Y_phi_prototype=nothing , noise_rate_prototype= nothing) = new{typeof(f),typeof(g),typeof(phi),eltype(tspan),eltype(xspan),typeof(d),typeof(Y_domain),typeof(p),typeof(u0),typeof(Y_sigma_prototype),typeof(Y_mu_prototype),typeof(Y_phi_prototype),typeof(noise_rate_prototype)}(f,g,phi,xspan,tspan,d,Y_domain,p,u0 , Y_sigma_prototype,Y_mu_prototype,Y_phi_prototype,noise_rate_prototype)
+    function ParamKolmogorovPDEProblem(f, g, phi, xspan, tspan, d, Y_domain, p = nothing,
+                                       u0 = 0; Y_sigma_prototype = nothing,
+                                       Y_mu_prototype = nothing, Y_phi_prototype = nothing,
+                                       noise_rate_prototype = nothing)
+        new{typeof(f), typeof(g), typeof(phi), eltype(tspan), eltype(xspan), typeof(d),
+            typeof(Y_domain), typeof(p), typeof(u0), typeof(Y_sigma_prototype),
+            typeof(Y_mu_prototype), typeof(Y_phi_prototype), typeof(noise_rate_prototype)}(f,
+                                                                                           g,
+                                                                                           phi,
+                                                                                           xspan,
+                                                                                           tspan,
+                                                                                           d,
+                                                                                           Y_domain,
+                                                                                           p,
+                                                                                           u0,
+                                                                                           Y_sigma_prototype,
+                                                                                           Y_mu_prototype,
+                                                                                           Y_phi_prototype,
+                                                                                           noise_rate_prototype)
+    end
 end
 
 Base.summary(prob::ParamKolmogorovPDEProblem) = string(nameof(typeof(prob)))
 function Base.show(io::IO, A::ParamKolmogorovPDEProblem)
-  println(io,summary(A))
-  print(io,"timespan: ")
-  show(io,A.tspan)
-  print(io,"xspan: ")
-  show(io,A.xspan)
-  println(io , "μ")
-  show(io , A.f)
-  println(io,"Sigma")
-  show(io , A.g)
+    println(io, summary(A))
+    print(io, "timespan: ")
+    show(io, A.tspan)
+    print(io, "xspan: ")
+    show(io, A.xspan)
+    println(io, "μ")
+    show(io, A.f)
+    println(io, "Sigma")
+    show(io, A.g)
 end
 
 include("training_strategies.jl")
@@ -153,15 +182,16 @@ include("neural_adapter.jl")
 include("param_kolmogorov_solve.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
-       KolmogorovPDEProblem, NNKolmogorov, NNStopping,ParamKolmogorovPDEProblem,KolmogorovParamDomain, NNParamKolmogorov,
+       KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
+       KolmogorovParamDomain, NNParamKolmogorov,
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
        build_loss_function, get_loss_function,
        generate_training_sets, get_variables, get_argument, get_bounds,
        get_phi, get_numeric_derivative, get_numeric_integral,
        build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
-       AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss, MiniMaxAdaptiveLoss,
+       AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
+       MiniMaxAdaptiveLoss,
        LogOptions
-
 
 end # module

@@ -61,7 +61,8 @@ is an accuate interpolation (up to the neural network training result). In addit
 Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving 
 ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.
 """
-struct NNODE{C,O,P,K,S <: Union{Nothing,AbstractTrainingStrategy}} <: NeuralPDEAlgorithm
+struct NNODE{C, O, P, K, S <: Union{Nothing, AbstractTrainingStrategy}} <:
+       NeuralPDEAlgorithm
     chain::C
     opt::O
     initθ::P
@@ -72,8 +73,8 @@ struct NNODE{C,O,P,K,S <: Union{Nothing,AbstractTrainingStrategy}} <: NeuralPDEA
 end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
-               autodiff=false, batch = 0, kwargs...)
-    NNODE(chain,opt,init_params,autodiff,batch,strategy,kwargs)
+               autodiff = false, batch = 0, kwargs...)
+    NNODE(chain, opt, init_params, autodiff, batch, strategy, kwargs)
 end
 
 """
@@ -90,111 +91,113 @@ struct ODEPhi{C, T, U}
     t0::T
     u0::U
 
-    ODEPhi(chain::FastChain, t::Number, u0) = new{typeof(chain), typeof(t), typeof(u0)}(chain, t, u0)
+    function ODEPhi(chain::FastChain, t::Number, u0)
+        new{typeof(chain), typeof(t), typeof(u0)}(chain, t, u0)
+    end
     function ODEPhi(chain::Flux.Chain, t, u0)
-        p,re = Flux.destructure(chain)
+        p, re = Flux.destructure(chain)
         new{typeof(re), typeof(t), typeof(u0)}(re, t, u0)
     end
 end
 
-function (f::ODEPhi{C, T, U})(t,θ) where {C<:FastChain, T, U<:Number} 
-    f.u0 + (t-f.t0) * first(f.chain(adapt(parameterless_type(θ),[t]),θ))
+function (f::ODEPhi{C, T, U})(t, θ) where {C <: FastChain, T, U <: Number}
+    f.u0 + (t - f.t0) * first(f.chain(adapt(parameterless_type(θ), [t]), θ))
 end
 
-function (f::ODEPhi{C, T, U})(t,θ) where {C<:FastChain, T, U} 
-    f.u0 + (t-f.t0) * f.chain(adapt(parameterless_type(θ),[t]),θ)
+function (f::ODEPhi{C, T, U})(t, θ) where {C <: FastChain, T, U}
+    f.u0 + (t - f.t0) * f.chain(adapt(parameterless_type(θ), [t]), θ)
 end
 
-function (f::ODEPhi{C, T, U})(t,θ) where {C<:Optimisers.Restructure, T, U<:Number} 
-    f.u0 + (t-f.t0)*first(f.chain(θ)(adapt(parameterless_type(θ),[t])))
+function (f::ODEPhi{C, T, U})(t, θ) where {C <: Optimisers.Restructure, T, U <: Number}
+    f.u0 + (t - f.t0) * first(f.chain(θ)(adapt(parameterless_type(θ), [t])))
 end
 
-function (f::ODEPhi{C, T, U})(t,θ) where {C<:Optimisers.Restructure, T, U} 
-    f.u0 + (t-f.t0) * f.chain(θ)(adapt(parameterless_type(θ),[t]))
+function (f::ODEPhi{C, T, U})(t, θ) where {C <: Optimisers.Restructure, T, U}
+    f.u0 + (t - f.t0) * f.chain(θ)(adapt(parameterless_type(θ), [t]))
 end
 
 """
 Computes u' using either forward-mode automatic differentiation or
 numerical differentiation.
 """
-function ode_dfdx(phi::ODEPhi,t::Number,θ,autodiff::Bool)
+function ode_dfdx(phi::ODEPhi, t::Number, θ, autodiff::Bool)
     if autodiff
-        ForwardDiff.derivative(t->phi(t,θ),t)
+        ForwardDiff.derivative(t -> phi(t, θ), t)
     else
-        (phi(t+sqrt(eps(typeof(t))),θ) - phi(t,θ))/sqrt(eps(typeof(t)))
+        (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
     end
 end
 
 """
 Simple L2 inner loss at a time `t` with parameters θ
 """
-function inner_loss(phi,f,autodiff::Bool,t,θ,p)
-    sum(abs2,ode_dfdx(phi,t,θ,autodiff) - f(phi(t,θ),p,t))
+function inner_loss(phi, f, autodiff::Bool, t, θ, p)
+    sum(abs2, ode_dfdx(phi, t, θ, autodiff) - f(phi(t, θ), p, t))
 end
 
 """
 Representation of the loss function, paramtric on the training strategy `strategy`
 """
-function generate_loss(strategy::QuadratureTraining,phi,f,autodiff::Bool,tspan,p)
-    integrand(t::Number,θ) = abs2(inner_loss(phi,f,autodiff,t,θ,p))
-    integrand(ts,θ) = [abs2(inner_loss(phi,f,autodiff,t,θ,p)) for t in ts]
+function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p)
+    integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p))
+    integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p)) for t in ts]
 
-    function loss(θ,p)
+    function loss(θ, p)
         intprob = IntegralProblem(integrand, tspan[1], tspan[2], θ)
-        sol = solve(intprob,QuadGKJL();abstol=strategy.abstol,reltol=strategy.reltol)
+        sol = solve(intprob, QuadGKJL(); abstol = strategy.abstol, reltol = strategy.reltol)
         sol.u
     end
 
     # Default this to ForwardDiff until Integrals.jl autodiff is sorted out
-    OptimizationFunction(loss,Optimization.AutoForwardDiff())
+    OptimizationFunction(loss, Optimization.AutoForwardDiff())
 end
 
-function generate_loss(strategy::GridTraining,phi,f,autodiff::Bool,tspan,p)
-    ts = tspan[1]:strategy.dx:tspan[2]
+function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p)
+    ts = tspan[1]:(strategy.dx):tspan[2]
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
-    function loss(θ,p) 
-        sum(abs2,[inner_loss(phi,f,autodiff,t,θ,p) for t in ts])
+    function loss(θ, p)
+        sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
     end
-    optf = OptimizationFunction(loss,Optimization.AutoZygote())
+    optf = OptimizationFunction(loss, Optimization.AutoZygote())
 end
 
-function generate_loss(strategy::StochasticTraining,phi,f,autodiff::Bool,tspan,p)
+function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
-    function loss(θ,p)
+    function loss(θ, p)
         # (tspan[2]-tspan[1])*rand() + tspan[1] gives Uniform(tspan[1],tspan[2])
-        sum(abs2,[inner_loss(phi,f,autodiff,(tspan[2]-tspan[1])*rand() + tspan[1],θ,p) for i in 1:strategy.points])
+        sum(abs2,
+            [inner_loss(phi, f, autodiff, (tspan[2] - tspan[1]) * rand() + tspan[1], θ, p)
+             for i in 1:(strategy.points)])
     end
-    optf = OptimizationFunction(loss,Optimization.AutoZygote())
+    optf = OptimizationFunction(loss, Optimization.AutoZygote())
 end
 
-function generate_loss(strategy::QuasiRandomTraining,phi,f,autodiff::Bool,tspan)
+function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
 
-struct NNODEInterpolation{T<:ODEPhi,T2}
+struct NNODEInterpolation{T <: ODEPhi, T2}
     phi::T
     θ::T2
 end
-(f::NNODEInterpolation)(t, idxs::Nothing, ::Type{Val{0}}, p, continuity) = f.phi(t,f.θ)
-(f::NNODEInterpolation)(t, idxs, ::Type{Val{0}}, p, continuity) = f.phi(t,f.θ)[idxs]
+(f::NNODEInterpolation)(t, idxs::Nothing, ::Type{Val{0}}, p, continuity) = f.phi(t, f.θ)
+(f::NNODEInterpolation)(t, idxs, ::Type{Val{0}}, p, continuity) = f.phi(t, f.θ)[idxs]
 
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
 
-function DiffEqBase.__solve(
-    prob::DiffEqBase.AbstractODEProblem,
-    alg::NNODE,
-    args...;
-    dt = nothing,
-    timeseries_errors = true,
-    save_everystep=true,
-    adaptive=false,
-    abstol = 1f-6,
-    reltol = 1f-3,
-    verbose = false,
-    saveat = nothing,
-    maxiters = 100)
-
+function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
+                            alg::NNODE,
+                            args...;
+                            dt = nothing,
+                            timeseries_errors = true,
+                            save_everystep = true,
+                            adaptive = false,
+                            abstol = 1.0f-6,
+                            reltol = 1.0f-3,
+                            verbose = false,
+                            saveat = nothing,
+                            maxiters = 100)
     u0 = prob.u0
     tspan = prob.tspan
     f = prob.f
@@ -202,8 +205,8 @@ function DiffEqBase.__solve(
     t0 = tspan[1]
 
     #hidden layer
-    chain  = alg.chain
-    opt    = alg.opt
+    chain = alg.chain
+    opt = alg.opt
     autodiff = alg.autodiff
 
     #train points generation
@@ -213,7 +216,7 @@ function DiffEqBase.__solve(
         if chain isa FastChain
             initθ = DiffEqFlux.initial_params(chain)
         else
-            initθ,re  = Flux.destructure(chain)
+            initθ, re = Flux.destructure(chain)
         end
     else
         initθ = initθ
@@ -223,12 +226,12 @@ function DiffEqBase.__solve(
         throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
     end
 
-    phi = ODEPhi(chain,t0,u0)
+    phi = ODEPhi(chain, t0, u0)
 
     try
-        phi(t0 , initθ)
+        phi(t0, initθ)
     catch err
-        if isa(err , DimensionMismatch)
+        if isa(err, DimensionMismatch)
             throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
         else
             throw(err)
@@ -239,47 +242,51 @@ function DiffEqBase.__solve(
         if dt !== nothing
             GridTraining(dt)
         else
-            QuadratureTraining(;quadrature_alg=QuadGKJL(), reltol = convert(eltype(u0),reltol), 
-                                abstol = convert(eltype(u0),abstol), maxiters = maxiters, batch=alg.batch)
+            QuadratureTraining(; quadrature_alg = QuadGKJL(),
+                               reltol = convert(eltype(u0), reltol),
+                               abstol = convert(eltype(u0), abstol), maxiters = maxiters,
+                               batch = alg.batch)
         end
     else
         alg.strategy
     end
 
-    optf = generate_loss(strategy,phi,f,autodiff::Bool,tspan,p)
+    optf = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p)
 
-    callback = function (p,l)
+    callback = function (p, l)
         verbose && println("Current loss is: $l")
         l < abstol
     end
-    
+
     optprob = OptimizationProblem(optf, initθ)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     #solutions at timepoints
     if saveat isa Number
         ts = tspan[1]:saveat:tspan[2]
-    elseif saveat isa AbstractArray 
+    elseif saveat isa AbstractArray
         ts = saveat
     elseif dt !== nothing
         ts = tspan[1]:dt:tspan[2]
     elseif save_everystep
-        ts = range(tspan[1],tspan[2],length = 100)
+        ts = range(tspan[1], tspan[2], length = 100)
     else
-        ts = [tspan[1],tspan[2]]
+        ts = [tspan[1], tspan[2]]
     end
 
     if u0 isa Number
-        u = [first(phi(t,res.u)) for t in ts]
+        u = [first(phi(t, res.u)) for t in ts]
     else
-        u = [phi(t,res.u) for t in ts]
+        u = [phi(t, res.u) for t in ts]
     end
 
-    
-    sol = DiffEqBase.build_solution(prob,alg,ts,u;
+    sol = DiffEqBase.build_solution(prob, alg, ts, u;
                                     k = res, dense = true,
-                                    interp = NNODEInterpolation(phi,res.u), calculate_error = false,
+                                    interp = NNODEInterpolation(phi, res.u),
+                                    calculate_error = false,
                                     retcode = :Success)
-    DiffEqBase.has_analytic(prob.f) && DiffEqBase.calculate_solution_errors!(sol;timeseries_errors=true,dense_errors=false)
+    DiffEqBase.has_analytic(prob.f) &&
+        DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
+                                              dense_errors = false)
     sol
 end #solve
