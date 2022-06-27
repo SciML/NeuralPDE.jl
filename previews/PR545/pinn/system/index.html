@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Systems of PDEs · NeuralPDE.jl</title><script async src="https://www.googletagmanager.com/gtag/js?id=UA-90474609-3"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-90474609-3', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="../../assets/warner.js"></script><link rel="canonical" href="https://neuralpde.sciml.ai/stable/pinn/system/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.044/juliamono.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations</a></li><li><span class="tocitem">Physics-Informed Neural Network Tutorials</span><ul><li><a class="tocitem" href="../poisson/">Poisson Equation</a></li><li><a class="tocitem" href="../wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../2D/">2-dimensional PDEs with GPU</a></li><li class="is-active"><a class="tocitem" href>Systems of PDEs</a><ul class="internal"><li><a class="tocitem" href="#Derivative-neural-network-approximation"><span>Derivative neural network approximation</span></a></li><li><a class="tocitem" href="#Comparison-of-the-second-numerical-derivative-and-numerical-neural-network-derivative"><span>Comparison of the second numerical derivative and numerical + neural network derivative</span></a></li><li><a class="tocitem" href="#Solving-Matrices-of-PDEs"><span>Solving Matrices of PDEs</span></a></li><li><a class="tocitem" href="#Linear-parabolic-system-of-PDEs"><span>Linear parabolic system of PDEs</span></a></li><li><a class="tocitem" href="#Nonlinear-elliptic-system-of-PDEs"><span>Nonlinear elliptic system of PDEs</span></a></li><li><a class="tocitem" href="#Nonlinear-hyperbolic-system-of-PDEs"><span>Nonlinear hyperbolic system of PDEs</span></a></li></ul></li><li><a class="tocitem" href="../3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../low_level/">1-D Burgers&#39; Equation With Low-Level API</a></li><li><a class="tocitem" href="../ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../fp/">Fokker-Planck Equation</a></li><li><a class="tocitem" href="../parm_estim/">Optimising Parameters of a Lorenz System</a></li><li><a class="tocitem" href="../heterogeneous/">Differential Equations with Heterogeneous Inputs</a></li><li><a class="tocitem" href="../integro_diff/">Integro Differential Equations</a></li><li><a class="tocitem" href="../debugging/">Debugging PINN Solutions</a></li><li><a class="tocitem" href="../neural_adapter/">Transfer Learning with Neural Adapter</a></li></ul></li><li><span class="tocitem">Specialized Neural PDE Tutorials</span><ul><li><a class="tocitem" href="../../examples/kolmogorovbackwards/">Solving Kolmogorov Equations with Neural Networks</a></li><li><a class="tocitem" href="../../examples/optimal_stopping_american/">Optimal Stopping Times of American Options</a></li></ul></li><li><span class="tocitem">Specialized Neural ODE Tutorials</span><ul><li><a class="tocitem" href="../../examples/ode/">Solving ODEs with Physics-Informed Neural Networks</a></li><li><a class="tocitem" href="../../examples/nnrode_example/">Solving Random Ordinary Differential Equations</a></li></ul></li><li><span class="tocitem">API Documentation</span><ul><li><a class="tocitem" href="../../solvers/ode/">ODE-Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../solvers/pinns/">Physics-Informed Neural Networks</a></li><li><a class="tocitem" href="../../solvers/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../solvers/kolmogorovbackwards_solver/">Neural Network Solvers for Kolmogorov Backwards Equations</a></li><li><a class="tocitem" href="../../solvers/optimal_stopping/">Neural Network Solvers for Optimal Stopping Time Problems</a></li><li><a class="tocitem" href="../../solvers/nnrode/">Random Ordinary Differential Equation Specialized Physics-Informed Neural Solver</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Physics-Informed Neural Network Tutorials</a></li><li class="is-active"><a href>Systems of PDEs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Systems of PDEs</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/pinn/system.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Systems-of-PDEs"><a class="docs-heading-anchor" href="#Systems-of-PDEs">Systems of PDEs</a><a id="Systems-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Systems-of-PDEs" title="Permalink"></a></h1><p>In this example, we will solve the PDE system:</p><p class="math-container">\[\begin{align*}
+∂_t u_1(t, x) &amp; = ∂_x^2 u_1(t, x) + u_3(t, x) \, \sin(\pi x) \, ,\\
+∂_t u_2(t, x) &amp; = ∂_x^2 u_2(t, x) + u_3(t, x) \, \cos(\pi x) \, ,\\
+0 &amp; = u_1(t, x) \sin(\pi x) + u_2(t, x) \cos(\pi x) - e^{-t} \, ,
+\end{align*}\]</p><p>with the initial conditions:</p><p class="math-container">\[\begin{align*}
+u_1(0, x) &amp; = \sin(\pi x) \, ,\\
+∂_t u_1(0, x) &amp; = - \sin(\pi x) \, ,\\
+u_2(0, x) &amp; = \cos(\pi x) \, ,\\
+∂_t u_2(0, x) &amp; = - \cos(\pi x) \, ,
+\end{align*}\]</p><p>and the boundary conditions:</p><p class="math-container">\[\begin{align*}
+u_1(t, 0) &amp; = u_1(t, 1) = 0 \, ,\\
+u_2(t, 0) &amp; = - u_2(t, 1) = e^{-t} \, ,
+\end{align*}\]</p><p>with physics-informed neural networks.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using Quadrature,Cubature
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u1(..), u2(..), u3(..)
+Dt = Differential(t)
+Dtt = Differential(t)^2
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+eqs = [Dtt(u1(t,x)) ~ Dxx(u1(t,x)) + u3(t,x)*sin(pi*x),
+       Dtt(u2(t,x)) ~ Dxx(u2(t,x)) + u3(t,x)*cos(pi*x),
+       0. ~ u1(t,x)*sin(pi*x) + u2(t,x)*cos(pi*x) - exp(-t)]
+
+bcs = [u1(0,x) ~ sin(pi*x),
+       u2(0,x) ~ cos(pi*x),
+       Dt(u1(0,x)) ~ -sin(pi*x),
+       Dt(u2(0,x)) ~ -cos(pi*x),
+       u1(t,0) ~ 0.,
+       u2(t,0) ~ exp(-t),
+       u1(t,1) ~ 0.,
+       u2(t,1) ~ -exp(-t)]
+
+
+# Space and time domains
+domains = [t ∈ Interval(0.0,1.0),
+           x ∈ Interval(0.0,1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain =[FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1)) for _ in 1:3]
+initθ = map(c -&gt; Float64.(c), DiffEqFlux.initial_params.(chain))
+
+_strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, _strategy, init_params= initθ)
+
+@named pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
+prob = discretize(pde_system,discretization)
+sym_prob = symbolic_discretize(pde_system,discretization)
+
+pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
+bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+
+callback = function (p,l)
+    println(&quot;loss: &quot;, l )
+    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p), pde_inner_loss_functions))
+    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p), bcs_inner_loss_functions))
+    return false
+end
+
+res = Optimization.solve(prob,BFGS(); callback = callback, maxiters=5000)
+
+phi = discretization.phi</code></pre><p>Low-level api</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using Quadrature,Cubature
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u1(..), u2(..), u3(..)
+Dt = Differential(t)
+Dtt = Differential(t)^2
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+eqs = [Dtt(u1(t,x)) ~ Dxx(u1(t,x)) + u3(t,x)*sin(pi*x),
+       Dtt(u2(t,x)) ~ Dxx(u2(t,x)) + u3(t,x)*cos(pi*x),
+       0. ~ u1(t,x)*sin(pi*x) + u2(t,x)*cos(pi*x) - exp(-t)]
+
+bcs = [u1(0,x) ~ sin(pi*x),
+       u2(0,x) ~ cos(pi*x),
+       Dt(u1(0,x)) ~ -sin(pi*x),
+       Dt(u2(0,x)) ~ -cos(pi*x),
+       u1(t,0) ~ 0.,
+       u2(t,0) ~ exp(-t),
+       u1(t,1) ~ 0.,
+       u2(t,1) ~ -exp(-t)]
+
+# Space and time domains
+domains = [t ∈ Interval(0.0,1.0),
+           x ∈ Interval(0.0,1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain =[FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1)) for _ in 1:3]
+initθ = map(c -&gt; Float64.(c), DiffEqFlux.initial_params.(chain))
+flat_initθ = reduce(vcat,initθ )
+
+eltypeθ = eltype(initθ[1])
+phi = NeuralPDE.get_phi.(chain)
+
+map(phi_ -&gt; phi_(rand(2,10), flat_initθ),phi)
+
+derivative = NeuralPDE.get_numeric_derivative()
+
+
+indvars = [t,x]
+depvars = [u1,u2,u3]
+dim = length(domains)
+quadrature_strategy = NeuralPDE.QuadratureTraining()
+
+
+_pde_loss_functions = [NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,
+                                                     chain,initθ,quadrature_strategy) for eq in  eqs]
+
+map(loss_f -&gt; loss_f(rand(2,10), flat_initθ),_pde_loss_functions)
+
+bc_indvars = NeuralPDE.get_argument(bcs,indvars,depvars)
+_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,
+                                                    chain,initθ,quadrature_strategy,
+                                                    bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+map(loss_f -&gt; loss_f(rand(1,10), flat_initθ),_bc_loss_functions)
+
+# dx = 0.1
+# train_sets = NeuralPDE.generate_training_sets(domains,dx,eqs,bcs,eltypeθ,indvars,depvars)
+# pde_train_set,bcs_train_set = train_sets
+pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,eqs,bcs,eltypeθ,indvars,depvars,quadrature_strategy)
+
+plbs,pubs = pde_bounds
+pde_loss_functions = [NeuralPDE.get_loss_function(_loss,
+                                                 lb,ub,
+                                                 eltypeθ,
+                                                 quadrature_strategy)
+                                                 for (_loss,lb,ub) in zip(_pde_loss_functions, plbs,pubs)]
+
+map(l-&gt;l(flat_initθ) ,pde_loss_functions)
+
+blbs,bubs = bcs_bounds
+bc_loss_functions = [NeuralPDE.get_loss_function(_loss,lb,ub,
+                                                 eltypeθ,
+                                                 quadrature_strategy)
+                                                 for (_loss,lb,ub) in zip(_bc_loss_functions, blbs,bubs)]
+
+map(l-&gt;l(flat_initθ) ,bc_loss_functions)
+
+loss_functions =  [pde_loss_functions;bc_loss_functions]
+
+function loss_function(θ,p)
+    sum(map(l-&gt;l(θ) ,loss_functions))
+end
+
+f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
+prob = Optimization.OptimizationProblem(f_, flat_initθ)
+
+cb_ = function (p,l)
+    println(&quot;loss: &quot;, l )
+    println(&quot;pde losses: &quot;, map(l -&gt; l(p), loss_functions[1:3]))
+    println(&quot;bcs losses: &quot;, map(l -&gt; l(p), loss_functions[4:end]))
+    return false
+end
+
+res = Optimization.solve(prob,OptimizationOptimJL.BFGS(); callback = cb_, maxiters=5000)</code></pre><p>And some analysis for both low and high level api:</p><pre><code class="language-julia hljs">using Plots
+
+ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+
+acum =  [0;accumulate(+, length.(initθ))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+minimizers_ = [res.minimizer[s] for s in sep]
+
+analytic_sol_func(t,x) = [exp(-t)*sin(pi*x), exp(-t)*cos(pi*x), (1+pi^2)*exp(-t)]
+u_real  = [[analytic_sol_func(t,x)[i] for t in ts for x in xs] for i in 1:3]
+u_predict  = [[phi[i]([t,x],minimizers_[i])[1] for t in ts  for x in xs] for i in 1:3]
+diff_u = [abs.(u_real[i] .- u_predict[i] ) for i in 1:3]
+for i in 1:3
+    p1 = plot(ts, xs, u_real[i],linetype=:contourf,title = &quot;u$i, analytic&quot;);
+    p2 = plot(ts, xs, u_predict[i],linetype=:contourf,title = &quot;predict&quot;);
+    p3 = plot(ts, xs, diff_u[i],linetype=:contourf,title = &quot;error&quot;);
+    plot(p1,p2,p3)
+    savefig(&quot;sol_u$i&quot;)
+end</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/122979254-03634e80-d3a0-11eb-985b-d3bae2dddfde.png" alt="sol_uq1"/></p><p><img src="https://user-images.githubusercontent.com/12683885/122979278-09592f80-d3a0-11eb-8fee-de3652f138d8.png" alt="sol_uq2"/></p><p><img src="https://user-images.githubusercontent.com/12683885/122979288-0e1de380-d3a0-11eb-9005-bfb501959b83.png" alt="sol_uq3"/></p><h2 id="Derivative-neural-network-approximation"><a class="docs-heading-anchor" href="#Derivative-neural-network-approximation">Derivative neural network approximation</a><a id="Derivative-neural-network-approximation-1"></a><a class="docs-heading-anchor-permalink" href="#Derivative-neural-network-approximation" title="Permalink"></a></h2><p>The accuracy and stability of numerical derivative decreases with each successive order. The accuracy of the entire solution is determined by the worst accuracy of one of the variables, in our case - the highest degree of the derivative. Derivative neural network approximation is such an approach that using lower-order numeric derivatives and estimates higher-order derivatives with a neural network so that allows an increase in the marginal precision for all optimization.</p><p>Since <code>u3</code> is only in the first and second equations, that its accuracy during training is determined by the accuracy of the second numerical derivative <code>u3(t,x) ~ (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)</code>.</p><p>We approximate the derivative of the neural network with another neural network <code>Dt(u1(t,x)) ~ Dtu1(t,x)</code> and train it along with other equations, and thus we avoid using the second numeric derivative <code>Dt(Dtu1(t,x))</code>.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using Quadrature,Cubature
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+Dt = Differential(t)
+Dx = Differential(x)
+@variables u1(..), u2(..), u3(..)
+@variables Dxu1(..),Dtu1(..),Dxu2(..),Dtu2(..)
+
+eqs_ = [Dt(Dtu1(t,x)) ~ Dx(Dxu1(t,x)) + u3(t,x)*sin(pi*x),
+        Dt(Dtu2(t,x)) ~ Dx(Dxu2(t,x)) + u3(t,x)*cos(pi*x),
+        exp(-t) ~ u1(t,x)*sin(pi*x) + u2(t,x)*cos(pi*x)]
+
+bcs_ = [u1(0.,x) ~ sin(pi*x),
+       u2(0.,x) ~ cos(pi*x),
+       Dt(u1(0,x)) ~ -sin(pi*x),
+       Dt(u2(0,x)) ~ -cos(pi*x),
+       #Dtu1(0,x) ~ -sin(pi*x),
+      # Dtu2(0,x) ~ -cos(pi*x),
+       u1(t,0.) ~ 0.,
+       u2(t,0.) ~ exp(-t),
+       u1(t,1.) ~ 0.,
+       u2(t,1.) ~ -exp(-t)]
+
+der_ = [Dt(u1(t,x)) ~ Dtu1(t,x),
+        Dt(u2(t,x)) ~ Dtu2(t,x),
+        Dx(u1(t,x)) ~ Dxu1(t,x),
+        Dx(u2(t,x)) ~ Dxu2(t,x)]
+
+bcs__ = [bcs_;der_]
+
+input_ = length(domains)
+n = 15
+chain = [FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1)) for _ in 1:7]
+initθ = map(c -&gt; Float64.(c), DiffEqFlux.initial_params.(chain))
+
+grid_strategy = NeuralPDE.GridTraining(0.07)
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             grid_strategy,
+                                             init_params= initθ)
+
+vars = [u1(t,x),u2(t,x),u3(t,x),Dxu1(t,x),Dtu1(t,x),Dxu2(t,x),Dtu2(t,x)]
+@named pde_system = PDESystem(eqs_,bcs__,domains,[t,x],vars)
+prob = NeuralPDE.discretize(pde_system,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+
+pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
+inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+bcs_inner_loss_functions = inner_loss_functions[1:7]
+aprox_derivative_loss_functions = inner_loss_functions[9:end]
+
+callback = function (p,l)
+    println(&quot;loss: &quot;, l )
+    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p), pde_inner_loss_functions))
+    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p), bcs_inner_loss_functions))
+    println(&quot;der_losses: &quot;, map(l_ -&gt; l_(p), aprox_derivative_loss_functions))
+    return false
+end
+
+res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
+prob = remake(prob,u0=res.minimizer)
+res = Optimization.solve(prob,BFGS(); callback = callback, maxiters=10000)
+
+phi = discretization.phi</code></pre><p>And some analysis:</p><pre><code class="language-julia hljs">using Plots
+
+ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+
+initθ = discretization.init_params
+acum =  [0;accumulate(+, length.(initθ))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+minimizers_ = [res.minimizer[s] for s in sep]
+
+u1_real(t,x) = exp(-t)*sin(pi*x)
+u2_real(t,x) = exp(-t)*cos(pi*x)
+u3_real(t,x) = (1+pi^2)*exp(-t)
+Dxu1_real(t,x) = pi*exp(-t)*cos(pi*x)
+Dtu1_real(t,x) = -exp(-t)*sin(pi*x)
+Dxu2_real(t,x) = -pi*exp(-t)*sin(pi*x)
+Dtu2_real(t,x) = -exp(-t)*cos(pi*x)
+analytic_sol_func_all(t,x) = [u1_real(t,x), u2_real(t,x), u3_real(t,x),
+                              Dxu1_real(t,x),Dtu1_real(t,x),Dxu2_real(t,x),Dtu2_real(t,x)]
+
+u_real  = [[analytic_sol_func_all(t,x)[i] for t in ts for x in xs] for i in 1:7]
+u_predict  = [[phi[i]([t,x],minimizers_[i])[1] for t in ts  for x in xs] for i in 1:7]
+diff_u = [abs.(u_real[i] .- u_predict[i] ) for i in 1:7]
+
+titles = [&quot;u1&quot;,&quot;u2&quot;,&quot;u3&quot;,&quot;Dtu1&quot;,&quot;Dtu2&quot;,&quot;Dxu1&quot;,&quot;Dxu2&quot;]
+for i in 1:7
+    p1 = plot(ts, xs, u_real[i], linetype=:contourf,title = &quot;$(titles[i]), analytic&quot;);
+    p2 = plot(ts, xs, u_predict[i], linetype=:contourf,title = &quot;predict&quot;);
+    p3 = plot(ts, xs, diff_u[i],linetype=:contourf,title = &quot;error&quot;);
+    plot(p1,p2,p3)
+    savefig(&quot;3sol_ub$i&quot;)
+end</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/122998551-de79d600-d3b5-11eb-8f5d-59d00178c2ab.png" alt="aprNN_sol_u1"/></p><p><img src="https://user-images.githubusercontent.com/12683885/122998567-e3d72080-d3b5-11eb-9024-4072f4b66cda.png" alt="aprNN_sol_u2"/></p><p><img src="https://user-images.githubusercontent.com/12683885/122998578-e6d21100-d3b5-11eb-96a5-f64e5593b35e.png" alt="aprNN_sol_u3"/></p><h2 id="Comparison-of-the-second-numerical-derivative-and-numerical-neural-network-derivative"><a class="docs-heading-anchor" href="#Comparison-of-the-second-numerical-derivative-and-numerical-neural-network-derivative">Comparison of the second numerical derivative and numerical + neural network derivative</a><a id="Comparison-of-the-second-numerical-derivative-and-numerical-neural-network-derivative-1"></a><a class="docs-heading-anchor-permalink" href="#Comparison-of-the-second-numerical-derivative-and-numerical-neural-network-derivative" title="Permalink"></a></h2><p><img src="https://user-images.githubusercontent.com/12683885/123113394-3280cb00-d447-11eb-88e3-a8541bbf089f.png" alt="DDu1"/></p><p><img src="https://user-images.githubusercontent.com/12683885/123113413-36ace880-d447-11eb-8f6a-4c3caa86e359.png" alt="DDu2"/></p><h2 id="Solving-Matrices-of-PDEs"><a class="docs-heading-anchor" href="#Solving-Matrices-of-PDEs">Solving Matrices of PDEs</a><a id="Solving-Matrices-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Solving-Matrices-of-PDEs" title="Permalink"></a></h2><p>Also, in addition to systems, we can use the matrix form of PDEs:</p><pre><code class="language-julia hljs">@parameters x y
+@variables u[1:2,1:2](..)
+@derivatives Dxx&#39;&#39;~x
+@derivatives Dyy&#39;&#39;~y
+
+# matrix PDE
+eqs  = @. [(Dxx(u_(x,y)) + Dyy(u_(x,y))) for u_ in u] ~ -sin(pi*x)*sin(pi*y)*[0 1; 0 1]
+
+# Initial and boundary conditions
+bcs = [u[1](x,0) ~ x, u[2](x,0) ~ 2, u[3](x,0) ~ 3, u[4](x,0) ~ 4]</code></pre><h2 id="Linear-parabolic-system-of-PDEs"><a class="docs-heading-anchor" href="#Linear-parabolic-system-of-PDEs">Linear parabolic system of PDEs</a><a id="Linear-parabolic-system-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Linear-parabolic-system-of-PDEs" title="Permalink"></a></h2><p>We can use NeuralPDE to solve the linear parabolic system of PDEs:</p><p class="math-container">\[\begin{aligned}
+\frac{\partial u}{\partial t} &amp;= a * \frac{\partial^2 u}{\partial x^2} + b_1 u + c_1 w \\
+\frac{\partial w}{\partial t} &amp;= a * \frac{\partial^2 w}{\partial x^2} + b_2 u + c_2 w \\
+\end{aligned}\]</p><p>with initial and boundary conditions:</p><p class="math-container">\[\begin{aligned}
+u(0, x) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot cos(\frac{x}{a}) \\
+w(0, x) = 0 \\
+u(t, 0) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} \\ w(t, 0) = \frac{e^{\lambda_1}-e^{\lambda_2}}{\lambda_1 - \lambda_2} \\
+u(t, 1) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} * cos(\frac{x}{a}) \\
+w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\lambda_1 - \lambda_2}
+\end{aligned}\]</p><p>with a physics-informed neural network.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using Plots
+using Quadrature,Cubature
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u(..), w(..)
+Dxx = Differential(x)^2
+Dt = Differential(t)
+
+# Constants
+a  = 1
+b1 = 4
+b2 = 2
+c1 = 3
+c2 = 1
+λ1 = (b1 + c2 + sqrt((b1 + c2)^2 + 4 * (b1 * c2 - b2 * c1))) / 2
+λ2 = (b1 + c2 - sqrt((b1 + c2)^2 + 4 * (b1 * c2 - b2 * c1))) / 2
+
+# Analytic solution
+θ(t, x) = exp(-t) * cos(x / a)
+u_analytic(t, x) = (b1 - λ2) / (b2 * (λ1 - λ2)) * exp(λ1 * t) * θ(t, x) - (b1 - λ1) / (b2 * (λ1 - λ2)) * exp(λ2 * t) * θ(t, x)
+w_analytic(t, x) = 1 / (λ1 - λ2) * (exp(λ1 * t) * θ(t, x) - exp(λ2 * t) * θ(t, x))
+
+# Second-order constant-coefficient linear parabolic system
+eqs = [Dt(u(x, t)) ~ a * Dxx(u(x, t)) + b1 * u(x, t) + c1 * w(x, t),
+       Dt(w(x, t)) ~ a * Dxx(w(x, t)) + b2 * u(x, t) + c2 * w(x, t)]
+
+# Boundary conditions
+bcs = [u(0, x) ~ u_analytic(0, x),
+       w(0, x) ~ w_analytic(0, x),
+       u(t, 0) ~ u_analytic(t, 0),
+       w(t, 0) ~ w_analytic(t, 0),
+       u(t, 1) ~ u_analytic(t, 1),
+       w(t, 1) ~ w_analytic(t, 1)]
+
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0),
+           t ∈ Interval(0.0, 1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain = [FastChain(FastDense(input_, n, Flux.σ), FastDense(n, n, Flux.σ), FastDense(n, 1)) for _ in 1:2]
+initθ = map(c -&gt; Float64.(c), DiffEqFlux.initial_params.(chain))
+
+_strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
+
+@named pde_system = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
+prob = discretize(pde_system, discretization)
+sym_prob = symbolic_discretize(pde_system, discretization)
+
+pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
+bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+
+callback = function (p, l)
+    println(&quot;loss: &quot;, l)
+    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p), pde_inner_loss_functions))
+    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p), bcs_inner_loss_functions))
+    return false
+end
+
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=5000)
+
+phi = discretization.phi
+
+# Analysis
+ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+
+acum =  [0;accumulate(+, length.(initθ))]
+sep = [acum[i] + 1:acum[i + 1] for i in 1:length(acum) - 1]
+minimizers_ = [res.minimizer[s] for s in sep]
+
+analytic_sol_func(t,x) = [u_analytic(t, x), w_analytic(t, x)]
+u_real  = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:2]
+u_predict  = [[phi[i]([t,x], minimizers_[i])[1] for t in ts  for x in xs] for i in 1:2]
+diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+for i in 1:2
+    p1 = plot(ts, xs, u_real[i], linetype=:contourf, title=&quot;u$i, analytic&quot;);
+    p2 = plot(ts, xs, u_predict[i], linetype=:contourf, title=&quot;predict&quot;);
+    p3 = plot(ts, xs, diff_u[i], linetype=:contourf, title=&quot;error&quot;);
+    plot(p1, p2, p3)
+    savefig(&quot;sol_u$i&quot;)
+end</code></pre><p><img src="https://user-images.githubusercontent.com/26853713/125745625-49c73760-0522-4ed4-9bdd-bcc567c9ace3.png" alt="linear_parabolic_sol_u1"/> <img src="https://user-images.githubusercontent.com/26853713/125745637-b12e1d06-e27b-46fe-89f3-076d415fcd7e.png" alt="linear_parabolic_sol_u2"/></p><h2 id="Nonlinear-elliptic-system-of-PDEs"><a class="docs-heading-anchor" href="#Nonlinear-elliptic-system-of-PDEs">Nonlinear elliptic system of PDEs</a><a id="Nonlinear-elliptic-system-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Nonlinear-elliptic-system-of-PDEs" title="Permalink"></a></h2><p>We can also solve nonlinear systems such as the system of nonlinear elliptic PDEs</p><p class="math-container">\[\begin{aligned}
+\frac{\partial^2u}{\partial x^2} + \frac{\partial^2u}{\partial y^2} = uf(\frac{u}{w}) + \frac{u}{w}h(\frac{u}{w}) \\
+\frac{\partial^2w}{\partial x^2} + \frac{\partial^2w}{\partial y^2} = wg(\frac{u}{w}) + h(\frac{u}{w}) \\
+\end{aligned}\]</p><p>where f, g, h are arbitrary functions. With initial and boundary conditions:</p><p class="math-container">\[\begin{aligned}
+u(0,y) = y + 1 \\
+w(1, y) = [cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
+w(x,0) = cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)}) \\
+w(0,y) = k(y + 1) \\
+u(1, y) = k[cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
+u(x,0) = k[cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})] \\
+\end{aligned}\]</p><p>where k is a root of the algebraic (transcendental) equation f(k) = g(k).</p><p>This is done using a derivative neural network approximation.</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DifferentialEquations, Roots
+using Plots
+using Quadrature,Cubature
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters x, y
+Dx = Differential(x)
+Dy = Differential(y)
+@variables Dxu(..), Dyu(..), Dxw(..), Dyw(..)
+@variables u(..), w(..)
+
+
+# Arbitrary functions
+f(x) = sin(x)
+g(x) = cos(x)
+h(x) = x
+root(x) = f(x) - g(x)
+
+# Analytic solution
+k = find_zero(root, (0, 1), Bisection())                            # k is a root of the algebraic (transcendental) equation f(x) = g(x)
+θ(x, y) = (cosh(sqrt(f(k)) * x) + sinh(sqrt(f(k)) * x)) * (y + 1)   # Analytical solution to Helmholtz equation
+w_analytic(x, y) = θ(x, y) - h(k) / f(k)
+u_analytic(x, y) = k * w_analytic(x, y)
+
+# Nonlinear Steady-State Systems of Two Reaction-Diffusion Equations with 3 arbitrary function f, g, h
+eqs_ = [Dx(Dxu(x, y)) + Dy(Dyu(x, y)) ~ u(x, y) * f(u(x, y) / w(x, y)) + u(x, y) / w(x, y) * h(u(x, y) / w(x, y)),
+       Dx(Dxw(x, y)) + Dy(Dyw(x, y)) ~ w(x, y) * g(u(x, y) / w(x, y)) + h(u(x, y) / w(x, y))]
+
+# Boundary conditions
+bcs_ = [u(0, y) ~ u_analytic(0, y),
+       u(1, y) ~ u_analytic(1, y),
+       u(x, 0) ~ u_analytic(x, 0),
+       w(0, y) ~ w_analytic(0, y),
+       w(1, y) ~ w_analytic(1, y),
+       w(x, 0) ~ w_analytic(x, 0)]
+
+der_ = [Dy(u(x, y)) ~ Dyu(x, y),
+       Dy(w(x, y)) ~ Dyw(x, y),
+       Dx(u(x, y)) ~ Dxu(x, y),
+       Dx(w(x, y)) ~ Dxw(x, y)]
+
+bcs__ = [bcs_;der_]
+
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0),
+           y ∈ Interval(0.0, 1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain = [FastChain(FastDense(input_, n, Flux.σ), FastDense(n, n, Flux.σ), FastDense(n, 1)) for _ in 1:6] # 1:number of @variables
+initθ = map(c -&gt; Float64.(c), DiffEqFlux.initial_params.(chain))
+
+_strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
+
+vars = [u(x,y),w(x,y),Dxu(x,y),Dyu(x,y),Dxw(x,y),Dyw(x,y)]
+@named pde_system = PDESystem(eqs_, bcs__, domains, [x,y], vars)
+prob = NeuralPDE.discretize(pde_system, discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+
+pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
+inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+bcs_inner_loss_functions = inner_loss_functions[1:6]
+aprox_derivative_loss_functions = inner_loss_functions[7:end]
+
+callback = function (p, l)
+    println(&quot;loss: &quot;, l)
+    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p), pde_inner_loss_functions))
+    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p), bcs_inner_loss_functions))
+    println(&quot;der_losses: &quot;, map(l_ -&gt; l_(p), aprox_derivative_loss_functions))
+    return false
+end
+
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=5000)
+
+phi = discretization.phi
+
+# Analysis
+xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+
+acum =  [0;accumulate(+, length.(initθ))]
+sep = [acum[i] + 1:acum[i + 1] for i in 1:length(acum) - 1]
+minimizers_ = [res.minimizer[s] for s in sep]
+
+analytic_sol_func(x,y) = [u_analytic(x, y), w_analytic(x, y)]
+u_real  = [[analytic_sol_func(x, y)[i] for x in xs for y in ys] for i in 1:2]
+u_predict  = [[phi[i]([x,y], minimizers_[i])[1] for x in xs for y in ys] for i in 1:2]
+diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+for i in 1:2
+    p1 = plot(xs, ys, u_real[i], linetype=:contourf, title=&quot;u$i, analytic&quot;);
+    p2 = plot(xs, ys, u_predict[i], linetype=:contourf, title=&quot;predict&quot;);
+    p3 = plot(xs, ys, diff_u[i], linetype=:contourf, title=&quot;error&quot;);
+    plot(p1, p2, p3)
+    savefig(&quot;non_linear_elliptic_sol_u$i&quot;)
+end</code></pre><p><img src="https://user-images.githubusercontent.com/26853713/125745550-0b667c10-b09a-4659-a543-4f7a7e025d6c.png" alt="non_linear_elliptic_sol_u1"/> <img src="https://user-images.githubusercontent.com/26853713/125745571-45a04739-7838-40ce-b979-43b88d149028.png" alt="non_linear_elliptic_sol_u2"/></p><h2 id="Nonlinear-hyperbolic-system-of-PDEs"><a class="docs-heading-anchor" href="#Nonlinear-hyperbolic-system-of-PDEs">Nonlinear hyperbolic system of PDEs</a><a id="Nonlinear-hyperbolic-system-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Nonlinear-hyperbolic-system-of-PDEs" title="Permalink"></a></h2><p>Lastly, we may also solve hyperbolic systems like the following</p><p class="math-container">\[\begin{aligned}
+\frac{\partial^2u}{\partial t^2} = \frac{a}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + u f(\frac{u}{w})  \\
+\frac{\partial^2w}{\partial t^2} = \frac{b}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + w g(\frac{u}{w})  \\
+\end{aligned}\]</p><p>where f and g are arbitrary functions. With initial and boundary conditions:</p><p class="math-container">\[\begin{aligned}
+u(0,x) = k * [j0(ξ(0, x)) + y0(ξ(0, x))] \\
+u(t,0) = k * [j0(ξ(t, 0)) + y0(ξ(t, 0))] \\
+u(t,1) = k * [j0(ξ(t, 1)) + y0(ξ(t, 1))] \\
+w(0,x) = j0(ξ(0, x)) + y0(ξ(0, x)) \\
+w(t,0) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
+w(t,1) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
+\end{aligned}\]</p><p>where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and y0 are the Bessel functions, and ξ(t, x) is:</p><p class="math-container">\[\begin{aligned}
+\frac{\sqrt[]{f(k)}}{\sqrt[]{\frac{a}{x^n}}}\sqrt[]{\frac{a}{x^n}(t+1)^2 - (x+1)^2}
+\end{aligned}\]</p><p>We solve this with Neural:</p><pre><code class="language-julia hljs">using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, Roots
+using SpecialFunctions
+using Plots
+using Quadrature,Cubature
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u(..), w(..)
+Dx = Differential(x)
+Dt = Differential(t)
+Dtt = Differential(t)^2
+
+# Constants
+a = 16
+b = 16
+n = 0
+
+# Arbitrary functions
+f(x) = x^2
+g(x) = 4 * cos(π * x)
+root(x) = g(x) - f(x)
+
+# Analytic solution
+k = find_zero(root, (0, 1), Bisection())                # k is a root of the algebraic (transcendental) equation f(x) = g(x)
+ξ(t, x) = sqrt(f(k)) / sqrt(a) * sqrt(a * (t + 1)^2 - (x + 1)^2)
+θ(t, x) = besselj0(ξ(t, x)) + bessely0(ξ(t, x))                     # Analytical solution to Klein-Gordon equation
+w_analytic(t, x) = θ(t, x)
+u_analytic(t, x) = k * θ(t, x)
+
+# Nonlinear system of hyperbolic equations
+eqs = [Dtt(u(t, x)) ~ a / (x^n) * Dx(x^n * Dx(u(t, x))) + u(t, x) * f(u(t, x) / w(t, x)),
+       Dtt(w(t, x)) ~ b / (x^n) * Dx(x^n * Dx(w(t, x))) + w(t, x) * g(u(t, x) / w(t, x))]
+
+# Boundary conditions
+bcs = [u(0, x) ~ u_analytic(0, x),
+       w(0, x) ~ w_analytic(0, x),
+       u(t, 0) ~ u_analytic(t, 0),
+       w(t, 0) ~ w_analytic(t, 0),
+       u(t, 1) ~ u_analytic(t, 1),
+       w(t, 1) ~ w_analytic(t, 1)]
+
+# Space and time domains
+domains = [t ∈ Interval(0.0, 1.0),
+           x ∈ Interval(0.0, 1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain = [FastChain(FastDense(input_, n, Flux.σ), FastDense(n, n, Flux.σ), FastDense(n, 1)) for _ in 1:2]
+initθ = map(c -&gt; Float64.(c), DiffEqFlux.initial_params.(chain))
+
+_strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
+
+@named pde_system = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
+prob = discretize(pde_system, discretization)
+sym_prob = symbolic_discretize(pde_system, discretization)
+
+pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
+bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+
+callback = function (p, l)
+    println(&quot;loss: &quot;, l)
+    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p), pde_inner_loss_functions))
+    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p), bcs_inner_loss_functions))
+    return false
+end
+
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=1000)
+
+phi = discretization.phi
+
+# Analysis
+ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+
+acum =  [0;accumulate(+, length.(initθ))]
+sep = [acum[i] + 1:acum[i + 1] for i in 1:length(acum) - 1]
+minimizers_ = [res.minimizer[s] for s in sep]
+
+analytic_sol_func(t,x) = [u_analytic(t, x), w_analytic(t, x)]
+u_real  = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:2]
+u_predict  = [[phi[i]([t,x], minimizers_[i])[1] for t in ts  for x in xs] for i in 1:2]
+diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+for i in 1:2
+    p1 = plot(ts, xs, u_real[i], linetype=:contourf, title=&quot;u$i, analytic&quot;);
+    p2 = plot(ts, xs, u_predict[i], linetype=:contourf, title=&quot;predict&quot;);
+    p3 = plot(ts, xs, diff_u[i], linetype=:contourf, title=&quot;error&quot;);
+    plot(p1, p2, p3)
+    savefig(&quot;nonlinear_hyperbolic_sol_u$i&quot;)
+end</code></pre><p><img src="https://user-images.githubusercontent.com/26853713/126457614-d19e7a4d-f9e3-4e78-b8ae-1e58114a744e.png" alt="nonlinear_hyperbolic_sol_u1"/> <img src="https://user-images.githubusercontent.com/26853713/126457617-ee26c587-a97f-4a2e-b6b7-b326b1f117af.png" alt="nonlinear_hyperbolic_sol_u2"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../2D/">« 2-dimensional PDEs with GPU</a><a class="docs-footer-nextpage" href="../3rd/">ODE with a 3rd-Order Derivative »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.19 on <span class="colophon-date" title="Monday 27 June 2022 20:12">Monday 27 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
