@@ -557,7 +557,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
     if integrand isa Nothing
         loss_function = parse_equation(pinnrep, eqs)
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
-        this_eq_indvars = bc_indvars
+        this_eq_indvars = unique(vcat(values(this_eq_pair)...))
     else
         this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars],
                                 integrating_depvars))
@@ -634,7 +634,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
                        build_expr(:tuple, right_arg_pairs))
     else
-        indvars_ex = [:($:cord[[$(dict_indvars[x])], :]) for x in this_eq_indvars]
+        indvars_ex = [:($:cord[[$i], :]) for (i,x) in enumerate(this_eq_indvars)]
         left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
                        build_expr(:tuple, right_arg_pairs))
