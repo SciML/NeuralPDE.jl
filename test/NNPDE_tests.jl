@@ -496,6 +496,7 @@ end
 
 res = Optimization.solve(prob, Optim.BFGS(); maxiters = 500, f_abstol = 10^-6)
 
+dx = 0.1
 xs, ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 function analytic_sol_func(x, t)
     sum([(8 / (k^3 * pi^3)) * sin(k * pi * x) * cos(C * k * pi * t) for k in 1:2:50000])
