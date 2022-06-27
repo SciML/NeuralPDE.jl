@@ -240,15 +240,11 @@ Dict{Symbol,Int64} with 3 entries:
 get_dict_vars(vars) = Dict([Symbol(v) .=> i for (i, v) in enumerate(vars)])
 
 # Wrapper for _transform_expression
-function transform_expression(ex, indvars, depvars, dict_indvars, dict_depvars,
-                              dict_depvar_input, multioutput::Bool, eltypeθ, strategy, phi,
-                              derivative, integral, initθ; is_integral = false,
+function transform_expression(pinnrep::PINNRepresentation, ex; is_integral = false,
                               dict_transformation_vars = nothing,
                               transformation_vars = nothing)
     if ex isa Expr
-        ex = _transform_expression(ex, indvars, depvars, dict_indvars, dict_depvars,
-                                   dict_depvar_input, multioutput, eltypeθ, strategy, phi,
-                                   derivative, integral, initθ; is_integral = is_integral,
+        ex = _transform_expression(pinnrep, ex; is_integral = is_integral,
                                    dict_transformation_vars = dict_transformation_vars,
                                    transformation_vars = transformation_vars)
     end
@@ -289,11 +285,14 @@ where
  order - order of derivative
  θ - weight in neural network
 """
-function _transform_expression(ex, indvars, depvars, dict_indvars, dict_depvars,
-                               dict_depvar_input, multioutput::Bool, eltypeθ, strategy, phi,
-                               derivative_, integral, initθ; is_integral = false,
+function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = false,
                                dict_transformation_vars = nothing,
                                transformation_vars = nothing)
+    @unpack indvars, depvars, dict_indvars, dict_depvars,
+    dict_depvar_input, multioutput, strategy, phi,
+    derivative, integral, flat_initθ, initθ = pinnrep
+    eltypeθ = eltype(flat_initθ)
+    
     _args = ex.args
     for (i, e) in enumerate(_args)
         if !(e isa Expr)
@@ -378,11 +377,7 @@ function _transform_expression(ex, indvars, depvars, dict_indvars, dict_depvars,
 
                 num_depvar = map(int_depvar -> dict_depvars[int_depvar],
                                  integrating_depvars)
-                integrand_ = transform_expression(_args[2], indvars, depvars, dict_indvars,
-                                                  dict_depvars,
-                                                  dict_depvar_input, multioutput, eltypeθ,
-                                                  strategy,
-                                                  phi, derivative_, integral, initθ;
+                integrand_ = transform_expression(pinnrep, _args[2];
                                                   is_integral = false,
                                                   dict_transformation_vars = dict_transformation_vars,
                                                   transformation_vars = transformation_vars)
@@ -443,10 +438,7 @@ function _transform_expression(ex, indvars, depvars, dict_indvars, dict_depvars,
                 break
             end
         else
-            ex.args[i] = _transform_expression(ex.args[i], indvars, depvars, dict_indvars,
-                                               dict_depvars, dict_depvar_input, multioutput,
-                                               eltypeθ, strategy, phi, derivative_,
-                                               integral, initθ; is_integral = is_integral,
+            ex.args[i] = _transform_expression(pinnrep, ex.args[i]; is_integral = is_integral,
                                                dict_transformation_vars = dict_transformation_vars,
                                                transformation_vars = transformation_vars)
         end
@@ -481,26 +473,11 @@ Example:
       [(derivative(phi1, u1, [x, y], [[ε,0]], 1, θ1) + 4 * derivative(phi2, u, [x, y], [[0,ε]], 1, θ2)) - 0,
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
-function build_symbolic_equation(eq, _indvars, _depvars, multioutput::Bool, eltypeθ,
-                                 strategy, phi, derivative, initθ)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    parse_equation(eq, indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input,
-                   multioutput, eltypeθ, strategy, phi, derivative, integral, initθ)
-end
-
-function parse_equation(eq, indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input,
-                        multioutput::Bool, eltypeθ,
-                        strategy, phi, derivative, integral, initθ)
-
+function parse_equation(pinnrep::PINNRepresentation, eq)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
-    left_expr = transform_expression(toexpr(eq_lhs), indvars, depvars, dict_indvars,
-                                     dict_depvars, dict_depvar_input, multioutput,
-                                     eltypeθ, strategy, phi, derivative, integral, initθ)
-    right_expr = transform_expression(toexpr(eq_rhs), indvars, depvars, dict_indvars,
-                                      dict_depvars, dict_depvar_input, multioutput,
-                                      eltypeθ, strategy, phi, derivative, integral, initθ)
+    left_expr = transform_expression(pinnrep, toexpr(eq_lhs))
+    right_expr = transform_expression(pinnrep, toexpr(eq_rhs))
     left_expr = _dot_(left_expr)
     right_expr = _dot_(right_expr)
     loss_func = :($left_expr .- $right_expr)
@@ -579,9 +556,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
     eltypeθ = eltype(pinnrep.flat_initθ)
 
     if integrand isa Nothing
-        loss_function = parse_equation(eqs, indvars, depvars, dict_indvars, dict_depvars,
-                                       dict_depvar_input, multioutput, eltypeθ, strategy,
-                                       phi, derivative, integral, initθ)
+        loss_function = parse_equation(pinnrep, eqs)
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
         this_eq_indvars = unique(vcat(values(this_eq_pair)...))
     else
