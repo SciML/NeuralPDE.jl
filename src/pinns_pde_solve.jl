@@ -219,6 +219,16 @@ mutable struct PINNRepresentation
     integral::Any
     symbolic_pde_loss_functions::Any
     symbolic_bc_loss_functions::Any
+    loss_functions::Any
+end
+
+struct PINNLossFunctions
+    bc_loss_functions::Any
+    pde_loss_functions::Any
+    full_loss_function::Any
+    additional_loss_function::Any
+    inner_pde_loss_functions::Any
+    inner_bc_loss_functions::Any
 end
 
 """
@@ -1148,7 +1158,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                  dict_indvars, dict_depvars, dict_depvar_input,
                                  multioutput, initθ, flat_initθ, phi, derivative, strategy,
                                  pde_indvars, bc_indvars, pde_integration_vars,
-                                 bc_integration_vars, nothing, nothing, nothing)
+                                 bc_integration_vars, nothing, nothing, nothing, nothing)
 
     integral = get_numeric_integral(pinnrep)
 
@@ -1165,22 +1175,6 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     pinnrep.integral = integral
     pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
     pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
-
-    return pinnrep
-end
-
-function discretize_inner_functions(pde_system::PDESystem,
-                                    discretization::PhysicsInformedNN)
-    pinnrep = SciMLBase.symbolic_discretize(pde_system, discretization)
-
-    @unpack eqs, bcs, domains, eq_params, defaults, default_p,
-    param_estim, additional_loss, adaloss, depvars, indvars,
-    dict_indvars, dict_depvars, dict_depvar_input,
-    multioutput, initθ, flat_initθ, phi, derivative, strategy,
-    pde_indvars, bc_indvars, pde_integration_vars,
-    bc_integration_vars = pinnrep
-
-    eltypeθ = eltype(flat_initθ)
 
     _pde_loss_functions = [build_loss_function(pinnrep, eq, pde_indvar)
                            for (eq, pde_indvar, integration_indvar) in zip(eqs, pde_indvars,
@@ -1381,17 +1375,17 @@ function discretize_inner_functions(pde_system::PDESystem,
         return full_weighted_loss
     end
 
-    (bc_loss_functions = bc_loss_functions, pde_loss_functions = pde_loss_functions,
-     full_loss_function = loss_function_,
-     additional_loss_function = additional_loss, flat_initθ = flat_initθ,
-     inner_pde_loss_functions = _pde_loss_functions,
-     inner_bc_loss_functions = _bc_loss_functions)
+    pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions,pde_loss_functions,
+                                       full_loss_function,additional_loss_function,
+                                       inner_pde_loss_functions,inner_bc_loss_functions)
+ 
+    return pinnrep
 end
 
 # Convert a PDE problem into an OptimizationProblem
 function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    discretized_functions = discretize_inner_functions(pde_system, discretization)
-    f = OptimizationFunction(discretized_functions.full_loss_function,
+    pinnrep = symbolic_discretize(pde_system, discretization)
+    f = OptimizationFunction(pinnrep.loss_functions.full_loss_function,
                              Optimization.AutoZygote())
-    Optimization.OptimizationProblem(f, discretized_functions.flat_initθ)
+    Optimization.OptimizationProblem(f, pinnrep.flat_initθ)
 end

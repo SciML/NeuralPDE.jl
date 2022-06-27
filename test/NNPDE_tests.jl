@@ -42,7 +42,6 @@ function test_ode(strategy_)
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
     prob = NeuralPDE.discretize(pde_system, discretization)
-    sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
     res = Optimization.solve(prob, ADAM(0.1); maxiters = 1000)
     prob = remake(prob, u0 = res.minimizer)
@@ -210,7 +209,6 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, grid_strategy; init_params =
                               [u(x, y, z), v(y, x), h(z), p(x, z)])
 
 prob = NeuralPDE.discretize(pde_system, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
 callback = function (p, l)
     println("Current loss is: $l")
@@ -366,10 +364,9 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, quasirandom_strategy;
 
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-discretized_functions = NeuralPDE.discretize_inner_functions(pde_system, discretization)
 
-pde_inner_loss_functions = discretized_functions.pde_loss_functions
-bcs_inner_loss_functions = discretized_functions.bc_loss_functions
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 cb_ = function (p, l)
     println("loss: ", l)
@@ -427,7 +424,6 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy;
 @named pde_system = PDESystem(eqs, bcs, domains, [x, y], [u1(x, y), u2(x, y)])
 
 prob = NeuralPDE.discretize(pde_system, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
 res = Optimization.solve(prob, BFGS(); maxiters = 1000)
 phi = discretization.phi
@@ -546,7 +542,6 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy;
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
 prob = NeuralPDE.discretize(pde_system, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
 res = Optimization.solve(prob, BFGS(); maxiters = 1500)
 @show res.original
