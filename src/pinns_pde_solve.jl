@@ -192,33 +192,33 @@ function vectorify(x, t::Type{T}) where {T <: Real}
 end
 
 mutable struct PINNRepresentation
-    eqs
-    bcs
-    domains
-    eq_params
-    defaults
-    default_p
-    param_estim
-    additional_loss
-    adaloss
-    depvars
-    indvars
-    dict_indvars
-    dict_depvars
-    dict_depvar_input
+    eqs::Any
+    bcs::Any
+    domains::Any
+    eq_params::Any
+    defaults::Any
+    default_p::Any
+    param_estim::Any
+    additional_loss::Any
+    adaloss::Any
+    depvars::Any
+    indvars::Any
+    dict_indvars::Any
+    dict_depvars::Any
+    dict_depvar_input::Any
     multioutput::Bool
-    initθ
-    flat_initθ
-    phi
-    derivative
+    initθ::Any
+    flat_initθ::Any
+    phi::Any
+    derivative::Any
     strategy::AbstractTrainingStrategy
-    pde_indvars
-    bc_indvars
-    pde_integration_vars
-    bc_integration_vars
-    integral
-    symbolic_pde_loss_functions
-    symbolic_bc_loss_functions
+    pde_indvars::Any
+    bc_indvars::Any
+    pde_integration_vars::Any
+    bc_integration_vars::Any
+    integral::Any
+    symbolic_pde_loss_functions::Any
+    symbolic_bc_loss_functions::Any
 end
 
 """
@@ -292,7 +292,7 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
     dict_depvar_input, multioutput, strategy, phi,
     derivative, integral, flat_initθ, initθ = pinnrep
     eltypeθ = eltype(flat_initθ)
-    
+
     _args = ex.args
     for (i, e) in enumerate(_args)
         if !(e isa Expr)
@@ -438,7 +438,8 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                 break
             end
         else
-            ex.args[i] = _transform_expression(pinnrep, ex.args[i]; is_integral = is_integral,
+            ex.args[i] = _transform_expression(pinnrep, ex.args[i];
+                                               is_integral = is_integral,
                                                dict_transformation_vars = dict_transformation_vars,
                                                transformation_vars = transformation_vars)
         end
@@ -546,11 +547,10 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                                       dict_transformation_vars = nothing,
                                       transformation_vars = nothing,
                                       integrating_depvars = pinnrep.depvars)
-
-    @unpack indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input, 
-            phi, derivative, integral,
-            multioutput, initθ, strategy, eq_params, 
-            param_estim, default_p = pinnrep
+    @unpack indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input,
+    phi, derivative, integral,
+    multioutput, initθ, strategy, eq_params,
+    param_estim, default_p = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_initθ)
 
@@ -634,7 +634,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
                        build_expr(:tuple, right_arg_pairs))
     else
-        indvars_ex = [:($:cord[[$i], :]) for (i,x) in enumerate(this_eq_indvars)]
+        indvars_ex = [:($:cord[[$i], :]) for (i, x) in enumerate(this_eq_indvars)]
         left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
                        build_expr(:tuple, right_arg_pairs))
@@ -658,7 +658,6 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
 end
 
 function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
-    
     @unpack eq_params, param_estim, default_p, phi, derivative, integral = pinnrep
 
     bc_indvars = bc_indvars === nothing ? pinnrep.indvars : bc_indvars
@@ -1118,7 +1117,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     flat_initθ = multioutput ? reduce(vcat, initθ) : initθ
     flat_initθ = param_estim == false ? flat_initθ :
-                    vcat(flat_initθ, adapt(typeof(flat_initθ), default_p))
+                 vcat(flat_initθ, adapt(typeof(flat_initθ), default_p))
 
     eltypeθ = eltype(flat_initθ)
     phi = discretization.phi
@@ -1153,27 +1152,26 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     integral = get_numeric_integral(pinnrep)
 
-    symbolic_pde_loss_functions = [build_symbolic_loss_function(pinnrep, eq;    
+    symbolic_pde_loss_functions = [build_symbolic_loss_function(pinnrep, eq;
                                                                 bc_indvars = pde_indvar)
                                    for (eq, pde_indvar) in zip(eqs, pde_indvars,
                                                                pde_integration_vars)]
-  
+
     symbolic_bc_loss_functions = [build_symbolic_loss_function(pinnrep, bc;
                                                                bc_indvars = bc_indvar)
                                   for (bc, bc_indvar) in zip(bcs, bc_indvars,
                                                              bc_integration_vars)]
-    
+
     pinnrep.integral = integral
     pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
     pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
-    
+
     return pinnrep
 end
 
 function discretize_inner_functions(pde_system::PDESystem,
                                     discretization::PhysicsInformedNN)
-
-    pinnrep = SciMLBase.symbolic_discretize(pde_system,discretization)   
+    pinnrep = SciMLBase.symbolic_discretize(pde_system, discretization)
 
     @unpack eqs, bcs, domains, eq_params, defaults, default_p,
     param_estim, additional_loss, adaloss, depvars, indvars,

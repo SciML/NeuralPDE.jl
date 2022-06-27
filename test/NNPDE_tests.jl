@@ -470,7 +470,7 @@ bcs = [u(0, t) ~ 0.0,# for all t > 0
 
 # Space and time domains
 domains = [x ∈ Interval(0.0, 1.0),
-           t ∈ Interval(0.0, 1.0)]
+    t ∈ Interval(0.0, 1.0)]
 @named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
 
 # Neural network
