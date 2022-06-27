@@ -1376,8 +1376,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     end
 
     pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions,pde_loss_functions,
-                                       full_loss_function,additional_loss_function,
-                                       inner_pde_loss_functions,inner_bc_loss_functions)
+                                       full_loss_function,additional_loss,
+                                       _pde_loss_functions,_bc_loss_functions)
  
     return pinnrep
 end
