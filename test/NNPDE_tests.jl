@@ -470,7 +470,8 @@ bcs = [u(0, t) ~ 0.0,# for all t > 0
 
 # Space and time domains
 domains = [x ∈ Interval(0.0, 1.0),
-    t ∈ Interval(0.0, 1.0)]
+           t ∈ Interval(0.0, 1.0)]
+@named pde_system = PDESystem(eqs, bcs, domains, [x, t], [u(x, t)])
 
 # Neural network
 chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))
@@ -489,7 +490,7 @@ quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(
 
 discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy;
                                              init_params = initθ)
-prob = Optimization.OptimizationProblem(f_, initθ)
+prob = NeuralPDE.discretize(pde_system, discretization)
 
 cb_ = function (p, l)
     println("loss: ", l)
