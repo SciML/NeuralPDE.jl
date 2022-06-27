@@ -547,18 +547,17 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                                       transformation_vars = nothing,
                                       integrating_depvars = pinnrep.depvars)
 
-    @unpack indvars, depvars, phi, derivative, integral,
+    @unpack indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input, 
+            phi, derivative, integral,
             multioutput, initθ, strategy, eq_params, 
             param_estim, default_p = pinnrep
 
-    # dictionaries: variable -> unique number
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(indvars,depvars)
     eltypeθ = eltype(pinnrep.flat_initθ)
 
     if integrand isa Nothing
         loss_function = parse_equation(pinnrep, eqs)
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
-        this_eq_indvars = unique(vcat(values(this_eq_pair)...))
+        this_eq_indvars = bc_indvars
     else
         this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars],
                                 integrating_depvars))
@@ -566,6 +565,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                           unique(vcat(values(this_eq_pair)...)) : transformation_vars
         loss_function = integrand
     end
+
     vars = :(cord, $θ, phi, derivative, integral, u, p)
     ex = Expr(:block)
     if multioutput
@@ -634,7 +634,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
                        build_expr(:tuple, right_arg_pairs))
     else
-        indvars_ex = [:($:cord[[$i], :]) for (i, u) in enumerate(this_eq_indvars)]
+        indvars_ex = [:($:cord[[$(dict_indvars[x])], :]) for x in this_eq_indvars]
         left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
                        build_expr(:tuple, right_arg_pairs))
@@ -670,7 +670,6 @@ function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
                                                       default_p = default_p)
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
-
     loss_function = (cord, θ) -> begin _loss_function(cord, θ, phi, derivative, integral, u,
                                                       default_p) end
     return loss_function
@@ -693,6 +692,7 @@ function get_vars(indvars_, depvars_)
             push!(dict_depvar_input, dname => indvars) # default to all inputs if not given
         end
     end
+
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
     return depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input
@@ -940,8 +940,8 @@ function numeric_derivative(phi, u, x, εs, order, θ)
 end
 
 function get_numeric_integral(pinnrep::PINNRepresentation)
-    @unpack strategy, indvars, depvars, multioutput, derivative = pinnrep
-    depvars, indvars, dict_indvars, dict_depvars = get_vars(indvars, depvars)
+    @unpack strategy, indvars, depvars, multioutput, derivative,
+    depvars, indvars, dict_indvars, dict_depvars = pinnrep
 
     integral = (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ; strategy = strategy, indvars = indvars, depvars = depvars, dict_indvars = dict_indvars, dict_depvars = dict_depvars) -> begin
         function integration_(cord, lb, ub, θ)
@@ -1181,8 +1181,6 @@ function discretize_inner_functions(pde_system::PDESystem,
     multioutput, initθ, flat_initθ, phi, derivative, strategy,
     pde_indvars, bc_indvars, pde_integration_vars,
     bc_integration_vars = pinnrep
-
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(pde_system.ivs, pde_system.dvs)
 
     eltypeθ = eltype(flat_initθ)
 
