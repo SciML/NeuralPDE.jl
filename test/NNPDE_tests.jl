@@ -471,7 +471,7 @@ bcs = [u(0, t) ~ 0.0,# for all t > 0
 # Space and time domains
 domains = [x ∈ Interval(0.0, 1.0),
            t ∈ Interval(0.0, 1.0)]
-@named pde_system = PDESystem(eqs, bcs, domains, [x, t], [u(x, t)])
+@named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
 
 # Neural network
 chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))
@@ -479,10 +479,6 @@ initθ = Float64.(DiffEqFlux.initial_params(chain))
 eltypeθ = eltype(initθ)
 phi = NeuralPDE.Phi(chain)
 derivative = NeuralPDE.numeric_derivative
-
-indvars = [x, t]
-depvars = [u(x, t)]
-dim = length(domains)
 
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
                                                    reltol = 1e-3, abstol = 1e-3,
