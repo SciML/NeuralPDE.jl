@@ -29,7 +29,7 @@ with grid discretization `dx = 0.1` using physics-informed neural networks.
 
 ```@example
 using NeuralPDE, Flux, Optimization, OptimizationOptimJL, DiffEqFlux
-import ModelingToolkit: Interval, infimum, supremum
+import ModelingToolkit: Interval
 
 @parameters x y
 @variables u(..)
@@ -92,7 +92,7 @@ The ModelingToolkit PDE interface for this example looks like this:
 
 ```@example poisson
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
-import ModelingToolkit: Interval, infimum, supremum
+import ModelingToolkit: Interval
 
 @parameters x y
 @variables u(..)
