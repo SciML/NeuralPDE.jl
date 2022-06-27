@@ -155,9 +155,9 @@ quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100;
 strategies = [
     grid_strategy,
     stochastic_strategy,
-    quadrature_strategy,
     quasirandom_strategy,
     quasirandom_strategy_resampling,
+    quadrature_strategy,
 ]
 
 map(strategies) do strategy_
@@ -471,6 +471,7 @@ bcs = [u(0, t) ~ 0.0,# for all t > 0
 # Space and time domains
 domains = [x ∈ Interval(0.0, 1.0),
     t ∈ Interval(0.0, 1.0)]
+@named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
 
 # Neural network
 chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))
@@ -479,63 +480,13 @@ eltypeθ = eltype(initθ)
 phi = NeuralPDE.Phi(chain)
 derivative = NeuralPDE.numeric_derivative
 
-indvars = [x, t]
-depvars = [u(x, t)]
-dim = length(domains)
-
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
                                                    reltol = 1e-3, abstol = 1e-3,
                                                    maxiters = 50, batch = 100)
 
-integral = NeuralPDE.get_numeric_integral(quadrature_strategy, indvars, depvars,
-                                          chain isa AbstractArray, derivative)
-_pde_loss_function = NeuralPDE.build_loss_function(eq, indvars, depvars, phi, derivative,
-                                                   integral,
-                                                   chain isa AbstractArray, initθ,
-                                                   quadrature_strategy)
-_pde_loss_function(rand(2, 10), initθ)
-
-bc_indvars = NeuralPDE.get_argument(bcs, indvars, depvars)
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc, indvars, depvars, phi, derivative,
-                                                    integral,
-                                                    chain isa AbstractArray, initθ,
-                                                    quadrature_strategy,
-                                                    bc_indvars = bc_indvar)
-                      for (bc, bc_indvar) in zip(bcs, bc_indvars)]
-map(loss_f -> loss_f(rand(1, 10), initθ), _bc_loss_functions)
-
-dx = 0.1
-train_sets = NeuralPDE.generate_training_sets(domains, dx, [eq], bcs, eltypeθ, indvars,
-                                              depvars)
-pde_train_set, bcs_train_set = train_sets
-pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains, [eq], bcs, eltypeθ, indvars, depvars,
-                                              quadrature_strategy)
-
-lbs, ubs = pde_bounds
-pde_loss_functions = [
-    NeuralPDE.get_loss_function(_pde_loss_function,
-                                lbs[1], ubs[1],
-                                eltypeθ,
-                                quadrature_strategy),
-]
-
-pde_loss_functions[1](initθ)
-
-lbs, ubs = bcs_bounds
-bc_loss_functions = [NeuralPDE.get_loss_function(_loss, lb, ub,
-                                                 eltypeθ, quadrature_strategy)
-                     for (_loss, lb, ub) in zip(_bc_loss_functions, lbs, ubs)]
-
-map(l -> l(initθ), bc_loss_functions)
-
-loss_functions = [pde_loss_functions; bc_loss_functions]
-
-function loss_function(θ, p)
-    sum(map(l -> l(θ), loss_functions))
-end
-
-f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
-prob = Optimization.OptimizationProblem(f_, initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy;
+                                             init_params = initθ)
+prob = NeuralPDE.discretize(pde_system, discretization)
 
 cb_ = function (p, l)
     println("loss: ", l)
@@ -545,6 +496,7 @@ end
 
 res = Optimization.solve(prob, Optim.BFGS(); maxiters = 500, f_abstol = 10^-6)
 
+dx = 0.1
 xs, ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 function analytic_sol_func(x, t)
     sum([(8 / (k^3 * pi^3)) * sin(k * pi * x) * cos(C * k * pi * t) for k in 1:2:50000])

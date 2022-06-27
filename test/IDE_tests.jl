@@ -1,8 +1,6 @@
-using DiffEqFlux
-using Test, NeuralPDE
+using DiffEqFlux, Test, NeuralPDE
 using Optimization, OptimizationOptimJL
-using SciMLBase
-import ModelingToolkit: Interval, infimum, supremum
+import ModelingToolkit: Interval
 using DomainSets
 
 using Random
