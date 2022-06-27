@@ -26,6 +26,7 @@ import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly, parameterless_type
 using Flux: @nograd
 import Optimisers
+import UnPack: @unpack
 
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
