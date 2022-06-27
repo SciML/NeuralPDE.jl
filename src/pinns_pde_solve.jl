@@ -1313,7 +1313,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         end
     end
 
-    function loss_function_(θ, p)
+    function full_loss_function(θ, p)
 
         # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
         pde_losses = [pde_loss_function(θ) for pde_loss_function in pde_loss_functions]
