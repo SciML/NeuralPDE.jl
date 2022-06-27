@@ -9,6 +9,7 @@ u(x) + w(x, v) = \frac{\partial w(x, v)}{\partial w}
 Here, we write an arbitrary heterogeneous system:
 
 ```julia
+
 @parameters x y
 @variables p(..) q(..) r(..) s(..)
 Dx = Differential(x)
@@ -29,7 +30,7 @@ domains = [x ∈ Interval(0.0, 1.0),
 numhid = 3
 fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];
                         [FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2]]
-discretization = NeuralPDE.PhysicsInformedNN(fastchains, QuadratureTraining()
+discretization = NeuralPDE.PhysicsInformedNN(fastchains, QuadratureTraining())
 
 @named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
 prob = SciMLBase.discretize(pde_system, discretization)

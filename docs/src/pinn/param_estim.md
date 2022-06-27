@@ -1,6 +1,6 @@
 # Optimising Parameters of a Lorenz System
 
-Consider a Lorenz System ,
+Consider a Lorenz System,
 
 ```math
 \begin{align*}
@@ -14,7 +14,7 @@ with Physics-Informed Neural Networks. Now we would consider the case where we w
 
 We start by defining the the problem,
 
-```julia
+```@example param_estim
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, OrdinaryDiffEq, Plots
 import ModelingToolkit: Interval, infimum, supremum
 @parameters t ,σ_ ,β, ρ
@@ -31,7 +31,7 @@ dt = 0.01
 
 And the neural networks as,
 
-```julia
+```@example param_estim
 input_ = length(domains)
 n = 8
 chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
@@ -43,7 +43,7 @@ We will add an additional loss term based on the data that we have in order to o
 
 Here we simply calculate the solution of the lorenz system with [OrdinaryDiffEq.jl](https://diffeq.sciml.ai/v1.10/tutorials/ode_example.html#In-Place-Updates-1) based on the adaptivity of the ODE solver. This is used to introduce non-uniformity to the time series.
 
-```julia
+```@example param_estim
 function lorenz!(du,u,p,t)
  du[1] = 10.0*(u[2]-u[1])
  du[2] = u[1]*(28.0-u[3]) - u[2]
@@ -71,7 +71,7 @@ len = length(data[2])
 
 Then we define the additional loss funciton `additional_loss(phi, θ , p)`, the function has three arguments, `phi` the trial solution, `θ` the parameters of neural networks, and the hyperparameters `p` .
 
-```julia
+```@example param_estim
 function additional_loss(phi, θ , p)
     return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
 end
@@ -79,7 +79,7 @@ end
 
 Then finally defining and optimising using the `PhysicsInformedNN` interface.
 
-```julia
+```@example param_estim
 discretization = NeuralPDE.PhysicsInformedNN([chain1 , chain2, chain3],NeuralPDE.GridTraining(dt), param_estim=true, additional_loss=additional_loss)
 @named pde_system = PDESystem(eqs,bcs,domains,[t],[x(t), y(t), z(t)],[σ_, ρ, β], defaults=Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system,discretization)
@@ -93,7 +93,7 @@ p_ = res.minimizer[end-2:end] # p_ = [9.93, 28.002, 2.667]
 
 And then finally some analyisis by plotting.
 
-```julia
+```@example param_estim
 initθ = discretization.init_params
 acum =  [0;accumulate(+, length.(initθ))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]

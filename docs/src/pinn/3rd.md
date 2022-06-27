@@ -14,7 +14,7 @@ x &\in [0, 1] \, ,
 
 We will use physics-informed neural networks.
 
-```julia
+```@example 3rdDerivative
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -52,7 +52,7 @@ phi = discretization.phi
 
 We can plot the predicted solution of the ODE and its analytical solution.
 
-```julia
+```@example 3rdDerivative
 using Plots
 
 analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)

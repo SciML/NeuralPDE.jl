@@ -8,7 +8,7 @@ pages = [
                                                        "pinn/low_level.md",
                                                        "pinn/ks.md",
                                                        "pinn/fp.md",
-                                                       "pinn/parm_estim.md",
+                                                       "pinn/param_estim.md",
                                                        "pinn/heterogeneous.md",
                                                        "pinn/integro_diff.md",
                                                        "pinn/debugging.md",
