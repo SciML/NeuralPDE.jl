@@ -487,7 +487,8 @@ quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(
                                                    reltol = 1e-3, abstol = 1e-3,
                                                    maxiters = 50, batch = 100)
 
-f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
+discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy;
+                                             init_params = initθ)
 prob = Optimization.OptimizationProblem(f_, initθ)
 
 cb_ = function (p, l)
