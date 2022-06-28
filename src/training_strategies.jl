@@ -8,8 +8,9 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::GridTraining,
                                            _pde_loss_functions, _bc_loss_functions)
-    @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars = pinnrep
     dx = strategy.dx
+    eltypeθ = eltype(pinnrep.flat_initθ)
 
     train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
                                         dict_indvars, dict_depvars)
@@ -61,7 +62,9 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::StochasticTraining,
                                            _pde_loss_functions, _bc_loss_functions)
-    @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars = pinnrep
+
+    eltypeθ = eltype(pinnrep.flat_initθ)
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
                         strategy)
@@ -142,7 +145,9 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuasiRandomTraining,
                                            _pde_loss_functions, _bc_loss_functions)
-    @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars = pinnrep
+
+    eltypeθ = eltype(pinnrep.flat_initθ)
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
                         strategy)
@@ -217,7 +222,8 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuadratureTraining,
                                            _pde_loss_functions, _bc_loss_functions)
-    @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars = pinnrep
+    eltypeθ = eltype(pinnrep.flat_initθ)
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
                         strategy)
