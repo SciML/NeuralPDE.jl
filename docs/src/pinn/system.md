@@ -72,9 +72,9 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, strategy, init_params = initθ)
 
-@named pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
-prob = discretize(pde_system,discretization)
-sym_prob = symbolic_discretize(pde_system,discretization)
+@named pdesystem = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
+prob = discretize(pdesystem,discretization)
+sym_prob = symbolic_discretize(pdesystem,discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
@@ -133,7 +133,7 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 flat_initθ = reduce(vcat,initθ )
 
 eltypeθ = eltype(initθ[1])
-@named pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
+@named pdesystem = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
 
 strategy = NeuralPDE.QuadratureTraining()
 discretization = PhysicsInformedNN(chain, strategy, init_params = initθ)
@@ -195,20 +195,20 @@ end
 ## Derivative neural network approximation
 
 The accuracy and stability of numerical derivative decreases with each successive order.
-The accuracy of the entire solution is determined by the worst accuracy of one of the variables, 
-in our case - the highest degree of the derivative. Meanwhile the computational cost of automatic 
-differentation for higher orders grows the power in O(n^d), making even numerical differentiation 
+The accuracy of the entire solution is determined by the worst accuracy of one of the variables,
+in our case - the highest degree of the derivative. Meanwhile the computational cost of automatic
+differentation for higher orders grows the power in O(n^d), making even numerical differentiation
 much more efficient! Given these two bad choices, there exists an alternative which can improve
 training speed and accuracy: using a system to represent the derivatives directly.
 
-The derivative neural network approximation is such an approach that using lower-order numeric 
-derivatives and estimates higher-order derivatives with a neural network so that allows an 
-increase in the marginal precision for all optimization. Since `u3` is only in the first and 
-second equations, that its accuracy during training is determined by the accuracy of the 
+The derivative neural network approximation is such an approach that using lower-order numeric
+derivatives and estimates higher-order derivatives with a neural network so that allows an
+increase in the marginal precision for all optimization. Since `u3` is only in the first and
+second equations, that its accuracy during training is determined by the accuracy of the
 second numerical derivative `u3(t,x) ~ (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)`.
 
-We approximate the derivative of the neural network with another neural network 
-`Dt(u1(t,x)) ~ Dtu1(t,x)` and train it along with other equations, and thus we avoid 
+We approximate the derivative of the neural network with another neural network
+`Dt(u1(t,x)) ~ Dtu1(t,x)` and train it along with other equations, and thus we avoid
 using the second numeric derivative `Dt(Dtu1(t,x))`.
 
 ```@example derivativenn
@@ -245,8 +245,8 @@ der_ = [Dt(u1(t,x)) ~ Dtu1(t,x),
 bcs__ = [bcs_;der_]
 
 # Space and time domains
-domains = [x ∈ Interval(0.0, 1.0),
-           y ∈ Interval(0.0, 1.0)]
+domains = [t ∈ Interval(0.0, 1.0),
+           x ∈ Interval(0.0, 1.0)]
 
 input_ = length(domains)
 n = 15
@@ -259,9 +259,9 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              init_params= initθ)
 
 vars = [u1(t,x),u2(t,x),u3(t,x),Dxu1(t,x),Dtu1(t,x),Dxu2(t,x),Dtu2(t,x)]
-@named pde_system = PDESystem(eqs_,bcs__,domains,[t,x],vars)
-prob = NeuralPDE.discretize(pde_system,discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
+@named pdesystem = PDESystem(eqs_,bcs__,domains,[t,x],vars)
+prob = NeuralPDE.discretize(pdesystem,discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pdesystem,discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:7]
@@ -423,11 +423,9 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, strategy, init_params=initθ)
 
-@named pde_system = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
-prob = discretize(pde_system, discretization)
-sym_prob = symbolic_discretize(pde_system, discretization)
-
-sym_prob = NeuralPDE.symbolic_discretize(pdesystem, strategy)
+@named pdesystem = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
+prob = discretize(pdesystem, discretization)
+sym_prob = symbolic_discretize(pdesystem, discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
@@ -495,7 +493,7 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k).
 This is done using a derivative neural network approximation.
 
 ```@example
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, Roots
 using Plots
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -686,9 +684,9 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, strategy, init_params=initθ)
 
-@named pde_system = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
-prob = discretize(pde_system, discretization)
-sym_prob = symbolic_discretize(pde_system, discretization)
+@named pdesystem = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
+prob = discretize(pdesystem, discretization)
+sym_prob = symbolic_discretize(pdesystem, discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
