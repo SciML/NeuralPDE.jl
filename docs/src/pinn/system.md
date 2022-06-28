@@ -79,7 +79,7 @@ sym_prob = symbolic_discretize(pde_system,discretization)
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-cb_ = function (p, l)
+callback = function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
@@ -133,9 +133,6 @@ initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 flat_initθ = reduce(vcat,initθ )
 
 eltypeθ = eltype(initθ[1])
-phi = NeuralPDE.get_phi.(chain)
-
-map(phi_ -> phi_(rand(2,10), flat_initθ),phi)
 @named pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
 
 strategy = NeuralPDE.QuadratureTraining()
@@ -145,7 +142,7 @@ sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-cb_ = function (p, l)
+callback = function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
@@ -161,14 +158,7 @@ end
 f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
 prob = Optimization.OptimizationProblem(f_, flat_initθ)
 
-cb_ = function (p,l)
-    println("loss: ", l )
-    println("pde losses: ", map(l -> l(p), loss_functions[1:3]))
-    println("bcs losses: ", map(l -> l(p), loss_functions[4:end]))
-    return false
-end
-
-res = Optimization.solve(prob,OptimizationOptimJL.BFGS(); callback = cb_, maxiters=5000)
+res = Optimization.solve(prob,OptimizationOptimJL.BFGS(); callback = callback, maxiters=5000)
 ```
 
 And some analysis for both the `symbolic_discretize` and `discretize` APIs:
@@ -176,6 +166,7 @@ And some analysis for both the `symbolic_discretize` and `discretize` APIs:
 ```@example system
 using Plots
 
+phi = discretization.phi
 ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 
 acum =  [0;accumulate(+, length.(initθ))]
@@ -252,6 +243,10 @@ der_ = [Dt(u1(t,x)) ~ Dtu1(t,x),
         Dx(u2(t,x)) ~ Dxu2(t,x)]
 
 bcs__ = [bcs_;der_]
+
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0),
+           y ∈ Interval(0.0, 1.0)]
 
 input_ = length(domains)
 n = 15
@@ -339,6 +334,7 @@ end
 Also, in addition to systems, we can use the matrix form of PDEs:
 
 ```@example
+using ModelingToolkit, NeuralPDE
 @parameters x y
 @variables u[1:2,1:2](..)
 @derivatives Dxx''~x
@@ -436,7 +432,7 @@ sym_prob = NeuralPDE.symbolic_discretize(pdesystem, strategy)
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-cb_ = function (p, l)
+callback = function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
@@ -555,9 +551,9 @@ strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, strategy, init_params=initθ)
 
 vars = [u(x,y),w(x,y),Dxu(x,y),Dyu(x,y),Dxw(x,y),Dyw(x,y)]
-@named pde_system = PDESystem(eqs_, bcs__, domains, [x,y], vars)
-prob = NeuralPDE.discretize(pde_system, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+@named pdesystem  = PDESystem(eqs_, bcs__, domains, [x,y], vars)
+prob = NeuralPDE.discretize(pdesystem , discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pdesystem , discretization)
 
 strategy = NeuralPDE.QuadratureTraining()
 discretization = PhysicsInformedNN(chain, strategy, init_params = initθ)
@@ -659,7 +655,7 @@ g(x) = 4 * cos(π * x)
 root(x) = g(x) - f(x)
 
 # Analytic solution
-k = find_zero(root, (0, 1), Bisection())                # k is a root of the algebraic (transcendental) equation f(x) = g(x)
+k = find_zero(root, (0, 1), Roots.Bisection())                # k is a root of the algebraic (transcendental) equation f(x) = g(x)
 ξ(t, x) = sqrt(f(k)) / sqrt(a) * sqrt(a * (t + 1)^2 - (x + 1)^2)
 θ(t, x) = besselj0(ξ(t, x)) + bessely0(ξ(t, x))                     # Analytical solution to Klein-Gordon equation
 w_analytic(t, x) = θ(t, x)
@@ -687,8 +683,8 @@ n = 15
 chain = [FastChain(FastDense(input_, n, Flux.σ), FastDense(n, n, Flux.σ), FastDense(n, 1)) for _ in 1:2]
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-_strategy = QuadratureTraining()
-discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
+strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, strategy, init_params=initθ)
 
 @named pde_system = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
 prob = discretize(pde_system, discretization)

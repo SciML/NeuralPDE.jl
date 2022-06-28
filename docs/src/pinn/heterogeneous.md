@@ -9,6 +9,8 @@ u(x) + w(x, v) = \frac{\partial w(x, v)}{\partial w}
 Here, we write an arbitrary heterogeneous system:
 
 ```@example heterogeneous
+using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL
+import ModelingToolkit: Interval
 
 @parameters x y
 @variables p(..) q(..) r(..) s(..)
