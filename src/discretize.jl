@@ -412,7 +412,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                                                          bc_integration_vars)]
 
     pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
-                                                    _pde_loss_functions, _bc_loss_functions)
+                                                                              _pde_loss_functions,
+                                                                              _bc_loss_functions)
 
     # setup for all adaptive losses
     num_pde_losses = length(pde_loss_functions)

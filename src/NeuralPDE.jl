@@ -173,6 +173,10 @@ function Base.show(io::IO, A::ParamKolmogorovPDEProblem)
     show(io, A.g)
 end
 
+abstract type AbstractPINN end
+
+abstract type AbstractTrainingStrategy end
+
 include("pinn_types.jl")
 include("symbolic_utilities.jl")
 include("training_strategies.jl")

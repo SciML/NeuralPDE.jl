@@ -1,5 +1,3 @@
-abstract type AbstractTrainingStrategy end
-
 """
 * `dx`: the discretization of the grid.
 """
@@ -10,7 +8,6 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::GridTraining,
                                            _pde_loss_functions, _bc_loss_functions)
-
     @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
     dx = strategy.dx
 
@@ -22,10 +19,10 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
     pde_train_sets = adapt.(typeof(flat_initθ), pde_train_sets)
     bcs_train_sets = adapt.(typeof(flat_initθ), bcs_train_sets)
     pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
-                            for (_loss, _set) in zip(_pde_loss_functions, pde_train_sets)]
+                          for (_loss, _set) in zip(_pde_loss_functions, pde_train_sets)]
 
     bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
-                            for (_loss, _set) in zip(_bc_loss_functions, bcs_train_sets)]
+                         for (_loss, _set) in zip(_bc_loss_functions, bcs_train_sets)]
 
     pde_loss_functions, bc_loss_functions
 end
@@ -64,7 +61,6 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::StochasticTraining,
                                            _pde_loss_functions, _bc_loss_functions)
-
     @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
@@ -72,10 +68,10 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
     pde_bounds, bcs_bounds = bounds
 
     pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
-                            for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
+                          for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
 
     bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
-                            for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
+                         for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
 
     pde_loss_functions, bc_loss_functions
 end
@@ -146,7 +142,6 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuasiRandomTraining,
                                            _pde_loss_functions, _bc_loss_functions)
-
     @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
@@ -154,14 +149,14 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
     pde_bounds, bcs_bounds = bounds
 
     pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
-                            for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
+                          for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
 
     strategy_ = QuasiRandomTraining(strategy.bcs_points;
                                     sampling_alg = strategy.sampling_alg,
                                     resampling = strategy.resampling,
                                     minibatch = strategy.minibatch)
     bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy_)
-                            for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
+                         for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
 
     pde_loss_functions, bc_loss_functions
 end
@@ -222,7 +217,6 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuadratureTraining,
                                            _pde_loss_functions, _bc_loss_functions)
-
     @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
@@ -231,10 +225,10 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
 
     lbs, ubs = pde_bounds
     pde_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
-                            for (_loss, lb, ub) in zip(_pde_loss_functions, lbs, ubs)]
+                          for (_loss, lb, ub) in zip(_pde_loss_functions, lbs, ubs)]
     lbs, ubs = bcs_bounds
     bc_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
-                            for (_loss, lb, ub) in zip(_bc_loss_functions, lbs, ubs)]
+                         for (_loss, lb, ub) in zip(_bc_loss_functions, lbs, ubs)]
 
     pde_loss_functions, bc_loss_functions
 end

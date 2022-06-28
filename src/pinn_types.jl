@@ -25,8 +25,6 @@ function logscalar(logger, s::R, name::AbstractString, step::Integer) where {R <
     nothing
 end
 
-abstract type AbstractPINN end
-
 """
 Algorithm for solving Physics-Informed Neural Networks problems.
 
