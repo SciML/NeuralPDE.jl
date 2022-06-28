@@ -57,9 +57,9 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 struct LogOptions
     log_frequency::Int64
     # TODO: add in an option for saving plots in the log. this is currently not done because the type of plot is dependent on the PDESystem
-    #       possible solution: pass in a plot function?  
-    #       this is somewhat important because we want to support plotting adaptive weights that depend on pde independent variables 
-    #       and not just one weight for each loss function, i.e. pde_loss_weights(i, t, x) and since this would be function-internal, 
+    #       possible solution: pass in a plot function?
+    #       this is somewhat important because we want to support plotting adaptive weights that depend on pde independent variables
+    #       and not just one weight for each loss function, i.e. pde_loss_weights(i, t, x) and since this would be function-internal,
     #       we'd want the plot & log to happen internally as well
     #       plots of the learned function can happen in the outer callback, but we might want to offer that here too
 
@@ -1104,6 +1104,92 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::Quadrature
     return loss
 end
 
+function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
+                                           strategy::GridTraining,
+                                           _pde_loss_functions, _bc_loss_functions)
+
+    sf
+    @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
+    dx = strategy.dx
+
+    train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
+                                        dict_indvars, dict_depvars)
+
+    # the points in the domain and on the boundary
+    pde_train_sets, bcs_train_sets = train_sets
+    pde_train_sets = adapt.(typeof(flat_initθ), pde_train_sets)
+    bcs_train_sets = adapt.(typeof(flat_initθ), bcs_train_sets)
+    pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
+                            for (_loss, _set) in zip(_pde_loss_functions, pde_train_sets)]
+
+    bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
+                            for (_loss, _set) in zip(_bc_loss_functions, bcs_train_sets)]
+
+    pde_loss_functions, bc_loss_functions
+end
+
+function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
+                                           strategy::StochasticTraining,
+                                           _pde_loss_functions, _bc_loss_functions)
+
+    @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
+
+    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+                        strategy)
+    pde_bounds, bcs_bounds = bounds
+
+    pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
+                            for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
+
+    bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
+                            for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
+
+    pde_loss_functions, bc_loss_functions
+end
+
+function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
+                                           strategy::QuasiRandomTraining,
+                                           _pde_loss_functions, _bc_loss_functions)
+
+    @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
+
+    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+                        strategy)
+    pde_bounds, bcs_bounds = bounds
+
+    pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
+                            for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
+
+    strategy_ = QuasiRandomTraining(strategy.bcs_points;
+                                    sampling_alg = strategy.sampling_alg,
+                                    resampling = strategy.resampling,
+                                    minibatch = strategy.minibatch)
+    bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy_)
+                            for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
+
+    pde_loss_functions, bc_loss_functions
+end
+
+function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
+                                           strategy::QuadratureTraining,
+                                           _pde_loss_functions, _bc_loss_functions)
+
+    @unpack domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars = pinnrep
+
+    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+                        strategy)
+    pde_bounds, bcs_bounds = bounds
+
+    lbs, ubs = pde_bounds
+    pde_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
+                            for (_loss, lb, ub) in zip(_pde_loss_functions, lbs, ubs)]
+    lbs, ubs = bcs_bounds
+    bc_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
+                            for (_loss, lb, ub) in zip(_bc_loss_functions, lbs, ubs)]
+
+    pde_loss_functions, bc_loss_functions
+end
+
 function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                        discretization::PhysicsInformedNN)
     eqs = pde_system.eqs
@@ -1184,62 +1270,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                           for (bc, bc_indvar, integration_indvar) in zip(bcs, bc_indvars,
                                                                          bc_integration_vars)]
 
-    pde_loss_functions, bc_loss_functions = if strategy isa GridTraining
-        dx = strategy.dx
-
-        train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
-                                            dict_indvars, dict_depvars)
-
-        # the points in the domain and on the boundary
-        pde_train_sets, bcs_train_sets = train_sets
-        pde_train_sets = adapt.(typeof(flat_initθ), pde_train_sets)
-        bcs_train_sets = adapt.(typeof(flat_initθ), bcs_train_sets)
-        pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
-                              for (_loss, _set) in zip(_pde_loss_functions, pde_train_sets)]
-
-        bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
-                             for (_loss, _set) in zip(_bc_loss_functions, bcs_train_sets)]
-        (pde_loss_functions, bc_loss_functions)
-    elseif strategy isa StochasticTraining
-        bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
-                            strategy)
-        pde_bounds, bcs_bounds = bounds
-
-        pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
-                              for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
-
-        bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
-                             for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
-        (pde_loss_functions, bc_loss_functions)
-    elseif strategy isa QuasiRandomTraining
-        bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
-                            strategy)
-        pde_bounds, bcs_bounds = bounds
-
-        pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
-                              for (_loss, bound) in zip(_pde_loss_functions, pde_bounds)]
-
-        strategy_ = QuasiRandomTraining(strategy.bcs_points;
-                                        sampling_alg = strategy.sampling_alg,
-                                        resampling = strategy.resampling,
-                                        minibatch = strategy.minibatch)
-        bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy_)
-                             for (_loss, bound) in zip(_bc_loss_functions, bcs_bounds)]
-        (pde_loss_functions, bc_loss_functions)
-    elseif strategy isa QuadratureTraining
-        bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
-                            strategy)
-        pde_bounds, bcs_bounds = bounds
-
-        lbs, ubs = pde_bounds
-        pde_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
-                              for (_loss, lb, ub) in zip(_pde_loss_functions, lbs, ubs)]
-        lbs, ubs = bcs_bounds
-        bc_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
-                             for (_loss, lb, ub) in zip(_bc_loss_functions, lbs, ubs)]
-
-        (pde_loss_functions, bc_loss_functions)
-    end
+    pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
+                                                    _pde_loss_functions, _bc_loss_functions)
 
     # setup for all adaptive losses
     num_pde_losses = length(pde_loss_functions)
@@ -1259,8 +1291,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
                                       adaloss.additional_loss_weights
 
-    # this is the function that gets called to do the adaptive reweighting, a function specific to the 
-    # type of adaptive reweighting being performed. 
+    # this is the function that gets called to do the adaptive reweighting, a function specific to the
+    # type of adaptive reweighting being performed.
     # TODO: I'd love to pull this out and then dispatch on it via the AbstractAdaptiveLoss, so that users can implement their own
     #       currently this is kind of tricky since the different methods need different types of information, and the loss functions
     #       are generated internal to the code
