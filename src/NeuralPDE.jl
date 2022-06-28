@@ -28,6 +28,8 @@ using Flux: @nograd
 import Optimisers
 import UnPack: @unpack
 
+RuntimeGeneratedFunctions.init(@__MODULE__)
+
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
     TerminalPDEProblem(g, f, μ, σ, x0, tspan)
@@ -171,6 +173,8 @@ function Base.show(io::IO, A::ParamKolmogorovPDEProblem)
     show(io, A.g)
 end
 
+include("symbolic_utilities.jl")
+include("pinn_types.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
 include("ode_solve.jl")
@@ -178,7 +182,7 @@ include("kolmogorov_solve.jl")
 include("rode_solve.jl")
 include("stopping_solve.jl")
 include("transform_inf_integral.jl")
-include("pinns_pde_solve.jl")
+include("discretize.jl")
 include("neural_adapter.jl")
 include("param_kolmogorov_solve.jl")
 
