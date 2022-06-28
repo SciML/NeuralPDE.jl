@@ -173,8 +173,8 @@ function Base.show(io::IO, A::ParamKolmogorovPDEProblem)
     show(io, A.g)
 end
 
-include("symbolic_utilities.jl")
 include("pinn_types.jl")
+include("symbolic_utilities.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
 include("ode_solve.jl")
