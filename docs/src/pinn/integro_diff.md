@@ -44,7 +44,7 @@ and boundary condition
 u(0) = 0
 ```
 
-```julia
+```@example integro
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DomainSets
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -75,7 +75,7 @@ res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=100)
 
 Plotting the final solution and analytical solution
 
-```julia
+```@example integro
 ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict  = [first(phi([t],res.minimizer)) for t in ts]

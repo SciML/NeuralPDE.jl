@@ -20,7 +20,7 @@ p(-2.2) = p(2.2) = 0
 
 with Physics-Informed Neural Networks.
 
-```julia
+```@example fokkerplank
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 # the example is taken from this article https://arxiv.org/abs/1910.10503
@@ -69,13 +69,15 @@ discretization = PhysicsInformedNN(chain,
                                    init_params = initθ,
                                    additional_loss=norm_loss_function)
 
-@named pde_system = PDESystem(eq,bcs,domains,[x],[p(x)])
-prob = discretize(pde_system,discretization)
-
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
-
+@named pdesystem = PDESystem(eq,bcs,domains,[x],[p(x)])
+prob = discretize(pdesystem,discretization)
 phi = discretization.phi
+
+sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
+
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
+aprox_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 cb_ = function (p,l)
     println("loss: ", l )
@@ -92,7 +94,7 @@ res = Optimization.solve(prob,BFGS(),callback = cb_,maxiters=2000)
 
 And some analysis:
 
-```julia
+```@example fokkerplank
 using Plots
 C = 142.88418699042 #fitting param
 analytic_sol_func(x) = C*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))

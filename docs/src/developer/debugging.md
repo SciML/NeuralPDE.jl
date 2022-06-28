@@ -1,5 +1,7 @@
 # Debugging PINN Solutions
 
+#### Note this is all not current right now!
+
 Let's walk through debugging functions for the physics-informed neural network
 PDE solvers.
 

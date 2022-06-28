@@ -1,6 +1,6 @@
-# Differential Equations with Heterogeneous Inputs
+# Differential Equations with Heterogeneous Domains
 
-A differential equation is said to have heterogeneous inputs when its dependent variables depend on different independent variables:
+A differential equation is said to have heterogeneous domains when its dependent variables depend on different independent variables:
 
 ```math
 u(x) + w(x, v) = \frac{\partial w(x, v)}{\partial w}
@@ -8,7 +8,7 @@ u(x) + w(x, v) = \frac{\partial w(x, v)}{\partial w}
 
 Here, we write an arbitrary heterogeneous system:
 
-```julia
+```@example heterogeneous
 
 @parameters x y
 @variables p(..) q(..) r(..) s(..)

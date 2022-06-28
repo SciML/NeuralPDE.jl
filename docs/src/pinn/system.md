@@ -32,9 +32,10 @@ u_2(t, 0) & = - u_2(t, 1) = e^{-t} \, ,
 
 with physics-informed neural networks.
 
-```julia
+## Solution
+
+```@example system
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
-using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -68,18 +69,18 @@ n = 15
 chain =[FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1)) for _ in 1:3]
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-_strategy = QuadratureTraining()
-discretization = PhysicsInformedNN(chain, _strategy, init_params= initθ)
+strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, strategy, init_params = initθ)
 
 @named pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
 prob = discretize(pde_system,discretization)
 sym_prob = symbolic_discretize(pde_system,discretization)
 
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-callback = function (p,l)
-    println("loss: ", l )
+cb_ = function (p, l)
+    println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
     return false
@@ -90,11 +91,14 @@ res = Optimization.solve(prob,BFGS(); callback = callback, maxiters=5000)
 phi = discretization.phi
 ```
 
-Low-level api
+## Direct Construction via symbolic_discretize
 
-```julia
+One can take apart the pieces and reassemble the loss functions using the `symbolic_discretize`
+interface. Here is an example using the components from `symbolic_discretize` to fully
+reproduce the `discretize` optimization:
+
+```@example system
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
-using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -132,48 +136,21 @@ eltypeθ = eltype(initθ[1])
 phi = NeuralPDE.get_phi.(chain)
 
 map(phi_ -> phi_(rand(2,10), flat_initθ),phi)
+@named pde_system = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
 
-derivative = NeuralPDE.get_numeric_derivative()
+strategy = NeuralPDE.QuadratureTraining()
+discretization = PhysicsInformedNN(chain, strategy, init_params = initθ)
+sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
 
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-indvars = [t,x]
-depvars = [u1,u2,u3]
-dim = length(domains)
-quadrature_strategy = NeuralPDE.QuadratureTraining()
-
-
-_pde_loss_functions = [NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,
-                                                     chain,initθ,quadrature_strategy) for eq in  eqs]
-
-map(loss_f -> loss_f(rand(2,10), flat_initθ),_pde_loss_functions)
-
-bc_indvars = NeuralPDE.get_argument(bcs,indvars,depvars)
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars, phi, derivative,
-                                                    chain,initθ,quadrature_strategy,
-                                                    bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
-map(loss_f -> loss_f(rand(1,10), flat_initθ),_bc_loss_functions)
-
-# dx = 0.1
-# train_sets = NeuralPDE.generate_training_sets(domains,dx,eqs,bcs,eltypeθ,indvars,depvars)
-# pde_train_set,bcs_train_set = train_sets
-pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains,eqs,bcs,eltypeθ,indvars,depvars,quadrature_strategy)
-
-plbs,pubs = pde_bounds
-pde_loss_functions = [NeuralPDE.get_loss_function(_loss,
-                                                 lb,ub,
-                                                 eltypeθ,
-                                                 quadrature_strategy)
-                                                 for (_loss,lb,ub) in zip(_pde_loss_functions, plbs,pubs)]
-
-map(l->l(flat_initθ) ,pde_loss_functions)
-
-blbs,bubs = bcs_bounds
-bc_loss_functions = [NeuralPDE.get_loss_function(_loss,lb,ub,
-                                                 eltypeθ,
-                                                 quadrature_strategy)
-                                                 for (_loss,lb,ub) in zip(_bc_loss_functions, blbs,bubs)]
-
-map(l->l(flat_initθ) ,bc_loss_functions)
+cb_ = function (p, l)
+    println("loss: ", l)
+    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+    return false
+end
 
 loss_functions =  [pde_loss_functions;bc_loss_functions]
 
@@ -194,9 +171,9 @@ end
 res = Optimization.solve(prob,OptimizationOptimJL.BFGS(); callback = cb_, maxiters=5000)
 ```
 
-And some analysis for both low and high level api:
+And some analysis for both the `symbolic_discretize` and `discretize` APIs:
 
-```julia
+```@example system
 using Plots
 
 ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
@@ -227,16 +204,25 @@ end
 ## Derivative neural network approximation
 
 The accuracy and stability of numerical derivative decreases with each successive order.
-The accuracy of the entire solution is determined by the worst accuracy of one of the variables, in our case - the highest degree of the derivative.
-Derivative neural network approximation is such an approach that using lower-order numeric derivatives and estimates higher-order derivatives with a neural network so that allows an increase in the marginal precision for all optimization.
+The accuracy of the entire solution is determined by the worst accuracy of one of the variables, 
+in our case - the highest degree of the derivative. Meanwhile the computational cost of automatic 
+differentation for higher orders grows the power in O(n^d), making even numerical differentiation 
+much more efficient! Given these two bad choices, there exists an alternative which can improve
+training speed and accuracy: using a system to represent the derivatives directly.
 
-Since `u3` is only in the first and second equations, that its accuracy during training is determined by the accuracy of the second numerical derivative `u3(t,x) ~ (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)`.
+The derivative neural network approximation is such an approach that using lower-order numeric 
+derivatives and estimates higher-order derivatives with a neural network so that allows an 
+increase in the marginal precision for all optimization. Since `u3` is only in the first and 
+second equations, that its accuracy during training is determined by the accuracy of the 
+second numerical derivative `u3(t,x) ~ (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)`.
 
-We approximate the derivative of the neural network with another neural network `Dt(u1(t,x)) ~ Dtu1(t,x)` and train it along with other equations, and thus we avoid using the second numeric derivative `Dt(Dtu1(t,x))`.
+We approximate the derivative of the neural network with another neural network 
+`Dt(u1(t,x)) ~ Dtu1(t,x)` and train it along with other equations, and thus we avoid 
+using the second numeric derivative `Dt(Dtu1(t,x))`.
 
-```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
-using Quadrature,Cubature
+```@example derivativenn
+using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationFlux, OptimizationOptimJL, DiffEqFlux
+using Plots
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -282,10 +268,9 @@ vars = [u1(t,x),u2(t,x),u3(t,x),Dxu1(t,x),Dtu1(t,x),Dxu2(t,x),Dtu2(t,x)]
 prob = NeuralPDE.discretize(pde_system,discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system,discretization)
 
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
-bcs_inner_loss_functions = inner_loss_functions[1:7]
-aprox_derivative_loss_functions = inner_loss_functions[9:end]
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:7]
+aprox_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[9:end]
 
 callback = function (p,l)
     println("loss: ", l )
@@ -304,12 +289,11 @@ phi = discretization.phi
 
 And some analysis:
 
-```julia
+```@example derivativenn
 using Plots
 
 ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 
-initθ = discretization.init_params
 acum =  [0;accumulate(+, length.(initθ))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 minimizers_ = [res.minimizer[s] for s in sep]
@@ -354,17 +338,19 @@ end
 
 Also, in addition to systems, we can use the matrix form of PDEs:
 
-```julia
+```@example
 @parameters x y
 @variables u[1:2,1:2](..)
 @derivatives Dxx''~x
 @derivatives Dyy''~y
 
+# Initial and boundary conditions
+bcs = [u[1](x,0) ~ x, u[2](x,0) ~ 2, u[3](x,0) ~ 3, u[4](x,0) ~ 4]
+
 # matrix PDE
 eqs  = @. [(Dxx(u_(x,y)) + Dyy(u_(x,y))) for u_ in u] ~ -sin(pi*x)*sin(pi*y)*[0 1; 0 1]
 
-# Initial and boundary conditions
-bcs = [u[1](x,0) ~ x, u[2](x,0) ~ 2, u[3](x,0) ~ 3, u[4](x,0) ~ 4]
+size(eqs)
 ```
 
 ## Linear parabolic system of PDEs
@@ -392,10 +378,9 @@ w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\l
 
 with a physics-informed neural network.
 
-```julia
+```@example
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 using Plots
-using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -439,17 +424,19 @@ n = 15
 chain = [FastChain(FastDense(input_, n, Flux.σ), FastDense(n, n, Flux.σ), FastDense(n, 1)) for _ in 1:2]
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-_strategy = QuadratureTraining()
-discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
+strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, strategy, init_params=initθ)
 
 @named pde_system = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
 prob = discretize(pde_system, discretization)
 sym_prob = symbolic_discretize(pde_system, discretization)
 
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+sym_prob = NeuralPDE.symbolic_discretize(pdesystem, strategy)
 
-callback = function (p, l)
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
+
+cb_ = function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
@@ -511,10 +498,9 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k).
 
 This is done using a derivative neural network approximation.
 
-```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DifferentialEquations, Roots
+```@example
+using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 using Plots
-using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x, y
@@ -565,18 +551,21 @@ n = 15
 chain = [FastChain(FastDense(input_, n, Flux.σ), FastDense(n, n, Flux.σ), FastDense(n, 1)) for _ in 1:6] # 1:number of @variables
 initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-_strategy = QuadratureTraining()
-discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
+strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, strategy, init_params=initθ)
 
 vars = [u(x,y),w(x,y),Dxu(x,y),Dyu(x,y),Dxw(x,y),Dyw(x,y)]
 @named pde_system = PDESystem(eqs_, bcs__, domains, [x,y], vars)
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
-bcs_inner_loss_functions = inner_loss_functions[1:6]
-aprox_derivative_loss_functions = inner_loss_functions[7:end]
+strategy = NeuralPDE.QuadratureTraining()
+discretization = PhysicsInformedNN(chain, strategy, init_params = initθ)
+sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
+
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:6]
+aprox_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[7:end]
 
 callback = function (p, l)
     println("loss: ", l)
@@ -647,11 +636,10 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and
 
 We solve this with Neural:
 
-```julia
+```@example
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, Roots
 using SpecialFunctions
 using Plots
-using Quadrature,Cubature
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -706,8 +694,8 @@ discretization = PhysicsInformedNN(chain, _strategy, init_params=initθ)
 prob = discretize(pde_system, discretization)
 sym_prob = symbolic_discretize(pde_system, discretization)
 
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-bcs_inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
     println("loss: ", l)
