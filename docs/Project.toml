@@ -7,6 +7,7 @@ Optimization = "7f7a1694-90dd-40f0-9382-eb1efda571ba"
 OptimizationFlux = "253f991c-a7b2-45f8-8852-8b9a9df78a86"
 OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
 OptimizationPolyalgorithms = "500b13db-7e66-49ce-bda4-eed966be6282"
+OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
 
