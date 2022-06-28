@@ -13,7 +13,7 @@ Using the example of 2D Poisson equation, it is shown how, using method neural_a
 
 ![image](https://user-images.githubusercontent.com/12683885/127149639-c2a8066f-9a25-4889-b313-5d4403567300.png)
 
-```julia
+```@example neuraladaptor
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DiffEqBase
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -104,7 +104,7 @@ And then using the method neural_adapter, we retrain the banch of 10 predictions
 
 ![domain_decomposition](https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png)
 
-```julia
+```@example domaindecomposition
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DiffEqBase
 import ModelingToolkit: Interval, infimum, supremum
 
