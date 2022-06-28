@@ -1,5 +1,8 @@
 using Documenter, NeuralPDE
 
+ENV["GKSwstype"] = "100"
+using Plots
+
 include("pages.jl")
 
 makedocs(sitename = "NeuralPDE.jl",

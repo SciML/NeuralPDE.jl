@@ -8,10 +8,9 @@ pages = [
                                                        "pinn/low_level.md",
                                                        "pinn/ks.md",
                                                        "pinn/fp.md",
-                                                       "pinn/parm_estim.md",
+                                                       "pinn/param_estim.md",
                                                        "pinn/heterogeneous.md",
                                                        "pinn/integro_diff.md",
-                                                       "pinn/debugging.md",
                                                        "pinn/neural_adapter.md"],
     "Specialized Neural PDE Tutorials" => Any["examples/kolmogorovbackwards.md",
                                               "examples/optimal_stopping_american.md"],
@@ -23,4 +22,5 @@ pages = [
                                "solvers/kolmogorovbackwards_solver.md",
                                "solvers/optimal_stopping.md",#TODO
                                "solvers/nnrode.md"],
+    "Developer Documentation" => Any["developer/debugging.md"],
 ]

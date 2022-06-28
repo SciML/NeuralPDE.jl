@@ -1,6 +1,6 @@
-# Differential Equations with Heterogeneous Inputs
+# Differential Equations with Heterogeneous Domains
 
-A differential equation is said to have heterogeneous inputs when its dependent variables depend on different independent variables:
+A differential equation is said to have heterogeneous domains when its dependent variables depend on different independent variables:
 
 ```math
 u(x) + w(x, v) = \frac{\partial w(x, v)}{\partial w}
@@ -8,7 +8,10 @@ u(x) + w(x, v) = \frac{\partial w(x, v)}{\partial w}
 
 Here, we write an arbitrary heterogeneous system:
 
-```julia
+```@example heterogeneous
+using NeuralPDE, DiffEqFlux, Flux, ModelingToolkit, Optimization, OptimizationOptimJL
+import ModelingToolkit: Interval
+
 @parameters x y
 @variables p(..) q(..) r(..) s(..)
 Dx = Differential(x)
@@ -29,9 +32,15 @@ domains = [x ∈ Interval(0.0, 1.0),
 numhid = 3
 fastchains = [[FastChain(FastDense(1, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2];
                         [FastChain(FastDense(2, numhid, Flux.σ), FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1)) for i in 1:2]]
-discretization = NeuralPDE.PhysicsInformedNN(fastchains, QuadratureTraining()
+discretization = NeuralPDE.PhysicsInformedNN(fastchains, QuadratureTraining())
 
 @named pde_system = PDESystem(eq, bcs, domains, [x,y], [p(x), q(y), r(x, y), s(y, x)])
 prob = SciMLBase.discretize(pde_system, discretization)
+
+callback = function (p,l)
+    println("Current loss is: $l")
+    return false
+end
+
 res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=100)
 ```

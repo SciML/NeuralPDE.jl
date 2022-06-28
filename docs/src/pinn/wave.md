@@ -15,9 +15,9 @@ with grid discretization `dx = 0.1` and physics-informed neural networks.
 
 Further, the solution of this equation with the given boundary conditions is presented.
 
-```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
-import ModelingToolkit: Interval, infimum, supremum
+```@example wave
+using NeuralPDE, Flux, Optimization, OptimizationOptimJL, DiffEqFlux
+import ModelingToolkit: Interval
 
 @parameters t, x
 @variables u(..)
@@ -62,7 +62,7 @@ phi = discretization.phi
 
 We can plot the predicted solution of the PDE and compare it with the analytical solution in order to plot the relative error.
 
-```julia
+```@example wave
 using Plots
 
 ts,xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
@@ -95,7 +95,7 @@ u_t(0, x) = 1 - 2x \\
 
 with grid discretization `dx = 0.05` and physics-informed neural networks. Here we take advantage of adaptive derivative to increase accuracy.
 
-```julia
+```@example wave2
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 using Plots, Printf
 import ModelingToolkit: Interval, infimum, supremum
@@ -151,13 +151,13 @@ discretization = PhysicsInformedNN(chain, strategy; init_params=initθ)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x), Dxu(t, x), Dtu(t, x), O1(t, x), O2(t, x)])
 prob = discretize(pde_system, discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
-pde_inner_loss_functions = prob.f.f.loss_function.pde_loss_function.pde_loss_functions.contents
-inner_loss_functions = prob.f.f.loss_function.bcs_loss_function.bc_loss_functions.contents
-bcs_inner_loss_functions = inner_loss_functions
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
-    println("Current loss is: $l")
+    println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
     return false

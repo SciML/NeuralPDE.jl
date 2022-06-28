@@ -26,7 +26,7 @@ where `\theta = 1 - x/2` and with initial and boundary conditions:
 
 We use physics-informed neural networks.
 
-```julia
+```@example ks
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -77,7 +77,7 @@ phi = discretization.phi
 
 And some analysis:
 
-```julia
+```@example ks
 using Plots
 
 xs,ts = [infimum(d.domain):dx:supremum(d.domain) for (d,dx) in zip(domains,[dx/10,dt])]
