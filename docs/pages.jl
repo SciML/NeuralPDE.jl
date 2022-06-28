@@ -22,7 +22,5 @@ pages = [
                                "solvers/kolmogorovbackwards_solver.md",
                                "solvers/optimal_stopping.md",#TODO
                                "solvers/nnrode.md"],
-    "Developer Documentation" => Any[
-                                "developer/debugging.md",
-    ]
+    "Developer Documentation" => Any["developer/debugging.md"],
 ]
