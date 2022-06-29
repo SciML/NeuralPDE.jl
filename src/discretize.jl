@@ -387,7 +387,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
                                  param_estim, additional_loss, adaloss, depvars, indvars,
-                                 dict_indvars, dict_depvars, dict_depvar_input,
+                                 dict_indvars, dict_depvars, dict_depvar_input, logger,
                                  multioutput, iteration, initθ, flat_initθ, phi, derivative,
                                  strategy, pde_indvars, bc_indvars, pde_integration_vars,
                                  bc_integration_vars, nothing, nothing, nothing, nothing)
@@ -437,7 +437,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     reweight_losses_func = generate_adaptive_loss_function(pinnrep, adaloss,
                                                            pde_loss_functions,
-                                                           bc_loss_functions, )
+                                                           bc_loss_functions)
 
     function full_loss_function(θ, p)
 
@@ -479,21 +479,21 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         end
 
         Zygote.@ignore begin if iteration[1] % log_frequency == 0
-            logvector(logger, pde_losses, "unweighted_loss/pde_losses", iteration[1])
-            logvector(logger, bc_losses, "unweighted_loss/bc_losses", iteration[1])
-            logvector(logger, weighted_pde_losses, "weighted_loss/weighted_pde_losses",
+            logvector(pinnrep.logger, pde_losses, "unweighted_loss/pde_losses", iteration[1])
+            logvector(pinnrep.logger, bc_losses, "unweighted_loss/bc_losses", iteration[1])
+            logvector(pinnrep.logger, weighted_pde_losses, "weighted_loss/weighted_pde_losses",
                       iteration[1])
-            logvector(logger, weighted_bc_losses, "weighted_loss/weighted_bc_losses",
+            logvector(pinnrep.logger, weighted_bc_losses, "weighted_loss/weighted_bc_losses",
                       iteration[1])
-            logscalar(logger, sum_weighted_pde_losses,
+            logscalar(pinnrep.logger, sum_weighted_pde_losses,
                       "weighted_loss/sum_weighted_pde_losses", iteration[1])
-            logscalar(logger, sum_weighted_bc_losses,
+            logscalar(pinnrep.logger, sum_weighted_bc_losses,
                       "weighted_loss/sum_weighted_bc_losses", iteration[1])
-            logscalar(logger, full_weighted_loss, "weighted_loss/full_weighted_loss",
+            logscalar(pinnrep.logger, full_weighted_loss, "weighted_loss/full_weighted_loss",
                       iteration[1])
-            logvector(logger, adaloss.pde_loss_weights, "adaptive_loss/pde_loss_weights",
+            logvector(pinnrep.logger, adaloss.pde_loss_weights, "adaptive_loss/pde_loss_weights",
                       iteration[1])
-            logvector(logger, adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights",
+            logvector(pinnrep.logger, adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights",
                       iteration[1])
         end end
 

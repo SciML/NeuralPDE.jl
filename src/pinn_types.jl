@@ -183,6 +183,7 @@ mutable struct PINNRepresentation
     dict_indvars::Any
     dict_depvars::Any
     dict_depvar_input::Any
+    logger::Any
     multioutput::Bool
     iteration::Vector{Int}
     initθ::Any

@@ -144,11 +144,11 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
                                         adaloss.bc_loss_weights .+
                                         (1 .- weight_change_inertia) .*
                                         bc_loss_weights_proposed
-            logscalar(logger, pde_grads_max, "adaptive_loss/pde_grad_max", iteration[1])
-            logvector(logger, pde_grads_maxes, "adaptive_loss/pde_grad_maxes",
+            logscalar(pinnrep.logger, pde_grads_max, "adaptive_loss/pde_grad_max", iteration[1])
+            logvector(pinnrep.logger, pde_grads_maxes, "adaptive_loss/pde_grad_maxes",
                         iteration[1])
-            logvector(logger, bc_grads_mean, "adaptive_loss/bc_grad_mean", iteration[1])
-            logvector(logger, adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights",
+            logvector(pinnrep.logger, bc_grads_mean, "adaptive_loss/bc_grad_mean", iteration[1])
+            logvector(pinnrep.logger, adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights",
                         iteration[1])
         end
         nothing
@@ -243,9 +243,9 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
             Flux.Optimise.update!(pde_max_optimiser, adaloss.pde_loss_weights,
                                     -pde_losses)
             Flux.Optimise.update!(bc_max_optimiser, adaloss.bc_loss_weights, -bc_losses)
-            logvector(logger, adaloss.pde_loss_weights,
+            logvector(pinnrep.logger, adaloss.pde_loss_weights,
                         "adaptive_loss/pde_loss_weights", iteration[1])
-            logvector(logger, adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights",
+            logvector(pinnrep.logger, adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights",
                         iteration[1])
         end
         nothing
