@@ -26,14 +26,56 @@ function logscalar(logger, s::R, name::AbstractString, step::Integer) where {R <
 end
 
 """
-Algorithm for solving Physics-Informed Neural Networks problems.
+```julia
+PhysicsInformedNN(chain,
+                  strategy;
+                  init_params = nothing,
+                  phi = nothing,
+                  derivative = nothing,
+                  param_estim = false,
+                  additional_loss = nothing,
+                  adaptive_loss = nothing,
+                  logger = nothing,
+                  log_options = LogOptions(),
+                  iteration = nothing,
+                  kwargs...) where {iip}
 
-Arguments:
-* `chain`: a Flux.jl chain with a d-dimensional input and a 1-dimensional output,
-* `strategy`: determines which training strategy will be used,
-* `init_params`: the initial parameter of the neural network,
-* `phi`: a trial solution,
-* `derivative`: method that calculates the derivative.
+A `discretize` algorithm for the ModelingToolkit PDESystem interface which transforms a
+`PDESystem` into an `OptimizationProblem` using the Physics-Informed Neural Networks (PINN)
+methodology.
+
+## Positional Arguments
+
+* `chain`: a vector of Flux.jl or Lux.jl chains with a d-dimensional input and a
+  1-dimensional output corresponding to each of the dependent variables. Note that this
+  specification respects the order of the dependent variables as specified in the PDESystem.
+* `strategy`: determines which training strategy will be used. See the Training Strategy
+  documentation for more details.
+
+## Keyword Arguments
+
+* `init_params`: the initial parameters of the neural networks. This should match the
+  specification of the chosen `chain` library. For example, if a Flux.chain is used, then
+  `init_params` should match `Flux.destructure(chain)[1]` in shape. If `init_params` is not
+  given, then the neural network default parameters are used.
+* `phi`: a trial solution, specified as `phi(x,p)` where `x` is the coordinates vector for
+  the dependent variable and `p` are the weights of the phi function (generally the weights
+  of the neural network defining `phi`). By default this is generated from the `chain`. This
+  should only be used to more directly impose functional information in the training problem,
+  for example imposing the boundary condition by the test function formulation.
+
+(to be added)
+
+* `pde_loss_weights`: either a scalar (which will be broadcast) or vector the size of the
+  number of PDE equations, which describes the weight the respective PDE loss has in the
+  full loss sum
+* `bc_loss_weights`: either a scalar (which will be broadcast) or vector the size of the
+  number of BC equations, which describes the initial weight the respective BC loss has in
+  the full loss sum
+* `additional_loss_weights`: a scalar which describes the weight the additional loss
+  function has in the full loss sum, this is currently not adaptive and will be constant
+  with the adaptive loss
+
 """
 struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
     strategy::T
@@ -141,7 +183,9 @@ mutable struct PINNRepresentation
     dict_indvars::Any
     dict_depvars::Any
     dict_depvar_input::Any
+    logger::Any
     multioutput::Bool
+    iteration::Vector{Int}
     initθ::Any
     flat_initθ::Any
     phi::Any
