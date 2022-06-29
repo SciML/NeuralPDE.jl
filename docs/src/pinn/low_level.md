@@ -46,11 +46,9 @@ strategy = NeuralPDE.GridTraining(dx)
 indvars = [t,x]
 depvars = [u(t,x)]
 @named pde_system = PDESystem(eq,bcs,domains,indvars,depvars)
-sym_prob = symbolic_discretize(pde_system,discretization)
+sym_prob = symbolic_discretize(pde_system,strategy)
 
 phi = sym_prob.phi
-
-
 
 pde_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
