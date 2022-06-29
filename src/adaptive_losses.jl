@@ -1,4 +1,3 @@
-
 abstract type AbstractAdaptiveLoss end
 
 # Utils
@@ -14,7 +13,14 @@ end
 # Dispatches
 
 """
-A way of weighting the components of the loss function in the total sum that does not change during optimization
+```julia
+NonAdaptiveLoss{T}(; pde_loss_weights = 1,
+                     bc_loss_weights = 1,
+                     additional_loss_weights = 1)
+```
+
+A way of loss weighting the components of the loss function in the total sum that does not
+change during optimization
 """
 mutable struct NonAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     pde_loss_weights::Vector{T}
@@ -49,16 +55,36 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
 end
 
 """
-A way of adaptively reweighting the components of the loss function in the total sum such that BC_i loss weights are scaled by the exponential moving average of max(|∇pde_loss|)/mean(|∇bc_i_loss|) )
+```julia
+GradientScaleAdaptiveLoss(reweight_every;
+                          weight_change_inertia = 0.9,
+                          pde_loss_weights = 1,
+                          bc_loss_weights = 1,
+                          additional_loss_weights = 1)
+```
 
-* `reweight_every`: how often to reweight the BC loss functions, measured in iterations.  reweighting is somewhat expensive since it involves evaluating the gradient of each component loss function,
-* `weight_change_inertia`: a real number that represents the inertia of the exponential moving average of the BC weight changes,
+A way of adaptively reweighting the components of the loss function in the total sum such
+that BC_i loss weights are scaled by the exponential moving average of
+max(|∇pde_loss|)/mean(|∇bc_i_loss|) )
 
-from paper
+## Positional Arguments
+
+* `reweight_every`: how often to reweight the BC loss functions, measured in iterations.
+  Reweighting is somewhat expensive since it involves evaluating the gradient of each
+  component loss function,
+
+## Keyword Arguments
+
+* `weight_change_inertia`: a real number that represents the inertia of the exponential
+  moving average of the BC weight changes,
+
+## References
+
 Understanding and mitigating gradient pathologies in physics-informed neural networks
 Sifan Wang, Yujun Teng, Paris Perdikaris
 https://arxiv.org/abs/2001.04536v1
-with code reference
+
+With code reference:
 https://github.com/PredictiveIntelligenceLab/GradientPathologiesPINNs
 """
 mutable struct GradientScaleAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
@@ -97,7 +123,7 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
                                          adaloss::GradientScaleAdaptiveLoss,
                                          pde_loss_functions, bc_loss_functions)
 
-    weight_change_inertia = pinnrep.adaptive_loss.weight_change_inertia
+    weight_change_inertia = adaloss.weight_change_inertia
     iteration = pinnrep.iteration
 
     function run_loss_gradients_adaptive_loss(θ, pde_losses, bc_losses)
@@ -129,13 +155,34 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
 end
 
 """
-A way of adaptively reweighting the components of the loss function in the total sum such that the loss weights are maximized by an internal optimiser, which leads to a behavior where loss functions that have not been satisfied get a greater weight,
+```julia
+function MiniMaxAdaptiveLoss(reweight_every;
+                             pde_max_optimiser = Flux.ADAM(1e-4),
+                             bc_max_optimiser = Flux.ADAM(0.5),
+                             pde_loss_weights = 1,
+                             bc_loss_weights = 1,
+                             additional_loss_weights = 1)
+```
 
-* `reweight_every`: how often to reweight the PDE and BC loss functions, measured in iterations.  reweighting is cheap since it re-uses the value of loss functions generated during the main optimisation loop,
-* `pde_max_optimiser`: a Flux.Optimise.AbstractOptimiser that is used internally to maximize the weights of the PDE loss functions,
-* `bc_max_optimiser`: a Flux.Optimise.AbstractOptimiser that is used internally to maximize the weights of the BC loss functions,
+A way of adaptively reweighting the components of the loss function in the total sum such
+that the loss weights are maximized by an internal optimiser, which leads to a behavior
+where loss functions that have not been satisfied get a greater weight,
 
-from paper
+## Positional Arguments
+
+* `reweight_every`: how often to reweight the PDE and BC loss functions, measured in
+  iterations.  reweighting is cheap since it re-uses the value of loss functions generated
+  during the main optimisation loop
+
+## Keyword Arguments
+
+* `pde_max_optimiser`: a Flux.Optimise.AbstractOptimiser that is used internally to
+  maximize the weights of the PDE loss functions
+* `bc_max_optimiser`: a Flux.Optimise.AbstractOptimiser that is used internally to maximize
+  the weights of the BC loss functions
+
+## References
+
 Self-Adaptive Physics-Informed Neural Networks using a Soft Attention Mechanism
 Levi McClenny, Ulisses Braga-Neto
 https://arxiv.org/abs/2009.04544
