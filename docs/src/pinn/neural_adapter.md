@@ -1,5 +1,9 @@
 # Transfer Learning with Neural Adapter
 
+!!! warn
+
+    This documentation page is out of date.
+
 Transfer learning is a machine learning technique where a model trained on one task is re-purposed on a second related task.
 
 `neural_adapter` is method that trains a neural network using the results from an already obtained prediction.
@@ -13,7 +17,7 @@ Using the example of 2D Poisson equation, it is shown how, using method neural_a
 
 ![image](https://user-images.githubusercontent.com/12683885/127149639-c2a8066f-9a25-4889-b313-5d4403567300.png)
 
-```@example neuraladaptor
+```julia
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DiffEqBase
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -104,7 +108,7 @@ And then using the method neural_adapter, we retrain the banch of 10 predictions
 
 ![domain_decomposition](https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png)
 
-```@example domaindecomposition
+```julia
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DiffEqBase
 import ModelingToolkit: Interval, infimum, supremum
 
