@@ -1,4 +1,17 @@
+
 abstract type AbstractAdaptiveLoss end
+
+# Utils
+function vectorify(x, t::Type{T}) where {T <: Real}
+    convertfunc(y) = convert(t, y)
+    returnval = if x isa Vector
+        convertfunc.(x)
+    else
+        t[convertfunc(x)]
+    end
+end
+
+# Dispatches
 
 """
 A way of weighting the components of the loss function in the total sum that does not change during optimization
@@ -40,7 +53,7 @@ A way of adaptively reweighting the components of the loss function in the total
 * `additional_loss_weights`: a scalar which describes the weight the additional loss function has in the full loss sum, this is currently not adaptive and will be constant with this adaptive loss,
 
 from paper
-Understanding and mitigating gradient pathologies in physics-informed neural networks 
+Understanding and mitigating gradient pathologies in physics-informed neural networks
 Sifan Wang, Yujun Teng, Paris Perdikaris
 https://arxiv.org/abs/2001.04536v1
 with code reference
