@@ -125,6 +125,7 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
 
     weight_change_inertia = adaloss.weight_change_inertia
     iteration = pinnrep.iteration
+    adaloss_T = eltype(adaloss.pde_loss_weights)
 
     function run_loss_gradients_adaptive_loss(θ, pde_losses, bc_losses)
         if iteration[1] % adaloss.reweight_every == 0
