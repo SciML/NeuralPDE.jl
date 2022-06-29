@@ -361,6 +361,11 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     derivative = discretization.derivative
     strategy = discretization.strategy
 
+    logger = discretization.logger
+    log_frequency = discretization.log_options.log_frequency
+    iteration = discretization.iteration
+    self_increment = discretization.self_increment
+
     if !(eqs isa Array)
         eqs = [eqs]
     end
@@ -383,8 +388,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
                                  param_estim, additional_loss, adaloss, depvars, indvars,
                                  dict_indvars, dict_depvars, dict_depvar_input,
-                                 multioutput, initθ, flat_initθ, phi, derivative, strategy,
-                                 pde_indvars, bc_indvars, pde_integration_vars,
+                                 multioutput, iteration, initθ, flat_initθ, phi, derivative,
+                                 strategy, pde_indvars, bc_indvars, pde_integration_vars,
                                  bc_integration_vars, nothing, nothing, nothing, nothing)
 
     integral = get_numeric_integral(pinnrep)
@@ -423,10 +428,6 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     num_additional_loss = additional_loss isa Nothing ? 0 : 1
 
     adaloss_T = eltype(adaloss.pde_loss_weights)
-    logger = discretization.logger
-    log_frequency = discretization.log_options.log_frequency
-    iteration = discretization.iteration
-    self_increment = discretization.self_increment
 
     # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
     adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .* adaloss.pde_loss_weights
@@ -434,59 +435,9 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
                                       adaloss.additional_loss_weights
 
-    # this is the function that gets called to do the adaptive reweighting, a function specific to the
-    # type of adaptive reweighting being performed.
-    # TODO: I'd love to pull this out and then dispatch on it via the AbstractAdaptiveLoss, so that users can implement their own
-    #       currently this is kind of tricky since the different methods need different types of information, and the loss functions
-    #       are generated internal to the code
-    reweight_losses_func = if adaloss isa GradientScaleAdaptiveLoss
-        weight_change_inertia = discretization.adaptive_loss.weight_change_inertia
-        function run_loss_gradients_adaptive_loss(θ)
-            if iteration[1] % adaloss.reweight_every == 0
-                # the paper assumes a single pde loss function, so here we grab the maximum of the maximums of each pde loss function
-                pde_grads_maxes = [maximum(abs.(Zygote.gradient(pde_loss_function, θ)[1]))
-                                   for pde_loss_function in pde_loss_functions]
-                pde_grads_max = maximum(pde_grads_maxes)
-                bc_grads_mean = [mean(abs.(Zygote.gradient(bc_loss_function, θ)[1]))
-                                 for bc_loss_function in bc_loss_functions]
-
-                nonzero_divisor_eps = adaloss_T isa Float64 ? Float64(1e-11) :
-                                      convert(adaloss_T, 1e-7)
-                bc_loss_weights_proposed = pde_grads_max ./
-                                           (bc_grads_mean .+ nonzero_divisor_eps)
-                adaloss.bc_loss_weights .= weight_change_inertia .*
-                                           adaloss.bc_loss_weights .+
-                                           (1 .- weight_change_inertia) .*
-                                           bc_loss_weights_proposed
-                logscalar(logger, pde_grads_max, "adaptive_loss/pde_grad_max", iteration[1])
-                logvector(logger, pde_grads_maxes, "adaptive_loss/pde_grad_maxes",
-                          iteration[1])
-                logvector(logger, bc_grads_mean, "adaptive_loss/bc_grad_mean", iteration[1])
-                logvector(logger, adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights",
-                          iteration[1])
-            end
-            nothing
-        end
-    elseif adaloss isa MiniMaxAdaptiveLoss
-        pde_max_optimiser = adaloss.pde_max_optimiser
-        bc_max_optimiser = adaloss.bc_max_optimiser
-        function run_minimax_adaptive_loss(θ, pde_losses, bc_losses)
-            if iteration[1] % adaloss.reweight_every == 0
-                Flux.Optimise.update!(pde_max_optimiser, adaloss.pde_loss_weights,
-                                      -pde_losses)
-                Flux.Optimise.update!(bc_max_optimiser, adaloss.bc_loss_weights, -bc_losses)
-                logvector(logger, adaloss.pde_loss_weights,
-                          "adaptive_loss/pde_loss_weights", iteration[1])
-                logvector(logger, adaloss.bc_loss_weights, "adaptive_loss/bc_loss_weights",
-                          iteration[1])
-            end
-            nothing
-        end
-    elseif adaloss isa NonAdaptiveLoss
-        function run_nonadaptive_loss(θ)
-            nothing
-        end
-    end
+    reweight_losses_func = generate_adaptive_loss_function(pinnrep, adaloss,
+                                                           pde_loss_functions,
+                                                           bc_loss_functions, )
 
     function full_loss_function(θ, p)
 
@@ -500,11 +451,10 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             iteration[1] += 1
         end
 
-        Zygote.@ignore begin if adaloss isa MiniMaxAdaptiveLoss
+        Zygote.@ignore begin
             reweight_losses_func(θ, pde_losses, bc_losses)
-        else
-            reweight_losses_func(θ)
-        end end
+        end
+
         weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
         weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
 
