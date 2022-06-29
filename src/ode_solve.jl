@@ -100,37 +100,37 @@ struct ODEPhi{C, T, U}
     end
 end
 
-function (f::ODEPhi{C, T, U})(t, θ) where {C <: FastChain, T, U <: Number}
+function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: FastChain, T, U <: Number}
     f.u0 + (t - f.t0) * first(f.chain(adapt(parameterless_type(θ), [t]), θ))
 end
 
-function (f::ODEPhi{C, T, U})(t::Vector, θ) where {C <: FastChain, T, U <: Number}
+function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: FastChain, T, U <: Number}
     # Batch via data as row vectors
     f.u0 .+ (t' .- f.t0) .* (f.chain(adapt(parameterless_type(θ), t'), θ))
 end
 
-function (f::ODEPhi{C, T, U})(t, θ) where {C <: FastChain, T, U}
+function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: FastChain, T, U}
     f.u0 + (t - f.t0) * f.chain(adapt(parameterless_type(θ), [t]), θ)
 end
 
-function (f::ODEPhi{C, T, U})(t::Vector, θ) where {C <: FastChain, T, U}
+function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: FastChain, T, U}
     # Batch via data as row vectors
     f.u0 .+ (t' .- f.t0) .* f.chain(adapt(parameterless_type(θ), t'), θ)
 end
 
-function (f::ODEPhi{C, T, U})(t, θ) where {C <: Optimisers.Restructure, T, U <: Number}
+function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Optimisers.Restructure, T, U <: Number}
     f.u0 + (t - f.t0) * first(f.chain(θ)(adapt(parameterless_type(θ), [t])))
 end
 
-function (f::ODEPhi{C, T, U})(t::Vector, θ) where {C <: Optimisers.Restructure, T, U <: Number}
+function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: Optimisers.Restructure, T, U <: Number}
     f.u0 .+ (t' .- f.t0) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
-function (f::ODEPhi{C, T, U})(t, θ) where {C <: Optimisers.Restructure, T, U}
+function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Optimisers.Restructure, T, U}
     f.u0 + (t - f.t0) * f.chain(θ)(adapt(parameterless_type(θ), [t]))
 end
 
-function (f::ODEPhi{C, T, U})(t::Vector, θ) where {C <: Optimisers.Restructure, T, U}
+function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: Optimisers.Restructure, T, U}
     f.u0 .+ (t .- f.t0) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
@@ -156,9 +156,9 @@ function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ, autodiff::Bool) where {C,
     end
 end
 
-function ode_dfdx(phi::ODEPhi, t::Vector, θ, autodiff::Bool)
+function ode_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool)
     if autodiff
-        ForwardDiff.jacobian(t -> phi(t, θ), t')
+        ForwardDiff.jacobian(t -> phi(t, θ), t)
     else
         (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
     end
@@ -168,9 +168,10 @@ end
 Simple L2 inner loss at a time `t` with parameters θ
 """
 function inner_loss(phi, f, autodiff::Bool, t, θ, p)
-    out = phi(t, θ)
+    out = Array(phi(t, θ))
     fs = reduce(hcat,[f(out[:,i], p, t) for i in 1:size(out,2)])
-    sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- fs)
+    dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
+    sum(abs2, dxdtguess .- fs)
 end
 
 """
@@ -210,7 +211,8 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
         # (tspan[2]-tspan[1])*rand() + tspan[1] gives Uniform(tspan[1],tspan[2])
-        ts = [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)]
+        ts = adapt(parameterless_type(θ),[(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
+
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
         else
@@ -254,7 +256,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
                             reltol = 1.0f-3,
                             verbose = false,
                             saveat = nothing,
-                            maxiters = 100)
+                            maxiters = nothing)
     u0 = prob.u0
     tspan = prob.tspan
     f = prob.f
@@ -318,8 +320,10 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
 
     optf = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch)
 
+    iteration = 0
     callback = function (p, l)
-        verbose && println("Current loss is: $l")
+        iteration += 1
+        verbose && println("Current loss is: $l, Iteration: $iteration")
         l < abstol
     end
 
