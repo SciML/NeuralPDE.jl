@@ -46,7 +46,6 @@ strategy = NeuralPDE.GridTraining(dx)
 indvars = [t,x]
 depvars = [u(t,x)]
 @named pde_system = PDESystem(eq,bcs,domains,indvars,depvars)
-sym_prob = symbolic_discretize(pde_system,strategy)
 
 discretization = PhysicsInformedNN(chain, strategy)
 sym_prob = symbolic_discretize(pde_system,discretization)
