@@ -238,10 +238,15 @@ function numeric_derivative(phi, u, x, εs, order, θ)
     ε = εs[order]
     ε = adapt(parameterless_type(θ), ε)
     x = adapt(parameterless_type(θ), x)
-    if order > 4
-        return (numeric_derivative(phi, u, x .+ ε, εs, order - 1, θ)
+
+    # any(x->x!=εs[1],εs)
+    # εs is the epsilon for each order, if they are all the same then we use a fancy formula
+    # if order 1, this is trivially true
+
+    if order > 4 || any(x->x!=εs[1],εs)
+        return (numeric_derivative(phi, u, x .+ ε, @view(εs[1:end-1]), order - 1, θ)
                 .-
-                numeric_derivative(phi, u, x .- ε, εs, order - 1, θ)) .* _epsilon
+                numeric_derivative(phi, u, x .- ε, @view(εs[1:end-1]), order - 1, θ)) .* _epsilon ./ 2
     elseif order == 4
         return (u(x .+ 2 .* ε, θ, phi) .- 4 .* u(x .+ ε, θ, phi)
                 .+
