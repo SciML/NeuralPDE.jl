@@ -1,26 +1,33 @@
 pages = [
-    "NeuralPDE.jl: Scientific Machine Learning (SciML) for Partial Differential Equations" => "index.md",
-    "Physics-Informed Neural Network Tutorials" => Any["pinn/poisson.md",
-                                                       "pinn/wave.md",
-                                                       "pinn/2D.md",
-                                                       "pinn/system.md",
-                                                       "pinn/3rd.md",
-                                                       "pinn/low_level.md",
-                                                       "pinn/ks.md",
-                                                       "pinn/fp.md",
-                                                       "pinn/param_estim.md",
-                                                       "pinn/heterogeneous.md",
-                                                       "pinn/integro_diff.md",
-                                                       "pinn/neural_adapter.md"],
-    "Specialized Neural PDE Tutorials" => Any["examples/kolmogorovbackwards.md",
-                                              "examples/optimal_stopping_american.md"],
-    "Specialized Neural ODE Tutorials" => Any["examples/ode.md",
-                                              "examples/nnrode_example.md"],
-    "API Documentation" => Any["solvers/ode.md",
-                               "solvers/pinns.md",
-                               "solvers/training_strategies.md",
-                               "solvers/kolmogorovbackwards_solver.md",
-                               "solvers/optimal_stopping.md",#TODO
-                               "solvers/nnrode.md"],
+    "NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)" => "index.md",
+
+    "ODE PINN Tutorials" => Any["Introduction to NeuralPDE for ODEs" =>"tutorials/ode.md",
+                                #"examples/nnrode_example.md", # currently incorrect
+                                ],
+
+    "PDE PINN Tutorials" => Any["Introduction to NeuralPDE for PDEs" => "tutorials/pdesystem.md",
+                                "Using GPUs" => "tutorials/gpu.md",
+                                "Defining Systems of PDEs" => "tutorials/systems.md",
+                                "Imposing Constraints" => "tutorials/constraints.md",
+                                "The symbolic_discretize Interface" => "tutorials/low_level.md",
+                                "Optimising Parameters (Solving Inverse Problems)" => "tutorials/param_estim.md",
+                                "Solving Integro Differential Equations" => "tutorials/integro_diff.md",
+                                "Transfer Learning with Neural Adapter" => "tutorials/neural_adapter.md"],
+
+    "Extended Examples" => [
+        "examples/wave.md",
+        "examples/3rd.md",
+        "examples/ks.md",
+        "examples/heterogeneous.md",
+    ]
+
+    "Manual" => Any["manual/ode.md",
+                    "manual/pinns.md",
+                    "manual/training_strategies.md",
+                    "manual/adaptive_losses.md",
+                    "manual/logging.md",
+                    "manual/neural_adapters.md",
+                    #"solvers/nnrode.md", # currently incorrect
+                               ],
     "Developer Documentation" => Any["developer/debugging.md"],
 ]

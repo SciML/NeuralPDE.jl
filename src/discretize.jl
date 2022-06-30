@@ -142,6 +142,14 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
     expr_loss_function = :(($vars) -> begin $ex end)
 end
 
+"""
+```julia
+build_loss_function(eqs, indvars, depvars, phi, derivative, initθ; bc_indvars=nothing)
+```
+
+Returns the body of loss function, which is the executable Julia function, for the main
+equation or boundary condition.
+"""
 function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
     @unpack eq_params, param_estim, default_p, phi, derivative, integral = pinnrep
 
@@ -158,6 +166,16 @@ function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
                                                       default_p) end
     return loss_function
 end
+
+"""
+```julia
+generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
+```
+
+Returns training sets for equations and boundary condition, that is used for GridTraining
+strategy.
+"""
+function generate_training_sets end
 
 function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, _indvars::Array,
                                 _depvars::Array)
@@ -218,6 +236,16 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
     end
     [pde_train_sets, bcs_train_sets]
 end
+
+"""
+```julia
+get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
+```
+
+Returns pairs with lower and upper bounds for all domains. It is used for all non-grid
+training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
+"""
+function get_bounds end
 
 function get_bounds(domains, eqs, bcs, eltypeθ, _indvars::Array, _depvars::Array, strategy)
     depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
@@ -331,6 +359,19 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
     end
 end
 
+"""
+```julia
+prob = symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+```
+
+`symbolic_discretize` is the lower level interface to `discretize` for inspecting internals.
+It transforms a symbolic description of a ModelingToolkit-defined `PDESystem` into a
+`PINNRepresentation` which holds the pieces required to build an `OptimizationProblem`
+for [Optimization.jl](https://Optimization.sciml.ai/dev/) whose solution is the solution
+to the PDE.
+
+For more information, see `discretize` and `PINNRepresentation`.
+"""
 function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                        discretization::PhysicsInformedNN)
     eqs = pde_system.eqs
@@ -408,18 +449,18 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
     pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
 
-    _pde_loss_functions = [build_loss_function(pinnrep, eq, pde_indvar)
+    datafree_pde_loss_function = [build_loss_function(pinnrep, eq, pde_indvar)
                            for (eq, pde_indvar, integration_indvar) in zip(eqs, pde_indvars,
                                                                            pde_integration_vars)]
 
-    _bc_loss_functions = [build_loss_function(pinnrep, bc, bc_indvar)
+    datafree_bc_loss_function = [build_loss_function(pinnrep, bc, bc_indvar)
                           for (bc, bc_indvar, integration_indvar) in zip(bcs, bc_indvars,
                                                                          bc_integration_vars)]
 
     pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
                                                                               strategy,
-                                                                              _pde_loss_functions,
-                                                                              _bc_loss_functions)
+                                                                              datafree_pde_loss_function,
+                                                                              datafree_bc_loss_function)
 
     # setup for all adaptive losses
     num_pde_losses = length(pde_loss_functions)
@@ -506,12 +547,22 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
                                                full_loss_function, additional_loss,
-                                               _pde_loss_functions, _bc_loss_functions)
+                                               datafree_pde_loss_function,
+                                               datafree_bc_loss_function)
 
     return pinnrep
 end
 
-# Convert a PDE problem into an OptimizationProblem
+
+"""
+```julia
+prob = discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+```
+
+Transforms a symbolic description of a ModelingToolkit-defined `PDESystem` and generates
+an `OptimizationProblem` for [Optimization.jl](https://Optimization.sciml.ai/dev/) whose
+solution is the solution to the PDE.
+"""
 function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     pinnrep = symbolic_discretize(pde_system, discretization)
     f = OptimizationFunction(pinnrep.loss_functions.full_loss_function,

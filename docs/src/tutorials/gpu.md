@@ -1,4 +1,4 @@
-# 2-dimensional PDEs with GPU
+# Using GPUs to train Physics-Informed Neural Networks (PINNs)
 
 the 2-dimensional PDE:
 
@@ -24,10 +24,28 @@ on the space and time domain:
 x \in [0, 2] \, ,\ y \in [0, 2] \, , \ t \in [0, 2] \, ,
 ```
 
-with physics-informed neural networks.
+with physics-informed neural networks. The only major difference from the CPU case is that
+we must ensure that our initial parameters for the neural network are on the GPU. If that
+is done, then the internal computations will all take place on the GPU. This is done by
+using the `CuArray` constructor, like:
 
 ```julia
-using NeuralPDE, Flux, Optimization, OptimizationOptimJL, DiffEqFlux
+using CUDA
+initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
+```
+
+and then we must make sure we pass our initial condition vector into the discretization:
+
+```julia
+discretization = PhysicsInformedNN(chain,
+                                   strategy;
+                                   init_params = initθ)
+```
+
+In total, this looks like:
+
+```julia
+using NeuralPDE, Flux, Optimization, OptimizationOptimJL, DiffEqFlux, CUDA
 import ModelingToolkit: Interval
 
 @parameters t x y
@@ -85,13 +103,17 @@ end
 res = Optimization.solve(prob,ADAM(0.01);callback = callback,maxiters=2500)
 ```
 
-The `remake` function allows to rebuild the PDE problem.
+We then use the `remake` function allows to rebuild the PDE problem to start a new
+optimization at the optimized parameters, and continue with a lower learning rate:
 
 ```julia
-
 prob = remake(prob,u0=res.minimizer)
 res = Optimization.solve(prob,ADAM(0.001);callback = callback,maxiters=2500)
+```
 
+Finally we inspect the solution:
+
+```julia
 phi = discretization.phi
 ts,xs,ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
 u_real = [analytic_sol_func(t,x,y) for t in ts for x in xs for y in ys]
@@ -120,14 +142,15 @@ function plot_(res)
 end
 
 plot_(res)
-
 ```
 
 ![3pde](https://user-images.githubusercontent.com/12683885/129949743-9471d230-c14f-4105-945f-6bc52677d40e.gif)
 
 ## Performance benchmarks
 
-Here are some performance benchmarks for 2d-pde with various number of input points and the number of neurons in the hidden layer, measuring the time for 100 iterations. Сomparing runtime with GPU and CPU.
+Here are some performance benchmarks for 2d-pde with various number of input points and the
+number of neurons in the hidden layer, measuring the time for 100 iterations. Сomparing
+runtime with GPU and CPU.
 
 ```julia
 

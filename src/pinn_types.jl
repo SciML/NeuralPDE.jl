@@ -1,4 +1,5 @@
 """
+???
 """
 struct LogOptions
     log_frequency::Int64
@@ -31,7 +32,6 @@ PhysicsInformedNN(chain,
                   strategy;
                   init_params = nothing,
                   phi = nothing,
-                  derivative = nothing,
                   param_estim = false,
                   additional_loss = nothing,
                   adaptive_loss = nothing,
@@ -63,19 +63,18 @@ methodology.
   of the neural network defining `phi`). By default this is generated from the `chain`. This
   should only be used to more directly impose functional information in the training problem,
   for example imposing the boundary condition by the test function formulation.
-
-(to be added)
-
-* `pde_loss_weights`: either a scalar (which will be broadcast) or vector the size of the
-  number of PDE equations, which describes the weight the respective PDE loss has in the
-  full loss sum
-* `bc_loss_weights`: either a scalar (which will be broadcast) or vector the size of the
-  number of BC equations, which describes the initial weight the respective BC loss has in
-  the full loss sum
-* `additional_loss_weights`: a scalar which describes the weight the additional loss
-  function has in the full loss sum, this is currently not adaptive and will be constant
-  with the adaptive loss
-
+* `adaptive_loss`: the choice for the adaptive loss function. See the
+  [adaptive loss page](@id adaptive_loss) for more details. Defaults to no adaptivity.
+* `additional_loss`: a function `additional_loss(phi, θ, p_)` where `phi` are the neural
+  network trial solutions, `θ` are the weights of the neural network(s), and `p_` are the
+  hyperparameters of the `OptimizationProblem`. If `param_estim = true`, then `θ` additionally
+  contains the parameters of the differential equation appended to the end of the vector.
+* `param_estim`: whether the parameters of the differential equation should be included in
+  the values sent to the `additional_loss` function. Defaults to `true`.
+* `logger`: ?? needs docs
+* `log_options`: ?? why is this separate from the logger?
+* `iteration`: used to control the iteration counter???
+* `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on `solve`.
 """
 struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
     strategy::T
@@ -168,46 +167,172 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
     end
 end
 
+"""
+PINNRepresentation
+
+An internal reprsentation of a physics-informed neural network (PINN). This is the struct
+used internally and returned for introspection by `symbolic_discretize`.
+
+## Fields
+
+
+"""
 mutable struct PINNRepresentation
+    """
+    The equations of the PDE
+    """
     eqs::Any
+    """
+    The boundary condition equations
+    """
     bcs::Any
+    """
+    The domains for each of the independent variables
+    """
     domains::Any
+    """
+    ???
+    """
     eq_params::Any
+    """
+    ???
+    """
     defaults::Any
+    """
+    ???
+    """
     default_p::Any
+    """
+    Whether parameters are to be appended to the `additional_loss`
+    """
     param_estim::Any
+    """
+    The `additional_loss` function as provided by the user
+    """
     additional_loss::Any
+    """
+    The adaptive loss function
+    """
     adaloss::Any
+    """
+    The dependent variables of the system
+    """
     depvars::Any
+    """
+    The independent variables of the system
+    """
     indvars::Any
+    """
+    A dictionary form of the independent variables. Define the structure ???
+    """
     dict_indvars::Any
+    """
+    A dictionary form of the dependent variables. Define the structure ???
+    """
     dict_depvars::Any
+    """
+    ???
+    """
     dict_depvar_input::Any
+    """
+    The logger as provided by the user
+    """
     logger::Any
+    """
+    Whether there are multiple outputs, i.e. a system of PDEs
+    """
     multioutput::Bool
+    """
+    The iteration counter used inside of the cost function
+    """
     iteration::Vector{Int}
+    """
+    The initial parameters as provided by the user. If the PDE is a system of PDEs, this
+    will be an array of array of
+    """
     initθ::Any
+    """
+    The initial parameters as a flattened array. This is the array that is used in the
+    construction of the OptimizationProblem
+    """
     flat_initθ::Any
+    """
+    The representation of the test function of the PDE solution
+    """
     phi::Any
+    """
+    The function used for computing the derivative
+    """
     derivative::Any
+    """
+    The training strategy as provided by the user
+    """
     strategy::AbstractTrainingStrategy
+    """
+    ???
+    """
     pde_indvars::Any
+    """
+    ???
+    """
     bc_indvars::Any
+    """
+    ???
+    """
     pde_integration_vars::Any
+    """
+    ???
+    """
     bc_integration_vars::Any
+    """
+    ???
+    """
     integral::Any
+    """
+    The PDE loss functions as represented in Julia AST
+    """
     symbolic_pde_loss_functions::Any
+    """
+    The boundary condition loss functions as represented in Julia AST
+    """
     symbolic_bc_loss_functions::Any
+    """
+    The PINNLossFunctions, i.e. the generated loss functions
+    """
     loss_functions::Any
 end
 
+"""
+PINNLossFunctions
+
+The generated functions from the PINNRepresentation
+"""
 struct PINNLossFunctions
+    """
+    The boundary condition loss functions
+    """
     bc_loss_functions::Any
+    """
+    The PDE loss functions
+    """
     pde_loss_functions::Any
+    """
+    The full loss function, combining the PDE and boundary condition loss functions.
+    This is the loss function that is used by the optimizer.
+    """
     full_loss_function::Any
+    """
+    The wrapped `additional_loss`, as pieced together for the optimizer.
+    """
     additional_loss_function::Any
-    inner_pde_loss_functions::Any
-    inner_bc_loss_functions::Any
+    """
+    The pre-data version of the PDE loss function
+    """
+    datafree_pde_loss_function::Any
+    """
+    The pre-data version of the BC loss function
+    """
+    datafree_bc_loss_function::Any
 end
 
 """

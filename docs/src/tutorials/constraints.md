@@ -1,4 +1,4 @@
-# Fokker-Planck Equation
+# Imposing Constraints on Physics-Informed Neural Network (PINN) Solutions
 
 Let's consider the Fokker-Planck equation:
 

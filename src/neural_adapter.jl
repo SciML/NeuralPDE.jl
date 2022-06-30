@@ -111,6 +111,8 @@ Arguments:
 * `strategy`: determines which training strategy will be used.
 
 """
+function neural_adapter end
+
 function neural_adapter(loss, initθ, pde_system, strategy)
     loss_function__ = get_loss_function_(loss, initθ, pde_system, strategy)
 
@@ -121,16 +123,6 @@ function neural_adapter(loss, initθ, pde_system, strategy)
     prob = Optimization.OptimizationProblem(f_, initθ)
 end
 
-"""
-the method that trains a neural network using the results from many already obtained predictions.
-
-Arguments:
-* `loss`: the body of loss functions,
-* `initθ`: the initial parameter of the neural network,
-* `pde_system`: PDEs are defined using the ModelingToolkit.jl,
-* `strategy`: determines which training strategy will be used.
-
-"""
 function neural_adapter(losses::Array, initθ, pde_systems::Array, strategy)
     loss_functions_ = map(zip(losses, pde_systems)) do (l, p)
         get_loss_function_(l, initθ, p, strategy)

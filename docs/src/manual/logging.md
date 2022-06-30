@@ -1,0 +1,5 @@
+# Logging Utilities
+
+```@docs
+LogOptions
+```

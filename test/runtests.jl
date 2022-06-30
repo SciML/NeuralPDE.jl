@@ -34,15 +34,8 @@ end
     if GROUP == "All" || GROUP == "AdaptiveLoss"
         @time @safetestset "AdaptiveLoss" begin include("adaptive_loss_tests.jl") end
     end
-    if GROUP == "All" || GROUP == "NNKOLMOGOROV"
-        @time @safetestset "NNKolmogorov" begin include("NNKolmogorov_tests.jl") end
-    end
-    if GROUP == "All" || GROUP == "NNSTOPPINGTIME"
-        @time @safetestset "NNStopping" begin include("Stopping_tests.jl") end
-    end
     if GROUP == "All" || GROUP == "NNRODE"
         @time @safetestset "NNRODE" begin include("NNRODE_tests.jl") end
-        @time @safetestset "NNParamKolmogorov" begin include("NNParamKolmogorov_tests.jl") end
     end
     if GROUP == "All" || GROUP == "Forward"
         @time @safetestset "Forward" begin include("forward_tests.jl") end
