@@ -244,11 +244,14 @@ function numeric_derivative(phi, u, x, εs, order, θ)
                 numeric_derivative(phi, u, x .- ε, εs, order - 1, θ)) .* _epsilon
     elseif order == 4
         return (u(x .+ 2 .* ε, θ, phi) .- 4 .* u(x .+ ε, θ, phi)
-                .+ 6 .* u(x, θ, phi)
-                .- 4 .* u(x .- ε, θ, phi) .+ u(x .- 2 .* ε, θ, phi)) .* _epsilon^4
+                .+
+                6 .* u(x, θ, phi)
+                .-
+                4 .* u(x .- ε, θ, phi) .+ u(x .- 2 .* ε, θ, phi)) .* _epsilon^4
     elseif order == 3
         return (u(x .+ 2 .* ε, θ, phi) .- 2 .* u(x .+ ε, θ, phi) .+ 2 .* u(x .- ε, θ, phi)
-                - u(x .- 2 .* ε, θ, phi)) .* 2 .* _epsilon^3
+                -
+                u(x .- 2 .* ε, θ, phi)) .* 2 .* _epsilon^3
     elseif order == 2
         return (u(x .+ ε, θ, phi) .+ u(x .- ε, θ, phi) .- 2 .* u(x, θ, phi)) .* _epsilon^2
     elseif order == 1
