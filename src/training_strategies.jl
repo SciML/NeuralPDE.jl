@@ -7,7 +7,8 @@ end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::GridTraining,
-                                           datafree_pde_loss_function, datafree_bc_loss_function)
+                                           datafree_pde_loss_function,
+                                           datafree_bc_loss_function)
     @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_initθ = pinnrep
     dx = strategy.dx
     eltypeθ = eltype(pinnrep.flat_initθ)
@@ -20,7 +21,8 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
     pde_train_sets = adapt.(typeof(flat_initθ), pde_train_sets)
     bcs_train_sets = adapt.(typeof(flat_initθ), bcs_train_sets)
     pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
-                          for (_loss, _set) in zip(datafree_pde_loss_function, pde_train_sets)]
+                          for (_loss, _set) in zip(datafree_pde_loss_function,
+                                                   pde_train_sets)]
 
     bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
                          for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
@@ -61,7 +63,8 @@ end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::StochasticTraining,
-                                           datafree_pde_loss_function, datafree_bc_loss_function)
+                                           datafree_pde_loss_function,
+                                           datafree_bc_loss_function)
     @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_initθ = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_initθ)
@@ -144,7 +147,8 @@ end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuasiRandomTraining,
-                                           datafree_pde_loss_function, datafree_bc_loss_function)
+                                           datafree_pde_loss_function,
+                                           datafree_bc_loss_function)
     @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_initθ = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_initθ)
@@ -221,7 +225,8 @@ end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuadratureTraining,
-                                           datafree_pde_loss_function, datafree_bc_loss_function)
+                                           datafree_pde_loss_function,
+                                           datafree_bc_loss_function)
     @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_initθ = pinnrep
     eltypeθ = eltype(pinnrep.flat_initθ)
 
