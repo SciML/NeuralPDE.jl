@@ -118,11 +118,13 @@ function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: FastChain, T, U
     f.u0 .+ (t' .- f.t0) .* f.chain(adapt(parameterless_type(θ), t'), θ)
 end
 
-function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Optimisers.Restructure, T, U <: Number}
+function (f::ODEPhi{C, T, U})(t::Number,
+                              θ) where {C <: Optimisers.Restructure, T, U <: Number}
     f.u0 + (t - f.t0) * first(f.chain(θ)(adapt(parameterless_type(θ), [t])))
 end
 
-function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: Optimisers.Restructure, T, U <: Number}
+function (f::ODEPhi{C, T, U})(t::AbstractVector,
+                              θ) where {C <: Optimisers.Restructure, T, U <: Number}
     f.u0 .+ (t' .- f.t0) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
@@ -130,7 +132,8 @@ function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Optimisers.Restructure,
     f.u0 + (t - f.t0) * f.chain(θ)(adapt(parameterless_type(θ), [t]))
 end
 
-function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: Optimisers.Restructure, T, U}
+function (f::ODEPhi{C, T, U})(t::AbstractVector,
+                              θ) where {C <: Optimisers.Restructure, T, U}
     f.u0 .+ (t .- f.t0) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
@@ -140,7 +143,8 @@ numerical differentiation.
 """
 function ode_dfdx end
 
-function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ, autodiff::Bool) where {C, T, U <: Number}
+function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
+                  autodiff::Bool) where {C, T, U <: Number}
     if autodiff
         ForwardDiff.derivative(t -> phi(t, θ), t)
     else
@@ -148,7 +152,8 @@ function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ, autodiff::Bool) where {C,
     end
 end
 
-function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ, autodiff::Bool) where {C, T, U <: AbstractVector}
+function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
+                  autodiff::Bool) where {C, T, U <: AbstractVector}
     if autodiff
         ForwardDiff.jacobian(t -> phi(t, θ), t)
     else
@@ -169,33 +174,38 @@ Simple L2 inner loss at a time `t` with parameters θ
 """
 function inner_loss end
 
-function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ, p) where {C, T, U <: Number}
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+                    p) where {C, T, U <: Number}
     sum(abs2, ode_dfdx(phi, t, θ, autodiff) - f(phi(t, θ), p, t))
 end
 
-function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ, p) where {C, T, U <: Number}
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
+                    p) where {C, T, U <: Number}
     out = phi(t, θ)
-    fs = reduce(hcat,[f(out[i], p, t[i]) for i in 1:size(out,2)])
+    fs = reduce(hcat, [f(out[i], p, t[i]) for i in 1:size(out, 2)])
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
-    sum(abs2, dxdtguess .- fs)/length(t)
+    sum(abs2, dxdtguess .- fs) / length(t)
 end
 
-function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ, p) where {C, T, U}
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+                    p) where {C, T, U}
     sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(phi(t, θ), p, t))
 end
 
-function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ, p) where {C, T, U}
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
+                    p) where {C, T, U}
     out = Array(phi(t, θ))
     arrt = Array(t)
-    fs = reduce(hcat,[f(out[:,i], p, arrt[i]) for i in 1:size(out,2)])
+    fs = reduce(hcat, [f(out[:, i], p, arrt[i]) for i in 1:size(out, 2)])
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
-    sum(abs2, dxdtguess .- fs)/length(t)
+    sum(abs2, dxdtguess .- fs) / length(t)
 end
 
 """
 Representation of the loss function, paramtric on the training strategy `strategy`
 """
-function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p, batch)
+function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
+                       batch)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p))
     integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p)) for t in ts]
     @assert batch == 0 # not implemented
@@ -225,11 +235,13 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
     optf = OptimizationFunction(loss, Optimization.AutoZygote())
 end
 
-function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p, batch)
+function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
+                       batch)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
         # (tspan[2]-tspan[1])*rand() + tspan[1] gives Uniform(tspan[1],tspan[2])
-        ts = adapt(parameterless_type(θ),[(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
+        ts = adapt(parameterless_type(θ),
+                   [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
 
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
@@ -253,12 +265,12 @@ end
 
 function (f::NNODEInterpolation)(t::Vector, idxs::Nothing, ::Type{Val{0}}, p, continuity)
     out = f.phi(t, f.θ)
-    SciMLBase.RecursiveArrayTools.DiffEqArray([out[:,i] for i in 1:size(out,2)],t)
+    SciMLBase.RecursiveArrayTools.DiffEqArray([out[:, i] for i in 1:size(out, 2)], t)
 end
 
 function (f::NNODEInterpolation)(t::Vector, idxs, ::Type{Val{0}}, p, continuity)
     out = f.phi(t, f.θ)
-    SciMLBase.RecursiveArrayTools.DiffEqArray([out[idxs,i] for i in 1:size(out,2)],t)
+    SciMLBase.RecursiveArrayTools.DiffEqArray([out[idxs, i] for i in 1:size(out, 2)], t)
 end
 
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
