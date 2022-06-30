@@ -1,5 +1,9 @@
 # Transfer Learning with Neural Adapter
 
+!!! warn
+
+    This documentation page is out of date.
+
 Transfer learning is a machine learning technique where a model trained on one task is re-purposed on a second related task.
 
 `neural_adapter` is method that trains a neural network using the results from an already obtained prediction.

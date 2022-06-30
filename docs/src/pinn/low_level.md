@@ -1,4 +1,4 @@
-# 1-D Burgers' Equation With Low-Level API
+# Investigating `symbolic_discretize` with the 1-D Burgers' Equation
 
 Let's consider the Burgers' equation:
 
@@ -12,7 +12,7 @@ u(t, -1) = u(t, 1) = 0 \, ,
 
 with Physics-Informed Neural Networks. Here is an example of using the low-level API:
 
-```julia
+```@example low_level
 using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -34,68 +34,49 @@ bcs = [u(0,x) ~ -sin(pi*x),
 # Space and time domains
 domains = [t ∈ Interval(0.0,1.0),
            x ∈ Interval(-1.0,1.0)]
+
 # Discretization
 dx = 0.05
+
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
 initθ = Float64.(DiffEqFlux.initial_params(chain))
-eltypeθ = eltype(initθ)
 strategy = NeuralPDE.GridTraining(dx)
 
-phi = NeuralPDE.get_phi(chain)
-derivative = NeuralPDE.get_numeric_derivative()
-
-
 indvars = [t,x]
-depvars = [u]
-multioutput = chain isa AbstractArray
+depvars = [u(t,x)]
+@named pde_system = PDESystem(eq,bcs,domains,indvars,depvars)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,nothing,
-                                                   multioutput,initθ,strategy)
+discretization = PhysicsInformedNN(chain, strategy)
+sym_prob = symbolic_discretize(pde_system,discretization)
 
+phi = sym_prob.phi
 
-bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
-                                                    phi,derivative,nothing,multioutput,initθ,strategy,
-                                                    bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+pde_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-train_sets = NeuralPDE.generate_training_sets(domains,dx,[eq],bcs,eltypeθ,indvars,depvars)
-train_domain_set, train_bound_set = train_sets
-
-
-pde_loss_function = NeuralPDE.get_loss_function(_pde_loss_function,
-                                                train_domain_set[1],
-                                                eltypeθ,
-                                                strategy)
-
-bc_loss_functions = [NeuralPDE.get_loss_function(loss,set,
-                                                 eltypeθ,
-                                                 strategy) for (loss, set) in zip(_bc_loss_functions,train_bound_set)]
-
-
-loss_functions = [pde_loss_function; bc_loss_functions]
-loss_function__ = θ -> sum(map(l->l(θ) ,loss_functions))
-
-function loss_function_(θ,p)
-    return loss_function__(θ)
-end
-
-f = OptimizationFunction(loss_function_, Optimization.AutoZygote())
-prob = Optimization.OptimizationProblem(f, initθ)
-
-cb_ = function (p,l)
-    println("loss: ", l , "losses: ", map(l -> l(p), loss_functions))
+callback = function (p, l)
+    println("loss: ", l)
+    println("pde_losses: ", map(l_ -> l_(p), pde_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p), bc_loss_functions))
     return false
 end
 
-# optimizer
-opt = BFGS()
-res = Optimization.solve(prob, opt; callback = cb_, maxiters=2000)
+loss_functions =  [pde_loss_functions;bc_loss_functions]
+
+function loss_function(θ,p)
+    sum(map(l->l(θ) ,loss_functions))
+end
+
+f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
+prob = Optimization.OptimizationProblem(f_, sym_prob.flat_initθ)
+
+res = Optimization.solve(prob,OptimizationOptimJL.BFGS(); callback = callback, maxiters=2000)
 ```
 
 And some analysis:
 
-```julia
+```@example low_level
 using Plots
 
 ts,xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
