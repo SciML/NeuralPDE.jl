@@ -449,20 +449,20 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
     pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
 
-    datafree_pde_loss_function = [build_loss_function(pinnrep, eq, pde_indvar)
+    datafree_pde_loss_functions = [build_loss_function(pinnrep, eq, pde_indvar)
                                   for (eq, pde_indvar, integration_indvar) in zip(eqs,
                                                                                   pde_indvars,
                                                                                   pde_integration_vars)]
 
-    datafree_bc_loss_function = [build_loss_function(pinnrep, bc, bc_indvar)
+    datafree_bc_loss_functions = [build_loss_function(pinnrep, bc, bc_indvar)
                                  for (bc, bc_indvar, integration_indvar) in zip(bcs,
                                                                                 bc_indvars,
                                                                                 bc_integration_vars)]
 
     pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
                                                                               strategy,
-                                                                              datafree_pde_loss_function,
-                                                                              datafree_bc_loss_function)
+                                                                              datafree_pde_loss_functions,
+                                                                              datafree_bc_loss_functions)
 
     # setup for all adaptive losses
     num_pde_losses = length(pde_loss_functions)
@@ -549,8 +549,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
                                                full_loss_function, additional_loss,
-                                               datafree_pde_loss_function,
-                                               datafree_bc_loss_function)
+                                               datafree_pde_loss_functions,
+                                               datafree_bc_loss_functions)
 
     return pinnrep
 end

@@ -328,11 +328,11 @@ struct PINNLossFunctions
     """
     The pre-data version of the PDE loss function
     """
-    datafree_pde_loss_function::Any
+    datafree_pde_loss_functions::Any
     """
     The pre-data version of the BC loss function
     """
-    datafree_bc_loss_function::Any
+    datafree_bc_loss_functions::Any
 end
 
 """
