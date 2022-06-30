@@ -99,6 +99,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 prob = NeuralPDE.discretize(pdesys, discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys, discretization)
 
+
 res = Optimization.solve(prob, ADAM(0.01); maxiters = 1000)
 prob = remake(prob, u0 = res.minimizer)
 res = Optimization.solve(prob, ADAM(0.001); maxiters = 1000)
