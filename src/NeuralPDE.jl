@@ -27,6 +27,7 @@ import SciMLBase: @add_kwonly, parameterless_type
 using Flux: @nograd
 import Optimisers
 import UnPack: @unpack
+import RecursiveArrayTools
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
