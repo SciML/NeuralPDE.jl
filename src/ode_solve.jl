@@ -148,7 +148,7 @@ function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ, autodiff::Bool) where {C,
     end
 end
 
-function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ, autodiff::Bool) where {C, T, U <: Vector}
+function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ, autodiff::Bool) where {C, T, U <: AbstractVector}
     if autodiff
         ForwardDiff.jacobian(t -> phi(t, θ), t)
     else
@@ -167,11 +167,29 @@ end
 """
 Simple L2 inner loss at a time `t` with parameters θ
 """
-function inner_loss(phi, f, autodiff::Bool, t, θ, p)
-    out = Array(phi(t, θ))
-    fs = reduce(hcat,[f(out[:,i], p, t) for i in 1:size(out,2)])
+function inner_loss end
+
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ, p) where {C, T, U <: Number}
+    sum(abs2, ode_dfdx(phi, t, θ, autodiff) - f(phi(t, θ), p, t))
+end
+
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ, p) where {C, T, U <: Number}
+    out = phi(t, θ)
+    fs = reduce(hcat,[f(out[i], p, t[i]) for i in 1:size(out,2)])
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
-    sum(abs2, dxdtguess .- fs)
+    sum(abs2, dxdtguess .- fs)/length(t)
+end
+
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ, p) where {C, T, U}
+    sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(phi(t, θ), p, t))
+end
+
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ, p) where {C, T, U}
+    out = Array(phi(t, θ))
+    arrt = Array(t)
+    fs = reduce(hcat,[f(out[:,i], p, arrt[i]) for i in 1:size(out,2)])
+    dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
+    sum(abs2, dxdtguess .- fs)/length(t)
 end
 
 """
@@ -316,6 +334,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         else
             true
         end
+    else
+        alg.batch
     end
 
     optf = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch)

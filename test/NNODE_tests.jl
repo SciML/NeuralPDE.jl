@@ -46,15 +46,22 @@ linear_analytic = (u0, p, t) -> [exp(-(t^2) / 2) / (1 + t + t^3) + t^2]
 prob = ODEProblem(ODEFunction(linear, analytic = linear_analytic), [1.0f0], (0.0f0, 1.0f0))
 chain = Flux.Chain(Dense(1, 128, σ), Dense(128, 1))
 opt = ADAM(0.01)
+
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
-sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400,
-            dt = 1 / 5.0f0)
+@test_throws Any solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true, maxiters = 400)
+
+sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = false, strategy = StochasticTraining(100)), verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
-sol = solve(prob, NeuralPDE.NNODE(chain, opt; strategy = StochasticTraining(100)),
-            verbose = true, maxiters = 400, dt = 1 / 5.0f0)
+sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = true, strategy = StochasticTraining(100)), verbose = true, maxiters = 400)
+@test sol.errors[:l2] < 0.5
+
+sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = false), verbose = true, maxiters = 400, dt = 1 / 5.0f0)
+@test sol.errors[:l2] < 0.5
+
+sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true, maxiters = 400, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
 #Example 2
@@ -67,10 +74,21 @@ sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400,
             abstol = 1.0f-8)
 @test sol.errors[:l2] < 0.5
 
-sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400,
+@test_throws Any solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true, maxiters = 400,
+                       abstol = 1.0f-8)
+
+sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = false, strategy = StochasticTraining(100)), verbose = true, maxiters = 400,
+            abstol = 1.0f-8)
+@test sol.errors[:l2] < 0.5
+
+sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = true, strategy = StochasticTraining(100)), verbose = true, maxiters = 400,
+            abstol = 1.0f-8)
+@test sol.errors[:l2] < 0.5
+
+sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = false), verbose = true, maxiters = 400,
             abstol = 1.0f-8, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
-sol = solve(prob, NeuralPDE.NNODE(chain, opt; strategy = StochasticTraining(100)),
-            verbose = true, maxiters = 400, abstol = 1.0f-8, dt = 1 / 5.0f0)
+sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true, maxiters = 400,
+            abstol = 1.0f-8, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
