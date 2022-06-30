@@ -443,7 +443,12 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
         # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
         pde_losses = [pde_loss_function(θ) for pde_loss_function in pde_loss_functions]
-        bc_losses = [bc_loss_function(θ) for bc_loss_function in bc_loss_functions]
+
+        if discretization.constrained
+            bc_losses = eltype(θ)[]
+        else
+            bc_losses = [bc_loss_function(θ) for bc_loss_function in bc_loss_functions]
+        end
 
         # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
         # that's why we prefer the user to maintain the increment in the outer loop callback during optimization
@@ -454,7 +459,12 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         Zygote.@ignore begin reweight_losses_func(θ, pde_losses, bc_losses) end
 
         weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
-        weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
+
+        if discretization.constrained
+            weighted_bc_losses = eltype(θ)[]
+        else
+            weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
+        end
 
         sum_weighted_pde_losses = sum(weighted_pde_losses)
         sum_weighted_bc_losses = sum(weighted_bc_losses)
@@ -514,7 +524,21 @@ end
 # Convert a PDE problem into an OptimizationProblem
 function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     pinnrep = symbolic_discretize(pde_system, discretization)
-    f = OptimizationFunction(pinnrep.loss_functions.full_loss_function,
-                             Optimization.AutoZygote())
-    Optimization.OptimizationProblem(f, pinnrep.flat_initθ)
+
+    if discretization.constrained
+        function constraint_equations(θ,p)
+            [bc_loss_function(θ) for bc_loss_function in pinnrep.loss_functions.bc_loss_functions]
+        end
+        lcons = zeros(length(pinnrep.loss_functions.bc_loss_functions))
+        ucons = zeros(length(pinnrep.loss_functions.bc_loss_functions))
+        f = OptimizationFunction(pinnrep.loss_functions.full_loss_function,
+                                 Optimization.AutoZygote(),
+                                 cons = constraint_equations)
+    else
+        lcons = nothing
+        ucons = nothing
+        f = OptimizationFunction(pinnrep.loss_functions.full_loss_function,
+                                Optimization.AutoZygote())
+    end
+    Optimization.OptimizationProblem(f, pinnrep.flat_initθ, lcons=lcons, ucons=ucons)
 end

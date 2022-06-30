@@ -38,6 +38,7 @@ PhysicsInformedNN(chain,
                   logger = nothing,
                   log_options = LogOptions(),
                   iteration = nothing,
+                  constrained = false,
                   kwargs...) where {iip}
 
 A `discretize` algorithm for the ModelingToolkit PDESystem interface which transforms a
@@ -63,6 +64,11 @@ methodology.
   of the neural network defining `phi`). By default this is generated from the `chain`. This
   should only be used to more directly impose functional information in the training problem,
   for example imposing the boundary condition by the test function formulation.
+* `constrained`: whether the optimization process should treat boundary conditions as
+  constraints. Defaults to `false`, which means that the boundary conditions are treated
+  as additions to the loss values. When `true`, the boundary conditions will specify equations
+  in the `OptimizationProblem` via `cons`, but will require an optimizer that can handle
+  constraint equations.
 
 (to be added)
 
@@ -90,6 +96,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
     iteration::Vector{Int64}
     self_increment::Bool
     multioutput::Bool
+    constrained::Bool
     kwargs::K
 
     @add_kwonly function PhysicsInformedNN(chain,
@@ -103,6 +110,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                                            logger = nothing,
                                            log_options = LogOptions(),
                                            iteration = nothing,
+                                           constrained = false,
                                            kwargs...) where {iip}
         if init_params === nothing
             if chain isa AbstractArray
@@ -164,6 +172,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                                                                                             iteration,
                                                                                             self_increment,
                                                                                             multioutput,
+                                                                                            constrained,
                                                                                             kwargs)
     end
 end
