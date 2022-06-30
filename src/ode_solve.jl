@@ -146,7 +146,7 @@ function ode_dfdx end
 function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
                   autodiff::Bool) where {C, T, U <: Number}
     if autodiff
-        ForwardDiff.derivative(t -> phi(t, θ), t)
+        Diffractor.PrimeDerivativeFwd(t -> phi(t, θ))(t)
     else
         (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
     end
@@ -155,7 +155,7 @@ end
 function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
                   autodiff::Bool) where {C, T, U <: AbstractVector}
     if autodiff
-        ForwardDiff.jacobian(t -> phi(t, θ), t)
+        Diffractor.PrimeDerivativeFwd(t -> phi(t, θ))(t)
     else
         (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
     end
@@ -163,7 +163,7 @@ end
 
 function ode_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool)
     if autodiff
-        ForwardDiff.jacobian(t -> phi(t, θ), t)
+        Diffractor.PrimeDerivativeFwd(t -> phi(t, θ))(t)
     else
         (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
     end
@@ -217,7 +217,7 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
     end
 
     # Default this to ForwardDiff until Integrals.jl autodiff is sorted out
-    OptimizationFunction(loss, Optimization.AutoForwardDiff())
+    OptimizationFunction(loss, grad = (x,_) -> Diffractor.gradient(loss,x))
 end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
@@ -232,7 +232,7 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
             sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
         end
     end
-    optf = OptimizationFunction(loss, Optimization.AutoZygote())
+    optf = OptimizationFunction(loss, grad = (x,_) -> Diffractor.gradient(loss,x))
 end
 
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
@@ -249,7 +249,7 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
             sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
         end
     end
-    optf = OptimizationFunction(loss, Optimization.AutoZygote())
+    optf = OptimizationFunction(loss, grad = (x,_) -> Diffractor.gradient(loss,x))
 end
 
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
