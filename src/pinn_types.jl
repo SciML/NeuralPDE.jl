@@ -251,11 +251,11 @@ function numeric_derivative(phi, u, x, εs, order, θ)
     elseif order == 3
         return (u(x .+ 2 .* ε, θ, phi) .- 2 .* u(x .+ ε, θ, phi) .+ 2 .* u(x .- ε, θ, phi)
                 -
-                u(x .- 2 .* ε, θ, phi)) .* 2 .* _epsilon^3
+                u(x .- 2 .* ε, θ, phi)) .* _epsilon^3 ./ 2
     elseif order == 2
         return (u(x .+ ε, θ, phi) .+ u(x .- ε, θ, phi) .- 2 .* u(x, θ, phi)) .* _epsilon^2
     elseif order == 1
-        return (u(x .+ ε, θ, phi) .- u(x .- ε, θ, phi)) .* 2 .* _epsilon
+        return (u(x .+ ε, θ, phi) .- u(x .- ε, θ, phi)) .* _epsilon ./ 2
     else
         error("This shouldn't happen!")
     end
