@@ -441,6 +441,32 @@ u_predict = [[phi[i]([x, y], minimizers[i])[1] for x in xs for y in ys] for i in
 @test u_predict[1]≈u_real[1] atol=0.1
 @test u_predict[2]≈u_real[2] atol=0.1
 
+## Now do it with constrained
+
+discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy;
+                                             init_params = initθ,
+                                             constrained = true)
+
+@named pde_system = PDESystem(eqs, bcs, domains, [x, y], [u1(x, y), u2(x, y)])
+
+prob = NeuralPDE.discretize(pde_system, discretization)
+@test_throws Any Optimization.solve(prob, BFGS(); maxiters = 1000)
+
+phi = discretization.phi
+
+analytic_sol_func(x, y) = [1 / 3 * (6x - y), 1 / 2 * (6x - y)]
+xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+u_real = [[analytic_sol_func(x, y)[i] for x in xs for y in ys] for i in 1:2]
+
+initθ = discretization.init_params
+acum = [0; accumulate(+, length.(initθ))]
+sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
+minimizers = [res.minimizer[s] for s in sep]
+u_predict = [[phi[i]([x, y], minimizers[i])[1] for x in xs for y in ys] for i in 1:2]
+
+@test u_predict[1]≈u_real[1] atol=0.1
+@test u_predict[2]≈u_real[2] atol=0.1
+
 # p1 =plot(xs, ys, u_predict, st=:surface);
 # p2 = plot(xs, ys, u_real, st=:surface);
 # plot(p1,p2)
