@@ -295,7 +295,7 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
         function integration_(cord, lb, ub, θ)
             cord_ = cord
             function integrand_(x, p)
-                Zygote.@ignore @views(cord_[integrating_var_id]) .= x
+                ChainRulesCore.@ignore_derivatives @views(cord_[integrating_var_id]) .= x
                 return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)
             end
             prob_ = IntegralProblem(integrand_, lb, ub, θ)
@@ -308,16 +308,18 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
         ub_ = zeros(size(ub)[1], size(cord)[2])
         for (i, l) in enumerate(lb)
             if l isa Number
-                Zygote.@ignore lb_[i, :] = fill(l, 1, size(cord)[2])
+                ChainRulesCore.@ignore_derivatives lb_[i, :] = fill(l, 1, size(cord)[2])
             else
-                Zygote.@ignore lb_[i, :] = l(cord, θ, phi, derivative, nothing, u, nothing)
+                ChainRulesCore.@ignore_derivatives lb_[i, :] = l(cord, θ, phi, derivative,
+                                                                 nothing, u, nothing)
             end
         end
         for (i, u_) in enumerate(ub)
             if u_ isa Number
-                Zygote.@ignore ub_[i, :] = fill(u_, 1, size(cord)[2])
+                ChainRulesCore.@ignore_derivatives ub_[i, :] = fill(u_, 1, size(cord)[2])
             else
-                Zygote.@ignore ub_[i, :] = u_(cord, θ, phi, derivative, nothing, u, nothing)
+                ChainRulesCore.@ignore_derivatives ub_[i, :] = u_(cord, θ, phi, derivative,
+                                                                  nothing, u, nothing)
             end
         end
         integration_arr = Matrix{Float64}(undef, 1, 0)
@@ -447,11 +449,12 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
         # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
         # that's why we prefer the user to maintain the increment in the outer loop callback during optimization
-        Zygote.@ignore if self_increment
+        ChainRulesCore.@ignore_derivatives if self_increment
             iteration[1] += 1
         end
 
-        Zygote.@ignore begin reweight_losses_func(θ, pde_losses, bc_losses) end
+        ChainRulesCore.@ignore_derivatives begin reweight_losses_func(θ, pde_losses,
+                                                                      bc_losses) end
 
         weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
         weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
@@ -476,7 +479,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             weighted_loss_before_additional + weighted_additional_loss_val
         end
 
-        Zygote.@ignore begin if iteration[1] % log_frequency == 0
+        ChainRulesCore.@ignore_derivatives begin if iteration[1] % log_frequency == 0
             logvector(pinnrep.logger, pde_losses, "unweighted_loss/pde_losses",
                       iteration[1])
             logvector(pinnrep.logger, bc_losses, "unweighted_loss/bc_losses", iteration[1])
