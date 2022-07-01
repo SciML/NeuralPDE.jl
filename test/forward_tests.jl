@@ -3,6 +3,7 @@ using SciMLBase
 using DomainSets
 import ModelingToolkit: Interval
 import Lux, Random
+using ComponentArrays
 
 @testset "ODE" begin
     @parameters x

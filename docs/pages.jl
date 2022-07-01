@@ -10,7 +10,7 @@ pages = [
                                 "The symbolic_discretize Interface" => "tutorials/low_level.md",
                                 "Optimising Parameters (Solving Inverse Problems)" => "tutorials/param_estim.md",
                                 "Solving Integro Differential Equations" => "tutorials/integro_diff.md",
-                                "Transfer Learning with Neural Adapter" => "tutorials/neural_adapter.md"
+                                "Transfer Learning with Neural Adapter" => "tutorials/neural_adapter.md",
                                 "The Derivative Neural Network Approximation" => "tutorials/derivative_neural_network.md"],
     "Extended Examples" => Any["examples/wave.md",
                                "examples/3rd.md",

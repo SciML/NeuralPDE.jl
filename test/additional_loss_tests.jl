@@ -6,6 +6,7 @@ using DomainSets
 using Integrals, IntegralsCubature
 using OrdinaryDiffEq, ComponentArrays
 import Lux
+using ComponentArrays
 
 ## Example 7, Fokker-Planck equation
 println("Example 7, Fokker-Planck equation")

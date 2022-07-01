@@ -4,6 +4,7 @@ using Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval, infimum, supremum
 import Lux
 using Statistics
+using ComponentArrays
 
 using Random
 Random.seed!(100)

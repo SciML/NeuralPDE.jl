@@ -98,8 +98,7 @@ mutable struct ODEPhi{C, T, U, S}
     function ODEPhi(chain::Lux.Chain, t::Number, u0, st)
         new{typeof(chain), typeof(t), typeof(u0), typeof(st)}(chain, t, u0, st)
     end
-    function ODEPhi(chain::Flux.Chain, t, u0)
-        p, re = Flux.destructure(chain)
+    function ODEPhi(re::Optimisers.Restructure, t, u0)
         new{typeof(re), typeof(t), typeof(u0), Nothing}(re, t, u0, nothing)
     end
 end
