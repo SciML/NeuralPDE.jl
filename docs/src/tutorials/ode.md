@@ -1,4 +1,4 @@
-# Solving ODEs with Physics-Informed Neural Networks
+# Solving ODEs with Physics-Informed Neural Networks (PINNs)
 
 !!! note
 
@@ -8,7 +8,7 @@
 
 This tutorial is an introduction to using physics-informed neural networks (PINNs)
 for solving ordinary differential equations (ODEs). In contrast to the later
-parts of this documentation which use the symbolic interface, here we will focus on 
+parts of this documentation which use the symbolic interface, here we will focus on
 the simplified `NNODE` which uses the `ODEProblem` specification for the ODE.
 Mathematically the `ODEProblem` defines a problem:
 
@@ -69,5 +69,5 @@ sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose=true, abstol=1f-6, maxite
 
 And that's it: the neural network solution was computed by training the neural network and
 returned in the standard DifferentialEquations.jl `ODESolution` format. For more information
-on handling the solution, consult 
+on handling the solution, consult
 [the DifferentialEquations.jl solution handling section](https://diffeq.sciml.ai/stable/basics/solution/)

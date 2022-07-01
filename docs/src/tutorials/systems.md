@@ -1,4 +1,4 @@
-# Systems of PDEs
+# Defining Systems of PDEs for Physics-Informed Neural Networks (PINNs)
 
 In this example, we will solve the PDE system:
 

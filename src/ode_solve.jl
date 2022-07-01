@@ -1,3 +1,5 @@
+abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
+
 """
 ```julia
 NNODE(chain, opt=OptimizationPolyalgorithms.PolyOpt(), init_params = nothing;

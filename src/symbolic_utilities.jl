@@ -379,6 +379,15 @@ function get_integration_variables(eqs, dict_indvars, dict_depvars)
     end
 end
 
+"""
+``julia
+get_variables(eqs,_indvars,_depvars)
+```
+
+Returns all variables that are used in each equations or boundary condition.
+"""
+function get_variables end
+
 function get_variables(eqs, _indvars::Array, _depvars::Array)
     depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
                                                                                _depvars)
@@ -409,6 +418,15 @@ function find_thing_in_expr(ex::Expr, thing; ans = [])
     end
     return collect(Set(ans))
 end
+
+"""
+```julia
+get_argument(eqs,_indvars::Array,_depvars::Array)
+```
+
+Returns all arguments that are used in each equations or boundary condition.
+"""
+function get_argument end
 
 # Get arguments from boundary condition functions
 function get_argument(eqs, _indvars::Array, _depvars::Array)

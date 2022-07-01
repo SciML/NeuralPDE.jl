@@ -1,4 +1,4 @@
-# Optimising Parameters of a Lorenz System
+# Optimising Parameters (Solving Inverse Problems) with Physics-Informed Neural Networks (PINNs)
 
 Consider a Lorenz System,
 

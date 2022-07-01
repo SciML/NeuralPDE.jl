@@ -1,4 +1,4 @@
-# Poisson Equation
+# Specifying and Solving PDESystems with Physics-Informed Neural Networks (PINNs)
 
 In this example, we will solve a Poisson equation:
 

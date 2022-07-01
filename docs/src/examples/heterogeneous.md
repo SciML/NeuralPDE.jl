@@ -1,6 +1,7 @@
-# Differential Equations with Heterogeneous Domains
+# PDEs with Dependent Variables on Heterogeneous Domains
 
-A differential equation is said to have heterogeneous domains when its dependent variables depend on different independent variables:
+A differential equation is said to have heterogeneous domains when its dependent variables
+depend on different independent variables:
 
 ```math
 u(x) + w(x, v) = \frac{\partial w(x, v)}{\partial w}

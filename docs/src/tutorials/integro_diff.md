@@ -1,4 +1,4 @@
-# Integro Differential Equations
+# Solving Integro Differential Equations with Physics-Informed Neural Networks (PINNs)
 
 The integral of function u(x),
 
