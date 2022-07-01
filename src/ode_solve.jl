@@ -116,12 +116,12 @@ end
 
 function generate_phi_θ(chain::Flux.Chain, t, u0, initθ::Nothing)
     θ, re = Flux.destructure(chain)
-    ODEPhi(re, t, u0, nothing), θ
+    ODEPhi(re, t, u0), θ
 end
 
 function generate_phi_θ(chain::Flux.Chain, t, u0, initθ)
     θ, re = Flux.destructure(chain)
-    ODEPhi(re, t, u0, nothing), initθ
+    ODEPhi(re, t, u0), initθ
 end
 
 function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.Chain, T, U <: Number}

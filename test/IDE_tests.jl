@@ -1,7 +1,7 @@
 using Test, NeuralPDE
 using Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval
-using DomainSets
+using DomainSets, Flux
 
 using Random
 Random.seed!(100)

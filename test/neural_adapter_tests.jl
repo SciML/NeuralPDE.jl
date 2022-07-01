@@ -2,6 +2,7 @@ using Flux, OptimizationFlux
 using Test, NeuralPDE
 using Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval, infimum, supremum
+import Lux
 using Statistics
 
 using Random
