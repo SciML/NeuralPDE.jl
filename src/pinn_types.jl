@@ -384,13 +384,13 @@ Fields:
 
 - `f`: A representation of the chain function. If FastChain, then `f(x,p)`,
   if Chain then `f(p)(x)` (from Flux.destructure)
-- `st`: The state of the Lux.Chain. If a Flux.Chain then this is `nothing`.
+- `st`: The state of the Lux.AbstractExplicitLayer. If a Flux.Chain then this is `nothing`.
   It should be updated on each call.
 """
 mutable struct Phi{C, S}
     f::C
     st::S
-    function Phi(chain::Lux.Chain)
+    function Phi(chain::Lux.AbstractExplicitLayer)
         ps, st = Lux.setup(Random.default_rng(), chain)
         new{typeof(chain), typeof(st)}(chain, st)
     end
@@ -400,13 +400,13 @@ mutable struct Phi{C, S}
     end
 end
 
-function (f::Phi{<:Lux.Chain})(x::Number, θ)
+function (f::Phi{<:Lux.AbstractExplicitLayer})(x::Number, θ)
     y, st = f.f(adapt(parameterless_type(θ), [x]), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     y
 end
 
-function (f::Phi{<:Lux.Chain})(x::AbstractArray, θ)
+function (f::Phi{<:Lux.AbstractExplicitLayer})(x::AbstractArray, θ)
     y, st = f.f(adapt(parameterless_type(θ), x), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     y

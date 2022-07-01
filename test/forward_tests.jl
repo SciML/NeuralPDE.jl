@@ -13,13 +13,13 @@ using ComponentArrays
     eq = Dx(u(x)) ~ 0.0
     bcs = [u(0.0) ~ u(0.0)]
     domains = [x ∈ Interval(0.0, 1.0)]
-    chain = Lux.Chain((x, p) -> x .^ 2)
+    chain = Lux.Chain(x -> x .^ 2)
     initθ, st = Lux.setup(Random.default_rng(), chain)
-    initθ = Float64.(ComponentArray(initθ))
+    initθ = Float64[]
 
     chain([1], Float64[], st)
     strategy_ = NeuralPDE.GridTraining(0.1)
-    discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_; init_params = initθ)
+    discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_; init_params = Float64[])
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
     prob = NeuralPDE.discretize(pde_system, discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
@@ -100,9 +100,9 @@ end
     eq = I(u(x)) ~ 0
     bcs = [u(1.0) ~ exp(1) / (exp(2) + 3)]
     domains = [x ∈ Interval(1.0, 2.0)]
-    chain = Lux.Chain((x, p) -> exp.(x) ./ (exp.(2 .* x) .+ 3))
+    chain = Lux.Chain(x -> exp.(x) ./ (exp.(2 .* x) .+ 3))
     initθ, st = Lux.setup(Random.default_rng(), chain)
-    initθ = Float64.(ComponentArrays(initθ))
+    initθ = Float64[]
 
     chain([1], initθ, st)
     strategy_ = NeuralPDE.GridTraining(0.1)
@@ -121,7 +121,7 @@ end
     eqs = I(u(x)) ~ 0
     domains = [x ∈ Interval(1.0, 2.0)]
     bcs = [u(1) ~ u(1)]
-    chain = Lux.Chain((x, p) -> x .* exp.(-x .^ 2))
+    chain = Lux.Chain(x -> x .* exp.(-x .^ 2))
     chain([1], initθ)
 
     discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_; init_params = initθ)

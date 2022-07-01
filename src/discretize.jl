@@ -38,7 +38,7 @@ for Flux.Chain, and
           end
       end)
 
-for Lux.Chain
+for Lux.AbstractExplicitLayer
 """
 function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                                       eq_params = SciMLBase.NullParameters(),
@@ -90,7 +90,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
                 # Flux.Chain
                 push!(expr_θ, :($θ[$(sep[i])]))
-            else # Lux.Chain
+            else # Lux.AbstractExplicitLayer
                 push!(expr_θ, :($θ.θ.$(Symbol("θ",i))))
             end
             push!(expr_phi, :(phi[$i]))
