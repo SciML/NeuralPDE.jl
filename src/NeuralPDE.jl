@@ -28,6 +28,7 @@ using Flux: @nograd
 import Optimisers
 import UnPack: @unpack
 import RecursiveArrayTools
+import ChainRulesCore
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
