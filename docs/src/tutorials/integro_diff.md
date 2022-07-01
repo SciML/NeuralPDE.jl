@@ -45,7 +45,7 @@ u(0) = 0
 ```
 
 ```@example integro
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DomainSets
+using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DomainSets
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t
@@ -55,15 +55,11 @@ Ii = Integral(t in DomainSets.ClosedInterval(0, t))
 eq = Di(i(t)) + 2*i(t) + 5*Ii(i(t)) ~ 1
 bcs = [i(0.) ~ 0.0]
 domains = [t ∈ Interval(0.0,2.0)]
-chain = Chain(Dense(1,15,Flux.σ),Dense(15,1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = Chain(Dense(1,15,Flux.σ),Dense(15,1)) |> f64
 
 strategy_ = GridTraining(0.05)
 discretization = PhysicsInformedNN(chain,
-                                   strategy_;
-                                   init_params = nothing,
-                                   phi = nothing,
-                                   derivative = nothing)
+                                   strategy_)
 @named pde_system = PDESystem(eq,bcs,domains,[t],[i(t)])
 prob = NeuralPDE.discretize(pde_system,discretization)
 callback = function (p,l)
@@ -78,7 +74,7 @@ Plotting the final solution and analytical solution
 ```@example integro
 ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
-u_predict  = [first(phi([t],res.minimizer)) for t in ts]
+u_predict  = [first(phi([t],res.u)) for t in ts]
 
 analytic_sol_func(t) = 1/2*(exp(-t))*(sin(2*t))
 u_real  = [analytic_sol_func(t) for t in ts]

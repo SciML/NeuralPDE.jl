@@ -27,7 +27,7 @@ where `\theta = 1 - x/2` and with initial and boundary conditions:
 We use physics-informed neural networks.
 
 ```@example ks
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x, t
@@ -59,7 +59,7 @@ domains = [x ∈ Interval(-10.0,10.0),
 dx = 0.4; dt = 0.2
 
 # Neural network
-chain = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+chain = Lux.Chain(Dense(2,12,Lux.σ),Dense(12,12,Lux.σ),Dense(12,1))
 
 discretization = PhysicsInformedNN(chain, GridTraining([dx,dt]))
 @named pde_system = PDESystem(eq,bcs,domains,[x,t],[u(x, t)])
@@ -82,9 +82,9 @@ using Plots
 
 xs,ts = [infimum(d.domain):dx:supremum(d.domain) for (d,dx) in zip(domains,[dx/10,dt])]
 
-u_predict = [[first(phi([x,t],res.minimizer)) for x in xs] for t in ts]
+u_predict = [[first(phi([x,t],res.u)) for x in xs] for t in ts]
 u_real = [[u_analytic(x,t) for x in xs] for t in ts]
-diff_u = [[abs(u_analytic(x,t) -first(phi([x,t],res.minimizer)))  for x in xs] for t in ts]
+diff_u = [[abs(u_analytic(x,t) -first(phi([x,t],res.u)))  for x in xs] for t in ts]
 
 p1 =plot(xs,u_predict,title = "predict")
 p2 =plot(xs,u_real,title = "analytic")

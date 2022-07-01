@@ -21,7 +21,7 @@ p(-2.2) = p(2.2) = 0
 with Physics-Informed Neural Networks.
 
 ```@example fokkerplank
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using Integrals, IntegralsCubature
 import ModelingToolkit: Interval, infimum, supremum
 # the example is taken from this article https://arxiv.org/abs/1910.10503
@@ -48,11 +48,10 @@ domains = [x ∈ Interval(x_0,x_end)]
 
 # Neural network
 inn = 18
-chain = FastChain(FastDense(1,inn,Flux.σ),
-                  FastDense(inn,inn,Flux.σ),
-                  FastDense(inn,inn,Flux.σ),
-                  FastDense(inn,1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = Lux.Chain(Dense(1,inn,Lux.σ),
+                  Dense(inn,inn,Lux.σ),
+                  Dense(inn,inn,Lux.σ),
+                  Dense(inn,1))
 
 lb = [x_0]
 ub = [x_end]
@@ -66,8 +65,7 @@ function norm_loss_function(phi,θ,p)
 end
 
 discretization = PhysicsInformedNN(chain,
-                                   GridTraining(dx);
-                                   init_params = initθ,
+                                   GridTraining(dx)
                                    additional_loss=norm_loss_function)
 
 @named pdesystem = PDESystem(eq,bcs,domains,[x],[p(x)])
@@ -89,7 +87,7 @@ cb_ = function (p,l)
 end
 
 res = Optimization.solve(prob,LBFGS(),callback = cb_,maxiters=400)
-prob = remake(prob,u0=res.minimizer)
+prob = remake(prob,u0=res.u)
 res = Optimization.solve(prob,BFGS(),callback = cb_,maxiters=2000)
 ```
 
@@ -102,7 +100,7 @@ analytic_sol_func(x) = C*exp((1/(2*_σ^2))*(2*α*x^2 - β*x^4))
 
 xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
-u_predict  = [first(phi(x,res.minimizer)) for x in xs]
+u_predict  = [first(phi(x,res.u)) for x in xs]
 
 plot(xs ,u_real, label = "analytic")
 plot!(xs ,u_predict, label = "predict")

@@ -16,7 +16,7 @@ with grid discretization `dx = 0.1` and physics-informed neural networks.
 Further, the solution of this equation with the given boundary conditions is presented.
 
 ```@example wave
-using NeuralPDE, Flux, Optimization, OptimizationOptimJL, DiffEqFlux
+using NeuralPDE, Lux, Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval
 
 @parameters t, x
@@ -42,9 +42,8 @@ domains = [t ∈ Interval(0.0,1.0),
 dx = 0.1
 
 # Neural network
-chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
-discretization = PhysicsInformedNN(chain, GridTraining(dx); init_params = initθ)
+chain = Lux.Chain(Dense(2,16,Lux.σ),Dense(16,16,Lux.σ),Dense(16,1))
+discretization = PhysicsInformedNN(chain, GridTraining(dx))
 
 @named pde_system = PDESystem(eq,bcs,domains,[t,x],[u(t,x)])
 prob = discretize(pde_system,discretization)
@@ -68,7 +67,7 @@ using Plots
 ts,xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 analytic_sol_func(t,x) =  sum([(8/(k^3*pi^3)) * sin(k*pi*x)*cos(C*k*pi*t) for k in 1:2:50000])
 
-u_predict = reshape([first(phi([t,x],res.minimizer)) for t in ts for x in xs],(length(ts),length(xs)))
+u_predict = reshape([first(phi([t,x],res.u)) for t in ts for x in xs],(length(ts),length(xs)))
 u_real = reshape([analytic_sol_func(t,x) for t in ts for x in xs], (length(ts),length(xs)))
 
 diff_u = abs.(u_predict .- u_real)
@@ -96,7 +95,7 @@ u_t(0, x) = 1 - 2x \\
 with grid discretization `dx = 0.05` and physics-informed neural networks. Here we take advantage of adaptive derivative to increase accuracy.
 
 ```@example wave2
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using Plots, Printf
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -137,17 +136,14 @@ domains = [t ∈ Interval(0.0, L),
 # Neural network
 inn = 25
 innd = 4
-chain = [[FastChain(FastDense(2, inn, Flux.tanh),
-                    FastDense(inn, inn, Flux.tanh),
-                    FastDense(inn, inn, Flux.tanh),
-                    FastDense(inn, 1)) for _ in 1:3];
-         [FastChain(FastDense(2, innd, Flux.tanh), FastDense(innd, 1)) for _ in 1:2];]
-
-initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
+chain = [[Lux.Chain(Dense(2, inn, Lux.tanh),
+                    Dense(inn, inn, Lux.tanh),
+                    Dense(inn, inn, Lux.tanh),
+                    Dense(inn, 1)) for _ in 1:3];
+         [Lux.Chain(Dense(2, innd, Lux.tanh), Dense(innd, 1)) for _ in 1:2];]
 
 strategy = GridTraining(0.02)
-
-discretization = PhysicsInformedNN(chain, strategy; init_params=initθ)
+discretization = PhysicsInformedNN(chain, strategy;)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x), Dxu(t, x), Dtu(t, x), O1(t, x), O2(t, x)])
 prob = discretize(pde_system, discretization)
@@ -164,7 +160,7 @@ callback = function (p, l)
 end
 
 res = Optimization.solve(prob, BFGS();callback = callback, maxiters=2000)
-prob = remake(prob, u0=res.minimizer)
+prob = remake(prob, u0=res.u)
 res = Optimization.solve(prob, BFGS();callback = callback, maxiters=2000)
 
 phi = discretization.phi[1]
@@ -181,7 +177,7 @@ analytic_sol_func(t,x) = sum([sin((k * π * x) / L) * exp(-v^2 * b * t / 2) * (a
 anim = @animate for t ∈ ts
     @info "Time $t..."
     sol =  [analytic_sol_func(t, x) for x in xs]
-    sol_p =  [first(phi([t,x], res.minimizer)) for x in xs]
+    sol_p =  [first(phi([t,x], res.u)) for x in xs]
     plot(sol, label="analytic", ylims=[0, 0.1])
     title = @sprintf("t = %.3f", t)
     plot!(sol_p, label="predict", ylims=[0, 0.1], title=title)
@@ -190,7 +186,7 @@ gif(anim, "1Dwave_damped_adaptive.gif", fps=200)
 
 # Surface plot
 ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-u_predict = reshape([first(phi([t,x], res.minimizer)) for t in ts for x in xs], (length(ts), length(xs)))
+u_predict = reshape([first(phi([t,x], res.u)) for t in ts for x in xs], (length(ts), length(xs)))
 u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs], (length(ts), length(xs)))
 
 diff_u = abs.(u_predict .- u_real)

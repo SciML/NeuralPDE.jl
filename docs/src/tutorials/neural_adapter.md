@@ -18,7 +18,7 @@ Using the example of 2D Poisson equation, it is shown how, using method neural_a
 ![image](https://user-images.githubusercontent.com/12683885/127149639-c2a8066f-9a25-4889-b313-5d4403567300.png)
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DiffEqBase
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqBase
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -38,15 +38,13 @@ domains = [x ∈ Interval(0.0,1.0),
 quadrature_strategy = NeuralPDE.QuadratureTraining(reltol=1e-2,abstol=1e-2,
                                                    maxiters =50, batch=100)
 inner = 8
-af = Flux.tanh
+af = Lux.tanh
 chain1 = Chain(Dense(2,inner,af),
                Dense(inner,inner,af),
                Dense(inner,1))
 
-initθ = Float64.(DiffEqFlux.initial_params(chain1))
 discretization = NeuralPDE.PhysicsInformedNN(chain1,
-                                             quadrature_strategy;
-                                             init_params = initθ)
+                                             quadrature_strategy)
 
 @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = NeuralPDE.discretize(pde_system,discretization)
@@ -56,17 +54,17 @@ res = Optimization.solve(prob, BFGS();  maxiters=2000)
 phi = discretization.phi
 
 inner_ = 12
-af = Flux.tanh
-chain2 = FastChain(FastDense(2,inner_,af),
-                   FastDense(inner_,inner_,af),
-                   FastDense(inner_,inner_,af),
-                   FastDense(inner_,1))
+af = Lux.tanh
+chain2 = Lux.Chain(Dense(2,inner_,af),
+                   Dense(inner_,inner_,af),
+                   Dense(inner_,inner_,af),
+                   Dense(inner_,1))
 
-initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
+initθ2 = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain)[1]))
 
 # the rule by which the training will take place is described here in loss function
 function loss(cord,θ)
-    chain2(cord,θ) .- phi(cord,res.minimizer)
+    chain2(cord,θ) .- phi(cord,res.u)
 end
 
 strategy = NeuralPDE.GridTraining(0.02)
@@ -83,7 +81,7 @@ phi_ = NeuralPDE.get_phi(chain2)
 xs,ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
 
-u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+u_predict = reshape([first(phi([x,y],res.u)) for x in xs for y in ys],(length(xs),length(ys)))
 u_predict_ =  reshape([first(phi_([x,y],res_.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 diff_u = u_predict .- u_real
@@ -109,7 +107,7 @@ And then using the method neural_adapter, we retrain the banch of 10 predictions
 ![domain_decomposition](https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png)
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, DiffEqBase
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqBase
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -133,10 +131,10 @@ domains = [x ∈ x_domain,
 count_decomp = 10
 
 # Neural network
-af = Flux.tanh
+af = Lux.tanh
 inner = 10
-chains = [FastChain(FastDense(2, inner, af), FastDense(inner, inner, af), FastDense(inner, 1)) for _ in 1:count_decomp]
-initθs = map(c -> Float64.(c), DiffEqFlux.initial_params.(chains))
+chains = [Lux.Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1)) for _ in 1:count_decomp]
+initθs = map(c->Float64.(ComponentArray(Lux.setup(Random.default_rng(), c)[1])),chains)
 
 xs_ = infimum(x_domain):1/count_decomp:supremum(x_domain)
 xs_domain = [(xs_[i], xs_[i+1]) for i in 1:length(xs_)-1]
@@ -220,14 +218,14 @@ u_predict, diff_u = compose_result(dx)
 
 
 inner_ = 18
-af = Flux.tanh
-chain2 = FastChain(FastDense(2,inner_,af),
-                   FastDense(inner_,inner_,af),
-                   FastDense(inner_,inner_,af),
-                   FastDense(inner_,inner_,af),
-                   FastDense(inner_,1))
+af = Lux.tanh
+chain2 = Lux.Chain(Dense(2,inner_,af),
+                   Dense(inner_,inner_,af),
+                   Dense(inner_,inner_,af),
+                   Dense(inner_,inner_,af),
+                   Dense(inner_,1))
 
-initθ2 =Float64.(DiffEqFlux.initial_params(chain2))
+initθ2 = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain2)[1]))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 

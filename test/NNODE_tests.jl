@@ -1,5 +1,6 @@
 using Test, Flux, Optim
 using Random, NeuralPDE
+import Lux
 Random.seed!(100)
 
 # Run a solve on scalars

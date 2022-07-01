@@ -19,8 +19,6 @@ jobs:
           - AdaptiveLoss
           - NeuralAdapter
           - IntegroDiff
-          - NNSTOPPINGTIME
-          - NNRODE
           - Logging
           - Forward
         version:

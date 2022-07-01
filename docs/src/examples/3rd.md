@@ -15,7 +15,7 @@ x &\in [0, 1] \, ,
 We will use physics-informed neural networks.
 
 ```@example 3rdDerivative
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x
@@ -35,7 +35,7 @@ bcs = [u(0.) ~ 0.0,
 domains = [x ∈ Interval(0.0,1.0)]
 
 # Neural network
-chain = FastChain(FastDense(1,8,Flux.σ),FastDense(8,1))
+chain = Lux.Chain(Dense(1,8,Lux.σ),Dense(8,1))
 
 discretization = PhysicsInformedNN(chain, QuasiRandomTraining(20))
 @named pde_system = PDESystem(eq,bcs,domains,[x],[u(x)])
@@ -60,7 +60,7 @@ analytic_sol_func(x) = (π*x*(-x+(π^2)*(2*x-3)+1)-sin(π*x))/(π^3)
 dx = 0.05
 xs = [infimum(d.domain):dx/10:supremum(d.domain) for d in domains][1]
 u_real  = [analytic_sol_func(x) for x in xs]
-u_predict  = [first(phi(x,res.minimizer)) for x in xs]
+u_predict  = [first(phi(x,res.u)) for x in xs]
 
 x_plot = collect(xs)
 plot(x_plot ,u_real,title = "real")

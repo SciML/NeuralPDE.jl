@@ -9,10 +9,10 @@ end
 function NNRODE(chain, W, opt = Optim.BFGS(), init_params = nothing; autodiff = false,
                 kwargs...)
     if init_params === nothing
-        if chain isa FastChain
-            initθ = DiffEqFlux.initial_params(chain)
-        else
+        if chain isa Flux.Chain
             initθ, re = Flux.destructure(chain)
+        else
+            error("Only Flux is support here right now")
         end
     else
         initθ = init_params
@@ -96,8 +96,8 @@ function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
         verbose && println("Current loss is: $l")
         l < abstol
     end
-    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = callback, maxiters = maxiters,
-                                 alg.kwargs...)
+    #res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = callback, maxiters = maxiters,
+    #                             alg.kwargs...)
 
     #solutions at timepoints
     noiseproblem = NoiseProblem(Wg, tspan)

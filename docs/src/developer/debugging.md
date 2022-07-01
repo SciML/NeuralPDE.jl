@@ -6,7 +6,7 @@ Let's walk through debugging functions for the physics-informed neural network
 PDE solvers.
 
 ```julia
-using NeuralPDE, ModelingToolkit, Flux, DiffEqFlux, Zygote
+using NeuralPDE, ModelingToolkit, Flux, Zygote
 import ModelingToolkit: Interval, infimum, supremum
 # 2d wave equation, neumann boundary condition
 @parameters x, t

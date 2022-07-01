@@ -1,9 +1,10 @@
-using Flux, DiffEqFlux, NeuralPDE, Test
+using Flux, NeuralPDE, Test
 using Optimization, OptimizationOptimJL, OptimizationFlux
 using QuasiMonteCarlo
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 using Random
+import Lux
 
 Random.seed!(110)
 
@@ -27,14 +28,13 @@ xs = collect(x0:dx:x_end)
 func_s = func(xs)
 
 hidden = 10
-chain = FastChain(FastDense(1, hidden, Flux.tanh),
-                  FastDense(hidden, hidden, Flux.tanh),
-                  FastDense(hidden, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = Lux.Chain(Lux.Dense(1, hidden, Lux.tanh),
+                  Lux.Dense(hidden, hidden, Lux.tanh),
+                  Lux.Dense(hidden, 1))
 
 strategy = NeuralPDE.GridTraining(0.01)
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, strategy; initial_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
 @named pde_system = PDESystem(eq, bc, domain, [x], [u(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
@@ -62,15 +62,14 @@ x_end = 4
 domain = [x ∈ Interval(x0, x_end)]
 
 hidden = 20
-chain = FastChain(FastDense(1, hidden, Flux.sin),
-                  FastDense(hidden, hidden, Flux.sin),
-                  FastDense(hidden, hidden, Flux.sin),
-                  FastDense(hidden, 1))
-initθ = DiffEqFlux.initial_params(chain)
+chain = Lux.Chain(Lux.Dense(1, hidden, Lux.sin),
+                  Lux.Dense(hidden, hidden, Lux.sin),
+                  Lux.Dense(hidden, hidden, Lux.sin),
+                  Lux.Dense(hidden, 1))
 
 strategy = NeuralPDE.GridTraining(0.01)
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, strategy; initial_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
 @named pde_system = PDESystem(eq, bc, domain, [x], [u(x)])
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 prob = NeuralPDE.discretize(pde_system, discretization)
@@ -106,14 +105,13 @@ d = 0.4
 domain = [x ∈ Interval(x0, x_end), y ∈ Interval(y0, y_end)]
 
 hidden = 25
-chain = FastChain(FastDense(2, hidden, Flux.tanh),
-                  FastDense(hidden, hidden, Flux.tanh),
-                  FastDense(hidden, hidden, Flux.tanh),
-                  FastDense(hidden, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = Lux.Chain(Lux.Dense(2, hidden, Lux.tanh),
+                  Lux.Dense(hidden, hidden, Lux.tanh),
+                  Lux.Dense(hidden, hidden, Lux.tanh),
+                  Lux.Dense(hidden, 1))
 
 strategy = NeuralPDE.GridTraining(d)
-discretization = NeuralPDE.PhysicsInformedNN(chain, strategy; initial_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
 @named pde_system = PDESystem(eq, bc, domain, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system, discretization)

@@ -1,4 +1,4 @@
-using DiffEqFlux, Test, NeuralPDE
+using Test, NeuralPDE
 using Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval
 using DomainSets
@@ -21,13 +21,9 @@ eq = Di(i(t)) + 2 * i(t) + 5 * Ii(i(t)) ~ 1
 bcs = [i(0.0) ~ 0.0]
 domains = [t ∈ Interval(0.0, 2.0)]
 chain = Chain(Dense(1, 15, Flux.σ), Dense(15, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy_;
-                                             init_params = nothing,
-                                             phi = nothing,
-                                             derivative = nothing)
+                                             strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [t], [i(t)])
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 prob = NeuralPDE.discretize(pde_system, discretization)
@@ -54,14 +50,10 @@ eq = Ix(u(x) * cos(x)) ~ (x^3) / 3
 bcs = [u(0.0) ~ 0.0]
 domains = [x ∈ Interval(0.0, 1.00)]
 # chain = Chain(Dense(1,15,Flux.σ),Dense(15,1))
-chain = FastChain(FastDense(1, 15, Flux.σ), FastDense(15, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = Lux.Chain(Lux.Dense(1, 15, Flux.σ), Lux.Dense(15, 1))
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy_;
-                                             init_params = initθ,
-                                             phi = nothing,
-                                             derivative = nothing)
+                                             strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 200)
@@ -86,13 +78,9 @@ eq = Ix(u(x, y)) ~ 1 / 3
 bcs = [u(0.0, 0.0) ~ 1, Dx(u(x, y)) ~ -2 * x, Dy(u(x, y)) ~ -2 * y]
 domains = [x ∈ Interval(0.0, 1.00), y ∈ Interval(0.0, 1.00)]
 chain = Chain(Dense(2, 15, Flux.σ), Dense(15, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy_;
-                                             init_params = nothing,
-                                             phi = nothing,
-                                             derivative = nothing)
+                                             strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
@@ -119,13 +107,9 @@ eq = Ix(u(x, y)) ~ 5 / 12
 bcs = [u(0.0, 0.0) ~ 0, Dy(u(x, y)) ~ 2 * y, u(x, 0) ~ x]
 domains = [x ∈ Interval(0.0, 1.00), y ∈ Interval(0.0, 1.00)]
 chain = Chain(Dense(2, 15, Flux.σ), Dense(15, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy_;
-                                             init_params = nothing,
-                                             phi = nothing,
-                                             derivative = nothing)
+                                             strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
@@ -158,24 +142,18 @@ eqs = [Ix(u(x) * w(x)) ~ log(abs(x)),
 bcs = [u(1.0) ~ 1.0, w(1.0) ~ 1.0]
 domains = [x ∈ Interval(1.0, 2.0)]
 
-chains = [FastChain(FastDense(1, 15, Flux.σ), FastDense(15, 1)) for _ in 1:2]
-initθ = map(chain -> Float64.(DiffEqFlux.initial_params(chain)), chains)
+chains = [Lux.Chain(Lux.Dense(1, 15, Flux.σ), Lux.Dense(15, 1)) for _ in 1:2]
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chains,
-                                             strategy_;
-                                             init_params = initθ)
+                                             strategy_)
 @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x), w(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
-initθ = discretization.init_params
-acum = [0; accumulate(+, length.(initθ))]
-sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
-minimizers = [res.minimizer[s] for s in sep]
 
-u_predict = [(phi[1]([x], minimizers[1]))[1] for x in xs]
-w_predict = [(phi[2]([x], minimizers[2]))[1] for x in xs]
+u_predict = [(phi[1]([x], res.minimizer.θ1))[1] for x in xs]
+w_predict = [(phi[2]([x], res.minimizer.θ2))[1] for x in xs]
 u_real = [x for x in xs]
 w_real = [1 / x^2 for x in xs]
 @test Flux.mse(u_real, u_predict) < 0.001
@@ -195,10 +173,8 @@ Iinf = Integral(x in ClosedInterval(1, Inf))
 eqs = [I(u(x)) ~ Iinf(u(x)) - 1 / x]
 bcs = [u(1) ~ 1]
 domains = [x ∈ Interval(1.0, 2.0)]
-chain = FastChain(FastDense(1, 10, Flux.σ), FastDense(10, 1))
-initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
-discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1),
-                                             init_params = initθ)
+chain = Lux.Chain(Lux.Dense(1, 10, Flux.σ), Lux.Dense(10, 1))
+discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1))
 @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
 sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
@@ -219,14 +195,12 @@ I = Integral(x in ClosedInterval(x, Inf))
 eq = I(u(x)) ~ 1 / x
 domains = [x ∈ Interval(1.0, 2.0)]
 bcs = [u(1) ~ 1]
-chain = FastChain(FastDense(1, 12, Flux.tanh), FastDense(12, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
-discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1),
-                                             init_params = initθ)
+chain = Lux.Chain(Lux.Dense(1, 12, Flux.tanh), Lux.Dense(12, 1))
+discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1))
 @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
 sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
-prob.f(initθ, nothing)
+prob.f(prob.u0, nothing)
 res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 300)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
