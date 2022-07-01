@@ -101,8 +101,8 @@ end
     bcs = [u(1.0) ~ exp(1) / (exp(2) + 3)]
     domains = [x ∈ Interval(1.0, 2.0)]
     chain = Lux.Chain((x, p) -> exp.(x) ./ (exp.(2 .* x) .+ 3))
-    initθ, st = ComponentArray(Lux.setup(Random.default_rng(), chain))
-    initθ = Float64.(initθ)
+    initθ, st = Lux.setup(Random.default_rng(), chain)
+    initθ = Float64.(ComponentArrays(initθ))
 
     chain([1], initθ, st)
     strategy_ = NeuralPDE.GridTraining(0.1)

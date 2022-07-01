@@ -1,6 +1,6 @@
-using Test, Flux, Optim
+using Test, Flux
 using Random, NeuralPDE
-import Lux, OptimizationOptimisers
+import Lux, OptimizationOptimisers, OptimizationOptimJL
 Random.seed!(100)
 
 # Run a solve on scalars
