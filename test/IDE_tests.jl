@@ -2,6 +2,7 @@ using Test, NeuralPDE
 using Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval
 using DomainSets, Flux
+import Lux
 
 using Random
 Random.seed!(100)

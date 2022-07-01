@@ -2,7 +2,7 @@ using Test, NeuralPDE
 using SciMLBase
 using DomainSets
 import ModelingToolkit: Interval
-import Lux
+import Lux, Random
 
 @testset "ODE" begin
     @parameters x

@@ -14,7 +14,7 @@ TensorBoardLogger = "0.1"
 julia = "1.6"
 
 [extras]
-DiffEqFlux = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"
+Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
 Optimization = "7f7a1694-90dd-40f0-9382-eb1efda571ba"
 OptimizationFlux = "253f991c-a7b2-45f8-8852-8b9a9df78a86"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
