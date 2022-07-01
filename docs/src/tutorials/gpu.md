@@ -41,7 +41,8 @@ chain = Chain(Dense(3,inner,Flux.σ),
 In total, this looks like:
 
 ```julia
-using NeuralPDE, Flux, Optimization, OptimizationOptimJL, CUDA
+using NeuralPDE, Flux, CUDA
+using Optimization, OptimizationOptimJL, OptimizationOptimsiers
 import ModelingToolkit: Interval
 
 @parameters t x y
@@ -93,7 +94,7 @@ callback = function (p,l)
     return false
 end
 
-res = Optimization.solve(prob,ADAM(0.01);callback = callback,maxiters=2500)
+res = Optimization.solve(prob,Adam(0.01);callback = callback,maxiters=2500)
 ```
 
 We then use the `remake` function allows to rebuild the PDE problem to start a new
@@ -101,7 +102,7 @@ optimization at the optimized parameters, and continue with a lower learning rat
 
 ```julia
 prob = remake(prob,u0=res.u)
-res = Optimization.solve(prob,ADAM(0.001);callback = callback,maxiters=2500)
+res = Optimization.solve(prob,Adam(0.001);callback = callback,maxiters=2500)
 ```
 
 Finally we inspect the solution:

@@ -1,5 +1,5 @@
 using NeuralPDE, Test
-using Optimization, OptimizationOptimJL, OptimizationFlux
+using Optimization, OptimizationOptimJL, OptimizationOptimisers
 using QuasiMonteCarlo, Random
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
@@ -271,7 +271,7 @@ additional_loss_(phi, initθ, nothing)
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
-res = Optimization.solve(prob, ADAM(0.01), maxiters = 500)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01), maxiters = 500)
 prob = remake(prob, u0 = res.minimizer)
 res = Optimization.solve(prob, BFGS(), maxiters = 500)
 

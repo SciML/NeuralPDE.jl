@@ -1,8 +1,8 @@
-using Flux, OptimizationFlux
+using Flux
 using Test, NeuralPDE
 using Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval, infimum, supremum
-import Lux
+import Lux, OptimizationOptimisers
 using Statistics
 using ComponentArrays
 
@@ -73,7 +73,7 @@ strategies1 = [grid_strategy, quadrature_strategy]
 reses_1 = map(strategies1) do strategy_
     println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
     prob_ = NeuralPDE.neural_adapter(loss, initθ2, pde_system, strategy_)
-    res_ = Optimization.solve(prob_, ADAM(0.01); maxiters = 8000)
+    res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(0.01); maxiters = 8000)
     prob_ = remake(prob_, u0 = res_.minimizer)
     res_ = Optimization.solve(prob_, BFGS(); maxiters = 200)
 end
@@ -81,7 +81,7 @@ strategies2 = [stochastic_strategy, quasirandom_strategy]# quasirandom_strategy_
 reses_2 = map(strategies2) do strategy_
     println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
     prob_ = NeuralPDE.neural_adapter(loss, initθ2, pde_system, strategy_)
-    res_ = Optimization.solve(prob_, ADAM(0.01); maxiters = 8000)
+    res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(0.01); maxiters = 8000)
     prob_ = remake(prob_, u0 = res_.minimizer)
     res_ = Optimization.solve(prob_, BFGS(); maxiters = 200)
 end

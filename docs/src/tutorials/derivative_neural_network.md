@@ -52,7 +52,8 @@ We approximate the derivative of the neural network with another neural network
 using the second numeric derivative `Dt(Dtu1(t,x))`.
 
 ```@example derivativenn
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationLux, OptimizationOptimJL
+using NeuralPDE, Lux, ModelingToolkit,
+using Optimization, OptimizationOptimisers, OptimizationOptimJL
 using Plots
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -113,7 +114,7 @@ callback = function (p,l)
     return false
 end
 
-res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
+res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters=2000)
 prob = remake(prob,u0=res.u)
 res = Optimization.solve(prob,BFGS(); callback = callback, maxiters=10000)
 

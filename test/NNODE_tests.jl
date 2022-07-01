@@ -1,6 +1,6 @@
 using Test, Flux, Optim
 using Random, NeuralPDE
-import Lux
+import Lux, OptimizationOptimisers
 Random.seed!(100)
 
 # Run a solve on scalars
@@ -10,7 +10,7 @@ u0 = 0.0f0
 prob = ODEProblem(linear, u0, tspan)
 chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
 luxchain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
-opt = Flux.ADAM(0.1, (0.9, 0.95))
+opt = OptimizationOptimisers.Adam(0.1, (0.9, 0.95))
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt = 1 / 20.0f0, verbose = true,
             abstol = 1.0f-10, maxiters = 200)

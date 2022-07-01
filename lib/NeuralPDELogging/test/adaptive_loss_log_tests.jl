@@ -1,6 +1,6 @@
 @info "adaptive_loss_logging_tests"
 using Test, NeuralPDE
-using Optimization, OptimizationFlux
+using Optimization, OptimizationOptimisers
 import ModelingToolkit: Interval, infimum, supremum
 using Random, Lux
 #using Plots
@@ -44,7 +44,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0),
         y ∈ Interval(0.0, 1.0)]
-        
+
     iteration = [0]
     discretization = NeuralPDE.PhysicsInformedNN(chain_,
                                                  strategy_;
@@ -86,7 +86,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
         end
         return false
     end
-    res = Optimization.solve(prob, ADAM(0.03); maxiters = maxiters, callback = callback)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.03); maxiters = maxiters, callback = callback)
 
     u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
                         (length(xs), length(ys)))

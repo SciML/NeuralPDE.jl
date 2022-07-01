@@ -15,7 +15,8 @@ x &\in [0, 1] \, ,
 We will use physics-informed neural networks.
 
 ```@example 3rdDerivative
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using NeuralPDE, Lux, ModelingToolkit
+using Optimization, OptimizationOptimJL, OptimizationOptimsiers
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x
@@ -46,7 +47,7 @@ callback = function (p,l)
     return false
 end
 
-res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters=2000)
+res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters=2000)
 phi = discretization.phi
 ```
 

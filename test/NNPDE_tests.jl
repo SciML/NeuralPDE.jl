@@ -1,5 +1,5 @@
 using Flux, NeuralPDE, Test
-using Optimization, OptimizationOptimJL, OptimizationFlux
+using Optimization, OptimizationOptimJL, OptimizationOptimisers
 using Integrals, IntegralsCubature
 using QuasiMonteCarlo
 import ModelingToolkit: Interval, infimum, supremum
@@ -40,11 +40,11 @@ function test_ode(strategy_)
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
     prob = NeuralPDE.discretize(pde_system, discretization)
 
-    res = Optimization.solve(prob, ADAM(0.1); maxiters = 1000)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 1000)
     prob = remake(prob, u0 = res.minimizer)
-    res = Optimization.solve(prob, ADAM(0.01); maxiters = 500)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 500)
     prob = remake(prob, u0 = res.minimizer)
-    res = Optimization.solve(prob, ADAM(0.001); maxiters = 500)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 500)
     phi = discretization.phi
 
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
@@ -272,7 +272,7 @@ function test_2d_poisson_equation(chain_, strategy_)
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = NeuralPDE.discretize(pde_system, discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-    res = Optimization.solve(prob, ADAM(0.1); maxiters = 500)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 500)
     phi = discretization.phi
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
