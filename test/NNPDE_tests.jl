@@ -292,9 +292,9 @@ function test_2d_poisson_equation(chain_, strategy_)
     # plot(p1,p2,p3)
 end
 
-Lux.Chain = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ), Lux.Dense(12, 1))
+chain = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ), Lux.Dense(12, 1))
 fluxchain = Chain(Dense(2, 12, Flux.σ), Dense(12, 12, Flux.σ), Dense(12, 1)) |> f64
-chains = [fluxchain, Lux.Chain]
+chains = [fluxchain, chain]
 for chain in chains
     test_2d_poisson_equation(chain, grid_strategy)
 end
@@ -450,7 +450,7 @@ domains = [x ∈ Interval(0.0, 1.0),
 @named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
 
 # Neural network
-chain = Lux.Chain(Lux.Dense(2, 16, Flux.σ), Lux.Dense(16, 16, Flux.σ), Lux.Dense(16, 1))
+chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ), Lux.Dense(16, 16, Lux.σ), Lux.Dense(16, 1))
 phi = NeuralPDE.Phi(chain)
 derivative = NeuralPDE.numeric_derivative
 

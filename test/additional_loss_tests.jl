@@ -142,7 +142,7 @@ dt = 0.05
 
 input_ = length(domains)
 n = 12
-chain = [Lux.Chain(Lux.Dense(input_, n, Flux.tanh), Lux.Dense(n, n, Flux.σ),
+chain = [Lux.Chain(Lux.Dense(input_, n, Lux.tanh), Lux.Dense(n, n, Lux.σ),
                    Lux.Dense(n, 1)) for _ in 1:3]
 #Generate Data
 function lorenz!(du, u, p, t)
@@ -246,9 +246,9 @@ dx = pi / 10
 domain = [x ∈ Interval(x0, x_end)]
 
 hidden = 10
-chain = Lux.Chain(Lux.Dense(1, hidden, Flux.tanh),
-                  Lux.Dense(hidden, hidden, Flux.sin),
-                  Lux.Dense(hidden, hidden, Flux.tanh),
+chain = Lux.Chain(Lux.Dense(1, hidden, Lux.tanh),
+                  Lux.Dense(hidden, hidden, Lux.sin),
+                  Lux.Dense(hidden, hidden, Lux.tanh),
                   Lux.Dense(hidden, 1))
 
 strategy = NeuralPDE.GridTraining(dx)

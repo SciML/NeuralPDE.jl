@@ -14,8 +14,8 @@ using ComponentArrays
     bcs = [u(0.0) ~ u(0.0)]
     domains = [x ∈ Interval(0.0, 1.0)]
     chain = Lux.Chain((x, p) -> x .^ 2)
-    initθ, st = ComponentArray(Lux.setup(Random.default_rng(), chain)
-    initθ = Float64.(initθ)
+    initθ, st = Lux.setup(Random.default_rng(), chain)
+    initθ = Float64.(ComponentArray(initθ))
 
     chain([1], Float64[], st)
     strategy_ = NeuralPDE.GridTraining(0.1)

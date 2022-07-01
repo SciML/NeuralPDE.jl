@@ -81,7 +81,7 @@ linear_analytic = (u0, p, t) -> [exp(-(t^2) / 2) / (1 + t + t^3) + t^2]
 prob = ODEProblem(ODEFunction(linear, analytic = linear_analytic), [1.0f0], (0.0f0, 1.0f0))
 chain = Flux.Chain(Dense(1, 128, σ), Dense(128, 1))
 luxchain = Lux.Chain(Lux.Dense(1, 128, σ), Lux.Dense(128, 1))
-opt = ADAM(0.01)
+opt = OptimizationOptimisers.Adam(0.01)
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
@@ -138,7 +138,7 @@ prob = ODEProblem(ODEFunction(linear, analytic = linear_analytic), 0.0f0, (0.0f0
 chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
 luxchain = Lux.Chain(Lux.Dense(1, 5, σ), Lux.Dense(5, 1))
 
-opt = ADAM(0.1)
+opt = OptimizationOptimisers.Adam(0.1)
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400,
             abstol = 1.0f-8)
 @test sol.errors[:l2] < 0.5

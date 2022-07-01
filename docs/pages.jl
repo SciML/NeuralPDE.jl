@@ -17,7 +17,7 @@ pages = [
                                "examples/ks.md",
                                "examples/heterogeneous.md",
                                "examples/linear_parabolic.md",
-                               "examples/nonlinear_elliptic.md"
+                               "examples/nonlinear_elliptic.md",
                                "examples/nonlinear_hyperbolic.md"],
     "Manual" => Any["manual/ode.md",
                     "manual/pinns.md",
