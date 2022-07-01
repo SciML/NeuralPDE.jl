@@ -118,7 +118,7 @@ p_ = res.u[end-2:end] # p_ = [9.93, 28.002, 2.667]
 And then finally some analyisis by plotting.
 
 ```@example param_estim
-minimizers = [res.u[Symbol("θ",i)] for s in sep]
+minimizers = [res.u.θ[Symbol("θ",i)] for s in sep]
 ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
 u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 plot(sol)

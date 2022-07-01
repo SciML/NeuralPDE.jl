@@ -435,11 +435,13 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             initθ
         elseif multioutput
             names = ntuple(i -> Symbol("θ",i), length(initθ))
-            NamedTuple{names}(i for i in initθ)
+            x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in initθ))
         else
             ComponentArrays.ComponentArray(initθ)
         end
-        flat_initθ = if param_estim == false
+        flat_initθ = if param_estim == false && multioutput
+            ComponentArrays.ComponentArray(;θ = flat_initθ)
+        elseif param_estim == false && !multioutput
             flat_initθ
         else
             ComponentArrays.ComponentArray(;θ = flat_initθ, p = default_p)

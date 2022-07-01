@@ -2,7 +2,7 @@ using Test, NeuralPDE
 using SciMLBase
 using DomainSets
 import ModelingToolkit: Interval
-import Lux, Random
+import Lux, Random, Zygote
 using ComponentArrays
 
 @testset "ODE" begin
@@ -14,9 +14,10 @@ using ComponentArrays
     bcs = [u(0.0) ~ u(0.0)]
     domains = [x ∈ Interval(0.0, 1.0)]
     chain = Lux.Chain((x, p) -> x .^ 2)
-    initθ = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain)[1]))
+    initθ, st = ComponentArray(Lux.setup(Random.default_rng(), chain)
+    initθ = Float64.(initθ)
 
-    chain([1], Float64[])
+    chain([1], Float64[], st)
     strategy_ = NeuralPDE.GridTraining(0.1)
     discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_; init_params = initθ)
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
@@ -100,9 +101,10 @@ end
     bcs = [u(1.0) ~ exp(1) / (exp(2) + 3)]
     domains = [x ∈ Interval(1.0, 2.0)]
     chain = Lux.Chain((x, p) -> exp.(x) ./ (exp.(2 .* x) .+ 3))
-    initθ = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain)[1]))
+    initθ, st = ComponentArray(Lux.setup(Random.default_rng(), chain))
+    initθ = Float64.(initθ)
 
-    chain([1], initθ)
+    chain([1], initθ, st)
     strategy_ = NeuralPDE.GridTraining(0.1)
     discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_; init_params = initθ)
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])

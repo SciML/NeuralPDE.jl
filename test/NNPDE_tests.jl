@@ -229,10 +229,10 @@ p_real = [analytic_sol_func_[4](x, z) for x in xs for z in zs]
 
 real_ = [u_real, v_real, h_real, p_real]
 
-u_predict = [phi[1]([x, y, z], res.minimizer.θ1)[1] for x in xs for y in ys for z in zs]
-v_predict = [phi[2]([y, x], res.minimizer.θ2)[1] for y in ys for x in xs]
-h_predict = [phi[3]([z], res.minimizer.θ3)[1] for z in zs]
-p_predict = [phi[4]([x, z], res.minimizer.θ4)[1] for x in xs for z in zs]
+u_predict = [phi[1]([x, y, z], res.u.θ.θ1)[1] for x in xs for y in ys for z in zs]
+v_predict = [phi[2]([y, x], res.u.θ.θ2)[1] for y in ys for x in xs]
+h_predict = [phi[3]([z], res.u.θ.θ3)[1] for z in zs]
+p_predict = [phi[4]([x, z], res.u.θ.θ4)[1] for x in xs for z in zs]
 predict = [u_predict, v_predict, h_predict, p_predict]
 
 for i in 1:4
