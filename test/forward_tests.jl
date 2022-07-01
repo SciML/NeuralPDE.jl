@@ -2,7 +2,7 @@ using Test, NeuralPDE
 using SciMLBase
 using DomainSets
 import ModelingToolkit: Interval
-import Lux, Random, Zygote
+import Lux, Random, Zygote, Flux
 using ComponentArrays
 
 @testset "ODE" begin
@@ -46,8 +46,8 @@ using ComponentArrays
 end
 
 @testset "derivatives" begin
-    chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ), Lux.Dense(16, 16, Lux.σ), Lux.Dense(16, 1))
-    initθ = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain)[1]))
+    chain = Flux.Chain(Flux.Dense(2, 16, Lux.σ), Flux.Dense(16, 16, Lux.σ), Flux.Dense(16, 1)) |> Flux.f64
+    initθ = Flux.destructure(chain)[1]
 
     eltypeθ = eltype(initθ)
     phi = NeuralPDE.Phi(chain)
@@ -87,9 +87,9 @@ end
     dphi_yy = derivative(phi, u_, [1.0, 2.0], [eps_y, eps_y], 2, initθ)
 
     #second order derivatives
-    @test isapprox(hess_phi[1], dphi_xx, atol = 1e-5)
-    @test isapprox(hess_phi[2], dphi_xy, atol = 1e-5)
-    @test isapprox(hess_phi[4], dphi_yy, atol = 1e-5)
+    @test isapprox(hess_phi[1], dphi_xx, atol = 4e-5)
+    @test isapprox(hess_phi[2], dphi_xy, atol = 4e-5)
+    @test isapprox(hess_phi[4], dphi_yy, atol = 4e-5)
 end
 
 @testset "Integral" begin
