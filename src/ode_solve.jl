@@ -81,43 +81,73 @@ end
 
 """
 ```julia
-ODEPhi(chain::FastChain, t, u0)
+ODEPhi(chain::Lux.Chain, t, u0, st)
+ODEPhi(chain::Flux.Chain, t, u0, nothing)
 ```
 
 Internal, used as a constructor used for representing the ODE solution as a
 neural network in a form that respects boundary conditions, i.e.
 `phi(t) = u0 + t*NN(t)`.
 """
-struct ODEPhi{C, T, U}
+mutable struct ODEPhi{C, T, U, S}
     chain::C
     t0::T
     u0::U
+    st::S
 
-    function ODEPhi(chain::FastChain, t::Number, u0)
-        new{typeof(chain), typeof(t), typeof(u0)}(chain, t, u0)
+    function ODEPhi(chain::Lux.Chain, t::Number, u0, st)
+        new{typeof(chain), typeof(t), typeof(u0), typeof(st)}(chain, t, u0, st)
     end
     function ODEPhi(chain::Flux.Chain, t, u0)
         p, re = Flux.destructure(chain)
-        new{typeof(re), typeof(t), typeof(u0)}(re, t, u0)
+        new{typeof(re), typeof(t), typeof(u0), Nothing}(re, t, u0, nothing)
     end
 end
 
-function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: FastChain, T, U <: Number}
-    f.u0 + (t - f.t0) * first(f.chain(adapt(parameterless_type(θ), [t]), θ))
+function generate_phi_θ(chain::Lux.Chain, t, u0, initθ::Nothing)
+    θ, st = Lux.setup(Random.default_rng(), chain)
+    ODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(θ)
 end
 
-function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: FastChain, T, U <: Number}
+function generate_phi_θ(chain::Lux.Chain, t, u0, initθ)
+    θ, st = Lux.setup(Random.default_rng(), chain)
+    ODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(initθ)
+end
+
+function generate_phi_θ(chain::Flux.Chain, t, u0, initθ::Nothing)
+    θ, re = Flux.destructure(chain)
+    ODEPhi(re, t, u0, nothing), θ
+end
+
+function generate_phi_θ(chain::Flux.Chain, t, u0, initθ)
+    θ, re = Flux.destructure(chain)
+    ODEPhi(re, t, u0, nothing), initθ
+end
+
+function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.Chain, T, U <: Number}
+    y, st = f.chain(adapt(parameterless_type(θ), [t]), θ, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    f.u0 + (t - f.t0) * first(y)
+end
+
+function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: Lux.Chain, T, U <: Number}
     # Batch via data as row vectors
-    f.u0 .+ (t' .- f.t0) .* (f.chain(adapt(parameterless_type(θ), t'), θ))
+    y, st = f.chain(adapt(parameterless_type(θ), t'), θ, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    f.u0 .+ (t' .- f.t0) .* y
 end
 
-function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: FastChain, T, U}
-    f.u0 + (t - f.t0) * f.chain(adapt(parameterless_type(θ), [t]), θ)
+function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.Chain, T, U}
+    y, st = f.chain(adapt(parameterless_type(θ), [t]), θ, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    f.u0 .+ (t .- f.t0) .* y
 end
 
-function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: FastChain, T, U}
+function (f::ODEPhi{C, T, U})(t::AbstractVector, θ) where {C <: Lux.Chain, T, U}
     # Batch via data as row vectors
-    f.u0 .+ (t' .- f.t0) .* f.chain(adapt(parameterless_type(θ), t'), θ)
+    y, st = f.chain(adapt(parameterless_type(θ), t'), θ, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    f.u0 .+ (t' .- f.t0) .* y
 end
 
 function (f::ODEPhi{C, T, U})(t::Number,
@@ -303,21 +333,15 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     #train points generation
     initθ = alg.initθ
 
-    if initθ === nothing
-        if chain isa FastChain
-            initθ = DiffEqFlux.initial_params(chain)
-        else
-            initθ, re = Flux.destructure(chain)
-        end
+    if chain isa Lux.Chain || chain isa Flux.Chain
+        phi, initθ = generate_phi_θ(chain, t0, u0, initθ)
     else
-        initθ = initθ
+        error("Only Lux.Chain and Flux.Chain neural networks are supported")
     end
 
     if isinplace(prob)
         throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
     end
-
-    phi = ODEPhi(chain, t0, u0)
 
     try
         phi(t0, initθ)

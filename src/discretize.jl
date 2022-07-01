@@ -395,9 +395,22 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     multioutput = discretization.multioutput
     initθ = discretization.init_params
 
-    flat_initθ = multioutput ? reduce(vcat, initθ) : initθ
-    flat_initθ = param_estim == false ? flat_initθ :
-                 vcat(flat_initθ, adapt(typeof(flat_initθ), default_p))
+    if discretization.phi.f isa Optimisers.Restructure # Flux.Chain
+        flat_initθ = multioutput ? reduce(vcat, initθ) : initθ
+        flat_initθ = param_estim == false ? flat_initθ :
+                    vcat(flat_initθ, adapt(typeof(flat_initθ), default_p))
+    else
+        flat_initθ = if multioutput
+            reduce(vcat, initθ)
+        else
+            ComponentArrays.ComponentArray(initθ)
+        end
+        flat_initθ = if param_estim == false
+            flat_initθ
+        else
+            ComponentArrays.ComponentArray(;θ = flat_initθ, p = default_p)
+        end
+    end
 
     eltypeθ = eltype(flat_initθ)
     phi = discretization.phi
@@ -511,7 +524,11 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         else
             function _additional_loss(phi, θ)
                 (θ_, p_) = if (param_estim == true)
-                    θ[1:(end - length(default_p))], θ[(end - length(default_p) + 1):end]
+                    if phi.f isa Optimisers.Restructure # Flux.Chain
+                        θ[1:(end - length(default_p))], θ[(end - length(default_p) + 1):end]
+                    else
+                        θ.θ, θ.p
+                    end
                 else
                     θ, nothing
                 end

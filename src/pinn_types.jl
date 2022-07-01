@@ -343,15 +343,31 @@ Fields:
 
 - `f`: A representation of the chain function. If FastChain, then `f(x,p)`,
   if Chain then `f(p)(x)` (from Flux.destructure)
+- `st`: The state of the Lux.Chain. If a Flux.Chain then this is `nothing`.
+  It should be updated on each call.
 """
-struct Phi{C}
+mutable struct Phi{C, S}
     f::C
-    Phi(chain::FastChain) = new{typeof(chain)}(chain)
-    Phi(chain::Flux.Chain) = (re = Flux.destructure(chain)[2]; new{typeof(re)}(re))
+    st::S
+    function Phi(chain::Lux.Chain)
+        ps, st = Lux.setup(Random.default_rng(), chain)
+        new{typeof(chain), typeof(st)}(chain, st)
+    end
+    function Phi(chain::Flux.Chain)
+        re = Flux.destructure(chain)[2]
+        new{typeof(re), Nothing}(re, nothing)
+    end
 end
 
-(f::Phi{<:FastChain})(x, θ) = f.f(adapt(parameterless_type(θ), x), θ)
-(f::Phi{<:Optimisers.Restructure})(x, θ) = f.f(θ)(adapt(parameterless_type(θ), x))
+function (f::Phi{<:Lux.Chain})(x, θ)
+    y, st = f.f(adapt(parameterless_type(θ), x), θ, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    y
+end
+
+function (f::Phi{<:Optimisers.Restructure})(x, θ)
+    f.f(θ)(adapt(parameterless_type(θ), x))
+end
 
 function get_u()
     u = (cord, θ, phi) -> phi(cord, θ)
