@@ -122,7 +122,7 @@ end
     domains = [x ∈ Interval(1.0, 2.0)]
     bcs = [u(1) ~ u(1)]
     chain = Lux.Chain(x -> x .* exp.(-x .^ 2))
-    chain([1], initθ)
+    chain([1], initθ, st)
 
     discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_; init_params = initθ)
     @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])

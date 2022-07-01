@@ -167,8 +167,9 @@ end
 data = getData(sol)
 
 #Additional Loss Function
-initθs = [Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain[i])[1])) for i in 1:3]
-names = ntuple(i -> Symbol("θ",i), length(initθs))
+initθs = [Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain[i])[1]))
+          for i in 1:3]
+names = ntuple(i -> Symbol("θ", i), length(initθs))
 flat_initθ = ComponentArray(NamedTuple{names}(i for i in initθs))
 
 acum = [0; accumulate(+, length.(initθs))]
@@ -177,7 +178,8 @@ sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
 len = length(data[2])
 
 function additional_loss(phi, θ, p)
-    return sum(sum(abs2, phi[i](t_, getproperty(θ,Symbol("θ",i))) .- u_[[i], :]) / len for i in 1:1:3)
+    return sum(sum(abs2, phi[i](t_, getproperty(θ, Symbol("θ", i))) .- u_[[i], :]) / len
+               for i in 1:1:3)
 end
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,
@@ -193,9 +195,10 @@ additional_loss(discretization.phi, flat_initθ, nothing)
                               defaults = Dict([p => 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-sym_prob.loss_functions.full_loss_function(ComponentArray(θ=flat_initθ,p=ones(3)), Float64[])
+sym_prob.loss_functions.full_loss_function(ComponentArray(θ = flat_initθ, p = ones(3)),
+                                           Float64[])
 
-res = Optimization.solve(prob, Optim.OptimizationOptimJL.BFGS(); maxiters = 6000)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 6000)
 p_ = res.minimizer[(end - 2):end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1
@@ -217,7 +220,7 @@ prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 sym_prob.loss_functions.full_loss_function(sym_prob.flat_initθ, nothing)
 
-res = Optimization.solve(prob, Optim.OptimizationOptimJL.BFGS(); maxiters = 6000)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 6000)
 p_ = res.minimizer[(end - 2):end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1

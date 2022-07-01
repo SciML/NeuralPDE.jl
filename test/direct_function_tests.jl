@@ -41,7 +41,8 @@ sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
 res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.05), maxiters = 1000)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, OptimizationOptimJL.BFGS(initial_stepnorm = 0.01), maxiters = 500)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(initial_stepnorm = 0.01),
+                         maxiters = 500)
 
 @test discretization.phi(xs', res.u)≈func(xs') rtol=0.01
 

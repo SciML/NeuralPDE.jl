@@ -80,12 +80,12 @@ domains = [t ∈ Interval(0.0, 1.0),
 
 inner = 30
 chain = Flux.Chain(Dense(2, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, 1)) |> gpu
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, 1)) |> gpu
 
 strategy = NeuralPDE.StochasticTraining(500)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
@@ -135,10 +135,10 @@ domains = [t ∈ Interval(0.0, 1.0),
 
 inner = 20
 chain = Flux.Chain(Dense(2, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, 1)) |> gpu
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, 1)) |> gpu
 
 strategy = NeuralPDE.QuasiRandomTraining(500; #points
                                          sampling_alg = SobolSample(),
@@ -202,10 +202,10 @@ domains = [t ∈ Interval(t_min, t_max),
 # Neural network
 inner = 25
 chain = Flux.Chain(Dense(3, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, inner, Flux.σ),
-                  Dense(inner, 1)) |> gpu
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, 1)) |> gpu
 
 strategy = NeuralPDE.GridTraining(0.05)
 discretization = NeuralPDE.PhysicsInformedNN(chain,

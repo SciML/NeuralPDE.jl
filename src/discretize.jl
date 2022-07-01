@@ -82,7 +82,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         expr_θ = Expr[]
         expr_phi = Expr[]
 
-        acum = [0; accumulate(+, map(length,initθ))]
+        acum = [0; accumulate(+, map(length, initθ))]
         sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
 
         for i in eachindex(depvars)
@@ -91,7 +91,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                 # Flux.Chain
                 push!(expr_θ, :($θ[$(sep[i])]))
             else # Lux.AbstractExplicitLayer
-                push!(expr_θ, :($θ.θ.$(Symbol("θ",i))))
+                push!(expr_θ, :($θ.θ.$(Symbol("θ", i))))
             end
             push!(expr_phi, :(phi[$i]))
         end
@@ -106,7 +106,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
     #Add an expression for parameter symbols
     if param_estim == true && eq_params != SciMLBase.NullParameters()
         param_len = length(eq_params)
-        last_indx = [0; accumulate(+, map(length,initθ))][end]
+        last_indx = [0; accumulate(+, map(length, initθ))][end]
         params_symbols = Symbol[]
         expr_params = Expr[]
         for (i, eq_param) in enumerate(eq_params)
@@ -166,9 +166,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
     end
     let_ex = Expr(:let, vars_eq, vcat_expr_loss_functions)
     push!(ex.args, let_ex)
-    expr_loss_function = :(($vars) -> begin
-        $ex
-    end)
+    expr_loss_function = :(($vars) -> begin $ex end)
 end
 
 """
@@ -425,26 +423,26 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     initθ = discretization.init_params
 
     if (discretization.phi isa Vector && discretization.phi[1].f isa Optimisers.Restructure) ||
-        (!(discretization.phi isa Vector) && discretization.phi.f isa Optimisers.Restructure)
+       (!(discretization.phi isa Vector) && discretization.phi.f isa Optimisers.Restructure)
         # Flux.Chain
         flat_initθ = multioutput ? reduce(vcat, initθ) : initθ
         flat_initθ = param_estim == false ? flat_initθ :
-                    vcat(flat_initθ, adapt(typeof(flat_initθ), default_p))
+                     vcat(flat_initθ, adapt(typeof(flat_initθ), default_p))
     else
         flat_initθ = if initθ isa ComponentArrays.ComponentArray
             initθ
         elseif multioutput
-            names = ntuple(i -> Symbol("θ",i), length(initθ))
+            names = ntuple(i -> Symbol("θ", i), length(initθ))
             x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in initθ))
         else
             ComponentArrays.ComponentArray(initθ)
         end
         flat_initθ = if param_estim == false && multioutput
-            ComponentArrays.ComponentArray(;θ = flat_initθ)
+            ComponentArrays.ComponentArray(; θ = flat_initθ)
         elseif param_estim == false && !multioutput
             flat_initθ
         else
-            ComponentArrays.ComponentArray(;θ = flat_initθ, p = default_p)
+            ComponentArrays.ComponentArray(; θ = flat_initθ, p = default_p)
         end
     end
 
@@ -561,7 +559,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             function _additional_loss(phi, θ)
                 (θ_, p_) = if (param_estim == true)
                     if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-                        (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
+                       (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
                         # Isa Flux Chain
                         θ[1:(end - length(default_p))], θ[(end - length(default_p) + 1):end]
                     else

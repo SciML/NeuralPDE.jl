@@ -119,10 +119,11 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                     end
                 else
                     x = map(chain) do x
-                        _x = ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(), x)[1])
+                        _x = ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+                                                                      x)[1])
                         Float64.(_x) # No ComponentArray GPU support
                     end
-                    names = ntuple(i -> Symbol("θ",i), length(chain))
+                    names = ntuple(i -> Symbol("θ", i), length(chain))
                     initθ = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in x))
                 end
             else
@@ -130,7 +131,8 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                     initθ = Flux.destructure(chain)[1]
                     initθ = initθ isa Array ? Float64.(initθ) : initθ
                 else
-                    initθ = Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(), chain)[1]))
+                    initθ = Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+                                                                              chain)[1]))
                 end
             end
         else
@@ -143,7 +145,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             if typeof(initθ) <: ComponentArrays.ComponentArray
                 Base.promote_typeof(initθ)
             else
-                map(Base.promote_typeof,initθ)[1]
+                map(Base.promote_typeof, initθ)[1]
             end
         else
             Base.promote_typeof(initθ)

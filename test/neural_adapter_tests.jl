@@ -54,7 +54,7 @@ chain2 = Lux.Chain(Lux.Dense(2, inner_, af),
                    Lux.Dense(inner_, inner_, af),
                    Lux.Dense(inner_, inner_, af),
                    Lux.Dense(inner_, 1))
-initθ2 = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain2)[1]))
+initθ2 = Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(), chain2)[1]))
 
 function loss(cord, θ)
     chain2(cord, θ) .- phi(cord, res.minimizer)
@@ -153,7 +153,8 @@ af = Flux.tanh
 inner = 12
 chains = [Lux.Chain(Lux.Dense(2, inner, af), Lux.Dense(inner, inner, af),
                     Lux.Dense(inner, 1)) for _ in 1:count_decomp]
-initθs = map(c->Float64.(ComponentArray(Lux.setup(Random.default_rng(), c)[1])), chains)
+initθs = map(c -> Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+                                                                    c)[1])), chains)
 
 xs_ = infimum(x_domain):(1 / count_decomp):supremum(x_domain)
 xs_domain = [(xs_[i], xs_[i + 1]) for i in 1:(length(xs_) - 1)]
@@ -259,7 +260,7 @@ chain2 = Lux.Chain(Lux.Dense(2, inner_, af),
                    Lux.Dense(inner_, inner_, af),
                    Lux.Dense(inner_, 1))
 
-initθ2 = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain2)[1]))
+initθ2 = Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(), chain2)[1]))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
