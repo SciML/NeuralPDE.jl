@@ -45,7 +45,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain1,
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-res = Optimization.solve(prob, BFGS(); maxiters = 2000)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 2000)
 phi = discretization.phi
 
 inner_ = 10
@@ -75,7 +75,7 @@ reses_1 = map(strategies1) do strategy_
     prob_ = NeuralPDE.neural_adapter(loss, initθ2, pde_system, strategy_)
     res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(0.01); maxiters = 8000)
     prob_ = remake(prob_, u0 = res_.minimizer)
-    res_ = Optimization.solve(prob_, BFGS(); maxiters = 200)
+    res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 200)
 end
 strategies2 = [stochastic_strategy, quasirandom_strategy]# quasirandom_strategy_resampling]
 reses_2 = map(strategies2) do strategy_
@@ -83,7 +83,7 @@ reses_2 = map(strategies2) do strategy_
     prob_ = NeuralPDE.neural_adapter(loss, initθ2, pde_system, strategy_)
     res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(0.01); maxiters = 8000)
     prob_ = remake(prob_, u0 = res_.minimizer)
-    res_ = Optimization.solve(prob_, BFGS(); maxiters = 200)
+    res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 200)
 end
 reses_ = [reses_1; reses_2]
 
@@ -203,7 +203,7 @@ for i in 1:count_decomp
 
     prob = NeuralPDE.discretize(pde_system_, discretization)
     symprob = NeuralPDE.symbolic_discretize(pde_system_, discretization)
-    res_ = Optimization.solve(prob, BFGS(), maxiters = 1500)
+    res_ = Optimization.solve(prob, OptimizationOptimJL.BFGS(), maxiters = 1500)
     @show res_.minimum
     phi = discretization.phi
     push!(reses, res_)
@@ -269,11 +269,11 @@ end
 
 prob_ = NeuralPDE.neural_adapter(losses, initθ2, pde_system_map,
                                  NeuralPDE.GridTraining([0.1 / count_decomp, 0.1]))
-res_ = Optimization.solve(prob_, BFGS(); maxiters = 2000)
+res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 2000)
 @show res_.minimum
 prob_ = NeuralPDE.neural_adapter(losses, res_.minimizer, pde_system_map,
                                  NeuralPDE.GridTraining(0.01))
-res_ = Optimization.solve(prob_, BFGS(); maxiters = 1000)
+res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 1000)
 @show res_.minimum
 
 phi_ = NeuralPDE.Phi(chain2)

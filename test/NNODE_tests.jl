@@ -30,7 +30,7 @@ sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), dt = 1 / 20.0f0, verbose = tru
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), verbose = true,
             abstol = 1.0f-6, maxiters = 200)
 
-opt = BFGS()
+opt = OptimizationOptimJL.BFGS()
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt = 1 / 20.0f0, verbose = true,
             abstol = 1.0f-10, maxiters = 200)
 
@@ -51,7 +51,7 @@ prob = ODEProblem(linear, u0, tspan)
 chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
 luxchain = Lux.Chain(Lux.Dense(1, 5, σ), Lux.Dense(5, 1))
 
-opt = BFGS()
+opt = OptimizationOptimJL.BFGS()
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt = 1 / 20.0f0, abstol = 1e-10,
             verbose = true, maxiters = 200)
 

@@ -28,7 +28,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
 @named pde_system = PDESystem(eq, bcs, domains, [t], [i(t)])
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 prob = NeuralPDE.discretize(pde_system, discretization)
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback, maxiters = 100)
 ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 
@@ -57,7 +57,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 200)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback, maxiters = 200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict = [first(phi([x], res.minimizer)) for x in xs]
@@ -84,7 +84,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback, maxiters = 100)
 xs = 0.00:0.01:1.00
 ys = 0.00:0.01:1.00
 phi = discretization.phi
@@ -113,7 +113,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback, maxiters = 100)
 xs = 0.00:0.01:1.00
 ys = 0.00:0.01:1.00
 phi = discretization.phi
@@ -149,7 +149,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chains,
                                              strategy_)
 @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x), w(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 200)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback, maxiters = 200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 
@@ -179,7 +179,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1))
 @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
 sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 200)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback, maxiters = 200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict = [first(phi([x], res.minimizer)) for x in xs]
@@ -202,7 +202,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1))
 sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
 prob.f(prob.u0, nothing)
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 300)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback, maxiters = 300)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict = [first(phi([x], res.minimizer)) for x in xs]

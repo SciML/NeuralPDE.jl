@@ -94,7 +94,7 @@ function test_heterogeneous_equation(strategy_)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y), r(x, y), s(y, x)])
     prob = SciMLBase.discretize(pde_system, discretization)
-    res = Optimization.solve(prob, BFGS(); maxiters = 100)
+    res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 100)
 end
 
 ## Heterogeneous system
@@ -130,7 +130,7 @@ function test_heterogeneous_system(strategy_)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y)])
     prob = SciMLBase.discretize(pde_system, discretization)
-    res = Optimization.solve(prob, BFGS(); maxiters = 100)
+    res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 100)
 end
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
@@ -210,7 +210,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); maxiters = 1000)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1000)
 phi = discretization.phi
 
 analytic_sol_func_ = [
@@ -361,7 +361,7 @@ cb_ = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); maxiters = 1000)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1000)
 phi = discretization.phi[1]
 
 analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)
@@ -409,7 +409,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
 
 prob = NeuralPDE.discretize(pde_system, discretization)
 
-res = Optimization.solve(prob, BFGS(); maxiters = 1000)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1000)
 phi = discretization.phi
 
 analytic_sol_func(x, y) = [1 / 3 * (6x - y), 1 / 2 * (6x - y)]
@@ -467,7 +467,7 @@ cb_ = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, Optim.BFGS(); maxiters = 500, f_abstol = 10^-6)
+res = Optimization.solve(prob, Optim.OptimizationOptimJL.BFGS(); maxiters = 500, f_abstol = 10^-6)
 
 dx = 0.1
 xs, ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
@@ -518,7 +518,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
 
 prob = NeuralPDE.discretize(pde_system, discretization)
 
-res = Optimization.solve(prob, BFGS(); maxiters = 1500)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1500)
 @show res.original
 
 phi = discretization.phi

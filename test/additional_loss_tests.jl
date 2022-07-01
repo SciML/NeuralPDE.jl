@@ -75,9 +75,9 @@ cb_ = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, LBFGS(), maxiters = 400, callback = cb_)
+res = Optimization.solve(prob, OptimizationOptimJL.LBFGS(), maxiters = 400, callback = cb_)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, BFGS(), maxiters = 2000, callback = cb_)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(), maxiters = 2000, callback = cb_)
 
 C = 142.88418699042
 analytic_sol_func(x) = C * exp((1 / (2 * _σ^2)) * (2 * α * x^2 - β * x^4))
@@ -110,9 +110,9 @@ cb_ = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, LBFGS(), maxiters = 400, callback = cb_)
+res = Optimization.solve(prob, OptimizationOptimJL.LBFGS(), maxiters = 400, callback = cb_)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, BFGS(), maxiters = 2000, callback = cb_)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(), maxiters = 2000, callback = cb_)
 
 C = 142.88418699042
 analytic_sol_func(x) = C * exp((1 / (2 * _σ^2)) * (2 * α * x^2 - β * x^4))
@@ -195,7 +195,7 @@ prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 sym_prob.loss_functions.full_loss_function(ComponentArray(θ=flat_initθ,p=ones(3)), Float64[])
 
-res = Optimization.solve(prob, Optim.BFGS(); maxiters = 6000)
+res = Optimization.solve(prob, Optim.OptimizationOptimJL.BFGS(); maxiters = 6000)
 p_ = res.minimizer[(end - 2):end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1
@@ -217,7 +217,7 @@ prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 sym_prob.loss_functions.full_loss_function(sym_prob.flat_initθ, nothing)
 
-res = Optimization.solve(prob, Optim.BFGS(); maxiters = 6000)
+res = Optimization.solve(prob, Optim.OptimizationOptimJL.BFGS(); maxiters = 6000)
 p_ = res.minimizer[(end - 2):end]
 @test sum(abs2, p_[1] - 10.00) < 0.1
 @test sum(abs2, p_[2] - 28.00) < 0.1
@@ -273,7 +273,7 @@ sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
 res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01), maxiters = 500)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, BFGS(), maxiters = 500)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(), maxiters = 500)
 
 @test phi(xs, res.u)≈aproxf_(xs) rtol=0.01
 
