@@ -272,7 +272,7 @@ losses = map(1:count_decomp) do i
     function loss(cord, θ) 
         global st
         ch2, st = chain2(cord, θ, st)
-        ch2 .- phis[i](cord, reses[i].u, st)
+        ch2 .- phis[i](cord, reses[i].u)
     end
 end
 
