@@ -58,7 +58,9 @@ initp, st = Lux.setup(Random.default_rng(), chain2)
 initθ2 = Float64.(ComponentArrays.ComponentArray(initp))
 
 function loss(cord, θ)
-    chain2(cord, θ) .- phi(cord, res.minimizer, st)
+    global st
+    ch2, st = chain2(cord, θ, st)
+    ch2 .- phi(cord, res.minimizer)
 end
 
 grid_strategy = NeuralPDE.GridTraining(0.05)
@@ -267,7 +269,11 @@ initθ2 = Float64.(ComponentArrays.ComponentArray(initp))
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
 losses = map(1:count_decomp) do i
-    loss(cord, θ) = chain2(cord, θ) .- phis[i](cord, reses[i].minimizer, st)
+    function loss(cord, θ) 
+        global st
+        ch2, st = chain2(cord, θ, st)
+        ch2 .- phis[i](cord, reses[i].u, st)
+    end
 end
 
 prob_ = NeuralPDE.neural_adapter(losses, initθ2, pde_system_map,
