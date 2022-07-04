@@ -62,7 +62,9 @@ function getData(sol)
     return [us,ts_]
 end
 data = getData(sol)
+
 (u_ , t_) = data
+len = length(data[2])
 ```
 
 Then we define the additional loss funciton `additional_loss(phi, θ , p)`, the function has
@@ -119,7 +121,7 @@ p_ = res.u[end-2:end] # p_ = [9.93, 28.002, 2.667]
 And then finally some analyisis by plotting.
 
 ```@example param_estim
-minimizers = [res.u.depvar[Symbol(:depvar_,i)] for s in sep]
+minimizers = [res.u.depvar[Symbol(:depvar_,i)] for i in 1:3]
 ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
 u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 plot(sol)
