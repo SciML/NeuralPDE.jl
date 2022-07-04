@@ -109,7 +109,7 @@ phi = discretization.phi
 # Analysis
 xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 depvars = [:u,:w]
-minimizers_ = [res.u.depvar[depvars[i]] for i in 1:length(chain)]
+minimizers_ = [res.u.depvar[depvars[i]] for i in 1:2]
 
 analytic_sol_func(x,y) = [u_analytic(x, y), w_analytic(x, y)]
 u_real  = [[analytic_sol_func(x, y)[i] for x in xs for y in ys] for i in 1:2]
