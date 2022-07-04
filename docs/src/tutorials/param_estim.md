@@ -62,6 +62,7 @@ function getData(sol)
     return [us,ts_]
 end
 data = getData(sol)
+(u_ , t_) = data
 ```
 
 Then we define the additional loss funciton `additional_loss(phi, θ , p)`, the function has
@@ -87,7 +88,7 @@ end
 If Flux neural network is used, then the subsetting must be computed manually as `θ`
 is simply a vector. This looks like:
 
-```@example param_estim
+```julia
 init_params = [Flux.destructure(c)[1] for c in [chain1,chain2,chain3]]
 acum =  [0;accumulate(+, length.(init_params))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
