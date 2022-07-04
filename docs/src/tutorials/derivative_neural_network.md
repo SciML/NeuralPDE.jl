@@ -52,7 +52,7 @@ We approximate the derivative of the neural network with another neural network
 using the second numeric derivative `Dt(Dtu1(t,x))`.
 
 ```@example derivativenn
-using NeuralPDE, Lux, ModelingToolkit,
+using NeuralPDE, Lux, ModelingToolkit
 using Optimization, OptimizationOptimisers, OptimizationOptimJL
 using Plots
 import ModelingToolkit: Interval, infimum, supremum
@@ -61,7 +61,7 @@ import ModelingToolkit: Interval, infimum, supremum
 Dt = Differential(t)
 Dx = Differential(x)
 @variables u1(..), u2(..), u3(..)
-@variables Dxu1(..),Dtu1(..),Dxu2(..),Dtu2(..)
+@variables Dxu1(..) Dtu1(..) Dxu2(..) Dtu2(..)
 
 eqs_ = [Dt(Dtu1(t,x)) ~ Dx(Dxu1(t,x)) + u3(t,x)*sin(pi*x),
         Dt(Dtu2(t,x)) ~ Dx(Dxu2(t,x)) + u3(t,x)*cos(pi*x),
