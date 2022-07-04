@@ -1,9 +1,10 @@
-using Flux, DiffEqFlux, NeuralPDE, Test
-using Optimization, OptimizationOptimJL, OptimizationFlux
+using Flux, NeuralPDE, Test
+using Optimization, OptimizationOptimJL, OptimizationOptimisers
 using Integrals, IntegralsCubature
 using QuasiMonteCarlo
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
+import Lux
 
 using Random
 Random.seed!(100)
@@ -31,23 +32,19 @@ function test_ode(strategy_)
     domains = [θ ∈ Interval(0.0, 1.0)]
 
     # Neural network
-    chain = FastChain(FastDense(1, 12, Flux.σ), FastDense(12, 1))
-    initθ = Float64.(DiffEqFlux.initial_params(chain))
+    chain = Lux.Chain(Lux.Dense(1, 12, Flux.σ), Lux.Dense(12, 1))
 
     discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                                 strategy_;
-                                                 init_params = initθ,
-                                                 phi = nothing,
-                                                 derivative = nothing)
+                                                 strategy_)
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
     prob = NeuralPDE.discretize(pde_system, discretization)
 
-    res = Optimization.solve(prob, ADAM(0.1); maxiters = 1000)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 1000)
     prob = remake(prob, u0 = res.minimizer)
-    res = Optimization.solve(prob, ADAM(0.01); maxiters = 500)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 500)
     prob = remake(prob, u0 = res.minimizer)
-    res = Optimization.solve(prob, ADAM(0.001); maxiters = 500)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 500)
     phi = discretization.phi
 
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
@@ -84,20 +81,20 @@ function test_heterogeneous_equation(strategy_)
     domains = [x ∈ Interval(0.0, 1.0),
         y ∈ Interval(0.0, 1.0)]
 
-    # chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+    # chain_ = Lux.Chain(Lux.Dense(2,12,Flux.σ),Lux.Dense(12,12,Flux.σ),Lux.Dense(12,1))
     numhid = 3
-    fastchains = [[FastChain(FastDense(1, numhid, Flux.σ),
-                             FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1))
-                   for i in 1:2]
-                  [FastChain(FastDense(2, numhid, Flux.σ),
-                             FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1))
-                   for i in 1:2]]
-    discretization = NeuralPDE.PhysicsInformedNN(fastchains,
+    luxchain = [[Lux.Chain(Lux.Dense(1, numhid, Flux.σ),
+                           Lux.Dense(numhid, numhid, Flux.σ), Lux.Dense(numhid, 1))
+                 for i in 1:2]
+                [Lux.Chain(Lux.Dense(2, numhid, Flux.σ),
+                           Lux.Dense(numhid, numhid, Flux.σ), Lux.Dense(numhid, 1))
+                 for i in 1:2]]
+    discretization = NeuralPDE.PhysicsInformedNN(luxchain,
                                                  strategy_)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y), r(x, y), s(y, x)])
     prob = SciMLBase.discretize(pde_system, discretization)
-    res = Optimization.solve(prob, BFGS(); maxiters = 100)
+    res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 100)
 end
 
 ## Heterogeneous system
@@ -120,20 +117,20 @@ function test_heterogeneous_system(strategy_)
     domains = [x ∈ Interval(0.0, 1.0),
         y ∈ Interval(-1.0, 0.0)]
 
-    # chain_ = FastChain(FastDense(2,12,Flux.σ),FastDense(12,12,Flux.σ),FastDense(12,1))
+    # chain_ = Lux.Chain(Lux.Dense(2,12,Flux.σ),Lux.Dense(12,12,Flux.σ),Lux.Dense(12,1))
     numhid = 3
-    fastchains = [[FastChain(FastDense(1, numhid, Flux.σ),
-                             FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1))
-                   for i in 1:2]
-                  [FastChain(FastDense(2, numhid, Flux.σ),
-                             FastDense(numhid, numhid, Flux.σ), FastDense(numhid, 1))
-                   for i in 1:2]]
-    discretization = NeuralPDE.PhysicsInformedNN(fastchains,
+    luxchain = [[Lux.Chain(Lux.Dense(1, numhid, Flux.σ),
+                           Lux.Dense(numhid, numhid, Flux.σ), Lux.Dense(numhid, 1))
+                 for i in 1:2]
+                [Lux.Chain(Lux.Dense(2, numhid, Flux.σ),
+                           Lux.Dense(numhid, numhid, Flux.σ), Lux.Dense(numhid, 1))
+                 for i in 1:2]]
+    discretization = NeuralPDE.PhysicsInformedNN(luxchain,
                                                  strategy_)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y)])
     prob = SciMLBase.discretize(pde_system, discretization)
-    res = Optimization.solve(prob, BFGS(); maxiters = 100)
+    res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 100)
 end
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
@@ -191,19 +188,17 @@ domains = [x ∈ Interval(0.0, 1.0),
     z ∈ Interval(0.0, 1.0)]
 
 chain = [
-    FastChain(FastDense(3, 12, Flux.tanh), FastDense(12, 12, Flux.tanh), FastDense(12, 1)),
-    FastChain(FastDense(2, 12, Flux.tanh), FastDense(12, 12, Flux.tanh), FastDense(12, 1)),
-    FastChain(FastDense(1, 12, Flux.tanh), FastDense(12, 12, Flux.tanh), FastDense(12, 1)),
-    FastChain(FastDense(2, 12, Flux.tanh), FastDense(12, 12, Flux.tanh), FastDense(12, 1))]
-
-initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
+    Lux.Chain(Lux.Dense(3, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh), Lux.Dense(12, 1)),
+    Lux.Chain(Lux.Dense(2, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh), Lux.Dense(12, 1)),
+    Lux.Chain(Lux.Dense(1, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh), Lux.Dense(12, 1)),
+    Lux.Chain(Lux.Dense(2, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh), Lux.Dense(12, 1))]
 
 grid_strategy = NeuralPDE.GridTraining(0.1)
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
                                                    reltol = 1e-3, abstol = 1e-3,
                                                    maxiters = 50, batch = 100)
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, grid_strategy; init_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, grid_strategy)
 
 @named pde_system = PDESystem(eqs, bcs, domains, [x, y, z],
                               [u(x, y, z), v(y, x), h(z), p(x, z)])
@@ -215,7 +210,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); maxiters = 1000)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 2000)
 phi = discretization.phi
 
 analytic_sol_func_ = [
@@ -234,19 +229,15 @@ p_real = [analytic_sol_func_[4](x, z) for x in xs for z in zs]
 
 real_ = [u_real, v_real, h_real, p_real]
 
-initθ = discretization.init_params
-acum = [0; accumulate(+, length.(initθ))]
-sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
-minimizers = [res.minimizer[s] for s in sep]
-
-u_predict = [phi[1]([x, y, z], minimizers[1])[1] for x in xs for y in ys for z in zs]
-v_predict = [phi[2]([y, x], minimizers[2])[1] for y in ys for x in xs]
-h_predict = [phi[3]([z], minimizers[3])[1] for z in zs]
-p_predict = [phi[4]([x, z], minimizers[4])[1] for x in xs for z in zs]
+u_predict = [phi[1]([x, y, z], res.u.depvar.depvar_1)[1] for x in xs for y in ys
+             for z in zs]
+v_predict = [phi[2]([y, x], res.u.depvar.depvar_2)[1] for y in ys for x in xs]
+h_predict = [phi[3]([z], res.u.depvar.depvar_3)[1] for z in zs]
+p_predict = [phi[4]([x, z], res.u.depvar.depvar_4)[1] for x in xs for z in zs]
 predict = [u_predict, v_predict, h_predict, p_predict]
 
 for i in 1:4
-    @test predict[i]≈real_[i] rtol=10^-3
+    @test predict[i]≈real_[i] rtol=10^-2
 end
 
 # x_plot = collect(xs)
@@ -276,15 +267,13 @@ function test_2d_poisson_equation(chain_, strategy_)
     domains = [x ∈ Interval(0.0, 1.0),
         y ∈ Interval(0.0, 1.0)]
 
-    initθ = Float64.(DiffEqFlux.initial_params(chain_))
     discretization = NeuralPDE.PhysicsInformedNN(chain_,
-                                                 strategy_;
-                                                 init_params = initθ)
+                                                 strategy_)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = NeuralPDE.discretize(pde_system, discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-    res = Optimization.solve(prob, ADAM(0.1); maxiters = 500)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 500)
     phi = discretization.phi
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
@@ -304,23 +293,23 @@ function test_2d_poisson_equation(chain_, strategy_)
     # plot(p1,p2,p3)
 end
 
-fastchain = FastChain(FastDense(2, 12, Flux.σ), FastDense(12, 12, Flux.σ), FastDense(12, 1))
+chain = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ), Lux.Dense(12, 1))
 fluxchain = Chain(Dense(2, 12, Flux.σ), Dense(12, 12, Flux.σ), Dense(12, 1)) |> f64
-chains = [fluxchain, fastchain]
+chains = [fluxchain, chain]
 for chain in chains
     test_2d_poisson_equation(chain, grid_strategy)
 end
 
 for strategy_ in strategies
-    chain_ = FastChain(FastDense(2, 12, Flux.σ), FastDense(12, 12, Flux.σ),
-                       FastDense(12, 1))
+    chain_ = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ),
+                       Lux.Dense(12, 1))
     test_2d_poisson_equation(chain_, strategy_)
 end
 
 algs = [CubatureJLp()] #CubatureJLh(),
 for alg in algs
-    chain_ = FastChain(FastDense(2, 12, Flux.σ), FastDense(12, 12, Flux.σ),
-                       FastDense(12, 1))
+    chain_ = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ),
+                       Lux.Dense(12, 1))
     strategy_ = NeuralPDE.QuadratureTraining(quadrature_alg = alg, reltol = 1e-4,
                                              abstol = 1e-3, maxiters = 30, batch = 10)
     test_2d_poisson_equation(chain_, strategy_)
@@ -350,15 +339,13 @@ bcs = [bcs_; der]
 domains = [x ∈ Interval(0.0, 1.0)]
 
 # Neural network
-chain = [[FastChain(FastDense(1, 12, Flux.tanh), FastDense(12, 12, Flux.tanh),
-                    FastDense(12, 1)) for _ in 1:3]
-         [FastChain(FastDense(1, 4, Flux.tanh), FastDense(4, 1)) for _ in 1:2]]
+chain = [[Lux.Chain(Lux.Dense(1, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
+                    Lux.Dense(12, 1)) for _ in 1:3]
+         [Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1)) for _ in 1:2]]
 quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
                                                      sampling_alg = LatinHypercubeSample())
-initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, quasirandom_strategy;
-                                             init_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, quasirandom_strategy)
 
 @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x), Dxu(x), Dxxu(x), O1(x), O2(x)])
 
@@ -375,14 +362,14 @@ cb_ = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); maxiters = 1000)
+res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1000)
 phi = discretization.phi[1]
 
 analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)
 
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 u_real = [analytic_sol_func(x) for x in xs]
-u_predict = [first(phi(x, res.minimizer)) for x in xs]
+u_predict = [first(phi(x, res.u.depvar.depvar_1)) for x in xs]
 
 @test u_predict≈u_real atol=10^-4
 
@@ -409,34 +396,29 @@ bcs = [u1(x, 0) ~ 2 * x, u2(x, 0) ~ 3 * x]
 domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
 # Neural network
-chain1 = FastChain(FastDense(2, 15, Flux.tanh), FastDense(15, 1))
-chain2 = FastChain(FastDense(2, 15, Flux.tanh), FastDense(15, 1))
+chain1 = Lux.Chain(Lux.Dense(2, 15, Lux.tanh), Lux.Dense(15, 1))
+chain2 = Lux.Chain(Lux.Dense(2, 15, Lux.tanh), Lux.Dense(15, 1))
 
 quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
                                                    reltol = 1e-3, abstol = 1e-3,
                                                    maxiters = 50, batch = 100)
 chain = [chain1, chain2]
-initθ = map(c -> Float64.(c), DiffEqFlux.initial_params.(chain))
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy;
-                                             init_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
 
 @named pde_system = PDESystem(eqs, bcs, domains, [x, y], [u1(x, y), u2(x, y)])
 
 prob = NeuralPDE.discretize(pde_system, discretization)
 
-res = Optimization.solve(prob, BFGS(); maxiters = 1000)
+res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1000)
 phi = discretization.phi
 
 analytic_sol_func(x, y) = [1 / 3 * (6x - y), 1 / 2 * (6x - y)]
 xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_real = [[analytic_sol_func(x, y)[i] for x in xs for y in ys] for i in 1:2]
 
-initθ = discretization.init_params
-acum = [0; accumulate(+, length.(initθ))]
-sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
-minimizers = [res.minimizer[s] for s in sep]
-u_predict = [[phi[i]([x, y], minimizers[i])[1] for x in xs for y in ys] for i in 1:2]
+u_predict = [[phi[i]([x, y], res.u.depvar[Symbol(:depvar_, i)])[1] for x in xs for y in ys]
+             for i in 1:2]
 
 @test u_predict[1]≈u_real[1] atol=0.1
 @test u_predict[2]≈u_real[2] atol=0.1
@@ -470,9 +452,7 @@ domains = [x ∈ Interval(0.0, 1.0),
 @named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
 
 # Neural network
-chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
-eltypeθ = eltype(initθ)
+chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ), Lux.Dense(16, 16, Lux.σ), Lux.Dense(16, 1))
 phi = NeuralPDE.Phi(chain)
 derivative = NeuralPDE.numeric_derivative
 
@@ -480,8 +460,7 @@ quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(
                                                    reltol = 1e-3, abstol = 1e-3,
                                                    maxiters = 50, batch = 100)
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy;
-                                             init_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
 prob = NeuralPDE.discretize(pde_system, discretization)
 
 cb_ = function (p, l)
@@ -490,7 +469,7 @@ cb_ = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, Optim.BFGS(); maxiters = 500, f_abstol = 10^-6)
+res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 500, f_abstol = 10^-6)
 
 dx = 0.1
 xs, ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
@@ -498,7 +477,7 @@ function analytic_sol_func(x, t)
     sum([(8 / (k^3 * pi^3)) * sin(k * pi * x) * cos(C * k * pi * t) for k in 1:2:50000])
 end
 
-u_predict = reshape([first(phi([x, t], res.minimizer)) for x in xs for t in ts],
+u_predict = reshape([first(phi([x, t], res.u)) for x in xs for t in ts],
                     (length(xs), length(ts)))
 u_real = reshape([analytic_sol_func(x, t) for x in xs for t in ts],
                  (length(xs), length(ts)))
@@ -533,17 +512,15 @@ domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 quadrature_strategy = NeuralPDE.QuadratureTraining()
 # Neural network
 inner = 20
-chain = FastChain(FastDense(2, inner, Flux.tanh), FastDense(inner, inner, Flux.tanh),
-                  FastDense(inner, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = Lux.Chain(Lux.Dense(2, inner, Lux.tanh), Lux.Dense(inner, inner, Lux.tanh),
+                  Lux.Dense(inner, 1))
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy;
-                                             init_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
 prob = NeuralPDE.discretize(pde_system, discretization)
 
-res = Optimization.solve(prob, BFGS(); maxiters = 1500)
+res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1500)
 @show res.original
 
 phi = discretization.phi
@@ -551,7 +528,7 @@ phi = discretization.phi
 analytic_sol_func(x, y) = x + x * y + y^2 / 2
 xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 
-u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
+u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
                     (length(xs), length(ys)))
 u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
                  (length(xs), length(ys)))

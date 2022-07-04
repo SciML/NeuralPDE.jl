@@ -1,9 +1,10 @@
-using Flux, DiffEqFlux, NeuralPDE, Test
-using Optimization, OptimizationOptimJL, OptimizationFlux
+using Flux, NeuralPDE, Test
+using Optimization, OptimizationOptimJL, OptimizationOptimisers
 using QuasiMonteCarlo
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 using Random
+import Lux
 
 Random.seed!(110)
 
@@ -27,21 +28,21 @@ xs = collect(x0:dx:x_end)
 func_s = func(xs)
 
 hidden = 10
-chain = FastChain(FastDense(1, hidden, Flux.tanh),
-                  FastDense(hidden, hidden, Flux.tanh),
-                  FastDense(hidden, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = Lux.Chain(Lux.Dense(1, hidden, Lux.tanh),
+                  Lux.Dense(hidden, hidden, Lux.tanh),
+                  Lux.Dense(hidden, 1))
 
 strategy = NeuralPDE.GridTraining(0.01)
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, strategy; initial_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
 @named pde_system = PDESystem(eq, bc, domain, [x], [u(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
-res = Optimization.solve(prob, ADAM(0.05), maxiters = 1000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.05), maxiters = 1000)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, BFGS(initial_stepnorm = 0.01), maxiters = 500)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(initial_stepnorm = 0.01),
+                         maxiters = 500)
 
 @test discretization.phi(xs', res.u)≈func(xs') rtol=0.01
 
@@ -62,22 +63,21 @@ x_end = 4
 domain = [x ∈ Interval(x0, x_end)]
 
 hidden = 20
-chain = FastChain(FastDense(1, hidden, Flux.sin),
-                  FastDense(hidden, hidden, Flux.sin),
-                  FastDense(hidden, hidden, Flux.sin),
-                  FastDense(hidden, 1))
-initθ = DiffEqFlux.initial_params(chain)
+chain = Lux.Chain(Lux.Dense(1, hidden, Lux.sin),
+                  Lux.Dense(hidden, hidden, Lux.sin),
+                  Lux.Dense(hidden, hidden, Lux.sin),
+                  Lux.Dense(hidden, 1))
 
 strategy = NeuralPDE.GridTraining(0.01)
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, strategy; initial_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
 @named pde_system = PDESystem(eq, bc, domain, [x], [u(x)])
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 prob = NeuralPDE.discretize(pde_system, discretization)
 
-res = Optimization.solve(prob, ADAM(0.01), maxiters = 500)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01), maxiters = 500)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, BFGS(), maxiters = 1000)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(), maxiters = 1000)
 
 dx = 0.01
 xs = collect(x0:dx:x_end)
@@ -106,24 +106,23 @@ d = 0.4
 domain = [x ∈ Interval(x0, x_end), y ∈ Interval(y0, y_end)]
 
 hidden = 25
-chain = FastChain(FastDense(2, hidden, Flux.tanh),
-                  FastDense(hidden, hidden, Flux.tanh),
-                  FastDense(hidden, hidden, Flux.tanh),
-                  FastDense(hidden, 1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = Lux.Chain(Lux.Dense(2, hidden, Lux.tanh),
+                  Lux.Dense(hidden, hidden, Lux.tanh),
+                  Lux.Dense(hidden, hidden, Lux.tanh),
+                  Lux.Dense(hidden, 1))
 
 strategy = NeuralPDE.GridTraining(d)
-discretization = NeuralPDE.PhysicsInformedNN(chain, strategy; initial_params = initθ)
+discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
 @named pde_system = PDESystem(eq, bc, domain, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-symprob.loss_functions.full_loss_function(initθ, nothing)
+symprob.loss_functions.full_loss_function(symprob.flat_init_params, nothing)
 
-res = Optimization.solve(prob, ADAM(0.01), maxiters = 500)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01), maxiters = 500)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, BFGS(), maxiters = 1000)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(), maxiters = 1000)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, BFGS(), maxiters = 500)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(), maxiters = 500)
 phi = discretization.phi
 
 xs = collect(x0:0.1:x_end)

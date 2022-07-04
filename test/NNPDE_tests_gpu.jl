@@ -1,5 +1,4 @@
-using Flux, OptimizationFlux
-using DiffEqFlux
+using Flux, OptimizationOptimisers
 using Test, NeuralPDE
 using Optimization
 using CUDA, QuasiMonteCarlo
@@ -41,17 +40,14 @@ chain = Chain(Dense(1, inner, Flux.σ),
               Dense(inner, inner, Flux.σ),
               Dense(inner, 1)) |> gpu
 
-initθ = DiffEqFlux.initial_params(chain) |> gpu
-
 strategy = NeuralPDE.GridTraining(dt)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy;
-                                             init_params = initθ)
+                                             strategy)
 
 @named pde_system = PDESystem(eq, bcs, domains, [θ], [u(θ)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-res = Optimization.solve(prob, ADAM(1e-2); maxiters = 2000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 2000)
 phi = discretization.phi
 
 analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
@@ -83,25 +79,23 @@ domains = [t ∈ Interval(0.0, 1.0),
 @named pdesys = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
 
 inner = 30
-chain = FastChain(FastDense(2, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, 1))#,(u,p)->gpuones .* u)
+chain = Flux.Chain(Dense(2, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, 1)) |> gpu
 
 strategy = NeuralPDE.StochasticTraining(500)
-initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy;
-                                             init_params = initθ)
+                                             strategy)
 prob = NeuralPDE.discretize(pdesys, discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys, discretization)
 
-res = Optimization.solve(prob, ADAM(0.01); maxiters = 1000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, ADAM(0.001); maxiters = 1000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 1000)
 phi = discretization.phi
 
 u_exact = (t, x) -> exp.(-t) * cos.(x)
@@ -140,26 +134,25 @@ domains = [t ∈ Interval(0.0, 1.0),
 @named pdesys = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
 
 inner = 20
-chain = FastChain(FastDense(2, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, 1))
+chain = Flux.Chain(Dense(2, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, 1)) |> gpu
 
 strategy = NeuralPDE.QuasiRandomTraining(500; #points
                                          sampling_alg = SobolSample(),
                                          resampling = false,
                                          minibatch = 30)
-initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
+
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy;
-                                             init_params = initθ)
+                                             strategy)
 prob = NeuralPDE.discretize(pdesys, discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys, discretization)
 
-res = Optimization.solve(prob, ADAM(0.1); maxiters = 2000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 2000)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, ADAM(0.01); maxiters = 2000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000)
 phi = discretization.phi
 
 u_exact = (t, x) -> exp(-t) * cos(x)
@@ -208,26 +201,23 @@ domains = [t ∈ Interval(t_min, t_max),
 
 # Neural network
 inner = 25
-chain = FastChain(FastDense(3, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, inner, Flux.σ),
-                  FastDense(inner, 1))#,(u,p)->gpuones .* u)
-
-initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
+chain = Flux.Chain(Dense(3, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, inner, Flux.σ),
+                   Dense(inner, 1)) |> gpu
 
 strategy = NeuralPDE.GridTraining(0.05)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy;
-                                             init_params = initθ)
+                                             strategy)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x, y], [u(t, x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 symprob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
-res = Optimization.solve(prob, ADAM(0.01); maxiters = 2500)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2500)
 prob = remake(prob, u0 = res.minimizer)
-res = Optimization.solve(prob, ADAM(0.001); maxiters = 2500)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 2500)
 @show res.original
 
 phi = discretization.phi

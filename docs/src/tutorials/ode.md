@@ -34,7 +34,7 @@ for ``t \in (0,1)`` and ``u_0 = 0`` with `NNODE`. First we define the `ODEProble
 with any other DifferentialEquations.jl solver. This looks like:
 
 ```@example nnode1
-using NeuralPDE, Flux
+using NeuralPDE, Flux, OptimizationOptimisers
 
 linear(u, p, t) = cos(2pi * t)
 tspan = (0.0f0, 1.0f0)
@@ -56,7 +56,7 @@ decreased if the solver's loss tends to be unsteady (sometimes rise "too much"),
 as large as possible for efficnecy. Thus the definition of the `NNODE` solver is as follows:
 
 ```@example nnode1
-opt = Flux.ADAM(0.1)
+opt = OptimizationOptimisers.Adam(0.1)
 alg = NeuralPDE.NNODE(chain, opt)
 ```
 

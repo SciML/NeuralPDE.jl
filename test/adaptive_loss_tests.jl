@@ -1,9 +1,9 @@
-using Optimization, OptimizationFlux
-using DiffEqFlux
+using Optimization, OptimizationOptimisers
 using Test, NeuralPDE
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 using Random
+import Lux
 
 nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
 gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weights = 1e3,
@@ -18,8 +18,8 @@ seed = 60
 function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxiters = 4000)
     Random.seed!(seed)
     hid = 40
-    chain_ = FastChain(FastDense(2, hid, Flux.σ), FastDense(hid, hid, Flux.σ),
-                       FastDense(hid, 1))
+    chain_ = Lux.Chain(Lux.Dense(2, hid, Lux.σ), Lux.Dense(hid, hid, Lux.σ),
+                       Lux.Dense(hid, 1))
     strategy_ = NeuralPDE.StochasticTraining(256)
     @info "adaptive reweighting test outdir:, maxiters: $(maxiters), 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) "
     @parameters x y
@@ -37,11 +37,9 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
     domains = [x ∈ Interval(0.0, 1.0),
         y ∈ Interval(0.0, 1.0)]
 
-    initθ = Float64.(DiffEqFlux.initial_params(chain_))
     iteration = [0]
     discretization = NeuralPDE.PhysicsInformedNN(chain_,
                                                  strategy_;
-                                                 init_params = initθ,
                                                  adaptive_loss = adaptive_loss,
                                                  logger = nothing,
                                                  iteration = iteration)
@@ -63,7 +61,8 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
         end
         return false
     end
-    res = Optimization.solve(prob, ADAM(0.03); maxiters = maxiters, callback = callback)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.03); maxiters = maxiters,
+                             callback = callback)
 
     u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
                         (length(xs), length(ys)))

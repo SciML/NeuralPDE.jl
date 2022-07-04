@@ -13,7 +13,7 @@ u(t, -1) = u(t, 1) = 0 \, ,
 with Physics-Informed Neural Networks. Here is an example of using the low-level API:
 
 ```@example low_level
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -39,8 +39,7 @@ domains = [t ∈ Interval(0.0,1.0),
 dx = 0.05
 
 # Neural network
-chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = Lux.Chain(Dense(2,16,Lux.σ),Dense(16,16,Lux.σ),Dense(16,1))
 strategy = NeuralPDE.GridTraining(dx)
 
 indvars = [t,x]
@@ -69,7 +68,7 @@ function loss_function(θ,p)
 end
 
 f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
-prob = Optimization.OptimizationProblem(f_, sym_prob.flat_initθ)
+prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
 
 res = Optimization.solve(prob,OptimizationOptimJL.BFGS(); callback = callback, maxiters=2000)
 ```
@@ -80,10 +79,10 @@ And some analysis:
 using Plots
 
 ts,xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
-u_predict_contourf = reshape([first(phi([t,x],res.minimizer)) for t in ts for x in xs] ,length(xs),length(ts))
+u_predict_contourf = reshape([first(phi([t,x],res.u)) for t in ts for x in xs] ,length(xs),length(ts))
 plot(ts, xs, u_predict_contourf, linetype=:contourf,title = "predict")
 
-u_predict = [[first(phi([t,x],res.minimizer)) for x in xs] for t in ts ]
+u_predict = [[first(phi([t,x],res.u)) for x in xs] for t in ts ]
 p1= plot(xs, u_predict[3],title = "t = 0.1");
 p2= plot(xs, u_predict[11],title = "t = 0.5");
 p3= plot(xs, u_predict[end],title = "t = 1");

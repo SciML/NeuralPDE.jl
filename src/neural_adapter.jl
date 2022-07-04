@@ -9,7 +9,7 @@ function generate_training_sets(domains, dx, eqs, eltypeθ)
                       hcat(vec(map(points -> collect(points), Iterators.product(spans...)))...))
 end
 
-function get_loss_function_(loss, initθ, pde_system, strategy::GridTraining)
+function get_loss_function_(loss, init_params, pde_system, strategy::GridTraining)
     eqs = pde_system.eqs
     if !(eqs isa Array)
         eqs = [eqs]
@@ -17,7 +17,7 @@ function get_loss_function_(loss, initθ, pde_system, strategy::GridTraining)
     domains = pde_system.domain
     depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
                                                             pde_system.depvars)
-    eltypeθ = eltype(initθ)
+    eltypeθ = eltype(init_params)
     dx = strategy.dx
     train_set = generate_training_sets(domains, dx, eqs, eltypeθ)
     get_loss_function(loss, train_set, eltypeθ, strategy)
@@ -35,7 +35,7 @@ function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strateg
     bounds
 end
 
-function get_loss_function_(loss, initθ, pde_system, strategy::StochasticTraining)
+function get_loss_function_(loss, init_params, pde_system, strategy::StochasticTraining)
     eqs = pde_system.eqs
     if !(eqs isa Array)
         eqs = [eqs]
@@ -45,13 +45,13 @@ function get_loss_function_(loss, initθ, pde_system, strategy::StochasticTraini
     depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
                                                             pde_system.depvars)
 
-    eltypeθ = eltype(initθ)
+    eltypeθ = eltype(init_params)
     bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)[1]
 
     get_loss_function(loss, bound, eltypeθ, strategy)
 end
 
-function get_loss_function_(loss, initθ, pde_system, strategy::QuasiRandomTraining)
+function get_loss_function_(loss, init_params, pde_system, strategy::QuasiRandomTraining)
     eqs = pde_system.eqs
     if !(eqs isa Array)
         eqs = [eqs]
@@ -61,7 +61,7 @@ function get_loss_function_(loss, initθ, pde_system, strategy::QuasiRandomTrain
     depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
                                                             pde_system.depvars)
 
-    eltypeθ = eltype(initθ)
+    eltypeθ = eltype(init_params)
     bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)[1]
 
     get_loss_function(loss, bound, eltypeθ, strategy)
@@ -85,7 +85,7 @@ function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars,
     bound = lower_bounds, upper_bounds
 end
 
-function get_loss_function_(loss, initθ, pde_system, strategy::QuadratureTraining)
+function get_loss_function_(loss, init_params, pde_system, strategy::QuadratureTraining)
     eqs = pde_system.eqs
     if !(eqs isa Array)
         eqs = [eqs]
@@ -95,7 +95,7 @@ function get_loss_function_(loss, initθ, pde_system, strategy::QuadratureTraini
     depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
                                                             pde_system.depvars)
 
-    eltypeθ = eltype(initθ)
+    eltypeθ = eltype(init_params)
     bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
     lb, ub = bound
     get_loss_function(loss, lb[1], ub[1], eltypeθ, strategy)
@@ -106,26 +106,26 @@ the method that trains a neural network using the results from one already obtai
 
 Arguments:
 * `loss`: the body of loss function,
-* `initθ`: the initial parameter of the neural network,,
+* `init_params`: the initial parameter of the neural network,,
 * `pde_system`: PDEs are defined using the ModelingToolkit.jl,
 * `strategy`: determines which training strategy will be used.
 
 """
 function neural_adapter end
 
-function neural_adapter(loss, initθ, pde_system, strategy)
-    loss_function__ = get_loss_function_(loss, initθ, pde_system, strategy)
+function neural_adapter(loss, init_params, pde_system, strategy)
+    loss_function__ = get_loss_function_(loss, init_params, pde_system, strategy)
 
     function loss_function_(θ, p)
         loss_function__(θ)
     end
     f_ = OptimizationFunction(loss_function_, Optimization.AutoZygote())
-    prob = Optimization.OptimizationProblem(f_, initθ)
+    prob = Optimization.OptimizationProblem(f_, init_params)
 end
 
-function neural_adapter(losses::Array, initθ, pde_systems::Array, strategy)
+function neural_adapter(losses::Array, init_params, pde_systems::Array, strategy)
     loss_functions_ = map(zip(losses, pde_systems)) do (l, p)
-        get_loss_function_(l, initθ, p, strategy)
+        get_loss_function_(l, init_params, p, strategy)
     end
     loss_function__ = θ -> sum(map(l -> l(θ), loss_functions_))
     function loss_function_(θ, p)
@@ -133,5 +133,5 @@ function neural_adapter(losses::Array, initθ, pde_systems::Array, strategy)
     end
 
     f_ = OptimizationFunction(loss_function_, Optimization.AutoZygote())
-    prob = Optimization.OptimizationProblem(f_, initθ)
+    prob = Optimization.OptimizationProblem(f_, init_params)
 end

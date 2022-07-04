@@ -8,8 +8,8 @@ using Reexport, Statistics
 @reexport using DiffEqBase
 @reexport using ModelingToolkit
 
-using Flux, Zygote, ForwardDiff, Random, Distributions
-using DiffEqFlux, Adapt, DiffEqNoiseProcess, StochasticDiffEq
+using Zygote, ForwardDiff, Random, Distributions
+using Adapt, DiffEqNoiseProcess, StochasticDiffEq
 using Optimization
 using Integrals, IntegralsCubature
 using QuasiMonteCarlo
@@ -28,7 +28,7 @@ using Flux: @nograd
 import Optimisers
 import UnPack: @unpack
 import RecursiveArrayTools
-import ChainRulesCore
+import ChainRulesCore, Flux, Lux, ComponentArrays
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 

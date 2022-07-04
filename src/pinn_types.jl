@@ -57,7 +57,8 @@ methodology.
 * `init_params`: the initial parameters of the neural networks. This should match the
   specification of the chosen `chain` library. For example, if a Flux.chain is used, then
   `init_params` should match `Flux.destructure(chain)[1]` in shape. If `init_params` is not
-  given, then the neural network default parameters are used.
+  given, then the neural network default parameters are used. Note that for Lux, the default
+  will convert to Float64.
 * `phi`: a trial solution, specified as `phi(x,p)` where `x` is the coordinates vector for
   the dependent variable and `p` are the weights of the phi function (generally the weights
   of the neural network defining `phi`). By default this is generated from the `chain`. This
@@ -104,19 +105,53 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                                            iteration = nothing,
                                            kwargs...) where {iip}
         if init_params === nothing
+
+            # Use the initialization of the neural network framework
+            # But for Lux, default to Float64
+            # For Flux, default to the types matching the values in the neural network
+            # This is done because Float64 is almost always better for these applications
+            # But with Flux there's already a chosen type from the user
+
             if chain isa AbstractArray
-                initθ = DiffEqFlux.initial_params.(chain)
+                if chain[1] isa Flux.Chain
+                    init_params = map(chain) do x
+                        _x = Flux.destructure(x)[1]
+                    end
+                else
+                    x = map(chain) do x
+                        _x = ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+                                                                      x)[1])
+                        Float64.(_x) # No ComponentArray GPU support
+                    end
+                    names = ntuple(i -> Symbol("depvar_", i), length(chain))
+                    init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
+                                                                                   for i in x))
+                end
             else
-                initθ = DiffEqFlux.initial_params(chain)
+                if chain isa Flux.Chain
+                    init_params = Flux.destructure(chain)[1]
+                    init_params = init_params isa Array ? Float64.(init_params) :
+                                  init_params
+                else
+                    init_params = Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+                                                                                    chain)[1]))
+                end
             end
         else
-            initθ = init_params
+            init_params = init_params
         end
 
         multioutput = typeof(chain) <: AbstractArray
 
-        type_initθ = multioutput ? Base.promote_typeof.(initθ)[1] :
-                     Base.promote_typeof(initθ)
+        type_init_params = if multioutput
+            if typeof(init_params) <: ComponentArrays.ComponentArray
+                Base.promote_typeof(init_params)
+            else
+                map(Base.promote_typeof, init_params)[1]
+            end
+        else
+            Base.promote_typeof(init_params)
+        end
 
         if phi === nothing
             if multioutput
@@ -135,7 +170,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
         end
 
         if !(typeof(adaptive_loss) <: AbstractAdaptiveLoss)
-            floattype = eltype(initθ)
+            floattype = eltype(type_init_params)
             if floattype <: Vector
                 floattype = eltype(floattype)
             end
@@ -149,10 +184,10 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             self_increment = true
         end
 
-        new{typeof(strategy), typeof(initθ), typeof(_phi), typeof(_derivative),
+        new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
             typeof(param_estim),
             typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(strategy,
-                                                                                            initθ,
+                                                                                            init_params,
                                                                                             _phi,
                                                                                             _derivative,
                                                                                             param_estim,
@@ -168,14 +203,14 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
 end
 
 """
-PINNRepresentation
+`PINNRepresentation``
 
 An internal reprsentation of a physics-informed neural network (PINN). This is the struct
 used internally and returned for introspection by `symbolic_discretize`.
 
 ## Fields
 
-
+$(FIELDS)
 """
 mutable struct PINNRepresentation
     """
@@ -248,14 +283,21 @@ mutable struct PINNRepresentation
     iteration::Vector{Int}
     """
     The initial parameters as provided by the user. If the PDE is a system of PDEs, this
-    will be an array of array of
+    will be an array of arrays. If Lux.jl is used, then this is an array of ComponentArrays.
     """
-    initθ::Any
+    init_params::Any
     """
     The initial parameters as a flattened array. This is the array that is used in the
-    construction of the OptimizationProblem
+    construction of the OptimizationProblem. If a Lux.jl neural network is used, then this
+    flattened form is a `ComponentArray`. If the equation is a system of equations, then
+    `flat_init_params.depvar.depvar_i` are the parameters for `phi[i]`. If `param_estim = true`, 
+    then `flat_init_params.p` are the parameters and `flat_init_params.depvar.depvar_i` are the neural 
+    network parameters, so `flat_init_params.depvar.depvar_1` would be the parameters of the 
+    first neural network if it's a system. If a Flux.jl neural network is used, this is 
+    simply an `AbstractArray` to be indexed and the sizes from the chains must be 
+    remembered/stored/used.
     """
-    flat_initθ::Any
+    flat_init_params::Any
     """
     The representation of the test function of the PDE solution
     """
@@ -303,9 +345,13 @@ mutable struct PINNRepresentation
 end
 
 """
-PINNLossFunctions
+`PINNLossFunctions``
 
 The generated functions from the PINNRepresentation
+
+## Fields
+
+$(FIELDS)
 """
 struct PINNLossFunctions
     """
@@ -343,15 +389,37 @@ Fields:
 
 - `f`: A representation of the chain function. If FastChain, then `f(x,p)`,
   if Chain then `f(p)(x)` (from Flux.destructure)
+- `st`: The state of the Lux.AbstractExplicitLayer. If a Flux.Chain then this is `nothing`.
+  It should be updated on each call.
 """
-struct Phi{C}
+mutable struct Phi{C, S}
     f::C
-    Phi(chain::FastChain) = new{typeof(chain)}(chain)
-    Phi(chain::Flux.Chain) = (re = Flux.destructure(chain)[2]; new{typeof(re)}(re))
+    st::S
+    function Phi(chain::Lux.AbstractExplicitLayer)
+        ps, st = Lux.setup(Random.default_rng(), chain)
+        new{typeof(chain), typeof(st)}(chain, st)
+    end
+    function Phi(chain::Flux.Chain)
+        re = Flux.destructure(chain)[2]
+        new{typeof(re), Nothing}(re, nothing)
+    end
 end
 
-(f::Phi{<:FastChain})(x, θ) = f.f(adapt(parameterless_type(θ), x), θ)
-(f::Phi{<:Optimisers.Restructure})(x, θ) = f.f(θ)(adapt(parameterless_type(θ), x))
+function (f::Phi{<:Lux.AbstractExplicitLayer})(x::Number, θ)
+    y, st = f.f(adapt(parameterless_type(θ), [x]), θ, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    y
+end
+
+function (f::Phi{<:Lux.AbstractExplicitLayer})(x::AbstractArray, θ)
+    y, st = f.f(adapt(parameterless_type(θ), x), θ, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    y
+end
+
+function (f::Phi{<:Optimisers.Restructure})(x, θ)
+    f.f(θ)(adapt(parameterless_type(θ), x))
+end
 
 function get_u()
     u = (cord, θ, phi) -> phi(cord, θ)

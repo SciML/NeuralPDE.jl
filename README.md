@@ -9,7 +9,7 @@
 
 NeuralPDE.jl is a solver package which consists of neural network solvers for
 partial differential equations using physics-informed neural networks (PINNs). This package utilizes
-neural stochastic differential equations to solve PDEs at a greatly increased generality 
+neural stochastic differential equations to solve PDEs at a greatly increased generality
 compared with classical methods.
 
 ## Installation
@@ -26,14 +26,24 @@ the documentation, which contains the unreleased features.
 
 ## Features
 
-- Physics-Informed Neural Networks for automated PDE solving.
-- Deep-learning-based solvers for optimal stopping time and Kolmogorov backwards equations.
+- Physics-Informed Neural Networks for ODE, SDE, RODE, and PDE solving
+- Ability to define extra loss functions to mix xDE solving with data fitting (scientific machine learning)
+- Automated construction of Physics-Informed loss functions from a high level symbolic interface
+- Sophisticated techniques like quadrature training strategies, adaptive loss functions, and neural adapters
+  to accelerate training
+- Integrated logging suite for handling connections to TensorBoard
+- Handling of (partial) integro-differential equations and various stochastic equations
+- Specialized forms for solving `ODEProblem`s with neural networks
+- Compatability with [Flux.jl](https://github.com/FluxML/Flux.jl) and [Lux.jl](https://github.com/avik-pal/Lux.jl)
+  for all of the GPU-powered machine learning layers available from those libraries.
+- Compatability with [NeuralOperators.jl](https://github.com/SciML/NeuralOperators.jl) for
+  mixing DeepONets and other neural operators (Fourier Neural Operators, Graph Neural Operators,
+  etc.) with physics-informed loss functions
 
 ## Example: Solving 2D Poisson Equation via Physics-Informed Neural Networks
 
 ```julia
-using NeuralPDE, Flux, ModelingToolkit, Optimization, DiffEqFlux
-using Quadrature, Cubature
+using NeuralPDE, Lux, ModelingToolkit, Optimization
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -55,12 +65,9 @@ dx = 0.1
 
 # Neural network
 dim = 2 # number of dimensions
-chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+chain = Lux.Chain(Dense(dim,16,Lux.σ),Dense(16,16,Flux.σ),Dense(16,1))
 
-# Initial parameters of Neural network
-initθ = Float64.(DiffEqFlux.initial_params(chain))
-
-discretization = PhysicsInformedNN(chain, QuadratureTraining(),init_params =initθ)
+discretization = PhysicsInformedNN(chain, QuadratureTraining())
 
 @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = discretize(pde_system,discretization)

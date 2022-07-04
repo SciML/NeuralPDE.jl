@@ -14,6 +14,11 @@ partial differential equations using physics-informed neural networks (PINNs).
 - Integrated logging suite for handling connections to TensorBoard
 - Handling of (partial) integro-differential equations and various stochastic equations
 - Specialized forms for solving `ODEProblem`s with neural networks
+- Compatability with [Flux.jl](https://github.com/FluxML/Flux.jl) and [Lux.jl](https://github.com/avik-pal/Lux.jl)
+  for all of the GPU-powered machine learning layers available from those libraries.
+- Compatability with [NeuralOperators.jl](https://github.com/SciML/NeuralOperators.jl) for
+  mixing DeepONets and other neural operators (Fourier Neural Operators, Graph Neural Operators,
+  etc.) with physics-informed loss functions
 
 ## Citation
 
@@ -24,7 +29,7 @@ If you use NeuralPDE.jl in your research, please cite [this paper](https://arxiv
   doi = {10.48550/ARXIV.2107.09443},
   url = {https://arxiv.org/abs/2107.09443},
   author = {Zubov, Kirill and McCarthy, Zoe and Ma, Yingbo and Calisto, Francesco and Pagliarino, Valerio and Azeglio, Simone and Bottero, Luca and Luján, Emmanuel and Sulzer, Valentin and Bharambe, Ashutosh and Vinchhi, Nand and Balakrishnan, Kaushik and Upadhyay, Devesh and Rackauckas, Chris},
-  keywords = {Mathematical Software (cs.MS), Symbolic Computation (cs.SC), FOS: Computer and information sciences, FOS: Computer and information sciences},  
+  keywords = {Mathematical Software (cs.MS), Symbolic Computation (cs.SC), FOS: Computer and information sciences, FOS: Computer and information sciences},
   title = {NeuralPDE: Automating Physics-Informed Neural Networks (PINNs) with Error Approximations},
   publisher = {arXiv},
   year = {2021},

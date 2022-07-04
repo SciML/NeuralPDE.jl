@@ -22,6 +22,23 @@ to
               end
           end
       end)
+
+for Flux.Chain, and
+
+:((cord, θ, phi, derivative, u)->begin
+          #= ... =#
+          #= ... =#
+          begin
+              (depvar_1, depvar_2) = (θ.depvar.depvar_1, θ.depvar.depvar_2)
+              (phi1, phi2) = (phi[1], phi[2])
+              let (x, y) = (cord[1], cord[2])
+                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, depvar_1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, depvar_2))) - 0,
+                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, depvar_2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, depvar_1))) - 0]
+              end
+          end
+      end)
+
+for Lux.AbstractExplicitLayer
 """
 function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                                       eq_params = SciMLBase.NullParameters(),
@@ -34,10 +51,10 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                                       integrating_depvars = pinnrep.depvars)
     @unpack indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input,
     phi, derivative, integral,
-    multioutput, initθ, strategy, eq_params,
+    multioutput, init_params, strategy, eq_params,
     param_estim, default_p = pinnrep
 
-    eltypeθ = eltype(pinnrep.flat_initθ)
+    eltypeθ = eltype(pinnrep.flat_init_params)
 
     if integrand isa Nothing
         loss_function = parse_equation(pinnrep, eqs)
@@ -65,11 +82,17 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         expr_θ = Expr[]
         expr_phi = Expr[]
 
-        acum = [0; accumulate(+, length.(initθ))]
+        acum = [0; accumulate(+, map(length, init_params))]
         sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
 
         for i in eachindex(depvars)
-            push!(expr_θ, :($θ[$(sep[i])]))
+            if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
+               (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
+                # Flux.Chain
+                push!(expr_θ, :($θ[$(sep[i])]))
+            else # Lux.AbstractExplicitLayer
+                push!(expr_θ, :($θ.depvar.$(Symbol("depvar_", i))))
+            end
             push!(expr_phi, :(phi[$i]))
         end
 
@@ -79,14 +102,20 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         vars_phi = Expr(:(=), build_expr(:tuple, phi_nums), build_expr(:tuple, expr_phi))
         push!(ex.args, vars_phi)
     end
+
     #Add an expression for parameter symbols
     if param_estim == true && eq_params != SciMLBase.NullParameters()
         param_len = length(eq_params)
-        last_indx = [0; accumulate(+, length.(initθ))][end]
+        last_indx = [0; accumulate(+, map(length, init_params))][end]
         params_symbols = Symbol[]
         expr_params = Expr[]
         for (i, eq_param) in enumerate(eq_params)
-            push!(expr_params, :($θ[$((i + last_indx):(i + last_indx))]))
+            if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
+               (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
+                push!(expr_params, :($θ[$((i + last_indx):(i + last_indx))]))
+            else
+                push!(expr_params, :($θ.p[$((i):(i))]))
+            end
             push!(params_symbols, Symbol(:($eq_param)))
         end
         params_eq = Expr(:(=), build_expr(:tuple, params_symbols),
@@ -135,16 +164,14 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         vcat_expr_loss_functions = Expr(:block, transformation_expr, vcat_expr,
                                         loss_function)
     end
-
     let_ex = Expr(:let, vars_eq, vcat_expr_loss_functions)
     push!(ex.args, let_ex)
-
     expr_loss_function = :(($vars) -> begin $ex end)
 end
 
 """
 ```julia
-build_loss_function(eqs, indvars, depvars, phi, derivative, initθ; bc_indvars=nothing)
+build_loss_function(eqs, indvars, depvars, phi, derivative, init_params; bc_indvars=nothing)
 ```
 
 Returns the body of loss function, which is the executable Julia function, for the main
@@ -393,13 +420,34 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                                                                pde_system.depvars)
 
     multioutput = discretization.multioutput
-    initθ = discretization.init_params
+    init_params = discretization.init_params
 
-    flat_initθ = multioutput ? reduce(vcat, initθ) : initθ
-    flat_initθ = param_estim == false ? flat_initθ :
-                 vcat(flat_initθ, adapt(typeof(flat_initθ), default_p))
+    if (discretization.phi isa Vector && discretization.phi[1].f isa Optimisers.Restructure) ||
+       (!(discretization.phi isa Vector) && discretization.phi.f isa Optimisers.Restructure)
+        # Flux.Chain
+        flat_init_params = multioutput ? reduce(vcat, init_params) : init_params
+        flat_init_params = param_estim == false ? flat_init_params :
+                           vcat(flat_init_params,
+                                adapt(typeof(flat_init_params), default_p))
+    else
+        flat_init_params = if init_params isa ComponentArrays.ComponentArray
+            init_params
+        elseif multioutput
+            names = ntuple(i -> Symbol("depvar_", i), length(init_params))
+            x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in init_params))
+        else
+            ComponentArrays.ComponentArray(init_params)
+        end
+        flat_init_params = if param_estim == false && multioutput
+            ComponentArrays.ComponentArray(; depvar = flat_init_params)
+        elseif param_estim == false && !multioutput
+            flat_init_params
+        else
+            ComponentArrays.ComponentArray(; depvar = flat_init_params, p = default_p)
+        end
+    end
 
-    eltypeθ = eltype(flat_initθ)
+    eltypeθ = eltype(flat_init_params)
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -431,7 +479,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
                                  param_estim, additional_loss, adaloss, depvars, indvars,
                                  dict_indvars, dict_depvars, dict_depvar_input, logger,
-                                 multioutput, iteration, initθ, flat_initθ, phi, derivative,
+                                 multioutput, iteration, init_params, flat_init_params, phi,
+                                 derivative,
                                  strategy, pde_indvars, bc_indvars, pde_integration_vars,
                                  bc_integration_vars, nothing, nothing, nothing, nothing)
 
@@ -511,11 +560,17 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         else
             function _additional_loss(phi, θ)
                 (θ_, p_) = if (param_estim == true)
-                    θ[1:(end - length(default_p))], θ[(end - length(default_p) + 1):end]
+                    if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
+                       (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
+                        # Isa Flux Chain
+                        θ[1:(end - length(default_p))], θ[(end - length(default_p) + 1):end]
+                    else
+                        θ.depvar, θ.p
+                    end
                 else
                     θ, nothing
                 end
-                return additional_loss(phi, θ, p_)
+                return additional_loss(phi, θ_, p_)
             end
             weighted_additional_loss_val = adaloss.additional_loss_weights[1] *
                                            _additional_loss(phi, θ)
@@ -571,5 +626,5 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     pinnrep = symbolic_discretize(pde_system, discretization)
     f = OptimizationFunction(pinnrep.loss_functions.full_loss_function,
                              Optimization.AutoZygote())
-    Optimization.OptimizationProblem(f, pinnrep.flat_initθ)
+    Optimization.OptimizationProblem(f, pinnrep.flat_init_params)
 end

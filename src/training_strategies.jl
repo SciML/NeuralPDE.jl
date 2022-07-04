@@ -9,17 +9,17 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::GridTraining,
                                            datafree_pde_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_initθ = pinnrep
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
     dx = strategy.dx
-    eltypeθ = eltype(pinnrep.flat_initθ)
+    eltypeθ = eltype(pinnrep.flat_init_params)
 
     train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
                                         dict_indvars, dict_depvars)
 
     # the points in the domain and on the boundary
     pde_train_sets, bcs_train_sets = train_sets
-    pde_train_sets = adapt.(typeof(flat_initθ), pde_train_sets)
-    bcs_train_sets = adapt.(typeof(flat_initθ), bcs_train_sets)
+    pde_train_sets = adapt.(typeof(flat_init_params), pde_train_sets)
+    bcs_train_sets = adapt.(typeof(flat_init_params), bcs_train_sets)
     pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
                           for (_loss, _set) in zip(datafree_pde_loss_function,
                                                    pde_train_sets)]
@@ -65,9 +65,9 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::StochasticTraining,
                                            datafree_pde_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_initθ = pinnrep
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
 
-    eltypeθ = eltype(pinnrep.flat_initθ)
+    eltypeθ = eltype(pinnrep.flat_init_params)
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
                         strategy)
@@ -149,9 +149,9 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuasiRandomTraining,
                                            datafree_pde_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_initθ = pinnrep
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
 
-    eltypeθ = eltype(pinnrep.flat_initθ)
+    eltypeθ = eltype(pinnrep.flat_init_params)
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
                         strategy)
@@ -227,8 +227,8 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuadratureTraining,
                                            datafree_pde_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_initθ = pinnrep
-    eltypeθ = eltype(pinnrep.flat_initθ)
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+    eltypeθ = eltype(pinnrep.flat_init_params)
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
                         strategy)

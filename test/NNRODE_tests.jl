@@ -1,4 +1,4 @@
-using Flux, OptimizationFlux, StochasticDiffEq, DiffEqNoiseProcess, Optim, Test
+using Flux, OptimizationOptimisers, StochasticDiffEq, DiffEqNoiseProcess, Optim, Test
 using NeuralPDE
 
 using Random
@@ -12,7 +12,7 @@ dt = 1 / 50.0f0
 W = WienerProcess(0.0, 0.0, nothing)
 prob = RODEProblem(linear, u0, tspan, noise = W)
 chain = Flux.Chain(Dense(2, 8, relu), Dense(8, 16, relu), Dense(16, 1))
-opt = ADAM(1e-4)
+opt = OptimizationOptimisers.Adam(1e-4)
 sol = solve(prob, NeuralPDE.NNRODE(chain, W, opt), dt = dt, verbose = true,
             abstol = 1e-10, maxiters = 3000)
 W2 = NoiseWrapper(sol.W)
@@ -30,7 +30,7 @@ dt = 1 / 100.0f0
 W = WienerProcess(0.0, 0.0, nothing)
 prob = RODEProblem(linear, u0, tspan, noise = W)
 chain = Flux.Chain(Dense(2, 32, sigmoid), Dense(32, 32, sigmoid), Dense(32, 1))
-opt = ADAM(1e-3)
+opt = OptimizationOptimisers.Adam(1e-3)
 sol = solve(prob, NeuralPDE.NNRODE(chain, W, opt), dt = dt, verbose = true,
             abstol = 1e-10, maxiters = 2000)
 W2 = NoiseWrapper(sol.W)

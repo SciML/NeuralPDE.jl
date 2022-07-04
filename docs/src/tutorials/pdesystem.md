@@ -28,7 +28,7 @@ with grid discretization `dx = 0.1` using physics-informed neural networks.
 ## Copy-Pastable Code
 
 ```@example
-using NeuralPDE, Flux, Optimization, OptimizationOptimJL, DiffEqFlux
+using NeuralPDE, Lux, Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval
 
 @parameters x y
@@ -48,13 +48,11 @@ domains = [x ∈ Interval(0.0,1.0),
 
 # Neural network
 dim = 2 # number of dimensions
-chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
-# Initial parameters of Neural network
-initθ = Float64.(DiffEqFlux.initial_params(chain))
+chain = Lux.Chain(Dense(dim,16,Lux.σ),Dense(16,16,Lux.σ),Dense(16,1))
 
 # Discretization
 dx = 0.05
-discretization = PhysicsInformedNN(chain,GridTraining(dx),init_params =initθ)
+discretization = PhysicsInformedNN(chain,GridTraining(dx))
 
 @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
 prob = discretize(pde_system,discretization)
@@ -76,7 +74,7 @@ using Plots
 xs,ys = [infimum(d.domain):dx/10:supremum(d.domain) for d in domains]
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
 
-u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+u_predict = reshape([first(phi([x,y],res.u)) for x in xs for y in ys],(length(xs),length(ys)))
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 diff_u = abs.(u_predict .- u_real)
 
@@ -91,7 +89,7 @@ plot(p1,p2,p3)
 The ModelingToolkit PDE interface for this example looks like this:
 
 ```@example poisson
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval
 
 @parameters x y
@@ -116,26 +114,20 @@ Here, we define the neural network, where the input of NN equals the number of d
 ```@example poisson
 # Neural network
 dim = 2 # number of dimensions
-chain = FastChain(FastDense(dim,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
+chain = Lux.Chain(Dense(dim,16,Lux.σ),Dense(16,16,Lux.σ),Dense(16,1))
 ```
 
-Convert weights of neural network from Float32 to Float64 in order to all inner calculation will be with Float64.
-
-```@example poisson
-# Initial parameters of Neural network
-initθ = Float64.(DiffEqFlux.initial_params(chain))
-```
-
-Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretization, `strategy` stores information for choosing a training strategy and
-`init_params =initθ` initial parameters of neural network.
+Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretization where
+`strategy` stores information for choosing a training strategy.
 
 ```@example poisson
 # Discretization
 dx = 0.05
-discretization = PhysicsInformedNN(chain, GridTraining(dx),init_params =initθ)
+discretization = PhysicsInformedNN(chain, GridTraining(dx))
 ```
 
-As described in the API docs, we now need to define the `PDESystem` and create PINNs problem using the `discretize` method.
+As described in the API docs, we now need to define the `PDESystem` and create PINNs
+problem using the `discretize` method.
 
 ```@example poisson
 @named pde_system = PDESystem(eq,bcs,domains,[x,y],[u(x, y)])
@@ -164,7 +156,7 @@ We can plot the predicted solution of the PDE and compare it with the analytical
 xs,ys = [infimum(d.domain):dx/10:supremum(d.domain) for d in domains]
 analytic_sol_func(x,y) = (sin(pi*x)*sin(pi*y))/(2pi^2)
 
-u_predict = reshape([first(phi([x,y],res.minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
+u_predict = reshape([first(phi([x,y],res.u)) for x in xs for y in ys],(length(xs),length(ys)))
 u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
 diff_u = abs.(u_predict .- u_real)
 

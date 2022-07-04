@@ -27,25 +27,22 @@ x \in [0, 2] \, ,\ y \in [0, 2] \, , \ t \in [0, 2] \, ,
 with physics-informed neural networks. The only major difference from the CPU case is that
 we must ensure that our initial parameters for the neural network are on the GPU. If that
 is done, then the internal computations will all take place on the GPU. This is done by
-using the `CuArray` constructor, like:
+using the `gpu` function on the `Flux.Chain`, like:
 
 ```julia
 using CUDA
-initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
-```
-
-and then we must make sure we pass our initial condition vector into the discretization:
-
-```julia
-discretization = PhysicsInformedNN(chain,
-                                   strategy;
-                                   init_params = initθ)
+chain = Chain(Dense(3,inner,Flux.σ),
+              Dense(inner,inner,Flux.σ),
+              Dense(inner,inner,Flux.σ),
+              Dense(inner,inner,Flux.σ),
+              Dense(inner,1)) |> gpu
 ```
 
 In total, this looks like:
 
 ```julia
-using NeuralPDE, Flux, Optimization, OptimizationOptimJL, DiffEqFlux, CUDA
+using NeuralPDE, Flux, CUDA
+using Optimization, OptimizationOptimJL, OptimizationOptimsiers
 import ModelingToolkit: Interval
 
 @parameters t x y
@@ -78,18 +75,15 @@ domains = [t ∈ Interval(t_min,t_max),
 
 # Neural network
 inner = 25
-chain = FastChain(FastDense(3,inner,Flux.σ),
-                  FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,inner,Flux.σ),
-                  FastDense(inner,1))
-
-initθ = CuArray(Float64.(DiffEqFlux.initial_params(chain)))
+chain = Chain(Dense(3,inner,Flux.σ),
+              Dense(inner,inner,Flux.σ),
+              Dense(inner,inner,Flux.σ),
+              Dense(inner,inner,Flux.σ),
+              Dense(inner,1)) |> gpu
 
 strategy = GridTraining(0.05)
 discretization = PhysicsInformedNN(chain,
-                                   strategy;
-                                   init_params = initθ)
+                                   strategy)
 
 @named pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u(t, x, y)])
 prob = discretize(pde_system,discretization)
@@ -100,15 +94,15 @@ callback = function (p,l)
     return false
 end
 
-res = Optimization.solve(prob,ADAM(0.01);callback = callback,maxiters=2500)
+res = Optimization.solve(prob,Adam(0.01);callback = callback,maxiters=2500)
 ```
 
 We then use the `remake` function allows to rebuild the PDE problem to start a new
 optimization at the optimized parameters, and continue with a lower learning rate:
 
 ```julia
-prob = remake(prob,u0=res.minimizer)
-res = Optimization.solve(prob,ADAM(0.001);callback = callback,maxiters=2500)
+prob = remake(prob,u0=res.u)
+res = Optimization.solve(prob,Adam(0.001);callback = callback,maxiters=2500)
 ```
 
 Finally we inspect the solution:
@@ -117,8 +111,7 @@ Finally we inspect the solution:
 phi = discretization.phi
 ts,xs,ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
 u_real = [analytic_sol_func(t,x,y) for t in ts for x in xs for y in ys]
-u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs for y in ys]
-
+u_predict = [first(Array(phi([t, x, y], res.u))) for t in ts for x in xs for y in ys]
 
 using Plots
 using Printf
@@ -128,7 +121,7 @@ function plot_(res)
     anim = @animate for (i, t) in enumerate(0:0.05:t_max)
         @info "Animating frame $i..."
         u_real = reshape([analytic_sol_func(t,x,y) for x in xs for y in ys], (length(xs),length(ys)))
-        u_predict = reshape([Array(phi([t, x, y], res.minimizer))[1] for x in xs for y in ys], length(xs), length(ys))
+        u_predict = reshape([Array(phi([t, x, y], res.u))[1] for x in xs for y in ys], length(xs), length(ys))
         u_error = abs.(u_predict .- u_real)
         title = @sprintf("predict, t = %.3f", t)
         p1 = plot(xs, ys, u_predict,st=:surface, label="", title=title)

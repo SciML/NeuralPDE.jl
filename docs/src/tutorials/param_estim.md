@@ -15,7 +15,7 @@ with Physics-Informed Neural Networks. Now we would consider the case where we w
 We start by defining the the problem,
 
 ```@example param_estim
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DiffEqFlux, OrdinaryDiffEq, Plots
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, OrdinaryDiffEq, Plots
 import ModelingToolkit: Interval, infimum, supremum
 @parameters t ,σ_ ,β, ρ
 @variables x(..), y(..), z(..)
@@ -34,9 +34,9 @@ And the neural networks as,
 ```@example param_estim
 input_ = length(domains)
 n = 8
-chain1 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
-chain2 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
-chain3 = FastChain(FastDense(input_,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,n,Flux.σ),FastDense(n,1))
+chain1 = Lux.Chain(Dense(input_,n,Lux.σ),Dense(n,n,Lux.σ),Dense(n,n,Lux.σ),Dense(n,1))
+chain2 = Lux.Chain(Dense(input_,n,Lux.σ),Dense(n,n,Lux.σ),Dense(n,n,Lux.σ),Dense(n,1))
+chain3 = Lux.Chain(Dense(input_,n,Lux.σ),Dense(n,n,Lux.σ),Dense(n,n,Lux.σ),Dense(n,1))
 ```
 
 We will add an additional loss term based on the data that we have in order to optimise the parameters.
@@ -62,20 +62,47 @@ function getData(sol)
     return [us,ts_]
 end
 data = getData(sol)
-initθs = DiffEqFlux.initial_params.([chain1,chain2,chain3])
-acum =  [0;accumulate(+, length.(initθs))]
-sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+
 (u_ , t_) = data
 len = length(data[2])
 ```
 
-Then we define the additional loss funciton `additional_loss(phi, θ , p)`, the function has three arguments, `phi` the trial solution, `θ` the parameters of neural networks, and the hyperparameters `p` .
+Then we define the additional loss funciton `additional_loss(phi, θ , p)`, the function has
+three arguments:
+
+- `phi` the trial solution
+- `θ` the parameters of neural networks
+- the hyperparameters `p` .
+
+For a Lux neural network, the composed function will present itself as having θ as a
+[`ComponentArray`](https://github.com/jonniedie/ComponentArrays.jl)
+subsets `θ.depvar_i`, which can also be dereferenced like `θ[Symbol(:depvar_,i)]`. Thus the additional
+loss looks like:
 
 ```@example param_estim
+function additional_loss(phi, θ , p)
+    return sum(sum(abs2, phi[i](t_ , θ[Symbol(:depvar_,i)]) .- u_[[i], :])/len for i in 1:1:3)
+end
+```
+
+#### Note about Flux
+
+If Flux neural network is used, then the subsetting must be computed manually as `θ`
+is simply a vector. This looks like:
+
+```julia
+init_params = [Flux.destructure(c)[1] for c in [chain1,chain2,chain3]]
+acum =  [0;accumulate(+, length.(init_params))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+(u_ , t_) = data
+len = length(data[2])
+
 function additional_loss(phi, θ , p)
     return sum(sum(abs2, phi[i](t_ , θ[sep[i]]) .- u_[[i], :])/len for i in 1:1:3)
 end
 ```
+
+#### Back to our originally scheduled programming
 
 Then finally defining and optimising using the `PhysicsInformedNN` interface.
 
@@ -88,16 +115,13 @@ callback = function (p,l)
     return false
 end
 res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=5000)
-p_ = res.minimizer[end-2:end] # p_ = [9.93, 28.002, 2.667]
+p_ = res.u[end-2:end] # p_ = [9.93, 28.002, 2.667]
 ```
 
 And then finally some analyisis by plotting.
 
 ```@example param_estim
-initθ = discretization.init_params
-acum =  [0;accumulate(+, length.(initθ))]
-sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
-minimizers = [res.minimizer[s] for s in sep]
+minimizers = [res.u.depvar[Symbol(:depvar_,i)] for i in 1:3]
 ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
 u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 plot(sol)

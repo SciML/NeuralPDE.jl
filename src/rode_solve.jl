@@ -2,22 +2,22 @@ struct NNRODE{C, W, O, P, K} <: NeuralPDEAlgorithm
     chain::C
     W::W
     opt::O
-    initθ::P
+    init_params::P
     autodiff::Bool
     kwargs::K
 end
 function NNRODE(chain, W, opt = Optim.BFGS(), init_params = nothing; autodiff = false,
                 kwargs...)
     if init_params === nothing
-        if chain isa FastChain
-            initθ = DiffEqFlux.initial_params(chain)
+        if chain isa Flux.Chain
+            init_params, re = Flux.destructure(chain)
         else
-            initθ, re = Flux.destructure(chain)
+            error("Only Flux is support here right now")
         end
     else
-        initθ = init_params
+        init_params = init_params
     end
-    NNRODE(chain, W, opt, initθ, autodiff, kwargs)
+    NNRODE(chain, W, opt, init_params, autodiff, kwargs)
 end
 
 function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
@@ -45,7 +45,7 @@ function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
     Wg = alg.W
     #train points generation
     ts = tspan[1]:dt:tspan[2]
-    initθ = alg.initθ
+    init_params = alg.init_params
 
     if chain isa FastChain
         #The phi trial solution
@@ -96,8 +96,8 @@ function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
         verbose && println("Current loss is: $l")
         l < abstol
     end
-    res = DiffEqFlux.sciml_train(loss, initθ, opt; cb = callback, maxiters = maxiters,
-                                 alg.kwargs...)
+    #res = DiffEqFlux.sciml_train(loss, init_params, opt; cb = callback, maxiters = maxiters,
+    #                             alg.kwargs...)
 
     #solutions at timepoints
     noiseproblem = NoiseProblem(Wg, tspan)
