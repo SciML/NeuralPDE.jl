@@ -78,6 +78,7 @@ methodology.
 * `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on `solve`.
 """
 struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
+    chain::Any
     strategy::T
     init_params::P
     phi::PH
@@ -131,7 +132,8 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
 
         new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
             typeof(param_estim),
-            typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(strategy,
+            typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(chain,
+                                                                                            strategy,
                                                                                             init_params,
                                                                                             _phi,
                                                                                             _derivative,

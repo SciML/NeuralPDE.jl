@@ -405,6 +405,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                        discretization::PhysicsInformedNN)
     eqs = pde_system.eqs
     bcs = pde_system.bcs
+    chain = discretization.chain
 
     domains = pde_system.domain
     eq_params = pde_system.ps
