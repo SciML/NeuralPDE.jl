@@ -29,11 +29,11 @@ for Flux.Chain, and
           #= ... =#
           #= ... =#
           begin
-              (depvar_1, depvar_2) = (θ.depvar.depvar_1, θ.depvar.depvar_2)
+              (u1, u2) = (θ.depvar.u1, θ.depvar.u2)
               (phi1, phi2) = (phi[1], phi[2])
               let (x, y) = (cord[1], cord[2])
-                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, depvar_1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, depvar_2))) - 0,
-                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, depvar_2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, depvar_1))) - 0]
+                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, u1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, u1))) - 0,
+                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, u2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, u2))) - 0]
               end
           end
       end)
@@ -91,7 +91,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                 # Flux.Chain
                 push!(expr_θ, :($θ[$(sep[i])]))
             else # Lux.AbstractExplicitLayer
-                push!(expr_θ, :($θ.depvar.$(Symbol("depvar_", i))))
+                push!(expr_θ, :($θ.depvar.$(depvars[i])))
             end
             push!(expr_phi, :(phi[$i]))
         end
@@ -422,6 +422,42 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     multioutput = discretization.multioutput
     init_params = discretization.init_params
 
+    if init_params === nothing
+        # Use the initialization of the neural network framework
+        # But for Lux, default to Float64
+        # For Flux, default to the types matching the values in the neural network
+        # This is done because Float64 is almost always better for these applications
+        # But with Flux there's already a chosen type from the user
+
+        if chain isa AbstractArray
+            if chain[1] isa Flux.Chain
+                init_params = map(chain) do x
+                    _x = Flux.destructure(x)[1]
+                end
+            else
+                x = map(chain) do x
+                    _x = ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+                                                                  x)[1])
+                    Float64.(_x) # No ComponentArray GPU support
+                end
+                names = ntuple(i -> depvars[i], length(chain))
+                init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
+                                                                               for i in x))
+            end
+        else
+            if chain isa Flux.Chain
+                init_params = Flux.destructure(chain)[1]
+                init_params = init_params isa Array ? Float64.(init_params) :
+                              init_params
+            else
+                init_params = Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+                                                                                chain)[1]))
+            end
+        end
+    else
+        init_params = init_params
+    end
+
     if (discretization.phi isa Vector && discretization.phi[1].f isa Optimisers.Restructure) ||
        (!(discretization.phi isa Vector) && discretization.phi.f isa Optimisers.Restructure)
         # Flux.Chain
@@ -433,7 +469,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         flat_init_params = if init_params isa ComponentArrays.ComponentArray
             init_params
         elseif multioutput
-            names = ntuple(i -> Symbol("depvar_", i), length(init_params))
+            @assert length(init_params) == length(depvars)
+            names = ntuple(i -> depvars[i], length(init_params))
             x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in init_params))
         else
             ComponentArrays.ComponentArray(init_params)
@@ -448,6 +485,11 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     end
 
     eltypeθ = eltype(flat_init_params)
+
+    if adaloss === nothing
+        adaloss = NonAdaptiveLoss{eltypeθ}()
+    end
+
     phi = discretization.phi
     derivative = discretization.derivative
     strategy = discretization.strategy

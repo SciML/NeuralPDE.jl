@@ -76,12 +76,13 @@ three arguments:
 
 For a Lux neural network, the composed function will present itself as having θ as a
 [`ComponentArray`](https://github.com/jonniedie/ComponentArrays.jl)
-subsets `θ.depvar_i`, which can also be dereferenced like `θ[Symbol(:depvar_,i)]`. Thus the additional
+subsets `θ.x`, which can also be dereferenced like `θ[:x]`. Thus the additional
 loss looks like:
 
 ```@example param_estim
+depvars = [:x,:y,:z]
 function additional_loss(phi, θ , p)
-    return sum(sum(abs2, phi[i](t_ , θ[Symbol(:depvar_,i)]) .- u_[[i], :])/len for i in 1:1:3)
+    return sum(sum(abs2, phi[i](t_ , θ[depvars[i]]) .- u_[[i], :])/len for i in 1:1:3)
 end
 ```
 
@@ -121,7 +122,7 @@ p_ = res.u[end-2:end] # p_ = [9.93, 28.002, 2.667]
 And then finally some analyisis by plotting.
 
 ```@example param_estim
-minimizers = [res.u.depvar[Symbol(:depvar_,i)] for i in 1:3]
+minimizers = [res.u.depvar[depvars[i]] for i in 1:3]
 ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
 u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 plot(sol)
