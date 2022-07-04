@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Defining Systems of PDEs · NeuralPDE.jl</title><script async src="https://www.googletagmanager.com/gtag/js?id=UA-90474609-3"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-90474609-3', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="../../assets/warner.js"></script><link rel="canonical" href="https://neuralpde.sciml.ai/stable/tutorials/systems/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.044/juliamono.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../ode/">Introduction to NeuralPDE for ODEs</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../gpu/">Using GPUs</a></li><li class="is-active"><a class="tocitem" href>Defining Systems of PDEs</a><ul class="internal"><li><a class="tocitem" href="#Solution"><span>Solution</span></a></li><li><a class="tocitem" href="#Direct-Construction-via-symbolic_discretize"><span>Direct Construction via symbolic_discretize</span></a></li><li><a class="tocitem" href="#Solution-Representation"><span>Solution Representation</span></a></li></ul></li><li><a class="tocitem" href="../constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../../examples/wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../../examples/3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../../examples/ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../../examples/heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../../examples/linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">PDE PINN Tutorials</a></li><li class="is-active"><a href>Defining Systems of PDEs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Defining Systems of PDEs</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/tutorials/systems.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="systems"><a class="docs-heading-anchor" href="#systems">Defining Systems of PDEs for Physics-Informed Neural Networks (PINNs)</a><a id="systems-1"></a><a class="docs-heading-anchor-permalink" href="#systems" title="Permalink"></a></h1><p>In this example, we will solve the PDE system:</p><p class="math-container">\[\begin{align*}
+∂_t u_1(t, x) &amp; = ∂_x^2 u_1(t, x) + u_3(t, x) \, \sin(\pi x) \, ,\\
+∂_t u_2(t, x) &amp; = ∂_x^2 u_2(t, x) + u_3(t, x) \, \cos(\pi x) \, ,\\
+0 &amp; = u_1(t, x) \sin(\pi x) + u_2(t, x) \cos(\pi x) - e^{-t} \, ,
+\end{align*}\]</p><p>with the initial conditions:</p><p class="math-container">\[\begin{align*}
+u_1(0, x) &amp; = \sin(\pi x) \, ,\\
+∂_t u_1(0, x) &amp; = - \sin(\pi x) \, ,\\
+u_2(0, x) &amp; = \cos(\pi x) \, ,\\
+∂_t u_2(0, x) &amp; = - \cos(\pi x) \, ,
+\end{align*}\]</p><p>and the boundary conditions:</p><p class="math-container">\[\begin{align*}
+u_1(t, 0) &amp; = u_1(t, 1) = 0 \, ,\\
+u_2(t, 0) &amp; = - u_2(t, 1) = e^{-t} \, ,
+\end{align*}\]</p><p>with physics-informed neural networks.</p><h2 id="Solution"><a class="docs-heading-anchor" href="#Solution">Solution</a><a id="Solution-1"></a><a class="docs-heading-anchor-permalink" href="#Solution" title="Permalink"></a></h2><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u1(..), u2(..), u3(..)
+Dt = Differential(t)
+Dtt = Differential(t)^2
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+eqs = [Dtt(u1(t,x)) ~ Dxx(u1(t,x)) + u3(t,x)*sin(pi*x),
+       Dtt(u2(t,x)) ~ Dxx(u2(t,x)) + u3(t,x)*cos(pi*x),
+       0. ~ u1(t,x)*sin(pi*x) + u2(t,x)*cos(pi*x) - exp(-t)]
+
+bcs = [u1(0,x) ~ sin(pi*x),
+       u2(0,x) ~ cos(pi*x),
+       Dt(u1(0,x)) ~ -sin(pi*x),
+       Dt(u2(0,x)) ~ -cos(pi*x),
+       u1(t,0) ~ 0.,
+       u2(t,0) ~ exp(-t),
+       u1(t,1) ~ 0.,
+       u2(t,1) ~ -exp(-t)]
+
+
+# Space and time domains
+domains = [t ∈ Interval(0.0,1.0),
+           x ∈ Interval(0.0,1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain =[Lux.Chain(Dense(input_,n,Lux.σ),Dense(n,n,Lux.σ),Dense(n,1)) for _ in 1:3]
+
+strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, strategy)
+
+@named pdesystem = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
+prob = discretize(pdesystem,discretization)
+sym_prob = symbolic_discretize(pdesystem,discretization)
+
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
+
+callback = function (p, l)
+    println(&quot;loss: &quot;, l)
+    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p), pde_inner_loss_functions))
+    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p), bcs_inner_loss_functions))
+    return false
+end
+
+res = Optimization.solve(prob,BFGS(); callback = callback, maxiters=5000)
+
+phi = discretization.phi</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3-element Vector{NeuralPDE.Phi{Lux.Chain{NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}, Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}, Lux.Dense{true, typeof(identity), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}}}}, NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}}}}}:
+ NeuralPDE.Phi{Lux.Chain{NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}, Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}, Lux.Dense{true, typeof(identity), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}}}}, NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}}}}(Chain(), (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()))
+ NeuralPDE.Phi{Lux.Chain{NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}, Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}, Lux.Dense{true, typeof(identity), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}}}}, NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}}}}(Chain(), (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()))
+ NeuralPDE.Phi{Lux.Chain{NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}, Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}, Lux.Dense{true, typeof(identity), typeof(Lux.glorot_uniform), typeof(Lux.zeros32)}}}}, NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}}}}(Chain(), (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()))</code></pre><h2 id="Direct-Construction-via-symbolic_discretize"><a class="docs-heading-anchor" href="#Direct-Construction-via-symbolic_discretize">Direct Construction via symbolic_discretize</a><a id="Direct-Construction-via-symbolic_discretize-1"></a><a class="docs-heading-anchor-permalink" href="#Direct-Construction-via-symbolic_discretize" title="Permalink"></a></h2><p>One can take apart the pieces and reassemble the loss functions using the <code>symbolic_discretize</code> interface. Here is an example using the components from <code>symbolic_discretize</code> to fully reproduce the <code>discretize</code> optimization:</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u1(..), u2(..), u3(..)
+Dt = Differential(t)
+Dtt = Differential(t)^2
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+eqs = [Dtt(u1(t,x)) ~ Dxx(u1(t,x)) + u3(t,x)*sin(pi*x),
+       Dtt(u2(t,x)) ~ Dxx(u2(t,x)) + u3(t,x)*cos(pi*x),
+       0. ~ u1(t,x)*sin(pi*x) + u2(t,x)*cos(pi*x) - exp(-t)]
+
+bcs = [u1(0,x) ~ sin(pi*x),
+       u2(0,x) ~ cos(pi*x),
+       Dt(u1(0,x)) ~ -sin(pi*x),
+       Dt(u2(0,x)) ~ -cos(pi*x),
+       u1(t,0) ~ 0.,
+       u2(t,0) ~ exp(-t),
+       u1(t,1) ~ 0.,
+       u2(t,1) ~ -exp(-t)]
+
+# Space and time domains
+domains = [t ∈ Interval(0.0,1.0),
+           x ∈ Interval(0.0,1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain =[Lux.Chain(Dense(input_,n,Lux.σ),Dense(n,n,Lux.σ),Dense(n,1)) for _ in 1:3]
+@named pdesystem = PDESystem(eqs,bcs,domains,[t,x],[u1(t, x),u2(t, x),u3(t, x)])
+
+strategy = NeuralPDE.QuadratureTraining()
+discretization = PhysicsInformedNN(chain, strategy)
+sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
+
+pde_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
+
+callback = function (p, l)
+    println(&quot;loss: &quot;, l)
+    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p), pde_loss_functions))
+    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p), bc_loss_functions))
+    return false
+end
+
+loss_functions =  [pde_loss_functions;bc_loss_functions]
+
+function loss_function(θ,p)
+    sum(map(l-&gt;l(θ) ,loss_functions))
+end
+
+f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
+prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
+
+res = Optimization.solve(prob,OptimizationOptimJL.BFGS(); callback = callback, maxiters=5000)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">u: ComponentVector{Float64}(depvar = (depvar_1 = (layer_1 = (weight = [-2.077791541729983 -2.579421249430316; 1.2679522587991574 2.931228452937074; … ; -1.153987555021452 0.14794394582255496; 0.269699428863834 -3.8422588847185906], bias = [-1.9906733688616345; -1.780431467938906; … ; -1.0078958752497522; 3.0797961533592204;;]), layer_2 = (weight = [-0.473916588935831 0.4875437025284841 … 0.5437231708276511 -2.1405690144445266; 0.36021618522776155 -0.287893523725414 … 0.25344633484855716 -0.07624420461256959; … ; -0.09632951711935728 0.24929970060334355 … -0.38384037682974054 -0.43040984403699917; 0.4585604700328551 1.7925555648075322 … -0.3897459109185674 -1.3823132622648262], bias = [-0.7243569140568468; -0.3015493561855602; … ; -0.08832278153780844; -0.6711955136960739;;]), layer_3 = (weight = [-2.980182267485873 -0.47622282924730963 … -0.8355050788987208 -1.414775681994994], bias = [0.16315780576149685;;])), depvar_2 = (layer_1 = (weight = [1.1374349791290426 1.4496238535185009; -0.08581404219912753 -0.35351896371603264; … ; 1.6531341178342442 2.9848640431444364; -1.7627030336496572 1.4557056650434255], bias = [-0.375911381509101; -1.355249983779768; … ; 0.743823791973363; -3.052874744468709;;]), layer_2 = (weight = [1.382767826537487 0.04672869424421848 … 0.17785887824761934 -0.7721583788196943; -1.0863016002633819 -0.5185111101396827 … -1.6131443749763033 -0.5090545045733417; … ; 0.31542919761322186 -0.7667067416247145 … -0.411452173784558 -0.9407981480043559; 1.028954432171414 0.00984556757115949 … -0.12320294014343117 -0.32509590139340894], bias = [-0.12424043956224887; -0.5405949089828407; … ; -0.7562714330351785; 0.42902746678384807;;]), layer_3 = (weight = [1.3897719768855148 -1.9474648339363345 … 1.6792428150847496 1.9308151307622785], bias = [-1.696365238756856;;])), depvar_3 = (layer_1 = (weight = [-0.20785324108499692 -0.5942614242669355; 1.075708627064609 0.13905350626455334; … ; -0.6599699380210927 -0.21644673804514214; -0.573968680567142 -0.0034482181119923146], bias = [-0.45875046745608933; -0.42131384894913015; … ; -0.36276605187784444; -0.4855609419219124;;]), layer_2 = (weight = [0.15059066658704945 -0.497512330334799 … -0.1291615183512907 -0.19672247145498575; -0.08724960239620683 0.06698925292203331 … -0.6536613179695299 0.06296850791890476; … ; -0.1311508460600217 -0.13693318145608055 … -0.5217844086564335 -0.2005000221732961; -0.48332329794399526 -0.794050589931018 … -0.5915796021231012 -0.3781531388376131], bias = [0.10301559248369244; -0.5109854564522324; … ; -0.9445408426147539; -0.863309142720639;;]), layer_3 = (weight = [0.9590197472378291 -0.7241916618866093 … -2.2193848666303366 -0.8921911005560357], bias = [1.4778687393992982;;]))))</code></pre><h2 id="Solution-Representation"><a class="docs-heading-anchor" href="#Solution-Representation">Solution Representation</a><a id="Solution-Representation-1"></a><a class="docs-heading-anchor-permalink" href="#Solution-Representation" title="Permalink"></a></h2><p>Now let&#39;s perform some analysis for both the <code>symbolic_discretize</code> and <code>discretize</code> APIs:</p><pre><code class="language-julia hljs">using Plots
+
+phi = discretization.phi
+ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+
+minimizers_ = [res.u.depvar[Symbol(:depvar_,i)] for i in 1:3]
+
+analytic_sol_func(t,x) = [exp(-t)*sin(pi*x), exp(-t)*cos(pi*x), (1+pi^2)*exp(-t)]
+u_real  = [[analytic_sol_func(t,x)[i] for t in ts for x in xs] for i in 1:3]
+u_predict  = [[phi[i]([t,x],minimizers_[i])[1] for t in ts  for x in xs] for i in 1:3]
+diff_u = [abs.(u_real[i] .- u_predict[i] ) for i in 1:3]
+for i in 1:3
+    p1 = plot(ts, xs, u_real[i],linetype=:contourf,title = &quot;u$i, analytic&quot;);
+    p2 = plot(ts, xs, u_predict[i],linetype=:contourf,title = &quot;predict&quot;);
+    p3 = plot(ts, xs, diff_u[i],linetype=:contourf,title = &quot;error&quot;);
+    plot(p1,p2,p3)
+    savefig(&quot;sol_u$i&quot;)
+end</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/122979254-03634e80-d3a0-11eb-985b-d3bae2dddfde.png" alt="sol_uq1"/></p><p><img src="https://user-images.githubusercontent.com/12683885/122979278-09592f80-d3a0-11eb-8fee-de3652f138d8.png" alt="sol_uq2"/></p><p><img src="https://user-images.githubusercontent.com/12683885/122979288-0e1de380-d3a0-11eb-9005-bfb501959b83.png" alt="sol_uq3"/></p><p>Notice here that the solution is represented in the <code>OptimizationSolution</code> with <code>u</code> as the parameters for the trained neural network. But, for the case where the neural network is from Lux.jl, it&#39;s given as a <code>ComponentArray</code> where <code>res.u.depvar.depvar_i</code> corresponds to the result for the ith neural network, i.e. <code>res.u.depvar.depvar_1</code> are the trained parameters for <code>phi[1]</code>. For simpler indexing, you can use <code>res.u.depvar[:depvar_1]</code> or <code>res.u.depvar[Symbol(:depvar_,1)]</code> as shown here. Subsetting the array also works, but is inelegant.</p><p>(If <code>param_estim == true</code>, then <code>res.u.p</code> are the fit parameters)</p><p>If Flux.jl is used, then subsetting the array is required. This looks like:</p><pre><code class="language-julia hljs">init_params = [Flux.destructure(c)[1] for c in chain]
+acum =  [0;accumulate(+, length.(init_params))]
+sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
+minimizers_ = [res.minimizer[s] for s in sep]</code></pre><h4 id="Note:-Solving-Matrices-of-PDEs"><a class="docs-heading-anchor" href="#Note:-Solving-Matrices-of-PDEs">Note: Solving Matrices of PDEs</a><a id="Note:-Solving-Matrices-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Note:-Solving-Matrices-of-PDEs" title="Permalink"></a></h4><p>Also, in addition to vector systems, we can use the matrix form of PDEs:</p><pre><code class="language-julia hljs">using ModelingToolkit, NeuralPDE
+@parameters x y
+@variables u[1:2,1:2](..)
+@derivatives Dxx&#39;&#39;~x
+@derivatives Dyy&#39;&#39;~y
+
+# Initial and boundary conditions
+bcs = [u[1](x,0) ~ x, u[2](x,0) ~ 2, u[3](x,0) ~ 3, u[4](x,0) ~ 4]
+
+# matrix PDE
+eqs  = @. [(Dxx(u_(x,y)) + Dyy(u_(x,y))) for u_ in u] ~ -sin(pi*x)*sin(pi*y)*[0 1; 0 1]
+
+size(eqs)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(2, 2)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../gpu/">« Using GPUs</a><a class="docs-footer-nextpage" href="../constraints/">Imposing Constraints »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.19 on <span class="colophon-date" title="Monday 4 July 2022 22:26">Monday 4 July 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
