@@ -119,8 +119,8 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                                transformation_vars = nothing)
     @unpack indvars, depvars, dict_indvars, dict_depvars,
     dict_depvar_input, multioutput, strategy, phi,
-    derivative, integral, flat_initθ, initθ = pinnrep
-    eltypeθ = eltype(flat_initθ)
+    derivative, integral, flat_init_params, init_params = pinnrep
+    eltypeθ = eltype(flat_init_params)
 
     _args = ex.args
     for (i, e) in enumerate(_args)

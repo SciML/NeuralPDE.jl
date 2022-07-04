@@ -30,21 +30,21 @@ domains = [x ∈ Interval(0.0,1.0),
 
 # Neural network
 chain = FastChain(FastDense(2,16,Flux.σ),FastDense(16,16,Flux.σ),FastDense(16,1))
-initθ = DiffEqFlux.initial_params(chain)
+init_params = DiffEqFlux.initial_params(chain)
 
-eltypeθ = eltype(initθ)
+eltypeθ = eltype(init_params)
 phi = NeuralPDE.get_phi(chain)
 derivative = NeuralPDE.get_numeric_derivative()
 
 u_ = (cord, θ, phi)->sum(phi(cord, θ))
 
-phi([1,2], initθ)
+phi([1,2], init_params)
 
-phi_ = (p) -> phi(p, initθ)[1]
+phi_ = (p) -> phi(p, init_params)[1]
 dphi = Zygote.gradient(phi_,[1.,2.])
 
-dphi1 = derivative(phi,u_,[1.,2.],[[ 0.0049215667, 0.0]],1,initθ)
-dphi2 = derivative(phi,u_,[1.,2.],[[0.0,  0.0049215667]],1,initθ)
+dphi1 = derivative(phi,u_,[1.,2.],[[ 0.0049215667, 0.0]],1,init_params)
+dphi2 = derivative(phi,u_,[1.,2.],[[0.0,  0.0049215667]],1,init_params)
 isapprox(dphi[1][1], dphi1, atol=1e-8)
 isapprox(dphi[1][2], dphi2, atol=1e-8)
 
@@ -58,9 +58,9 @@ multioutput = chain isa AbstractArray
 strategy = NeuralPDE.GridTraining(dx)
 integral = NeuralPDE.get_numeric_integral(strategy, indvars, multioutput, chain, derivative)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,integral,multioutput,initθ,strategy)
+_pde_loss_function = NeuralPDE.build_loss_function(eq,indvars,depvars,phi,derivative,integral,multioutput,init_params,strategy)
 
-julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,multioutput,initθ,strategy)
+julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,multioutput,init_params,strategy)
 
 :((cord, var"##θ#529", phi, derivative, integral, u)->begin
           begin
@@ -78,11 +78,11 @@ julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
  [:x]
 
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc,indvars,depvars,
-                                                     phi,derivative,integral,multioutput,initθ,strategy,
+                                                     phi,derivative,integral,multioutput,init_params,strategy,
                                                      bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 
 julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,dict_depvars_input,
-                                                                        phi,derivative,integral,multioutput,initθ,strategy,
+                                                                        phi,derivative,integral,multioutput,init_params,strategy,
                                                                         bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
 4-element Array{Expr,1}:
  :((cord, var"##θ#529", phi, derivative, integral, u)->begin

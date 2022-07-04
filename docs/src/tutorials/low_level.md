@@ -68,7 +68,7 @@ function loss_function(θ,p)
 end
 
 f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
-prob = Optimization.OptimizationProblem(f_, sym_prob.flat_initθ)
+prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
 
 res = Optimization.solve(prob,OptimizationOptimJL.BFGS(); callback = callback, maxiters=2000)
 ```

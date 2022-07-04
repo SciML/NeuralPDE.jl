@@ -73,12 +73,12 @@ three arguments:
 
 For a Lux neural network, the composed function will present itself as having θ as a
 [`ComponentArray`](https://github.com/jonniedie/ComponentArrays.jl)
-subsets `θ.θi`, which can also be dereferenced like `θ[Symbol("θ",i)]`. Thus the additional
+subsets `θ.depvar_i`, which can also be dereferenced like `θ[Symbol(:depvar_,i)]`. Thus the additional
 loss looks like:
 
 ```@example param_estim
 function additional_loss(phi, θ , p)
-    return sum(sum(abs2, phi[i](t_ , θ[Symbol("θ",i)]) .- u_[[i], :])/len for i in 1:1:3)
+    return sum(sum(abs2, phi[i](t_ , θ[Symbol(:depvar_,i)]) .- u_[[i], :])/len for i in 1:1:3)
 end
 ```
 
@@ -88,8 +88,8 @@ If Flux neural network is used, then the subsetting must be computed manually as
 is simply a vector. This looks like:
 
 ```@example param_estim
-initθs = [Flux.destructure(c)[1] for c in [chain1,chain2,chain3]]
-acum =  [0;accumulate(+, length.(initθs))]
+init_params = [Flux.destructure(c)[1] for c in [chain1,chain2,chain3]]
+acum =  [0;accumulate(+, length.(init_params))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 (u_ , t_) = data
 len = length(data[2])
@@ -118,7 +118,7 @@ p_ = res.u[end-2:end] # p_ = [9.93, 28.002, 2.667]
 And then finally some analyisis by plotting.
 
 ```@example param_estim
-minimizers = [res.u.θ[Symbol("θ",i)] for s in sep]
+minimizers = [res.u.depvar[Symbol(:depvar_,i)] for s in sep]
 ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
 u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
 plot(sol)

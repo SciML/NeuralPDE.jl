@@ -127,7 +127,7 @@ And some analysis:
 using Plots
 
 ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-minimizers_ = [res.u.θ[Symbol("θ",i)] for i in 1:length(chain)]
+minimizers_ = [res.u.depvar[Symbol(:depvar_,i)] for i in 1:length(chain)]
 
 u1_real(t,x) = exp(-t)*sin(pi*x)
 u2_real(t,x) = exp(-t)*cos(pi*x)

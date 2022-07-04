@@ -60,7 +60,7 @@ chain2 = Lux.Chain(Dense(2,inner_,af),
                    Dense(inner_,inner_,af),
                    Dense(inner_,1))
 
-initθ2 = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain)[1]))
+init_params2 = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain)[1]))
 
 # the rule by which the training will take place is described here in loss function
 function loss(cord,θ)
@@ -69,7 +69,7 @@ end
 
 strategy = NeuralPDE.GridTraining(0.02)
 
-prob_ = NeuralPDE.neural_adapter(loss, initθ2, pde_system, strategy)
+prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy)
 callback = function (p,l)
     println("Current loss is: $l")
     return false
@@ -134,7 +134,7 @@ count_decomp = 10
 af = Lux.tanh
 inner = 10
 chains = [Lux.Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1)) for _ in 1:count_decomp]
-initθs = map(c->Float64.(ComponentArray(Lux.setup(Random.default_rng(), c)[1])),chains)
+init_params = map(c->Float64.(ComponentArray(Lux.setup(Random.default_rng(), c)[1])),chains)
 
 xs_ = infimum(x_domain):1/count_decomp:supremum(x_domain)
 xs_domain = [(xs_[i], xs_[i+1]) for i in 1:length(xs_)-1]
@@ -177,7 +177,7 @@ for i in 1:count_decomp
     push!(pde_system_map,pde_system_)
     strategy = NeuralPDE.GridTraining([0.1/count_decomp, 0.1])
 
-    discretization = NeuralPDE.PhysicsInformedNN(chains[i], strategy; init_params=initθs[i])
+    discretization = NeuralPDE.PhysicsInformedNN(chains[i], strategy; init_params=init_params[i])
 
     prob = NeuralPDE.discretize(pde_system_,discretization)
     symprob = NeuralPDE.symbolic_discretize(pde_system_,discretization)
@@ -225,7 +225,7 @@ chain2 = Lux.Chain(Dense(2,inner_,af),
                    Dense(inner_,inner_,af),
                    Dense(inner_,1))
 
-initθ2 = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain2)[1]))
+init_params2 = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain2)[1]))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
@@ -238,7 +238,7 @@ callback = function (p,l)
     return false
 end
 
-prob_ = NeuralPDE.neural_adapter(losses,initθ2, pde_system_map,NeuralPDE.GridTraining([0.1/count_decomp,0.1]))
+prob_ = NeuralPDE.neural_adapter(losses,init_params2, pde_system_map,NeuralPDE.GridTraining([0.1/count_decomp,0.1]))
 res_ = Optimization.solve(prob_, BFGS();callback = callback, maxiters=2000)
 prob_ = NeuralPDE.neural_adapter(losses,res_.minimizer, pde_system_map, NeuralPDE.GridTraining([0.05/count_decomp,0.05]))
 res_ = Optimization.solve(prob_, BFGS();callback = callback,  maxiters=1000)

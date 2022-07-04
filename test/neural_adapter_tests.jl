@@ -37,10 +37,10 @@ af = Flux.tanh
 chain1 = Chain(Dense(2, inner, af),
                Dense(inner, inner, af),
                Dense(inner, 1)) |> f64
-initθ = Flux.destructure(chain1)[1]
+init_params = Flux.destructure(chain1)[1]
 discretization = NeuralPDE.PhysicsInformedNN(chain1,
                                              quadrature_strategy;
-                                             init_params = initθ)
+                                             init_params = init_params)
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
@@ -55,7 +55,7 @@ chain2 = Lux.Chain(Lux.Dense(2, inner_, af),
                    Lux.Dense(inner_, inner_, af),
                    Lux.Dense(inner_, 1))
 initp, st = Lux.setup(Random.default_rng(), chain2)
-initθ2 = Float64.(ComponentArrays.ComponentArray(initp))
+init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
 
 function loss(cord, θ)
     global st
@@ -75,7 +75,7 @@ strategies1 = [grid_strategy, quadrature_strategy]
 
 reses_1 = map(strategies1) do strategy_
     println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
-    prob_ = NeuralPDE.neural_adapter(loss, initθ2, pde_system, strategy_)
+    prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
     res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(0.01); maxiters = 8000)
     prob_ = remake(prob_, u0 = res_.minimizer)
     res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 200)
@@ -83,7 +83,7 @@ end
 strategies2 = [stochastic_strategy, quasirandom_strategy]# quasirandom_strategy_resampling]
 reses_2 = map(strategies2) do strategy_
     println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
-    prob_ = NeuralPDE.neural_adapter(loss, initθ2, pde_system, strategy_)
+    prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
     res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(0.01); maxiters = 8000)
     prob_ = remake(prob_, u0 = res_.minimizer)
     res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 200)
@@ -156,8 +156,8 @@ af = Flux.tanh
 inner = 12
 chains = [Lux.Chain(Lux.Dense(2, inner, af), Lux.Dense(inner, inner, af),
                     Lux.Dense(inner, 1)) for _ in 1:count_decomp]
-initθs = map(c -> Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
-                                                                    c)[1])), chains)
+init_params = map(c -> Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+                                                                         c)[1])), chains)
 
 xs_ = infimum(x_domain):(1 / count_decomp):supremum(x_domain)
 xs_domain = [(xs_[i], xs_[i + 1]) for i in 1:(length(xs_) - 1)]
@@ -203,7 +203,7 @@ for i in 1:count_decomp
     strategy = NeuralPDE.GridTraining([0.1 / count_decomp, 0.1])
 
     discretization = NeuralPDE.PhysicsInformedNN(chains[i], strategy;
-                                                 init_params = initθs[i])
+                                                 init_params = init_params[i])
 
     prob = NeuralPDE.discretize(pde_system_, discretization)
     symprob = NeuralPDE.symbolic_discretize(pde_system_, discretization)
@@ -264,19 +264,19 @@ chain2 = Lux.Chain(Lux.Dense(2, inner_, af),
                    Lux.Dense(inner_, 1))
 
 initp, st = Lux.setup(Random.default_rng(), chain2)
-initθ2 = Float64.(ComponentArrays.ComponentArray(initp))
+init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
 losses = map(1:count_decomp) do i
-    function loss(cord, θ) 
+    function loss(cord, θ)
         global st
         ch2, st = chain2(cord, θ, st)
         ch2 .- phis[i](cord, reses[i].u)
     end
 end
 
-prob_ = NeuralPDE.neural_adapter(losses, initθ2, pde_system_map,
+prob_ = NeuralPDE.neural_adapter(losses, init_params2, pde_system_map,
                                  NeuralPDE.GridTraining([0.1 / count_decomp, 0.1]))
 res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 2000)
 @show res_.minimum

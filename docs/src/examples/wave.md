@@ -177,7 +177,7 @@ analytic_sol_func(t,x) = sum([sin((k * π * x) / L) * exp(-v^2 * b * t / 2) * (a
 anim = @animate for t ∈ ts
     @info "Time $t..."
     sol =  [analytic_sol_func(t, x) for x in xs]
-    sol_p =  [first(phi([t,x], res.u.θ.θ1)) for x in xs]
+    sol_p =  [first(phi([t,x], res.u.depvar.depvar_1)) for x in xs]
     plot(sol, label="analytic", ylims=[0, 0.1])
     title = @sprintf("t = %.3f", t)
     plot!(sol_p, label="predict", ylims=[0, 0.1], title=title)
@@ -186,7 +186,8 @@ gif(anim, "1Dwave_damped_adaptive.gif", fps=200)
 
 # Surface plot
 ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-u_predict = reshape([first(phi([t,x], res.u)) for t in ts for x in xs], (length(ts), length(xs)))
+u_predict = reshape([first(phi([t,x], res.u.depvar.depvar_1)) for 
+                        t in ts for x in xs], (length(ts), length(xs)))
 u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs], (length(ts), length(xs)))
 
 diff_u = abs.(u_predict .- u_real)

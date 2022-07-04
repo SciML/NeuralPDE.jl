@@ -19,7 +19,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 * `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.AbstractExplicitLayer`.
 * `opt`: The optimizer to train the neural network. Defaults to `OptimizationPolyalgorithms.PolyOpt()`
-* `initθ`: The initial parameter of the neural network. By default this is `nothing`
+* `init_params`: The initial parameter of the neural network. By default this is `nothing`
   which thus uses the random initialization provided by the neural network library.
 
 ## Keyword Arguments
@@ -67,7 +67,7 @@ struct NNODE{C, O, P, B, K, S <: Union{Nothing, AbstractTrainingStrategy}} <:
        NeuralPDEAlgorithm
     chain::C
     opt::O
-    initθ::P
+    init_params::P
     autodiff::Bool
     batch::B
     strategy::S
@@ -103,24 +103,24 @@ mutable struct ODEPhi{C, T, U, S}
     end
 end
 
-function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, initθ::Nothing)
+function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params::Nothing)
     θ, st = Lux.setup(Random.default_rng(), chain)
     ODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(θ)
 end
 
-function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, initθ)
+function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
-    ODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(initθ)
+    ODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(init_params)
 end
 
-function generate_phi_θ(chain::Flux.Chain, t, u0, initθ::Nothing)
+function generate_phi_θ(chain::Flux.Chain, t, u0, init_params::Nothing)
     θ, re = Flux.destructure(chain)
     ODEPhi(re, t, u0), θ
 end
 
-function generate_phi_θ(chain::Flux.Chain, t, u0, initθ)
+function generate_phi_θ(chain::Flux.Chain, t, u0, init_params)
     θ, re = Flux.destructure(chain)
-    ODEPhi(re, t, u0), initθ
+    ODEPhi(re, t, u0), init_params
 end
 
 function (f::ODEPhi{C, T, U})(t::Number,
@@ -333,10 +333,10 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     autodiff = alg.autodiff
 
     #train points generation
-    initθ = alg.initθ
+    init_params = alg.init_params
 
     if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
-        phi, initθ = generate_phi_θ(chain, t0, u0, initθ)
+        phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
     else
         error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
     end
@@ -346,7 +346,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     end
 
     try
-        phi(t0, initθ)
+        phi(t0, init_params)
     catch err
         if isa(err, DimensionMismatch)
             throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
@@ -387,7 +387,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         l < abstol
     end
 
-    optprob = OptimizationProblem(optf, initθ)
+    optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     #solutions at timepoints

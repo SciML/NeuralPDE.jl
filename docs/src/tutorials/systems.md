@@ -151,7 +151,7 @@ function loss_function(θ,p)
 end
 
 f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
-prob = Optimization.OptimizationProblem(f_, sym_prob.flat_initθ)
+prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
 
 res = Optimization.solve(prob,OptimizationOptimJL.BFGS(); callback = callback, maxiters=5000)
 ```
@@ -166,7 +166,7 @@ using Plots
 phi = discretization.phi
 ts,xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 
-minimizers_ = [res.u.θ[Symbol("θ",i)] for i in 1:3]
+minimizers_ = [res.u.depvar[Symbol(:depvar_,i)] for i in 1:3]
 
 analytic_sol_func(t,x) = [exp(-t)*sin(pi*x), exp(-t)*cos(pi*x), (1+pi^2)*exp(-t)]
 u_real  = [[analytic_sol_func(t,x)[i] for t in ts for x in xs] for i in 1:3]
@@ -189,9 +189,9 @@ end
 
 Notice here that the solution is represented in the `OptimizationSolution` with `u` as
 the parameters for the trained neural network. But, for the case where the neural network
-is from Lux.jl, it's given as a `ComponentArray` where `res.u.θ.θi` corresponds to the result
-for the ith neural network, i.e. `res.u.θ.θ1` are the trained parameters for `phi[1]`. For
-simpler indexing, you can use `res.u.θ[:θ1]` or `res.u.θ[Symbol("θ",1)]` as shown here.
+is from Lux.jl, it's given as a `ComponentArray` where `res.u.depvar.depvar_i` corresponds to the result
+for the ith neural network, i.e. `res.u.depvar.depvar_1` are the trained parameters for `phi[1]`. For
+simpler indexing, you can use `res.u.depvar[:depvar_1]` or `res.u.depvar[Symbol(:depvar_,1)]` as shown here.
 Subsetting the array also works, but is inelegant.
 
 (If `param_estim == true`, then `res.u.p` are the fit parameters)
@@ -199,8 +199,8 @@ Subsetting the array also works, but is inelegant.
 If Flux.jl is used, then subsetting the array is required. This looks like:
 
 ```julia
-initθs = [Flux.destructure(c)[1] for c in chain]
-acum =  [0;accumulate(+, length.(initθs))]
+init_params = [Flux.destructure(c)[1] for c in chain]
+acum =  [0;accumulate(+, length.(init_params))]
 sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 minimizers_ = [res.minimizer[s] for s in sep]
 ```

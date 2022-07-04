@@ -59,7 +59,7 @@ function norm_loss_function(phi,θ,p)
     function inner_f(x,θ)
          dx*phi(x, θ) .- 1
     end
-    prob = QuadratureProblem(inner_f, lb, ub, θ)
+    prob = IntegralProblem(inner_f, lb, ub, θ)
     norm2 = solve(prob, HCubatureJL(), reltol = 1e-8, abstol = 1e-8, maxiters =10);
     abs(norm2[1])
 end

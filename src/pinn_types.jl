@@ -114,7 +114,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
 
             if chain isa AbstractArray
                 if chain[1] isa Flux.Chain
-                    initθ = map(chain) do x
+                    init_params = map(chain) do x
                         _x = Flux.destructure(x)[1]
                     end
                 else
@@ -123,32 +123,34 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                                                                       x)[1])
                         Float64.(_x) # No ComponentArray GPU support
                     end
-                    names = ntuple(i -> Symbol("θ", i), length(chain))
-                    initθ = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in x))
+                    names = ntuple(i -> Symbol("depvar_", i), length(chain))
+                    init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
+                                                                                   for i in x))
                 end
             else
                 if chain isa Flux.Chain
-                    initθ = Flux.destructure(chain)[1]
-                    initθ = initθ isa Array ? Float64.(initθ) : initθ
+                    init_params = Flux.destructure(chain)[1]
+                    init_params = init_params isa Array ? Float64.(init_params) :
+                                  init_params
                 else
-                    initθ = Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
-                                                                              chain)[1]))
+                    init_params = Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+                                                                                    chain)[1]))
                 end
             end
         else
-            initθ = init_params
+            init_params = init_params
         end
 
         multioutput = typeof(chain) <: AbstractArray
 
-        type_initθ = if multioutput
-            if typeof(initθ) <: ComponentArrays.ComponentArray
-                Base.promote_typeof(initθ)
+        type_init_params = if multioutput
+            if typeof(init_params) <: ComponentArrays.ComponentArray
+                Base.promote_typeof(init_params)
             else
-                map(Base.promote_typeof, initθ)[1]
+                map(Base.promote_typeof, init_params)[1]
             end
         else
-            Base.promote_typeof(initθ)
+            Base.promote_typeof(init_params)
         end
 
         if phi === nothing
@@ -168,7 +170,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
         end
 
         if !(typeof(adaptive_loss) <: AbstractAdaptiveLoss)
-            floattype = eltype(type_initθ)
+            floattype = eltype(type_init_params)
             if floattype <: Vector
                 floattype = eltype(floattype)
             end
@@ -182,10 +184,10 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             self_increment = true
         end
 
-        new{typeof(strategy), typeof(initθ), typeof(_phi), typeof(_derivative),
+        new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
             typeof(param_estim),
             typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(strategy,
-                                                                                            initθ,
+                                                                                            init_params,
                                                                                             _phi,
                                                                                             _derivative,
                                                                                             param_estim,
@@ -283,18 +285,19 @@ mutable struct PINNRepresentation
     The initial parameters as provided by the user. If the PDE is a system of PDEs, this
     will be an array of arrays. If Lux.jl is used, then this is an array of ComponentArrays.
     """
-    initθ::Any
+    init_params::Any
     """
     The initial parameters as a flattened array. This is the array that is used in the
     construction of the OptimizationProblem. If a Lux.jl neural network is used, then this
     flattened form is a `ComponentArray`. If the equation is a system of equations, then
-    `flat_initθ.θi` are the parameters for `phi[i]`. If `param_estim = true`, then
-    `flat_initθ.p` are the parameters and `flat_initθ.θ` are the neural network parameters,
-    and `flat_initθ.θ.θ1` would be the parameters of the first neural network if it's a
-    system. If a Flux.jl neural network is used, this is simply an `AbstractArray` to be
-    indexed and the sizes from the chains must be remembered/stored/used.
+    `flat_init_params.depvar.depvar_i` are the parameters for `phi[i]`. If `param_estim = true`, 
+    then `flat_init_params.p` are the parameters and `flat_init_params.depvar.depvar_i` are the neural 
+    network parameters, so `flat_init_params.depvar.depvar_1` would be the parameters of the 
+    first neural network if it's a system. If a Flux.jl neural network is used, this is 
+    simply an `AbstractArray` to be indexed and the sizes from the chains must be 
+    remembered/stored/used.
     """
-    flat_initθ::Any
+    flat_init_params::Any
     """
     The representation of the test function of the PDE solution
     """

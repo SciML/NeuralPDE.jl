@@ -39,7 +39,7 @@ chain = Lux.Chain(Lux.Dense(1, inn, Lux.σ),
                   Lux.Dense(inn, inn, Lux.σ),
                   Lux.Dense(inn, inn, Lux.σ),
                   Lux.Dense(inn, 1))
-initθ = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain)[1]))
+init_params = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain)[1]))
 
 lb = [x_0]
 ub = [x_end]
@@ -51,11 +51,11 @@ function norm_loss_function(phi, θ, p)
     norm2 = solve(prob, HCubatureJL(), reltol = 1e-8, abstol = 1e-8, maxiters = 10)
     abs(norm2[1])
 end
-# norm_loss_function(phi,initθ,nothing)
+# norm_loss_function(phi,init_params,nothing)
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              NeuralPDE.GridTraining(dx);
-                                             init_params = initθ,
+                                             init_params = init_params,
                                              additional_loss = norm_loss_function)
 
 @named pde_system = PDESystem(eq, bcs, domains, [x], [p(x)])
@@ -167,35 +167,37 @@ end
 data = getData(sol)
 
 #Additional Loss Function
-initθs = [Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain[i])[1]))
-          for i in 1:3]
-names = ntuple(i -> Symbol("θ", i), length(initθs))
-flat_initθ = ComponentArray(NamedTuple{names}(i for i in initθs))
+init_params = [Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain[i])[1]))
+               for i in 1:3]
+names = ntuple(i -> Symbol(:depvar_, i), length(init_params))
+flat_init_params = ComponentArray(NamedTuple{names}(i for i in init_params))
 
-acum = [0; accumulate(+, length.(initθs))]
+acum = [0; accumulate(+, length.(init_params))]
 sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
 (u_, t_) = data
 len = length(data[2])
 
 function additional_loss(phi, θ, p)
-    return sum(sum(abs2, phi[i](t_, getproperty(θ, Symbol("θ", i))) .- u_[[i], :]) / len
+    return sum(sum(abs2, phi[i](t_, getproperty(θ, Symbol(:depvar_, i))) .- u_[[i], :]) /
+               len
                for i in 1:1:3)
 end
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              NeuralPDE.GridTraining(dt);
-                                             init_params = flat_initθ,
+                                             init_params = flat_init_params,
                                              param_estim = true,
                                              additional_loss = additional_loss)
 
-additional_loss(discretization.phi, flat_initθ, nothing)
+additional_loss(discretization.phi, flat_init_params, nothing)
 
 @named pde_system = PDESystem(eqs, bcs, domains,
                               [t], [x(t), y(t), z(t)], [σ_, ρ, β],
                               defaults = Dict([p => 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-sym_prob.loss_functions.full_loss_function(ComponentArray(θ = flat_initθ, p = ones(3)),
+sym_prob.loss_functions.full_loss_function(ComponentArray(θ = flat_init_params,
+                                                          p = ones(3)),
                                            Float64[])
 
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 6000)
@@ -211,14 +213,14 @@ discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              param_estim = true,
                                              additional_loss = additional_loss)
 
-additional_loss(discretization.phi, flat_initθ, nothing)
+additional_loss(discretization.phi, flat_init_params, nothing)
 
 @named pde_system = PDESystem(eqs, bcs, domains,
                               [t], [x(t), y(t), z(t)], [σ_, ρ, β],
                               defaults = Dict([p => 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-sym_prob.loss_functions.full_loss_function(sym_prob.flat_initθ, nothing)
+sym_prob.loss_functions.full_loss_function(sym_prob.flat_init_params, nothing)
 
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 6000)
 p_ = res.minimizer[(end - 2):end]
@@ -227,8 +229,8 @@ p_ = res.minimizer[(end - 2):end]
 @test sum(abs2, p_[3] - (8 / 3)) < 0.1
 
 #Plotting the system
-# initθ = discretization.init_params
-# acum =  [0;accumulate(+, length.(initθ))]
+# init_params = discretization.init_params
+# acum =  [0;accumulate(+, length.(init_params))]
 # sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
 # minimizers = [res.minimizer[s] for s in sep]
 # ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
@@ -267,8 +269,8 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, strategy;
                                              additional_loss = additional_loss_)
 
 phi = discretization.phi
-phi(xs, initθ)
-additional_loss_(phi, initθ, nothing)
+phi(xs, init_params)
+additional_loss_(phi, init_params, nothing)
 
 @named pde_system = PDESystem(eq, bc, domain, [x], [u(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
