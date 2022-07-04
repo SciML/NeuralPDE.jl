@@ -272,7 +272,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, strategy;
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
-flat_init_params = discretization.flat_init_params
+flat_init_params = sym_prob.flat_init_params
 phi = discretization.phi
 phi(xs, flat_init_params)
 additional_loss_(phi, flat_init_params, nothing)
