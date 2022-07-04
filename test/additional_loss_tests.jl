@@ -268,6 +268,7 @@ end
 discretization = NeuralPDE.PhysicsInformedNN(chain, strategy;
                                              additional_loss = additional_loss_)
 
+init_params = discretization.init_params
 phi = discretization.phi
 phi(xs, init_params)
 additional_loss_(phi, init_params, nothing)
