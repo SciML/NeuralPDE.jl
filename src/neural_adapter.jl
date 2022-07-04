@@ -102,14 +102,18 @@ function get_loss_function_(loss, init_params, pde_system, strategy::QuadratureT
 end
 
 """
-the method that trains a neural network using the results from one already obtained prediction.
+```julia
+neural_adapter(loss, init_params, pde_system, strategy) 
+```
 
-Arguments:
+Trains a neural network using the results from one already obtained prediction.
+
+## Positional Arguments
+
 * `loss`: the body of loss function,
 * `init_params`: the initial parameter of the neural network,,
 * `pde_system`: PDEs are defined using the ModelingToolkit.jl,
 * `strategy`: determines which training strategy will be used.
-
 """
 function neural_adapter end
 

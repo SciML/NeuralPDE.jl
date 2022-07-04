@@ -1,4 +1,15 @@
 """
+```julia
+GridTraining(dx)
+```
+
+A training strategy that uses the grid points in a multidimensional grid
+with spacings `dx`. If the grid is multidimensional, then `dx` is expected
+to be an array of `dx` values matching the dimension of the domain,
+corresponding to the grid spacing in each dimension.
+
+## Positional Arguments
+
 * `dx`: the discretization of the grid.
 """
 struct GridTraining{T} <: AbstractTrainingStrategy
@@ -36,8 +47,18 @@ function get_loss_function(loss_function, train_set, eltypeθ, strategy::GridTra
 end
 
 """
-* `points`: number of points in random select training set,
-* `bcs_points`: number of points in random select training set for boundry conditions (by default, it equals `points`).
+```julia
+StochasticTraining(points; bcs_points = points)
+```
+
+## Postional Arguments
+
+* `points`: number of points in random select training set
+
+## Keyword Arguments
+
+* `bcs_points`: number of points in random select training set for boundry conditions 
+  (by default, it equals `points`).
 """
 struct StochasticTraining <: AbstractTrainingStrategy
     points::Int64
@@ -95,8 +116,23 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::StochasticT
 end
 
 """
-* `points`:  the number of quasi-random points in a sample,
-* `bcs_points`: the number of quasi-random points in a sample for boundry conditions (by default, it equals `points`),
+```julia
+QuasiRandomTraining(points; bcs_points = points,
+                            sampling_alg = LatinHypercubeSample(), resampling = true,
+                            minibatch = 0)
+```
+
+A training strategy which uses quasi-Monte Carlo sampling for low discrepency sequences
+that accelerate the convergence in high dimensional spaces over pure random sequences.
+
+## Positional Arguments
+
+* `points`:  the number of quasi-random points in a sample
+
+## Keyword Arguments
+
+* `bcs_points`: the number of quasi-random points in a sample for boundry conditions 
+  (by default, it equals `points`),
 * `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
 * `resampling`: if it's false - the full training set is generated in advance before training,
    and at each iteration, one subset is randomly selected out of the batch.
@@ -104,7 +140,7 @@ end
    points is generated directly at each iteration in runtime. In this case `minibatch` has no effect,
 * `minibatch`: the number of subsets, if resampling == false.
 
-For more information look: QuasiMonteCarlo.jl https://github.com/SciML/QuasiMonteCarlo.jl
+For more information, see [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl)
 """
 struct QuasiRandomTraining <: AbstractTrainingStrategy
     points::Int64
@@ -201,13 +237,28 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
 end
 
 """
+```julia
+QuadratureTraining(; quadrature_alg = CubatureJLh(), 
+                     reltol = 1e-6, abstol = 1e-3,
+                     maxiters = 1_000, batch = 100)
+```
+
+A training strategy which treats the loss function as the integral of
+||condition|| over the domain. Uses an Integrals.jl algorithm for
+computing the (adaptive) quadrature of this loss with respect to the
+chosen tolerances with a batching `batch` corresponding to the maximum
+number of points to evaluate in a given integrand call.
+
+## Keyword Arguments
+
 * `quadrature_alg`: quadrature algorithm,
 * `reltol`: relative tolerance,
 * `abstol`: absolute tolerance,
 * `maxiters`: the maximum number of iterations in quadrature algorithm,
 * `batch`: the preferred number of points to batch.
 
-For more information look: Integrals.jl https://github.com/SciML/Integrals.jl
+For more information on the argument values and algorithm choices, see 
+[Integrals.jl](https://github.com/SciML/Integrals.jl).
 """
 struct QuadratureTraining{Q <: SciMLBase.AbstractIntegralAlgorithm, T} <:
        AbstractTrainingStrategy
