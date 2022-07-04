@@ -268,14 +268,14 @@ end
 discretization = NeuralPDE.PhysicsInformedNN(chain, strategy;
                                              additional_loss = additional_loss_)
 
-init_params = discretization.init_params
-phi = discretization.phi
-phi(xs, init_params)
-additional_loss_(phi, init_params, nothing)
-
 @named pde_system = PDESystem(eq, bc, domain, [x], [u(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+
+flat_init_params = discretization.flat_init_params
+phi = discretization.phi
+phi(xs, flat_init_params)
+additional_loss_(phi, flat_init_params, nothing)
 
 res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01), maxiters = 500)
 prob = remake(prob, u0 = res.minimizer)
