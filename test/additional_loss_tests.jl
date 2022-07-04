@@ -169,7 +169,7 @@ data = getData(sol)
 #Additional Loss Function
 init_params = [Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain[i])[1]))
                for i in 1:3]
-names = (:x,:y,:z)
+names = (:x, :y, :z)
 flat_init_params = ComponentArray(NamedTuple{names}(i for i in init_params))
 
 acum = [0; accumulate(+, length.(init_params))]

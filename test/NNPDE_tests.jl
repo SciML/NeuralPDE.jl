@@ -416,7 +416,7 @@ phi = discretization.phi
 analytic_sol_func(x, y) = [1 / 3 * (6x - y), 1 / 2 * (6x - y)]
 xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_real = [[analytic_sol_func(x, y)[i] for x in xs for y in ys] for i in 1:2]
-depvars = [:u1,:u2]
+depvars = [:u1, :u2]
 
 u_predict = [[phi[i]([x, y], res.u.depvar[depvars[i]])[1] for x in xs for y in ys]
              for i in 1:2]
