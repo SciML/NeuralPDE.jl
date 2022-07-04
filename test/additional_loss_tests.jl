@@ -196,7 +196,7 @@ additional_loss(discretization.phi, flat_init_params, nothing)
                               defaults = Dict([p => 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-sym_prob.loss_functions.full_loss_function(ComponentArray(θ = flat_init_params,
+sym_prob.loss_functions.full_loss_function(ComponentArray(depvar = flat_init_params,
                                                           p = ones(3)),
                                            Float64[])
 
