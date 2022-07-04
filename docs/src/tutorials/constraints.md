@@ -65,7 +65,7 @@ function norm_loss_function(phi,θ,p)
 end
 
 discretization = PhysicsInformedNN(chain,
-                                   GridTraining(dx)
+                                   GridTraining(dx),
                                    additional_loss=norm_loss_function)
 
 @named pdesystem = PDESystem(eq,bcs,domains,[x],[p(x)])
