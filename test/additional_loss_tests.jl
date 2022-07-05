@@ -169,7 +169,7 @@ data = getData(sol)
 #Additional Loss Function
 init_params = [Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain[i])[1]))
                for i in 1:3]
-names = ntuple(i -> Symbol(:depvar_, i), length(init_params))
+names = (:x, :y, :z)
 flat_init_params = ComponentArray(NamedTuple{names}(i for i in init_params))
 
 acum = [0; accumulate(+, length.(init_params))]
@@ -178,7 +178,7 @@ sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
 len = length(data[2])
 
 function additional_loss(phi, θ, p)
-    return sum(sum(abs2, phi[i](t_, getproperty(θ, Symbol(:depvar_, i))) .- u_[[i], :]) /
+    return sum(sum(abs2, phi[i](t_, getproperty(θ, names[i])) .- u_[[i], :]) /
                len
                for i in 1:1:3)
 end
@@ -268,14 +268,14 @@ end
 discretization = NeuralPDE.PhysicsInformedNN(chain, strategy;
                                              additional_loss = additional_loss_)
 
-init_params = discretization.init_params
-phi = discretization.phi
-phi(xs, init_params)
-additional_loss_(phi, init_params, nothing)
-
 @named pde_system = PDESystem(eq, bc, domain, [x], [u(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+
+flat_init_params = sym_prob.flat_init_params
+phi = discretization.phi
+phi(xs, flat_init_params)
+additional_loss_(phi, flat_init_params, nothing)
 
 res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01), maxiters = 500)
 prob = remake(prob, u0 = res.minimizer)

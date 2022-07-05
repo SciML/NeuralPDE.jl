@@ -78,6 +78,7 @@ methodology.
 * `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on `solve`.
 """
 struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
+    chain::Any
     strategy::T
     init_params::P
     phi::PH
@@ -104,54 +105,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                                            log_options = LogOptions(),
                                            iteration = nothing,
                                            kwargs...) where {iip}
-        if init_params === nothing
-
-            # Use the initialization of the neural network framework
-            # But for Lux, default to Float64
-            # For Flux, default to the types matching the values in the neural network
-            # This is done because Float64 is almost always better for these applications
-            # But with Flux there's already a chosen type from the user
-
-            if chain isa AbstractArray
-                if chain[1] isa Flux.Chain
-                    init_params = map(chain) do x
-                        _x = Flux.destructure(x)[1]
-                    end
-                else
-                    x = map(chain) do x
-                        _x = ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
-                                                                      x)[1])
-                        Float64.(_x) # No ComponentArray GPU support
-                    end
-                    names = ntuple(i -> Symbol("depvar_", i), length(chain))
-                    init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
-                                                                                   for i in x))
-                end
-            else
-                if chain isa Flux.Chain
-                    init_params = Flux.destructure(chain)[1]
-                    init_params = init_params isa Array ? Float64.(init_params) :
-                                  init_params
-                else
-                    init_params = Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
-                                                                                    chain)[1]))
-                end
-            end
-        else
-            init_params = init_params
-        end
-
         multioutput = typeof(chain) <: AbstractArray
-
-        type_init_params = if multioutput
-            if typeof(init_params) <: ComponentArrays.ComponentArray
-                Base.promote_typeof(init_params)
-            else
-                map(Base.promote_typeof, init_params)[1]
-            end
-        else
-            Base.promote_typeof(init_params)
-        end
 
         if phi === nothing
             if multioutput
@@ -169,14 +123,6 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             _derivative = derivative
         end
 
-        if !(typeof(adaptive_loss) <: AbstractAdaptiveLoss)
-            floattype = eltype(type_init_params)
-            if floattype <: Vector
-                floattype = eltype(floattype)
-            end
-            adaptive_loss = NonAdaptiveLoss{floattype}()
-        end
-
         if iteration isa Vector{Int64}
             self_increment = false
         else
@@ -186,7 +132,8 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
 
         new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
             typeof(param_estim),
-            typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(strategy,
+            typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(chain,
+                                                                                            strategy,
                                                                                             init_params,
                                                                                             _phi,
                                                                                             _derivative,
@@ -290,10 +237,12 @@ mutable struct PINNRepresentation
     The initial parameters as a flattened array. This is the array that is used in the
     construction of the OptimizationProblem. If a Lux.jl neural network is used, then this
     flattened form is a `ComponentArray`. If the equation is a system of equations, then
-    `flat_init_params.depvar.depvar_i` are the parameters for `phi[i]`. If `param_estim = true`, 
-    then `flat_init_params.p` are the parameters and `flat_init_params.depvar.depvar_i` are the neural 
-    network parameters, so `flat_init_params.depvar.depvar_1` would be the parameters of the 
-    first neural network if it's a system. If a Flux.jl neural network is used, this is 
+    `flat_init_params.depvar.x` are the parameters for the neural network corresponding
+    to the dependent variable `x`, and i.e. if `depvar[i] == :x` then for `phi[i]`. 
+    If `param_estim = true`, then `flat_init_params.p` are the parameters and 
+    `flat_init_params.depvar.x` are the neural network parameters, so 
+    `flat_init_params.depvar.x` would be the parameters of the neural network for the
+    dependent variable `x` if it's a system. If a Flux.jl neural network is used, this is 
     simply an `AbstractArray` to be indexed and the sizes from the chains must be 
     remembered/stored/used.
     """

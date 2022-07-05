@@ -229,11 +229,11 @@ p_real = [analytic_sol_func_[4](x, z) for x in xs for z in zs]
 
 real_ = [u_real, v_real, h_real, p_real]
 
-u_predict = [phi[1]([x, y, z], res.u.depvar.depvar_1)[1] for x in xs for y in ys
+u_predict = [phi[1]([x, y, z], res.u.depvar.u)[1] for x in xs for y in ys
              for z in zs]
-v_predict = [phi[2]([y, x], res.u.depvar.depvar_2)[1] for y in ys for x in xs]
-h_predict = [phi[3]([z], res.u.depvar.depvar_3)[1] for z in zs]
-p_predict = [phi[4]([x, z], res.u.depvar.depvar_4)[1] for x in xs for z in zs]
+v_predict = [phi[2]([y, x], res.u.depvar.v)[1] for y in ys for x in xs]
+h_predict = [phi[3]([z], res.u.depvar.h)[1] for z in zs]
+p_predict = [phi[4]([x, z], res.u.depvar.p)[1] for x in xs for z in zs]
 predict = [u_predict, v_predict, h_predict, p_predict]
 
 for i in 1:4
@@ -369,7 +369,7 @@ analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) 
 
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 u_real = [analytic_sol_func(x) for x in xs]
-u_predict = [first(phi(x, res.u.depvar.depvar_1)) for x in xs]
+u_predict = [first(phi(x, res.u.depvar.u)) for x in xs]
 
 @test u_predict≈u_real atol=10^-4
 
@@ -416,8 +416,9 @@ phi = discretization.phi
 analytic_sol_func(x, y) = [1 / 3 * (6x - y), 1 / 2 * (6x - y)]
 xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_real = [[analytic_sol_func(x, y)[i] for x in xs for y in ys] for i in 1:2]
+depvars = [:u1, :u2]
 
-u_predict = [[phi[i]([x, y], res.u.depvar[Symbol(:depvar_, i)])[1] for x in xs for y in ys]
+u_predict = [[phi[i]([x, y], res.u.depvar[depvars[i]])[1] for x in xs for y in ys]
              for i in 1:2]
 
 @test u_predict[1]≈u_real[1] atol=0.1

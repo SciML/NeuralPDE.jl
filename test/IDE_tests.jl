@@ -5,7 +5,7 @@ using DomainSets, Flux
 import Lux
 
 using Random
-Random.seed!(100)
+Random.seed!(110)
 
 callback = function (p, l)
     println("Current loss is: $l")
@@ -158,8 +158,8 @@ res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 
-u_predict = [(phi[1]([x], res.u.depvar.depvar_1))[1] for x in xs]
-w_predict = [(phi[2]([x], res.u.depvar.depvar_2))[1] for x in xs]
+u_predict = [(phi[1]([x], res.u.depvar.u))[1] for x in xs]
+w_predict = [(phi[2]([x], res.u.depvar.w))[1] for x in xs]
 u_real = [x for x in xs]
 w_real = [1 / x^2 for x in xs]
 @test Flux.mse(u_real, u_predict) < 0.001
