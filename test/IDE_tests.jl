@@ -5,7 +5,7 @@ using DomainSets, Flux
 import Lux
 
 using Random
-Random.seed!(100)
+Random.seed!(110)
 
 callback = function (p, l)
     println("Current loss is: $l")
