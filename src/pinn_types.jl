@@ -39,7 +39,8 @@ PhysicsInformedNN(chain,
                   log_options = LogOptions(),
                   iteration = nothing,
                   kwargs...) where {iip}
-
+```
+    
 A `discretize` algorithm for the ModelingToolkit PDESystem interface which transforms a
 `PDESystem` into an `OptimizationProblem` using the Physics-Informed Neural Networks (PINN)
 methodology.
