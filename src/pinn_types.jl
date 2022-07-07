@@ -72,7 +72,7 @@ methodology.
   hyperparameters of the `OptimizationProblem`. If `param_estim = true`, then `θ` additionally
   contains the parameters of the differential equation appended to the end of the vector.
 * `param_estim`: whether the parameters of the differential equation should be included in
-  the values sent to the `additional_loss` function. Defaults to `true`.
+  the values sent to the `additional_loss` function. Defaults to `false`.
 * `logger`: ?? needs docs
 * `log_options`: ?? why is this separate from the logger?
 * `iteration`: used to control the iteration counter???
