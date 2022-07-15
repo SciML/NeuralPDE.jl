@@ -31,6 +31,78 @@ function VectorOfrMFNChain(in_vec, hid_vec, out_vec, num_layers;
     chains
 end
 
+struct AddedFastChains{CT <: Tuple, IND <: Tuple} <: DiffEqFlux.FastLayer
+    chains::CT
+    param_indices::IND
+
+    function AddedFastChains(chains...)
+        current_index = 1
+        param_indices_vec_current = UnitRange{Int}[]
+        for i in 1:length(chains)
+            next_index = current_index + (DiffEqFlux.paramlength(chains[i]) - 1)
+            push!(param_indices_vec_current, current_index:next_index)
+            current_index = next_index + 1
+        end
+
+        tuple_chains = tuple(chains...)
+        tuple_param_indices = tuple(param_indices_vec_current...)
+        new{typeof(tuple_chains), typeof(tuple_param_indices)}(tuple_chains, tuple_param_indices)
+    end
+end
+
+DiffEqFlux.paramlength(f::AddedFastChains) = f.param_indices[end].stop
+DiffEqFlux.initial_params(f::AddedFastChains) = vcat((DiffEqFlux.initial_params.(f.chains))...)
+function (f::AddedFastChains)(x, p) 
+    sum(
+        f.chains[i](x, @view p[f.param_indices[i]])
+        for i in 1:length(f.chains)
+    )
+end
+
+function add_vector_fast_chains(vector_fast_chains...)
+    length_chains = length(vector_fast_chains[1])
+    for vector_chain in vector_fast_chains[2:end]
+        if length(vector_chain) != length_chains
+            throw("All vectors must have the same length")
+        end
+    end
+
+    chains = map(1:length_chains) do i
+        AddedFastChains([vector_fast_chains[j][i] for j in 1:length(vector_fast_chains)]...)
+    end
+    chains
+end
+
+function VectorOfMLP(input_dims::Vector{Int}, hidden_dims::Int, num_hid_layers::Int, nonlinfunc, initialparamsfunc)
+    fastchains = FastChain[]
+    initialparams = []
+
+    for indim in input_dims # make a fastchain for this output
+        fastchain_array = []
+
+        # first layer
+        if num_hid_layers > 0
+            push!(fastchain_array, FastDense(indim, hidden_dims, nonlinfunc; initW=initialparamsfunc))
+        end
+
+        # hidden-hidden layers
+        for _ in 2:(num_hid_layers - 1)
+            push!(fastchain_array, FastDense(hidden_dims, hidden_dims, nonlinfunc; initW=initialparamsfunc))
+        end
+
+        # final layer, always 1 dim
+        push!(fastchain_array, FastDense(hidden_dims, 1, identity; initW=initialparamsfunc)) 
+        fastchain = FastChain(fastchain_array...)
+        initialparam = DiffEqFlux.initial_params(fastchain)
+
+        push!(fastchains, fastchain)
+        push!(initialparams, initialparam)
+    end
+
+    (fastchains, initialparams)
+end
+
+
 # params:
 # x: R^d_in
 # ω_i: R^(d_h x d_in)

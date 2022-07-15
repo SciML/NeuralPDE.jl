@@ -73,35 +73,12 @@ struct SimpleFeedForwardNetwork{NONLIN, INITIAL_PARAMS} <: AbstractNN
 end
 
 function getfunction(feedforwardspec::SimpleFeedForwardNetwork, inputdims::AbstractVector{Int})
-    fastchains = FastChain[]
-    initialparams = []
-
+    hiddendims = feedforwardspec.hiddendim
+    num_hid_layers = feedforwardspec.numhidlayers
     nonlinfunc = getnonlinfunc(feedforwardspec.nonlin)
     initialparamsfunc = getinitialparamsfunc(feedforwardspec.initial_params)
-
-    for indim in inputdims # make a fastchain for this output
-        fastchain_array = []
-
-        # first layer
-        if feedforwardspec.numhidlayers > 0
-            push!(fastchain_array, FastDense(indim, feedforwardspec.hiddendim, nonlinfunc; initW=initialparamsfunc))
-        end
-
-        # hidden-hidden layers
-        for _ in 2:(feedforwardspec.numhidlayers - 1)
-            push!(fastchain_array, FastDense(feedforwardspec.hiddendim, feedforwardspec.hiddendim, nonlinfunc; initW=initialparamsfunc))
-        end
-
-        # final layer, always 1 dim
-        push!(fastchain_array, FastDense(feedforwardspec.hiddendim, 1, identity; initW=initialparamsfunc)) 
-        fastchain = FastChain(fastchain_array...)
-        initialparam = DiffEqFlux.initial_params(fastchain)
-
-        push!(fastchains, fastchain)
-        push!(initialparams, initialparam)
-    end
-
-    return (fastchains, initialparams)
+    
+    VectorOfMLP(inputdims, hiddendims, num_hid_layers, nonlinfunc, initialparamsfunc)
 end
 
 

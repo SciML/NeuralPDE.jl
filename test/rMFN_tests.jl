@@ -73,15 +73,16 @@ plot(p1,p2,p3)
 
 chain_domains = map(dom->dom.domain, domains) 
 chain_boundary_conditions = [(:dirichlet, :dirichlet), (:dirichlet, :dirichlet)]
-chain_LE_ = VectorOfrMFNChain([2], [5], [1], 5; laplacian_eigenfunctions=true,
-    domains=chain_domains, boundary_conditions=chain_boundary_conditions)[1]
+chains_LE_ = VectorOfrMFNChain([2], [5], [1], 5; laplacian_eigenfunctions=true,
+    domains=chain_domains, boundary_conditions=chain_boundary_conditions)
+chain_LE_ = chains_LE_[1]
 initθ_LE = Float64.(DiffEqFlux.initial_params(chain_LE_))
 discretization_LE = NeuralPDE.PhysicsInformedNN(chain_LE_,
                                                 strategy_;
                                                 init_params = initθ_LE)
 prob_LE = NeuralPDE.discretize(pde_system,discretization_LE)
 sym_prob_LE = NeuralPDE.symbolic_discretize(pde_system,discretization_LE)
-res_LE = GalacticOptim.solve(prob_LE, ADAM(3e-4); maxiters=100_000)
+res_LE = GalacticOptim.solve(prob_LE, ADAM(3e-4); maxiters=1_000)
 phi_LE = discretization_LE.phi
 xis = Float32.([0 1 0.2; 1 0 0.4])
 xi = Float32.([0, 1])
@@ -95,5 +96,17 @@ p2 = plot(xs, ys, u_predict_LE_initial, linetype=:contourf,title = "predict_init
 p3 = plot(xs, ys, u_predict_LE_final, linetype=:contourf,title = "predict_final");
 p4 = plot(xs, ys, diff_u_LE_final,linetype=:contourf,title = "error");
 plot(p1,p2,p3,p4)
+
+
+chains_mlp, init_params_mlp = NeuralPDE.VectorOfMLP([2], 16, 3, Flux.gelu, Flux.glorot_uniform)
+chain_added = NeuralPDE.add_vector_fast_chains(chains_LE_, chains_mlp)[1]
+initθ_added = Float64.(DiffEqFlux.initial_params(chain_added))
+discretization_added = NeuralPDE.PhysicsInformedNN(chain_added,
+                                                strategy_;
+                                                init_params = initθ_added)
+prob_added = NeuralPDE.discretize(pde_system,discretization_added)
+sym_prob_added = NeuralPDE.symbolic_discretize(pde_system,discretization_added)
+res_added = GalacticOptim.solve(prob_added, ADAM(3e-4); maxiters=10_000)
+
 nothing
 
