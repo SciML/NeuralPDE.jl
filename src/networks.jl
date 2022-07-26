@@ -54,7 +54,10 @@ DiffEqFlux.paramlength(f::AddedFastChains) = f.param_indices[end].stop
 DiffEqFlux.initial_params(f::AddedFastChains) = vcat((DiffEqFlux.initial_params.(f.chains))...)
 function (f::AddedFastChains)(x, p) 
     sum(
-        f.chains[i](x, @view p[f.param_indices[i]])
+        begin 
+            inds = f.param_indices[i] 
+            f.chains[i](x, @view p[inds])
+        end
         for i in 1:length(f.chains)
     )
 end
@@ -68,7 +71,7 @@ function add_vector_fast_chains(vector_fast_chains...)
     end
 
     chains = map(1:length_chains) do i
-        AddedFastChains([vector_fast_chains[j][i] for j in 1:length(vector_fast_chains)]...)
+        FastChain(AddedFastChains([vector_fast_chains[j][i] for j in 1:length(vector_fast_chains)]...))
     end
     chains
 end
