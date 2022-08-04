@@ -229,7 +229,7 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
     bound_vars = get_variables(bcs, dict_indvars, dict_depvars)
 
     dif = [eltypeθ[] for i in 1:size(domains)[1]]
-    for _args in bound_args
+    for _args in bound_vars
         for (i, x) in enumerate(_args)
             if x isa Number
                 push!(dif[i], x)
