@@ -372,10 +372,32 @@ end
 
 function get_integration_variables(eqs, dict_indvars, dict_depvars)
     exprs = toexpr.(eqs)
-    vars = map(exprs) do expr
+   # vars = map(exprs) do expr
+   #     _vars = Symbol.(filter(indvar -> length(find_thing_in_expr(expr, indvar)) > 0,
+    #                           sort(collect(keys(dict_indvars)))))
+    # end
+    vars = Vector{Symbol}[]
+    println(typeof(vars))
+    for expr in exprs
+        sorted_dict_by_value = sort(collect(dict_indvars), by = x->x[2])
+        println(sorted_dict_by_value)
+        sorted_indvars = keys(sorted_dict_by_value) 
+        print(sorted_indvars)
+        _vars = Vector{Symbol}()
+        for indvar in sorted_indvars
+            if length(find_thing_in_expr(expr, indvar)) > 0 
+                push!(_vars, indvar)
+            end
+        end
+
         _vars = Symbol.(filter(indvar -> length(find_thing_in_expr(expr, indvar)) > 0,
-                               sort(collect(keys(dict_indvars)))))
+        sort(collect(keys(dict_indvars)))))
+        println(_vars)
+        println(typeof(_vars))
+        push!(vars, _vars)
     end
+    println(vars)
+    println(typeof(vars))
 end
 
 """
