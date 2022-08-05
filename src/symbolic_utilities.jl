@@ -66,7 +66,7 @@ Dict{Symbol,Int64} with 3 entries:
   :u1 => 1
   :u2 => 2
 """
-get_dict_vars(vars) = Dict([Symbol(v) .=> i for (i, v) in enumerate(vars)])
+get_dict_vars(vars) = Dict([Num(v) .=> i for (i, v) in enumerate(vars)])
 
 # Wrapper for _transform_expression
 function transform_expression(pinnrep::PINNRepresentation, ex; is_integral = false,
@@ -343,20 +343,18 @@ function pair(eq, depvars, dict_depvars, dict_depvar_input)
 end
 
 function get_vars(indvars_, depvars_)
-    indvars = ModelingToolkit.getname.(indvars_)
-    depvars = Symbol[]
-    dict_depvar_input = Dict{Symbol, Vector{Symbol}}()
+    depvars = Num[]
+    indvars = indvars_
+    dict_depvar_input = Dict{Num, Vector{Num}}()
     for d in depvars_
         if ModelingToolkit.value(d) isa Term
-            dname = ModelingToolkit.getname(d)
-            push!(depvars, dname)
+            push!(depvars, d)
             push!(dict_depvar_input,
-                  dname => [nameof(ModelingToolkit.value(argument))
+                  d => [argument
                             for argument in ModelingToolkit.value(d).arguments])
         else
-            dname = ModelingToolkit.getname(d)
-            push!(depvars, dname)
-            push!(dict_depvar_input, dname => indvars) # default to all inputs if not given
+            push!(depvars, d)
+            push!(dict_depvar_input, d => indvars) # default to all inputs if not given
         end
     end
 
