@@ -360,6 +360,7 @@ function get_vars(indvars_, depvars_)
 
     dict_indvars = get_dict_vars(indvars)
     dict_depvars = get_dict_vars(depvars)
+
     return depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input
 end
 
@@ -403,14 +404,19 @@ function get_number(eqs, dict_indvars, dict_depvars)
 end
 
 function find_thing_in_expr(ex::Expr, thing; ans = [])
-    if thing in ex.args
-        push!(ans, ex)
+    for arg in ex.args
+        if isequal(thing, arg)
+            push!(ans, ex)
+        end
     end
     for e in ex.args
         if e isa Expr
-            if thing in e.args
-                push!(ans, e)
-            end
+           for arg in e.args
+                if isequal(thing, arg)
+                    push!(ans, e)
+                end
+           end
+
             find_thing_in_expr(e, thing; ans = ans)
         end
     end
