@@ -202,5 +202,5 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractRODEProblem,
     # DiffEqBase.has_analytic(prob.f) &&
     #     DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
     #                                           dense_errors = false)
-    res, phi
+    res, u(t, W) -> phi(t, W, res.u)
 end #solve
