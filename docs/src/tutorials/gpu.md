@@ -115,9 +115,9 @@ Finally we inspect the solution:
 
 ```julia
 phi = discretization.phi
-ts,xs,ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
+ts,xs,ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains] 
 u_real = [analytic_sol_func(t,x,y) for t in ts for x in xs for y in ys]
-u_predict = [first(Array(phi([t, x, y], res.u))) for t in ts for x in xs for y in ys]
+u_predict = [first(Array(phi(gpu([t, x, y]), res.u))) for t in ts for x in xs for y in ys]
 
 using Plots
 using Printf
@@ -127,7 +127,7 @@ function plot_(res)
     anim = @animate for (i, t) in enumerate(0:0.05:t_max)
         @info "Animating frame $i..."
         u_real = reshape([analytic_sol_func(t,x,y) for x in xs for y in ys], (length(xs),length(ys)))
-        u_predict = reshape([Array(phi([t, x, y], res.u))[1] for x in xs for y in ys], length(xs), length(ys))
+        u_predict = reshape([Array(phi(gpu([t, x, y]), res.u))[1] for x in xs for y in ys], length(xs), length(ys))
         u_error = abs.(u_predict .- u_real)
         title = @sprintf("predict, t = %.3f", t)
         p1 = plot(xs, ys, u_predict,st=:surface, label="", title=title)
