@@ -37,7 +37,7 @@ chain = Chain(Dense(3,inner,Lux.σ),
               Dense(inner,inner,Lux.σ),
               Dense(inner,1)) 
 ps = Lux.setup(Random.default_rng(), chain)[1]
-ps = ps |> Lux.ComponentArray .|> Float64 |> gpu
+ps = ps |> Lux.ComponentArray |> gpu .|> Float64
 ```
 
 In total, this looks like:

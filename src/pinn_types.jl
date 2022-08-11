@@ -40,7 +40,7 @@ PhysicsInformedNN(chain,
                   iteration = nothing,
                   kwargs...) where {iip}
 ```
-    
+
 A `discretize` algorithm for the ModelingToolkit PDESystem interface which transforms a
 `PDESystem` into an `OptimizationProblem` using the Physics-Informed Neural Networks (PINN)
 methodology.
@@ -239,12 +239,12 @@ mutable struct PINNRepresentation
     construction of the OptimizationProblem. If a Lux.jl neural network is used, then this
     flattened form is a `ComponentArray`. If the equation is a system of equations, then
     `flat_init_params.depvar.x` are the parameters for the neural network corresponding
-    to the dependent variable `x`, and i.e. if `depvar[i] == :x` then for `phi[i]`. 
-    If `param_estim = true`, then `flat_init_params.p` are the parameters and 
-    `flat_init_params.depvar.x` are the neural network parameters, so 
+    to the dependent variable `x`, and i.e. if `depvar[i] == :x` then for `phi[i]`.
+    If `param_estim = true`, then `flat_init_params.p` are the parameters and
+    `flat_init_params.depvar.x` are the neural network parameters, so
     `flat_init_params.depvar.x` would be the parameters of the neural network for the
-    dependent variable `x` if it's a system. If a Flux.jl neural network is used, this is 
-    simply an `AbstractArray` to be indexed and the sizes from the chains must be 
+    dependent variable `x` if it's a system. If a Flux.jl neural network is used, this is
+    simply an `AbstractArray` to be indexed and the sizes from the chains must be
     remembered/stored/used.
     """
     flat_init_params::Any

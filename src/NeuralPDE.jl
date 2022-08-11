@@ -29,7 +29,6 @@ import Optimisers
 import UnPack: @unpack
 import RecursiveArrayTools
 import ChainRulesCore, Flux, Lux, ComponentArrays
-using CUDA
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
