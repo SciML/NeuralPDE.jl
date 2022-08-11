@@ -100,7 +100,7 @@ callback = function (p,l)
     return false
 end
 
-res = Optimization.solve(prob,Adam(0.01);callback = callback,maxiters=25)
+res = Optimization.solve(prob,Adam(0.01);callback = callback,maxiters=2500)
 ```
 
 We then use the `remake` function allows to rebuild the PDE problem to start a new
