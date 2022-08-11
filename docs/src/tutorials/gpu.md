@@ -86,7 +86,7 @@ chain = Chain(Dense(3,inner,Lux.σ),
 
 strategy = GridTraining(0.05)
 ps = Lux.setup(Random.default_rng(), chain)[1]
-ps = ps |> Lux.ComponentArray .|> Float64 |> gpu
+ps = ps |> Lux.ComponentArray |> gpu .|> Float64
 discretization = PhysicsInformedNN(chain,
                                    strategy,
                                    init_params = ps)
@@ -100,7 +100,7 @@ callback = function (p,l)
     return false
 end
 
-res = Optimization.solve(prob,Adam(0.01);callback = callback,maxiters=2500)
+res = Optimization.solve(prob,Adam(0.01);callback = callback,maxiters=25)
 ```
 
 We then use the `remake` function allows to rebuild the PDE problem to start a new

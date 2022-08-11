@@ -378,9 +378,10 @@ end
 # the method to calculate the derivative
 function numeric_derivative(phi, u, x, εs, order, θ)
     _epsilon = one(eltype(θ)) / cbrt(eps(eltype(θ)))
+    _type = θ isa ComponentArrays.ComponentArray ? parameterless_type(typeof(θ).parameters[3]) : parameterless_type(θ)
     ε = εs[order]
-    ε = adapt(parameterless_type(θ), ε)
-    x = adapt(parameterless_type(θ), x)
+    ε = adapt(_type, ε)
+    x = adapt(_type, x)
 
     # any(x->x!=εs[1],εs)
     # εs is the epsilon for each order, if they are all the same then we use a fancy formula
