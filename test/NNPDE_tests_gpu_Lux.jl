@@ -38,7 +38,7 @@ chain = Chain(Dense(1, inner, Lux.σ),
               Dense(inner, inner, Lux.σ),
               Dense(inner, inner, Lux.σ),
               Dense(inner, inner, Lux.σ),
-              Dense(inner, 1)) |> gpu
+              Dense(inner, 1))
 
 strategy = NeuralPDE.GridTraining(dt)
 ps = Lux.setup(Random.default_rng(), chain)[1] |> Lux.ComponentArray |> gpu .|> Float64
@@ -82,12 +82,12 @@ domains = [t ∈ Interval(0.0, 1.0),
 
 inner = 30
 chain = Lux.Chain(Dense(2, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, 1)) |> gpu
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, 1))
 
 strategy = NeuralPDE.StochasticTraining(500)
 ps = Lux.setup(Random.default_rng(), chain)[1] |> Lux.ComponentArray |> gpu .|> Float64
@@ -139,10 +139,10 @@ domains = [t ∈ Interval(0.0, 1.0),
 
 inner = 20
 chain = Lux.Chain(Dense(2, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, 1)) |> gpu
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, 1))
 
 strategy = NeuralPDE.QuasiRandomTraining(500; #points
                                          sampling_alg = SobolSample(),
@@ -207,10 +207,10 @@ domains = [t ∈ Interval(t_min, t_max),
 # Neural network
 inner = 25
 chain = Lux.Chain(Dense(3, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, inner, Lux.σ),
-                   Dense(inner, 1)) |> gpu
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, inner, Lux.σ),
+                  Dense(inner, 1))
 
 strategy = NeuralPDE.GridTraining(0.05)
 ps = Lux.setup(Random.default_rng(), chain)[1] |> Lux.ComponentArray |> gpu .|> Float64
