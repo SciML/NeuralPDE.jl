@@ -52,5 +52,6 @@ end
     end
     if !is_APPVEYOR && GROUP == "GPU"
         @safetestset "NNPDE_gpu" begin include("NNPDE_tests_gpu.jl") end
+        @safetestset "NNPDE_gpu_Lux" begin include("NNPDE_tests_gpu_Lux.jl") end
     end
 end
