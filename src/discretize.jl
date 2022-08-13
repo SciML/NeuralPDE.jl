@@ -456,8 +456,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             end
         end
     else
-        init_params = Float64.(init_params)
-        discretization.phi.st = adapt(typeof(ComponentArrays.getdata(init_params)), discretization.phi.st)
+        init_params = init_params
     end
 
     if (discretization.phi isa Vector && discretization.phi[1].f isa Optimisers.Restructure) ||
@@ -493,6 +492,16 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     end
 
     phi = discretization.phi
+    datatypeθ = typeof(getdata(flat_init_params))
+
+    if (phi isa Vector && phi[1].f isa Lux.AbstractExplicitLayer)
+        for ϕ in phi
+            ϕ.st = adapt(datatypeθ, ϕ.st)
+        end
+    elseif (!(phi isa Vector) && phi.f isa Lux.AbstractExplicitLayer)
+        phi.st = adapt(datatypeθ, phi.st)
+    end
+
     derivative = discretization.derivative
     strategy = discretization.strategy
 
