@@ -492,7 +492,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     end
 
     phi = discretization.phi
-    datatypeθ = typeof(getdata(flat_init_params))
+    datatypeθ = typeof(ComponentArrays.getdata(flat_init_params))
 
     if (phi isa Vector && phi[1].f isa Lux.AbstractExplicitLayer)
         for ϕ in phi
