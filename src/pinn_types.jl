@@ -378,8 +378,7 @@ end
 # the method to calculate the derivative
 function numeric_derivative(phi, u, x, εs, order, θ)
     _epsilon = one(eltype(θ)) / cbrt(eps(eltype(θ)))
-    _type = θ isa ComponentArrays.ComponentArray ?
-            parameterless_type(ComponentArrays.getdata(θ)) : parameterless_type(θ)
+    _type = parameterless_type(ComponentArrays.getdata(θ))
 
     ε = εs[order]
     ε = adapt(_type, ε)
