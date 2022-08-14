@@ -683,5 +683,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
 end
 
 # Could be upstreamed to ComponentArrays
-Adapt.adapt_storage(::Type{ComponentArrays.ComponentArray{T,N,A,Ax}}, xs::AT) where {T,N,A,Ax,AT<:AbstractArray} =
+function Adapt.adapt_storage(::Type{ComponentArrays.ComponentArray{T, N, A, Ax}},
+                             xs::AT) where {T, N, A, Ax, AT <: AbstractArray}
     Adapt.adapt_storage(A, xs)
+end
