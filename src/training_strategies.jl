@@ -57,7 +57,7 @@ StochasticTraining(points; bcs_points = points)
 
 ## Keyword Arguments
 
-* `bcs_points`: number of points in random select training set for boundry conditions 
+* `bcs_points`: number of points in random select training set for boundry conditions
   (by default, it equals `points`).
 """
 struct StochasticTraining <: AbstractTrainingStrategy
@@ -109,7 +109,7 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::StochasticT
 
     loss = (θ) -> begin
         sets = generate_random_points(points, bound, eltypeθ)
-        sets_ = adapt(parameterless_type(θ), sets)
+        sets_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
         mean(abs2, loss_function(sets_, θ))
     end
     return loss
@@ -131,7 +131,7 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
 
 ## Keyword Arguments
 
-* `bcs_points`: the number of quasi-random points in a sample for boundry conditions 
+* `bcs_points`: the number of quasi-random points in a sample for boundry conditions
   (by default, it equals `points`),
 * `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
 * `resampling`: if it's false - the full training set is generated in advance before training,
@@ -220,7 +220,7 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
     loss = if resampling == true
         θ -> begin
             sets = generate_quasi_random_points(points, bound, eltypeθ, sampling_alg)
-            sets_ = adapt(parameterless_type(θ), sets)
+            sets_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
             mean(abs2, loss_function(sets_, θ))
         end
     else
@@ -229,7 +229,7 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
                     point_batch[i] : point_batch[i][rand(1:minibatch)]
                     for i in 1:length(point_batch)] #TODO
             sets_ = vcat(sets...)
-            sets__ = adapt(parameterless_type(θ), sets_)
+            sets__ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets_)
             mean(abs2, loss_function(sets__, θ))
         end
     end
@@ -238,7 +238,7 @@ end
 
 """
 ```julia
-QuadratureTraining(; quadrature_alg = CubatureJLh(), 
+QuadratureTraining(; quadrature_alg = CubatureJLh(),
                      reltol = 1e-6, abstol = 1e-3,
                      maxiters = 1_000, batch = 100)
 ```
@@ -257,7 +257,7 @@ number of points to evaluate in a given integrand call.
 * `maxiters`: the maximum number of iterations in quadrature algorithm,
 * `batch`: the preferred number of points to batch.
 
-For more information on the argument values and algorithm choices, see 
+For more information on the argument values and algorithm choices, see
 [Integrals.jl](https://github.com/SciML/Integrals.jl).
 """
 struct QuadratureTraining{Q <: SciMLBase.AbstractIntegralAlgorithm, T} <:
@@ -308,7 +308,7 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::Quadrature
             # last_x = x
             # mean(abs2,loss_(x,θ), dims=2)
             # size_x = fill(size(x)[2],(1,1))
-            x = adapt(parameterless_type(θ), x)
+            x = adapt(parameterless_type(ComponentArrays.getdata(θ)), x)
             sum(abs2, loss_(x, θ), dims = 2) #./ size_x
         end
         prob = IntegralProblem(integrand, lb, ub, θ, batch = strategy.batch, nout = 1)

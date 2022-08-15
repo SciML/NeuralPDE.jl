@@ -492,6 +492,15 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     end
 
     phi = discretization.phi
+
+    if (phi isa Vector && phi[1].f isa Lux.AbstractExplicitLayer)
+        for ϕ in phi
+            ϕ.st = adapt(typeof(flat_init_params), ϕ.st)
+        end
+    elseif (!(phi isa Vector) && phi.f isa Lux.AbstractExplicitLayer)
+        phi.st = adapt(typeof(flat_init_params), phi.st)
+    end
+
     derivative = discretization.derivative
     strategy = discretization.strategy
 
@@ -670,4 +679,10 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
     f = OptimizationFunction(pinnrep.loss_functions.full_loss_function,
                              Optimization.AutoZygote())
     Optimization.OptimizationProblem(f, pinnrep.flat_init_params)
+end
+
+# Could be upstreamed to ComponentArrays
+function Adapt.adapt_storage(::Type{ComponentArrays.ComponentArray{T, N, A, Ax}},
+                             xs::AT) where {T, N, A, Ax, AT <: AbstractArray}
+    Adapt.adapt_storage(A, xs)
 end

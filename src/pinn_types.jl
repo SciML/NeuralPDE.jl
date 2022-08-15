@@ -40,7 +40,7 @@ PhysicsInformedNN(chain,
                   iteration = nothing,
                   kwargs...) where {iip}
 ```
-    
+
 A `discretize` algorithm for the ModelingToolkit PDESystem interface which transforms a
 `PDESystem` into an `OptimizationProblem` using the Physics-Informed Neural Networks (PINN)
 methodology.
@@ -239,12 +239,12 @@ mutable struct PINNRepresentation
     construction of the OptimizationProblem. If a Lux.jl neural network is used, then this
     flattened form is a `ComponentArray`. If the equation is a system of equations, then
     `flat_init_params.depvar.x` are the parameters for the neural network corresponding
-    to the dependent variable `x`, and i.e. if `depvar[i] == :x` then for `phi[i]`. 
-    If `param_estim = true`, then `flat_init_params.p` are the parameters and 
-    `flat_init_params.depvar.x` are the neural network parameters, so 
+    to the dependent variable `x`, and i.e. if `depvar[i] == :x` then for `phi[i]`.
+    If `param_estim = true`, then `flat_init_params.p` are the parameters and
+    `flat_init_params.depvar.x` are the neural network parameters, so
     `flat_init_params.depvar.x` would be the parameters of the neural network for the
-    dependent variable `x` if it's a system. If a Flux.jl neural network is used, this is 
-    simply an `AbstractArray` to be indexed and the sizes from the chains must be 
+    dependent variable `x` if it's a system. If a Flux.jl neural network is used, this is
+    simply an `AbstractArray` to be indexed and the sizes from the chains must be
     remembered/stored/used.
     """
     flat_init_params::Any
@@ -356,13 +356,13 @@ mutable struct Phi{C, S}
 end
 
 function (f::Phi{<:Lux.AbstractExplicitLayer})(x::Number, θ)
-    y, st = f.f(adapt(parameterless_type(θ), [x]), θ, f.st)
+    y, st = f.f(adapt(parameterless_type(ComponentArrays.getdata(θ)), [x]), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     y
 end
 
 function (f::Phi{<:Lux.AbstractExplicitLayer})(x::AbstractArray, θ)
-    y, st = f.f(adapt(parameterless_type(θ), x), θ, f.st)
+    y, st = f.f(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     y
 end
@@ -378,9 +378,11 @@ end
 # the method to calculate the derivative
 function numeric_derivative(phi, u, x, εs, order, θ)
     _epsilon = one(eltype(θ)) / cbrt(eps(eltype(θ)))
+    _type = parameterless_type(ComponentArrays.getdata(θ))
+
     ε = εs[order]
-    ε = adapt(parameterless_type(θ), ε)
-    x = adapt(parameterless_type(θ), x)
+    ε = adapt(_type, ε)
+    x = adapt(_type, x)
 
     # any(x->x!=εs[1],εs)
     # εs is the epsilon for each order, if they are all the same then we use a fancy formula

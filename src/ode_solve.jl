@@ -125,7 +125,7 @@ end
 
 function (f::ODEPhi{C, T, U})(t::Number,
                               θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
-    y, st = f.chain(adapt(parameterless_type(θ), [t]), θ, f.st)
+    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 + (t - f.t0) * first(y)
 end
@@ -133,13 +133,13 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
                               θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
     # Batch via data as row vectors
-    y, st = f.chain(adapt(parameterless_type(θ), t'), θ, f.st)
+    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
 end
 
 function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractExplicitLayer, T, U}
-    y, st = f.chain(adapt(parameterless_type(θ), [t]), θ, f.st)
+    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t .- f.t0) .* y
 end
@@ -147,7 +147,7 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
                               θ) where {C <: Lux.AbstractExplicitLayer, T, U}
     # Batch via data as row vectors
-    y, st = f.chain(adapt(parameterless_type(θ), t'), θ, f.st)
+    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
 end
