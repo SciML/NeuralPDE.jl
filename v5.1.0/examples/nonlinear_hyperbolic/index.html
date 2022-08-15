@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Nonlinear hyperbolic system of PDEs · NeuralPDE.jl</title><script async src="https://www.googletagmanager.com/gtag/js?id=UA-90474609-3"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-90474609-3', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="../../assets/warner.js"></script><link rel="canonical" href="https://neuralpde.sciml.ai/stable/examples/nonlinear_hyperbolic/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/ode/">Introduction to NeuralPDE for ODEs</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../../tutorials/gpu/">Using GPUs</a></li><li><a class="tocitem" href="../../tutorials/systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../../tutorials/constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../../tutorials/low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../../tutorials/param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../../tutorials/integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../../tutorials/neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../../tutorials/derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li class="is-active"><a class="tocitem" href>Nonlinear hyperbolic system of PDEs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Extended Examples</a></li><li class="is-active"><a href>Nonlinear hyperbolic system of PDEs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Nonlinear hyperbolic system of PDEs</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/examples/nonlinear_hyperbolic.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Nonlinear-hyperbolic-system-of-PDEs"><a class="docs-heading-anchor" href="#Nonlinear-hyperbolic-system-of-PDEs">Nonlinear hyperbolic system of PDEs</a><a id="Nonlinear-hyperbolic-system-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Nonlinear-hyperbolic-system-of-PDEs" title="Permalink"></a></h1><p>We may also solve hyperbolic systems like the following</p><p class="math-container">\[\begin{aligned}
+\frac{\partial^2u}{\partial t^2} = \frac{a}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + u f(\frac{u}{w})  \\
+\frac{\partial^2w}{\partial t^2} = \frac{b}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + w g(\frac{u}{w})  \\
+\end{aligned}\]</p><p>where f and g are arbitrary functions. With initial and boundary conditions:</p><p class="math-container">\[\begin{aligned}
+u(0,x) = k * [j0(ξ(0, x)) + y0(ξ(0, x))] \\
+u(t,0) = k * [j0(ξ(t, 0)) + y0(ξ(t, 0))] \\
+u(t,1) = k * [j0(ξ(t, 1)) + y0(ξ(t, 1))] \\
+w(0,x) = j0(ξ(0, x)) + y0(ξ(0, x)) \\
+w(t,0) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
+w(t,1) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
+\end{aligned}\]</p><p>where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and y0 are the Bessel functions, and ξ(t, x) is:</p><p class="math-container">\[\begin{aligned}
+\frac{\sqrt[]{f(k)}}{\sqrt[]{\frac{a}{x^n}}}\sqrt[]{\frac{a}{x^n}(t+1)^2 - (x+1)^2}
+\end{aligned}\]</p><p>We solve this with Neural:</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots
+using SpecialFunctions
+using Plots
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u(..), w(..)
+Dx = Differential(x)
+Dt = Differential(t)
+Dtt = Differential(t)^2
+
+# Constants
+a = 16
+b = 16
+n = 0
+
+# Arbitrary functions
+f(x) = x^2
+g(x) = 4 * cos(π * x)
+root(x) = g(x) - f(x)
+
+# Analytic solution
+k = find_zero(root, (0, 1), Roots.Bisection())                # k is a root of the algebraic (transcendental) equation f(x) = g(x)
+ξ(t, x) = sqrt(f(k)) / sqrt(a) * sqrt(a * (t + 1)^2 - (x + 1)^2)
+θ(t, x) = besselj0(ξ(t, x)) + bessely0(ξ(t, x))                     # Analytical solution to Klein-Gordon equation
+w_analytic(t, x) = θ(t, x)
+u_analytic(t, x) = k * θ(t, x)
+
+# Nonlinear system of hyperbolic equations
+eqs = [Dtt(u(t, x)) ~ a / (x^n) * Dx(x^n * Dx(u(t, x))) + u(t, x) * f(u(t, x) / w(t, x)),
+       Dtt(w(t, x)) ~ b / (x^n) * Dx(x^n * Dx(w(t, x))) + w(t, x) * g(u(t, x) / w(t, x))]
+
+# Boundary conditions
+bcs = [u(0, x) ~ u_analytic(0, x),
+       w(0, x) ~ w_analytic(0, x),
+       u(t, 0) ~ u_analytic(t, 0),
+       w(t, 0) ~ w_analytic(t, 0),
+       u(t, 1) ~ u_analytic(t, 1),
+       w(t, 1) ~ w_analytic(t, 1)]
+
+# Space and time domains
+domains = [t ∈ Interval(0.0, 1.0),
+           x ∈ Interval(0.0, 1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:2]
+
+strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, strategy)
+
+@named pdesystem = PDESystem(eqs, bcs, domains, [t,x], [u(t,x),w(t,x)])
+prob = discretize(pdesystem, discretization)
+sym_prob = symbolic_discretize(pdesystem, discretization)
+
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
+
+callback = function (p, l)
+    println(&quot;loss: &quot;, l)
+    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p), pde_inner_loss_functions))
+    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p), bcs_inner_loss_functions))
+    return false
+end
+
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters=1000)
+
+phi = discretization.phi
+
+# Analysis
+ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+depvars = [:u,:w]
+minimizers_ = [res.u.depvar[depvars[i]] for i in 1:length(chain)]
+
+analytic_sol_func(t,x) = [u_analytic(t, x), w_analytic(t, x)]
+u_real  = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:2]
+u_predict  = [[phi[i]([t,x], minimizers_[i])[1] for t in ts  for x in xs] for i in 1:2]
+diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+for i in 1:2
+    p1 = plot(ts, xs, u_real[i], linetype=:contourf, title=&quot;u$i, analytic&quot;);
+    p2 = plot(ts, xs, u_predict[i], linetype=:contourf, title=&quot;predict&quot;);
+    p3 = plot(ts, xs, diff_u[i], linetype=:contourf, title=&quot;error&quot;);
+    plot(p1, p2, p3)
+    savefig(&quot;nonlinear_hyperbolic_sol_u$i&quot;)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">loss: 19.053656347077506
+pde_losses: [0.005993314030462414, 7.00958345590094]
+bcs_losses: [1.066519414439471, 0.5117794029201131, 2.1669480651831448, 3.2777413296306777, 2.2310230954704777, 2.7840682695022205]
+loss: 14.294781681347116
+pde_losses: [0.016267730828348214, 0.6807086054891016]
+bcs_losses: [1.3461255523792302, 0.6032221017835531, 2.5511232723262234, 3.497639155892952, 2.619165327856712, 2.9805299347909964]
+loss: 13.145297826332488
+pde_losses: [0.04579672020817886, 0.09204670609962426]
+bcs_losses: [2.0478253213994235, 0.11521938097827897, 3.4778258661239048, 2.083111513495482, 3.550562663526806, 1.732909654500789]
+loss: 13.112377724305796
+pde_losses: [0.034420699453125016, 0.3030652581097814]
+bcs_losses: [1.885406100915271, 0.10534132289607669, 3.647365204437871, 2.0321009254151914, 3.4575853454181407, 1.6470928676603385]
+loss: 13.08218151173172
+pde_losses: [0.03131893409146712, 0.34364591153310864]
+bcs_losses: [1.8781154284846575, 0.10367719753061716, 3.641594784603218, 2.0107304877296217, 3.4470712878035163, 1.626027479955514]
+loss: 12.918755735308808
+pde_losses: [0.020985450796696573, 0.2508488183597341]
+bcs_losses: [1.9327408676236273, 0.0975501721670889, 3.711002973238087, 1.8852389579723692, 3.5133755091402596, 1.5070129860109451]
+loss: 12.83829606584938
+pde_losses: [0.0018082380139866699, 0.7318959793322802]
+bcs_losses: [1.938639242649968, 0.06456691019827432, 3.702524274164694, 1.4569075794919641, 3.792542249735465, 1.14941159226275]
+loss: 12.838184201760528
+pde_losses: [0.0018073051297735302, 0.7317850481276356]
+bcs_losses: [1.9386392426499723, 0.0645669101982741, 3.7025242741647, 1.456907579491951, 3.792542249735483, 1.149411592262739]
+loss: 12.838175806148174
+pde_losses: [0.0018099315735464134, 0.7317740260711182]
+bcs_losses: [1.9386392426503214, 0.06456691019826544, 3.7025242741651656, 1.4569075794909503, 3.7925422497369077, 1.149411592261897]
+loss: 12.706214775526966
+pde_losses: [0.005877988189982063, 0.5119232196433166]
+bcs_losses: [1.9805597804645405, 0.06410418162680229, 3.7556867023183296, 1.3694892553329785, 3.940593637942012, 1.077980010009005]
+loss: 12.631164318919982
+pde_losses: [0.008580173994914427, 0.3835181413409156]
+bcs_losses: [1.9999493207018215, 0.06849629886341035, 3.784996168867084, 1.3363381947476678, 4.003747810450925, 1.0455382099532438]
+loss: 12.325632322896045
+pde_losses: [0.011412576718850789, 0.16414306127274242]
+bcs_losses: [1.9876654104888465, 0.10147276239950691, 3.8208048731292115, 1.2620728493371398, 4.047177472220277, 0.9308833173294704]
+loss: 11.81932687833448
+pde_losses: [0.026575691554437317, 0.28258427096521366]
+bcs_losses: [1.9644773681510728, 0.1140317027012801, 3.8971662357163486, 0.9225385294982482, 4.125009760192373, 0.48694331955550335]
+loss: 11.70011764411194
+pde_losses: [0.037894250996037826, 1.3607401643475594]
+bcs_losses: [1.8758896765397222, 0.0687231362035347, 3.8964572905269677, 0.3458230553705979, 4.063188170521355, 0.051401899606163204]
+loss: 11.394419479843226
+pde_losses: [0.037482266202050085, 1.6598704309853953]
+bcs_losses: [1.7067214761460647, 0.07637538169660259, 3.708893048143121, 0.32659391220758016, 3.84145546475593, 0.03702749970648127]
+loss: 10.881232102067983
+pde_losses: [0.0342228236557094, 2.461313386058589]
+bcs_losses: [1.3554288167982516, 0.08848546612544674, 3.280037152525445, 0.2914996755738973, 3.3489867812974583, 0.021258000033185176]
+loss: 9.987527181567023
+pde_losses: [0.023509013308930387, 3.1554205622498053]
+bcs_losses: [0.8893022238039585, 0.13202296968487892, 2.6658007111929805, 0.4369804628617668, 2.6457436235119625, 0.03874761495274008]
+loss: 9.987522576128214
+pde_losses: [0.023485333818300442, 3.155441865753265]
+bcs_losses: [0.8893015838573395, 0.13202301780751033, 2.665799881277204, 0.4369806362878825, 2.6457425918338426, 0.03874766549286941]
+loss: 9.98744775855847
+pde_losses: [0.023543553384819827, 3.1553161310478326]
+bcs_losses: [0.8892994877351301, 0.13202317545821685, 2.665797162878815, 0.43698120436152416, 2.6457392126573334, 0.038747831034798674]
+loss: 9.98742244073151
+pde_losses: [0.023515302670949444, 3.1553199177446367]
+bcs_losses: [0.8892992426579267, 0.13202319388543363, 2.6657968450462586, 0.43698127076920584, 2.645738817563995, 0.03874785039310511]
+loss: 9.987337066635838
+pde_losses: [0.023512019027941092, 3.155574612785694]
+bcs_losses: [0.8892016162187459, 0.13203059575780665, 2.6656704034015712, 0.4370117769722929, 2.645581068520513, 0.038754973951273745]
+loss: 8.626767662177409
+pde_losses: [0.010941664522910163, 3.3313707560953274]
+bcs_losses: [0.4726321208002464, 0.151326798621989, 2.067743801129149, 0.5702752272613503, 1.940410768674302, 0.08206652507213495]
+loss: 7.384168575741869
+pde_losses: [0.004920194842883549, 2.8389164559266096]
+bcs_losses: [0.3325514607092801, 0.09435418369960555, 1.874643590361528, 0.4775150842582079, 1.687621837663841, 0.07364576827991345]
+loss: 6.1378503237936375
+pde_losses: [0.0011868643876123592, 2.3982529400381796]
+bcs_losses: [0.19372737817316654, 0.06227616304701717, 1.6393344486370591, 0.36062016254334417, 1.4092959790269588, 0.07315638794030015]
+loss: 6.137855612025131
+pde_losses: [0.0011848315852454304, 2.3982602616177284]
+bcs_losses: [0.19372737808227686, 0.06227616304393148, 1.639334448412331, 0.36062016252933277, 1.4092959787989634, 0.07315638795532142]
+loss: 4.938261208950147
+pde_losses: [0.0011420321406766072, 1.5430474957619045]
+bcs_losses: [0.13724615552130776, 0.056237422559952, 1.4907619198461517, 0.35672514942034095, 1.246315859590964, 0.10678517410884882]
+loss: 4.329837027270372
+pde_losses: [0.0019079376723514156, 1.4468100097871233]
+bcs_losses: [0.08454875642337181, 0.0746945102982378, 1.288115254490861, 0.2681957774284424, 1.0618859085630934, 0.10367887260689099]
+loss: 3.9411848107186813
+pde_losses: [0.002372501125167761, 1.343481113903156]
+bcs_losses: [0.06021582099851924, 0.07781544196326398, 1.1504656335656618, 0.26499701882608667, 0.9273407103326361, 0.11449657000419011]
+loss: 3.514871281341274
+pde_losses: [0.002026417578414149, 1.2456129746313989]
+bcs_losses: [0.0384155934687151, 0.1128988553445718, 1.0018131314815149, 0.20733684769491084, 0.7914214936643509, 0.11534596747739773]
+loss: 2.880802987739914
+pde_losses: [0.0030138058031025337, 1.1066711012242423]
+bcs_losses: [0.008688601885463434, 0.20879495691753155, 0.7153761280136084, 0.1686642968768067, 0.5319823401160494, 0.13761175690310973]
+loss: 2.5981554674194993
+pde_losses: [0.00307302358036634, 0.9096442915485178]
+bcs_losses: [0.007524435880760712, 0.23362070629936837, 0.6567493210073514, 0.16245212664632708, 0.4784820604006935, 0.1466095020561142]
+loss: 2.463429353724444
+pde_losses: [0.0032270788461706864, 0.8700599176362674]
+bcs_losses: [0.00813279767428812, 0.22382098304167486, 0.5962368784570485, 0.17541233638318882, 0.4304168211786057, 0.15612254050720023]
+loss: 2.264456903177719
+pde_losses: [0.003688095173909797, 0.7713206193773657]
+bcs_losses: [0.01619774367080173, 0.2567653012592142, 0.5230261441452256, 0.16599508646911967, 0.36453050597276365, 0.16293340710931847]
+loss: 2.011654727472359
+pde_losses: [0.0045002326072374425, 0.6426111665104464]
+bcs_losses: [0.033888115477636246, 0.2351644570684573, 0.45015132657365575, 0.17867182822187222, 0.2975824298359023, 0.16908517117715124]
+loss: 1.7410266084299346
+pde_losses: [0.005953962956014536, 0.5301070998157569]
+bcs_losses: [0.05944618607186371, 0.2351975753682885, 0.3689809730808381, 0.15063403146449628, 0.23539257323248214, 0.15531420644019434]
+loss: 1.7409711655626179
+pde_losses: [0.005978028757855018, 0.5300469971516842]
+bcs_losses: [0.05944934638435291, 0.23519557390536244, 0.3689708756237041, 0.1506318256132141, 0.23538570338560855, 0.15531281474083639]
+loss: 1.5851071479507373
+pde_losses: [0.007216442936981716, 0.46368884586426534]
+bcs_losses: [0.07773698833219984, 0.22365452422180473, 0.3198041506416239, 0.14104723631291066, 0.20334691593589907, 0.14861204370505204]
+loss: 1.4185316682962568
+pde_losses: [0.00856631046984175, 0.3975356453308701]
+bcs_losses: [0.08862553730384276, 0.19065084794552536, 0.2761729795753044, 0.13838254701556585, 0.17754151027996448, 0.14105629037534193]
+loss: 1.1416443754186811
+pde_losses: [0.01171736307216935, 0.27615636459782666]
+bcs_losses: [0.10524115214766555, 0.14446997722026178, 0.20732668932299722, 0.12869298273295654, 0.14225276902441875, 0.12578707730038527]
+loss: 1.1416293127320951
+pde_losses: [0.011718730871899275, 0.2761399341115107]
+bcs_losses: [0.10524115214766555, 0.14446997722026175, 0.20732668932299722, 0.12869298273295654, 0.14225276902441875, 0.12578707730038527]
+loss: 1.1415862287895788
+pde_losses: [0.011665320789608134, 0.27615123497709154]
+bcs_losses: [0.10524125713897578, 0.14446990260565956, 0.20732624255805043, 0.128692785480918, 0.14225253261449133, 0.12578695262478407]
+loss: 1.1415698911667198
+pde_losses: [0.01167973581683073, 0.27612048232793895]
+bcs_losses: [0.10524125713907559, 0.14446990260558845, 0.20732624255762458, 0.12869278548072993, 0.14225253261426607, 0.1257869526246655]
+loss: 1.1415629190695686
+pde_losses: [0.011663482662489021, 0.276129763782273]
+bcs_losses: [0.10524125717886963, 0.14446990258005296, 0.2073262423790114, 0.12869278539863996, 0.14225253251699366, 0.1257869525712391]
+loss: 1.1415599556904974
+pde_losses: [0.011668433721986837, 0.27612184934560324]
+bcs_losses: [0.10524125717905998, 0.14446990257993048, 0.20732624237815703, 0.12869278539824752, 0.1422525325165285, 0.1257869525709837]
+loss: 1.1415322703648205
+pde_losses: [0.011627491842778621, 0.2761351068495131]
+bcs_losses: [0.10524125727417033, 0.14446990251893949, 0.2073262419511869, 0.12869278520131933, 0.1422525322840825, 0.12578695244283022]
+loss: 1.1414967957056177
+pde_losses: [0.011627833166268873, 0.27609929086682006]
+bcs_losses: [0.10524125727417033, 0.14446990251893946, 0.2073262419511869, 0.12869278520131938, 0.1422525322840825, 0.12578695244283022]
+loss: 1.1414767427178811
+pde_losses: [0.011687633887027711, 0.27601943717475647]
+bcs_losses: [0.10524125727593443, 0.1444699025169442, 0.20732624194421082, 0.1286927851981134, 0.14225253228026644, 0.1257869524406277]
+loss: 1.1414767427178811
+pde_losses: [0.011687633887027711, 0.27601943717475647]
+bcs_losses: [0.10524125727593443, 0.14446990251694417, 0.20732624194421082, 0.1286927851981134, 0.14225253228026644, 0.12578695244062774]
+loss: 1.1414767427178811
+pde_losses: [0.011687633887027711, 0.27601943717475647]
+bcs_losses: [0.10524125727593443, 0.14446990251694414, 0.20732624194421073, 0.1286927851981134, 0.14225253228026644, 0.12578695244062774]</code></pre><p><img src="https://user-images.githubusercontent.com/26853713/126457614-d19e7a4d-f9e3-4e78-b8ae-1e58114a744e.png" alt="nonlinear_hyperbolic_sol_u1"/> <img src="https://user-images.githubusercontent.com/26853713/126457617-ee26c587-a97f-4a2e-b6b7-b326b1f117af.png" alt="nonlinear_hyperbolic_sol_u2"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nonlinear_elliptic/">« Nonlinear elliptic system of PDEs</a><a class="docs-footer-nextpage" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.22 on <span class="colophon-date" title="Monday 15 August 2022 07:01">Monday 15 August 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
