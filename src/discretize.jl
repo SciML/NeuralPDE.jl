@@ -438,7 +438,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             else
                 x = map(chain) do x
                     _x = ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
-                                                                  x))
+                                                                              x))
                     Float64.(_x) # No ComponentArray GPU support
                 end
                 names = ntuple(i -> depvars[i], length(chain))
@@ -452,7 +452,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                               init_params
             else
                 init_params = Float64.(ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
-                                                                                chain)))
+                                                                                            chain)))
             end
         end
     else
