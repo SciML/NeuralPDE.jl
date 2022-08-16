@@ -30,22 +30,22 @@ mutable struct RODEPhi{C, T, U, S}
     end
 end
 
-function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params::Nothing)
+function generate_phi_θ_rode(chain::Lux.AbstractExplicitLayer, t, u0, init_params::Nothing)
     θ, st = Lux.setup(Random.default_rng(), chain)
     RODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(θ)
 end
 
-function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params)
+function generate_phi_θ_rode(chain::Lux.AbstractExplicitLayer, t, u0, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
     RODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(init_params)
 end
 
-function generate_phi_θ(chain::Flux.Chain, t, u0, init_params::Nothing)
+function generate_phi_θ_rode(chain::Flux.Chain, t, u0, init_params::Nothing)
     θ, re = Flux.destructure(chain)
     RODEPhi(re, t, u0), θ
 end
 
-function generate_phi_θ(chain::Flux.Chain, t, u0, init_params)
+function generate_phi_θ_rode(chain::Flux.Chain, t, u0, init_params)
     θ, re = Flux.destructure(chain)
     RODEPhi(re, t, u0), init_params
 end
@@ -199,7 +199,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractRODEProblem,
     #train points generation
     init_params = alg.init_params
 
-    phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
+    phi, init_params = generate_phi_θ_rode(chain, t0, u0, init_params)
 
     strategy = isnothing(alg.strategy) ? GridTraining(dt) : alg.strategy
     batch = isnothing(alg.batch) ? false : alg.batch
