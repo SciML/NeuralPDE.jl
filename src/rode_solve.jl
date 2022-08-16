@@ -19,9 +19,25 @@ mutable struct RODEPhi{C, T, U, S}
     chain::C
     t0::T
     u0::U
-    function RODEPhi(re::Optimisers.Restructure, t, u0)
-        new{typeof(re), typeof(t), typeof(u0), Nothing}(re, t, u0)
+    st::S
+
+    function RODEPhi(chain::Lux.AbstractExplicitLayer, t::Number, u0, st)
+        new{typeof(chain), typeof(t), typeof(u0), typeof(st)}(chain, t, u0, st)
     end
+
+    function RODEPhi(re::Optimisers.Restructure, t, u0)
+        new{typeof(re), typeof(t), typeof(u0), Nothing}(re, t, u0, nothing)
+    end
+end
+
+function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params::Nothing)
+    θ, st = Lux.setup(Random.default_rng(), chain)
+    RODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(θ)
+end
+
+function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params)
+    θ, st = Lux.setup(Random.default_rng(), chain)
+    RODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(init_params)
 end
 
 function generate_phi_θ(chain::Flux.Chain, t, u0, init_params::Nothing)
@@ -33,6 +49,36 @@ function generate_phi_θ(chain::Flux.Chain, t, u0, init_params)
     θ, re = Flux.destructure(chain)
     RODEPhi(re, t, u0), init_params
 end
+
+function (f::RODEPhi{C, T, U})(t::Number, W::Number,
+    θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
+    y, st = f.chain(adapt(parameterless_type(θ), [t ; W]), θ, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    f.u0 + (t - f.t0) * first(y)
+end
+
+function (f::RODEPhi{C, T, U})(t::AbstractVector, W::AbstractVector,
+    θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
+# Batch via data as row vectors
+    y, st = f.chain(adapt(parameterless_type(θ), [t W]'), θ, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    f.u0 .+ (t' .- f.t0) .* y
+end
+
+function (f::RODEPhi{C, T, U})(t::Number, W::Number, θ) where {C <: Lux.AbstractExplicitLayer, T, U}
+y, st = f.chain(adapt(parameterless_type(θ), [t W]), θ, f.st)
+ChainRulesCore.@ignore_derivatives f.st = st
+f.u0 .+ (t .- f.t0) .* y
+end
+
+function (f::RODEPhi{C, T, U})(t::AbstractVector, W::AbstractVector, 
+    θ) where {C <: Lux.AbstractExplicitLayer, T, U}
+# Batch via data as row vectors
+y, st = f.chain(adapt(parameterless_type(θ), [t W]'), θ, f.st)
+ChainRulesCore.@ignore_derivatives f.st = st
+f.u0 .+ (t' .- f.t0) .* y
+end
+
 
 function (f::RODEPhi{C, T, U})(t::Number, w::Number,
     θ) where {C <: Optimisers.Restructure, T, U <: Number}
@@ -129,6 +175,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractRODEProblem,
                             alg::NNRODE,
                             args...;
                             dt = nothing,
+                            trajectories = 100,
                             timeseries_errors = true,
                             save_everystep = true,
                             adaptive = false,
@@ -153,12 +200,13 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractRODEProblem,
     init_params = alg.init_params
 
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
+
     strategy = isnothing(alg.strategy) ? GridTraining(dt) : alg.strategy
     batch = isnothing(alg.batch) ? false : alg.batch
 
     W_prob = NoiseProblem(W, tspan)
     W_en = EnsembleProblem(W_prob)
-    W_sim = solve(W_en; dt = dt, trajectories = 100)
+    W_sim = solve(W_en; dt = dt, trajectories = trajectories)
     W_bf = Zygote.Buffer(rand(length(W_sim), length(W_sim[1])))
     for (i, sol) in enumerate(W_sim)
         W_bf[i, :] = sol
@@ -175,32 +223,5 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractRODEProblem,
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
-    #solutions at timepoints
-    # if saveat isa Number
-    #     ts = tspan[1]:saveat:tspan[2]
-    # elseif saveat isa AbstractArray
-    #     ts = saveat
-    # elseif dt !== nothing
-    #     ts = tspan[1]:dt:tspan[2]
-    # elseif save_everystep
-    #     ts = range(tspan[1], tspan[2], length = 100)
-    # else
-    #     ts = [tspan[1], tspan[2]]
-    # end
-
-    # if u0 isa Number
-    #     u = [first(phi(t, res.u)) for t in ts]
-    # else
-    #     u = [phi(t, res.u) for t in ts]
-    # end
-
-    # sol = DiffEqBase.build_solution(prob, alg, ts, u;
-    #                                 k = res, dense = true,
-    #                                 interp = NNODEInterpolation(phi, res.u),
-    #                                 calculate_error = false,
-    #                                 retcode = :Success)
-    # DiffEqBase.has_analytic(prob.f) &&
-    #     DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
-    #                                           dense_errors = false)
-    res, u(t, W) -> phi(t, W, res.u)
+    res, (t, W) -> phi(t, W, res.u)
 end #solve
