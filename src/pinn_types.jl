@@ -346,7 +346,7 @@ mutable struct Phi{C, S}
     f::C
     st::S
     function Phi(chain::Lux.AbstractExplicitLayer)
-        ps, st = Lux.setup(Random.default_rng(), chain)
+        st = Lux.initialstates(Random.default_rng(), chain)
         new{typeof(chain), typeof(st)}(chain, st)
     end
     function Phi(chain::Flux.Chain)
