@@ -680,9 +680,3 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                              Optimization.AutoZygote())
     Optimization.OptimizationProblem(f, pinnrep.flat_init_params)
 end
-
-# Could be upstreamed to ComponentArrays
-function Adapt.adapt_storage(::Type{ComponentArrays.ComponentArray{T, N, A, Ax}},
-                             xs::AT) where {T, N, A, Ax, AT <: AbstractArray}
-    Adapt.adapt_storage(A, xs)
-end
