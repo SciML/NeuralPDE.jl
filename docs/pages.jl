@@ -1,5 +1,4 @@
-pages = [
-    "NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)" => "index.md",
+pages = ["index.md",
     "ODE PINN Tutorials" => Any["Introduction to NeuralPDE for ODEs" => "tutorials/ode.md"
                                 #"examples/nnrode_example.md", # currently incorrect
                                 ],
