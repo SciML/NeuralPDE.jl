@@ -1,4 +1,4 @@
-# NeuralPDE.jl: Scientific Machine Learning for Partial Differential Equations
+# NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)
 
 [NeuralPDE.jl](https://github.com/SciML/NeuralPDE.jl)
 NeuralPDE.jl is a solver package which consists of neural network solvers for
@@ -19,6 +19,30 @@ partial differential equations using physics-informed neural networks (PINNs).
 - Compatability with [NeuralOperators.jl](https://github.com/SciML/NeuralOperators.jl) for
   mixing DeepONets and other neural operators (Fourier Neural Operators, Graph Neural Operators,
   etc.) with physics-informed loss functions
+
+## Installation
+
+Assuming that you already have Julia correctly installed, it suffices to import
+NeuralPDE.jl in the standard way:
+
+```julia
+import Pkg
+Pkg.add("NeuralPDE")
+```
+
+## Contributing
+
+- Please refer to the
+  [SciML ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://github.com/SciML/ColPrac/blob/master/README.md)
+  for guidance on PRs, issues, and other matters relating to contributing to SciML.
+- See the [SciML Style Guide](https://github.com/SciML/SciMLStyle) for common coding practices and other style decisions.
+- There are a few community forums:
+    - The #diffeq-bridged and #sciml-bridged channels in the
+      [Julia Slack](https://julialang.org/slack/)
+    - The #diffeq-bridged and #sciml-bridged channels in the
+      [Julia Zulip](https://julialang.zulipchat.com/#narrow/stream/279055-sciml-bridged)
+    - On the [Julia Discourse forums](https://discourse.julialang.org)
+    - See also [SciML Community page](https://sciml.ai/community/)
 
 ## Citation
 
