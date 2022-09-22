@@ -80,8 +80,8 @@ function transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fal
     return ex
 end
 
-function get_ε(dim, der_num, eltypeθ)
-    epsilon = cbrt(eps(eltypeθ))
+function get_ε(dim, der_num, eltypeθ, order)
+    epsilon = eltypeθ(^(eps(eltypeθ), 1/(2+order)))
     ε = zeros(eltypeθ, dim)
     ε[der_num] = epsilon
     ε
@@ -157,7 +157,7 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                 dim_l = length(dict_interior_indvars)
 
                 var_ = is_integral ? :(derivative) : :($(Expr(:$, :derivative)))
-                εs = [get_ε(dim_l, d, eltypeθ) for d in 1:dim_l]
+                εs = [get_ε(dim_l, d, eltypeθ, order) for d in 1:dim_l]
                 undv = [dict_interior_indvars[d_p] for d_p in derivative_variables]
                 εs_dnv = [εs[d] for d in undv]
 
