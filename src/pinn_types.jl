@@ -380,8 +380,7 @@ function numeric_derivative(phi, u, x, εs, order, θ)
     _type = parameterless_type(ComponentArrays.getdata(θ))
 
     ε = εs[order]
-    _epsilon = ε[findfirst(ε .!= zero(ε))]
-    _epsilon = inv(_epsilon)
+    _epsilon = inv(first(ε[ε .!= zero(ε)]))
 
     ε = adapt(_type, ε)
     x = adapt(_type, x)
