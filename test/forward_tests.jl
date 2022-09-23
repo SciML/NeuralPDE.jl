@@ -77,15 +77,13 @@ end
     hess_phi = Zygote.hessian(phi_, [1, 2])
 
     dphi_xx = derivative(phi, u_, [1.0, 2.0], [eps_x, eps_x], 2, init_params)
+    dphi_xy = derivative(phi, u_, [1.0, 2.0], [eps_x, eps_y], 2, init_params)
     dphi_yy = derivative(phi, u_, [1.0, 2.0], [eps_y, eps_y], 2, init_params)
 
     #second order derivatives
     @test isapprox(hess_phi[1], dphi_xx, atol = 4e-5)
-    @test isapprox(hess_phi[4], dphi_yy, atol = 4e-5)
-
-    compute_dphi_x(x, init_params) = derivative(phi, u_, x, [eps_x], 1, init_params)
-    dphi_xy = derivative(compute_dphi_x, u_, [1.0, 2.0], [eps_y], 1, init_params)
     @test isapprox(hess_phi[2], dphi_xy, atol = 4e-5)
+    @test isapprox(hess_phi[4], dphi_yy, atol = 4e-5)
 end
 
 @testset "Integral" begin
