@@ -80,7 +80,7 @@ function transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fal
     return ex
 end
 
-function get_ε(dim, der_num, eltypeθ, order)
+function get_ε(dim, der_num, ::Type{eltypeθ}, order) where eltypeθ
     epsilon = ^(eps(eltypeθ), one(eltypeθ) / (2 + order))
     ε = zeros(eltypeθ, dim)
     ε[der_num] = epsilon
