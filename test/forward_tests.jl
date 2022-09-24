@@ -61,15 +61,8 @@ end
     phi_ = (p) -> phi(p, init_params)[1]
     dphi = Zygote.gradient(phi_, [1.0, 2.0])
 
-    function get_ε(dim, der_num, eltypeθ)
-        epsilon = cbrt(eps(eltypeθ))
-        ε = zeros(eltypeθ, dim)
-        ε[der_num] = epsilon
-        ε
-    end
-
-    eps_x = get_ε(2, 1, Float64)
-    eps_y = get_ε(2, 2, Float64)
+    eps_x = NeuralPDE.get_ε(2, 1, Float64, 1)
+    eps_y = NeuralPDE.get_ε(2, 2, Float64, 1)
 
     dphi_x = derivative(phi, u_, [1.0, 2.0], [eps_x], 1, init_params)
     dphi_y = derivative(phi, u_, [1.0, 2.0], [eps_y], 1, init_params)
@@ -78,8 +71,8 @@ end
     @test isapprox(dphi[1][1], dphi_x, atol = 1e-8)
     @test isapprox(dphi[1][2], dphi_y, atol = 1e-8)
 
-    dphi_x = derivative(phi, u_, [1.0, 2.0], [[0.0049215667, 0.0]], 1, init_params)
-    dphi_y = derivative(phi, u_, [1.0, 2.0], [[0.0, 0.0049215667]], 1, init_params)
+    eps_x = NeuralPDE.get_ε(2, 1, Float64, 2)
+    eps_y = NeuralPDE.get_ε(2, 2, Float64, 2)
 
     hess_phi = Zygote.hessian(phi_, [1, 2])
 
