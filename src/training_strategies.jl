@@ -148,7 +148,7 @@ function QuasiRandomTraining(points; bcs_points = points,
     QuasiRandomTraining(points, bcs_points, sampling_alg, resampling, minibatch)
 end
 
-function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg, minibatch)
+@nograd function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg, minibatch)
     lb, ub = bound
     set = QuasiMonteCarlo.generate_design_matrices(points, lb, ub, sampling_alg, minibatch)
     set = map(s -> adapt(eltypeθ, s), set)
