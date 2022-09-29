@@ -327,7 +327,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
     # pde_bounds = [[infimum(d.domain),supremum(d.domain)] for d in domains]
     pde_args = get_argument(eqs, dict_indvars, dict_depvars)
     pde_bounds = map(pde_args) do pde_arg
-        bds = mapreduce(s -> get(dict_span, s, s), hcat, pde_arg)
+        bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, pde_arg)
         bds = eltypeθ.(bds)
         bds[1, :], bds[2, :]
     end
