@@ -199,9 +199,7 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
         end
     else
         θ -> begin
-            sets_ = [point_batch[i] isa Array{eltypeθ, 2} ?
-                    point_batch[i] : point_batch[i][rand(1:minibatch)]
-                    for i in 1:length(point_batch)] #TODO
+            sets_ = point_batch[i][rand(1:minibatch)]
             sets__ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets_)
             mean(abs2, loss_function(sets__, θ))
         end
