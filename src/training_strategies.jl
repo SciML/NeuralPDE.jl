@@ -149,16 +149,10 @@ function QuasiRandomTraining(points; bcs_points = points,
 end
 
 function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg, minibatch)
-    map(bound) do b
-        if !(b isa Number)
-            lb, ub = [b[1]], [b[2]]
-            set_ = QuasiMonteCarlo.generate_design_matrices(points, lb, ub, sampling_alg,
-                                                            minibatch)
-            set = map(s -> adapt(eltypeθ, s), set_)
-        else
-            set = fill(eltypeθ(b), (1, points))
-        end
-    end
+    lb, ub = bound
+    set = QuasiMonteCarlo.generate_design_matrices(points, lb, ub, sampling_alg, minibatch)
+    set = map(s -> adapt(eltypeθ, s), set)
+    return set
 end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
