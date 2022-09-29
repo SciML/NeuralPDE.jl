@@ -70,16 +70,8 @@ function StochasticTraining(points; bcs_points = points)
 end
 
 @nograd function generate_random_points(points, bound, eltypeθ)
-    function f(b)
-        if b isa Number
-            fill(eltypeθ(b), (1, points))
-        else
-            lb, ub = b[1], b[2]
-            lb .+ (ub .- lb) .* rand(eltypeθ, 1, points)
-            lb .+ (ub .- lb) .* rand(eltypeθ, 1, points)
-        end
-    end
-    vcat(f.(bound)...)
+    lb, ub = bound
+    rand(eltypeθ, length(lb), points) .* (ub .- lb) .+ lb
 end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
