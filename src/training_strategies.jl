@@ -193,8 +193,8 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
     end
     loss = if resampling == true
         θ -> begin
-            sets = QuasiMonteCarlo.sample(points, bound[1], bound[2], sampling_alg)
-            sets_ = ChainRulesCore.@ignore_derivatives adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
+            sets = ChainRulesCore.@ignore_derivatives QuasiMonteCarlo.sample(points, bound[1], bound[2], sampling_alg)
+            sets_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
             mean(abs2, loss_function(sets_, θ))
         end
     else
