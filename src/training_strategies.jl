@@ -156,18 +156,6 @@ function QuasiRandomTraining(points; bcs_points = points,
     QuasiRandomTraining(points, bcs_points, sampling_alg, resampling, minibatch)
 end
 
-@nograd function generate_quasi_random_points(points, bound, eltypeθ, sampling_alg)
-    function f(b)
-        if b isa Number
-            fill(eltypeθ(b), (1, points))
-        else
-            lb, ub = eltypeθ[b[1]], [b[2]]
-            QuasiMonteCarlo.sample(points, lb, ub, sampling_alg)
-        end
-    end
-    vcat(f.(bound)...)
-end
-
 function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg, minibatch)
     map(bound) do b
         if !(b isa Number)
@@ -219,7 +207,7 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
     end
     loss = if resampling == true
         θ -> begin
-            sets = generate_quasi_random_points(points, bound, eltypeθ, sampling_alg)
+            sets = QuasiMonteCarlo.sample(points, bound[1], bound[2], sampling_alg)
             sets_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
             mean(abs2, loss_function(sets_, θ))
         end

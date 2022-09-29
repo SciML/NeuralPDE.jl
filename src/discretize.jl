@@ -323,23 +323,22 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
                           infimum(d.domain) + dx,
                           supremum(d.domain) - dx,
                       ] for d in domains])
+
     # pde_bounds = [[infimum(d.domain),supremum(d.domain)] for d in domains]
     pde_args = get_argument(eqs, dict_indvars, dict_depvars)
-
-    pde_bounds = map(pde_args) do pd
-        span = map(p -> get(dict_span, p, p), pd)
-        map(s -> adapt(eltypeθ, s), span)
+    pde_bounds = map(pde_args) do pde_arg
+        bds = mapreduce(s -> get(dict_span, s, s), hcat, pde_arg)
+        bds = eltypeθ.(bds)
+        bds[1, :], bds[2, :]
     end
 
     bound_args = get_argument(bcs, dict_indvars, dict_depvars)
-    dict_span = Dict([Symbol(d.variables) => [infimum(d.domain), supremum(d.domain)]
-                      for d in domains])
-
-    bcs_bounds = map(bound_args) do bt
-        span = map(b -> get(dict_span, b, b), bt)
-        map(s -> adapt(eltypeθ, s), span)
+    bcs_bounds = map(bound_args) do bound_arg
+        bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, bound_arg)
+        bds = eltypeθ.(bds)
+        bds[1, :], bds[2, :]
     end
-    [pde_bounds, bcs_bounds]
+    return pde_bounds, bcs_bounds
 end
 
 function get_numeric_integral(pinnrep::PINNRepresentation)
