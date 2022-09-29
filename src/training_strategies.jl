@@ -199,7 +199,7 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
         end
     else
         θ -> begin
-            sets_ = point_batch[i][rand(1:minibatch)]
+            sets_ = point_batch[rand(1:minibatch)]
             sets__ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets_)
             mean(abs2, loss_function(sets__, θ))
         end
