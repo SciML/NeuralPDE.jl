@@ -148,7 +148,8 @@ function QuasiRandomTraining(points; bcs_points = points,
     QuasiRandomTraining(points, bcs_points, sampling_alg, resampling, minibatch)
 end
 
-@nograd function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg, minibatch)
+@nograd function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg,
+                                                    minibatch)
     lb, ub = bound
     set = QuasiMonteCarlo.generate_design_matrices(points, lb, ub, sampling_alg, minibatch)
     set = map(s -> adapt(eltypeθ, s), set)
@@ -193,7 +194,10 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
     end
     loss = if resampling == true
         θ -> begin
-            sets = ChainRulesCore.@ignore_derivatives QuasiMonteCarlo.sample(points, bound[1], bound[2], sampling_alg)
+            sets = ChainRulesCore.@ignore_derivatives QuasiMonteCarlo.sample(points,
+                                                                             bound[1],
+                                                                             bound[2],
+                                                                             sampling_alg)
             sets_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
             mean(abs2, loss_function(sets_, θ))
         end
