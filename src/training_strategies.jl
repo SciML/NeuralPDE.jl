@@ -70,16 +70,8 @@ function StochasticTraining(points; bcs_points = points)
 end
 
 @nograd function generate_random_points(points, bound, eltypeθ)
-    function f(b)
-        if b isa Number
-            fill(eltypeθ(b), (1, points))
-        else
-            lb, ub = b[1], b[2]
-            lb .+ (ub .- lb) .* rand(eltypeθ, 1, points)
-            lb .+ (ub .- lb) .* rand(eltypeθ, 1, points)
-        end
-    end
-    vcat(f.(bound)...)
+    lb, ub = bound
+    rand(eltypeθ, length(lb), points) .* (ub .- lb) .+ lb
 end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
@@ -156,29 +148,12 @@ function QuasiRandomTraining(points; bcs_points = points,
     QuasiRandomTraining(points, bcs_points, sampling_alg, resampling, minibatch)
 end
 
-@nograd function generate_quasi_random_points(points, bound, eltypeθ, sampling_alg)
-    function f(b)
-        if b isa Number
-            fill(eltypeθ(b), (1, points))
-        else
-            lb, ub = eltypeθ[b[1]], [b[2]]
-            QuasiMonteCarlo.sample(points, lb, ub, sampling_alg)
-        end
-    end
-    vcat(f.(bound)...)
-end
-
-function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg, minibatch)
-    map(bound) do b
-        if !(b isa Number)
-            lb, ub = [b[1]], [b[2]]
-            set_ = QuasiMonteCarlo.generate_design_matrices(points, lb, ub, sampling_alg,
-                                                            minibatch)
-            set = map(s -> adapt(eltypeθ, s), set_)
-        else
-            set = fill(eltypeθ(b), (1, points))
-        end
-    end
+@nograd function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg,
+                                                    minibatch)
+    lb, ub = bound
+    set = QuasiMonteCarlo.generate_design_matrices(points, lb, ub, sampling_alg, minibatch)
+    set = map(s -> adapt(eltypeθ, s), set)
+    return set
 end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
@@ -219,16 +194,16 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
     end
     loss = if resampling == true
         θ -> begin
-            sets = generate_quasi_random_points(points, bound, eltypeθ, sampling_alg)
+            sets = ChainRulesCore.@ignore_derivatives QuasiMonteCarlo.sample(points,
+                                                                             bound[1],
+                                                                             bound[2],
+                                                                             sampling_alg)
             sets_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
             mean(abs2, loss_function(sets_, θ))
         end
     else
         θ -> begin
-            sets = [point_batch[i] isa Array{eltypeθ, 2} ?
-                    point_batch[i] : point_batch[i][rand(1:minibatch)]
-                    for i in 1:length(point_batch)] #TODO
-            sets_ = vcat(sets...)
+            sets_ = point_batch[rand(1:minibatch)]
             sets__ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets_)
             mean(abs2, loss_function(sets__, θ))
         end
