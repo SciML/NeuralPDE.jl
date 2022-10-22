@@ -14,9 +14,9 @@ partial differential equations using physics-informed neural networks (PINNs).
 - Integrated logging suite for handling connections to TensorBoard
 - Handling of (partial) integro-differential equations and various stochastic equations
 - Specialized forms for solving `ODEProblem`s with neural networks
-- Compatability with [Flux.jl](https://github.com/FluxML/Flux.jl) and [Lux.jl](https://github.com/avik-pal/Lux.jl)
+- Compatability with [Flux.jl](https://docs.sciml.ai/Flux.jl/stable/) and [Lux.jl](https://docs.sciml.ai/Lux/stable/)
   for all of the GPU-powered machine learning layers available from those libraries.
-- Compatability with [NeuralOperators.jl](https://github.com/SciML/NeuralOperators.jl) for
+- Compatability with [NeuralOperators.jl](https://docs.sciml.ai/NeuralOperators/stable/) for
   mixing DeepONets and other neural operators (Fourier Neural Operators, Graph Neural Operators,
   etc.) with physics-informed loss functions
 

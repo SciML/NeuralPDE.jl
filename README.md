@@ -1,8 +1,7 @@
 # NeuralPDE
 
 [![Join the chat at https://julialang.zulipchat.com #sciml-bridged](https://img.shields.io/static/v1?label=Zulip&message=chat&color=9558b2&labelColor=389826)](https://julialang.zulipchat.com/#narrow/stream/279055-sciml-bridged)
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](http://neuralpde.sciml.ai/stable/)
-[![Global Docs](https://img.shields.io/badge/docs-SciML-blue.svg)](https://docs.sciml.ai/dev/modules/NeuralPDE/)
+[![Global Docs](https://img.shields.io/badge/docs-SciML-blue.svg)](https://docs.sciml.ai/NeuralPDE/stable/)
 
 [![codecov](https://codecov.io/gh/SciML/NeuralPDE.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SciML/NeuralPDE.jl)
 [![Build Status](https://github.com/SciML/NeuralPDE.jl/workflows/CI/badge.svg)](https://github.com/SciML/NeuralPDE.jl/actions?query=workflow%3ACI)
@@ -24,8 +23,8 @@ to exit the Pkg REPL-mode, just press <kbd>Backspace</kbd> or <kbd>Ctrl</kbd> + 
 ## Tutorials and Documentation
 
 For information on using the package,
-[see the stable documentation](https://neuralpde.sciml.ai/stable/). Use the
-[in-development documentation](https://neuralpde.sciml.ai/dev/) for the version of
+[see the stable documentation](https://docs.sciml.ai/NeuralPDE/stable/). Use the
+[in-development documentation](https://docs.sciml.ai/NeuralPDE/dev/) for the version of
 the documentation, which contains the unreleased features.
 
 ## Features
@@ -38,9 +37,9 @@ the documentation, which contains the unreleased features.
 - Integrated logging suite for handling connections to TensorBoard
 - Handling of (partial) integro-differential equations and various stochastic equations
 - Specialized forms for solving `ODEProblem`s with neural networks
-- Compatability with [Flux.jl](https://github.com/FluxML/Flux.jl) and [Lux.jl](https://github.com/avik-pal/Lux.jl)
+- Compatability with [Flux.jl](https://docs.sciml.ai/Flux.jl/stable/) and [Lux.jl](https://docs.sciml.ai/Lux/stable/)
   for all of the GPU-powered machine learning layers available from those libraries.
-- Compatability with [NeuralOperators.jl](https://github.com/SciML/NeuralOperators.jl) for
+- Compatability with [NeuralOperators.jl](https://docs.sciml.ai/NeuralOperators/stable/) for
   mixing DeepONets and other neural operators (Fourier Neural Operators, Graph Neural Operators,
   etc.) with physics-informed loss functions
 

@@ -41,7 +41,7 @@ chain3 = Lux.Chain(Dense(input_,n,Lux.σ),Dense(n,n,Lux.σ),Dense(n,n,Lux.σ),De
 
 We will add an additional loss term based on the data that we have in order to optimise the parameters.
 
-Here we simply calculate the solution of the lorenz system with [OrdinaryDiffEq.jl](https://diffeq.sciml.ai/v1.10/tutorials/ode_example.html#In-Place-Updates-1) based on the adaptivity of the ODE solver. This is used to introduce non-uniformity to the time series.
+Here we simply calculate the solution of the lorenz system with [OrdinaryDiffEq.jl](https://docs.sciml.ai/DiffEqDocs/stable/tutorials/ode_example/#Example-2:-Solving-Systems-of-Equations) based on the adaptivity of the ODE solver. This is used to introduce non-uniformity to the time series.
 
 ```@example param_estim
 function lorenz!(du,u,p,t)
@@ -75,7 +75,7 @@ three arguments:
 - the hyperparameters `p` .
 
 For a Lux neural network, the composed function will present itself as having θ as a
-[`ComponentArray`](https://github.com/jonniedie/ComponentArrays.jl)
+[`ComponentArray`](https://docs.sciml.ai/ComponentArrays/stable/)
 subsets `θ.x`, which can also be dereferenced like `θ[:x]`. Thus the additional
 loss looks like:
 
