@@ -20,7 +20,7 @@ makedocs(sitename = "NeuralPDE.jl",
          ],
          format = Documenter.HTML(analytics = "UA-90474609-3",
                                   assets = ["assets/favicon.ico"],
-                                  canonical = "https://neuralpde.sciml.ai/stable/"),
+                                  canonical = "https://docs.sciml.ai/NeuralPDE/stable/"),
          pages = pages)
 
 deploydocs(repo = "github.com/SciML/NeuralPDE.jl.git";

@@ -3,7 +3,7 @@
 !!! note
 
     It is highly recommended you first read the [solving ordinary differential
-    equations with DifferentialEquations.jl tutorial](https://diffeq.sciml.ai/stable/tutorials/ode_example/)
+    equations with DifferentialEquations.jl tutorial](https://docs.sciml.ai/DiffEqDocs/stable/tutorials/ode_example/)
     before reading this tutorials.
 
 This tutorial is an introduction to using physics-informed neural networks (PINNs)
@@ -70,4 +70,4 @@ sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose=true, abstol=1f-6, maxite
 And that's it: the neural network solution was computed by training the neural network and
 returned in the standard DifferentialEquations.jl `ODESolution` format. For more information
 on handling the solution, consult
-[the DifferentialEquations.jl solution handling section](https://diffeq.sciml.ai/stable/basics/solution/)
+[the DifferentialEquations.jl solution handling section](https://docs.sciml.ai/DiffEqDocs/stable/basics/solution/)

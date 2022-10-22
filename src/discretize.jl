@@ -395,7 +395,7 @@ prob = symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInforme
 `symbolic_discretize` is the lower level interface to `discretize` for inspecting internals.
 It transforms a symbolic description of a ModelingToolkit-defined `PDESystem` into a
 `PINNRepresentation` which holds the pieces required to build an `OptimizationProblem`
-for [Optimization.jl](https://Optimization.sciml.ai/dev/) whose solution is the solution
+for [Optimization.jl](https://docs.sciml.ai/Optimization/stable) whose solution is the solution
 to the PDE.
 
 For more information, see `discretize` and `PINNRepresentation`.
@@ -672,7 +672,7 @@ prob = discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
 ```
 
 Transforms a symbolic description of a ModelingToolkit-defined `PDESystem` and generates
-an `OptimizationProblem` for [Optimization.jl](https://Optimization.sciml.ai/dev/) whose
+an `OptimizationProblem` for [Optimization.jl](https://docs.sciml.ai/Optimization/stable/) whose
 solution is the solution to the PDE.
 """
 function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)

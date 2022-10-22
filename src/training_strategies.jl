@@ -132,7 +132,7 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
    points is generated directly at each iteration in runtime. In this case `minibatch` has no effect,
 * `minibatch`: the number of subsets, if resampling == false.
 
-For more information, see [QuasiMonteCarlo.jl](https://github.com/SciML/QuasiMonteCarlo.jl)
+For more information, see [QuasiMonteCarlo.jl](https://docs.sciml.ai/QuasiMonteCarlo/stable/)
 """
 struct QuasiRandomTraining <: AbstractTrainingStrategy
     points::Int64
@@ -233,7 +233,7 @@ number of points to evaluate in a given integrand call.
 * `batch`: the preferred number of points to batch.
 
 For more information on the argument values and algorithm choices, see
-[Integrals.jl](https://github.com/SciML/Integrals.jl).
+[Integrals.jl](https://docs.sciml.ai/Integrals/stable/).
 """
 struct QuadratureTraining{Q <: SciMLBase.AbstractIntegralAlgorithm, T} <:
        AbstractTrainingStrategy

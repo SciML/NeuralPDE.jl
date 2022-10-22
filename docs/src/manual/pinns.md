@@ -19,7 +19,7 @@ PDEs are defined using the ModelingToolkit.jl `PDESystem`:
 Here, `eq` is the equation, `bcs` represents the boundary conditions, `param` is
 the parameter of the equation (like `[x,y]`), and `var` represents variables (like `[u]`).
 For more information, see the
-[ModelingToolkit.jl PDESystem documentation](https://mtk.sciml.ai/dev/systems/PDESystem/).
+[ModelingToolkit.jl PDESystem documentation](https://docs.sciml.ai/ModelingToolkit/stable/systems/PDESystem/).
 
 ## The `PhysicsInformedNN` Discretizer
 
