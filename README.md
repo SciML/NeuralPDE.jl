@@ -5,7 +5,7 @@
 
 [![codecov](https://codecov.io/gh/SciML/NeuralPDE.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SciML/NeuralPDE.jl)
 [![Build Status](https://github.com/SciML/NeuralPDE.jl/workflows/CI/badge.svg)](https://github.com/SciML/NeuralPDE.jl/actions?query=workflow%3ACI)
-[![Build status](https://badge.buildkite.com/fa31256f4b8a4f95fe5ab90c3bf4ef56055a2afe675435c182.svg)](https://buildkite.com/julialang/neuralpde-dot-jl)
+[![Build status](https://badge.buildkite.com/fa31256f4b8a4f95fe5ab90c3bf4ef56055a2afe675435c182.svg?branch=master)](https://buildkite.com/julialang/neuralpde-dot-jl)
 
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
