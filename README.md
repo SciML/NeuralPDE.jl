@@ -15,6 +15,7 @@ partial differential equations using physics-informed neural networks (PINNs). T
 neural stochastic differential equations to solve PDEs at a greatly increased generality
 compared with classical methods.
 
+
 ## Installation
 
 Assuming that you already have Julia correctly installed, it suffices to install NeuralPDE.jl in the standard way, that is, by typing `] add NeuralPDE`. Note:
