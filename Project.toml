@@ -39,7 +39,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 [compat]
 Adapt = "3"
 ArrayInterfaceCore = "0.1.13"
-CUDA = "3.0"
+CUDA = "< 3.13"
 ChainRulesCore = "1"
 ComponentArrays = "0.13.2"
 DiffEqBase = "6"
