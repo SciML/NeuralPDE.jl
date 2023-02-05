@@ -29,8 +29,10 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
 
     # the points in the domain and on the boundary
     pde_train_sets, bcs_train_sets = train_sets
-    pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)), pde_train_sets)
-    bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)), bcs_train_sets)
+    pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+                            pde_train_sets)
+    bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+                            bcs_train_sets)
     pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
                           for (_loss, _set) in zip(datafree_pde_loss_function,
                                                    pde_train_sets)]
