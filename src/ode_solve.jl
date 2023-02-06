@@ -286,6 +286,21 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
     optf = OptimizationFunction(loss, Optimization.AutoZygote())
 end
 
+function generate_loss(strategy::FrontWeightedGridTraining, phi, f, autodiff::Bool, tspan, p,
+                       batch)
+    ts = tspan[1]:(strategy.dx):tspan[2]
+
+    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
+    function loss(θ, _)
+        if batch
+            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
+        else
+            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
+        end
+    end
+    optf = OptimizationFunction(loss, Optimization.AutoZygote())
+end
+
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
@@ -387,7 +402,22 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         l < abstol
     end
 
-    optprob = OptimizationProblem(optf, init_params)
+    if strategy isa FrontWeightedGridTraining
+        minT = tspan[1]
+        maxT = tspan[2]
+    
+        difference = (maxT - minT) / 3
+    
+        data_1 = rand(1, 1000) .* difference .+ minT
+        data_2 = rand(1, 100) .* (2 * difference) .+ minT .+ (difference)
+        data_3 = rand(1, 10) .* (4 * difference) .+ minT .+ (2 * difference)
+
+        data = [data_1 data_2 data_3]
+        optprob = OptimizationProblem(optf, init_params, p = [[data] [data]])
+    else 
+        optprob = OptimizationProblem(optf, init_params)
+    end
+
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     #solutions at timepoints
