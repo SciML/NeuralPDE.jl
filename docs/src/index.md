@@ -6,19 +6,19 @@ partial differential equations using physics-informed neural networks (PINNs).
 
 ## Features
 
-- Physics-Informed Neural Networks for ODE, SDE, RODE, and PDE solving
-- Ability to define extra loss functions to mix xDE solving with data fitting (scientific machine learning)
-- Automated construction of Physics-Informed loss functions from a high level symbolic interface
+- Physics-Informed Neural Networks for ODE, SDE, RODE, and PDE solving.
+- Ability to define extra loss functions to mix xDE solving with data fitting (scientific machine learning).
+- Automated construction of Physics-Informed loss functions from a high-level symbolic interface.
 - Sophisticated techniques like quadrature training strategies, adaptive loss functions, and neural adapters
-  to accelerate training
-- Integrated logging suite for handling connections to TensorBoard
-- Handling of (partial) integro-differential equations and various stochastic equations
-- Specialized forms for solving `ODEProblem`s with neural networks
-- Compatability with [Flux.jl](https://docs.sciml.ai/Flux.jl/stable/) and [Lux.jl](https://docs.sciml.ai/Lux/stable/)
-  for all of the GPU-powered machine learning layers available from those libraries.
-- Compatability with [NeuralOperators.jl](https://docs.sciml.ai/NeuralOperators/stable/) for
+  to accelerate training.
+- Integrated logging suite for handling connections to TensorBoard.
+- Handling of (partial) integro-differential equations and various stochastic equations.
+- Specialized forms for solving `ODEProblem`s with neural networks.
+- Compatibility with [Flux.jl](https://docs.sciml.ai/Flux.jl/stable/) and [Lux.jl](https://docs.sciml.ai/Lux/stable/).
+  for all the GPU-powered machine learning layers available from those libraries.
+- Compatibility with [NeuralOperators.jl](https://docs.sciml.ai/NeuralOperators/stable/) for
   mixing DeepONets and other neural operators (Fourier Neural Operators, Graph Neural Operators,
-  etc.) with physics-informed loss functions
+  etc.) with physics-informed loss functions.
 
 ## Installation
 

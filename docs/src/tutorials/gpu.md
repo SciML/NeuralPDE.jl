@@ -103,7 +103,7 @@ end
 res = Optimization.solve(prob,Adam(0.01);callback = callback,maxiters=2500)
 ```
 
-We then use the `remake` function allows to rebuild the PDE problem to start a new
+We then use the `remake` function to rebuild the PDE problem to start a new
 optimization at the optimized parameters, and continue with a lower learning rate:
 
 ```julia
@@ -111,7 +111,7 @@ prob = remake(prob,u0=res.u)
 res = Optimization.solve(prob,Adam(0.001);callback = callback,maxiters=2500)
 ```
 
-Finally we inspect the solution:
+Finally, we inspect the solution:
 
 ```julia
 phi = discretization.phi
@@ -148,7 +148,7 @@ plot_(res)
 ## Performance benchmarks
 
 Here are some performance benchmarks for 2d-pde with various number of input points and the
-number of neurons in the hidden layer, measuring the time for 100 iterations. Сomparing
+number of neurons in the hidden layer, measuring the time for 100 iterations. Comparing
 runtime with GPU and CPU.
 
 ```julia

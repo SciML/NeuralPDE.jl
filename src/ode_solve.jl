@@ -12,26 +12,26 @@ of the physics-informed neural network which is used as a solver for a standard 
 !!! warn
 
     Note that NNODE only supports ODEs which are written in the out-of-place form, i.e.
-    `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place then the NNODE
+    `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place, then the NNODE
     will exit with an error.
 
 ## Positional Arguments
 
 * `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.AbstractExplicitLayer`.
 * `opt`: The optimizer to train the neural network. Defaults to `OptimizationPolyalgorithms.PolyOpt()`
-* `init_params`: The initial parameter of the neural network. By default this is `nothing`
+* `init_params`: The initial parameter of the neural network. By default, this is `nothing`
   which thus uses the random initialization provided by the neural network library.
 
 ## Keyword Arguments
 
 * `autodiff`: The switch between automatic and numerical differentiation for
               the PDE operators. The reverse mode of the loss function is always
-              automatic differentation (via Zygote), this is only for the derivative
+              automatic differentiation (via Zygote), this is only for the derivative
               in the loss function (the derivative with respect to time).
 * `batch`: The batch size to use for the internal quadrature. Defaults to `0`, which
   means the application of the neural network is done at individual time points one
   at a time. `batch>0` means the neural network is applied at a row vector of values
-  `t` simultaniously, i.e. it's the batch size for the neural network evaluations.
+  `t` simultaneously, i.e. it's the batch size for the neural network evaluations.
   This requires a neural network compatible with batched data.
 * `strategy`: The training strategy used to choose the points for the evaluations.
   Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
@@ -55,7 +55,7 @@ sol = solve(prob, NeuralPDE.NNODE(chain,opt), dt=1/20f0, verbose = true,
 
 Note that the solution is evaluated at fixed time points according to standard output handlers
 such as `saveat` and `dt`. However, the neural network is a fully continuous solution so `sol(t)`
-is an accuate interpolation (up to the neural network training result). In addition, the
+is an accurate interpolation (up to the neural network training result). In addition, the
 `OptimizationSolution` is returned as `sol.k` for further analysis.
 
 ## References

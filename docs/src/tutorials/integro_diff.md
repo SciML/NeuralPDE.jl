@@ -1,4 +1,4 @@
-# Solving Integro Differential Equations with Physics-Informed Neural Networks (PINNs)
+# Solving Integro-Differential Equations with Physics-Informed Neural Networks (PINNs)
 
 The integral of function u(x),
 
@@ -6,7 +6,7 @@ The integral of function u(x),
 \int_{0}^{t}u(x)dx
 ```
 
-where x is variable of integral and t is variable of integro differential equation,
+where x is variable of integral and t is variable of integro-differential equation,
 
 is defined as
 
@@ -24,7 +24,7 @@ Ix = Integral((x,y) in DomainSets.UnitSquare())
 ```
 
 The UnitSquare domain ranges both x and y from 0 to 1.
-Similarly a rectangular or cuboidal domain can be defined using `ProductDomain` of ClosedIntervals.
+Similarly, a rectangular or cuboidal domain can be defined using `ProductDomain` of ClosedIntervals.
 
 ```julia
 Ix = Integral((x,y) in DomainSets.ProductDomain(ClosedInterval(0 ,1), ClosedInterval(0 ,x)))
@@ -32,7 +32,7 @@ Ix = Integral((x,y) in DomainSets.ProductDomain(ClosedInterval(0 ,1), ClosedInte
 
 ## 1-dimensional example
 
-Lets take an example of an integro differential equation:
+Let's take an example of an integro-differential equation:
 
 ```math
 \frac{∂}{∂t} u(t)  + 2u(t) + 5 \int_{0}^{t}u(x)dx = 1 \ \text{for} \ t \geq 0

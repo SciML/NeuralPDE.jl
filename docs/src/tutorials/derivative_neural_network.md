@@ -2,8 +2,8 @@
 
 The accuracy and stability of numerical derivative decreases with each successive order.
 The accuracy of the entire solution is determined by the worst accuracy of one of the variables,
-in our case - the highest degree of the derivative. Meanwhile the computational cost of automatic
-differentation for higher orders grows the power in O(n^d), making even numerical differentiation
+in our case, the highest degree of the derivative. Meanwhile, the computational cost of automatic
+differentiation for higher orders grows as O(n^d), making even numerical differentiation
 much more efficient! Given these two bad choices, there exists an alternative which can improve
 training speed and accuracy: using a system to represent the derivatives directly.
 
@@ -42,9 +42,9 @@ u_2(t, 0) & = - u_2(t, 1) = e^{-t} \, ,
 This is the same system as the [system of equations example](@ref systems)
 
 The derivative neural network approximation is such an approach that using lower-order numeric
-derivatives and estimates higher-order derivatives with a neural network so that allows an
+derivatives and estimates higher-order derivatives with a neural network, so that allows an
 increase in the marginal precision for all optimization. Since `u3` is only in the first and
-second equations, that its accuracy during training is determined by the accuracy of the
+second equations, its accuracy during training is determined by the accuracy of the
 second numerical derivative `u3(t,x) ~ (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)`.
 
 We approximate the derivative of the neural network with another neural network
