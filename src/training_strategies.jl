@@ -53,13 +53,13 @@ end
 StochasticTraining(points; bcs_points = points)
 ```
 
-## Postional Arguments
+## Positional Arguments
 
 * `points`: number of points in random select training set
 
 ## Keyword Arguments
 
-* `bcs_points`: number of points in random select training set for boundry conditions
+* `bcs_points`: number of points in random select training set for boundary conditions
   (by default, it equals `points`).
 """
 struct StochasticTraining <: AbstractTrainingStrategy
@@ -116,7 +116,7 @@ QuasiRandomTraining(points; bcs_points = points,
                             minibatch = 0)
 ```
 
-A training strategy which uses quasi-Monte Carlo sampling for low discrepency sequences
+A training strategy which uses quasi-Monte Carlo sampling for low discrepancy sequences
 that accelerate the convergence in high dimensional spaces over pure random sequences.
 
 ## Positional Arguments
@@ -125,13 +125,13 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
 
 ## Keyword Arguments
 
-* `bcs_points`: the number of quasi-random points in a sample for boundry conditions
+* `bcs_points`: the number of quasi-random points in a sample for boundary conditions
   (by default, it equals `points`),
 * `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
 * `resampling`: if it's false - the full training set is generated in advance before training,
    and at each iteration, one subset is randomly selected out of the batch.
-   if it's true - the training set isn't generated beforehand, and one set of quasi-random
-   points is generated directly at each iteration in runtime. In this case `minibatch` has no effect,
+   Ff it's true - the training set isn't generated beforehand, and one set of quasi-random
+   points is generated directly at each iteration in runtime. In this case, `minibatch` has no effect,
 * `minibatch`: the number of subsets, if resampling == false.
 
 For more information, see [QuasiMonteCarlo.jl](https://docs.sciml.ai/QuasiMonteCarlo/stable/)
@@ -223,7 +223,7 @@ QuadratureTraining(; quadrature_alg = CubatureJLh(),
 A training strategy which treats the loss function as the integral of
 ||condition|| over the domain. Uses an Integrals.jl algorithm for
 computing the (adaptive) quadrature of this loss with respect to the
-chosen tolerances with a batching `batch` corresponding to the maximum
+chosen tolerances, with a batching `batch` corresponding to the maximum
 number of points to evaluate in a given integrand call.
 
 ## Keyword Arguments

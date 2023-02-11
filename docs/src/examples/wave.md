@@ -59,7 +59,7 @@ res = Optimization.solve(prob,opt; callback = callback, maxiters=1200)
 phi = discretization.phi
 ```
 
-We can plot the predicted solution of the PDE and compare it with the analytical solution in order to plot the relative error.
+We can plot the predicted solution of the PDE and compare it with the analytical solution to plot the relative error.
 
 ```@example wave
 using Plots
@@ -92,7 +92,7 @@ u_t(0, x) = 1 - 2x \\
 \end{aligned}
 ```
 
-with grid discretization `dx = 0.05` and physics-informed neural networks. Here we take advantage of adaptive derivative to increase accuracy.
+with grid discretization `dx = 0.05` and physics-informed neural networks. Here, we take advantage of adaptive derivative to increase accuracy.
 
 ```@example wave2
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
@@ -201,6 +201,6 @@ We can see the results here:
 
 ![Damped_wave_sol_adaptive_u](https://user-images.githubusercontent.com/12683885/149665332-d4daf7d0-682e-4933-a2b4-34f403881afb.png)
 
-Plotted as a line one can see the analytical solution and the prediction here:
+Plotted as a line, one can see the analytical solution and the prediction here:
 
 ![1Dwave_damped_adaptive](https://user-images.githubusercontent.com/12683885/149665327-69d04c01-2240-45ea-981e-a7b9412a3b58.gif)

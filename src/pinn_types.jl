@@ -41,7 +41,7 @@ PhysicsInformedNN(chain,
                   kwargs...) where {iip}
 ```
 
-A `discretize` algorithm for the ModelingToolkit PDESystem interface which transforms a
+A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
 `PDESystem` into an `OptimizationProblem` using the Physics-Informed Neural Networks (PINN)
 methodology.
 
@@ -62,7 +62,7 @@ methodology.
   will convert to Float64.
 * `phi`: a trial solution, specified as `phi(x,p)` where `x` is the coordinates vector for
   the dependent variable and `p` are the weights of the phi function (generally the weights
-  of the neural network defining `phi`). By default this is generated from the `chain`. This
+  of the neural network defining `phi`). By default, this is generated from the `chain`. This
   should only be used to more directly impose functional information in the training problem,
   for example imposing the boundary condition by the test function formulation.
 * `adaptive_loss`: the choice for the adaptive loss function. See the
@@ -153,7 +153,7 @@ end
 """
 `PINNRepresentation``
 
-An internal reprsentation of a physics-informed neural network (PINN). This is the struct
+An internal representation of a physics-informed neural network (PINN). This is the struct
 used internally and returned for introspection by `symbolic_discretize`.
 
 ## Fields
@@ -226,7 +226,7 @@ mutable struct PINNRepresentation
     """
     multioutput::Bool
     """
-    The iteration counter used inside of the cost function
+    The iteration counter used inside the cost function
     """
     iteration::Vector{Int}
     """

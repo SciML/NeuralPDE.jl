@@ -25,7 +25,7 @@ x \in [0, 1] \, , \ y \in [0, 1] \, ,
 
 with grid discretization `dx = 0.1` using physics-informed neural networks.
 
-## Copy-Pastable Code
+## Copy-Pasteable Code
 
 ```@example
 using NeuralPDE, Lux, Optimization, OptimizationOptimJL
@@ -150,7 +150,7 @@ res = Optimization.solve(prob, opt, callback = callback, maxiters=1000)
 phi = discretization.phi
 ```
 
-We can plot the predicted solution of the PDE and compare it with the analytical solution in order to plot the relative error.
+We can plot the predicted solution of the PDE and compare it with the analytical solution to plot the relative error.
 
 ```@example poisson
 xs,ys = [infimum(d.domain):dx/10:supremum(d.domain) for d in domains]

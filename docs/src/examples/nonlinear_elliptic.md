@@ -1,6 +1,6 @@
 # Nonlinear elliptic system of PDEs
 
-We can also solve nonlinear systems such as the system of nonlinear elliptic PDEs
+We can also solve nonlinear systems, such as the system of nonlinear elliptic PDEs
 
 ```math
 \begin{aligned}
