@@ -1,7 +1,7 @@
 # Solving ODEs with Physics-Informed Neural Networks (PINNs)
 
 !!! note
-
+    
     It is highly recommended you first read the [solving ordinary differential
     equations with DifferentialEquations.jl tutorial](https://docs.sciml.ai/DiffEqDocs/stable/tutorials/ode_example/)
     before reading this tutorial.
@@ -64,7 +64,8 @@ Once these pieces are together, we call `solve` just like with any other `ODEPro
 Let's turn on `verbose` so we can see the loss over time during the training process:
 
 ```@example nnode1
-sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose=true, abstol=1f-6, maxiters=200)
+sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, abstol = 1.0f-6,
+            maxiters = 200)
 ```
 
 And that's it: the neural network solution was computed by training the neural network and
