@@ -13,7 +13,7 @@ where time t is a special component of x, and Ω contains the temporal domain.
 PDEs are defined using the ModelingToolkit.jl `PDESystem`:
 
 ```julia
-@named pde_system = PDESystem(eq,bcs,domains,param,var)
+@named pde_system = PDESystem(eq, bcs, domains, param, var)
 ```
 
 Here, `eq` is the equation, `bcs` represents the boundary conditions, `param` is
