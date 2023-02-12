@@ -10,11 +10,11 @@ u(2, y, t) &amp;= e^{2+y} \cos(2 + y + 4t) \, ,\\
 u(x, 0, t) &amp;= e^{x}   \cos(x + 4t)     \, ,\\
 u(x, 2, t) &amp;= e^{x+2} \cos(x + 2 + 4t) \, ,
 \end{align*}\]</p><p>on the space and time domain:</p><p class="math-container">\[x \in [0, 2] \, ,\ y \in [0, 2] \, , \ t \in [0, 2] \, ,\]</p><p>with physics-informed neural networks. The only major difference from the CPU case is that we must ensure that our initial parameters for the neural network are on the GPU. If that is done, then the internal computations will all take place on the GPU. This is done by using the <code>gpu</code> function on the initial parameters, like:</p><pre><code class="language-julia hljs">using Lux
-chain = Chain(Dense(3,inner,Lux.σ),
-              Dense(inner,inner,Lux.σ),
-              Dense(inner,inner,Lux.σ),
-              Dense(inner,inner,Lux.σ),
-              Dense(inner,1)) 
+chain = Chain(Dense(3, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, 1))
 ps = Lux.setup(Random.default_rng(), chain)[1]
 ps = ps |&gt; Lux.ComponentArray |&gt; gpu .|&gt; Float64</code></pre><p>In total, this looks like:</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, CUDA, Random
 using Optimization
@@ -26,36 +26,36 @@ import ModelingToolkit: Interval
 Dxx = Differential(x)^2
 Dyy = Differential(y)^2
 Dt = Differential(t)
-t_min= 0.
+t_min = 0.0
 t_max = 2.0
-x_min = 0.
-x_max = 2.
-y_min = 0.
-y_max = 2.
+x_min = 0.0
+x_max = 2.0
+y_min = 0.0
+y_max = 2.0
 
 # 2D PDE
-eq  = Dt(u(t,x,y)) ~ Dxx(u(t,x,y)) + Dyy(u(t,x,y))
+eq = Dt(u(t, x, y)) ~ Dxx(u(t, x, y)) + Dyy(u(t, x, y))
 
-analytic_sol_func(t,x,y) = exp(x+y)*cos(x+y+4t)
+analytic_sol_func(t, x, y) = exp(x + y) * cos(x + y + 4t)
 # Initial and boundary conditions
-bcs = [u(t_min,x,y) ~ analytic_sol_func(t_min,x,y),
-       u(t,x_min,y) ~ analytic_sol_func(t,x_min,y),
-       u(t,x_max,y) ~ analytic_sol_func(t,x_max,y),
-       u(t,x,y_min) ~ analytic_sol_func(t,x,y_min),
-       u(t,x,y_max) ~ analytic_sol_func(t,x,y_max)]
+bcs = [u(t_min, x, y) ~ analytic_sol_func(t_min, x, y),
+    u(t, x_min, y) ~ analytic_sol_func(t, x_min, y),
+    u(t, x_max, y) ~ analytic_sol_func(t, x_max, y),
+    u(t, x, y_min) ~ analytic_sol_func(t, x, y_min),
+    u(t, x, y_max) ~ analytic_sol_func(t, x, y_max)]
 
 # Space and time domains
-domains = [t ∈ Interval(t_min,t_max),
-           x ∈ Interval(x_min,x_max),
-           y ∈ Interval(y_min,y_max)]
+domains = [t ∈ Interval(t_min, t_max),
+    x ∈ Interval(x_min, x_max),
+    y ∈ Interval(y_min, y_max)]
 
 # Neural network
 inner = 25
-chain = Chain(Dense(3,inner,Lux.σ),
-              Dense(inner,inner,Lux.σ),
-              Dense(inner,inner,Lux.σ),
-              Dense(inner,inner,Lux.σ),
-              Dense(inner,1)) 
+chain = Chain(Dense(3, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, 1))
 
 strategy = GridTraining(0.05)
 ps = Lux.setup(Random.default_rng(), chain)[1]
@@ -64,19 +64,19 @@ discretization = PhysicsInformedNN(chain,
                                    strategy,
                                    init_params = ps)
 
-@named pde_system = PDESystem(eq,bcs,domains,[t,x,y],[u(t, x, y)])
-prob = discretize(pde_system,discretization)
-symprob = symbolic_discretize(pde_system,discretization)
+@named pde_system = PDESystem(eq, bcs, domains, [t, x, y], [u(t, x, y)])
+prob = discretize(pde_system, discretization)
+symprob = symbolic_discretize(pde_system, discretization)
 
-callback = function (p,l)
+callback = function (p, l)
     println(&quot;Current loss is: $l&quot;)
     return false
 end
 
-res = Optimization.solve(prob,Adam(0.01);callback = callback,maxiters=2500)</code></pre><p>We then use the <code>remake</code> function allows to rebuild the PDE problem to start a new optimization at the optimized parameters, and continue with a lower learning rate:</p><pre><code class="language-julia hljs">prob = remake(prob,u0=res.u)
-res = Optimization.solve(prob,Adam(0.001);callback = callback,maxiters=2500)</code></pre><p>Finally we inspect the solution:</p><pre><code class="language-julia hljs">phi = discretization.phi
-ts,xs,ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains] 
-u_real = [analytic_sol_func(t,x,y) for t in ts for x in xs for y in ys]
+res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 2500)</code></pre><p>We then use the <code>remake</code> function to rebuild the PDE problem to start a new optimization at the optimized parameters, and continue with a lower learning rate:</p><pre><code class="language-julia hljs">prob = remake(prob, u0 = res.u)
+res = Optimization.solve(prob, Adam(0.001); callback = callback, maxiters = 2500)</code></pre><p>Finally, we inspect the solution:</p><pre><code class="language-julia hljs">phi = discretization.phi
+ts, xs, ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
+u_real = [analytic_sol_func(t, x, y) for t in ts for x in xs for y in ys]
 u_predict = [first(Array(phi(gpu([t, x, y]), res.u))) for t in ts for x in xs for y in ys]
 
 using Plots
@@ -86,21 +86,21 @@ function plot_(res)
     # Animate
     anim = @animate for (i, t) in enumerate(0:0.05:t_max)
         @info &quot;Animating frame $i...&quot;
-        u_real = reshape([analytic_sol_func(t,x,y) for x in xs for y in ys], (length(xs),length(ys)))
-        u_predict = reshape([Array(phi(gpu([t, x, y]), res.u))[1] for x in xs for y in ys], length(xs), length(ys))
+        u_real = reshape([analytic_sol_func(t, x, y) for x in xs for y in ys],
+                         (length(xs), length(ys)))
+        u_predict = reshape([Array(phi(gpu([t, x, y]), res.u))[1] for x in xs for y in ys],
+                            length(xs), length(ys))
         u_error = abs.(u_predict .- u_real)
         title = @sprintf(&quot;predict, t = %.3f&quot;, t)
-        p1 = plot(xs, ys, u_predict,st=:surface, label=&quot;&quot;, title=title)
+        p1 = plot(xs, ys, u_predict, st = :surface, label = &quot;&quot;, title = title)
         title = @sprintf(&quot;real&quot;)
-        p2 = plot(xs, ys, u_real,st=:surface, label=&quot;&quot;, title=title)
+        p2 = plot(xs, ys, u_real, st = :surface, label = &quot;&quot;, title = title)
         title = @sprintf(&quot;error&quot;)
-        p3 = plot(xs, ys, u_error, st=:contourf,label=&quot;&quot;, title=title)
-        plot(p1,p2,p3)
+        p3 = plot(xs, ys, u_error, st = :contourf, label = &quot;&quot;, title = title)
+        plot(p1, p2, p3)
     end
-    gif(anim,&quot;3pde.gif&quot;, fps=10)
+    gif(anim, &quot;3pde.gif&quot;, fps = 10)
 end
 
-plot_(res)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/129949743-9471d230-c14f-4105-945f-6bc52677d40e.gif" alt="3pde"/></p><h2 id="Performance-benchmarks"><a class="docs-heading-anchor" href="#Performance-benchmarks">Performance benchmarks</a><a id="Performance-benchmarks-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-benchmarks" title="Permalink"></a></h2><p>Here are some performance benchmarks for 2d-pde with various number of input points and the number of neurons in the hidden layer, measuring the time for 100 iterations. Сomparing runtime with GPU and CPU.</p><pre><code class="language-julia hljs">
-julia&gt; CUDA.device()
-CuDevice(0): Tesla P100-PCIE-16GB
-</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/110297207-49202500-8004-11eb-9e45-d4cb28045d87.png" alt="image"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../pdesystem/">« Introduction to NeuralPDE for PDEs</a><a class="docs-footer-nextpage" href="../systems/">Defining Systems of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Monday 6 February 2023 04:20">Monday 6 February 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot_(res)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/129949743-9471d230-c14f-4105-945f-6bc52677d40e.gif" alt="3pde"/></p><h2 id="Performance-benchmarks"><a class="docs-heading-anchor" href="#Performance-benchmarks">Performance benchmarks</a><a id="Performance-benchmarks-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-benchmarks" title="Permalink"></a></h2><p>Here are some performance benchmarks for 2d-pde with various number of input points and the number of neurons in the hidden layer, measuring the time for 100 iterations. Comparing runtime with GPU and CPU.</p><pre><code class="language-julia hljs">julia&gt; CUDA.device()
+</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/110297207-49202500-8004-11eb-9e45-d4cb28045d87.png" alt="image"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../pdesystem/">« Introduction to NeuralPDE for PDEs</a><a class="docs-footer-nextpage" href="../systems/">Defining Systems of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Sunday 12 February 2023 14:41">Sunday 12 February 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
