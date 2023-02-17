@@ -27,6 +27,7 @@ For information on using the package,
 [in-development documentation](https://docs.sciml.ai/NeuralPDE/dev/) for the version of
 the documentation, which contains the unreleased features.
 
+
 ## Features
 
 - Physics-Informed Neural Networks for ODE, SDE, RODE, and PDE solving
