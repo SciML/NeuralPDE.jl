@@ -5,7 +5,7 @@ version = "5.3.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-ArrayInterfaceCore = "30b0a656-2188-435a-8636-2ec0e6a096e2"
+ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
@@ -38,7 +38,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 Adapt = "3"
-ArrayInterfaceCore = "0.1.13"
+ArrayInterface = "7"
 CUDA = "3.0"
 ChainRulesCore = "1"
 ComponentArrays = "0.13.2"

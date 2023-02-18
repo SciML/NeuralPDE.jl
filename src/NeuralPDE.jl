@@ -16,7 +16,7 @@ using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 using Statistics
-using ArrayInterfaceCore
+using ArrayInterface
 import Optim
 using DomainSets
 using Symbolics
