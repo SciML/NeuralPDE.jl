@@ -14,50 +14,46 @@ Pkg.add(&quot;NeuralPDE&quot;)</code></pre><h2 id="Contributing"><a class="docs-
   year = {2021},
   copyright = {Creative Commons Attribution Non Commercial Share Alike 4.0 International}
 }</code></pre><h2 id="Reproducibility"><a class="docs-heading-anchor" href="#Reproducibility">Reproducibility</a><a id="Reproducibility-1"></a><a class="docs-heading-anchor-permalink" href="#Reproducibility" title="Permalink"></a></h2><details><summary>The documentation of this SciML package was built using these direct dependencies,</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NeuralPDE.jl/NeuralPDE.jl/docs/Project.toml`
-  [2b5f629d] DiffEqBase v6.118.0
+  [2b5f629d] DiffEqBase v6.120.0
   [e30172f5] Documenter v0.27.24
 ⌅ [5b8099bc] DomainSets v0.5.15
   [587475ba] Flux v0.13.13
-  [de52edbc] Integrals v3.6.0
+  [de52edbc] Integrals v3.7.0
   [c31f79ba] IntegralsCubature v0.2.2
-  [b2108857] Lux v0.4.37
+  [b2108857] Lux v0.4.39
 ⌃ [961ee093] ModelingToolkit v8.46.1
   [315f7962] NeuralPDE v5.4.0 `~/work/NeuralPDE.jl/NeuralPDE.jl`
-  [7f7a1694] Optimization v3.11.2
+  [7f7a1694] Optimization v3.12.0
   [36348300] OptimizationOptimJL v0.1.5
   [42dfb2eb] OptimizationOptimisers v0.1.1
   [500b13db] OptimizationPolyalgorithms v0.1.1
-  [1dea7af3] OrdinaryDiffEq v6.44.1
+  [1dea7af3] OrdinaryDiffEq v6.47.0
   [91a5bcdd] Plots v1.38.5
   [8a4e6c94] QuasiMonteCarlo v0.2.19
   [f2b01f46] Roots v2.0.8
-  [276daf66] SpecialFunctions v2.1.7
+  [276daf66] SpecialFunctions v2.2.0
 Info Packages marked with ⌃ and ⌅ have new versions available, but those with ⌅ are restricted by compatibility constraints from upgrading. To see why use `status --outdated`</code></pre></details><details><summary>and using this machine and Julia version.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Julia Version 1.8.5
 Commit 17cfb8e65ea (2023-01-08 06:45 UTC)
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
-  CPU: 2 × Intel(R) Xeon(R) Platinum 8171M CPU @ 2.60GHz
+  CPU: 2 × Intel(R) Xeon(R) CPU E5-2673 v3 @ 2.40GHz
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-13.0.1 (ORCJIT, skylake-avx512)
+  LLVM: libLLVM-13.0.1 (ORCJIT, haswell)
   Threads: 1 on 2 virtual cores</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NeuralPDE.jl/NeuralPDE.jl/docs/Manifest.toml`
   [a4c015fc] ANSIColoredPrinters v0.0.1
-  [c3fe647b] AbstractAlgebra v0.27.8
+⌅ [c3fe647b] AbstractAlgebra v0.27.10
   [621f4979] AbstractFFTs v1.2.1
   [1520ce14] AbstractTrees v0.4.4
   [7d9f7c33] Accessors v0.1.27
   [79e6a3ab] Adapt v3.5.0
   [dce04be8] ArgCheck v2.3.0
   [ec485272] ArnoldiMethod v0.2.0
-⌅ [4fba245c] ArrayInterface v6.0.25
+  [4fba245c] ArrayInterface v7.1.0
   [30b0a656] ArrayInterfaceCore v0.1.29
-  [6ba088a2] ArrayInterfaceGPUArrays v0.2.2
-  [015c0d05] ArrayInterfaceOffsetArrays v0.1.7
-  [b0d46f97] ArrayInterfaceStaticArrays v0.1.5
-  [dd5226c6] ArrayInterfaceStaticArraysCore v0.1.3
   [a9b6321e] Atomix v0.1.0
   [15f4f7f2] AutoHashEquals v0.2.0
-⌅ [ab4f0b2a] BFloat16s v0.2.0
+  [ab4f0b2a] BFloat16s v0.4.2
   [198e06fe] BangBang v0.3.37
   [9718e550] Baselet v0.1.1
   [e2ed5e7c] Bijections v0.1.4
@@ -66,13 +62,14 @@ Platform Info:
   [fa961155] CEnum v0.4.2
   [2a0fbf3d] CPUSummary v0.2.2
   [00ebfdb7] CSTParser v3.3.6
-⌅ [052768ef] CUDA v3.13.1
+  [052768ef] CUDA v4.0.1
   [72cfdca4] CUDAKernels v0.4.7
+  [1af6417a] CUDA_Runtime_Discovery v0.1.1
   [49dc2e85] Calculus v0.5.1
-  [082447d4] ChainRules v1.47.0
+  [082447d4] ChainRules v1.48.0
   [d360d2e6] ChainRulesCore v1.15.7
   [9e997f8a] ChangesOfVariables v0.1.6
-  [fb6a15b2] CloseOpenIntervals v0.1.11
+  [fb6a15b2] CloseOpenIntervals v0.1.12
   [944b1d66] CodecZlib v0.7.1
   [35d6a980] ColorSchemes v3.20.0
   [3da002f7] ColorTypes v0.11.4
@@ -83,11 +80,11 @@ Platform Info:
   [38540f10] CommonSolve v0.2.3
   [bbf7d656] CommonSubexpressions v0.3.0
   [34da2185] Compat v4.6.0
-  [b0b7db55] ComponentArrays v0.13.7
+  [b0b7db55] ComponentArrays v0.13.8
   [b152e2b5] CompositeTypes v0.1.3
   [a33af91c] CompositionsBase v0.1.1
   [88cd18e8] ConsoleProgressMonitor v0.1.2
-  [187b0558] ConstructionBase v1.4.1
+  [187b0558] ConstructionBase v1.5.0
   [6add18c4] ContextVariablesX v0.1.3
   [d38c429a] Contour v0.6.2
   [adafc99b] CpuId v0.3.1
@@ -98,29 +95,29 @@ Platform Info:
   [e2d170a0] DataValueInterfaces v1.0.0
   [244e2a9f] DefineSingletons v0.1.2
   [b429d917] DensityInterface v0.4.0
-  [2b5f629d] DiffEqBase v6.118.0
+  [2b5f629d] DiffEqBase v6.120.0
   [459566f4] DiffEqCallbacks v2.26.0
   [77a26b50] DiffEqNoiseProcess v5.16.0
   [163ba53b] DiffResults v1.1.0
-  [b552c78f] DiffRules v1.12.2
+  [b552c78f] DiffRules v1.13.0
   [b4f34e82] Distances v0.10.7
-  [31c24e10] Distributions v0.25.80
+  [31c24e10] Distributions v0.25.82
   [ffbed154] DocStringExtensions v0.9.3
   [e30172f5] Documenter v0.27.24
 ⌅ [5b8099bc] DomainSets v0.5.15
   [fa6b7ba4] DualNumbers v0.6.8
   [7c1d4256] DynamicPolynomials v0.4.6
   [4e289a0a] EnumX v1.0.4
-⌃ [d4d017d3] ExponentialUtilities v1.23.0
+  [d4d017d3] ExponentialUtilities v1.24.0
   [e2ba6199] ExprTools v0.1.8
   [c87230d0] FFMPEG v0.4.1
   [cc61a311] FLoops v0.2.1
   [b9860ae5] FLoopsBase v0.1.1
-  [7034ab61] FastBroadcast v0.2.4
+  [7034ab61] FastBroadcast v0.2.5
   [9aa1b823] FastClosures v0.3.2
   [29a986be] FastLapackInterface v1.2.9
   [1a297f60] FillArrays v0.13.7
-⌃ [6a86dc24] FiniteDiff v2.17.0
+  [6a86dc24] FiniteDiff v2.18.0
   [53c48c17] FixedPointNumbers v0.8.4
   [587475ba] Flux v0.13.13
   [9c68100b] FoldsThreads v0.1.1
@@ -150,42 +147,42 @@ Platform Info:
   [83e8ac13] IniFile v0.5.1
   [22cec73e] InitialValues v0.3.1
   [18e54dd8] IntegerMathUtils v0.1.0
-  [de52edbc] Integrals v3.6.0
+  [de52edbc] Integrals v3.7.0
   [c31f79ba] IntegralsCubature v0.2.2
 ⌅ [8197267c] IntervalSets v0.7.3
   [3587e190] InverseFunctions v0.1.8
-  [92d709cd] IrrationalConstants v0.1.1
+  [92d709cd] IrrationalConstants v0.2.0
   [42fd0dbc] IterativeSolvers v0.9.2
   [82899510] IteratorInterfaceExtensions v1.0.0
   [1019f520] JLFzf v0.1.5
   [692b3bcd] JLLWrappers v1.4.1
   [682c06a0] JSON v0.21.3
-  [98e50ef6] JuliaFormatter v1.0.22
+  [98e50ef6] JuliaFormatter v1.0.24
   [b14d175d] JuliaVariables v0.2.4
-  [ccbc3e58] JumpProcesses v9.3.2
+  [ccbc3e58] JumpProcesses v9.5.1
   [ef3ab10e] KLU v0.4.0
   [63c18a36] KernelAbstractions v0.8.6
   [ba0b0d4f] Krylov v0.9.0
   [0b1a1467] KrylovKit v0.6.0
   [929cbde3] LLVM v4.16.0
   [b964fa9f] LaTeXStrings v1.3.0
-⌃ [2ee39098] LabelledArrays v1.13.0
+  [2ee39098] LabelledArrays v1.14.0
   [984bce1d] LambertW v0.4.6
   [23fbe1c1] Latexify v0.15.18
   [a5e1c1ea] LatinHypercubeSampling v1.8.0
   [73f95e8e] LatticeRules v0.0.1
-  [10f19ff3] LayoutPointers v0.1.13
+  [10f19ff3] LayoutPointers v0.1.14
   [50d2b5c4] Lazy v0.15.1
   [1d6d02ad] LeftChildRightSiblingTrees v0.2.0
   [2d8b4e74] LevyArea v1.0.0
   [d3d80556] LineSearches v7.2.0
-  [7ed4a6bd] LinearSolve v1.35.0
-  [2ab3a3ac] LogExpFunctions v0.3.22
+  [7ed4a6bd] LinearSolve v1.37.0
+  [2ab3a3ac] LogExpFunctions v0.3.23
   [e6f89c97] LoggingExtras v1.0.0
-  [bdcacae8] LoopVectorization v0.12.150
-  [b2108857] Lux v0.4.37
+  [bdcacae8] LoopVectorization v0.12.151
+  [b2108857] Lux v0.4.39
   [bb33d45b] LuxCore v0.1.2
-  [82251201] LuxLib v0.1.7
+  [82251201] LuxLib v0.1.9
   [d8e11817] MLStyle v0.4.17
   [f1d291b0] MLUtils v0.4.1
   [1914dd2f] MacroTools v0.5.10
@@ -199,26 +196,26 @@ Platform Info:
 ⌅ [4886b29c] MonteCarloIntegration v0.0.3
   [46d2c3a1] MuladdMacro v0.2.4
   [102ac46a] MultivariatePolynomials v0.4.7
-  [d8a4904e] MutableArithmetics v1.2.2
+  [d8a4904e] MutableArithmetics v1.2.3
   [d41bc354] NLSolversBase v7.8.3
   [2774e3e8] NLsolve v4.5.1
-  [872c559c] NNlib v0.8.18
-⌃ [a00861dc] NNlibCUDA v0.2.6
+  [872c559c] NNlib v0.8.19
+  [a00861dc] NNlibCUDA v0.2.7
   [77ba4419] NaNMath v1.0.2
   [71a1bf82] NameResolution v0.1.5
   [315f7962] NeuralPDE v5.4.0 `~/work/NeuralPDE.jl/NeuralPDE.jl`
-  [8913a72c] NonlinearSolve v1.3.0
+  [8913a72c] NonlinearSolve v1.4.0
   [6fe1bfb0] OffsetArrays v1.12.9
   [0b1bfda6] OneHotArrays v0.2.3
   [4d8831e6] OpenSSL v1.3.3
   [429524aa] Optim v1.7.4
   [3bd65402] Optimisers v0.2.14
-  [7f7a1694] Optimization v3.11.2
+  [7f7a1694] Optimization v3.12.0
   [36348300] OptimizationOptimJL v0.1.5
   [42dfb2eb] OptimizationOptimisers v0.1.1
   [500b13db] OptimizationPolyalgorithms v0.1.1
   [bac558e1] OrderedCollections v1.4.1
-  [1dea7af3] OrdinaryDiffEq v6.44.1
+  [1dea7af3] OrdinaryDiffEq v6.47.0
   [90014a1f] PDMats v0.11.16
   [d96e819e] Parameters v0.12.3
   [69de0a69] Parsers v2.5.7
@@ -227,10 +224,10 @@ Platform Info:
   [995b91a9] PlotUtils v1.3.4
   [91a5bcdd] Plots v1.38.5
   [e409e4f3] PoissonRandom v0.4.3
-  [f517fe37] Polyester v0.7.2
+  [f517fe37] Polyester v0.7.3
   [1d0040c9] PolyesterWeave v0.2.1
   [85a6dd25] PositiveFactorizations v0.2.4
-⌃ [d236fae5] PreallocationTools v0.4.11
+  [d236fae5] PreallocationTools v0.4.12
   [21216c6a] Preferences v1.3.0
   [8162dcfd] PrettyPrint v0.2.0
   [27ebfcd6] Primes v0.5.3
@@ -244,7 +241,7 @@ Platform Info:
   [c1ae055f] RealDot v0.1.0
   [3cdcf5f2] RecipesBase v1.3.3
   [01d81517] RecipesPipeline v0.6.11
-⌃ [731186ca] RecursiveArrayTools v2.37.0
+  [731186ca] RecursiveArrayTools v2.38.0
   [f2c3362d] RecursiveFactorization v0.2.18
   [189a3867] Reexport v1.2.2
   [42d2dcc6] Referenceables v0.1.2
@@ -256,32 +253,33 @@ Platform Info:
   [7e49a35a] RuntimeGeneratedFunctions v0.5.5
   [94e857df] SIMDTypes v0.1.0
   [476501e8] SLEEFPirates v0.6.38
-⌃ [0bca4576] SciMLBase v1.85.0
+  [0bca4576] SciMLBase v1.86.3
   [e9a6253c] SciMLNLSolve v0.1.3
-⌃ [c0aeaf25] SciMLOperators v0.1.21
+  [c0aeaf25] SciMLOperators v0.1.22
   [6c6a2e73] Scratch v1.1.1
   [efcf1570] Setfield v1.1.1
   [605ecd9f] ShowCases v0.1.0
   [992d4aef] Showoff v1.0.3
   [777ac1f9] SimpleBufferStream v1.1.0
-  [727e6d20] SimpleNonlinearSolve v0.1.11
+  [727e6d20] SimpleNonlinearSolve v0.1.13
   [699a6c99] SimpleTraits v0.9.4
   [66db9d55] SnoopPrecompile v1.0.3
   [ed01d8cd] Sobol v1.5.0
   [a2af1166] SortingAlgorithms v1.1.0
-⌃ [47a9eef4] SparseDiffTools v1.30.0
+  [47a9eef4] SparseDiffTools v1.31.0
   [e56a9233] Sparspak v0.3.9
-  [276daf66] SpecialFunctions v2.1.7
+  [276daf66] SpecialFunctions v2.2.0
   [171d559e] SplittablesBase v0.1.15
   [860ef19b] StableRNGs v1.0.0
-  [aedffcd0] Static v0.8.3
-  [90137ffa] StaticArrays v1.5.15
+  [aedffcd0] Static v0.8.4
+  [0d7ed370] StaticArrayInterface v1.2.1
+  [90137ffa] StaticArrays v1.5.16
   [1e83bf80] StaticArraysCore v1.4.0
   [82ae8749] StatsAPI v1.5.0
   [2913bbd2] StatsBase v0.33.21
-  [4c63d2b9] StatsFuns v1.1.1
-  [789caeaf] StochasticDiffEq v6.57.5
-  [7792a7ef] StrideArraysCore v0.4.7
+  [4c63d2b9] StatsFuns v1.2.0
+  [789caeaf] StochasticDiffEq v6.58.0
+  [7792a7ef] StrideArraysCore v0.4.8
   [09ab397b] StructArrays v0.6.14
   [2efcf032] SymbolicIndexingInterface v0.2.1
 ⌅ [d1185830] SymbolicUtils v0.19.11
@@ -307,11 +305,15 @@ Platform Info:
   [013be700] UnsafeAtomics v0.2.1
   [d80eeb9a] UnsafeAtomicsLLVM v0.1.0
   [41fe7b60] Unzip v0.2.0
-  [3d5dd08c] VectorizationBase v0.21.58
+  [3d5dd08c] VectorizationBase v0.21.59
   [19fa3120] VertexSafeGraphs v0.2.0
   [e88e6eb3] Zygote v0.6.55
   [700de1a5] ZygoteRules v0.2.2
+  [02a925ec] cuDNN v1.0.1
   [6e34b625] Bzip2_jll v1.0.8+0
+⌅ [4ee394cb] CUDA_Driver_jll v0.2.0+0
+⌅ [76a88914] CUDA_Runtime_jll v0.2.3+2
+  [62b44479] CUDNN_jll v8.6.0+3
   [83423d85] Cairo_jll v1.16.1+1
   [7bc98958] Cubature_jll v1.0.5+0
   [2e619515] Expat_jll v2.4.8+0
@@ -430,4 +432,4 @@ Platform Info:
   [3f19e933] p7zip_jll v17.4.0+0
 Info Packages marked with ⌃ and ⌅ have new versions available, but those with ⌅ are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details>You can also download the 
 <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.4.0/assets/Manifest.toml">manifest</a> file and the
-<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.4.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Saturday 18 February 2023 18:55">Saturday 18 February 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.4.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 23 February 2023 20:52">Thursday 23 February 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
