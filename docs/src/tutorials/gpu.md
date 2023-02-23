@@ -43,7 +43,7 @@ ps = ps |> Lux.ComponentArray |> gpu .|> Float64
 In total, this looks like:
 
 ```julia
-using NeuralPDE, Lux, CUDA, Random
+using NeuralPDE, Lux, CUDA, Random, ComponentArrays
 using Optimization
 using OptimizationOptimisers
 import ModelingToolkit: Interval
@@ -86,7 +86,7 @@ chain = Chain(Dense(3, inner, Lux.σ),
 
 strategy = GridTraining(0.05)
 ps = Lux.setup(Random.default_rng(), chain)[1]
-ps = ps |> Lux.ComponentArray |> gpu .|> Float64
+ps = ps |> ComponentArray |> gpu .|> Float64
 discretization = PhysicsInformedNN(chain,
                                    strategy,
                                    init_params = ps)
