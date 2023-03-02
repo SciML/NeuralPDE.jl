@@ -642,7 +642,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                       iteration[1])
             if !(additional_loss isa Nothing)
                 logscalar(pinnrep.logger, weighted_additional_loss_val,
-                        "weighted_loss/weighted_additional_loss", iteration[1])
+                          "weighted_loss/weighted_additional_loss", iteration[1])
             end
             logscalar(pinnrep.logger, sum_weighted_pde_losses,
                       "weighted_loss/sum_weighted_pde_losses", iteration[1])
