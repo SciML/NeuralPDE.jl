@@ -1,4 +1,4 @@
-using Lux, OptimizationOptimisers
+using Lux, ComponentArrays, OptimizationOptimisers
 using Test, NeuralPDE
 using Optimization
 using CUDA, QuasiMonteCarlo
@@ -41,7 +41,7 @@ chain = Chain(Dense(1, inner, Lux.σ),
               Dense(inner, 1))
 
 strategy = NeuralPDE.GridTraining(dt)
-ps = Lux.setup(Random.default_rng(), chain)[1] |> Lux.ComponentArray |> gpu .|> Float64
+ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpu .|> Float64
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = ps)
@@ -90,7 +90,7 @@ chain = Lux.Chain(Dense(2, inner, Lux.σ),
                   Dense(inner, 1))
 
 strategy = NeuralPDE.StochasticTraining(500)
-ps = Lux.setup(Random.default_rng(), chain)[1] |> Lux.ComponentArray |> gpu .|> Float64
+ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpu .|> Float64
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = ps)
@@ -148,7 +148,7 @@ strategy = NeuralPDE.QuasiRandomTraining(500; #points
                                          sampling_alg = SobolSample(),
                                          resampling = false,
                                          minibatch = 30)
-ps = Lux.setup(Random.default_rng(), chain)[1] |> Lux.ComponentArray |> gpu .|> Float64
+ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpu .|> Float64
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = ps)
@@ -213,7 +213,7 @@ chain = Lux.Chain(Dense(3, inner, Lux.σ),
                   Dense(inner, 1))
 
 strategy = NeuralPDE.GridTraining(0.05)
-ps = Lux.setup(Random.default_rng(), chain)[1] |> Lux.ComponentArray |> gpu .|> Float64
+ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpu .|> Float64
 discretization = NeuralPDE.PhysicsInformedNN(chain,
                                              strategy;
                                              init_params = ps)
