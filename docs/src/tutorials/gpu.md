@@ -30,14 +30,14 @@ is done, then the internal computations will all take place on the GPU. This is 
 using the `gpu` function on the initial parameters, like:
 
 ```julia
-using Lux
+using Lux, ComponentArrays
 chain = Chain(Dense(3, inner, Lux.σ),
               Dense(inner, inner, Lux.σ),
               Dense(inner, inner, Lux.σ),
               Dense(inner, inner, Lux.σ),
               Dense(inner, 1))
 ps = Lux.setup(Random.default_rng(), chain)[1]
-ps = ps |> Lux.ComponentArray |> gpu .|> Float64
+ps = ps |> ComponentArray |> gpu .|> Float64
 ```
 
 In total, this looks like:
