@@ -23,7 +23,7 @@ on the space domain:
 x \in [0, 1] \, , \ y \in [0, 1] \, ,
 ```
 
-with grid discretization `dx = 0.1` using physics-informed neural networks.
+with grid discretization `dx = 0.05` using physics-informed neural networks.
 
 ## Copy-Pasteable Code
 
