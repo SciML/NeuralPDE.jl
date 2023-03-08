@@ -77,7 +77,7 @@ p, re = Flux.destructure(ann)
 z = re(Float64(p))
 ```
 
-While one may thing this recreates the neural network to act in `Float64` precsion, [it does not](https://github.com/FluxML/Flux.jl/pull/2156)
+While one may think this recreates the neural network to act in `Float64` precision, [it does not](https://github.com/FluxML/Flux.jl/pull/2156)
 and instead its values will silently downgrade everything to `Float32`. This is only fixed by `Chain(Dense(2, 10, tanh), Dense(10, 1)) |> f64`.
 Similar cases will [lead to dropped gradients with complex numbers](https://github.com/FluxML/Optimisers.jl/issues/95). This is not an issue
 with the automatic differentiation library commonly associated with Flux (Zygote.jl) but rather due to choices in the neural network library's
