@@ -286,11 +286,11 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
     optf = OptimizationFunction(loss, Optimization.AutoZygote())
 end
 
-function generate_loss(strategy::FrontWeightedGridTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
+function generate_loss(strategy::WeightedGridTraining, phi, f, autodiff::Bool, tspan, p, batch)
     ts = tspan[1]:(strategy.dx):tspan[2]
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
+
     function loss(θ, _)
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
@@ -401,23 +401,28 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         verbose && println("Current loss is: $l, Iteration: $iteration")
         l < abstol
     end
-
-    if strategy isa FrontWeightedGridTraining
+    if strategy isa WeightedGridTraining
         minT = tspan[1]
         maxT = tspan[2]
-    
-        difference = (maxT - minT) / 3
-    
-        data_1 = rand(1, 1000) .* difference .+ minT
-        data_2 = rand(1, 100) .* (2 * difference) .+ minT .+ (difference)
-        data_3 = rand(1, 10) .* (4 * difference) .+ minT .+ (2 * difference)
 
-        data = [data_1 data_2 data_3]
+        weights = strategy.weights ./ sum(strategy.weights)
+
+        N = length(weights)
+        samples = strategy.samples
+
+        difference = (maxT - minT) / N
+
+        data = rand(1, trunc(Int, samples * weights[1])) .* difference .+ minT
+        for (index, item) in enumerate(weights)
+            if index != 1
+                temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+ ((index - 1) * difference)
+                data = cat(dims = 2, data, temp_data)
+            end
+        end
         optprob = OptimizationProblem(optf, init_params, p = [[data] [data]])
     else 
         optprob = OptimizationProblem(optf, init_params)
     end
-
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     #solutions at timepoints

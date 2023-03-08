@@ -51,7 +51,7 @@ function get_loss_function_(loss, init_params, pde_system, strategy::StochasticT
     get_loss_function(loss, bound, eltypeθ, strategy)
 end
 
-function get_loss_function_(loss, init_params, pde_system, strategy::FrontWeightedGridTraining)
+function get_loss_function_(loss, init_params, pde_system, strategy::QuasiRandomTraining)
     eqs = pde_system.eqs
     if !(eqs isa Array)
         eqs = [eqs]
@@ -67,20 +67,18 @@ function get_loss_function_(loss, init_params, pde_system, strategy::FrontWeight
     get_loss_function(loss, bound, eltypeθ, strategy)
 end
 
-function get_loss_function_(loss, init_params, pde_system, strategy::QuasiRandomTraining)
+function get_loss_function_(loss, init_params, pde_system, strategy::WeightedGridTraining)
     eqs = pde_system.eqs
     if !(eqs isa Array)
         eqs = [eqs]
     end
     domains = pde_system.domain
-
     depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
                                                             pde_system.depvars)
-
     eltypeθ = eltype(init_params)
-    bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)[1]
-
-    get_loss_function(loss, bound, eltypeθ, strategy)
+    dx = strategy.dx
+    train_set = generate_training_sets(domains, dx, eqs, eltypeθ)
+    get_loss_function(loss, train_set, eltypeθ, strategy)
 end
 
 function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars,

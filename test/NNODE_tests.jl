@@ -221,9 +221,10 @@ N = 12
 chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, func),
                     Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
 
-opt = ADAM(0.01)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.FrontWeightedGridTraining(0.05))
-sol = solve(prob_oop, alg, verbose=true, maxiters = 100000, saveat = 0.01)
+sol = solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
+            maxiters = 400,
+            abstol = 1.0f-8, dt = 1 / 5.0f0)
+@test sol.errors[:l2] < 0.5
 
 println(abs(mean(true_sol .- sol)))
-@test abs(mean(sol) - mean(true_sol)) < 0.5
+@test abs(mean(true_sol .- sol)) < 0.5
