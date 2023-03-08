@@ -215,16 +215,18 @@ p = [1.5, 1.0, 3.0, 1.0]
 u0 = [1.0, 1.0]
 prob_oop = ODEProblem{false}(f, u0, (0.0, 3.0), p)
 true_sol = solve(prob_oop, Tsit5(), saveat = 0.01)
-println(true_sol.errors)
 func = Lux.σ
 N = 12
 chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, func),
                     Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
 
-sol = solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
-            maxiters = 400,
-            abstol = 1.0f-8, dt = 1 / 5.0f0)
-@test sol.errors[:l2] < 0.5
+opt = ADAM(0.01)
+dx = 0.05
+weights = [0.9, 0.09, 0.009]
+samples = 10000
+alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedGridTraining(dx, weights, samples))
+sol = solve(prob_oop, alg, verbose=true, maxiters = 100000, saveat = 0.01)
 
 println(abs(mean(true_sol .- sol)))
-@test abs(mean(true_sol .- sol)) < 0.5
+println(abs(mean(sol) - mean(true_sol)))
+@test abs(mean(sol) - mean(true_sol)) < 0.5

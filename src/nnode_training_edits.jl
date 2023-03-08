@@ -1,7 +1,5 @@
 
-using OrdinaryDiffEq, DiffEqFlux, OptimizationPolyalgorithms, Lux, Random, Flux, OptimizationOptimJL, Test, Statistics
-
-include("NeuralPDE.jl")
+using NeuralPDE, OrdinaryDiffEq, DiffEqFlux, OptimizationPolyalgorithms, Lux, Random, Flux, OptimizationOptimJL, Test, Statistics
 
 function f(u, p, t)
     [p[1] * u[1] - p[2] * u[1] * u[2], -p[3] * u[2] + p[4] * u[1] * u[2]]
@@ -17,7 +15,10 @@ chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, 
                     Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
 
 opt = ADAM(0.01)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedGridTraining(0.05, [0.9, 0.09, 0.009], 10000))
+dx = 0.05
+weights = [0.9, 0.09, 0.009]
+samples = 10000
+alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedGridTraining(dx, weights, samples))
 sol = solve(prob_oop, alg, verbose=true, maxiters = 100000, saveat = 0.01)
 
 println(abs(mean(true_sol .- sol)))
