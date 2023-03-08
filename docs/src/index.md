@@ -63,6 +63,33 @@ If you use NeuralPDE.jl in your research, please cite [this paper](https://arxiv
 }
 ```
 
+## Flux.jl vs Lux.jl
+
+Both Flux and Lux defined neural networks are supported by NeuralPDE.jl. However, Lux.jl neural networks are greatly preferred for many
+correctness reasons. Particularly, a Flux `Chain` does not respect Julia's type promotion rules. This causes major problems in that
+the restructuring of a Flux neural network will not respect the chosen types from the solver. Demonstration:
+
+```julia
+using Flux, Tracker
+x = [0.8; 0.8]
+ann = Chain(Dense(2, 10, tanh), Dense(10, 1))
+p, re = Flux.destructure(ann)
+z = re(Float64(p))
+```
+
+While one may think this recreates the neural network to act in `Float64` precision, [it does not](https://github.com/FluxML/Flux.jl/pull/2156)
+and instead its values will silently downgrade everything to `Float32`. This is only fixed by `Chain(Dense(2, 10, tanh), Dense(10, 1)) |> f64`.
+Similar cases will [lead to dropped gradients with complex numbers](https://github.com/FluxML/Optimisers.jl/issues/95). This is not an issue
+with the automatic differentiation library commonly associated with Flux (Zygote.jl) but rather due to choices in the neural network library's
+decision for how to approach type handling and precision. Thus when using DiffEqFlux.jl with Flux, the user must be very careful to ensure that 
+the precision of the arguments are correct, and anything that requires alternative types (like `TrackerAdjoint` tracked values, 
+`ForwardDiffSensitivity` dual numbers, and TaylorDiff.jl differentiation) are suspect.
+
+Lux.jl has none of these issues, is simpler to work with due to the parameters in its function calls being explicit rather than implicit global
+references, and achieves higher performance. It is built on the same foundations as Flux.jl, such as Zygote and NNLib, and thus it supports the
+same layers underneith and calls the same kernels. The better performance comes from not having the overhead of `restructure` required.
+Thus we highly recommend people use Lux instead and only use the Flux fallbacks for legacy code.
+
 ## Reproducibility
 
 ```@raw html
