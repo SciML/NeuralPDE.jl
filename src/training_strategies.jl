@@ -297,6 +297,22 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::Quadrature
     return loss
 end
 
+
+"""
+```julia
+WeightedSampleTraining(weights, samples)
+```
+
+A training strategy that generates points for training based on the given inputs. The timespan is split into equal segments based on how many weights are entered.
+Then, we randomly generate the corresponding amount of points for each interval in the timespan
+
+## Positional Arguments
+
+* `weights`: A vector of weights that should sum to 1, representing the proportion of samples at each interval.
+* `samples`: the total number of samples that we want, across the entire time span
+
+"""
+
 struct WeightedSampleTraining{T} <: AbstractTrainingStrategy
     weights::Vector{T}
     samples::Int
