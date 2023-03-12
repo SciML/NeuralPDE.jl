@@ -22,6 +22,7 @@ to exit the Pkg REPL-mode, just press <kbd>Backspace</kbd> or <kbd>Ctrl</kbd> + 
 
 ## Tutorials and Documentation
 
+
 For information on using the package,
 [see the stable documentation](https://docs.sciml.ai/NeuralPDE/stable/). Use the
 [in-development documentation](https://docs.sciml.ai/NeuralPDE/dev/) for the version of
