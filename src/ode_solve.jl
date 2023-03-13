@@ -413,7 +413,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
                                     k = res, dense = true,
                                     interp = NNODEInterpolation(phi, res.u),
                                     calculate_error = false,
-                                    retcode = :Success)
+                                    retcode = ReturnCode.Success)
     DiffEqBase.has_analytic(prob.f) &&
         DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
                                               dense_errors = false)
