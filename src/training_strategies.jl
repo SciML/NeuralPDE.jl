@@ -312,7 +312,6 @@ Then, we randomly generate the corresponding amount of points for each interval 
 * `samples`: the total number of samples that we want, across the entire time span
 
 """
-
 struct WeightedSampleTraining{T} <: AbstractTrainingStrategy
     weights::Vector{T}
     samples::Int
