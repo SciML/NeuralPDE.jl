@@ -312,6 +312,10 @@ such that the total number of sampled points is equivalent to the given samples
 
 * `weights`: A vector of weights that should sum to 1, representing the proportion of samples at each interval.
 * `samples`: the total number of samples that we want, across the entire time span
+
+## Limitations
+
+This training strategy can only be used with ODEs (`NNODE`).
 """
 struct WeightedIntervalTraining{T} <: AbstractTrainingStrategy
     weights::Vector{T}
