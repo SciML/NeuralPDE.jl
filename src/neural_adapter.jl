@@ -67,20 +67,6 @@ function get_loss_function_(loss, init_params, pde_system, strategy::QuasiRandom
     get_loss_function(loss, bound, eltypeθ, strategy)
 end
 
-# function get_loss_function_(loss, init_params, pde_system, strategy::WeightedGridTraining)
-#     eqs = pde_system.eqs
-#     if !(eqs isa Array)
-#         eqs = [eqs]
-#     end
-#     domains = pde_system.domain
-#     depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
-#                                                             pde_system.depvars)
-#     eltypeθ = eltype(init_params)
-#     dx = strategy.dx
-#     train_set = generate_training_sets(domains, dx, eqs, eltypeθ)
-#     get_loss_function(loss, train_set, eltypeθ, strategy)
-# end
-
 function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars,
                      strategy::QuadratureTraining)
     dict_lower_bound = Dict([Symbol(d.variables) => infimum(d.domain) for d in domains])

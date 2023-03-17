@@ -271,9 +271,7 @@ end
 
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
                        batch)
-    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
-        # (tspan[2]-tspan[1])*rand() + tspan[1] gives Uniform(tspan[1],tspan[2])
         ts = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
 
@@ -286,11 +284,7 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
     optf = OptimizationFunction(loss, Optimization.AutoZygote())
 end
 
-function generate_loss(strategy::WeightedSampleTraining, phi, f, autodiff::Bool, tspan, p, batch)
-    # ts = tspan[1]:(strategy.dx):tspan[2]
-
-    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
-
+function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p, batch)
     minT = tspan[1]
     maxT = tspan[2]
 
@@ -301,15 +295,13 @@ function generate_loss(strategy::WeightedSampleTraining, phi, f, autodiff::Bool,
 
     difference = (maxT - minT) / N
 
-    # data = rand(1, trunc(Int, samples * weights[1])) .* difference .+ minT
     data = Float64[]
     for (index, item) in enumerate(weights)
-        # if index != 1
         temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+ ((index - 1) * difference)
         data = append!(data, temp_data)
-        # end
     end
-    ts = append!(data, data)
+
+    ts = data
     
     function loss(θ, _)
         if batch
@@ -413,7 +405,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         alg.batch
     end
 
-    println("generating loss")
     optf = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch)
 
     iteration = 0

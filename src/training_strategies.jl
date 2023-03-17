@@ -300,29 +300,29 @@ end
 
 """
 ```julia
-WeightedSampleTraining(weights, samples)
+WeightedIntervalTraining(weights, samples)
 ```
 
-A training strategy that generates points for training based on the given inputs. The timespan is split into equal segments based on how many weights are entered.
-Then, we randomly generate the corresponding amount of points for each interval in the timespan
+A training strategy that generates points for training based on the given inputs. 
+We split the timespan into equal segments based on the number of weights, 
+then sample points in each segment based on that segments corresponding weight,
+such that the total number of sampled points is equivalent to the given samples
 
 ## Positional Arguments
 
 * `weights`: A vector of weights that should sum to 1, representing the proportion of samples at each interval.
 * `samples`: the total number of samples that we want, across the entire time span
-
 """
-
-struct WeightedSampleTraining{T} <: AbstractTrainingStrategy
+struct WeightedIntervalTraining{T} <: AbstractTrainingStrategy
     weights::Vector{T}
     samples::Int
 end
 
-function WeightedSampleTraining(weights, samples)
-    WeightedSampleTraining(weights, samples)
+function WeightedIntervalTraining(weights, samples)
+    WeightedIntervalTraining(weights, samples)
 end
 
-function get_loss_function(loss_function, train_set, eltypeθ, strategy::WeightedSampleTraining;
+function get_loss_function(loss_function, train_set, eltypeθ, strategy::WeightedIntervalTraining;
                            τ = nothing)
     loss = (θ) -> mean(abs2, loss_function(train_set, θ))
 end

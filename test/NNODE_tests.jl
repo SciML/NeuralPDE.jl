@@ -205,7 +205,7 @@ sol = solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
             abstol = 1.0f-8, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
-using NeuralPDE, OrdinaryDiffEq, DiffEqFlux, OptimizationPolyalgorithms, Lux, Random, Flux, OptimizationOptimJL, Test, Statistics, Plots
+using NeuralPDE, OrdinaryDiffEq, OptimizationPolyalgorithms, Lux, Random, Flux, OptimizationOptimJL, Test, Statistics, Plots, Optimisers
 
 function f(u, p, t)
     [p[1] * u[1] - p[2] * u[1] * u[2], -p[3] * u[2] + p[4] * u[1] * u[2]]
@@ -220,13 +220,10 @@ N = 12
 chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, func),
                     Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
 
-opt = ADAM(0.01)
-dx = 0.05
+opt = Optimisers.Adam(0.01)
 weights = [0.7, 0.2, 0.1]
 samples = 200
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedSampleTraining(weights, samples))
+alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedIntervalTraining(weights, samples))
 sol = solve(prob_oop, alg, verbose=true, maxiters = 100000, saveat = 0.01)
 
-println(abs(mean(true_sol .- sol)))
-println(abs(mean(sol) - mean(true_sol)))
 @test abs(mean(sol) - mean(true_sol)) < 0.2
