@@ -119,3 +119,4 @@ If you use NeuralPDE.jl in your research, please cite [this paper](https://arxiv
   year={2021}
 }
 ```
+
