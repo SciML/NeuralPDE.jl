@@ -1,5 +1,5 @@
 steps:
-  - label: "Julia 1"
+  - label: "GPU"
     plugins:
       - JuliaCI/julia#v1:
           version: "1"
@@ -8,11 +8,36 @@ steps:
     agents:
       queue: "juliagpu"
       cuda: "*"
+    env:
+      GROUP: 'GPU'
+      JULIA_PKG_SERVER: "" # it often struggles with our large artifacts
+      # SECRET_CODECOV_TOKEN: "..."
     timeout_in_minutes: 240
     # Don't run Buildkite if the commit message includes the text [skip tests]
     if: build.message !~ /\[skip tests\]/
 
-env:
-  GROUP: GPU
-  JULIA_PKG_SERVER: "" # it often struggles with our large artifacts
-  # SECRET_CODECOV_TOKEN: "..."
+  - label: "{{matrix.group}} v{{matrix.version}}"
+    matrix:
+      setup:
+        version:
+          - "1.6"
+          - "1"
+        group:
+          - "NNODE"
+          - "NeuralAdapter"
+          - "IntegroDiff"
+    env:
+      BUILDKITE_PLUGIN_JULIA_VERSION: "{{matrix.version}}"
+      GROUP: "{{matrix.group}}"
+    plugins:
+      - JuliaCI/julia#v1
+      - JuliaCI/julia-test#v1:
+          coverage: false
+          julia_args: "--threads=auto"
+    agents:
+      os: "linux"
+      queue: "juliaecosystem"
+      arch: "x86_64"
+    timeout_in_minutes: 680
+    # Don't run Buildkite if the commit message includes the text [skip tests]
+    if: build.message !~ /\[skip tests\]/
