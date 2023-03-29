@@ -21,4 +21,4 @@ function NeuralPDE.logscalar(logger::TBLogger, scalar::R, name::AbstractString,
     nothing
 end
 
-end
+
