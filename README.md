@@ -46,7 +46,7 @@ the documentation, which contains the unreleased features.
 ## Example: Solving 2D Poisson Equation via Physics-Informed Neural Networks
 
 ```julia
-using NeuralPDE, Lux, ModelingToolkit, Optimization,OptimizationOptimisers
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
