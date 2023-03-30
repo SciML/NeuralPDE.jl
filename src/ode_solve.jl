@@ -82,6 +82,7 @@ struct NNODE{C, O, P, B, K, AL <: Union{Nothing, Function},
     strategy::S
     additional_loss::AL
     kwargs::K
+    additional_loss::AL
 end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
@@ -278,7 +279,9 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
     return loss
 end
 
-function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,batch, additional_loss = nothing)
+function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
+                       batch)
+    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
         ts = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
@@ -324,8 +327,7 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     return loss
 end
 
-function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan,
-                       additional_loss)
+function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
 
