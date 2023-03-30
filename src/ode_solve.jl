@@ -80,7 +80,6 @@ struct NNODE{C, O, P, B, K, AL <: Union{Nothing, Function},
     autodiff::Bool
     batch::B
     strategy::S
-    kwargs::K
     additional_loss::AL
     kwargs::K
 end
@@ -260,7 +259,7 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
         sol = solve(intprob, QuadGKJL(); abstol = strategy.abstol, reltol = strategy.reltol)
         sol.u
     end
-
+    
     return loss
 end
 
@@ -286,38 +285,6 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
         ts = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
 
-        if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
-        else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
-        end
-    end
-
-    return loss
-end
-
-function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
-    minT = tspan[1]
-    maxT = tspan[2]
-
-    weights = strategy.weights ./ sum(strategy.weights)
-
-    N = length(weights)
-    samples = strategy.samples
-
-    difference = (maxT - minT) / N
-
-    data = Float64[]
-    for (index, item) in enumerate(weights)
-        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+
-                    ((index - 1) * difference)
-        data = append!(data, temp_data)
-    end
-
-    ts = data
-
-    function loss(θ, _)
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
         else
@@ -455,9 +422,12 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     # additional loss
     additional_loss = alg.additional_loss
 
+
     # Computes total_loss
     function total_loss(θ, _)
-        L2_loss = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch)(θ, phi)
+        L2_loss = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch,
+                         additional_loss)
+
         if !(additional_loss isa Nothing)
             return additional_loss(phi, θ) + L2_loss
         end
