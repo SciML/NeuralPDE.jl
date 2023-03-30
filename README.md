@@ -46,7 +46,7 @@ the documentation, which contains the unreleased features.
 ## Example: Solving 2D Poisson Equation via Physics-Informed Neural Networks
 
 ```julia
-using NeuralPDE, Lux, ModelingToolkit, Optimization
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x y
@@ -68,7 +68,7 @@ dx = 0.1
 
 # Neural network
 dim = 2 # number of dimensions
-chain = Lux.Chain(Dense(dim, 16, Lux.σ), Dense(16, 16, Flux.σ), Dense(16, 1))
+chain = Lux.Chain(Dense(dim, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))
 
 discretization = PhysicsInformedNN(chain, QuadratureTraining())
 
