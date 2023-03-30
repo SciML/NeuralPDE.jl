@@ -70,8 +70,7 @@ is an accurate interpolation (up to the neural network training result). In addi
 Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving
 ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.
 """
-struct NNODE{C, O, P, B, K, AL <: Union{Nothing, Function},
-             S <: Union{Nothing, AbstractTrainingStrategy}
+struct NNODE{C, O, P, B, K, AL, S <: Union{Nothing, AbstractTrainingStrategy}
              } <:
        NeuralPDEAlgorithm
     chain::C
@@ -82,9 +81,12 @@ struct NNODE{C, O, P, B, K, AL <: Union{Nothing, Function},
     strategy::S
     additional_loss::AL
     kwargs::K
+    additional_loss::AL
 end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
+               autodiff = false, batch = nothing, additional_loss = nothing, kwargs...)
+    NNODE(chain, opt, init_params, autodiff, batch, strategy, additional_loss, kwargs)
                autodiff = false, batch = nothing, additional_loss = nothing, kwargs...)
     NNODE(chain, opt, init_params, autodiff, batch, strategy, additional_loss, kwargs)
 end
@@ -247,9 +249,10 @@ end
 
 """
 Representation of the loss function, parametric on the training strategy `strategy`
+Representation of the loss function, parametric on the training strategy `strategy`
 """
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
+                       batch, additional_loss = nothing)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p))
     integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p)) for t in ts]
     @assert batch == 0 # not implemented
@@ -260,11 +263,18 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
         sol.u
     end
 
-    return loss
+    # total loss
+    total_loss = if additional_loss isa Nothing
+        loss
+    else
+        loss + additional_loss(phi, θ)
+    end
+    # Default this to ForwardDiff until Integrals.jl autodiff is sorted out
+    OptimizationFunction(total_loss, Optimization.AutoForwardDiff())
 end
 
-function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
-
+function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch,
+                       additional_loss = nothing)
     ts = tspan[1]:(strategy.dx):tspan[2]
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
@@ -276,11 +286,18 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
         end
     end
 
-    return loss
+    # total loss
+    total_loss = if additional_loss isa Nothing
+        loss
+    else
+        loss + additional_loss(phi, θ)
+    end
+
+    optf = OptimizationFunction(total_loss, Optimization.AutoZygote())
 end
 
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
+                       batch, additional_loss = nothing)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
         ts = adapt(parameterless_type(θ),
@@ -292,40 +309,17 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
             sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
         end
     end
-    return loss
-end
 
-function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
-    minT = tspan[1]
-    maxT = tspan[2]
-
-    weights = strategy.weights ./ sum(strategy.weights)
-
-    N = length(weights)
-    samples = strategy.samples
-
-    difference = (maxT - minT) / N
-
-    data = Float64[]
-    for (index, item) in enumerate(weights)
-        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+
-                    ((index - 1) * difference)
-        data = append!(data, temp_data)
+    # total loss
+    total_loss = if additional_loss isa Nothing
+        loss
+    else
+        loss + additional_loss(phi, θ)
     end
 
-    ts = data
-
-    function loss(θ, _)
-        if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
-        else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
-        end
-    end
-
-    return loss
+    optf = OptimizationFunction(total_loss, Optimization.AutoZygote())
 end
+
 
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
@@ -422,31 +416,10 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     # additional loss
     additional_loss = alg.additional_loss
 
-    # Computes total_loss
-    function total_loss(θ, _)
-        L2_loss = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch)(θ, phi)
-        if !(additional_loss isa Nothing)
-            return additional_loss(phi, θ) + L2_loss
-        end
-        L2_loss
-    end
+    optf = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch,
+                         additional_loss)
 
-    # Choice of Optimization Algo for Training Strategies
-    opt_algo = if strategy isa QuadratureTraining
-        Optimization.AutoForwardDiff()
-    elseif strategy isa StochasticTraining
-        Optimization.AutoZygote()
-    elseif strategy isa WeightedIntervalTraining
-        Optimization.AutoZygote()
-    else
-        # by default GridTraining choice of Optimization
-        # if adding new training algorithms we can extend this,
-        # if-elseif-else block for choices of optimization algos
-        Optimization.AutoZygote()
-    end
-
-    # Creates OptimizationFunction Object from total_loss
-    optf = OptimizationFunction(total_loss, opt_algo)
+    # optf = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch)
 
     iteration = 0
     callback = function (p, l)
