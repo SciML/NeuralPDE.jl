@@ -24,7 +24,7 @@ z = re(Float64(p))</code></pre><p>While one may think this recreates the neural 
   [587475ba] Flux v0.13.14
   [de52edbc] Integrals v3.7.0
   [c31f79ba] IntegralsCubature v0.2.2
-  [b2108857] Lux v0.4.45
+  [b2108857] Lux v0.4.48
 ⌃ [961ee093] ModelingToolkit v8.46.1
   [315f7962] NeuralPDE v5.5.0 `~/work/NeuralPDE.jl/NeuralPDE.jl`
   [7f7a1694] Optimization v3.13.0
@@ -40,10 +40,10 @@ Info Packages marked with ⌃ and ⌅ have new versions available, but those wit
 Commit 17cfb8e65ea (2023-01-08 06:45 UTC)
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
-  CPU: 2 × Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz
+  CPU: 2 × Intel(R) Xeon(R) Platinum 8171M CPU @ 2.60GHz
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-13.0.1 (ORCJIT, icelake-server)
+  LLVM: libLLVM-13.0.1 (ORCJIT, skylake-avx512)
   Threads: 1 on 2 virtual cores</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NeuralPDE.jl/NeuralPDE.jl/docs/Manifest.toml`
   [a4c015fc] ANSIColoredPrinters v0.0.1
 ⌅ [c3fe647b] AbstractAlgebra v0.27.10
@@ -53,7 +53,7 @@ Platform Info:
   [79e6a3ab] Adapt v3.6.1
   [dce04be8] ArgCheck v2.3.0
   [ec485272] ArnoldiMethod v0.2.0
-  [4fba245c] ArrayInterface v7.4.1
+  [4fba245c] ArrayInterface v7.4.2
   [30b0a656] ArrayInterfaceCore v0.1.29
   [a9b6321e] Atomix v0.1.0
   [15f4f7f2] AutoHashEquals v0.2.0
@@ -66,8 +66,8 @@ Platform Info:
   [fa961155] CEnum v0.4.2
   [2a0fbf3d] CPUSummary v0.2.2
   [00ebfdb7] CSTParser v3.3.6
-  [052768ef] CUDA v4.1.1
-  [1af6417a] CUDA_Runtime_Discovery v0.1.2
+  [052768ef] CUDA v4.1.2
+  [1af6417a] CUDA_Runtime_Discovery v0.2.0
   [49dc2e85] Calculus v0.5.1
   [082447d4] ChainRules v1.48.0
   [d360d2e6] ChainRulesCore v1.15.7
@@ -99,7 +99,7 @@ Platform Info:
   [244e2a9f] DefineSingletons v0.1.2
   [b429d917] DensityInterface v0.4.0
   [2b5f629d] DiffEqBase v6.122.1
-  [459566f4] DiffEqCallbacks v2.26.0
+  [459566f4] DiffEqCallbacks v2.26.1
   [77a26b50] DiffEqNoiseProcess v5.16.0
   [163ba53b] DiffResults v1.1.0
   [b552c78f] DiffRules v1.13.0
@@ -119,7 +119,7 @@ Platform Info:
   [7034ab61] FastBroadcast v0.2.5
   [9aa1b823] FastClosures v0.3.2
   [29a986be] FastLapackInterface v1.2.9
-  [1a297f60] FillArrays v0.13.10
+  [1a297f60] FillArrays v0.13.11
   [6a86dc24] FiniteDiff v2.19.0
   [53c48c17] FixedPointNumbers v0.8.4
   [587475ba] Flux v0.13.14
@@ -128,7 +128,7 @@ Platform Info:
   [f6369f11] ForwardDiff v0.10.35
   [069b7b12] FunctionWrappers v1.1.3
   [77dc65aa] FunctionWrappersWrappers v0.1.3
-  [d9f16b24] Functors v0.4.3
+  [d9f16b24] Functors v0.4.4
   [0c68f7d7] GPUArrays v8.6.5
   [46192b85] GPUArraysCore v0.1.4
   [61eb1bfa] GPUCompiler v0.18.0
@@ -142,7 +142,7 @@ Platform Info:
   [19dc6840] HCubature v1.5.1
   [cd3eb016] HTTP v1.7.4
   [3e5b6fbb] HostCPUFeatures v0.1.14
-  [34004b35] HypergeometricFunctions v0.3.11
+  [34004b35] HypergeometricFunctions v0.3.13
   [b5f81e59] IOCapture v0.2.2
   [7869d1d1] IRTools v0.4.9
   [615f187c] IfElse v0.1.1
@@ -162,12 +162,12 @@ Platform Info:
   [682c06a0] JSON v0.21.3
   [98e50ef6] JuliaFormatter v1.0.25
   [b14d175d] JuliaVariables v0.2.4
-  [ccbc3e58] JumpProcesses v9.6.0
+  [ccbc3e58] JumpProcesses v9.6.1
   [ef3ab10e] KLU v0.4.0
   [63c18a36] KernelAbstractions v0.9.1
   [ba0b0d4f] Krylov v0.9.0
   [0b1a1467] KrylovKit v0.6.0
-  [929cbde3] LLVM v4.17.1
+⌅ [929cbde3] LLVM v4.17.1
   [b964fa9f] LaTeXStrings v1.3.0
   [2ee39098] LabelledArrays v1.14.0
   [984bce1d] LambertW v0.4.6
@@ -183,7 +183,7 @@ Platform Info:
   [2ab3a3ac] LogExpFunctions v0.3.23
   [e6f89c97] LoggingExtras v1.0.0
   [bdcacae8] LoopVectorization v0.12.155
-  [b2108857] Lux v0.4.45
+  [b2108857] Lux v0.4.48
   [d0bbae9a] LuxCUDA v0.1.2
   [bb33d45b] LuxCore v0.1.3
   [82251201] LuxLib v0.1.13
@@ -208,7 +208,7 @@ Platform Info:
   [77ba4419] NaNMath v1.0.2
   [71a1bf82] NameResolution v0.1.5
   [315f7962] NeuralPDE v5.5.0 `~/work/NeuralPDE.jl/NeuralPDE.jl`
-  [8913a72c] NonlinearSolve v1.5.1
+  [8913a72c] NonlinearSolve v1.6.0
   [6fe1bfb0] OffsetArrays v1.12.9
   [0b1bfda6] OneHotArrays v0.2.3
   [4d8831e6] OpenSSL v1.3.3
@@ -218,7 +218,7 @@ Platform Info:
   [36348300] OptimizationOptimJL v0.1.5
   [42dfb2eb] OptimizationOptimisers v0.1.2
   [500b13db] OptimizationPolyalgorithms v0.1.1
-  [bac558e1] OrderedCollections v1.5.0
+  [bac558e1] OrderedCollections v1.6.0
   [1dea7af3] OrdinaryDiffEq v6.49.4
   [90014a1f] PDMats v0.11.17
   [d96e819e] Parameters v0.12.3
@@ -245,7 +245,7 @@ Platform Info:
   [c1ae055f] RealDot v0.1.0
   [3cdcf5f2] RecipesBase v1.3.3
   [01d81517] RecipesPipeline v0.6.11
-  [731186ca] RecursiveArrayTools v2.38.0
+  [731186ca] RecursiveArrayTools v2.38.2
   [f2c3362d] RecursiveFactorization v0.2.18
   [189a3867] Reexport v1.2.2
   [42d2dcc6] Referenceables v0.1.2
@@ -258,7 +258,7 @@ Platform Info:
   [7e49a35a] RuntimeGeneratedFunctions v0.5.6
   [94e857df] SIMDTypes v0.1.0
   [476501e8] SLEEFPirates v0.6.38
-  [0bca4576] SciMLBase v1.91.3
+  [0bca4576] SciMLBase v1.91.5
   [e9a6253c] SciMLNLSolve v0.1.4
   [c0aeaf25] SciMLOperators v0.2.0
   [6c6a2e73] Scratch v1.2.0
@@ -281,7 +281,7 @@ Platform Info:
   [0d7ed370] StaticArrayInterface v1.3.0
   [90137ffa] StaticArrays v1.5.19
   [1e83bf80] StaticArraysCore v1.4.0
-  [82ae8749] StatsAPI v1.5.0
+  [82ae8749] StatsAPI v1.6.0
   [2913bbd2] StatsBase v0.33.21
   [4c63d2b9] StatsFuns v1.3.0
   [789caeaf] StochasticDiffEq v6.60.0
@@ -304,23 +304,23 @@ Platform Info:
   [28d57a85] Transducers v0.4.75
   [a2a6695c] TreeViews v0.3.0
   [d5829a12] TriangularSolve v0.1.19
-  [410a4b4d] Tricks v0.1.6
+  [410a4b4d] Tricks v0.1.7
   [781d530d] TruncatedStacktraces v1.3.0
   [5c2747f8] URIs v1.4.2
   [3a884ed6] UnPack v1.0.2
   [1cfade01] UnicodeFun v0.4.1
   [1986cc42] Unitful v1.12.4
   [013be700] UnsafeAtomics v0.2.1
-  [d80eeb9a] UnsafeAtomicsLLVM v0.1.1
+⌃ [d80eeb9a] UnsafeAtomicsLLVM v0.1.1
   [41fe7b60] Unzip v0.2.0
-  [3d5dd08c] VectorizationBase v0.21.63
+  [3d5dd08c] VectorizationBase v0.21.64
   [19fa3120] VertexSafeGraphs v0.2.0
   [e88e6eb3] Zygote v0.6.59
   [700de1a5] ZygoteRules v0.2.3
   [02a925ec] cuDNN v1.0.2
   [6e34b625] Bzip2_jll v1.0.8+0
-⌅ [4ee394cb] CUDA_Driver_jll v0.4.0+2
-  [76a88914] CUDA_Runtime_jll v0.4.0+2
+  [4ee394cb] CUDA_Driver_jll v0.5.0+0
+  [76a88914] CUDA_Runtime_jll v0.5.0+0
   [62b44479] CUDNN_jll v8.8.1+0
   [83423d85] Cairo_jll v1.16.1+1
   [7bc98958] Cubature_jll v1.0.5+0
@@ -440,4 +440,4 @@ Platform Info:
   [3f19e933] p7zip_jll v17.4.0+0
 Info Packages marked with ⌃ and ⌅ have new versions available, but those with ⌅ are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details>You can also download the 
 <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.5.0/assets/Manifest.toml">manifest</a> file and the
-<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.5.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Monday 27 March 2023 20:08">Monday 27 March 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.5.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 30 March 2023 14:36">Thursday 30 March 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
