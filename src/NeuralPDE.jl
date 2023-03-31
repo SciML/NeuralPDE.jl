@@ -20,6 +20,8 @@ using ArrayInterface
 import Optim
 using DomainSets
 using Symbolics
+using Symbolics: wrap, unwrap, arguments, operation
+using SymbolicUtils
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball

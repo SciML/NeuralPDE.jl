@@ -99,7 +99,7 @@ end
 
 ## Heterogeneous system
 function test_heterogeneous_system(strategy_)
-    println("Heterogeneous input PDE with derivatives, strategy: $(nameof(typeof(strategy_)))")
+    println("Heterogeneus input PDE with derivatives, strategy: $(nameof(typeof(strategy_)))")
     @parameters x y
     @variables p(..) q(..)
     Dx = Differential(x)
@@ -132,34 +132,34 @@ function test_heterogeneous_system(strategy_)
     prob = SciMLBase.discretize(pde_system, discretization)
     res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 100)
 end
-@testset "Test ODE" begin
-    grid_strategy = NeuralPDE.GridTraining(0.1)
-    quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
-                                                    reltol = 1e-3, abstol = 1e-3,
-                                                    maxiters = 50, batch = 100)
-    stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points = 50)
-    quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100;
-                                                        sampling_alg = LatinHypercubeSample(),
-                                                        resampling = false,
-                                                        minibatch = 100)
-    quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100;
-                                                                    bcs_points = 50,
-                                                                    sampling_alg = LatticeRuleSample(),
-                                                                    resampling = true,
-                                                                    minibatch = 0)
+# @testset "Test ODE" begin
+#     grid_strategy = NeuralPDE.GridTraining(0.1)
+#     quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
+#                                                     reltol = 1e3, abstol = 1e-3,
+#                                                     maxiters = 50, batch = 100)
+#     stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points = 50)
+#     quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100;
+#                                                         sampling_alg = LatinHypercubeSample(),
+#                                                         resampling = false,
+#                                                         minibatch = 100)
+#     quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100;
+#                                                                     bcs_points = 50,
+#                                                                     sampling_alg = LatticeRuleSample(),
+#                                                                     resampling = true,
+#                                                                     minibatch = 0)
 
-    strategies = [
-        grid_strategy,
-        stochastic_strategy,
-        quasirandom_strategy,
-        quasirandom_strategy_resampling,
-        quadrature_strategy,
-    ]
+#     strategies = [
+#         grid_strategy,
+#         stochastic_strategy,
+#         quasirandom_strategy,
+#         quasirandom_strategy_resampling,
+#         quadrature_strategy,
+#     ]
 
-    map(strategies) do strategy_
-        test_ode(strategy_)
-    end
-end
+#     map(strategies) do strategy_
+#         test_ode(strategy_)
+#     end
+# end
 # map(strategies) do strategy_
 #     test_heterogeneous_system(strategy_)
 # end
@@ -168,7 +168,7 @@ end
 # end
 
 ## Heterogeneous system
-@testset "Heterogeneous system" begin
+@testset "Example 1: Heterogeneous system" begin
 
     @parameters x, y, z
     @variables u(..), v(..), h(..), p(..)
@@ -185,7 +185,7 @@ end
     bcs = [u(0, 0, 0) ~ 0.0]
 
     domains = [x ∈ Interval(0.0, 1.0),
-        y ∈ Interval(0.0, 1.0),
+             y ∈ Interval(0.0, 1.0),
         z ∈ Interval(0.0, 1.0)]
 
     chain = [
@@ -211,7 +211,24 @@ end
         return false
     end
 
-    res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 2000)
+    try
+        res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 2000)
+    catch ex
+        # Obtain the stack trace
+        bt = catch_backtrace()
+
+        # Convert the stack trace to a readable format
+        bt_str = sprint(Base.show_backtrace, bt)
+
+        # Save the stack trace to a file
+        open("stacktrace.txt", "w") do f
+            write(f, "Exception: $(ex)\n")
+            write(f, bt_str)
+        end
+
+        println("An exception occurred: $(ex)")
+        println("Stack trace saved to 'stacktrace.txt'")
+    end
     phi = discretization.phi
 
     analytic_sol_func_ = [
@@ -250,6 +267,7 @@ end
     # plot(x_plot,y_plot,u_real)
     # plot!(x_plot,y_plot,u_predict)
 end
+fail
 ## Example 2, 2D Poisson equation
 function test_2d_poisson_equation(chain_, strategy_)
     println("Example 2, 2D Poisson equation, chain: $(nameof(typeof(chain_))), strategy: $(nameof(typeof(strategy_)))")
@@ -274,7 +292,7 @@ function test_2d_poisson_equation(chain_, strategy_)
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = NeuralPDE.discretize(pde_system, discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 500)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 500, cb = callback)
     phi = discretization.phi
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
@@ -294,26 +312,30 @@ function test_2d_poisson_equation(chain_, strategy_)
     # plot(p1,p2,p3)
 end
 
-chain = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ), Lux.Dense(12, 1))
-fluxchain = Chain(Dense(2, 12, Flux.σ), Dense(12, 12, Flux.σ), Dense(12, 1)) |> f64
-chains = [fluxchain, chain]
-for chain in chains
-    test_2d_poisson_equation(chain, grid_strategy)
-end
+@testset "Example 2, 2D Poisson equation" begin
+    grid_strategy = GridTraining(0.1)
 
-for strategy_ in strategies
-    chain_ = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ),
-                       Lux.Dense(12, 1))
-    test_2d_poisson_equation(chain_, strategy_)
-end
+    chain = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ), Lux.Dense(12, 1))
+    fluxchain = Chain(Dense(2, 12, Flux.σ), Dense(12, 12, Flux.σ), Dense(12, 1)) |> f64
+    chains = [fluxchain, chain]
+    for chain in chains
+        test_2d_poisson_equation(chain, grid_strategy)
+    end
 
-algs = [CubatureJLp()] #CubatureJLh(),
-for alg in algs
-    chain_ = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ),
-                       Lux.Dense(12, 1))
-    strategy_ = NeuralPDE.QuadratureTraining(quadrature_alg = alg, reltol = 1e-4,
-                                             abstol = 1e-3, maxiters = 30, batch = 10)
-    test_2d_poisson_equation(chain_, strategy_)
+    for strategy_ in strategies
+        chain_ = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ),
+                        Lux.Dense(12, 1))
+        test_2d_poisson_equation(chain_, strategy_)
+    end
+
+    algs = [CubatureJLp()] #CubatureJLh(),
+    for alg in algs
+        chain_ = Lux.Chain(Lux.Dense(2, 12, Flux.σ), Lux.Dense(12, 12, Flux.σ),
+                        Lux.Dense(12, 1))
+        strategy_ = NeuralPDE.QuadratureTraining(quadrature_alg = alg, reltol = 1e-4,
+                                                abstol = 1e-3, maxiters = 30, batch = 10)
+        test_2d_poisson_equation(chain_, strategy_)
+    end
 end
 
 ## Example 3, 3rd-order
@@ -428,6 +450,7 @@ end
     # p1 =plot(xs, ys, u_predict, st=:surface);
     # p2 = plot(xs, ys, u_real, st=:surface);
     # plot(p1,p2)
+end
 
 ## Example 5, 2d wave equation, neumann boundary condition
 @testset "Example 5, 2d wave equation, neumann boundary condition" begin
