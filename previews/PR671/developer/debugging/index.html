@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Debugging PINN Solutions · NeuralPDE.jl</title><script async src="https://www.googletagmanager.com/gtag/js?id=UA-90474609-3"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-90474609-3', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="../../assets/warner.js"></script><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/developer/debugging/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/ode/">Introduction to NeuralPDE for ODEs</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../../tutorials/gpu/">Using GPUs</a></li><li><a class="tocitem" href="../../tutorials/systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../../tutorials/constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../../tutorials/low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../../tutorials/param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../../tutorials/integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../../tutorials/neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../../tutorials/derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../../examples/wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../../examples/3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../../examples/ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../../examples/heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../../examples/linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li class="is-active"><a class="tocitem" href>Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Developer Documentation</a></li><li class="is-active"><a href>Debugging PINN Solutions</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Debugging PINN Solutions</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/developer/debugging.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Debugging-PINN-Solutions"><a class="docs-heading-anchor" href="#Debugging-PINN-Solutions">Debugging PINN Solutions</a><a id="Debugging-PINN-Solutions-1"></a><a class="docs-heading-anchor-permalink" href="#Debugging-PINN-Solutions" title="Permalink"></a></h1><h4 id="Note-this-is-all-not-current-right-now!"><a class="docs-heading-anchor" href="#Note-this-is-all-not-current-right-now!">Note this is all not current right now!</a><a id="Note-this-is-all-not-current-right-now!-1"></a><a class="docs-heading-anchor-permalink" href="#Note-this-is-all-not-current-right-now!" title="Permalink"></a></h4><p>Let&#39;s walk through debugging functions for the physics-informed neural network PDE solvers.</p><pre><code class="language-julia hljs">using NeuralPDE, ModelingToolkit, Flux, Zygote
+import ModelingToolkit: Interval, infimum, supremum
+# 2d wave equation, neumann boundary condition
+@parameters x, t
+@variables u(..)
+Dxx = Differential(x)^2
+Dtt = Differential(t)^2
+Dt = Differential(t)
+#2D PDE
+C = 1
+eq = Dtt(u(x, t)) ~ C^2 * Dxx(u(x, t))
+
+# Initial and boundary conditions
+bcs = [u(0, t) ~ 0.0,
+    u(1, t) ~ 0.0,
+    u(x, 0) ~ x * (1.0 - x),
+    Dt(u(x, 0)) ~ 0.0]
+
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0),
+    t ∈ Interval(0.0, 1.0)]
+
+# Neural network
+chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))
+init_params = DiffEqFlux.initial_params(chain)
+
+eltypeθ = eltype(init_params)
+phi = NeuralPDE.get_phi(chain)
+derivative = NeuralPDE.get_numeric_derivative()
+
+u_ = (cord, θ, phi) -&gt; sum(phi(cord, θ))
+
+phi([1, 2], init_params)
+
+phi_ = (p) -&gt; phi(p, init_params)[1]
+dphi = Zygote.gradient(phi_, [1.0, 2.0])
+
+dphi1 = derivative(phi, u_, [1.0, 2.0], [[0.0049215667, 0.0]], 1, init_params)
+dphi2 = derivative(phi, u_, [1.0, 2.0], [[0.0, 0.0049215667]], 1, init_params)
+isapprox(dphi[1][1], dphi1, atol = 1e-8)
+isapprox(dphi[1][2], dphi2, atol = 1e-8)
+
+indvars = [x, t]
+depvars = [u(x, t)]
+dict_depvars_input = Dict(:u =&gt; [:x, :t])
+dim = length(domains)
+dx = 0.1
+multioutput = chain isa AbstractArray
+strategy = NeuralPDE.GridTraining(dx)
+integral = NeuralPDE.get_numeric_integral(strategy, indvars, multioutput, chain, derivative)
+
+_pde_loss_function = NeuralPDE.build_loss_function(eq, indvars, depvars, phi, derivative,
+                                                   integral, multioutput, init_params,
+                                                   strategy)</code></pre><pre><code class="nohighlight hljs">julia&gt; expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,multioutput,init_params,strategy)
+
+:((cord, var&quot;##θ#529&quot;, phi, derivative, integral, u)-&gt;begin
+          begin
+              let (x, t) = (cord[[1], :], cord[[2], :])
+                  derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667], [0.0, 0.0049215667]], 2, var&quot;##θ#529&quot;) .- derivative.(phi, u, cord, Array{Float32,1}[[0.0049215667, 0.0], [0.0049215667, 0.0]], 2, var&quot;##θ#529&quot;)
+              end
+          end
+      end)
+
+julia&gt; bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
+4-element Array{Array{Any,1},1}:
+ [:t]
+ [:t]
+ [:x]
+ [:x]</code></pre><pre><code class="language-julia hljs">_bc_loss_functions = [NeuralPDE.build_loss_function(bc, indvars, depvars,
+                                                    phi, derivative, integral, multioutput,
+                                                    init_params, strategy,
+                                                    bc_indvars = bc_indvar)
+                      for (bc, bc_indvar) in zip(bcs, bc_indvars)]</code></pre><pre><code class="nohighlight hljs">julia&gt; expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,dict_depvars_input,
+                                                                        phi,derivative,integral,multioutput,init_params,strategy,
+                                                                        bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
+4-element Array{Expr,1}:
+ :((cord, var&quot;##θ#529&quot;, phi, derivative, integral, u)-&gt;begin
+          begin
+              let (x, t) = (cord[[1], :], cord[[2], :])
+                  u.(cord, var&quot;##θ#529&quot;, phi) .- 0.0
+              end
+          end
+      end)
+ :((cord, var&quot;##θ#529&quot;, phi, derivative, integral, u)-&gt;begin
+          begin
+              let (x, t) = (cord[[1], :], cord[[2], :])
+                  u.(cord, var&quot;##θ#529&quot;, phi) .- 0.0
+              end
+          end
+      end)
+ :((cord, var&quot;##θ#529&quot;, phi, derivative, integral, u)-&gt;begin
+          begin
+              let (x, t) = (cord[[1], :], cord[[2], :])
+                  u.(cord, var&quot;##θ#529&quot;, phi) .- (*).(x, (+).(1.0, (*).(-1, x)))
+              end
+          end
+      end)
+ :((cord, var&quot;##θ#529&quot;, phi, derivative, integral, u)-&gt;begin
+          begin
+              let (x, t) = (cord[[1], :], cord[[2], :])
+                  derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667]], 1, var&quot;##θ#529&quot;) .- 0.0
+              end
+          end
+      end)</code></pre><pre><code class="language-julia hljs">train_sets = NeuralPDE.generate_training_sets(domains, dx, [eq], bcs, eltypeθ, indvars,
+                                              depvars)
+pde_train_set, bcs_train_set = train_sets</code></pre><pre><code class="nohighlight hljs">julia&gt; pde_train_set
+1-element Array{Array{Float32,2},1}:
+ [0.1 0.2 … 0.8 0.9; 0.1 0.1 … 1.0 1.0]
+
+
+julia&gt; bcs_train_set
+4-element Array{Array{Float32,2},1}:
+ [0.0 0.0 … 0.0 0.0; 0.0 0.1 … 0.9 1.0]
+ [1.0 1.0 … 1.0 1.0; 0.0 0.1 … 0.9 1.0]
+ [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]
+ [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]</code></pre><pre><code class="language-julia hljs">pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains, [eq], bcs, eltypeθ, indvars, depvars,
+                                              NeuralPDE.StochasticTraining(100))</code></pre><pre><code class="nohighlight hljs">julia&gt; pde_bounds
+1-element Vector{Vector{Any}}:
+ [Float32[0.01, 0.99], Float32[0.01, 0.99]]
+
+julia&gt; bcs_bounds
+4-element Vector{Vector{Any}}:
+ [0, Float32[0.0, 1.0]]
+ [1, Float32[0.0, 1.0]]
+ [Float32[0.0, 1.0], 0]
+ [Float32[0.0, 1.0], 0]</code></pre><pre><code class="language-julia hljs">discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
+
+@named pde_system = PDESystem(eq, bcs, domains, indvars, depvars)
+prob = NeuralPDE.discretize(pde_system, discretization)
+
+expr_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+expr_pde_loss_function, expr_bc_loss_functions = expr_prob</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../manual/neural_adapters/">« Transfer Learning with neural_adapter</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Friday 31 March 2023 18:30">Friday 31 March 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
