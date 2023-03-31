@@ -132,40 +132,41 @@ function test_heterogeneous_system(strategy_)
     prob = SciMLBase.discretize(pde_system, discretization)
     res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 100)
 end
-# @testset "Test ODE" begin
-#     grid_strategy = NeuralPDE.GridTraining(0.1)
-#     quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
-#                                                     reltol = 1e3, abstol = 1e-3,
-#                                                     maxiters = 50, batch = 100)
-#     stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points = 50)
-#     quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100;
-#                                                         sampling_alg = LatinHypercubeSample(),
-#                                                         resampling = false,
-#                                                         minibatch = 100)
-#     quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100;
-#                                                                     bcs_points = 50,
-#                                                                     sampling_alg = LatticeRuleSample(),
-#                                                                     resampling = true,
-#                                                                     minibatch = 0)
 
-#     strategies = [
-#         grid_strategy,
-#         stochastic_strategy,
-#         quasirandom_strategy,
-#         quasirandom_strategy_resampling,
-#         quadrature_strategy,
-#     ]
+@testset "Test ODE" begin
+    grid_strategy = NeuralPDE.GridTraining(0.1)
+    quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
+                                                    reltol = 1e3, abstol = 1e-3,
+                                                    maxiters = 50, batch = 100)
+    stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points = 50)
+    quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100;
+                                                        sampling_alg = LatinHypercubeSample(),
+                                                        resampling = false,
+                                                        minibatch = 100)
+    quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100;
+                                                                    bcs_points = 50,
+                                                                    sampling_alg = LatticeRuleSample(),
+                                                                    resampling = true,
+                                                                    minibatch = 0)
 
-#     map(strategies) do strategy_
-#         test_ode(strategy_)
-#     end
-# end
-# map(strategies) do strategy_
-#     test_heterogeneous_system(strategy_)
-# end
-# map(strategies) do strategy_
-#     test_heterogeneous_equation(strategy_)
-# end
+    strategies = [
+        grid_strategy,
+        stochastic_strategy,
+        quasirandom_strategy,
+        quasirandom_strategy_resampling,
+        quadrature_strategy,
+    ]
+
+    map(strategies) do strategy_
+        test_ode(strategy_)
+    end
+end
+map(strategies) do strategy_
+    test_heterogeneous_system(strategy_)
+end
+map(strategies) do strategy_
+    test_heterogeneous_equation(strategy_)
+end
 
 ## Heterogeneous system
 @testset "Example 1: Heterogeneous system" begin
@@ -211,24 +212,9 @@ end
         return false
     end
 
-    try
-        res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 2000)
-    catch ex
-        # Obtain the stack trace
-        bt = catch_backtrace()
 
-        # Convert the stack trace to a readable format
-        bt_str = sprint(Base.show_backtrace, bt)
+    res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 2000)
 
-        # Save the stack trace to a file
-        open("stacktrace.txt", "w") do f
-            write(f, "Exception: $(ex)\n")
-            write(f, bt_str)
-        end
-
-        println("An exception occurred: $(ex)")
-        println("Stack trace saved to 'stacktrace.txt'")
-    end
     phi = discretization.phi
 
     analytic_sol_func_ = [
@@ -267,7 +253,7 @@ end
     # plot(x_plot,y_plot,u_real)
     # plot!(x_plot,y_plot,u_predict)
 end
-fail
+
 ## Example 2, 2D Poisson equation
 function test_2d_poisson_equation(chain_, strategy_)
     println("Example 2, 2D Poisson equation, chain: $(nameof(typeof(chain_))), strategy: $(nameof(typeof(strategy_)))")
