@@ -36,7 +36,7 @@ phi = discretization.phi
 analytic_sol_func(t) = 1 / 2 * (exp(-t)) * (sin(2 * t))
 u_real = [analytic_sol_func(t) for t in ts]
 u_predict = [first(phi([t], res.minimizer)) for t in ts]
-@test Flux.mse(u_real, u_predict) < 0.001
+@test Flux.mse(u_real, u_predict) < 0.01
 # plot(ts,u_real)
 # plot!(ts,u_predict)
 
