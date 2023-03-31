@@ -12,7 +12,7 @@ where `\alpha = \gamma = 1` and `\beta = 4`. The exact solution is:
 u_e(x, t) = 11 + 15 \tanh \theta - 15 \tanh^2 \theta - 15 \tanh^3 \theta \, ,
 ```
 
-where `\theta = 1 - x/2` and with initial and boundary conditions:
+where `\theta = t - x/2` and with initial and boundary conditions:
 
 ```math
 \begin{align*}
