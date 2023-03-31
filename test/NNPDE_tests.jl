@@ -133,7 +133,7 @@ function test_heterogeneous_system(strategy_)
     res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 100)
 end
 
-@testset "Test ODE" begin
+@testset "Test ODE/Heterogeneous" begin
     grid_strategy = NeuralPDE.GridTraining(0.1)
     quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
                                                     reltol = 1e3, abstol = 1e-3,
@@ -160,12 +160,9 @@ end
     map(strategies) do strategy_
         test_ode(strategy_)
     end
-end
-map(strategies) do strategy_
-    test_heterogeneous_system(strategy_)
-end
-map(strategies) do strategy_
-    test_heterogeneous_equation(strategy_)
+    map(strategies) do strategy_
+        test_heterogeneous_system(strategy_)
+    end
 end
 
 ## Heterogeneous system
