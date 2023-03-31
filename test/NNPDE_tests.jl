@@ -133,29 +133,29 @@ function test_heterogeneous_system(strategy_)
     res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 100)
 end
 
-@testset "Test ODE/Heterogeneous" begin
-    grid_strategy = NeuralPDE.GridTraining(0.1)
-    quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
-                                                    reltol = 1e3, abstol = 1e-3,
-                                                    maxiters = 50, batch = 100)
-    stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points = 50)
-    quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100;
-                                                        sampling_alg = LatinHypercubeSample(),
-                                                        resampling = false,
-                                                        minibatch = 100)
-    quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100;
-                                                                    bcs_points = 50,
-                                                                    sampling_alg = LatticeRuleSample(),
-                                                                    resampling = true,
-                                                                    minibatch = 0)
+grid_strategy = NeuralPDE.GridTraining(0.1)
+quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
+                                                reltol = 1e3, abstol = 1e-3,
+                                                maxiters = 50, batch = 100)
+stochastic_strategy = NeuralPDE.StochasticTraining(100; bcs_points = 50)
+quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100;
+                                                    sampling_alg = LatinHypercubeSample(),
+                                                    resampling = false,
+                                                    minibatch = 100)
+quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(100;
+                                                                bcs_points = 50,
+                                                                sampling_alg = LatticeRuleSample(),
+                                                                resampling = true,
+                                                                minibatch = 0)
 
-    strategies = [
-        grid_strategy,
-        stochastic_strategy,
-        quasirandom_strategy,
-        quasirandom_strategy_resampling,
-        quadrature_strategy,
-    ]
+strategies = [
+    grid_strategy,
+    stochastic_strategy,
+    quasirandom_strategy,
+    quasirandom_strategy_resampling,
+    quadrature_strategy,
+]
+@testset "Test ODE/Heterogeneous" begin
 
     map(strategies) do strategy_
         test_ode(strategy_)
