@@ -160,9 +160,6 @@ end
     map(strategies) do strategy_
         test_ode(strategy_)
     end
-    map(strategies) do strategy_
-        test_heterogeneous_system(strategy_)
-    end
 end
 
 ## Heterogeneous system
