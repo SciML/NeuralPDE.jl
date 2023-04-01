@@ -15,11 +15,11 @@ function dev_subpkg(subpkg)
 end
 
 @time begin
-    if GROUP == "All" || GROUP == "NNODE"
-        @time @safetestset "NNODE" begin include("NNODE_tests.jl") end
-    end
     if GROUP == "All" || GROUP == "NNPDE1"
         @time @safetestset "NNPDE" begin include("NNPDE_tests.jl") end
+    end
+    if GROUP == "All" || GROUP == "NNODE"
+        @time @safetestset "NNODE" begin include("NNODE_tests.jl") end
     end
     if GROUP == "All" || GROUP == "NNPDE2"
         @time @safetestset "Additional Loss" begin include("additional_loss_tests.jl") end

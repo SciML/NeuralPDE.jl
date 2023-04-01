@@ -6,3 +6,5 @@ Manifest.toml
 .vscode/settings.json
 */testlogs
 docs/build/*
+scratch
+scratch/*
