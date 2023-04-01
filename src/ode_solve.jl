@@ -80,9 +80,9 @@ struct NNODE{C, O, P, B, K, AL <: Union{Nothing, Function},
     autodiff::Bool
     batch::B
     strategy::S
-    additional_loss::AL
     kwargs::K
     additional_loss::AL
+    kwargs::K
 end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
