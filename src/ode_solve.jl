@@ -70,8 +70,8 @@ is an accurate interpolation (up to the neural network training result). In addi
 Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving
 ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.
 """
-struct NNODE{C, O, P, B, K, AL, S <: Union{Nothing, AbstractTrainingStrategy}
-             } <:
+struct NNODE{C, O, P, B, K, S <: Union{Nothing, AbstractTrainingStrategy},
+             AL <: Union{Nothing, Function}} <:
        NeuralPDEAlgorithm
     chain::C
     opt::O
@@ -81,7 +81,6 @@ struct NNODE{C, O, P, B, K, AL, S <: Union{Nothing, AbstractTrainingStrategy}
     strategy::S
     additional_loss::AL
     kwargs::K
-    additional_loss::AL
 end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
@@ -252,7 +251,7 @@ Representation of the loss function, parametric on the training strategy `strate
 Representation of the loss function, parametric on the training strategy `strategy`
 """
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch, additional_loss = nothing)
+                       batch)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p))
     integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p)) for t in ts]
     @assert batch == 0 # not implemented
@@ -263,18 +262,10 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
         sol.u
     end
 
-    # total loss
-    total_loss = if additional_loss isa Nothing
-        loss
-    else
-        loss + additional_loss(phi, θ)
-    end
-    # Default this to ForwardDiff until Integrals.jl autodiff is sorted out
-    OptimizationFunction(total_loss, Optimization.AutoForwardDiff())
+    return loss
 end
 
-function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch,
-                       additional_loss = nothing)
+function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
     ts = tspan[1]:(strategy.dx):tspan[2]
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
@@ -286,18 +277,11 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
         end
     end
 
-    # total loss
-    total_loss = if additional_loss isa Nothing
-        loss
-    else
-        loss + additional_loss(phi, θ)
-    end
-
-    optf = OptimizationFunction(total_loss, Optimization.AutoZygote())
+    return loss
 end
 
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch, additional_loss = nothing)
+                       batch)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
         ts = adapt(parameterless_type(θ),
@@ -310,14 +294,7 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
         end
     end
 
-    # total loss
-    total_loss = if additional_loss isa Nothing
-        loss
-    else
-        loss + additional_loss(phi, θ)
-    end
-
-    optf = OptimizationFunction(total_loss, Optimization.AutoZygote())
+    return loss
 end
 
 
@@ -416,10 +393,29 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     # additional loss
     additional_loss = alg.additional_loss
 
-    optf = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch,
-                         additional_loss)
+    # Computes total_loss
+    function total_loss(θ, _)
+        L2_loss = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch)(θ, phi)
+        if !(additional_loss isa Nothing)
+            return additional_loss(phi, θ) + L2_loss
+        end
+        L2_loss
+    end
 
-    # optf = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch)
+    # Choice of Optimization Algo for Training Strategies
+    opt_algo = if strategy isa QuadratureTraining
+        Optimization.AutoForwardDiff()
+    elseif strategy isa StochasticTraining
+        Optimization.AutoZygote()
+    else
+        # by default GridTraining choice of Optimization
+        # if adding new training algorithms we can extend this,
+        # if-elseif-else block for choices of optimization algos
+        Optimization.AutoZygote()
+    end
+
+    # Creates OptimizationFunction Object from total_loss
+    optf = OptimizationFunction(total_loss, opt_algo)
 
     iteration = 0
     callback = function (p, l)
