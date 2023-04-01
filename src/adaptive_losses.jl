@@ -257,3 +257,191 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
         nothing
     end
 end
+
+
+
+
+"""
+NTK Adaptive Loss
+"""
+
+mutable struct NTKAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
+    reweight_every::Int64
+    weight_change_inertia::T
+    pde_loss_weights::Vector{T}
+    bc_loss_weights::Vector{T}
+    additional_loss_weights::Vector{T}
+    SciMLBase.@add_kwonly function NTKAdaptiveLoss{T}(reweight_every;
+                                                                weight_change_inertia = 0.9,
+                                                                pde_loss_weights = 1,
+                                                                bc_loss_weights = 1,
+                                                                additional_loss_weights = 1) where {
+                                                                                                    T <:
+                                                                                                    Real
+                                                                                                    }
+        new(convert(Int64, reweight_every), convert(T, weight_change_inertia),
+            vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T),
+            vectorify(additional_loss_weights, T))
+    end
+end
+# default to Float64
+SciMLBase.@add_kwonly function NTKAdaptiveLoss(reweight_every;
+                                                         weight_change_inertia = 0.9,
+                                                         pde_loss_weights = 1,
+                                                         bc_loss_weights = 1,
+                                                         additional_loss_weights = 1)
+    NTKAdaptiveLoss{Float64}(reweight_every;
+                                       weight_change_inertia = weight_change_inertia,
+                                       pde_loss_weights = pde_loss_weights,
+                                       bc_loss_weights = bc_loss_weights,
+                                       additional_loss_weights = additional_loss_weights)
+end
+
+function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
+                                         adaloss::NTKAdaptiveLoss,
+                                         pde_loss_functions, bc_loss_functions)
+    weight_change_inertia = adaloss.weight_change_inertia
+    iteration = pinnrep.iteration
+    adaloss_T = eltype(adaloss.pde_loss_weights)
+
+    function run_loss_ntkl_adaptive_loss(θ, pde_losses, bc_losses)
+        if iteration[1] % adaloss.reweight_every == 0
+            # the paper assumes a single pde loss function, so here we grab the maximum of the maximums of each pde loss function
+            # pde_grads_maxes = [maximum(abs.(Zygote.gradient(pde_loss_function, θ)[1]))
+            #                    for pde_loss_function in pde_loss_functions]
+            # pde_grads_max = maximum(pde_grads_maxes)
+            # bc_grads_mean = [mean(abs.(Zygote.gradient(bc_loss_function, θ)[1]))
+            #                  for bc_loss_function in bc_loss_functions]
+
+            # nonzero_divisor_eps = adaloss_T isa Float64 ? Float64(1e-11) :
+            #                       convert(adaloss_T, 1e-7)
+            # bc_loss_weights_proposed = pde_grads_max ./
+            #                            (bc_grads_mean .+ nonzero_divisor_eps)
+            # adaloss.bc_loss_weights .= weight_change_inertia .*
+            #                            adaloss.bc_loss_weights .+
+            #                            (1 .- weight_change_inertia) .*
+            #                            bc_loss_weights_proposed
+
+
+            bc_vec = [dot(vec(Zygote.gradient(bc_loss_function, θ)[1]), vec(Zygote.gradient(bc_loss_function, θ)[1]))
+                            for bc_loss_function in bc_loss_functions]
+            bc_trace = sum(bc_vec)
+            pde_vec = [dot(vec(Zygote.gradient(pde_loss_function, θ)[1]), vec(Zygote.gradient(pde_loss_function, θ)[1]))
+                            for pde_loss_function in pde_loss_functions]
+            pde_trace = sum(pde_vec)
+            
+            adaloss.bc_loss_weights .= ( bc_trace .+ pde_trace )  ./ (bc_trace)
+            adaloss.pde_loss_weights .= ( bc_trace .+ pde_trace )  ./ (pde_trace) 
+                        
+
+            # logscalar(pinnrep.logger, pde_trace, "adaptive_loss/pde_grad_max",
+            #           iteration[1])
+            # logvector(pinnrep.logger, bc_trace, "adaptive_loss/bc_trace",
+            #           iteration[1])
+            # logvector(pinnrep.logger, adaloss.pde_loss_weights,
+            #           "adaptive_loss/pde_loss_weights",
+            #           iteration[1])
+            # logvector(pinnrep.logger, adaloss.bc_loss_weights,
+            #           "adaptive_loss/bc_loss_weights",
+            #           iteration[1])
+        end
+        nothing
+    end
+end
+
+
+
+
+
+
+
+
+
+"""
+Inverse Dirichlet Adaptive Loss
+"""
+
+mutable struct IDAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
+    reweight_every::Int64
+    weight_change_inertia::T
+    pde_loss_weights::Vector{T}
+    bc_loss_weights::Vector{T}
+    additional_loss_weights::Vector{T}
+    SciMLBase.@add_kwonly function IDAdaptiveLoss{T}(reweight_every;
+                                                                weight_change_inertia = 0.9,
+                                                                pde_loss_weights = 1,
+                                                                bc_loss_weights = 1,
+                                                                additional_loss_weights = 1) where {
+                                                                                                    T <:
+                                                                                                    Real
+                                                                                                    }
+        new(convert(Int64, reweight_every), convert(T, weight_change_inertia),
+            vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T),
+            vectorify(additional_loss_weights, T))
+    end
+end
+# default to Float64
+SciMLBase.@add_kwonly function IDAdaptiveLoss(reweight_every;
+                                                         weight_change_inertia = 0.9,
+                                                         pde_loss_weights = 1,
+                                                         bc_loss_weights = 1,
+                                                         additional_loss_weights = 1)
+    IDAdaptiveLoss{Float64}(reweight_every;
+                                       weight_change_inertia = weight_change_inertia,
+                                       pde_loss_weights = pde_loss_weights,
+                                       bc_loss_weights = bc_loss_weights,
+                                       additional_loss_weights = additional_loss_weights)
+end
+
+function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
+                                         adaloss::IDAdaptiveLoss,
+                                         pde_loss_functions, bc_loss_functions)
+    weight_change_inertia = adaloss.weight_change_inertia
+    iteration = pinnrep.iteration
+    adaloss_T = eltype(adaloss.pde_loss_weights)
+
+    function run_loss_inverse_dirichlet_gradients_adaptive_loss(θ, pde_losses, bc_losses)
+        if iteration[1] % adaloss.reweight_every == 0
+            # the paper assumes a single pde loss function, so here we grab the maximum of the maximums of each pde loss function
+            pde_stds = [std(Zygote.gradient(pde_loss_function, θ)[1])
+                               for pde_loss_function in pde_loss_functions]
+            pde_std_max = maximum(pde_stds)
+            bc_stds = [std(Zygote.gradient(bc_loss_function, θ)[1])
+                             for bc_loss_function in bc_loss_functions]
+            bc_std_max = maximum(bc_stds)
+            gamma = max(pde_std_max, bc_std_max)
+            
+            bc_loss_weights_proposed = gamma ./ (bc_stds)
+            adaloss.bc_loss_weights .= weight_change_inertia .* adaloss.bc_loss_weights .+
+                                    (1 .- weight_change_inertia) .* bc_loss_weights_proposed
+
+            pde_loss_weights_proposed = gamma ./ (pde_stds)
+            adaloss.pde_loss_weights .= weight_change_inertia .* adaloss.pde_loss_weights .+
+                                    (1 .- weight_change_inertia) .* pde_loss_weights_proposed                                   
+            nonzero_divisor_eps = adaloss_T isa Float64 ? Float64(1e-11) :
+                                  convert(adaloss_T, 1e-7)
+            bc_loss_weights_proposed = gamma ./
+                                       (bc_stds)
+            adaloss.bc_loss_weights .= weight_change_inertia .*
+                                       adaloss.bc_loss_weights .+
+                                       (1 .- weight_change_inertia) .*
+                                       bc_loss_weights_proposed
+            # logscalar(pinnrep.logger, pde_grads_max, "adaptive_loss/pde_grad_max",
+            #           iteration[1])
+            # logvector(pinnrep.logger, pde_grads_maxes, "adaptive_loss/pde_grad_maxes",
+            #           iteration[1])
+            # logvector(pinnrep.logger, bc_grads_mean, "adaptive_loss/bc_grad_mean",
+            #           iteration[1])
+            # logvector(pinnrep.logger, adaloss.bc_loss_weights,
+            #           "adaptive_loss/bc_loss_weights",
+            #           iteration[1])
+        end
+        nothing
+    end
+end
+
+
+
+
+
+

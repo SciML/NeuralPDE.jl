@@ -17,6 +17,7 @@ using RuntimeGeneratedFunctions
 using SciMLBase
 using Statistics
 using ArrayInterface
+using LinearAlgebra
 import Optim
 using DomainSets
 using Symbolics
@@ -45,6 +46,7 @@ include("rode_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
+
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
