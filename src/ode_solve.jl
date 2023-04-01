@@ -259,11 +259,12 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
         sol = solve(intprob, QuadGKJL(); abstol = strategy.abstol, reltol = strategy.reltol)
         sol.u
     end
-    
+
     return loss
 end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
+
     ts = tspan[1]:(strategy.dx):tspan[2]
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
@@ -306,24 +307,14 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
 
     difference = (maxT - minT) / N
 
-    data = Float64[]
-    for (index, item) in enumerate(weights)
-        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+
-                    ((index - 1) * difference)
-        data = append!(data, temp_data)
+    # total loss
+    total_loss = if additional_loss isa Nothing
+        loss
+    else
+        loss + additional_loss(phi, θ)
     end
 
-    ts = data
-
-    function loss(θ, _)
-        if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
-        else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
-        end
-    end
-
-    return loss
+    optf = OptimizationFunction(total_loss, Optimization.AutoZygote())
 end
 
 
@@ -422,12 +413,9 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     # additional loss
     additional_loss = alg.additional_loss
 
-
     # Computes total_loss
     function total_loss(θ, _)
-        L2_loss = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch,
-                         additional_loss)
-
+        L2_loss = generate_loss(strategy, phi, f, autodiff::Bool, tspan, p, batch)(θ, phi)
         if !(additional_loss isa Nothing)
             return additional_loss(phi, θ) + L2_loss
         end
@@ -438,8 +426,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     opt_algo = if strategy isa QuadratureTraining
         Optimization.AutoForwardDiff()
     elseif strategy isa StochasticTraining
-        Optimization.AutoZygote()
-    elseif strategy isa WeightedIntervalTraining
         Optimization.AutoZygote()
     else
         # by default GridTraining choice of Optimization
