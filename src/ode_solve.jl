@@ -307,16 +307,25 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
 
     difference = (maxT - minT) / N
 
-    # total loss
-    total_loss = if additional_loss isa Nothing
-        loss
-    else
-        loss + additional_loss(phi, θ)
+    data = Float64[]
+    for (index, item) in enumerate(weights)
+        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+
+                    ((index - 1) * difference)
+        data = append!(data, temp_data)
     end
 
-    optf = OptimizationFunction(total_loss, Optimization.AutoZygote())
-end
+    ts = data
 
+    function loss(θ, _)
+        if batch
+            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
+        else
+            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
+        end
+    end
+
+    return loss
+end
 
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
