@@ -323,7 +323,6 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     end
 
     return loss
-    optf = OptimizationFunction(loss, Optimization.AutoZygote())
 end
 
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan,
@@ -435,6 +434,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     opt_algo = if strategy isa QuadratureTraining
         Optimization.AutoForwardDiff()
     elseif strategy isa StochasticTraining
+        Optimization.AutoZygote()
+    elseif strategy isa WeightedIntervalTraining
         Optimization.AutoZygote()
     else
         # by default GridTraining choice of Optimization
