@@ -23,7 +23,6 @@ of the physics-informed neural network which is used as a solver for a standard 
   which thus uses the random initialization provided by the neural network library.
 
 ## Keyword Arguments
-
 * `additional_loss`: A function additional_loss(phi, θ) where phi are the neural network trial solutions,
                      θ are the weights of the neural network(s).
 example: 
