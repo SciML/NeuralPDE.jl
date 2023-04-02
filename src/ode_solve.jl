@@ -86,8 +86,6 @@ function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
                autodiff = false, batch = nothing, additional_loss = nothing, kwargs...)
     NNODE(chain, opt, init_params, autodiff, batch, strategy, additional_loss, kwargs)
-               autodiff = false, batch = nothing, additional_loss = nothing, kwargs...)
-    NNODE(chain, opt, init_params, autodiff, batch, strategy, additional_loss, kwargs)
 end
 
 """
@@ -296,6 +294,55 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
 end
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan,
                        additional_loss)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
@@ -405,6 +452,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     opt_algo = if strategy isa QuadratureTraining
         Optimization.AutoForwardDiff()
     elseif strategy isa StochasticTraining
+        Optimization.AutoZygote()
+    elseif strategy isa WeightedIntervalTraining
         Optimization.AutoZygote()
     else
         # by default GridTraining choice of Optimization
