@@ -127,7 +127,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         params_symbols = Symbol[]
         expr_params = Expr[]
         for (i, eq_param) in enumerate(eq_params)
-            push!(expr_params, :(ArrayInterfaceCore.allowed_getindex(p, ($i):($i))))
+            push!(expr_params, :(ArrayInterface.allowed_getindex(p, ($i):($i))))
             push!(params_symbols, Symbol(:($eq_param)))
         end
         params_eq = Expr(:(=), build_expr(:tuple, params_symbols),
@@ -640,6 +640,10 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             logvector(pinnrep.logger, weighted_bc_losses,
                       "weighted_loss/weighted_bc_losses",
                       iteration[1])
+            if !(additional_loss isa Nothing)
+                logscalar(pinnrep.logger, weighted_additional_loss_val,
+                          "weighted_loss/weighted_additional_loss", iteration[1])
+            end
             logscalar(pinnrep.logger, sum_weighted_pde_losses,
                       "weighted_loss/sum_weighted_pde_losses", iteration[1])
             logscalar(pinnrep.logger, sum_weighted_bc_losses,

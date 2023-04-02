@@ -167,21 +167,21 @@ function MiniMaxAdaptiveLoss(reweight_every;
 ```
 
 A way of adaptively reweighting the components of the loss function in the total sum such
-that the loss weights are maximized by an internal optimiser, which leads to a behavior
+that the loss weights are maximized by an internal optimizer, which leads to a behavior
 where loss functions that have not been satisfied get a greater weight,
 
 ## Positional Arguments
 
 * `reweight_every`: how often to reweight the PDE and BC loss functions, measured in
-  iterations.  reweighting is cheap since it re-uses the value of loss functions generated
-  during the main optimisation loop
+  iterations.  Reweighting is cheap since it re-uses the value of loss functions generated
+  during the main optimization loop.
 
 ## Keyword Arguments
 
 * `pde_max_optimiser`: a Flux.Optimise.AbstractOptimiser that is used internally to
-  maximize the weights of the PDE loss functions
+  maximize the weights of the PDE loss functions.
 * `bc_max_optimiser`: a Flux.Optimise.AbstractOptimiser that is used internally to maximize
-  the weights of the BC loss functions
+  the weights of the BC loss functions.
 
 ## References
 
