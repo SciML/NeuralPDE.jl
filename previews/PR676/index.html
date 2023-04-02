@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs) · NeuralPDE.jl</title><script async src="https://www.googletagmanager.com/gtag/js?id=UA-90474609-3"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-90474609-3', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="assets/warner.js"></script><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script><link href="assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href><img src="assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href>NeuralPDE.jl</a></span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a><ul class="internal"><li><a class="tocitem" href="#Features"><span>Features</span></a></li><li><a class="tocitem" href="#Installation"><span>Installation</span></a></li><li><a class="tocitem" href="#Contributing"><span>Contributing</span></a></li><li><a class="tocitem" href="#Citation"><span>Citation</span></a></li><li><a class="tocitem" href="#Flux.jl-vs-Lux.jl"><span>Flux.jl vs Lux.jl</span></a></li><li><a class="tocitem" href="#Reproducibility"><span>Reproducibility</span></a></li></ul></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="tutorials/ode/">Introduction to NeuralPDE for ODEs</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="tutorials/pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="tutorials/gpu/">Using GPUs</a></li><li><a class="tocitem" href="tutorials/systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="tutorials/constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="tutorials/low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="tutorials/param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="tutorials/integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="tutorials/neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="tutorials/derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="examples/wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="examples/3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="examples/ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="examples/heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="examples/linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="examples/nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="examples/nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="manual/neural_adapters/">Transfer Learning with neural_adapter</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/index.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="NeuralPDE.jl:-Automatic-Physics-Informed-Neural-Networks-(PINNs)"><a class="docs-heading-anchor" href="#NeuralPDE.jl:-Automatic-Physics-Informed-Neural-Networks-(PINNs)">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a><a id="NeuralPDE.jl:-Automatic-Physics-Informed-Neural-Networks-(PINNs)-1"></a><a class="docs-heading-anchor-permalink" href="#NeuralPDE.jl:-Automatic-Physics-Informed-Neural-Networks-(PINNs)" title="Permalink"></a></h1><p><a href="https://github.com/SciML/NeuralPDE.jl">NeuralPDE.jl</a> NeuralPDE.jl is a solver package which consists of neural network solvers for partial differential equations using physics-informed neural networks (PINNs).</p><h2 id="Features"><a class="docs-heading-anchor" href="#Features">Features</a><a id="Features-1"></a><a class="docs-heading-anchor-permalink" href="#Features" title="Permalink"></a></h2><ul><li>Physics-Informed Neural Networks for ODE, SDE, RODE, and PDE solving.</li><li>Ability to define extra loss functions to mix xDE solving with data fitting (scientific machine learning).</li><li>Automated construction of Physics-Informed loss functions from a high-level symbolic interface.</li><li>Sophisticated techniques like quadrature training strategies, adaptive loss functions, and neural adapters to accelerate training.</li><li>Integrated logging suite for handling connections to TensorBoard.</li><li>Handling of (partial) integro-differential equations and various stochastic equations.</li><li>Specialized forms for solving <code>ODEProblem</code>s with neural networks.</li><li>Compatibility with <a href="https://docs.sciml.ai/Flux.jl/stable/">Flux.jl</a> and <a href="https://docs.sciml.ai/Lux/stable/">Lux.jl</a>. for all the GPU-powered machine learning layers available from those libraries.</li><li>Compatibility with <a href="https://docs.sciml.ai/NeuralOperators/stable/">NeuralOperators.jl</a> for mixing DeepONets and other neural operators (Fourier Neural Operators, Graph Neural Operators, etc.) with physics-informed loss functions.</li></ul><h2 id="Installation"><a class="docs-heading-anchor" href="#Installation">Installation</a><a id="Installation-1"></a><a class="docs-heading-anchor-permalink" href="#Installation" title="Permalink"></a></h2><p>Assuming that you already have Julia correctly installed, it suffices to import NeuralPDE.jl in the standard way:</p><pre><code class="language-julia hljs">import Pkg
+Pkg.add(&quot;NeuralPDE&quot;)</code></pre><h2 id="Contributing"><a class="docs-heading-anchor" href="#Contributing">Contributing</a><a id="Contributing-1"></a><a class="docs-heading-anchor-permalink" href="#Contributing" title="Permalink"></a></h2><ul><li><p>Please refer to the <a href="https://github.com/SciML/ColPrac/blob/master/README.md">SciML ColPrac: Contributor&#39;s Guide on Collaborative Practices for Community Packages</a> for guidance on PRs, issues, and other matters relating to contributing to SciML.</p></li><li><p>See the <a href="https://github.com/SciML/SciMLStyle">SciML Style Guide</a> for common coding practices and other style decisions.</p></li><li><p>There are a few community forums:</p><ul><li>The #diffeq-bridged and #sciml-bridged channels in the <a href="https://julialang.org/slack/">Julia Slack</a></li><li>The #diffeq-bridged and #sciml-bridged channels in the <a href="https://julialang.zulipchat.com/#narrow/stream/279055-sciml-bridged">Julia Zulip</a></li><li>On the <a href="https://discourse.julialang.org">Julia Discourse forums</a></li><li>See also <a href="https://sciml.ai/community/">SciML Community page</a></li></ul></li></ul><h2 id="Citation"><a class="docs-heading-anchor" href="#Citation">Citation</a><a id="Citation-1"></a><a class="docs-heading-anchor-permalink" href="#Citation" title="Permalink"></a></h2><p>If you use NeuralPDE.jl in your research, please cite <a href="https://arxiv.org/abs/2107.09443">this paper</a>:</p><pre><code class="language-tex hljs">@misc{https://doi.org/10.48550/arxiv.2107.09443,
+  doi = {10.48550/ARXIV.2107.09443},
+  url = {https://arxiv.org/abs/2107.09443},
+  author = {Zubov, Kirill and McCarthy, Zoe and Ma, Yingbo and Calisto, Francesco and Pagliarino, Valerio and Azeglio, Simone and Bottero, Luca and Luján, Emmanuel and Sulzer, Valentin and Bharambe, Ashutosh and Vinchhi, Nand and Balakrishnan, Kaushik and Upadhyay, Devesh and Rackauckas, Chris},
+  keywords = {Mathematical Software (cs.MS), Symbolic Computation (cs.SC), FOS: Computer and information sciences, FOS: Computer and information sciences},
+  title = {NeuralPDE: Automating Physics-Informed Neural Networks (PINNs) with Error Approximations},
+  publisher = {arXiv},
+  year = {2021},
+  copyright = {Creative Commons Attribution Non Commercial Share Alike 4.0 International}
+}</code></pre><h2 id="Flux.jl-vs-Lux.jl"><a class="docs-heading-anchor" href="#Flux.jl-vs-Lux.jl">Flux.jl vs Lux.jl</a><a id="Flux.jl-vs-Lux.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Flux.jl-vs-Lux.jl" title="Permalink"></a></h2><p>Both Flux and Lux defined neural networks are supported by NeuralPDE.jl. However, Lux.jl neural networks are greatly preferred for many correctness reasons. Particularly, a Flux <code>Chain</code> does not respect Julia&#39;s type promotion rules. This causes major problems in that the restructuring of a Flux neural network will not respect the chosen types from the solver. Demonstration:</p><pre><code class="language-julia hljs">using Flux, Tracker
+x = [0.8; 0.8]
+ann = Chain(Dense(2, 10, tanh), Dense(10, 1))
+p, re = Flux.destructure(ann)
+z = re(Float64(p))</code></pre><p>While one may think this recreates the neural network to act in <code>Float64</code> precision, <a href="https://github.com/FluxML/Flux.jl/pull/2156">it does not</a> and instead its values will silently downgrade everything to <code>Float32</code>. This is only fixed by <code>Chain(Dense(2, 10, tanh), Dense(10, 1)) |&gt; f64</code>. Similar cases will <a href="https://github.com/FluxML/Optimisers.jl/issues/95">lead to dropped gradients with complex numbers</a>. This is not an issue with the automatic differentiation library commonly associated with Flux (Zygote.jl) but rather due to choices in the neural network library&#39;s decision for how to approach type handling and precision. Thus when using DiffEqFlux.jl with Flux, the user must be very careful to ensure that  the precision of the arguments are correct, and anything that requires alternative types (like <code>TrackerAdjoint</code> tracked values,  <code>ForwardDiffSensitivity</code> dual numbers, and TaylorDiff.jl differentiation) are suspect.</p><p>Lux.jl has none of these issues, is simpler to work with due to the parameters in its function calls being explicit rather than implicit global references, and achieves higher performance. It is built on the same foundations as Flux.jl, such as Zygote and NNLib, and thus it supports the same layers underneith and calls the same kernels. The better performance comes from not having the overhead of <code>restructure</code> required. Thus we highly recommend people use Lux instead and only use the Flux fallbacks for legacy code.</p><h2 id="Reproducibility"><a class="docs-heading-anchor" href="#Reproducibility">Reproducibility</a><a id="Reproducibility-1"></a><a class="docs-heading-anchor-permalink" href="#Reproducibility" title="Permalink"></a></h2><details><summary>The documentation of this SciML package was built using these direct dependencies,</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NeuralPDE.jl/NeuralPDE.jl/docs/Project.toml`
+  [2b5f629d] DiffEqBase v6.122.2
+  [e30172f5] Documenter v0.27.24
+  [5b8099bc] DomainSets v0.6.6
+  [587475ba] Flux v0.13.14
+  [de52edbc] Integrals v3.7.0
+  [c31f79ba] IntegralsCubature v0.2.2
+  [b2108857] Lux v0.4.49
+  [961ee093] ModelingToolkit v8.51.0
+  [315f7962] NeuralPDE v5.6.1 `~/work/NeuralPDE.jl/NeuralPDE.jl`
+  [7f7a1694] Optimization v3.13.0
+  [36348300] OptimizationOptimJL v0.1.5
+  [42dfb2eb] OptimizationOptimisers v0.1.2
+  [500b13db] OptimizationPolyalgorithms v0.1.1
+  [1dea7af3] OrdinaryDiffEq v6.49.4
+  [91a5bcdd] Plots v1.38.8
+  [8a4e6c94] QuasiMonteCarlo v0.2.19
+  [f2b01f46] Roots v2.0.10
+  [276daf66] SpecialFunctions v2.2.0</code></pre></details><details><summary>and using this machine and Julia version.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Julia Version 1.8.5
+Commit 17cfb8e65ea (2023-01-08 06:45 UTC)
+Platform Info:
+  OS: Linux (x86_64-linux-gnu)
+  CPU: 2 × Intel(R) Xeon(R) CPU E5-2673 v4 @ 2.30GHz
+  WORD_SIZE: 64
+  LIBM: libopenlibm
+  LLVM: libLLVM-13.0.1 (ORCJIT, broadwell)
+  Threads: 1 on 2 virtual cores</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NeuralPDE.jl/NeuralPDE.jl/docs/Manifest.toml`
+  [a4c015fc] ANSIColoredPrinters v0.0.1
+  [c3fe647b] AbstractAlgebra v0.29.2
+  [621f4979] AbstractFFTs v1.3.1
+  [1520ce14] AbstractTrees v0.4.4
+  [7d9f7c33] Accessors v0.1.28
+  [79e6a3ab] Adapt v3.6.1
+  [dce04be8] ArgCheck v2.3.0
+  [ec485272] ArnoldiMethod v0.2.0
+  [4fba245c] ArrayInterface v7.4.3
+  [30b0a656] ArrayInterfaceCore v0.1.29
+  [a9b6321e] Atomix v0.1.0
+  [ab4f0b2a] BFloat16s v0.4.2
+  [198e06fe] BangBang v0.3.37
+  [9718e550] Baselet v0.1.1
+  [e2ed5e7c] Bijections v0.1.4
+  [d1d4a3ce] BitFlags v0.1.7
+  [62783981] BitTwiddlingConvenienceFunctions v0.1.5
+  [fa961155] CEnum v0.4.2
+  [2a0fbf3d] CPUSummary v0.2.2
+  [00ebfdb7] CSTParser v3.3.6
+  [052768ef] CUDA v4.1.3
+  [1af6417a] CUDA_Runtime_Discovery v0.2.0
+  [49dc2e85] Calculus v0.5.1
+  [082447d4] ChainRules v1.48.0
+  [d360d2e6] ChainRulesCore v1.15.7
+  [9e997f8a] ChangesOfVariables v0.1.6
+  [fb6a15b2] CloseOpenIntervals v0.1.12
+  [944b1d66] CodecZlib v0.7.1
+  [35d6a980] ColorSchemes v3.20.0
+  [3da002f7] ColorTypes v0.11.4
+  [c3611d14] ColorVectorSpace v0.9.10
+  [5ae59095] Colors v0.12.10
+  [861a8166] Combinatorics v1.0.2
+  [a80b9123] CommonMark v0.8.10
+  [38540f10] CommonSolve v0.2.3
+  [bbf7d656] CommonSubexpressions v0.3.0
+  [34da2185] Compat v4.6.1
+  [b0b7db55] ComponentArrays v0.13.8
+  [b152e2b5] CompositeTypes v0.1.3
+  [a33af91c] CompositionsBase v0.1.1
+  [88cd18e8] ConsoleProgressMonitor v0.1.2
+  [187b0558] ConstructionBase v1.5.1
+  [6add18c4] ContextVariablesX v0.1.3
+  [d38c429a] Contour v0.6.2
+  [adafc99b] CpuId v0.3.1
+  [a8cc5b0e] Crayons v4.1.1
+  [667455a9] Cubature v1.5.1
+  [9a962f9c] DataAPI v1.14.0
+  [864edb3b] DataStructures v0.18.13
+  [e2d170a0] DataValueInterfaces v1.0.0
+  [244e2a9f] DefineSingletons v0.1.2
+  [b429d917] DensityInterface v0.4.0
+  [2b5f629d] DiffEqBase v6.122.2
+  [459566f4] DiffEqCallbacks v2.26.1
+  [77a26b50] DiffEqNoiseProcess v5.16.0
+  [163ba53b] DiffResults v1.1.0
+  [b552c78f] DiffRules v1.13.0
+  [b4f34e82] Distances v0.10.8
+  [31c24e10] Distributions v0.25.86
+  [ffbed154] DocStringExtensions v0.9.3
+  [e30172f5] Documenter v0.27.24
+  [5b8099bc] DomainSets v0.6.6
+  [fa6b7ba4] DualNumbers v0.6.8
+  [7c1d4256] DynamicPolynomials v0.4.6
+  [4e289a0a] EnumX v1.0.4
+  [d4d017d3] ExponentialUtilities v1.24.0
+  [e2ba6199] ExprTools v0.1.9
+  [c87230d0] FFMPEG v0.4.1
+  [cc61a311] FLoops v0.2.1
+  [b9860ae5] FLoopsBase v0.1.1
+  [7034ab61] FastBroadcast v0.2.5
+  [9aa1b823] FastClosures v0.3.2
+  [29a986be] FastLapackInterface v1.2.9
+⌅ [1a297f60] FillArrays v0.13.11
+  [6a86dc24] FiniteDiff v2.19.0
+  [53c48c17] FixedPointNumbers v0.8.4
+  [587475ba] Flux v0.13.14
+  [9c68100b] FoldsThreads v0.1.1
+  [59287772] Formatting v0.4.2
+  [f6369f11] ForwardDiff v0.10.35
+  [069b7b12] FunctionWrappers v1.1.3
+  [77dc65aa] FunctionWrappersWrappers v0.1.3
+  [d9f16b24] Functors v0.4.4
+  [0c68f7d7] GPUArrays v8.6.6
+  [46192b85] GPUArraysCore v0.1.4
+  [61eb1bfa] GPUCompiler v0.19.0
+  [28b8d3ca] GR v0.71.8
+  [c145ed77] GenericSchur v0.5.3
+  [c27321d9] Glob v1.3.1
+  [86223c79] Graphs v1.8.0
+  [42e2da0e] Grisu v1.0.2
+  [0b43b601] Groebner v0.3.2
+  [d5909c97] GroupsCore v0.4.0
+  [19dc6840] HCubature v1.5.1
+  [cd3eb016] HTTP v1.7.4
+  [3e5b6fbb] HostCPUFeatures v0.1.14
+  [34004b35] HypergeometricFunctions v0.3.14
+  [b5f81e59] IOCapture v0.2.2
+  [7869d1d1] IRTools v0.4.9
+  [615f187c] IfElse v0.1.1
+  [d25df0c9] Inflate v0.1.3
+  [83e8ac13] IniFile v0.5.1
+  [22cec73e] InitialValues v0.3.1
+  [18e54dd8] IntegerMathUtils v0.1.0
+  [de52edbc] Integrals v3.7.0
+  [c31f79ba] IntegralsCubature v0.2.2
+  [8197267c] IntervalSets v0.7.4
+  [3587e190] InverseFunctions v0.1.8
+  [92d709cd] IrrationalConstants v0.2.2
+  [42fd0dbc] IterativeSolvers v0.9.2
+  [82899510] IteratorInterfaceExtensions v1.0.0
+  [1019f520] JLFzf v0.1.5
+  [692b3bcd] JLLWrappers v1.4.1
+  [682c06a0] JSON v0.21.3
+  [98e50ef6] JuliaFormatter v1.0.25
+  [b14d175d] JuliaVariables v0.2.4
+  [ccbc3e58] JumpProcesses v9.6.1
+  [ef3ab10e] KLU v0.4.0
+  [63c18a36] KernelAbstractions v0.9.1
+  [ba0b0d4f] Krylov v0.9.0
+  [0b1a1467] KrylovKit v0.6.0
+  [929cbde3] LLVM v5.0.0
+  [b964fa9f] LaTeXStrings v1.3.0
+  [2ee39098] LabelledArrays v1.14.0
+  [984bce1d] LambertW v0.4.6
+  [23fbe1c1] Latexify v0.15.18
+  [a5e1c1ea] LatinHypercubeSampling v1.8.0
+  [73f95e8e] LatticeRules v0.0.1
+  [10f19ff3] LayoutPointers v0.1.14
+  [50d2b5c4] Lazy v0.15.1
+  [1d6d02ad] LeftChildRightSiblingTrees v0.2.0
+  [2d8b4e74] LevyArea v1.0.0
+  [d3d80556] LineSearches v7.2.0
+  [7ed4a6bd] LinearSolve v1.41.1
+  [2ab3a3ac] LogExpFunctions v0.3.23
+  [e6f89c97] LoggingExtras v1.0.0
+  [bdcacae8] LoopVectorization v0.12.155
+  [b2108857] Lux v0.4.49
+  [d0bbae9a] LuxCUDA v0.1.2
+  [bb33d45b] LuxCore v0.1.3
+  [82251201] LuxLib v0.1.13
+  [d8e11817] MLStyle v0.4.17
+  [f1d291b0] MLUtils v0.4.1
+  [1914dd2f] MacroTools v0.5.10
+  [d125e4d3] ManualMemory v0.1.8
+  [739be429] MbedTLS v1.1.7
+  [442fdcdd] Measures v0.3.2
+  [128add7d] MicroCollections v0.1.4
+  [e1d29d7a] Missings v1.1.0
+  [961ee093] ModelingToolkit v8.51.0
+⌅ [4886b29c] MonteCarloIntegration v0.0.3
+  [46d2c3a1] MuladdMacro v0.2.4
+  [102ac46a] MultivariatePolynomials v0.4.7
+  [d8a4904e] MutableArithmetics v1.2.3
+  [d41bc354] NLSolversBase v7.8.3
+  [2774e3e8] NLsolve v4.5.1
+  [872c559c] NNlib v0.8.19
+  [a00861dc] NNlibCUDA v0.2.7
+  [77ba4419] NaNMath v1.0.2
+  [71a1bf82] NameResolution v0.1.5
+  [315f7962] NeuralPDE v5.6.1 `~/work/NeuralPDE.jl/NeuralPDE.jl`
+  [8913a72c] NonlinearSolve v1.6.0
+  [6fe1bfb0] OffsetArrays v1.12.9
+  [0b1bfda6] OneHotArrays v0.2.3
+  [4d8831e6] OpenSSL v1.3.3
+  [429524aa] Optim v1.7.4
+  [3bd65402] Optimisers v0.2.17
+  [7f7a1694] Optimization v3.13.0
+  [36348300] OptimizationOptimJL v0.1.5
+  [42dfb2eb] OptimizationOptimisers v0.1.2
+  [500b13db] OptimizationPolyalgorithms v0.1.1
+  [bac558e1] OrderedCollections v1.6.0
+  [1dea7af3] OrdinaryDiffEq v6.49.4
+  [90014a1f] PDMats v0.11.17
+  [d96e819e] Parameters v0.12.3
+  [69de0a69] Parsers v2.5.8
+  [b98c9c47] Pipe v1.3.0
+  [ccf2f8ad] PlotThemes v3.1.0
+  [995b91a9] PlotUtils v1.3.4
+  [91a5bcdd] Plots v1.38.8
+  [e409e4f3] PoissonRandom v0.4.4
+  [f517fe37] Polyester v0.7.3
+  [1d0040c9] PolyesterWeave v0.2.1
+  [85a6dd25] PositiveFactorizations v0.2.4
+  [d236fae5] PreallocationTools v0.4.12
+  [21216c6a] Preferences v1.3.0
+  [8162dcfd] PrettyPrint v0.2.0
+  [27ebfcd6] Primes v0.5.3
+  [33c8b6b6] ProgressLogging v0.1.4
+  [92933f4c] ProgressMeter v1.7.2
+  [1fd47b50] QuadGK v2.8.2
+  [8a4e6c94] QuasiMonteCarlo v0.2.19
+  [74087812] Random123 v1.6.0
+  [fb686558] RandomExtensions v0.4.3
+  [e6cf234a] RandomNumbers v1.5.3
+  [c1ae055f] RealDot v0.1.0
+  [3cdcf5f2] RecipesBase v1.3.3
+  [01d81517] RecipesPipeline v0.6.11
+  [731186ca] RecursiveArrayTools v2.38.3
+  [f2c3362d] RecursiveFactorization v0.2.18
+  [189a3867] Reexport v1.2.2
+  [05181044] RelocatableFolders v1.0.0
+  [ae029012] Requires v1.3.0
+  [ae5879a3] ResettableStacks v1.1.1
+  [37e2e3b7] ReverseDiff v1.14.4
+  [79098fc4] Rmath v0.7.1
+  [f2b01f46] Roots v2.0.10
+  [7e49a35a] RuntimeGeneratedFunctions v0.5.6
+  [94e857df] SIMDTypes v0.1.0
+  [476501e8] SLEEFPirates v0.6.38
+  [0bca4576] SciMLBase v1.91.6
+  [e9a6253c] SciMLNLSolve v0.1.4
+  [c0aeaf25] SciMLOperators v0.2.0
+  [6c6a2e73] Scratch v1.2.0
+  [efcf1570] Setfield v1.1.1
+  [605ecd9f] ShowCases v0.1.0
+  [992d4aef] Showoff v1.0.3
+  [777ac1f9] SimpleBufferStream v1.1.0
+  [727e6d20] SimpleNonlinearSolve v0.1.14
+  [699a6c99] SimpleTraits v0.9.4
+  [ce78b400] SimpleUnPack v1.1.0
+  [66db9d55] SnoopPrecompile v1.0.3
+  [ed01d8cd] Sobol v1.5.0
+  [a2af1166] SortingAlgorithms v1.1.0
+⌅ [47a9eef4] SparseDiffTools v1.31.0
+  [e56a9233] Sparspak v0.3.9
+  [276daf66] SpecialFunctions v2.2.0
+  [171d559e] SplittablesBase v0.1.15
+  [860ef19b] StableRNGs v1.0.0
+  [aedffcd0] Static v0.8.6
+  [0d7ed370] StaticArrayInterface v1.3.0
+  [90137ffa] StaticArrays v1.5.19
+  [1e83bf80] StaticArraysCore v1.4.0
+  [82ae8749] StatsAPI v1.6.0
+  [2913bbd2] StatsBase v0.33.21
+  [4c63d2b9] StatsFuns v1.3.0
+  [789caeaf] StochasticDiffEq v6.60.0
+  [7792a7ef] StrideArraysCore v0.4.9
+  [09ab397b] StructArrays v0.6.15
+  [2efcf032] SymbolicIndexingInterface v0.2.2
+  [d1185830] SymbolicUtils v1.0.4
+  [0c5d862f] Symbolics v5.2.0
+  [3783bdb8] TableTraits v1.0.1
+  [bd369af6] Tables v1.10.1
+  [62fd8b95] TensorCore v0.1.1
+  [5d786b92] TerminalLoggers v0.1.6
+  [8290d209] ThreadingUtilities v0.5.1
+  [a759f4b9] TimerOutputs v0.5.22
+  [0796e94c] Tokenize v0.5.25
+⌃ [9f7883ad] Tracker v0.2.20
+  [3bb67fe8] TranscodingStreams v0.9.11
+  [28d57a85] Transducers v0.4.75
+  [a2a6695c] TreeViews v0.3.0
+  [d5829a12] TriangularSolve v0.1.19
+  [410a4b4d] Tricks v0.1.7
+  [781d530d] TruncatedStacktraces v1.3.0
+  [5c2747f8] URIs v1.4.2
+  [3a884ed6] UnPack v1.0.2
+  [1cfade01] UnicodeFun v0.4.1
+  [1986cc42] Unitful v1.12.4
+  [a7c27f48] Unityper v0.1.2
+  [013be700] UnsafeAtomics v0.2.1
+  [d80eeb9a] UnsafeAtomicsLLVM v0.1.2
+  [41fe7b60] Unzip v0.2.0
+  [3d5dd08c] VectorizationBase v0.21.64
+  [19fa3120] VertexSafeGraphs v0.2.0
+  [e88e6eb3] Zygote v0.6.59
+  [700de1a5] ZygoteRules v0.2.3
+  [02a925ec] cuDNN v1.0.2
+  [6e34b625] Bzip2_jll v1.0.8+0
+  [4ee394cb] CUDA_Driver_jll v0.5.0+0
+  [76a88914] CUDA_Runtime_jll v0.5.0+0
+  [62b44479] CUDNN_jll v8.8.1+0
+  [83423d85] Cairo_jll v1.16.1+1
+  [7bc98958] Cubature_jll v1.0.5+0
+  [2e619515] Expat_jll v2.4.8+0
+  [b22a6f82] FFMPEG_jll v4.4.2+2
+  [a3f928ae] Fontconfig_jll v2.13.93+0
+  [d7e528f0] FreeType2_jll v2.10.4+0
+  [559328eb] FriBidi_jll v1.0.10+0
+  [0656b61e] GLFW_jll v3.3.8+0
+  [d2c73de3] GR_jll v0.71.8+0
+  [78b55507] Gettext_jll v0.21.0+0
+  [7746bdde] Glib_jll v2.74.0+2
+  [3b182d85] Graphite2_jll v1.3.14+0
+  [2e76f6c2] HarfBuzz_jll v2.8.1+1
+  [aacddb02] JpegTurbo_jll v2.1.91+0
+  [c1c5ebd0] LAME_jll v3.100.1+0
+  [88015f11] LERC_jll v3.0.0+1
+  [dad2f222] LLVMExtra_jll v0.0.21+0
+  [dd4b983a] LZO_jll v2.10.1+0
+⌅ [e9f186c6] Libffi_jll v3.2.2+1
+  [d4300ac3] Libgcrypt_jll v1.8.7+0
+  [7e76a0d4] Libglvnd_jll v1.6.0+0
+  [7add5ba3] Libgpg_error_jll v1.42.0+0
+  [94ce4f54] Libiconv_jll v1.16.1+2
+  [4b2f31a3] Libmount_jll v2.35.0+0
+  [89763e89] Libtiff_jll v4.4.0+0
+  [38a345b3] Libuuid_jll v2.36.0+0
+  [e7412a2a] Ogg_jll v1.3.5+1
+  [458c3c95] OpenSSL_jll v1.1.20+0
+  [efe28fd5] OpenSpecFun_jll v0.5.5+0
+  [91d4177d] Opus_jll v1.3.2+0
+  [30392449] Pixman_jll v0.40.1+0
+  [ea2cea3b] Qt5Base_jll v5.15.3+2
+  [f50d1b31] Rmath_jll v0.4.0+0
+  [a2964d1f] Wayland_jll v1.21.0+0
+  [2381bf8a] Wayland_protocols_jll v1.25.0+0
+  [02c8fc9c] XML2_jll v2.10.3+0
+  [aed1982a] XSLT_jll v1.1.34+0
+  [4f6342f7] Xorg_libX11_jll v1.6.9+4
+  [0c0b7dd1] Xorg_libXau_jll v1.0.9+4
+  [935fb764] Xorg_libXcursor_jll v1.2.0+4
+  [a3789734] Xorg_libXdmcp_jll v1.1.3+4
+  [1082639a] Xorg_libXext_jll v1.3.4+4
+  [d091e8ba] Xorg_libXfixes_jll v5.0.3+4
+  [a51aa0fd] Xorg_libXi_jll v1.7.10+4
+  [d1454406] Xorg_libXinerama_jll v1.1.4+4
+  [ec84b674] Xorg_libXrandr_jll v1.5.2+4
+  [ea2f1a96] Xorg_libXrender_jll v0.9.10+4
+  [14d82f49] Xorg_libpthread_stubs_jll v0.1.0+3
+  [c7cfdc94] Xorg_libxcb_jll v1.13.0+3
+  [cc61e674] Xorg_libxkbfile_jll v1.1.0+4
+  [12413925] Xorg_xcb_util_image_jll v0.4.0+1
+  [2def613f] Xorg_xcb_util_jll v0.4.0+1
+  [975044d2] Xorg_xcb_util_keysyms_jll v0.4.0+1
+  [0d47668e] Xorg_xcb_util_renderutil_jll v0.3.9+1
+  [c22f9ab0] Xorg_xcb_util_wm_jll v0.4.1+1
+  [35661453] Xorg_xkbcomp_jll v1.4.2+4
+  [33bec58e] Xorg_xkeyboard_config_jll v2.27.0+4
+  [c5fb5394] Xorg_xtrans_jll v1.4.0+3
+  [3161d3a3] Zstd_jll v1.5.4+0
+⌅ [214eeab7] fzf_jll v0.29.0+0
+  [a4ae2306] libaom_jll v3.4.0+0
+  [0ac62f75] libass_jll v0.15.1+0
+  [f638f0a6] libfdk_aac_jll v2.0.2+0
+  [b53b4c65] libpng_jll v1.6.38+0
+  [f27f6e37] libvorbis_jll v1.3.7+1
+  [1270edf5] x264_jll v2021.5.5+0
+  [dfaa095f] x265_jll v3.5.0+0
+  [d8fb68d0] xkbcommon_jll v1.4.1+0
+  [0dad84c5] ArgTools v1.1.1
+  [56f22d72] Artifacts
+  [2a0f44e3] Base64
+  [ade2ca70] Dates
+  [8bb1440f] DelimitedFiles
+  [8ba89e20] Distributed
+  [f43a241f] Downloads v1.6.0
+  [7b1f6079] FileWatching
+  [9fa8497b] Future
+  [b77e0a4c] InteractiveUtils
+  [4af54fe1] LazyArtifacts
+  [b27032c2] LibCURL v0.6.3
+  [76f85450] LibGit2
+  [8f399da3] Libdl
+  [37e2e46d] LinearAlgebra
+  [56ddb016] Logging
+  [d6f4376e] Markdown
+  [a63ad114] Mmap
+  [ca575930] NetworkOptions v1.2.0
+  [44cfe95a] Pkg v1.8.0
+  [de0858da] Printf
+  [3fa0cd96] REPL
+  [9a3f8284] Random
+  [ea8e919c] SHA v0.7.0
+  [9e88b42a] Serialization
+  [1a1011a3] SharedArrays
+  [6462fe0b] Sockets
+  [2f01184e] SparseArrays
+  [10745b16] Statistics
+  [4607b0f0] SuiteSparse
+  [fa267f1f] TOML v1.0.0
+  [a4e569a6] Tar v1.10.1
+  [8dfed614] Test
+  [cf7118a7] UUIDs
+  [4ec0a83e] Unicode
+  [e66e0078] CompilerSupportLibraries_jll v1.0.1+0
+  [deac9b47] LibCURL_jll v7.84.0+0
+  [29816b5a] LibSSH2_jll v1.10.2+0
+  [c8ffd9c3] MbedTLS_jll v2.28.0+0
+  [14a3606d] MozillaCACerts_jll v2022.2.1
+  [4536629a] OpenBLAS_jll v0.3.20+0
+  [05823500] OpenLibm_jll v0.8.1+0
+  [efcefdf7] PCRE2_jll v10.40.0+0
+  [bea87d4a] SuiteSparse_jll v5.10.1+0
+  [83775a58] Zlib_jll v1.2.12+3
+  [8e850b90] libblastrampoline_jll v5.1.1+0
+  [8e850ede] nghttp2_jll v1.48.0+0
+  [3f19e933] p7zip_jll v17.4.0+0
+Info Packages marked with ⌃ and ⌅ have new versions available, but those with ⌅ are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details>You can also download the 
+<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.6.1/assets/Manifest.toml">manifest</a> file and the
+<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.6.1/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Sunday 2 April 2023 18:49">Sunday 2 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
