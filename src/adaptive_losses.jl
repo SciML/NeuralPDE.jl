@@ -263,49 +263,75 @@ end
 
 """
 Neural Tangent Kernel Adaptive Loss
+
+Adapted from the paper
+When and Why PINNs Fail to Train: A Neural Tangent kernel perspective
+https://arxiv.org/pdf/2007.14527.pdf
 """
 
-mutable struct NTKAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
-    reweight_every::Int64
-    weight_change_inertia::T
+mutable struct NeuralTangentKernelAdaptiveLoss{T <: Real,
+                                   PDE_OPT <: Flux.Optimise.AbstractOptimiser,
+                                   BC_OPT <: Flux.Optimise.AbstractOptimiser} <: AbstractAdaptiveLoss
+    reweight_steps::Int64
+    pde_max_optimiser::PDE_OPT
+    bc_max_optimiser::BC_OPT
     pde_loss_weights::Vector{T}
     bc_loss_weights::Vector{T}
     additional_loss_weights::Vector{T}
-    SciMLBase.@add_kwonly function NTKAdaptiveLoss{T}(reweight_every;
-                                                                weight_change_inertia = 0.9,
-                                                                pde_loss_weights = 1,
-                                                                bc_loss_weights = 1,
-                                                                additional_loss_weights = 1) where {
-                                                                                                    T <:
-                                                                                                    Real
-                                                                                                    }
-        new(convert(Int64, reweight_every), convert(T, weight_change_inertia),
+    SciMLBase.@add_kwonly function NeuralTangentKernelAdaptiveLoss{T,
+                                                       PDE_OPT, BC_OPT}(reweight_steps;
+                                                                        pde_max_optimiser = Flux.ADAM(1e-4),
+                                                                        bc_max_optimiser = Flux.ADAM(0.5),
+                                                                        pde_loss_weights = 1,
+                                                                        bc_loss_weights = 1,
+                                                                        additional_loss_weights = 1) where {
+                                                                                                            T <:
+                                                                                                            Real,
+                                                                                                            PDE_OPT <:
+                                                                                                            Flux.Optimise.AbstractOptimiser,
+                                                                                                            BC_OPT <:
+                                                                                                            Flux.Optimise.AbstractOptimiser
+                                                                                                            }
+        new(convert(Int64, reweight_steps), convert(PDE_OPT, pde_max_optimiser),
+            convert(BC_OPT, bc_max_optimiser),
             vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T),
             vectorify(additional_loss_weights, T))
     end
 end
-# default to Float64
-SciMLBase.@add_kwonly function NTKAdaptiveLoss(reweight_every;
-                                                         weight_change_inertia = 0.9,
-                                                         pde_loss_weights = 1,
-                                                         bc_loss_weights = 1,
-                                                         additional_loss_weights = 1)
-    NTKAdaptiveLoss{Float64}(reweight_every;
-                                       weight_change_inertia = weight_change_inertia,
-                                       pde_loss_weights = pde_loss_weights,
-                                       bc_loss_weights = bc_loss_weights,
-                                       additional_loss_weights = additional_loss_weights)
+
+SciMLBase.@add_kwonly function NeuralTangentKernelAdaptiveLoss(reweight_xteps;
+                                                   pde_max_optimiser = Flux.ADAM(1e-4),
+                                                   bc_max_optimiser = Flux.ADAM(0.5),
+                                                   pde_loss_weights = 1,
+                                                   bc_loss_weights = 1,
+                                                   additional_loss_weights = 1) where {
+                                                                                        T <:
+                                                                                        Real,
+                                                                                        PDE_OPT <:
+                                                                                        Flux.Optimise.AbstractOptimiser,
+                                                                                        BC_OPT <:
+                                                                                        Flux.Optimise.AbstractOptimiser
+                                                                                        }
+    NeuralTangentKernelAdaptiveLoss{Float64, typeof(pde_max_optimiser),
+                        typeof(bc_max_optimiser)}(reweight_steps;
+                                                  pde_max_optimiser = pde_max_optimiser,
+                                                  bc_max_optimiser = bc_max_optimiser,
+                                                  pde_loss_weights = pde_loss_weights,
+                                                  bc_loss_weights = bc_loss_weights,
+                                                  additional_loss_weights = additional_loss_weights)
 end
 
 function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
-                                         adaloss::NTKAdaptiveLoss,
+                                         adaloss::NeuralTangentKernelAdaptiveLoss,
                                          pde_loss_functions, bc_loss_functions)
-    weight_change_inertia = adaloss.weight_change_inertia
+    
+    pde_max_optimiser = adaloss.pde_max_optimiser
+    bc_max_optimiser = adaloss.bc_max_optimiser
     iteration = pinnrep.iteration
     adaloss_T = eltype(adaloss.pde_loss_weights)
 
-    function run_loss_ntkl_adaptive_loss(θ, pde_losses, bc_losses)
-        if iteration[1] % adaloss.reweight_every == 0
+    function run_loss_ntk_adaptive_loss(θ, pde_losses, bc_losses)
+        if iteration[1] % adaloss.reweight_steps == 0
             bc_vec = [dot(vec(Zygote.gradient(bc_loss_function, θ)[1]), vec(Zygote.gradient(bc_loss_function, θ)[1]))
                             for bc_loss_function in bc_loss_functions]
             bc_trace = sum(bc_vec)
@@ -331,15 +357,21 @@ end
 
 """
 Inverse Dirichlet Adaptive Loss
+
+Inverse Dirichlet weighting enables reliable training of physics informed neural networks
+Suryanarayana Maddu, Dominik Sturm, Christian L Müller, and Ivo F Sbalzarini
+https://iopscience.iop.org/article/10.1088/2632-2153/ac3712/pdf
+with code reference
+https://github.com/mosaic-group/inverse-dirichlet-pinn
 """
 
-mutable struct IDAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
-    reweight_every::Int64
+mutable struct InverseDirichletAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
+    reweight_steps::Int64
     weight_change_inertia::T
     pde_loss_weights::Vector{T}
     bc_loss_weights::Vector{T}
     additional_loss_weights::Vector{T}
-    SciMLBase.@add_kwonly function IDAdaptiveLoss{T}(reweight_every;
+    SciMLBase.@add_kwonly function InverseDirichletAdaptiveLoss{T}(reweight_steps;
                                                                 weight_change_inertia = 0.9,
                                                                 pde_loss_weights = 1,
                                                                 bc_loss_weights = 1,
@@ -347,18 +379,18 @@ mutable struct IDAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
                                                                                                     T <:
                                                                                                     Real
                                                                                                     }
-        new(convert(Int64, reweight_every), convert(T, weight_change_inertia),
+        new(convert(Int64, reweight_steps), convert(T, weight_change_inertia),
             vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T),
             vectorify(additional_loss_weights, T))
     end
 end
 # default to Float64
-SciMLBase.@add_kwonly function IDAdaptiveLoss(reweight_every;
+SciMLBase.@add_kwonly function InverseDirichletAdaptiveLoss(reweight_steps;
                                                          weight_change_inertia = 0.9,
                                                          pde_loss_weights = 1,
                                                          bc_loss_weights = 1,
                                                          additional_loss_weights = 1)
-    IDAdaptiveLoss{Float64}(reweight_every;
+    InverseDirichletAdaptiveLoss{Float64}(reweight_steps;
                                        weight_change_inertia = weight_change_inertia,
                                        pde_loss_weights = pde_loss_weights,
                                        bc_loss_weights = bc_loss_weights,
@@ -366,14 +398,14 @@ SciMLBase.@add_kwonly function IDAdaptiveLoss(reweight_every;
 end
 
 function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
-                                         adaloss::IDAdaptiveLoss,
+                                         adaloss::InverseDirichletAdaptiveLoss,
                                          pde_loss_functions, bc_loss_functions)
     weight_change_inertia = adaloss.weight_change_inertia
     iteration = pinnrep.iteration
     adaloss_T = eltype(adaloss.pde_loss_weights)
 
     function run_loss_inverse_dirichlet_gradients_adaptive_loss(θ, pde_losses, bc_losses)
-        if iteration[1] % adaloss.reweight_every == 0
+        if iteration[1] % adaloss.reweight_steps == 0
             # the paper assumes a single pde loss function, so here we grab the maximum of the maximums of each pde loss function
             pde_stds = [std(Zygote.gradient(pde_loss_function, θ)[1])
                                for pde_loss_function in pde_loss_functions]

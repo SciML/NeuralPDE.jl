@@ -11,11 +11,11 @@ gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weight
                                                             bc_loss_weights = 1)
 adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights = 1,
                                               bc_loss_weights = 1)
-ntk_loss = NeuralPDE.NTKAdaptiveLoss(100; pde_loss_weights = 1,
+ntk_loss = NeuralPDE.NeuralTangentKernelAdaptiveLoss(100; pde_loss_weights = 1,
                                          bc_loss_weights = 1)
-id_loss = NeuralPDE.IDAdaptiveLoss(100, pde_loss_weights = 1e3,
+id_loss = NeuralPDE.InverseDirichletAdaptiveLoss(100, pde_loss_weights = 1e3,
                                         bc_loss_weights = 1)
-adaptive_losses = [nonadaptive_loss, id_loss, ntk_loss]
+adaptive_losses = [nonadaptive_loss, ntk_loss]
 maxiters = 4000
 seed = 60
 
