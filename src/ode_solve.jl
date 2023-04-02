@@ -436,6 +436,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         Optimization.AutoForwardDiff()
     elseif strategy isa StochasticTraining
         Optimization.AutoZygote()
+    elseif strategy isa WeightedIntervalTraining
+        Optimization.AutoZygote()
     else
         # by default GridTraining choice of Optimization
         # if adding new training algorithms we can extend this,
