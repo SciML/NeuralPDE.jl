@@ -16,19 +16,21 @@ using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 using Statistics
-using ArrayInterfaceCore
+using ArrayInterface
 import Optim
 using DomainSets
 using Symbolics
+using Symbolics: wrap, unwrap, arguments, operation
+using SymbolicUtils
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly, parameterless_type
-using Flux: @nograd
 import Optimisers
 import UnPack: @unpack
 import RecursiveArrayTools
 import ChainRulesCore, Flux, Lux, ComponentArrays
+import ChainRulesCore: @non_differentiable
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
