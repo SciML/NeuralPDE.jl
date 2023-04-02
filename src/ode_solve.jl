@@ -325,7 +325,6 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
         end
     end
     return loss
-    optf = OptimizationFunction(loss, Optimization.AutoZygote())
 end
 
 function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
