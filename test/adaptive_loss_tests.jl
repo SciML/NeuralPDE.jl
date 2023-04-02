@@ -3,6 +3,7 @@ using Test, NeuralPDE
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 using Random
+using Plots, Revise
 import Lux
 
 nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
@@ -15,7 +16,7 @@ ntk_loss = NeuralPDE.NTKAdaptiveLoss(100; pde_loss_weights = 1,
 id_loss = NeuralPDE.IDAdaptiveLoss(100, pde_loss_weights = 1e3,
                                         bc_loss_weights = 1)
 adaptive_losses = [nonadaptive_loss, id_loss, ntk_loss]
-maxiters = 400
+maxiters = 4000
 seed = 60
 
 ## 2D Poisson equation
