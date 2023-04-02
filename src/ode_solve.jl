@@ -248,7 +248,6 @@ end
 
 """
 Representation of the loss function, parametric on the training strategy `strategy`
-Representation of the loss function, parametric on the training strategy `strategy`
 """
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
                        batch)
@@ -286,7 +285,6 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
     function loss(θ, _)
         ts = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
-
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
         else
@@ -298,7 +296,8 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
 end
 
 
-function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
+function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan,
+                       additional_loss)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
 
