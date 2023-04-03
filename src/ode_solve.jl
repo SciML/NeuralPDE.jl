@@ -295,56 +295,7 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan,
-                       additional_loss)
+function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
 
