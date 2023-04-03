@@ -3,7 +3,6 @@ using Test, NeuralPDE
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 using Random
-using Plots, Revise
 import Lux
 
 nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
