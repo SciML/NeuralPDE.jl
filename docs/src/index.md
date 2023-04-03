@@ -81,8 +81,8 @@ While one may think this recreates the neural network to act in `Float64` precis
 and instead its values will silently downgrade everything to `Float32`. This is only fixed by `Chain(Dense(2, 10, tanh), Dense(10, 1)) |> f64`.
 Similar cases will [lead to dropped gradients with complex numbers](https://github.com/FluxML/Optimisers.jl/issues/95). This is not an issue
 with the automatic differentiation library commonly associated with Flux (Zygote.jl) but rather due to choices in the neural network library's
-decision for how to approach type handling and precision. Thus when using DiffEqFlux.jl with Flux, the user must be very careful to ensure that 
-the precision of the arguments are correct, and anything that requires alternative types (like `TrackerAdjoint` tracked values, 
+decision for how to approach type handling and precision. Thus when using DiffEqFlux.jl with Flux, the user must be very careful to ensure that
+the precision of the arguments are correct, and anything that requires alternative types (like `TrackerAdjoint` tracked values,
 `ForwardDiffSensitivity` dual numbers, and TaylorDiff.jl differentiation) are suspect.
 
 Lux.jl has none of these issues, is simpler to work with due to the parameters in its function calls being explicit rather than implicit global
