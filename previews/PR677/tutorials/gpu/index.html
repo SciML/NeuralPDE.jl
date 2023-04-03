@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Using GPUs · NeuralPDE.jl</title><script async src="https://www.googletagmanager.com/gtag/js?id=UA-90474609-3"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-90474609-3', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="../../assets/warner.js"></script><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/tutorials/gpu/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../ode/">Introduction to NeuralPDE for ODEs</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li class="is-active"><a class="tocitem" href>Using GPUs</a><ul class="internal"><li><a class="tocitem" href="#Performance-benchmarks"><span>Performance benchmarks</span></a></li></ul></li><li><a class="tocitem" href="../systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../../examples/wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../../examples/3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../../examples/ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../../examples/heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../../examples/linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">PDE PINN Tutorials</a></li><li class="is-active"><a href>Using GPUs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Using GPUs</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/tutorials/gpu.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Using-GPUs-to-train-Physics-Informed-Neural-Networks-(PINNs)"><a class="docs-heading-anchor" href="#Using-GPUs-to-train-Physics-Informed-Neural-Networks-(PINNs)">Using GPUs to train Physics-Informed Neural Networks (PINNs)</a><a id="Using-GPUs-to-train-Physics-Informed-Neural-Networks-(PINNs)-1"></a><a class="docs-heading-anchor-permalink" href="#Using-GPUs-to-train-Physics-Informed-Neural-Networks-(PINNs)" title="Permalink"></a></h1><p>the 2-dimensional PDE:</p><p class="math-container">\[∂_t u(x, y, t) = ∂^2_x u(x, y, t) + ∂^2_y u(x, y, t) \, ,\]</p><p>with the initial and boundary conditions:</p><p class="math-container">\[\begin{align*}
+u(x, y, 0) &amp;= e^{x+y} \cos(x + y)      \, ,\\
+u(0, y, t) &amp;= e^{y}   \cos(y + 4t)     \, ,\\
+u(2, y, t) &amp;= e^{2+y} \cos(2 + y + 4t) \, ,\\
+u(x, 0, t) &amp;= e^{x}   \cos(x + 4t)     \, ,\\
+u(x, 2, t) &amp;= e^{x+2} \cos(x + 2 + 4t) \, ,
+\end{align*}\]</p><p>on the space and time domain:</p><p class="math-container">\[x \in [0, 2] \, ,\ y \in [0, 2] \, , \ t \in [0, 2] \, ,\]</p><p>with physics-informed neural networks. The only major difference from the CPU case is that we must ensure that our initial parameters for the neural network are on the GPU. If that is done, then the internal computations will all take place on the GPU. This is done by using the <code>gpu</code> function on the initial parameters, like:</p><pre><code class="language-julia hljs">using Lux, ComponentArrays
+chain = Chain(Dense(3, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, 1))
+ps = Lux.setup(Random.default_rng(), chain)[1]
+ps = ps |&gt; ComponentArray |&gt; gpu .|&gt; Float64</code></pre><p>In total, this looks like:</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, CUDA, Random, ComponentArrays
+using Optimization
+using OptimizationOptimisers
+import ModelingToolkit: Interval
+
+@parameters t x y
+@variables u(..)
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
+Dt = Differential(t)
+t_min = 0.0
+t_max = 2.0
+x_min = 0.0
+x_max = 2.0
+y_min = 0.0
+y_max = 2.0
+
+# 2D PDE
+eq = Dt(u(t, x, y)) ~ Dxx(u(t, x, y)) + Dyy(u(t, x, y))
+
+analytic_sol_func(t, x, y) = exp(x + y) * cos(x + y + 4t)
+# Initial and boundary conditions
+bcs = [u(t_min, x, y) ~ analytic_sol_func(t_min, x, y),
+    u(t, x_min, y) ~ analytic_sol_func(t, x_min, y),
+    u(t, x_max, y) ~ analytic_sol_func(t, x_max, y),
+    u(t, x, y_min) ~ analytic_sol_func(t, x, y_min),
+    u(t, x, y_max) ~ analytic_sol_func(t, x, y_max)]
+
+# Space and time domains
+domains = [t ∈ Interval(t_min, t_max),
+    x ∈ Interval(x_min, x_max),
+    y ∈ Interval(y_min, y_max)]
+
+# Neural network
+inner = 25
+chain = Chain(Dense(3, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, 1))
+
+strategy = GridTraining(0.05)
+ps = Lux.setup(Random.default_rng(), chain)[1]
+ps = ps |&gt; ComponentArray |&gt; gpu .|&gt; Float64
+discretization = PhysicsInformedNN(chain,
+                                   strategy,
+                                   init_params = ps)
+
+@named pde_system = PDESystem(eq, bcs, domains, [t, x, y], [u(t, x, y)])
+prob = discretize(pde_system, discretization)
+symprob = symbolic_discretize(pde_system, discretization)
+
+callback = function (p, l)
+    println(&quot;Current loss is: $l&quot;)
+    return false
+end
+
+res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 2500)</code></pre><p>We then use the <code>remake</code> function to rebuild the PDE problem to start a new optimization at the optimized parameters, and continue with a lower learning rate:</p><pre><code class="language-julia hljs">prob = remake(prob, u0 = res.u)
+res = Optimization.solve(prob, Adam(0.001); callback = callback, maxiters = 2500)</code></pre><p>Finally, we inspect the solution:</p><pre><code class="language-julia hljs">phi = discretization.phi
+ts, xs, ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
+u_real = [analytic_sol_func(t, x, y) for t in ts for x in xs for y in ys]
+u_predict = [first(Array(phi(gpu([t, x, y]), res.u))) for t in ts for x in xs for y in ys]
+
+using Plots
+using Printf
+
+function plot_(res)
+    # Animate
+    anim = @animate for (i, t) in enumerate(0:0.05:t_max)
+        @info &quot;Animating frame $i...&quot;
+        u_real = reshape([analytic_sol_func(t, x, y) for x in xs for y in ys],
+                         (length(xs), length(ys)))
+        u_predict = reshape([Array(phi(gpu([t, x, y]), res.u))[1] for x in xs for y in ys],
+                            length(xs), length(ys))
+        u_error = abs.(u_predict .- u_real)
+        title = @sprintf(&quot;predict, t = %.3f&quot;, t)
+        p1 = plot(xs, ys, u_predict, st = :surface, label = &quot;&quot;, title = title)
+        title = @sprintf(&quot;real&quot;)
+        p2 = plot(xs, ys, u_real, st = :surface, label = &quot;&quot;, title = title)
+        title = @sprintf(&quot;error&quot;)
+        p3 = plot(xs, ys, u_error, st = :contourf, label = &quot;&quot;, title = title)
+        plot(p1, p2, p3)
+    end
+    gif(anim, &quot;3pde.gif&quot;, fps = 10)
+end
+
+plot_(res)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/129949743-9471d230-c14f-4105-945f-6bc52677d40e.gif" alt="3pde"/></p><h2 id="Performance-benchmarks"><a class="docs-heading-anchor" href="#Performance-benchmarks">Performance benchmarks</a><a id="Performance-benchmarks-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-benchmarks" title="Permalink"></a></h2><p>Here are some performance benchmarks for 2d-pde with various number of input points and the number of neurons in the hidden layer, measuring the time for 100 iterations. Comparing runtime with GPU and CPU.</p><pre><code class="language-julia hljs">julia&gt; CUDA.device()
+</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/110297207-49202500-8004-11eb-9e45-d4cb28045d87.png" alt="image"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../pdesystem/">« Introduction to NeuralPDE for PDEs</a><a class="docs-footer-nextpage" href="../systems/">Defining Systems of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Monday 3 April 2023 12:38">Monday 3 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
