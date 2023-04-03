@@ -436,15 +436,15 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
                                        (1 .- weight_change_inertia) .*
                                        bc_loss_weights_proposed
 
-                logscalar(pinn.logger, gamma,
+                logscalar(pinnrep.logger, gamma,
                          "adaptive_loss/gamma", iteration[1])
-                logvector(pinn.logger, pde_stds,
+                logvector(pinnrep.logger, pde_stds,
                          "adaptive_loss/pde_stds", iteration[1])
-                logvector(pinn.logger, bc_stds,
+                logvector(pinnrep.logger, bc_stds,
                          "adaptive_loss/bc_stds", iteration[1])
-                logvector(pinn.logger, adaloss.bc_loss_weights,
+                logvector(pinnrep.logger, adaloss.bc_loss_weights,
                          "adaptive_loss/bc_loss_weights", iteration[1])
-                logvector(pinn.logger, adaloss.pde_loss_weights,
+                logvector(pinnrep.logger, adaloss.pde_loss_weights,
                          "adaptive_loss/pde_loss_weights", iteration[1])
         end
         nothing
