@@ -70,8 +70,9 @@ is an accurate interpolation (up to the neural network training result). In addi
 Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving
 ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.
 """
-struct NNODE{C, O, P, B, K, S <: Union{Nothing, AbstractTrainingStrategy},
-             AL <: Union{Nothing, Function}} <:
+struct NNODE{C, O, P, B, K, AL <: Union{Nothing, Function},
+             S <: Union{Nothing, AbstractTrainingStrategy}
+             } <:
        NeuralPDEAlgorithm
     chain::C
     opt::O
