@@ -3,7 +3,8 @@ abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
 ```julia
 NNODE(chain, opt=OptimizationPolyalgorithms.PolyOpt(), init_params = nothing;
-                          autodiff=false, batch=0,additional_loss=nothing,kwargs...)
+                          autodiff=false, batch=0,additional_loss=nothing,
+                          kwargs...)
 ```
 
 Algorithm for solving ordinary differential equations using a neural network. This is a specialization
@@ -25,12 +26,18 @@ of the physics-informed neural network which is used as a solver for a standard 
 ## Keyword Arguments
 * `additional_loss`: A function additional_loss(phi, θ) where phi are the neural network trial solutions,
                      θ are the weights of the neural network(s).
-example: 
+
+## Example
+
+```julia
     ts=[t for t in 1:100]
     (u_, t_) = (analytical_func(ts), ts)
     function additional_loss(phi, θ)
         return sum(sum(abs2, [phi(t, θ) for t in t_] .- u_)) / length(u_)
     end
+    alg = NeuralPDE.NNODE(chain, opt, additional_loss = additional_loss)
+```
+
 * `autodiff`: The switch between automatic and numerical differentiation for
               the PDE operators. The reverse mode of the loss function is always
               automatic differentiation (via Zygote), this is only for the derivative
@@ -274,7 +281,6 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
             sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
         end
     end
-
     return loss
 end
 
@@ -290,7 +296,6 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
             sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
         end
     end
-
     return loss
 end
 
@@ -418,12 +423,12 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         alg.batch
     end
 
-    # additional loss
+    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch)
     additional_loss = alg.additional_loss
 
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
-        L2_loss = generate_loss(strategy, phi, f, autodiff, tspan, p, batch)(θ, phi)
+        L2_loss = inner_f(θ, phi)
         if !(additional_loss isa Nothing)
             return additional_loss(phi, θ) + L2_loss
         end
@@ -433,14 +438,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     # Choice of Optimization Algo for Training Strategies
     opt_algo = if strategy isa QuadratureTraining
         Optimization.AutoForwardDiff()
-    elseif strategy isa StochasticTraining
-        Optimization.AutoZygote()
-    elseif strategy isa WeightedIntervalTraining
-        Optimization.AutoZygote()
     else
-        # by default GridTraining choice of Optimization
-        # if adding new training algorithms we can extend this,
-        # if-elseif-else block for choices of optimization algos
         Optimization.AutoZygote()
     end
 
