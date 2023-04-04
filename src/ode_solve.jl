@@ -327,7 +327,6 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
             sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
         end
     end
-
     return loss
 end
 
