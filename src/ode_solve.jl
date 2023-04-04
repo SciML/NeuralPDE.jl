@@ -326,69 +326,6 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     return loss
 end
 
-function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
-    minT = tspan[1]
-    maxT = tspan[2]
-
-    weights = strategy.weights ./ sum(strategy.weights)
-
-    N = length(weights)
-    samples = strategy.samples
-
-    difference = (maxT - minT) / N
-
-    data = Float64[]
-    for (index, item) in enumerate(weights)
-        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+
-                    ((index - 1) * difference)
-        data = append!(data, temp_data)
-    end
-
-    ts = data
-
-    function loss(θ, _)
-        if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
-        else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
-        end
-    end
-
-    return loss
-end
-
-function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
-    minT = tspan[1]
-    maxT = tspan[2]
-
-    weights = strategy.weights ./ sum(strategy.weights)
-
-    N = length(weights)
-    samples = strategy.samples
-
-    difference = (maxT - minT) / N
-
-    data = Float64[]
-    for (index, item) in enumerate(weights)
-        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+
-                    ((index - 1) * difference)
-        data = append!(data, temp_data)
-    end
-
-    ts = data
-
-    function loss(θ, _)
-        if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
-        else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
-        end
-    end
-
-    return loss
-end
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
@@ -481,11 +418,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         alg.batch
     end
 
-
     # additional loss
     additional_loss = alg.additional_loss
-
-    
 
     # Creates OptimizationFunction Object from total_loss
     optf = OptimizationFunction(total_loss, opt_algo)(θ, phi)
@@ -494,8 +428,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         end
         L2_loss
     end
-
-
 
     # Choice of Optimization Algo for Training Strategies
     opt_algo = if strategy isa QuadratureTraining
