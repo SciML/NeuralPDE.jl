@@ -85,8 +85,8 @@ struct NNODE{C, O, P, B, K, AL <: Union{Nothing, Function},
 end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
-               autodiff = false, batch = nothing, kwargs...)
-    NNODE(chain, opt, init_params, autodiff, batch, strategy, kwargs)
+               autodiff = false, batch = nothing, additional_loss = nothing, kwargs...)
+    NNODE(chain, opt, init_params, autodiff, batch, strategy, additional_loss, kwargs)
 end
 
 """
