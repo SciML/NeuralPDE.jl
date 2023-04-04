@@ -401,9 +401,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
 deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "da9e1a9058f8d3eec3a8c9fe4faacfb89180066b"
+git-tree-sha1 = "13027f188d26206b9e7b863036f87d2f2e7d013a"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.86"
+version = "0.25.87"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -1053,9 +1053,9 @@ version = "0.12.155"
 
 [[deps.Lux]]
 deps = ["Adapt", "ChainRulesCore", "Functors", "LinearAlgebra", "LuxCUDA", "LuxCore", "LuxLib", "Markdown", "NNlib", "Optimisers", "Random", "Requires", "Setfield", "SparseArrays", "Statistics", "TruncatedStacktraces"]
-git-tree-sha1 = "31cfbf6aecc1b01e8a491e6a98663cfa08af3077"
+git-tree-sha1 = "5dafd541f5dff4c3fd01cb88c936ab8e99add84a"
 uuid = "b2108857-7c20-44ae-9111-449ecde12c47"
-version = "0.4.49"
+version = "0.4.50"
 
 [[deps.LuxCUDA]]
 deps = ["CUDA", "NNlibCUDA", "Reexport", "cuDNN"]
