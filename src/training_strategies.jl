@@ -299,7 +299,6 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::Quadrature
     return loss
 end
 
-
 """
 ```julia
 WeightedIntervalTraining(weights, samples)
@@ -328,7 +327,8 @@ function WeightedIntervalTraining(weights, samples)
     WeightedIntervalTraining(weights, samples)
 end
 
-function get_loss_function(loss_function, train_set, eltypeθ, strategy::WeightedIntervalTraining;
+function get_loss_function(loss_function, train_set, eltypeθ,
+                           strategy::WeightedIntervalTraining;
                            τ = nothing)
     loss = (θ) -> mean(abs2, loss_function(train_set, θ))
 end

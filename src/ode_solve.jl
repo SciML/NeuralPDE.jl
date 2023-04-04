@@ -284,7 +284,8 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
     optf = OptimizationFunction(loss, Optimization.AutoZygote())
 end
 
-function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p, batch)
+function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
+                       batch)
     minT = tspan[1]
     maxT = tspan[2]
 
@@ -297,12 +298,13 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
 
     data = Float64[]
     for (index, item) in enumerate(weights)
-        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+ ((index - 1) * difference)
+        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+
+                    ((index - 1) * difference)
         data = append!(data, temp_data)
     end
 
     ts = data
-    
+
     function loss(θ, _)
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
@@ -413,7 +415,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         verbose && println("Current loss is: $l, Iteration: $iteration")
         l < abstol
     end
-    
+
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 

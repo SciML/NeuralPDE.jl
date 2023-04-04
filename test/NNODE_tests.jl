@@ -218,12 +218,13 @@ true_sol = solve(prob_oop, Tsit5(), saveat = 0.01)
 func = Lux.σ
 N = 12
 chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, func),
-                    Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
+                  Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
 
 opt = Optimisers.Adam(0.01)
 weights = [0.7, 0.2, 0.1]
 samples = 200
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedIntervalTraining(weights, samples))
-sol = solve(prob_oop, alg, verbose=true, maxiters = 100000, saveat = 0.01)
+alg = NeuralPDE.NNODE(chain, opt, autodiff = false,
+                      strategy = NeuralPDE.WeightedIntervalTraining(weights, samples))
+sol = solve(prob_oop, alg, verbose = true, maxiters = 100000, saveat = 0.01)
 
 @test abs(mean(sol) - mean(true_sol)) < 0.2
