@@ -3,7 +3,7 @@ abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 """
 ```julia
 NNODE(chain, opt=OptimizationPolyalgorithms.PolyOpt(), init_params = nothing;
-                          autodiff=false, batch=0,additional_loss=nothing kwargs...)
+                          autodiff=false, batch=0,additional_loss=nothing,kwargs...)
 ```
 
 Algorithm for solving ordinary differential equations using a neural network. This is a specialization
@@ -85,7 +85,7 @@ struct NNODE{C, O, P, B, K, AL <: Union{Nothing, Function},
 end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
-               autodiff = false, batch = nothing,additional_loss = nothing, kwargs...)
+               autodiff = false, batch = nothing, additional_loss = nothing, kwargs...)
     NNODE(chain, opt, init_params, autodiff, batch, strategy, additional_loss, kwargs)
 end
 
@@ -422,7 +422,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     additional_loss = alg.additional_loss
 
     # Creates OptimizationFunction Object from total_loss
-    optf = OptimizationFunction(total_loss, opt_algo)(θ, phi)
+    function total_loss(θ, _)
+        L2_loss = generate_loss(strategy, phi, f, autodiff, tspan, p, batch)(θ, phi)
         if !(additional_loss isa Nothing)
             return additional_loss(phi, θ) + L2_loss
         end
