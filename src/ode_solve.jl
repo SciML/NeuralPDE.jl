@@ -271,12 +271,39 @@ end
 
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
                        batch)
-    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
-        # (tspan[2]-tspan[1])*rand() + tspan[1] gives Uniform(tspan[1],tspan[2])
         ts = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
 
+        if batch
+            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
+        else
+            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
+        end
+    end
+    optf = OptimizationFunction(loss, Optimization.AutoZygote())
+end
+
+function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p, batch)
+    minT = tspan[1]
+    maxT = tspan[2]
+
+    weights = strategy.weights ./ sum(strategy.weights)
+
+    N = length(weights)
+    samples = strategy.samples
+
+    difference = (maxT - minT) / N
+
+    data = Float64[]
+    for (index, item) in enumerate(weights)
+        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+ ((index - 1) * difference)
+        data = append!(data, temp_data)
+    end
+
+    ts = data
+    
+    function loss(θ, _)
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
         else
@@ -386,7 +413,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         verbose && println("Current loss is: $l, Iteration: $iteration")
         l < abstol
     end
-
+    
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
