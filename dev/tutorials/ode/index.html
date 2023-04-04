@@ -14,28 +14,28 @@ u0: 0.0f0</code></pre><p>Now, to define the <code>NNODE</code> solver, we must c
   Dense(1 =&gt; 5, σ),                     # 10 parameters
   Dense(5 =&gt; 1),                        # 6 parameters
 )                   # Total: 4 arrays, 16 parameters, 320 bytes.</code></pre><p>Now we must choose an optimizer to define the <code>NNODE</code> solver. A common choice is <code>ADAM</code>, with a tunable rate , which we will set to <code>0.1</code>. In general, this rate parameter should be decreased if the solver&#39;s loss tends to be unsteady (sometimes rise “too much”), but should be as large as possible for efficiency. Thus, the definition of the <code>NNODE</code> solver is as follows:</p><pre><code class="language-julia hljs">opt = OptimizationOptimisers.Adam(0.1)
-alg = NeuralPDE.NNODE(chain, opt)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NNODE{Flux.Chain{Tuple{Flux.Dense{typeof(NNlib.σ), Matrix{Float32}, Vector{Float32}}, Flux.Dense{typeof(identity), Matrix{Float32}, Vector{Float32}}}}, Optimisers.Adam{Float64}, Nothing, Nothing, Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}, Nothing}(Chain(Dense(1 =&gt; 5, σ), Dense(5 =&gt; 1)), Optimisers.Adam{Float64}(0.1, (0.8999999761581421, 0.9990000128746033), 2.220446049250313e-16), nothing, false, nothing, nothing, Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}())</code></pre><p>Once these pieces are together, we call <code>solve</code> just like with any other <code>ODEProblem</code> solver. Let&#39;s turn on <code>verbose</code> so we can see the loss over time during the training process:</p><pre><code class="language-julia hljs">sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, abstol = 1.0f-6,
+alg = NeuralPDE.NNODE(chain, opt)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NNODE{Flux.Chain{Tuple{Flux.Dense{typeof(NNlib.σ), Matrix{Float32}, Vector{Float32}}, Flux.Dense{typeof(identity), Matrix{Float32}, Vector{Float32}}}}, Optimisers.Adam{Float64}, Nothing, Nothing, Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}, Nothing, Nothing}(Chain(Dense(1 =&gt; 5, σ), Dense(5 =&gt; 1)), Optimisers.Adam{Float64}(0.1, (0.8999999761581421, 0.9990000128746033), 2.220446049250313e-16), nothing, false, nothing, nothing, nothing, Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}())</code></pre><p>Once these pieces are together, we call <code>solve</code> just like with any other <code>ODEProblem</code> solver. Let&#39;s turn on <code>verbose</code> so we can see the loss over time during the training process:</p><pre><code class="language-julia hljs">sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, abstol = 1.0f-6,
             maxiters = 200)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
 Interpolation: Trained neural network interpolation
 t: 0.0f0:0.01010101f0:1.0f0
 u: 100-element Vector{Float32}:
   0.0
-  0.008007229
-  0.015982436
-  0.023910517
-  0.031775244
-  0.03955927
-  0.04724411
-  0.054810133
-  0.062236622
-  0.069501735
+  0.00025577558
+  0.0005019292
+  0.00073857745
+  0.0009658367
+  0.0011838273
+  0.0013926671
+  0.0015924816
+  0.0017833879
+  0.001965512
   ⋮
- -0.040238578
- -0.033739816
- -0.02695013
- -0.019876374
- -0.012526121
- -0.004906163
-  0.0029764988
-  0.011115613
-  0.019503832</code></pre><p>And that&#39;s it: the neural network solution was computed by training the neural network and returned in the standard DifferentialEquations.jl <code>ODESolution</code> format. For more information on handling the solution, consult <a href="https://docs.sciml.ai/DiffEqDocs/stable/basics/solution/">the DifferentialEquations.jl solution handling section</a>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a><a class="docs-footer-nextpage" href="../pdesystem/">Introduction to NeuralPDE for PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Tuesday 4 April 2023 15:52">Tuesday 4 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  0.00027902212
+  0.00022192074
+  0.00016778076
+  0.000116725765
+  6.8907335f-5
+  2.4405394f-5
+ -1.6644146f-5
+ -5.4120115f-5
+ -8.785725f-5</code></pre><p>And that&#39;s it: the neural network solution was computed by training the neural network and returned in the standard DifferentialEquations.jl <code>ODESolution</code> format. For more information on handling the solution, consult <a href="https://docs.sciml.ai/DiffEqDocs/stable/basics/solution/">the DifferentialEquations.jl solution handling section</a>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a><a class="docs-footer-nextpage" href="../pdesystem/">Introduction to NeuralPDE for PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Tuesday 4 April 2023 22:53">Tuesday 4 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
