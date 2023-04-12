@@ -39,6 +39,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 abstract type AbstractTrainingStrategy end
 
 include("pinn_types.jl")
+include("eq_data.jl")
 include("symbolic_utilities.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
