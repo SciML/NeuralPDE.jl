@@ -49,7 +49,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                                       dict_transformation_vars = nothing,
                                       transformation_vars = nothing,
                                       integrating_depvars = pinnrep.depvars)
-    @unpack indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input,
+    @unpack v, eqdata,
     phi, derivative, integral,
     multioutput, init_params, strategy, eq_params,
     param_estim, default_p = pinnrep
@@ -287,12 +287,11 @@ function get_bounds(domains, eqs, bcs, eltypeθ, _indvars::Array, _depvars::Arra
     return get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
 end
 
-function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
-                    strategy::QuadratureTraining)
-    dict_lower_bound = Dict([Symbol(d.variables) => infimum(d.domain) for d in domains])
-    dict_upper_bound = Dict([Symbol(d.variables) => supremum(d.domain) for d in domains])
-
-    pde_args = get_argument(eqs, dict_indvars, dict_depvars)
+function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::QuadratureTraining)
+    dict_lower_bound = Dict([d.variables => infimum(d.domain) for d in domains])
+    dict_upper_bound = Dict([d.variables => supremum(d.domain) for d in domains])
+    #! Fix this to work with a var_eq mapping
+    pde_args = get_argument(eqs, v)
 
     pde_lower_bounds = map(pde_args) do pd
         span = map(p -> get(dict_lower_bound, p, p), pd)
@@ -342,10 +341,9 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
 end
 
 function get_numeric_integral(pinnrep::PINNRepresentation)
-    @unpack strategy, indvars, depvars, multioutput, derivative,
-    depvars, indvars, dict_indvars, dict_depvars = pinnrep
+    @unpack strategy, multioutput, derivative, varmap = pinnrep
 
-    integral = (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ; strategy = strategy, indvars = indvars, depvars = depvars, dict_indvars = dict_indvars, dict_depvars = dict_depvars) -> begin
+    integral = (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ; strategy = strategy, varmap=varmap) -> begin
         function integration_(cord, lb, ub, θ)
             cord_ = cord
             function integrand_(x, p)
@@ -416,91 +414,18 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     additional_loss = discretization.additional_loss
     adaloss = discretization.adaptive_loss
 
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(pde_system.indvars,
-                                                                               pde_system.depvars)
+    v = VariableMap(pde_system, discretization)
+
+    # Find the derivative orders in the bcs
+    bcorders = Dict(map(x -> x => d_orders(x, pdesys.bcs), all_ivs(v)))
+    # Create a map of each variable to their boundary conditions including initial conditions
+    boundarymap = parse_bcs(pdesys.bcs, v, bcorders)
+
+    eqdata = EquationData(pdesys, v)
 
     multioutput = discretization.multioutput
     init_params = discretization.init_params
-
-    if init_params === nothing
-        # Use the initialization of the neural network framework
-        # But for Lux, default to Float64
-        # For Flux, default to the types matching the values in the neural network
-        # This is done because Float64 is almost always better for these applications
-        # But with Flux there's already a chosen type from the user
-
-        if chain isa AbstractArray
-            if chain[1] isa Flux.Chain
-                init_params = map(chain) do x
-                    _x = Flux.destructure(x)[1]
-                end
-            else
-                x = map(chain) do x
-                    _x = ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
-                                                                              x))
-                    Float64.(_x) # No ComponentArray GPU support
-                end
-                names = ntuple(i -> depvars[i], length(chain))
-                init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
-                                                                               for i in x))
-            end
-        else
-            if chain isa Flux.Chain
-                init_params = Flux.destructure(chain)[1]
-                init_params = init_params isa Array ? Float64.(init_params) :
-                              init_params
-            else
-                init_params = Float64.(ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
-                                                                                            chain)))
-            end
-        end
-    else
-        init_params = init_params
-    end
-
-    if (discretization.phi isa Vector && discretization.phi[1].f isa Optimisers.Restructure) ||
-       (!(discretization.phi isa Vector) && discretization.phi.f isa Optimisers.Restructure)
-        # Flux.Chain
-        flat_init_params = multioutput ? reduce(vcat, init_params) : init_params
-        flat_init_params = param_estim == false ? flat_init_params :
-                           vcat(flat_init_params,
-                                adapt(typeof(flat_init_params), default_p))
-    else
-        flat_init_params = if init_params isa ComponentArrays.ComponentArray
-            init_params
-        elseif multioutput
-            @assert length(init_params) == length(depvars)
-            names = ntuple(i -> depvars[i], length(init_params))
-            x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in init_params))
-        else
-            ComponentArrays.ComponentArray(init_params)
-        end
-        flat_init_params = if param_estim == false && multioutput
-            ComponentArrays.ComponentArray(; depvar = flat_init_params)
-        elseif param_estim == false && !multioutput
-            flat_init_params
-        else
-            ComponentArrays.ComponentArray(; depvar = flat_init_params, p = default_p)
-        end
-    end
-
-    eltypeθ = eltype(flat_init_params)
-
-    if adaloss === nothing
-        adaloss = NonAdaptiveLoss{eltypeθ}()
-    end
-
     phi = discretization.phi
-
-    if (phi isa Vector && phi[1].f isa Lux.AbstractExplicitLayer)
-        for ϕ in phi
-            ϕ.st = adapt(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-                         ϕ.st)
-        end
-    elseif (!(phi isa Vector) && phi.f isa Lux.AbstractExplicitLayer)
-        phi.st = adapt(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-                       phi.st)
-    end
 
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -510,32 +435,11 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     iteration = discretization.iteration
     self_increment = discretization.self_increment
 
-    if !(eqs isa Array)
-        eqs = [eqs]
-    end
-
-    pde_indvars = if strategy isa QuadratureTraining
-        get_argument(eqs, dict_indvars, dict_depvars)
-    else
-        get_variables(eqs, dict_indvars, dict_depvars)
-    end
-
-    bc_indvars = if strategy isa QuadratureTraining
-        get_argument(bcs, dict_indvars, dict_depvars)
-    else
-        get_variables(bcs, dict_indvars, dict_depvars)
-    end
-
-    pde_integration_vars = get_integration_variables(eqs, dict_indvars, dict_depvars)
-    bc_integration_vars = get_integration_variables(bcs, dict_indvars, dict_depvars)
-
     pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
-                                 param_estim, additional_loss, adaloss, depvars, indvars,
-                                 dict_indvars, dict_depvars, dict_depvar_input, logger,
+                                 param_estim, additional_loss, adaloss, v, logger,
                                  multioutput, iteration, init_params, flat_init_params, phi,
                                  derivative,
-                                 strategy, pde_indvars, bc_indvars, pde_integration_vars,
-                                 bc_integration_vars, nothing, nothing, nothing, nothing)
+                                 strategy, eqdata, nothing, nothing, nothing, nothing)
 
     integral = get_numeric_integral(pinnrep)
 
@@ -553,15 +457,9 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
     pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
 
-    datafree_pde_loss_functions = [build_loss_function(pinnrep, eq, pde_indvar)
-                                   for (eq, pde_indvar, integration_indvar) in zip(eqs,
-                                                                                   pde_indvars,
-                                                                                   pde_integration_vars)]
+    datafree_pde_loss_functions = [build_loss_function(pinnrep, eq) for eq in eqs]
 
-    datafree_bc_loss_functions = [build_loss_function(pinnrep, bc, bc_indvar)
-                                  for (bc, bc_indvar, integration_indvar) in zip(bcs,
-                                                                                 bc_indvars,
-                                                                                 bc_integration_vars)]
+    datafree_bc_loss_functions = [build_loss_function(pinnrep, bc) for bc in bcs]
 
     pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
                                                                               strategy,

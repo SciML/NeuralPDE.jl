@@ -15,6 +15,7 @@ using Integrals, IntegralsCubature
 using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
+using PDEBase
 using Statistics
 using ArrayInterface
 import Optim
@@ -32,9 +33,8 @@ import RecursiveArrayTools
 import ChainRulesCore, Flux, Lux, ComponentArrays
 import ChainRulesCore: @non_differentiable
 
-RuntimeGeneratedFunctions.init(@__MODULE__)
 
-abstract type AbstractPINN end
+RuntimeGeneratedFunctions.init(@__MODULE__)
 
 abstract type AbstractTrainingStrategy end
 

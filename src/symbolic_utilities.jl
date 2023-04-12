@@ -342,81 +342,17 @@ function pair(eq, depvars, dict_depvars, dict_depvar_input)
     Dict(filter(p -> p !== nothing, pair_))
 end
 
-function get_vars(indvars_, depvars_)
-    indvars = ModelingToolkit.getname.(indvars_)
-    depvars = Symbol[]
-    dict_depvar_input = Dict{Symbol, Vector{Symbol}}()
-    for d in depvars_
-        if unwrap(d) isa SymbolicUtils.BasicSymbolic
-            dname = ModelingToolkit.getname(d)
-            push!(depvars, dname)
-            push!(dict_depvar_input,
-                  dname => [nameof(unwrap(argument))
-                            for argument in arguments(unwrap(d))])
-        else
-            dname = ModelingToolkit.getname(d)
-            push!(depvars, dname)
-            push!(dict_depvar_input, dname => indvars) # default to all inputs if not given
+function pair(eq, v::VariableMap)
+
+    pair_ = map(v.depvar_ops) do op
+        if !isempty(find_thing_in_expr(toexpr(eq), depvar))
+            depvar => v.depvar_input[depvar]
         end
     end
 
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
-    return depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input
-end
-
-function get_integration_variables(eqs, _indvars::Array, _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    get_integration_variables(eqs, dict_indvars, dict_depvars)
-end
-
-function get_integration_variables(eqs, dict_indvars, dict_depvars)
-    exprs = toexpr.(eqs)
-    vars = map(exprs) do expr
-        _vars = Symbol.(filter(indvar -> length(find_thing_in_expr(expr, indvar)) > 0,
-                               sort(collect(keys(dict_indvars)))))
-    end
-end
-
-"""
-``julia
-get_variables(eqs,_indvars,_depvars)
-```
-
-Returns all variables that are used in each equations or boundary condition.
-"""
-function get_variables end
-
-function get_variables(eqs, _indvars::Array, _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    return get_variables(eqs, dict_indvars, dict_depvars)
-end
-
-function get_variables(eqs, dict_indvars, dict_depvars)
-    bc_args = get_argument(eqs, dict_indvars, dict_depvars)
-    return map(barg -> filter(x -> x isa Symbol, barg), bc_args)
-end
-
-function get_number(eqs, dict_indvars, dict_depvars)
-    bc_args = get_argument(eqs, dict_indvars, dict_depvars)
-    return map(barg -> filter(x -> x isa Number, barg), bc_args)
-end
-
-function find_thing_in_expr(ex::Expr, thing; ans = [])
-    if thing in ex.args
-        push!(ans, ex)
-    end
-    for e in ex.args
-        if e isa Expr
-            if thing in e.args
-                push!(ans, e)
-            end
-            find_thing_in_expr(e, thing; ans = ans)
-        end
-    end
-    return collect(Set(ans))
+function get_integration_variables(eqs, v::VariableMap)
+    ivs = all_ivs(v)
+    return map(eq -> get_indvars(eq, ivs), eqs)
 end
 
 """
@@ -428,34 +364,43 @@ Returns all arguments that are used in each equations or boundary condition.
 """
 function get_argument end
 
-# Get arguments from boundary condition functions
-function get_argument(eqs, _indvars::Array, _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    get_argument(eqs, dict_indvars, dict_depvars)
-end
-function get_argument(eqs, dict_indvars, dict_depvars)
-    exprs = toexpr.(eqs)
-    vars = map(exprs) do expr
-        _vars = map(depvar -> find_thing_in_expr(expr, depvar), collect(keys(dict_depvars)))
+function get_argument(eqs, v::VariableMap)
+    vars = map(eqs) do eq
+        _vars = map(depvar -> get_depvars(eq, depvar), v.depvar_ops)
         f_vars = filter(x -> !isempty(x), _vars)
         map(x -> first(x), f_vars)
     end
     args_ = map(vars) do _vars
-        ind_args_ = map(var -> var.args[2:end], _vars)
-        syms = Set{Symbol}()
-        filter(vcat(ind_args_...)) do ind_arg
-            if ind_arg isa Symbol
-                if ind_arg ∈ syms
+        seen = []
+        filter(reduce(vcat, arguments.(_vars))) do x
+            if x isa Number
+                true
+            else
+                if any(isequal(x), seen)
                     false
                 else
-                    push!(syms, ind_arg)
+                    push!(seen, x)
                     true
                 end
-            else
-                true
             end
         end
     end
     return args_ # TODO for all arguments
+end
+
+"""
+``julia
+get_variables(eqs,_indvars,_depvars)
+```
+
+Returns all variables that are used in each equations or boundary condition.
+"""
+function get_variables(eqs, v::VariableMap)
+    args = get_argument(eqs, v)
+    return map(arg -> filter(x -> !(x isa Number), arg), args)
+end
+
+function get_number(eqs, v::VariableMap)
+    args = get_argument(eqs, v)
+    return map(arg -> filter(x -> x isa Number, arg), args)
 end
