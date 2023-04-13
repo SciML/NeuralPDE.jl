@@ -32,7 +32,7 @@ function EquationData(pdesys, v)
         get_variables(bcs, v)
     end
 
-    EquationData(depvarmap, indvarmap, pde_indvars, bc_depvars, argmap)
+    EquationData(depvarmap, indvarmap, pde_indvars, bc_indvars, argmap)
 end
 
 function depvars(eq, eqdata::EquationData)

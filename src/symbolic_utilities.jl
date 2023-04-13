@@ -342,11 +342,11 @@ function pair(eq, depvars, dict_depvars, dict_depvar_input)
     Dict(filter(p -> p !== nothing, pair_))
 end
 
-function pair(eq, v::VariableMap)
+function pair(eq, v::VariableMap, eqmap)
 
     pair_ = map(v.depvar_ops) do op
-        if !isempty(find_thing_in_expr(toexpr(eq), depvar))
-            depvar => v.depvar_input[depvar]
+        if !isempty(depvars(eq, eqmap))
+            depvar => v.args[depvar]
         end
     end
 

@@ -40,15 +40,15 @@ for Flux.Chain, and
 
 for Lux.AbstractExplicitLayer
 """
-function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
+function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
                                       eq_params = SciMLBase.NullParameters(),
                                       param_estim = false,
                                       default_p = nothing,
-                                      bc_indvars = pinnrep.indvars,
+                                      bc_indvars = pinnrep.v.x̄,
                                       integrand = nothing,
                                       dict_transformation_vars = nothing,
                                       transformation_vars = nothing,
-                                      integrating_depvars = pinnrep.depvars)
+                                      integrating_depvars = pinnrep.v.ū)
     @unpack v, eqdata,
     phi, derivative, integral,
     multioutput, init_params, strategy, eq_params,
@@ -57,14 +57,14 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
     eltypeθ = eltype(pinnrep.flat_init_params)
 
     if integrand isa Nothing
-        loss_function = parse_equation(pinnrep, eqs)
-        this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
-        this_eq_indvars = unique(vcat(values(this_eq_pair)...))
+        loss_function = parse_equation(pinnrep, eq)
+        this_eq_pair = pair(eq, depvars, dict_depvars, dict_depvar_input)
+        this_eq_indvars = indvars(eq, eqmap)
     else
         this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars],
                                 integrating_depvars))
         this_eq_indvars = transformation_vars isa Nothing ?
-                          unique(vcat(values(this_eq_pair)...)) : transformation_vars
+                          unique(indvars(eq, eqmap)) : transformation_vars
         loss_function = integrand
     end
 
