@@ -4,6 +4,22 @@ authors = ["Chris Rackauckas <accounts@chrisrackauckas.com>"]
 version = "5.6.1"
 
 [deps]
+DiffResults = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
+Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+DynamicHMC = "bbc10e6e-7c05-544b-b16e-64fede858acb"
+LabelledArrays = "2ee39098-c373-598a-b85f-a56591580800"
+LogDensityProblemsAD = "996a588d-648d-4e1f-a8f0-a84b347e47b1"
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
+Missings = "e1d29d7a-bbdc-5cf2-9ac0-f12de2c33e28"
+PDMats = "90014a1f-27ba-587c-ab20-58faa44d9150"
+Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+Requires = "ae029012-a4dd-5104-9daa-d747884805df"
+StanSample = "c1514b29-d3a0-5178-b312-660c88baa699"
+StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
+TransformVariables = "84d833dd-6860-57f9-a1a7-6da5db126cff"
+TransformedLogDensities = "f9bc47f6-f3f8-4f3b-ab21-f8bc73906f26"
+Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
+
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
@@ -37,6 +53,22 @@ UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
+DiffResults = "1.0"
+Distances = "0.10"
+DynamicHMC = "2.1, 3"
+LabelledArrays = "1.0"
+LogDensityProblemsAD = "1"
+MacroTools = "0.5"
+Missings = "0.4, 1.0"
+PDMats = "0.11"
+Parameters = "0.12"
+Requires = "1.0"
+StanSample = "6, 7"
+StructArrays = "0.6"
+TransformVariables = "0.8"
+TransformedLogDensities = "1"
+Turing = "0.25"
+
 Adapt = "3"
 ArrayInterface = "6, 7"
 CUDA = "4"
@@ -78,5 +110,9 @@ Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
+ParameterizedFunctions = "65888b18-ceab-5e60-b2b9-181511a3b968"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+SteadyStateDiffEq = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
+
 [targets]
-test = ["Test", "CUDA", "SafeTestsets", "OptimizationOptimisers", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "IntegralsCuba"]
+test = ["Test", "ParameterizedFunctions", "StatsBase","SteadyStateDiffEq","CUDA", "SafeTestsets", "OptimizationOptimisers", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "IntegralsCuba"]
