@@ -159,7 +159,7 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                 var_ = is_integral ? :(derivative) : :($(Expr(:$, :derivative)))
                 εs = [get_ε(dim_l, d, eltypeθ, order) for d in 1:dim_l]
                 undv = [dict_interior_indvars[d_p] for d_p in derivative_variables]
-                εs_dnv = [εs[d] for d in undv]
+                εs_dnv = [εs[d] for d in reverse(undv)]
 
                 ex.args = if !multioutput
                     [var_, :phi, :u, Symbol(:cord, num_depvar), εs_dnv, order, :($θ)]
