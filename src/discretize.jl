@@ -400,6 +400,7 @@ For more information, see `discretize` and `PINNRepresentation`.
 """
 function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                        discretization::PhysicsInformedNN)
+    cardinalize_eqs!(pde_system)
     eqs = pde_system.eqs
     bcs = pde_system.bcs
     chain = discretization.chain

@@ -56,16 +56,16 @@ function parse_equation(pinnrep::PINNRepresentation, ex; is_integral = false,
     op_rules = [@rule $(op)(~~a) => broadcast(op, ~a...) for op in ex_ops]
 
     dummyvars = @variables phi, u, x, θ
-    deriv_rules = generate_derivatives_rules(eq, eqdata, dummyvars)
+    deriv_rules = generate_derivative_rules(eq, eqdata, dummyvars)
 
     ch = Postwalk(Chain([deriv_rules; op_rules]))
     expr = ch(expr)
 
     args = [phi, u, x, θ]
 
-    ex = Func(args, [], eq.rhs) |> toexpr
+    ex = Func(args, [], ch(eq.lhs)) |> toexpr
 
-
+    return ex
 end
 
 function generate_derivative_rules(eq, eqdata, dummyvars)

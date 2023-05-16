@@ -16,6 +16,7 @@ using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 using PDEBase
+using PDEBase: cardinalize_eqs!
 using Statistics
 using ArrayInterface
 import Optim
