@@ -1,3 +1,7 @@
+# TODO: add multioutput
+# TODO: add param_estim
+# TODO: add integrals
+
 function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
                                       eq_params = SciMLBase.NullParameters(),
                                       param_estim = false,
@@ -15,9 +19,9 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
     eltypeθ = eltype(pinnrep.flat_init_params)
 
     if integrand isa Nothing
-        loss_function = parse_equation(pinnrep, eq)
         this_eq_indvars = indvars(eq, eqmap)
         this_eq_depvars = depvars(eq, eqmap)
+        loss_function = parse_equation(pinnrep, eq, this_eq_indvars)
     else
         this_eq_indvars = transformation_vars isa Nothing ?
                           unique(indvars(eq, eqmap)) : transformation_vars
@@ -29,7 +33,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
     full_loss_func = (cord, θ, phi, derivative, integral, u, p) -> begin
         ivs = [cord[[i], :] for i in 1:n]
         cords = map(this_eq_depvars) do w
-            idxs = map(x -> x2i(v, w, x), v.args[operation(w)]))
+            idxs = map(x -> x2i(v, w, x), v.args[operation(w)])
             vcat(ivs[idxs]...)
         end
         loss_function(cords, θ, phi, derivative, integral, u, p)
@@ -44,36 +48,37 @@ function operations(ex)
     return []
 end
 
-function parse_equation(pinnrep::PINNRepresentation, ex; is_integral = false,
+function parse_equation(pinnrep::PINNRepresentation, eq, ivs; is_integral = false,
                                dict_transformation_vars = nothing,
                                transformation_vars = nothing)
     @unpack v, eqdata, derivative, integral = pinnrep
 
-    expr = scalarize(ex)
+    expr = eq.lhs
     ex_vars = vars(expr)
     ignore = vcat(operation.(ex_vars), getindex, Differential, Integral, ~)
     ex_ops = filter(x -> !any(isequal(x), ignore), ex_ops)
     op_rules = [@rule $(op)(~~a) => broadcast(op, ~a...) for op in ex_ops]
 
-    dummyvars = @variables phi, u, x, θ
+    dummyvars = @variables phi, u, θ
     deriv_rules = generate_derivative_rules(eq, eqdata, dummyvars)
 
     ch = Postwalk(Chain([deriv_rules; op_rules]))
+
+    sym_coords = DestructuredArgs(ivs)
+
     expr = ch(expr)
 
-    args = [phi, u, x, θ]
+    args = [phi, u, sym_coords, θ]
 
-    ex = Func(args, [], ch(eq.lhs)) |> toexpr
+    ex = Func(args, [], expr) |> toexpr
 
     return ex
 end
 
 function generate_derivative_rules(eq, eqdata, dummyvars)
-    phi, u, coord, θ = dummyvars
+    phi, u, θ = dummyvars
     @register_symbolic derivative(phi, u, coord, εs, order, θ)
-    rs = [[@rule $(Differential(x)^(~d)(w)) => derivative(phi, u, coord, get_εs(w), d, θ)
-           for x in all_ivs(w, v)]
-          for w in depvars(eq, eqdata)]
+    rs = [@rule $(Differential(~x)^(~d)(~w)) => derivative(phi, u, ~x, get_εs(~w), ~d, θ)]
     # TODO: add mixed derivatives
-    return reduce(vcat, rs)
+    return rs
 end
