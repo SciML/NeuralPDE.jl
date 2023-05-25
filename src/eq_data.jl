@@ -18,7 +18,7 @@ function EquationData(pdesys, v)
         eq => get_depvars(eq, v.depvar_ops)
     end |> Dict
     indvarmap = map(alleqs) do eq
-        eq => get_indvars(eq, indvars(v))
+        eq => get_indvars(eq, v)
     end |> Dict
 
     args = map(alleqs) do eq
