@@ -342,14 +342,6 @@ function pair(eq, depvars, dict_depvars, dict_depvar_input)
     Dict(filter(p -> p !== nothing, pair_))
 end
 
-function pair(eq, v::VariableMap, eqmap)
-
-    pair_ = map(v.depvar_ops) do op
-        if !isempty(depvars(eq, eqmap))
-            depvar => v.args[depvar]
-        end
-    end
-
 function get_integration_variables(eqs, v::VariableMap)
     ivs = all_ivs(v)
     return map(eq -> get_indvars(eq, ivs), eqs)

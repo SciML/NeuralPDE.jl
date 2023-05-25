@@ -444,15 +444,9 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     integral = get_numeric_integral(pinnrep)
 
-    symbolic_pde_loss_functions = [build_symbolic_loss_function(pinnrep, eq;
-                                                                bc_indvars = pde_indvar)
-                                   for (eq, pde_indvar) in zip(eqs, pde_indvars,
-                                                               pde_integration_vars)]
+    symbolic_pde_loss_functions = [build_symbolic_loss_function(pinnrep, eq) for eq in eqs]
 
-    symbolic_bc_loss_functions = [build_symbolic_loss_function(pinnrep, bc;
-                                                               bc_indvars = bc_indvar)
-                                  for (bc, bc_indvar) in zip(bcs, bc_indvars,
-                                                             bc_integration_vars)]
+    symbolic_bc_loss_functions = [build_symbolic_loss_function(pinnrep, bc) for bc in bcs]
 
     pinnrep.integral = integral
     pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions

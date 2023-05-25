@@ -47,6 +47,7 @@ include("adaptive_losses.jl")
 include("ode_solve.jl")
 include("rode_solve.jl")
 include("transform_inf_integral.jl")
+include("loss_function_generation.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
 
