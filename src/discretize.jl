@@ -314,7 +314,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::Quadr
 
     [pde_bounds, bcs_bounds]
 end
-
+# TODO: Get this to work with varmap
 function get_numeric_integral(pinnrep::PINNRepresentation)
     @unpack strategy, multioutput, derivative, varmap = pinnrep
 
