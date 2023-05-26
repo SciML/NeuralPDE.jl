@@ -80,11 +80,11 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::StochasticTraining,
                                            datafree_pde_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+    @unpack domains, eqs, bcs, v, flat_init_params = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
-    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+    bounds = get_bounds(domains, eqs, bcs, eltypeθ, v,
                         strategy)
     pde_bounds, bcs_bounds = bounds
 
@@ -304,8 +304,8 @@ end
 WeightedIntervalTraining(weights, samples)
 ```
 
-A training strategy that generates points for training based on the given inputs. 
-We split the timespan into equal segments based on the number of weights, 
+A training strategy that generates points for training based on the given inputs.
+We split the timespan into equal segments based on the number of weights,
 then sample points in each segment based on that segments corresponding weight,
 such that the total number of sampled points is equivalent to the given samples
 

@@ -67,8 +67,6 @@ function get_iv_argument(eqs, v::VariableMap)
     end
     args_ = map(vars) do _vars
         seen = []
-            args_ = map(vars) do _vars
-        seen = []
         filter(reduce(vcat, arguments.(_vars))) do x
             if x isa Number
                 true
@@ -82,7 +80,7 @@ function get_iv_argument(eqs, v::VariableMap)
             end
         end
     end
-    return args_ # TODO for all arguments
+    return args_
 end
 
 """
