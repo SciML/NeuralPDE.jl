@@ -358,13 +358,13 @@ function get_argument end
 
 function get_argument(eqs, v::VariableMap)
     vars = map(eqs) do eq
-        _vars = map(depvar -> get_depvars(eq, depvar), v.depvar_ops)
+        _vars = map(depvar -> get_depvars(eq, [depvar]), v.depvar_ops)
         f_vars = filter(x -> !isempty(x), _vars)
-        map(x -> first(x), f_vars)
+        map(first, f_vars)
     end
     args_ = map(vars) do _vars
         seen = []
-        filter(reduce(vcat, arguments.(_vars))) do x
+        filter(reduce(vcat, arguments.(_vars), init = [])) do x
             if x isa Number
                 true
             else

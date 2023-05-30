@@ -16,7 +16,7 @@ using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 using PDEBase
-using PDEBase: cardinalize_eqs!
+using PDEBase: cardinalize_eqs!, get_depvars, get_indvars
 using Statistics
 using ArrayInterface
 import Optim
@@ -36,6 +36,8 @@ import ChainRulesCore: @non_differentiable
 
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
+
+abstract type AbstractPINN <: SciMLBase.AbstractDiscretization end
 
 abstract type AbstractTrainingStrategy end
 

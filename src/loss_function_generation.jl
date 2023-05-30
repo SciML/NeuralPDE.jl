@@ -8,9 +8,9 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
                                       integrand = nothing,
                                       transformation_vars = nothing)
     @unpack v, eqdata,
-    phi, derivative, integral,
-    multioutput, init_params, strategy, eq_params,
-    param_estim, default_p = pinnrep
+        phi, derivative, integral,
+        multioutput, init_params, strategy, eq_params,
+        param_estim, default_p = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
@@ -117,7 +117,6 @@ end
 
 function generate_derivative_rules(eq, eqdata, dummyvars)
     phi, u, θ = dummyvars
-    @register_symbolic derivative(phi, u, coord, εs, order, θ)
     rs = [@rule $(Differential(~x)^(~d::isinteger)(~w)) => derivative(phi, u, ~x, get_εs(~w), ~d, θ)]
     # TODO: add mixed derivatives
     return rs

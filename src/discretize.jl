@@ -362,7 +362,7 @@ end
 
 """
 ```julia
-prob = symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+prob = symbolic_discretize(pdesys::PDESystem, discretization::PhysicsInformedNN)
 ```
 
 `symbolic_discretize` is the lower level interface to `discretize` for inspecting internals.
@@ -373,16 +373,16 @@ to the PDE.
 
 For more information, see `discretize` and `PINNRepresentation`.
 """
-function SciMLBase.symbolic_discretize(pde_system::PDESystem,
+function SciMLBase.symbolic_discretize(pdesys::PDESystem,
                                        discretization::PhysicsInformedNN)
-    cardinalize_eqs!(pde_system)
-    eqs = pde_system.eqs
-    bcs = pde_system.bcs
+    cardinalize_eqs!(pdesys)
+    eqs = pdesys.eqs
+    bcs = pdesys.bcs
     chain = discretization.chain
 
-    domains = pde_system.domain
-    eq_params = pde_system.ps
-    defaults = pde_system.defaults
+    domains = pdesys.domain
+    eq_params = pdesys.ps
+    defaults = pdesys.defaults
     default_p = eq_params == SciMLBase.NullParameters() ? nothing :
                 [defaults[ep] for ep in eq_params]
 
@@ -390,14 +390,6 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     additional_loss = discretization.additional_loss
     adaloss = discretization.adaptive_loss
 
-    v = VariableMap(pde_system, discretization)
-
-    # Find the derivative orders in the bcs
-    bcorders = Dict(map(x -> x => d_orders(x, pdesys.bcs), all_ivs(v)))
-    # Create a map of each variable to their boundary conditions including initial conditions
-    boundarymap = parse_bcs(pdesys.bcs, v, bcorders)
-
-    eqdata = EquationData(pdesys, v)
 
     multioutput = discretization.multioutput
     init_params = discretization.init_params
@@ -411,8 +403,92 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     iteration = discretization.iteration
     self_increment = discretization.self_increment
 
+    v = VariableMap(pdesys, discretization)
+
+    eqdata = EquationData(pdesys, v, strategy)
+
+
+    if init_params === nothing
+        # Use the initialization of the neural network framework
+        # But for Lux, default to Float64
+        # For Flux, default to the types matching the values in the neural network
+        # This is done because Float64 is almost always better for these applications
+        # But with Flux there's already a chosen type from the user
+
+        if chain isa AbstractArray
+            if chain[1] isa Flux.Chain
+                init_params = map(chain) do x
+                    _x = Flux.destructure(x)[1]
+                end
+            else
+                x = map(chain) do x
+                    _x = ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
+                        x))
+                    Float64.(_x) # No ComponentArray GPU support
+                end
+                names = ntuple(i -> ~Symbol.(v.ū)[i], length(chain))
+                init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
+                                                                                for i in x))
+            end
+        else
+            if chain isa Flux.Chain
+                init_params = Flux.destructure(chain)[1]
+                init_params = init_params isa Array ? Float64.(init_params) :
+                                init_params
+            else
+                init_params = Float64.(ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
+                    chain)))
+            end
+        end
+    else
+        init_params = init_params
+    end
+
+    if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
+        (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
+        # Flux.Chain
+        flat_init_params = multioutput ? reduce(vcat, init_params) : init_params
+        flat_init_params = param_estim == false ? flat_init_params :
+                            vcat(flat_init_params,
+            adapt(typeof(flat_init_params), default_p))
+    else
+        flat_init_params = if init_params isa ComponentArrays.ComponentArray
+            init_params
+        elseif multioutput
+            @assert length(init_params) == length(depvars)
+            names = ntuple(i -> depvars[i], length(init_params))
+            x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in init_params))
+        else
+            ComponentArrays.ComponentArray(init_params)
+        end
+        flat_init_params = if param_estim == false && multioutput
+            ComponentArrays.ComponentArray(; depvar = flat_init_params)
+        elseif param_estim == false && !multioutput
+            flat_init_params
+        else
+            ComponentArrays.ComponentArray(; depvar = flat_init_params, p = default_p)
+        end
+    end
+
+    if (phi isa Vector && phi[1].f isa Lux.AbstractExplicitLayer)
+        for ϕ in phi
+            ϕ.st = adapt(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+                ϕ.st)
+        end
+    elseif (!(phi isa Vector) && phi.f isa Lux.AbstractExplicitLayer)
+        phi.st = adapt(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+            phi.st)
+    end
+
+    eltypeθ = eltype(flat_init_params)
+
+    if adaptive_loss === nothing
+        adaptive_loss = NonAdaptiveLoss{eltypeθ}()
+    end
+
+
     pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
-                                 param_estim, additional_loss, adaloss, v, logger,
+                                 param_estim, additional_loss, adaptive_loss, v, logger,
                                  multioutput, iteration, init_params, flat_init_params, phi,
                                  derivative,
                                  strategy, eqdata, nothing, nothing, nothing, nothing)
@@ -540,15 +616,15 @@ end
 
 """
 ```julia
-prob = discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+prob = discretize(pdesys::PDESystem, discretization::PhysicsInformedNN)
 ```
 
 Transforms a symbolic description of a ModelingToolkit-defined `PDESystem` and generates
 an `OptimizationProblem` for [Optimization.jl](https://docs.sciml.ai/Optimization/stable/) whose
 solution is the solution to the PDE.
 """
-function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    pinnrep = symbolic_discretize(pde_system, discretization)
+function SciMLBase.discretize(pdesys::PDESystem, discretization::PhysicsInformedNN)
+    pinnrep = symbolic_discretize(pdesys, discretization)
     f = OptimizationFunction(pinnrep.loss_functions.full_loss_function,
                              Optimization.AutoZygote())
     Optimization.OptimizationProblem(f, pinnrep.flat_init_params)

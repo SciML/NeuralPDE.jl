@@ -26,19 +26,20 @@ function logscalar(logger, s::R, name::AbstractString, step::Integer) where {R <
 	nothing
 end
 
+
 """
 ```julia
 PhysicsInformedNN(chain,
-				  strategy;
-				  init_params = nothing,
-				  phi = nothing,
-				  param_estim = false,
-				  additional_loss = nothing,
-				  adaptive_loss = nothing,
-				  logger = nothing,
-				  log_options = LogOptions(),
-				  iteration = nothing,
-				  kwargs...) where {iip}
+                  strategy;
+                  init_params = nothing,
+                  phi = nothing,
+                  param_estim = false,
+                  additional_loss = nothing,
+                  adaptive_loss = nothing,
+                  logger = nothing,
+                  log_options = LogOptions(),
+                  iteration = nothing,
+                  kwargs...) where {iip}
 ```
 
 A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
@@ -60,7 +61,6 @@ methodology.
   `init_params` should match `Flux.destructure(chain)[1]` in shape. If `init_params` is not
   given, then the neural network default parameters are used. Note that for Lux, the default
   will convert to Float64.
-* `flat_init_params`: the initial parameters of the neural networks, flattened into a vector.
 * `phi`: a trial solution, specified as `phi(x,p)` where `x` is the coordinates vector for
   the dependent variable and `p` are the weights of the phi function (generally the weights
   of the neural network defining `phi`). By default, this is generated from the `chain`. This
@@ -79,11 +79,10 @@ methodology.
 * `iteration`: used to control the iteration counter???
 * `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on `solve`.
 """
-struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K, F} <: SciMLBase.AbstractDiscretization
+struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: SciMLBase.AbstractDiscretization
 	chain::Any
 	strategy::T
 	init_params::P
-	flat_init_params::F
 	phi::PH
 	derivative::DER
 	param_estim::PE
@@ -96,126 +95,49 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K, F} <: SciMLBase.Abs
 	multioutput::Bool
 	kwargs::K
 
-	@add_kwonly function PhysicsInformedNN(chain,
-		strategy;
-		init_params = nothing,
-		phi = nothing,
-		derivative = nothing,
-		param_estim = false,
-		additional_loss = nothing,
-		adaptive_loss = nothing,
-		logger = nothing,
-		log_options = LogOptions(),
-		iteration = nothing,
-		kwargs...) where {iip}
-		multioutput = typeof(chain) <: AbstractArray
+    @add_kwonly function PhysicsInformedNN(chain,
+                                           strategy;
+                                           init_params = nothing,
+                                           phi = nothing,
+                                           derivative = nothing,
+                                           param_estim = false,
+                                           additional_loss = nothing,
+                                           adaptive_loss = nothing,
+                                           logger = nothing,
+                                           log_options = LogOptions(),
+                                           iteration = nothing,
+                                           kwargs...) where {iip}
+        multioutput = typeof(chain) <: AbstractArray
 
-		if phi === nothing
-			if multioutput
-				phi = Phi.(chain)
-			else
-				phi = Phi(chain)
-			end
-		end
+        if phi === nothing
+            if multioutput
+                _phi = Phi.(chain)
+            else
+                _phi = Phi(chain)
+            end
+        else
+            _phi = phi
+        end
 
-		if derivative === nothing
-			_derivative = numeric_derivative
-		else
-			_derivative = derivative
-		end
+        if derivative === nothing
+            _derivative = numeric_derivative
+        else
+            _derivative = derivative
+        end
 
-		if iteration isa Vector{Int64}
-			self_increment = false
-		else
-			iteration = [1]
-			self_increment = true
-		end
-
-		if init_params === nothing
-			# Use the initialization of the neural network framework
-			# But for Lux, default to Float64
-			# For Flux, default to the types matching the values in the neural network
-			# This is done because Float64 is almost always better for these applications
-			# But with Flux there's already a chosen type from the user
-
-			if chain isa AbstractArray
-				if chain[1] isa Flux.Chain
-					init_params = map(chain) do x
-						_x = Flux.destructure(x)[1]
-					end
-				else
-					x = map(chain) do x
-						_x = ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
-							x))
-						Float64.(_x) # No ComponentArray GPU support
-					end
-					names = ntuple(i -> depvars[i], length(chain))
-					init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
-																				   for i in x))
-				end
-			else
-				if chain isa Flux.Chain
-					init_params = Flux.destructure(chain)[1]
-					init_params = init_params isa Array ? Float64.(init_params) :
-								  init_params
-				else
-					init_params = Float64.(ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
-						chain)))
-				end
-			end
-		else
-			init_params = init_params
-		end
-
-		if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-		   (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-			# Flux.Chain
-			flat_init_params = multioutput ? reduce(vcat, init_params) : init_params
-			flat_init_params = param_estim == false ? flat_init_params :
-							   vcat(flat_init_params,
-				adapt(typeof(flat_init_params), default_p))
-		else
-			flat_init_params = if init_params isa ComponentArrays.ComponentArray
-				init_params
-			elseif multioutput
-				@assert length(init_params) == length(depvars)
-				names = ntuple(i -> depvars[i], length(init_params))
-				x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in init_params))
-			else
-				ComponentArrays.ComponentArray(init_params)
-			end
-			flat_init_params = if param_estim == false && multioutput
-				ComponentArrays.ComponentArray(; depvar = flat_init_params)
-			elseif param_estim == false && !multioutput
-				flat_init_params
-			else
-				ComponentArrays.ComponentArray(; depvar = flat_init_params, p = default_p)
-			end
-		end
-
-		if (phi isa Vector && phi[1].f isa Lux.AbstractExplicitLayer)
-			for ϕ in phi
-				ϕ.st = adapt(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-					ϕ.st)
-			end
-		elseif (!(phi isa Vector) && phi.f isa Lux.AbstractExplicitLayer)
-			phi.st = adapt(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-				phi.st)
-		end
-
-		eltypeθ = eltype(flat_init_params)
-
-		if adaloss === nothing
-			adaloss = NonAdaptiveLoss{eltypeθ}()
-		end
+        if iteration isa Vector{Int64}
+            self_increment = false
+        else
+            iteration = [1]
+            self_increment = true
+        end
 
 		new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
 			typeof(param_estim),
 			typeof(additional_loss), typeof(adaptive_loss),
-			typeof(logger), typeof(kwargs), typeof(flat_init_params)}(chain,
+			typeof(logger), typeof(kwargs)}(chain,
                                                                         strategy,
                                                                         init_params,
-                                                                        flat_init_params,
                                                                         _phi,
                                                                         _derivative,
                                                                         param_estim,
@@ -229,6 +151,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K, F} <: SciMLBase.Abs
                                                                         kwargs)
 	end
 end
+
 
 """
 `PINNRepresentation``
@@ -476,3 +399,5 @@ function numeric_derivative(phi, u, x, εs, order, θ)
 		error("This shouldn't happen! Got an order of $(order).")
 	end
 end
+
+@register_symbolic numeric_derivative(phi, u, coord, εs, order, θ)

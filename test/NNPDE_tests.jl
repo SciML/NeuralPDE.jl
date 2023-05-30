@@ -37,7 +37,7 @@ function test_ode(strategy_)
     discretization = NeuralPDE.PhysicsInformedNN(chain,
                                                  strategy_)
 
-    @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
+    @named pde_system = PDESystem(eq, bcs, domains, [θ], [u(θ)])
     prob = NeuralPDE.discretize(pde_system, discretization)
 
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 1000)

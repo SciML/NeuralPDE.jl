@@ -6,7 +6,7 @@ struct EquationData <: PDEBase.AbstractVarEqMapping
     argmap
 end
 
-function EquationData(pdesys, v)
+function EquationData(pdesys, v, strategy)
     eqs = pdesys.eqs
     bcs = pdesys.bcs
     alleqs = vcat(eqs, bcs)
@@ -61,13 +61,13 @@ argument(eq, eqdata) = eqdata.argmap[eq]
 
 function get_iv_argument(eqs, v::VariableMap)
     vars = map(eqs) do eq
-        _vars = map(depvar -> get_depvars(eq, depvar), v.depvar_ops)
+        _vars = map(depvar -> get_depvars(eq, [depvar]), v.depvar_ops)
         f_vars = filter(x -> !isempty(x), _vars)
-        v.args[operation(map(x -> first(x), f_vars))]
+        map(vars -> map(op -> v.args[op], operation.(vars)), f_vars)
     end
     args_ = map(vars) do _vars
         seen = []
-        filter(reduce(vcat, arguments.(_vars))) do x
+        filter(reduce(vcat, arguments.(_vars), init = [])) do x
             if x isa Number
                 true
             else
