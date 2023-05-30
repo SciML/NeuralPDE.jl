@@ -482,13 +482,13 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
 
     eltypeθ = eltype(flat_init_params)
 
-    if adaptive_loss === nothing
-        adaptive_loss = NonAdaptiveLoss{eltypeθ}()
+    if adaloss === nothing
+        adaloss = NonAdaptiveLoss{eltypeθ}()
     end
 
 
     pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
-                                 param_estim, additional_loss, adaptive_loss, v, logger,
+                                 param_estim, additional_loss, adaloss, v, logger,
                                  multioutput, iteration, init_params, flat_init_params, phi,
                                  derivative,
                                  strategy, eqdata, nothing, nothing, nothing, nothing)
@@ -497,11 +497,11 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
 
     #symbolic_pde_loss_functions = [build_symbolic_loss_function(pinnrep, eq) for eq in eqs]
 
-    #symbolic_bc_loss_functions = [build_symbolic_loss_function(pinnrep, bc) for bc in bcs]
+    #symbolic_bc_loss_functions = [build_symbolic_loss_function(pinnrep, bc) |> toexpr for bc in bcs]
 
     #pinnrep.integral = integral
-    pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
-    pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
+    #pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
+    #pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
 
     datafree_pde_loss_functions = [build_loss_function(pinnrep, eq) for eq in eqs]
 

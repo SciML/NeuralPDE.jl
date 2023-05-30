@@ -250,19 +250,7 @@ mutable struct PINNRepresentation
 	"""
 	???
 	"""
-	pde_indvars::Any
-	"""
-	???
-	"""
-	bc_indvars::Any
-	"""
-	???
-	"""
-	pde_integration_vars::Any
-	"""
-	???
-	"""
-	bc_integration_vars::Any
+    eqdata::Any
 	"""
 	???
 	"""
