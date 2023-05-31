@@ -95,6 +95,7 @@ function parse_equation(pinnrep::PINNRepresentation, eq, ivs; is_integral = fals
     expr = eq isa Equation ? eq.lhs : eq
     ex_vars = get_depvars(expr, varmap.depvar_ops)
     ignore = vcat(operation.(ex_vars), getindex, Differential, Integral, ~)
+    ex_ops = operations(expr)
     ex_ops = filter(x -> !any(isequal(x), ignore), ex_ops)
     op_rules = [@rule $(op)(~~a) => broadcast(op, ~a...) for op in ex_ops]
 
@@ -117,7 +118,7 @@ end
 
 function generate_derivative_rules(eq, eqdata, dummyvars, derivative)
     phi, u, θ = dummyvars
-    rs = [@rule $(Differential(~x)^(~d::isinteger)(~w)) => derivative(phi, u, ~x, get_εs(~w), ~d, θ)]
+    rs = [@rule ($Differential(~x)^(~d::isinteger))(~w) => derivative(phi, u, x, get_εs(w), d, θ)]
     # TODO: add mixed derivatives
     return rs
 end

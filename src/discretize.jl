@@ -1,200 +1,4 @@
 """
-Build a loss function for a PDE or a boundary condition
-
-# Examples: System of PDEs:
-
-Take expressions in the form:
-
-[Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
- Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0]
-
-to
-
-:((cord, θ, phi, derivative, u)->begin
-          #= ... =#
-          #= ... =#
-          begin
-              (θ1, θ2) = (θ[1:33], θ"[34:66])
-              (phi1, phi2) = (phi[1], phi[2])
-              let (x, y) = (cord[1], cord[2])
-                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, θ1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, θ2))) - 0,
-                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, θ2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, θ1))) - 0]
-              end
-          end
-      end)
-
-for Flux.Chain, and
-
-:((cord, θ, phi, derivative, u)->begin
-          #= ... =#
-          #= ... =#
-          begin
-              (u1, u2) = (θ.depvar.u1, θ.depvar.u2)
-              (phi1, phi2) = (phi[1], phi[2])
-              let (x, y) = (cord[1], cord[2])
-                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, u1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, u1))) - 0,
-                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, u2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, u2))) - 0]
-              end
-          end
-      end)
-
-for Lux.AbstractExplicitLayer
-"""
-# function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
-#                                       eq_params = SciMLBase.NullParameters(),
-#                                       param_estim = false,
-#                                       default_p = nothing,
-#                                       bc_indvars = pinnrep.v.x̄,
-#                                       integrand = nothing,
-#                                       dict_transformation_vars = nothing,
-#                                       transformation_vars = nothing,
-#                                       integrating_depvars = pinnrep.v.ū)
-#     @unpack v, eqdata,
-#     phi, derivative, integral,
-#     multioutput, init_params, strategy, eq_params,
-#     param_estim, default_p = pinnrep
-
-#     eltypeθ = eltype(pinnrep.flat_init_params)
-
-#     if integrand isa Nothing
-#         loss_function = parse_equation(pinnrep, eq)
-#         this_eq_pair = pair(eq, depvars, dict_depvars, dict_depvar_input)
-#         this_eq_indvars = indvars(eq, eqmap)
-#     else
-#         this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars],
-#                                 integrating_depvars))
-#         this_eq_indvars = transformation_vars isa Nothing ?
-#                           unique(indvars(eq, eqmap)) : transformation_vars
-#         loss_function = integrand
-#     end
-
-#     vars = :(cord, $θ, phi, derivative, integral, u, p)
-#     ex = Expr(:block)
-#     if multioutput
-#         θ_nums = Symbol[]
-#         phi_nums = Symbol[]
-#         for v in depvars
-#             num = dict_depvars[v]
-#             push!(θ_nums, :($(Symbol(:($θ), num))))
-#             push!(phi_nums, :($(Symbol(:phi, num))))
-#         end
-
-#         expr_θ = Expr[]
-#         expr_phi = Expr[]
-
-#         acum = [0; accumulate(+, map(length, init_params))]
-#         sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
-
-#         for i in eachindex(depvars)
-#             if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-#                (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-#                 # Flux.Chain
-#                 push!(expr_θ, :($θ[$(sep[i])]))
-#             else # Lux.AbstractExplicitLayer
-#                 push!(expr_θ, :($θ.depvar.$(depvars[i])))
-#             end
-#             push!(expr_phi, :(phi[$i]))
-#         end
-
-#         vars_θ = Expr(:(=), build_expr(:tuple, θ_nums), build_expr(:tuple, expr_θ))
-#         push!(ex.args, vars_θ)
-
-#         vars_phi = Expr(:(=), build_expr(:tuple, phi_nums), build_expr(:tuple, expr_phi))
-#         push!(ex.args, vars_phi)
-#     end
-
-#     #Add an expression for parameter symbols
-#     if param_estim == true && eq_params != SciMLBase.NullParameters()
-#         param_len = length(eq_params)
-#         last_indx = [0; accumulate(+, map(length, init_params))][end]
-#         params_symbols = Symbol[]
-#         expr_params = Expr[]
-#         for (i, eq_param) in enumerate(eq_params)
-#             if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-#                (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-#                 push!(expr_params, :($θ[$((i + last_indx):(i + last_indx))]))
-#             else
-#                 push!(expr_params, :($θ.p[$((i):(i))]))
-#             end
-#             push!(params_symbols, Symbol(:($eq_param)))
-#         end
-#         params_eq = Expr(:(=), build_expr(:tuple, params_symbols),
-#                          build_expr(:tuple, expr_params))
-#         push!(ex.args, params_eq)
-#     end
-
-#     if eq_params != SciMLBase.NullParameters() && param_estim == false
-#         params_symbols = Symbol[]
-#         expr_params = Expr[]
-#         for (i, eq_param) in enumerate(eq_params)
-#             push!(expr_params, :(ArrayInterface.allowed_getindex(p, ($i):($i))))
-#             push!(params_symbols, Symbol(:($eq_param)))
-#         end
-#         params_eq = Expr(:(=), build_expr(:tuple, params_symbols),
-#                          build_expr(:tuple, expr_params))
-#         push!(ex.args, params_eq)
-#     end
-
-#     eq_pair_expr = Expr[]
-#     for i in keys(this_eq_pair)
-#         push!(eq_pair_expr, :($(Symbol(:cord, :($i))) = vcat($(this_eq_pair[i]...))))
-#     end
-#     vcat_expr = Expr(:block, :($(eq_pair_expr...)))
-#     vcat_expr_loss_functions = Expr(:block, vcat_expr, loss_function) # TODO rename
-
-#     if strategy isa QuadratureTraining
-#         indvars_ex = get_indvars_ex(bc_indvars)
-#         left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-#         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
-#                        build_expr(:tuple, right_arg_pairs))
-#     else
-#         indvars_ex = [:($:cord[[$i], :]) for (i, x) in enumerate(this_eq_indvars)]
-#         left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-#         vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
-#                        build_expr(:tuple, right_arg_pairs))
-#     end
-
-#     if !(dict_transformation_vars isa Nothing)
-#         transformation_expr_ = Expr[]
-
-#         for (i, u) in dict_transformation_vars
-#             push!(transformation_expr_, :($i = $u))
-#         end
-#         transformation_expr = Expr(:block, :($(transformation_expr_...)))
-#         vcat_expr_loss_functions = Expr(:block, transformation_expr, vcat_expr,
-#                                         loss_function)
-#     end
-#     let_ex = Expr(:let, vars_eq, vcat_expr_loss_functions)
-#     push!(ex.args, let_ex)
-#     expr_loss_function = :(($vars) -> begin $ex end)
-# end
-
-# """
-# ```julia
-# build_loss_function(eqs, indvars, depvars, phi, derivative, init_params; bc_indvars=nothing)
-# ```
-
-# Returns the body of loss function, which is the executable Julia function, for the main
-# equation or boundary condition.
-# """
-# function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
-#     @unpack eq_params, param_estim, default_p, phi, derivative, integral = pinnrep
-
-#     bc_indvars = bc_indvars === nothing ? pinnrep.indvars : bc_indvars
-
-#     expr_loss_function = build_symbolic_loss_function(pinnrep, eqs;
-#                                                       bc_indvars = bc_indvars,
-#                                                       eq_params = eq_params,
-#                                                       param_estim = param_estim,
-#                                                       default_p = default_p)
-#     u = get_u()
-#     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
-#     loss_function = (cord, θ) -> begin _loss_function(cord, θ, phi, derivative, integral, u,
-#                                                       default_p) end
-#     return loss_function
-# end
-
-"""
 ```julia
 generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
 ```
@@ -204,17 +8,8 @@ strategy.
 """
 function generate_training_sets end
 
-function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, _indvars::Array,
-                                _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    return generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars,
-                                  dict_depvars)
-end
-
 # Generate training set in the domain and on the boundary
-function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::Dict,
-                                dict_depvars::Dict)
+function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, varmap)
     if dx isa Array
         dxs = dx
     else
@@ -222,11 +17,11 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
     end
 
     spans = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, dxs)]
-    dict_var_span = Dict([Symbol(d.variables) => infimum(d.domain):dx:supremum(d.domain)
+    dict_var_span = Dict([d.variables => infimum(d.domain):dx:supremum(d.domain)
                           for (d, dx) in zip(domains, dxs)])
 
-    bound_args = get_argument(bcs, dict_indvars, dict_depvars)
-    bound_vars = get_variables(bcs, dict_indvars, dict_depvars)
+    bound_args = get_argument(bcs, varmap)
+    bound_vars = get_variables(bcs, varmap)
 
     dif = [eltypeθ[] for i in 1:size(domains)[1]]
     for _args in bound_vars
@@ -241,7 +36,7 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
         setdiff(c, d)
     end
 
-    dict_var_span_ = Dict([Symbol(d.variables) => bc for (d, bc) in zip(domains, bc_data)])
+    dict_var_span_ = Dict([d.variables => bc for (d, bc) in zip(domains, bc_data)])
 
     bcs_train_sets = map(bound_args) do bt
         span = map(b -> get(dict_var_span, b, b), bt)
@@ -249,8 +44,8 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
                      hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
     end
 
-    pde_vars = get_variables(eqs, dict_indvars, dict_depvars)
-    pde_args = get_argument(eqs, dict_indvars, dict_depvars)
+    pde_vars = get_variables(eqs, varmap)
+    pde_args = get_argument(eqs, varmap)
 
     pde_train_set = adapt(eltypeθ,
                           hcat(vec(map(points -> collect(points),
@@ -274,20 +69,7 @@ training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
 """
 function get_bounds end
 
-function get_bounds(domains, eqs, bcs, eltypeθ, _indvars::Array, _depvars::Array, strategy)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    return get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-end
-
-function get_bounds(domains, eqs, bcs, eltypeθ, _indvars::Array, _depvars::Array,
-                    strategy::QuadratureTraining)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    return get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-end
-
-function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::QuadratureTraining)
+function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::AbstractGridfreeTraining)
     dict_lower_bound = Dict([d.variables => infimum(d.domain) for d in domains])
     dict_upper_bound = Dict([d.variables => supremum(d.domain) for d in domains])
     pde_args = get_argument(eqs, v)
