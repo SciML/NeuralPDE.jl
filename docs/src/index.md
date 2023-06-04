@@ -1,8 +1,9 @@
 # NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)
 
-[NeuralPDE.jl](https://github.com/SciML/NeuralPDE.jl)
-NeuralPDE.jl is a solver package which consists of neural network solvers for
-partial differential equations using physics-informed neural networks (PINNs).
+[NeuralPDE.jl](https://github.com/SciML/NeuralPDE.jl) is a solver package which 
+consists of neural network solvers for partial differential equations using 
+physics-informed neural networks (PINNs) and the ability to generate neural
+networks which both approximate physical laws and real data simultaniously.
 
 ## Features
 
