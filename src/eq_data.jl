@@ -7,8 +7,8 @@ struct EquationData <: PDEBase.AbstractVarEqMapping
 end
 
 function EquationData(pdesys, v, strategy)
-    eqs = pdesys.eqs
-    bcs = pdesys.bcs
+    eqs = map(eq -> eq.lhs, pdesys.eqs)
+    bcs = map(eq -> eq.lhs, pdesys.bcs)
     alleqs = vcat(eqs, bcs)
 
     argmap = map(alleqs) do eq
@@ -21,20 +21,20 @@ function EquationData(pdesys, v, strategy)
         eq => get_indvars(eq, v)
     end |> Dict
 
-    args = map(alleqs) do eq
-        if strategy isa QuadratureTraining
-            eq => get_argument(bcs, v)
-        else
-            eq => get_variables(bcs, v)
-        end
+    if strategy isa QuadratureTraining
+        _args = get_argument(alleqs, v)
+    else
+        _args = get_variables(alleqs, v)
+    end
+
+    args = map(zip(alleqs, _args)) do (eq, args)
+        eq => args
     end |> Dict
 
-    ivargs = map(alleqs) do eq
-        if strategy isa QuadratureTraining
-            eq => get_iv_argument(eqs, v)
-        else
-            eq => get_iv_variables(eqs, v)
-        end
+    ivargs = get_iv_argument(alleqs, v)
+
+    ivargs = map(zip(alleqs, ivargs)) do (eq, args)
+        eq => args
     end |> Dict
 
     EquationData(depvarmap, indvarmap, args, ivargs, argmap)
@@ -63,13 +63,13 @@ function get_iv_argument(eqs, v::VariableMap)
     vars = map(eqs) do eq
         _vars = map(depvar -> get_depvars(eq, [depvar]), v.depvar_ops)
         f_vars = filter(x -> !isempty(x), _vars)
-        map(vars -> map(op -> v.args[op], operation.(vars)), f_vars)
+        mapreduce(vars -> mapreduce(op -> v.args[op], vcat, operation.(vars), init = []), vcat, f_vars, init = [])
     end
     args_ = map(vars) do _vars
         seen = []
-        filter(reduce(vcat, arguments.(_vars), init = [])) do x
+        filter(_vars) do x
             if x isa Number
-                true
+                error("Unreachable")
             else
                 if any(isequal(x), seen)
                     false

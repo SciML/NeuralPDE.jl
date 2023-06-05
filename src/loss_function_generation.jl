@@ -14,6 +14,8 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
+    eq = eq isa Equation ? eq.lhs : eq
+
     eq_args = get(eqdata.ivargs, eq, varmap.x̄)
 
     if integrand isa Nothing
@@ -68,7 +70,6 @@ function build_loss_function(pinnrep, eqs)
     _loss_function = build_symbolic_loss_function(pinnrep, eqs,
                                                       eq_params = eq_params,
                                                       param_estim = param_estim)
-
     u = get_u()
     loss_function = (cord, θ) -> begin _loss_function(cord, θ, phi, u,
                                                       default_p) end
@@ -87,23 +88,23 @@ end
 # Parse equation
 ############################################################################################
 
-function parse_equation(pinnrep::PINNRepresentation, eq, ivs; is_integral = false,
+function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = false,
                                dict_transformation_vars = nothing,
                                transformation_vars = nothing)
-    @unpack varmap, eqdata, derivative, integral = pinnrep
+    @unpack varmap, eqdata, derivative, integral, flat_init_params = pinnrep
+    eltypeθ = eltype(flat_init_params)
 
-    expr = eq isa Equation ? eq.lhs : eq
-    ex_vars = get_depvars(expr, varmap.depvar_ops)
+    ex_vars = get_depvars(term, varmap.depvar_ops)
     ignore = vcat(operation.(ex_vars), getindex, Differential, Integral, ~)
-    ex_ops = operations(expr)
+    ex_ops = operations(term)
     ex_ops = filter(x -> !any(isequal(x), ignore), ex_ops)
     op_rules = [@rule $(op)(~~a) => broadcast(op, ~a...) for op in ex_ops]
 
     dummyvars = @variables phi, u, θ
-    deriv_rules = generate_derivative_rules(eq, eqdata, dummyvars, derivative)
+    deriv_rules = generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap)
+    @show deriv_rules
 
-    ch = Postwalk(Chain([deriv_rules; op_rules]))
-    expr = ch(expr)
+    expr = substitute(term, deriv_rules)
 
     sym_coords = DestructuredArgs(ivs)
     ps = DestructuredArgs(varmap.ps)
@@ -112,15 +113,52 @@ function parse_equation(pinnrep::PINNRepresentation, eq, ivs; is_integral = fals
     args = [sym_coords, θ, phi, u, ps]
 
     ex = Func(args, [], expr) |> toexpr
-
-    return ex
+    @show ex
+    f = @RuntimeGeneratedFunction ex
+    return f
 end
 
-function generate_derivative_rules(eq, eqdata, dummyvars, derivative)
+function get_ε(dim::Int, der_num::Int, ::Type{eltypeθ}, order) where {eltypeθ}
+    epsilon = ^(eps(eltypeθ), one(eltypeθ) / (2 + order))
+    ε = zeros(eltypeθ, dim)
+    ε[der_num] = epsilon
+    ε
+end
+
+function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap)
     phi, u, θ = dummyvars
-    rs = [@rule ($Differential(~x)^(~d::isinteger))(~w) => derivative(phi, u, x, get_εs(w), d, θ)]
-    # TODO: add mixed derivatives
-    return rs
+    dvs = depvars(term, eqdata)
+    @show dvs
+    # Orthodox derivatives
+    rs = [reduce(vcat, [reduce(vcat, [(Differential(x)^d)(w) =>
+                                          derivative(phi,
+                                                     u, x,
+                                                     get_ε(length(arguments(w)),
+                                                           j, eltypeθ, d),
+                                                     d, θ)
+            for d in differential_orders(term, x)], init = [])
+           for (j, x) in enumerate(varmap.args[operation(w)])], init = [])
+          for w in dvs]
+    # Mixed derivatives
+    mx = mapreduce(vcat, dvs, init = []) do w
+        mapreduce(vcat, enumerate(varmap.args[operation(w)]), init = []) do (j, x)
+            map(enumerate(varmap.args[operation(w)])) do (k, y)
+                if isequal(x, y)
+                    nothing => nothing
+                else
+                    n = length(arguments(w))
+                    @rule (Differential(x))((Differential(y))(w)) =>
+                        derivative(phi,
+                                   (cord_, θ_, phi_) ->
+                                       derivative(phi, u, y,
+                                                  get_ϵ(n, k, eltypeθ, 2), 1, θ),
+                                   x, get_ε(n, j, eltypeθ, 2), 1, θ)
+                end
+            end
+        end
+    end
+
+    return [rs; mx]
 end
 
 function generate_integral_rules(eq, eqdata, dummyvars)

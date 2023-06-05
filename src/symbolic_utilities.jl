@@ -1,5 +1,17 @@
 using Base.Broadcast
 
+function get_limits(domain)
+    if domain isa AbstractInterval
+        return [leftendpoint(domain)], [rightendpoint(domain)]
+    elseif domain isa ProductDomain
+        return collect(map(leftendpoint, DomainSets.components(domain))),
+               collect(map(rightendpoint, DomainSets.components(domain)))
+    end
+end
+
+θ = gensym("θ")
+
+
 """
 Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
 
@@ -18,37 +30,6 @@ julia> _dot_(e)
 """
 dottable_(x) = Broadcast.dottable(x)
 dottable_(x::Function) = true
-
-_dot_(x) = x
-function _dot_(x::Expr)
-    dotargs = Base.mapany(_dot_, x.args)
-    if x.head === :call && dottable_(x.args[1])
-        Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
-    elseif x.head === :comparison
-        Expr(:comparison,
-             (iseven(i) && dottable_(arg) && arg isa Symbol && isoperator(arg) ?
-              Symbol('.', arg) : arg for (i, arg) in pairs(dotargs))...)
-    elseif x.head === :$
-        x.args[1]
-    elseif x.head === :let # don't add dots to `let x=...` assignments
-        Expr(:let, undot(dotargs[1]), dotargs[2])
-    elseif x.head === :for # don't add dots to for x=... assignments
-        Expr(:for, undot(dotargs[1]), dotargs[2])
-    elseif (x.head === :(=) || x.head === :function || x.head === :macro) &&
-           Meta.isexpr(x.args[1], :call) # function or macro definition
-        Expr(x.head, x.args[1], dotargs[2])
-    elseif x.head === :(<:) || x.head === :(>:)
-        tmp = x.head === :(<:) ? :.<: : :.>:
-        Expr(:call, tmp, dotargs...)
-    else
-        head = String(x.head)::String
-        if last(head) == '=' && first(head) != '.' || head == "&&" || head == "||"
-            Expr(Symbol('.', head), dotargs...)
-        else
-            Expr(x.head, dotargs...)
-        end
-    end
-end
 
 """
 Create dictionary: variable => unique number for variable

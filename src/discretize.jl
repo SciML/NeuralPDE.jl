@@ -69,7 +69,7 @@ training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
 """
 function get_bounds end
 
-function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::AbstractGridfreeTraining)
+function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::AbstractGridfreeStrategy)
     dict_lower_bound = Dict([d.variables => infimum(d.domain) for d in domains])
     dict_upper_bound = Dict([d.variables => supremum(d.domain) for d in domains])
     pde_args = get_argument(eqs, v)
@@ -208,7 +208,7 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
                         x))
                     Float64.(_x) # No ComponentArray GPU support
                 end
-                names = ntuple(i -> ~Symbol.(v.ū)[i], length(chain))
+                names = ntuple(i -> Symbol.(v.ū)[i], length(chain))
                 init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
                                                                                 for i in x))
             end

@@ -16,7 +16,7 @@ using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
 using PDEBase
-using PDEBase: cardinalize_eqs!, get_depvars, get_indvars
+using PDEBase: cardinalize_eqs!, get_depvars, get_indvars, differential_order
 using Statistics
 using ArrayInterface
 import Optim

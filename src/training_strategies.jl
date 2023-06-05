@@ -170,14 +170,14 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                         strategy)
     pde_bounds, bcs_bounds = bounds
 
-    pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, varmap, strategy)
+    pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
                           for (_loss, bound) in zip(datafree_pde_loss_function, pde_bounds)]
 
     strategy_ = QuasiRandomTraining(strategy.bcs_points;
                                     sampling_alg = strategy.sampling_alg,
                                     resampling = strategy.resampling,
                                     minibatch = strategy.minibatch)
-    bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, varmap, strategy_)
+    bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy_)
                          for (_loss, bound) in zip(datafree_bc_loss_function, bcs_bounds)]
 
     pde_loss_functions, bc_loss_functions
@@ -263,10 +263,10 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
     pde_bounds, bcs_bounds = bounds
 
     lbs, ubs = pde_bounds
-    pde_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, varmap, strategy)
+    pde_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
                           for (_loss, lb, ub) in zip(datafree_pde_loss_function, lbs, ubs)]
     lbs, ubs = bcs_bounds
-    bc_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, varmap, strategy)
+    bc_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
                          for (_loss, lb, ub) in zip(datafree_bc_loss_function, lbs, ubs)]
 
     pde_loss_functions, bc_loss_functions
@@ -318,7 +318,7 @@ such that the total number of sampled points is equivalent to the given samples
 
 This training strategy can only be used with ODEs (`NNODE`).
 """
-struct WeightedIntervalTraining{T} <: AbstractGridfreeStrategyy
+struct WeightedIntervalTraining{T} <: AbstractGridfreeStrategy
     weights::Vector{T}
     samples::Int
 end
