@@ -351,10 +351,9 @@ function get_u()
 end
 
 # the method to calculate the derivative
-function numeric_derivative(phi, u, x, εs, order, θ)
+function numeric_derivative(phi, u, x, ε, order, θ)
 	_type = parameterless_type(ComponentArrays.getdata(θ))
 
-	ε = εs[order]
 	_epsilon = inv(first(ε[ε.!=zero(ε)]))
 
 	ε = adapt(_type, ε)

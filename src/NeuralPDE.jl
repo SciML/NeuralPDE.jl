@@ -25,7 +25,7 @@ using Symbolics
 using Symbolics: wrap, unwrap, arguments, operation
 using SymbolicUtils
 using SymbolicUtils.Code
-using SymbolicUtils: Postwalk, Chain
+using SymbolicUtils: Prewalk, Postwalk, Chain
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball

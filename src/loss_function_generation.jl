@@ -49,9 +49,9 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
     end
 
     function get_coords(cord)
-        map(enumerate(eq_args)) do (i, x)
+        mapreduce(vcat, enumerate(eq_args)) do (i, x)
             if x isa Number
-                fill(x, size(cord[[1], :]))
+                fill(convert(eltypeθ, x), size(cord[[1], :]))
             else
                 cord[[i], :]
             end
@@ -96,21 +96,26 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
 
     ex_vars = get_depvars(term, varmap.depvar_ops)
     ignore = vcat(operation.(ex_vars), getindex, Differential, Integral, ~)
-    ex_ops = operations(term)
+
+    dummyvars = @variables phi, u(..), θ, coord
+    deriv_rules = generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap)
+
+    ch = Prewalk(Chain(deriv_rules))
+
+    expr = ch(term)
+
+    # Broadcast
+    ex_ops = operations(expr)
     ex_ops = filter(x -> !any(isequal(x), ignore), ex_ops)
     op_rules = [@rule $(op)(~~a) => broadcast(op, ~a...) for op in ex_ops]
-
-    dummyvars = @variables phi, u, θ
-    deriv_rules = generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap)
-    @show deriv_rules
-
-    expr = substitute(term, deriv_rules)
+    dotch = Prewalk(Chain(op_rules))
+    expr = dotch(expr)
 
     sym_coords = DestructuredArgs(ivs)
     ps = DestructuredArgs(varmap.ps)
 
 
-    args = [sym_coords, θ, phi, u, ps]
+    args = [coord, θ, phi, u, ps]
 
     ex = Func(args, [], expr) |> toexpr
     @show ex
@@ -126,39 +131,42 @@ function get_ε(dim::Int, der_num::Int, ::Type{eltypeθ}, order) where {eltypeθ
 end
 
 function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap)
-    phi, u, θ = dummyvars
+    phi, u, θ, coord = dummyvars
     dvs = depvars(term, eqdata)
     @show dvs
     # Orthodox derivatives
-    rs = [reduce(vcat, [reduce(vcat, [(Differential(x)^d)(w) =>
+    rs = reduce(vcat, [reduce(vcat, [[@rule $((Differential(x)^d)(w)) =>
                                           derivative(phi,
-                                                     u, x,
-                                                     get_ε(length(arguments(w)),
-                                                           j, eltypeθ, d),
+                                                     u, coord,
+                                                     [get_ε(length(arguments(w)),
+                                                           j, eltypeθ, d)],
                                                      d, θ)
-            for d in differential_orders(term, x)], init = [])
+            for d in differential_order(term, x)]
            for (j, x) in enumerate(varmap.args[operation(w)])], init = [])
-          for w in dvs]
+          for w in dvs], init = [])
     # Mixed derivatives
     mx = mapreduce(vcat, dvs, init = []) do w
         mapreduce(vcat, enumerate(varmap.args[operation(w)]), init = []) do (j, x)
             map(enumerate(varmap.args[operation(w)])) do (k, y)
                 if isequal(x, y)
-                    nothing => nothing
+                    (_) -> nothing
                 else
                     n = length(arguments(w))
-                    @rule (Differential(x))((Differential(y))(w)) =>
+                    @rule $((Differential(x))((Differential(y))(w))) =>
                         derivative(phi,
                                    (cord_, θ_, phi_) ->
-                                       derivative(phi, u, y,
-                                                  get_ϵ(n, k, eltypeθ, 2), 1, θ),
-                                   x, get_ε(n, j, eltypeθ, 2), 1, θ)
+                                       derivative(phi_, u, cord_,
+                                                  [get_ϵ(n, k, eltypeθ, 2)], 1, θ_),
+                                   coord, [get_ε(n, j, eltypeθ, 2)], 1, θ)
                 end
             end
         end
     end
+    vr = mapreduce(vcat, dvs, init = []) do w
+        @rule w => u(coord, θ, phi)
+    end
 
-    return [rs; mx]
+    return [mx; rs; vr]
 end
 
 function generate_integral_rules(eq, eqdata, dummyvars)
