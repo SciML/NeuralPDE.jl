@@ -15,7 +15,7 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, varmap)
     else
         dxs = fill(dx, length(domains))
     end
-
+    @show dxs
     spans = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, dxs)]
     dict_var_span = Dict([d.variables => infimum(d.domain):dx:supremum(d.domain)
                           for (d, dx) in zip(domains, dxs)])
@@ -73,6 +73,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::Abstr
     dict_lower_bound = Dict([d.variables => infimum(d.domain) for d in domains])
     dict_upper_bound = Dict([d.variables => supremum(d.domain) for d in domains])
     pde_args = get_argument(eqs, v)
+    @show pde_args
 
     pde_lower_bounds = map(pde_args) do pd
         span = map(p -> get(dict_lower_bound, p, p), pd)
@@ -85,6 +86,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::Abstr
     pde_bounds = [pde_lower_bounds, pde_upper_bounds]
 
     bound_vars = get_variables(bcs, v)
+    @show bound_vars
 
     bcs_lower_bounds = map(bound_vars) do bt
         map(b -> dict_lower_bound[b], bt)
@@ -93,7 +95,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::Abstr
         map(b -> dict_upper_bound[b], bt)
     end
     bcs_bounds = [bcs_lower_bounds, bcs_upper_bounds]
-
+    @show bcs_bounds pde_bounds
     [pde_bounds, bcs_bounds]
 end
 # TODO: Get this to work with varmap
@@ -268,6 +270,8 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
         adaloss = NonAdaptiveLoss{eltypeθ}()
     end
 
+    eqs = map(eq -> eq.lhs, eqs)
+    bcs = map(bc -> bc.lhs, bcs)
 
     pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
                                  param_estim, additional_loss, adaloss, v, logger,

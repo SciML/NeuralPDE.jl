@@ -58,7 +58,6 @@ end
 
 argument(eq, eqdata) = eqdata.argmap[eq]
 
-
 function get_iv_argument(eqs, v::VariableMap)
     vars = map(eqs) do eq
         _vars = map(depvar -> get_depvars(eq, [depvar]), v.depvar_ops)
