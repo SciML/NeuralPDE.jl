@@ -48,6 +48,9 @@ include("transform_inf_integral.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
 
+# fixes #689
+include("dgm.jl")
+
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
        KolmogorovParamDomain, NNParamKolmogorov,
@@ -61,5 +64,8 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
        MiniMaxAdaptiveLoss,
        LogOptions
+
+#fixes #689
+export dgm
 
 end # module
