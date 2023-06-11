@@ -3,16 +3,6 @@ $(DocStringExtensions.README)
 """
 module NeuralPDE
 
-# Fixes #682
-using Turing, MacroTools, LinearAlgebra
-using Parameters, Distributions, Optim, Requires
-using Distances, DocStringExtensions, Random, StanSample
-using DynamicHMC, TransformVariables, LogDensityProblemsAD, TransformedLogDensities
-STANDARD_PROB_GENERATOR(prob, p) = remake(prob; u0 = eltype(p).(prob.u0), p = p)
-function STANDARD_PROB_GENERATOR(prob::EnsembleProblem, p)
-    EnsembleProblem(remake(prob.prob; u0 = eltype(p).(prob.prob.u0), p = p))
-end
-
 using DocStringExtensions
 using Reexport, Statistics
 @reexport using DiffEqBase
@@ -48,9 +38,6 @@ abstract type AbstractPINN end
 
 abstract type AbstractTrainingStrategy end
 
-# Fixes #682
-include("turing_MCMC.jl")
-
 include("pinn_types.jl")
 include("symbolic_utilities.jl")
 include("training_strategies.jl")
@@ -60,6 +47,9 @@ include("rode_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
+
+# fixes #682
+include("turing_MCMC.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
@@ -75,7 +65,7 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        MiniMaxAdaptiveLoss,
        LogOptions
 
-#   Fixes #682
-export turing_MCMC
+#fixes #682
+export bayesian_pinn_ode
 
 end # module
