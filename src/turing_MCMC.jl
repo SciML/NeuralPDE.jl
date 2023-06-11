@@ -56,15 +56,15 @@ function bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain, dataset;
     @model function bayes_pinn(dataset)
         # parameter estimation?
 
-        # prior for NN parameters(not included bias yet?)
+        # prior for NN parameters(not included bias yet?) - P(Θ)
         nnparameters ~ MvNormal(zeros(nparameters), sig .* ones(nparameters))
         nn = recon(nnparameters)
         preds = nn(dataset[:2])
 
-        # likelihood for dataset vs NN pred
+        # likelihood for dataset vs NN pred  - P( X̄ | Θ)
         dataset[:1] ~ MvNormal(preds, sig .* ones(length(dataset[:2])))
 
-        # likelihood for NN pred vs Equation satif
+        # likelihood for NN pred vs Equation satif - P(phys | Θ)
         if DynamicPPL.leafcontext(__context__) !== Turing.PriorContext()
             Turing.@addlogprob! physloglikelihood(prob, pred, dataset, var = sig)
         end
