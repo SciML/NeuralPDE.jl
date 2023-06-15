@@ -29,11 +29,15 @@ julia> _dot_(e)
 """
 dottable_(x) = Broadcast.dottable(x)
 dottable_(x::Function) = true
+dottable_(x::typeof(numeric_derivative)) = false
+dottable_(x::Phi) = false
+
 
 _dot_(x) = x
 function _dot_(x::Expr)
     dotargs = Base.mapany(_dot_, x.args)
-    if x.head === :call && dottable_(x.args[1])
+    nodot = [:phi, Symbol("NeuralPDE.numeric_derivative")]
+    if x.head === :call && dottable_(x.args[1]) && all(s -> x.args[1] !== s, nodot)
         Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
     elseif x.head === :comparison
         Expr(:comparison,
@@ -45,7 +49,9 @@ function _dot_(x::Expr)
         Expr(:let, undot(dotargs[1]), dotargs[2])
     elseif x.head === :for # don't add dots to for x=... assignments
         Expr(:for, undot(dotargs[1]), dotargs[2])
-    elseif (x.head === :(=) || x.head === :function || x.head === :macro) &&
+    elseif x.head === :(=) # don't add dots to x=... assignments
+        Expr(:(=), dotargs[1], dotargs[2])
+    elseif (x.head === :function || x.head === :macro) &&
            Meta.isexpr(x.args[1], :call) # function or macro definition
         Expr(x.head, x.args[1], dotargs[2])
     elseif x.head === :(<:) || x.head === :(>:)

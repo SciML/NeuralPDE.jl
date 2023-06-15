@@ -346,9 +346,9 @@ function (f::Phi{<:Optimisers.Restructure})(x, θ)
 	f.f(θ)(adapt(parameterless_type(θ), x))
 end
 
-function get_u()
-	u = (cord, θ, phi) -> phi.(cord, (θ,))
-end
+ufunc(cord, θ, phi) = phi(cord, θ)
+@register_symbolic ufunc(cord, θ, phi)
+
 
 # the method to calculate the derivative
 function numeric_derivative(phi, u, x, εs, order, θ)
@@ -365,27 +365,32 @@ function numeric_derivative(phi, u, x, εs, order, θ)
 	# if order 1, this is trivially true
 
 	if order > 4 || any(x -> x != εs[1], εs)
+        @show "me"
 		return (numeric_derivative(phi, u, x .+ ε, @view(εs[1:(end-1)]), order - 1, θ)
 				.-
 				numeric_derivative(phi, u, x .- ε, @view(εs[1:(end-1)]), order - 1, θ)) .*
 			   _epsilon ./ 2
 	elseif order == 4
+        @show "me4"
 		return (u(x .+ 2 .* ε, θ, phi) .- 4 .* u(x .+ ε, θ, phi)
 				.+
 				6 .* u(x, θ, phi)
 				.-
 				4 .* u(x .- ε, θ, phi) .+ u(x .- 2 .* ε, θ, phi)) .* _epsilon^4
 	elseif order == 3
+        @show "me3"
 		return (u(x .+ 2 .* ε, θ, phi) .- 2 .* u(x .+ ε, θ, phi) .+ 2 .* u(x .- ε, θ, phi)
 				-
 				u(x .- 2 .* ε, θ, phi)) .* _epsilon^3 ./ 2
 	elseif order == 2
+        @show "me2"
 		return (u(x .+ ε, θ, phi) .+ u(x .- ε, θ, phi) .- 2 .* u(x, θ, phi)) .* _epsilon^2
 	elseif order == 1
+        @show "me1"
 		return (u(x .+ ε, θ, phi) .- u(x .- ε, θ, phi)) .* _epsilon ./ 2
 	else
 		error("This shouldn't happen! Got an order of $(order).")
 	end
 end
-
-@register_symbolic numeric_derivative(phi, u, coord, εs, order, θ)
+# Hacky workaround for metaprogramming with symbolics
+@register_symbolic(numeric_derivative(phi, u, x, εs, order, θ), true, [], true)

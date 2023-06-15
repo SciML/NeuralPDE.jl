@@ -62,6 +62,7 @@ function get_iv_argument(eqs, v::VariableMap)
     vars = map(eqs) do eq
         _vars = map(depvar -> get_depvars(eq, [depvar]), v.depvar_ops)
         f_vars = filter(x -> !isempty(x), _vars)
+        @show v.ū
         mapreduce(vars -> mapreduce(op -> v.args[op], vcat, operation.(vars), init = []), vcat, f_vars, init = [])
     end
     args_ = map(vars) do _vars

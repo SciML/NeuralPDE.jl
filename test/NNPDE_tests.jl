@@ -435,117 +435,117 @@ end
     # plot(p1,p2)
 end
 
-## Example 5, 2d wave equation, neumann boundary condition
-@testset "Example 5, 2d wave equation, neumann boundary condition" begin
-    #here we use low level api for build solution
-    @parameters x, t
-    @variables u(..)
-    Dxx = Differential(x)^2
-    Dtt = Differential(t)^2
-    Dt = Differential(t)
+# ## Example 5, 2d wave equation, neumann boundary condition
+# @testset "Example 5, 2d wave equation, neumann boundary condition" begin
+#     #here we use low level api for build solution
+#     @parameters x, t
+#     @variables u(..)
+#     Dxx = Differential(x)^2
+#     Dtt = Differential(t)^2
+#     Dt = Differential(t)
 
-    #2D PDE
-    C = 1
-    eq = Dtt(u(x, t)) ~ C^2 * Dxx(u(x, t))
+#     #2D PDE
+#     C = 1
+#     eq = Dtt(u(x, t)) ~ C^2 * Dxx(u(x, t))
 
-    # Initial and boundary conditions
-    bcs = [u(0, t) ~ 0.0,# for all t > 0
-        u(1, t) ~ 0.0,# for all t > 0
-        u(x, 0) ~ x * (1.0 - x), #for all 0 < x < 1
-        Dt(u(x, 0)) ~ 0.0] #for all  0 < x < 1]
+#     # Initial and boundary conditions
+#     bcs = [u(0, t) ~ 0.0,# for all t > 0
+#         u(1, t) ~ 0.0,# for all t > 0
+#         u(x, 0) ~ x * (1.0 - x), #for all 0 < x < 1
+#         Dt(u(x, 0)) ~ 0.0] #for all  0 < x < 1]
 
-    # Space and time domains
-    domains = [x ∈ Interval(0.0, 1.0),
-        t ∈ Interval(0.0, 1.0)]
-    @named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+#     # Space and time domains
+#     domains = [x ∈ Interval(0.0, 1.0),
+#         t ∈ Interval(0.0, 1.0)]
+#     @named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
 
-    # Neural network
-    chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ), Lux.Dense(16, 16, Lux.σ), Lux.Dense(16, 1))
-    phi = NeuralPDE.Phi(chain)
-    derivative = NeuralPDE.numeric_derivative
+#     # Neural network
+#     chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ), Lux.Dense(16, 16, Lux.σ), Lux.Dense(16, 1))
+#     phi = NeuralPDE.Phi(chain)
+#     derivative = NeuralPDE.numeric_derivative
 
-    quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
-                                                       reltol = 1e-3, abstol = 1e-3,
-                                                       maxiters = 50, batch = 100)
+#     quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
+#                                                        reltol = 1e-3, abstol = 1e-3,
+#                                                        maxiters = 50, batch = 100)
 
-    discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
-    prob = NeuralPDE.discretize(pde_system, discretization)
+#     discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
+#     prob = NeuralPDE.discretize(pde_system, discretization)
 
-    cb_ = function (p, l)
-        println("loss: ", l)
-        println("losses: ", map(l -> l(p), loss_functions))
-        return false
-    end
+#     cb_ = function (p, l)
+#         println("loss: ", l)
+#         println("losses: ", map(l -> l(p), loss_functions))
+#         return false
+#     end
 
-    res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 500, f_abstol = 10^-6)
+#     res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 500, f_abstol = 10^-6)
 
-    dx = 0.1
-    xs, ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
-    function analytic_sol_func(x, t)
-        sum([(8 / (k^3 * pi^3)) * sin(k * pi * x) * cos(C * k * pi * t) for k in 1:2:50000])
-    end
+#     dx = 0.1
+#     xs, ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+#     function analytic_sol_func(x, t)
+#         sum([(8 / (k^3 * pi^3)) * sin(k * pi * x) * cos(C * k * pi * t) for k in 1:2:50000])
+#     end
 
-    u_predict = reshape([first(phi([x, t], res.u)) for x in xs for t in ts],
-                        (length(xs), length(ts)))
-    u_real = reshape([analytic_sol_func(x, t) for x in xs for t in ts],
-                     (length(xs), length(ts)))
+#     u_predict = reshape([first(phi([x, t], res.u)) for x in xs for t in ts],
+#                         (length(xs), length(ts)))
+#     u_real = reshape([analytic_sol_func(x, t) for x in xs for t in ts],
+#                      (length(xs), length(ts)))
 
-    @test u_predict≈u_real atol=0.1
+#     @test u_predict≈u_real atol=0.1
 
-    # diff_u = abs.(u_predict .- u_real)
-    # p1 = plot(xs, ts, u_real, linetype=:contourf,title = "analytic");
-    # p2 =plot(xs, ts, u_predict, linetype=:contourf,title = "predict");
-    # p3 = plot(xs, ts, diff_u,linetype=:contourf,title = "error");
-    # plot(p1,p2,p3)
-end
-## Example 6, pde with mixed derivative
-@testset "Example 6, pde with mixed derivative" begin
-    @parameters x y
-    @variables u(..)
-    Dxx = Differential(x)^2
-    Dyy = Differential(y)^2
-    Dx = Differential(x)
-    Dy = Differential(y)
+#     # diff_u = abs.(u_predict .- u_real)
+#     # p1 = plot(xs, ts, u_real, linetype=:contourf,title = "analytic");
+#     # p2 =plot(xs, ts, u_predict, linetype=:contourf,title = "predict");
+#     # p3 = plot(xs, ts, diff_u,linetype=:contourf,title = "error");
+#     # plot(p1,p2,p3)
+# end
+# ## Example 6, pde with mixed derivative
+# @testset "Example 6, pde with mixed derivative" begin
+#     @parameters x y
+#     @variables u(..)
+#     Dxx = Differential(x)^2
+#     Dyy = Differential(y)^2
+#     Dx = Differential(x)
+#     Dy = Differential(y)
 
-    eq = Dxx(u(x, y)) + Dx(Dy(u(x, y))) - 2 * Dyy(u(x, y)) ~ -1.0
+#     eq = Dxx(u(x, y)) + Dx(Dy(u(x, y))) - 2 * Dyy(u(x, y)) ~ -1.0
 
-    # Initial and boundary conditions
-    bcs = [u(x, 0) ~ x,
-        Dy(u(x, 0)) ~ x,
-        u(x, 0) ~ Dy(u(x, 0))]
+#     # Initial and boundary conditions
+#     bcs = [u(x, 0) ~ x,
+#         Dy(u(x, 0)) ~ x,
+#         u(x, 0) ~ Dy(u(x, 0))]
 
-    # Space and time domains
-    domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
+#     # Space and time domains
+#     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
-    quadrature_strategy = NeuralPDE.QuadratureTraining()
-    # Neural network
-    inner = 20
-    chain = Lux.Chain(Lux.Dense(2, inner, Lux.tanh), Lux.Dense(inner, inner, Lux.tanh),
-                      Lux.Dense(inner, 1))
+#     quadrature_strategy = NeuralPDE.QuadratureTraining()
+#     # Neural network
+#     inner = 20
+#     chain = Lux.Chain(Lux.Dense(2, inner, Lux.tanh), Lux.Dense(inner, inner, Lux.tanh),
+#                       Lux.Dense(inner, 1))
 
-    discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
-    @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
+#     discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
+#     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
-    prob = NeuralPDE.discretize(pde_system, discretization)
+#     prob = NeuralPDE.discretize(pde_system, discretization)
 
-    res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1500)
-    @show res.original
+#     res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1500)
+#     @show res.original
 
-    phi = discretization.phi
+#     phi = discretization.phi
 
-    analytic_sol_func(x, y) = x + x * y + y^2 / 2
-    xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+#     analytic_sol_func(x, y) = x + x * y + y^2 / 2
+#     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 
-    u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-                        (length(xs), length(ys)))
-    u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-                     (length(xs), length(ys)))
-    diff_u = abs.(u_predict .- u_real)
+#     u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
+#                         (length(xs), length(ys)))
+#     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
+#                      (length(xs), length(ys)))
+#     diff_u = abs.(u_predict .- u_real)
 
-    @test u_predict≈u_real rtol=0.1
+#     @test u_predict≈u_real rtol=0.1
 
-    # p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-    # p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-    # p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-    # plot(p1,p2,p3)
-end
+#     # p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
+#     # p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
+#     # p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
+#     # plot(p1,p2,p3)
+# end

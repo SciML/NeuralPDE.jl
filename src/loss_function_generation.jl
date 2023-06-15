@@ -50,18 +50,27 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
 
     function get_coords(cord)
         num_numbers = 0
-        mapreduce(vcat, enumerate(eq_args)) do (i, x)
+        out = map(enumerate(eq_args)) do (i, x)
             if x isa Number
                 num_numbers += 1
-                fill(convert(eltypeθ, x), size(cord[[1], :]))
+                fill(convert(eltypeθ, x), length(cord[[1], :]))
             else
                 cord[[i-num_numbers], :]
             end
         end
+        if out === nothing
+            return []
+        else
+            return out
+        end
     end
 
-    full_loss_func = (cord, θ, phi, u, p) -> begin
-        loss_function(get_coords(cord), θ, phi, u, get_ps(θ))
+    full_loss_func = (cord, θ, phi, p) -> begin
+        coords = get_coords(cord)
+        @show coords
+        combinedcoords = reduce(vcat, coords, init = [])
+        @show combinedcoords
+        loss_function(coords, combinedcoords, θ, phi, get_ps(θ))
     end
     return full_loss_func
 end
@@ -72,8 +81,7 @@ function build_loss_function(pinnrep, eqs)
     _loss_function = build_symbolic_loss_function(pinnrep, eqs,
                                                       eq_params = eq_params,
                                                       param_estim = param_estim)
-    u = get_u()
-    loss_function = (cord, θ) -> begin _loss_function(cord, θ, phi, u,
+    loss_function = (cord, θ) -> begin _loss_function(cord, θ, phi,
                                                       default_p) end
     return loss_function
 end
@@ -99,7 +107,7 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
     ex_vars = get_depvars(term, varmap.depvar_ops)
     ignore = vcat(operation.(ex_vars), getindex, Differential, Integral, ~)
 
-    dummyvars = @variables phi, u(..), θ_SYMBOL, coord
+    dummyvars = @variables phi(..), θ_SYMBOL, coord
     dummyvars = unwrap.(dummyvars)
     deriv_rules = generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap)
 
@@ -111,7 +119,7 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
     ps = DestructuredArgs(varmap.ps)
 
 
-    args = [coord, θ_SYMBOL, phi, u, ps]
+    args = [sym_coords, coord, θ_SYMBOL, phi, ps]
 
     ex = Func(args, [], expr) |> toexpr |> _dot_
     @show ex
@@ -120,14 +128,15 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
 end
 
 function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap)
-    phi, u, θ, coord = dummyvars
-    dvs = depvars(term, eqdata)
+    phi, θ, coord = dummyvars
+    dvs = get_depvars(term, varmap.depvar_ops)
     @show dvs
     # Orthodox derivatives
+    n(w) = length(arguments(w))
     rs = reduce(vcat, [reduce(vcat, [[@rule $((Differential(x)^d)(w)) =>
                                           derivative(phi,
-                                                     u, coord,
-                                                     [get_ε(length(arguments(w)),
+                                                     ufunc, coord,
+                                                     [get_ε(n(w),
                                                            j, eltypeθ, i) for i in 1:d],
                                                      d, θ)
             for d in differential_order(term, x)]
@@ -138,21 +147,22 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
         mapreduce(vcat, enumerate(varmap.args[operation(w)]), init = []) do (j, x)
             mapreduce(vcat, enumerate(varmap.args[operation(w)]), init = []) do (k, y)
                 if isequal(x, y)
-                    (_) -> nothing
+                    [(_) -> nothing]
                 else
-                    n = length(arguments(w))
+                    ε1 = [get_ε(n(w), j, eltypeθ, i) for i in 1:2]
+                    ε2 = [get_ε(n(w), k, eltypeθ, i) for i in 1:2]
                     [@rule $((Differential(x))((Differential(y))(w))) =>
                         derivative(phi,
                                    (cord_, θ_, phi_) ->
-                                       derivative(phi_, u, cord_,
-                                                  [get_ϵ(n, k, eltypeθ, i) for i in 1:2], 1, θ_),
-                                   coord, [get_ε(n, j, eltypeθ, 2)], 1, θ)]
+                                       derivative(phi_, ufunc, cord_,
+                                                  ε2, 1, θ_),
+                                   coord, ε1, 1, θ)]
                 end
             end
         end
     end
     vr = mapreduce(vcat, dvs, init = []) do w
-        @rule w => u(coord, θ, phi)
+        @rule w => ufunc(coord, θ, phi)
     end
 
     return [mx; rs; vr]
