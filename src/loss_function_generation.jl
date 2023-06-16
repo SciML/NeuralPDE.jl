@@ -37,6 +37,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
         (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
 
         if psform
+            @show length(phi)
             last_indx = [0; accumulate(+, map(length, init_params))][end]
             ps_range = 1:param_len .+ last_indx
             get_ps = (θ) -> θ[ps_range]
@@ -122,7 +123,6 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
     args = [sym_coords, coord, θ_SYMBOL, phi, ps]
 
     ex = Func(args, [], expr) |> toexpr |> _dot_
-    @show ex
     f = @RuntimeGeneratedFunction ex
     return f
 end
