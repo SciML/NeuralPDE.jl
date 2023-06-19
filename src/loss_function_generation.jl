@@ -8,7 +8,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
                                       integrand = nothing,
                                       transformation_vars = nothing)
     @unpack varmap, eqdata,
-        phi, derivative, integral,
+        phi, phimap, derivative, integral,
         multioutput, init_params, strategy, eq_params,
         param_estim, default_p = pinnrep
 
@@ -77,7 +77,11 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
 end
 
 function build_loss_function(pinnrep, eqs)
-     @unpack eq_params, param_estim, default_p, phi, derivative, integral = pinnrep
+     @unpack eq_params, param_estim, default_p, phi, phimap, multioutput, derivative, integral = pinnrep
+
+    if multioutput
+       phi = phimap
+    end
 
     _loss_function = build_symbolic_loss_function(pinnrep, eqs,
                                                       eq_params = eq_params,
@@ -134,8 +138,7 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
     # Orthodox derivatives
     n(w) = length(arguments(w))
     rs = reduce(vcat, [reduce(vcat, [[@rule $((Differential(x)^d)(w)) =>
-                                          derivative(phi,
-                                                     ufunc, coord,
+                                          derivative(ufunc(w, coord, θ, phi), coord,
                                                      [get_ε(n(w),
                                                            j, eltypeθ, i) for i in 1:d],
                                                      d, θ)
@@ -152,17 +155,15 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
                     ε1 = [get_ε(n(w), j, eltypeθ, i) for i in 1:2]
                     ε2 = [get_ε(n(w), k, eltypeθ, i) for i in 1:2]
                     [@rule $((Differential(x))((Differential(y))(w))) =>
-                        derivative(phi,
-                                   (cord_, θ_, phi_) ->
-                                       derivative(phi_, ufunc, cord_,
-                                                  ε2, 1, θ_),
+                        derivative((cord_, θ_) -> derivative(ufunc(w, coord, θ, phi), cord_,
+                                                             ε2, 1, θ_),
                                    coord, ε1, 1, θ)]
                 end
             end
         end
     end
     vr = mapreduce(vcat, dvs, init = []) do w
-        @rule w => ufunc(coord, θ, phi)
+        @rule w => ufunc(w, coord, θ, phi)(coord, θ)
     end
 
     return [mx; rs; vr]

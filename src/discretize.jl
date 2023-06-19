@@ -264,6 +264,23 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
             phi.st)
     end
 
+    if multioutput
+        dvs = v.ū
+        acum = [0; accumulate(+, map(length, init_params))]
+        sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
+        phimap = map(enumerate(dvs)) do (i, dv)
+            if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
+               (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
+                # Flux.Chain
+                dv => (coord, expr_θ) -> phi[i](coord, expr_θ[sep[i]])
+            else # Lux.AbstractExplicitLayer
+                dv => (coord, expr_θ) -> phi[i](coord, expr_θ.depvar.$(dv))
+            end
+        end |> Dict
+    else
+        phimap = nothing
+    end
+
     eltypeθ = eltype(flat_init_params)
 
     if adaloss === nothing
@@ -276,7 +293,7 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
     pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
                                  param_estim, additional_loss, adaloss, v, logger,
                                  multioutput, iteration, init_params, flat_init_params, phi,
-                                 derivative,
+                                 phimap, derivative,
                                  strategy, eqdata, nothing, nothing, nothing, nothing)
 
     #integral = get_numeric_integral(pinnrep)
