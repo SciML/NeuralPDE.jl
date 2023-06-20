@@ -142,3 +142,101 @@ Flux.@functor DGM
 # check if Flux recognizes parameters
 model_1 = DGM(50, 3, 1)
 Flux.params(model_1)
+
+######################################################################################
+
+#define the sampling function
+function sampling_function(domain_interior, domain_boundary)
+
+    # sampling from within domain
+    
+    t_interior = rand(Uniform(t_initial, t_term), domain_interior)
+    S_interior = rand(Uniform(S_low, S_high*S_multiplier), domain_interior)
+
+    # terminal sample
+    t_boundary = t_term .*ones(domain_boundary)
+    S_boundary = rand(Uniform(S_low, S_high*S_multiplier), domain_boundary)
+
+    return t_interior', S_interior', t_boundary', S_boundary'
+end
+
+######################################################################################
+
+
+#define the loss function
+
+function loss_function(N)
+
+    t_interior, S_interior, t_boundary, S_boundary = sampling_function(nSim_interior, nSim_terminal)
+
+    # differential operator loss
+    ϵ = 0.01
+    model_output_interior = model(t_interior, S_interior)
+    ∂g∂x = (model(t_interior, S_interior .+ ϵ) - model_output_interior)./ϵ
+    ∂g∂t = (model(t_interior .+ ϵ, S_interior) - model_output_interior)./ϵ
+    ∂g∂xx = (model(t_interior, S_interior .+ 2*ϵ) - 2*model(t_interior, S_interior .+ ϵ) + model_output_interior)./(ϵ^2)
+
+    operator_loss_vec = ∂g∂t + r.*S_interior.*∂g∂x + (0.5*(sigma^2)).*(S_interior.^2).*∂g∂xx - r.*model_output_interior
+
+    payoff = relu.(K .- S_interior)
+    value = model(t_interior, S_interior)
+    L1 = mean((operator_loss_vec.*(value-payoff)).^2)
+
+    temp = relu.(operator_loss_vec)
+    L2 = mean(temp.^2)
+
+    V_ineq = relu.(-(payoff - value))
+    L3 = mean(V_ineq.^2)
+
+    target_payoff = relu.(K .- S_boundary)
+    fitted_payoff = model(t_boundary, S_boundary)
+
+    L4 = mean((fitted_payoff - target_payoff).^2)
+
+    return L1 + L2 + L3 + L4
+end
+
+##########################################################################################
+
+# Problem Definition - Initialization
+r = 0.05           # Interest rate
+sigma = 0.5       # Volatility
+K = 50             # Strike
+t_term = 1              # Terminal time
+S0 = 50           # Initial price
+
+# Solution parameters
+t_initial = 0 + 1e-10    # time lower bound
+S_low = 0.0 + 1e-10  # spot price lower bound
+S_high = 2*K         # spot price upper bound
+
+# Analytical Solution - European put
+function european_put(S, K, r, sigma, t)
+
+    d1 = (log.(S./K) .+ (r + sigma^2/2)*(t_term-t))/(sigma*sqrt(t_term-t))
+    d2 = d1 .- (sigma*sqrt(t_term-t))
+    put_price = -S.*cdf.(Normal(0,1), -d1) .+ K*exp(-r * (t_term-t))*cdf.(Normal(0,1), -d2)
+ 
+    return put_price
+ end
+
+ ########################################################################################
+
+ # Neural Network Definition
+
+n_steps = 10000
+num_layers = 3
+nodes_per_layer = 50
+learning_rate = 0.001
+
+# Training parameters
+sampling_stages  = 100   # number of times to resample new time-space domain points
+steps_per_sample = 10    # number of SGD steps to take before re-sampling
+
+# Sampling parameters
+nSim_interior = 1000
+nSim_terminal = 100
+S_multiplier  = 1.5   # multiplier for oversampling i.e. draw S from [S_low, S_high * S_multiplier]
+
+# define model
+model = DGM(nodes_per_layer, num_layers, 1)
