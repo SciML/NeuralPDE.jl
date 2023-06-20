@@ -222,21 +222,4 @@ function european_put(S, K, r, sigma, t)
 
  ########################################################################################
 
- # Neural Network Definition
 
-n_steps = 10000
-num_layers = 3
-nodes_per_layer = 50
-learning_rate = 0.001
-
-# Training parameters
-sampling_stages  = 100   # number of times to resample new time-space domain points
-steps_per_sample = 10    # number of SGD steps to take before re-sampling
-
-# Sampling parameters
-nSim_interior = 1000
-nSim_terminal = 100
-S_multiplier  = 1.5   # multiplier for oversampling i.e. draw S from [S_low, S_high * S_multiplier]
-
-# define model
-model = DGM(nodes_per_layer, num_layers, 1)
