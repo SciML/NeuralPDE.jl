@@ -616,7 +616,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
 end #solve
 
 function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
-                            alg::NNODE,
+                            alg::NNDAE,
                             args...;
                             dt = nothing,
                             timeseries_errors = true,

@@ -48,7 +48,7 @@ include("transform_inf_integral.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
 
-export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
+export NNODE, NNDAE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
        KolmogorovParamDomain, NNParamKolmogorov,
        PhysicsInformedNN, discretize,
