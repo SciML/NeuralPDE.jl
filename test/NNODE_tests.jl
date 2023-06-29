@@ -15,36 +15,36 @@ luxchain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
 opt = OptimizationOptimisers.Adam(0.1, (0.9, 0.95))
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt = 1 / 20.0f0, verbose = true,
-            abstol = 1.0f-10, maxiters = 200)
+    abstol = 1.0f-10, maxiters = 200)
 
 @test_throws Any solve(prob, NeuralPDE.NNODE(chain, opt; autodiff = true), dt = 1 / 20.0f0,
-                       verbose = true, abstol = 1.0f-10, maxiters = 200)
+    verbose = true, abstol = 1.0f-10, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true,
-            abstol = 1.0f-6, maxiters = 200)
+    abstol = 1.0f-6, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), dt = 1 / 20.0f0, verbose = true,
-            abstol = 1.0f-10, maxiters = 200)
+    abstol = 1.0f-10, maxiters = 200)
 
 @test_throws Any solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
-                       dt = 1 / 20.0f0,
-                       verbose = true, abstol = 1.0f-10, maxiters = 200)
+    dt = 1 / 20.0f0,
+    verbose = true, abstol = 1.0f-10, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), verbose = true,
-            abstol = 1.0f-6, maxiters = 200)
+    abstol = 1.0f-6, maxiters = 200)
 
 opt = OptimizationOptimJL.BFGS()
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt = 1 / 20.0f0, verbose = true,
-            abstol = 1.0f-10, maxiters = 200)
+    abstol = 1.0f-10, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true,
-            abstol = 1.0f-6, maxiters = 200)
+    abstol = 1.0f-6, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), dt = 1 / 20.0f0, verbose = true,
-            abstol = 1.0f-10, maxiters = 200)
+    abstol = 1.0f-10, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), verbose = true,
-            abstol = 1.0f-6, maxiters = 200)
+    abstol = 1.0f-6, maxiters = 200)
 
 # Run a solve on vectors
 linear = (u, p, t) -> [cos(2pi * t)]
@@ -56,23 +56,23 @@ luxchain = Lux.Chain(Lux.Dense(1, 5, σ), Lux.Dense(5, 1))
 
 opt = OptimizationOptimJL.BFGS()
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt = 1 / 20.0f0, abstol = 1e-10,
-            verbose = true, maxiters = 200)
+    verbose = true, maxiters = 200)
 
 @test_throws Any solve(prob, NeuralPDE.NNODE(chain, opt; autodiff = true), dt = 1 / 20.0f0,
-                       abstol = 1e-10, verbose = true, maxiters = 200)
+    abstol = 1e-10, verbose = true, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), abstol = 1.0f-6,
-            verbose = true, maxiters = 200)
+    verbose = true, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), dt = 1 / 20.0f0, abstol = 1e-10,
-            verbose = true, maxiters = 200)
+    verbose = true, maxiters = 200)
 
 @test_throws Any solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
-                       dt = 1 / 20.0f0,
-                       abstol = 1e-10, verbose = true, maxiters = 200)
+    dt = 1 / 20.0f0,
+    abstol = 1e-10, verbose = true, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), abstol = 1.0f-6,
-            verbose = true, maxiters = 200)
+    verbose = true, maxiters = 200)
 
 @test sol(0.5) isa Vector
 @test sol(0.5; idxs = 1) isa Number
@@ -91,51 +91,51 @@ sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
 @test_throws Any solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true,
-                       maxiters = 400)
+    maxiters = 400)
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
 @test_throws Any solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
-                       maxiters = 400)
+    maxiters = 400)
 
 sol = solve(prob,
-            NeuralPDE.NNODE(chain, opt; batch = false, strategy = StochasticTraining(100)),
-            verbose = true, maxiters = 400)
+    NeuralPDE.NNODE(chain, opt; batch = false, strategy = StochasticTraining(100)),
+    verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob,
-            NeuralPDE.NNODE(chain, opt; batch = true, strategy = StochasticTraining(100)),
-            verbose = true, maxiters = 400)
+    NeuralPDE.NNODE(chain, opt; batch = true, strategy = StochasticTraining(100)),
+    verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob,
-            NeuralPDE.NNODE(luxchain, opt; batch = false,
-                            strategy = StochasticTraining(100)),
-            verbose = true, maxiters = 400)
+    NeuralPDE.NNODE(luxchain, opt; batch = false,
+        strategy = StochasticTraining(100)),
+    verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob,
-            NeuralPDE.NNODE(luxchain, opt; batch = true,
-                            strategy = StochasticTraining(100)),
-            verbose = true, maxiters = 400)
+    NeuralPDE.NNODE(luxchain, opt; batch = true,
+        strategy = StochasticTraining(100)),
+    verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = false), verbose = true,
-            maxiters = 400, dt = 1 / 5.0f0)
+    maxiters = 400, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true, maxiters = 400,
-            dt = 1 / 5.0f0)
+    dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = false), verbose = true,
-            maxiters = 400, dt = 1 / 5.0f0)
+    maxiters = 400, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
-            maxiters = 400,
-            dt = 1 / 5.0f0)
+    maxiters = 400,
+    dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
 #Example 2
@@ -147,64 +147,64 @@ luxchain = Lux.Chain(Lux.Dense(1, 5, σ), Lux.Dense(5, 1))
 
 opt = OptimizationOptimisers.Adam(0.1)
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400,
-            abstol = 1.0f-8)
+    abstol = 1.0f-8)
 @test sol.errors[:l2] < 0.5
 
 @test_throws Any solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true,
-                       maxiters = 400,
-                       abstol = 1.0f-8)
+    maxiters = 400,
+    abstol = 1.0f-8)
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), verbose = true, maxiters = 400,
-            abstol = 1.0f-8)
+    abstol = 1.0f-8)
 @test sol.errors[:l2] < 0.5
 
 @test_throws Any solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
-                       maxiters = 400,
-                       abstol = 1.0f-8)
+    maxiters = 400,
+    abstol = 1.0f-8)
 
 sol = solve(prob,
-            NeuralPDE.NNODE(chain, opt; batch = false, strategy = StochasticTraining(100)),
-            verbose = true, maxiters = 400,
-            abstol = 1.0f-8)
+    NeuralPDE.NNODE(chain, opt; batch = false, strategy = StochasticTraining(100)),
+    verbose = true, maxiters = 400,
+    abstol = 1.0f-8)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob,
-            NeuralPDE.NNODE(chain, opt; batch = true, strategy = StochasticTraining(100)),
-            verbose = true, maxiters = 400,
-            abstol = 1.0f-8)
+    NeuralPDE.NNODE(chain, opt; batch = true, strategy = StochasticTraining(100)),
+    verbose = true, maxiters = 400,
+    abstol = 1.0f-8)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob,
-            NeuralPDE.NNODE(luxchain, opt; batch = false,
-                            strategy = StochasticTraining(100)),
-            verbose = true, maxiters = 400,
-            abstol = 1.0f-8)
+    NeuralPDE.NNODE(luxchain, opt; batch = false,
+        strategy = StochasticTraining(100)),
+    verbose = true, maxiters = 400,
+    abstol = 1.0f-8)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob,
-            NeuralPDE.NNODE(luxchain, opt; batch = true,
-                            strategy = StochasticTraining(100)),
-            verbose = true, maxiters = 400,
-            abstol = 1.0f-8)
+    NeuralPDE.NNODE(luxchain, opt; batch = true,
+        strategy = StochasticTraining(100)),
+    verbose = true, maxiters = 400,
+    abstol = 1.0f-8)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = false), verbose = true,
-            maxiters = 400,
-            abstol = 1.0f-8, dt = 1 / 5.0f0)
+    maxiters = 400,
+    abstol = 1.0f-8, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true, maxiters = 400,
-            abstol = 1.0f-8, dt = 1 / 5.0f0)
+    abstol = 1.0f-8, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = false), verbose = true,
-            maxiters = 400,
-            abstol = 1.0f-8, dt = 1 / 5.0f0)
+    maxiters = 400,
+    abstol = 1.0f-8, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
-            maxiters = 400,
-            abstol = 1.0f-8, dt = 1 / 5.0f0)
+    maxiters = 400,
+    abstol = 1.0f-8, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
 # WeightedIntervalTraining(Lux Chain)
@@ -219,13 +219,13 @@ true_sol = solve(prob_oop, Tsit5(), saveat = 0.01)
 func = Lux.σ
 N = 12
 chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, func),
-                  Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
+    Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
 
 opt = Optimisers.Adam(0.01)
 weights = [0.7, 0.2, 0.1]
 samples = 200
 alg = NeuralPDE.NNODE(chain, opt, autodiff = false,
-                      strategy = NeuralPDE.WeightedIntervalTraining(weights, samples))
+    strategy = NeuralPDE.WeightedIntervalTraining(weights, samples))
 sol = solve(prob_oop, alg, verbose = true, maxiters = 100000, saveat = 0.01)
 
 @test abs(mean(sol) - mean(true_sol)) < 0.2
@@ -251,7 +251,7 @@ function additional_loss(phi, θ)
 end
 
 alg1 = NeuralPDE.NNODE(chain, opt, strategy = GridTraining(0.01),
-                       additional_loss = additional_loss)
+    additional_loss = additional_loss)
 
 sol1 = solve(prob, alg1, verbose = true, abstol = 1.0f-8, maxiters = 500)
 @test sol1.errors[:l2] < 0.5
@@ -265,7 +265,7 @@ function additional_loss(phi, θ)
 end
 
 alg1 = NeuralPDE.NNODE(luxchain, opt, strategy = GridTraining(0.01),
-                       additional_loss = additional_loss)
+    additional_loss = additional_loss)
 
 sol1 = solve(prob, alg1, verbose = true, abstol = 1.0f-8, maxiters = 500)
 @test sol1.errors[:l2] < 0.5
@@ -305,7 +305,7 @@ function additional_loss(phi, θ)
 end
 
 alg1 = NeuralPDE.NNODE(chain, opt, strategy = StochasticTraining(1000),
-                       additional_loss = additional_loss)
+    additional_loss = additional_loss)
 
 sol1 = solve(prob, alg1, verbose = true, abstol = 1.0f-8, maxiters = 500)
 @test sol1.errors[:l2] < 0.5
@@ -319,7 +319,7 @@ function additional_loss(phi, θ)
 end
 
 alg1 = NeuralPDE.NNODE(luxchain, opt, strategy = StochasticTraining(1000),
-                       additional_loss = additional_loss)
+    additional_loss = additional_loss)
 
 sol1 = solve(prob, alg1, verbose = true, abstol = 1.0f-8, maxiters = 500)
 @test sol1.errors[:l2] < 0.5

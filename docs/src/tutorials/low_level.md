@@ -71,7 +71,7 @@ f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
 prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
 
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-                         maxiters = 2000)
+    maxiters = 2000)
 ```
 
 And some analysis:
@@ -81,7 +81,7 @@ using Plots
 
 ts, xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 u_predict_contourf = reshape([first(phi([t, x], res.u)) for t in ts for x in xs],
-                             length(xs), length(ts))
+    length(xs), length(ts))
 plot(ts, xs, u_predict_contourf, linetype = :contourf, title = "predict")
 
 u_predict = [[first(phi([t, x], res.u)) for x in xs] for t in ts]

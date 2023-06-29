@@ -58,8 +58,8 @@ strategy = NeuralPDE.GridTraining(dx)
 integral = NeuralPDE.get_numeric_integral(strategy, indvars, multioutput, chain, derivative)
 
 _pde_loss_function = NeuralPDE.build_loss_function(eq, indvars, depvars, phi, derivative,
-                                                   integral, multioutput, init_params,
-                                                   strategy)
+    integral, multioutput, init_params,
+    strategy)
 ```
 
 ```
@@ -83,9 +83,9 @@ julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
 
 ```julia
 _bc_loss_functions = [NeuralPDE.build_loss_function(bc, indvars, depvars,
-                                                    phi, derivative, integral, multioutput,
-                                                    init_params, strategy,
-                                                    bc_indvars = bc_indvar)
+    phi, derivative, integral, multioutput,
+    init_params, strategy,
+    bc_indvars = bc_indvar)
                       for (bc, bc_indvar) in zip(bcs, bc_indvars)]
 ```
 
@@ -126,7 +126,7 @@ julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indva
 
 ```julia
 train_sets = NeuralPDE.generate_training_sets(domains, dx, [eq], bcs, eltypeθ, indvars,
-                                              depvars)
+    depvars)
 pde_train_set, bcs_train_set = train_sets
 ```
 
@@ -146,7 +146,7 @@ julia> bcs_train_set
 
 ```julia
 pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains, [eq], bcs, eltypeθ, indvars, depvars,
-                                              NeuralPDE.StochasticTraining(100))
+    NeuralPDE.StochasticTraining(100))
 ```
 
 ```

@@ -65,7 +65,7 @@ Let's turn on `verbose` so we can see the loss over time during the training pro
 
 ```@example nnode1
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, abstol = 1.0f-6,
-            maxiters = 200)
+    maxiters = 200)
 ```
 
 And that's it: the neural network solution was computed by training the neural network and

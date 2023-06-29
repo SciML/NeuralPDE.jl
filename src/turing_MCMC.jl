@@ -9,19 +9,19 @@ struct odeByNN{C, T, U}
     end
 end
 
-@time function generate_phi(chain::Flux.Chain, t, u0, init_params::Nothing)
+function generate_phi(chain::Flux.Chain, t, u0, init_params::Nothing)
     θ, re = Flux.destructure(chain)
     odeByNN(re, t, u0), θ
 end
 
 # nn OUTPUT AT t
-@time function (f::odeByNN{C, T, U})(t::Number,
-                                     θ) where {C <: Optimisers.Restructure, T, U}
+function (f::odeByNN{C, T, U})(t::Number,
+    θ) where {C <: Optimisers.Restructure, T, U}
     f.u0 + (t - f.t0) * first(f.chain(θ)(adapt(parameterless_type(θ), [t])))
 end
 
 function (f::odeByNN{C, T, U})(t::AbstractVector,
-                               θ) where {C <: Optimisers.Restructure, T, U}
+    θ) where {C <: Optimisers.Restructure, T, U}
     f.u0 .+ (t .- f.t0) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
@@ -42,8 +42,8 @@ function NNodederi(phi::odeByNN, t::AbstractVector, θ, autodiff::Bool)
     end
 end
 
-@time function physloglikelihood(chain::Any, prob::DiffEqBase.DEProblem,
-                                 t::AbstractVector; var = 0.5)
+function physloglikelihood(chain::Any, prob::DiffEqBase.DEProblem,
+    t::AbstractVector; var = 0.5)
     u0 = prob.u0
     t0 = t[1]
     p = prob.p
@@ -71,8 +71,8 @@ end
 
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
-@time function bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain, dataset;
-                                 sampling_strategy = NUTS(0.9), num_samples = 1000)
+function bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain, dataset;
+    sampling_strategy = Turing.NUTS(0.65), num_samples = 1000)
     param_initial, recon = Flux.destructure(chain)
     nparameters = length(param_initial)
 
@@ -104,3 +104,13 @@ end
     ch = sample(model, sampling_strategy, num_samples)
     return ch
 end
+
+# ----------need speed up
+# the phase point struct
+# create chain from samples,stats
+# create custom distri?
+# using chain with updated parameters in physloglikelihood and L2LossData
+
+# ----------more code and compatibility
+# allow options for prior,likelihood distributions
+# add support for Lux chains

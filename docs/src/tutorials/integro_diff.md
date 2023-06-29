@@ -59,7 +59,7 @@ chain = Chain(Dense(1, 15, Flux.σ), Dense(15, 1)) |> f64
 
 strategy_ = GridTraining(0.05)
 discretization = PhysicsInformedNN(chain,
-                                   strategy_)
+    strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [t], [i(t)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 callback = function (p, l)

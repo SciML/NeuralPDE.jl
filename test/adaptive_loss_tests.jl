@@ -7,9 +7,9 @@ import Lux
 
 nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
 gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weights = 1e3,
-                                                            bc_loss_weights = 1)
+    bc_loss_weights = 1)
 adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights = 1,
-                                              bc_loss_weights = 1)
+    bc_loss_weights = 1)
 adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss, adaptive_loss]
 maxiters = 4000
 seed = 60
@@ -19,7 +19,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
     Random.seed!(seed)
     hid = 40
     chain_ = Lux.Chain(Lux.Dense(2, hid, Lux.σ), Lux.Dense(hid, hid, Lux.σ),
-                       Lux.Dense(hid, 1))
+        Lux.Dense(hid, 1))
     strategy_ = NeuralPDE.StochasticTraining(256)
     @info "adaptive reweighting test outdir:, maxiters: $(maxiters), 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) "
     @parameters x y
@@ -39,10 +39,10 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
 
     iteration = [0]
     discretization = NeuralPDE.PhysicsInformedNN(chain_,
-                                                 strategy_;
-                                                 adaptive_loss = adaptive_loss,
-                                                 logger = nothing,
-                                                 iteration = iteration)
+        strategy_;
+        adaptive_loss = adaptive_loss,
+        logger = nothing,
+        iteration = iteration)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = NeuralPDE.discretize(pde_system, discretization)
@@ -52,7 +52,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-                     (length(xs), length(ys)))
+        (length(xs), length(ys)))
 
     callback = function (p, l)
         iteration[1] += 1
@@ -62,10 +62,10 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
         return false
     end
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.03); maxiters = maxiters,
-                             callback = callback)
+        callback = callback)
 
     u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
-                        (length(xs), length(ys)))
+        (length(xs), length(ys)))
     diff_u = abs.(u_predict .- u_real)
     total_diff = sum(diff_u)
     total_u = sum(abs.(u_real))
@@ -83,7 +83,7 @@ function test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters(adaptive_l
     test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = seed, maxiters = maxiters)
 end
 error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters,
-                            adaptive_losses)
+    adaptive_losses)
 
 # accuracy tests
 @show error_results_no_logs[1][:total_diff_rel]

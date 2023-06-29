@@ -34,15 +34,15 @@ dt = 0.1f0
 # Neural network
 inner = 20
 chain = Chain(Dense(1, inner, Flux.σ),
-              Dense(inner, inner, Flux.σ),
-              Dense(inner, inner, Flux.σ),
-              Dense(inner, inner, Flux.σ),
-              Dense(inner, inner, Flux.σ),
-              Dense(inner, 1)) |> gpu
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, 1)) |> gpu
 
 strategy = NeuralPDE.GridTraining(dt)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy)
+    strategy)
 
 @named pde_system = PDESystem(eq, bcs, domains, [θ], [u(θ)])
 prob = NeuralPDE.discretize(pde_system, discretization)
@@ -80,16 +80,16 @@ domains = [t ∈ Interval(0.0, 1.0),
 
 inner = 30
 chain = Flux.Chain(Dense(2, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, 1)) |> gpu
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, 1)) |> gpu
 
 strategy = NeuralPDE.StochasticTraining(500)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy)
+    strategy)
 prob = NeuralPDE.discretize(pdesys, discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys, discretization)
 
@@ -101,7 +101,7 @@ phi = discretization.phi
 u_exact = (t, x) -> exp.(-t) * cos.(x)
 ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_predict = reshape([first(Array(phi([t, x], res.minimizer))) for t in ts for x in xs],
-                    (length(ts), length(xs)))
+    (length(ts), length(xs)))
 u_real = reshape([u_exact(t, x) for t in ts for x in xs], (length(ts), length(xs)))
 diff_u = abs.(u_predict .- u_real)
 
@@ -135,18 +135,18 @@ domains = [t ∈ Interval(0.0, 1.0),
 
 inner = 20
 chain = Flux.Chain(Dense(2, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, 1)) |> gpu
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, 1)) |> gpu
 
 strategy = NeuralPDE.QuasiRandomTraining(500; #points
-                                         sampling_alg = SobolSample(),
-                                         resampling = false,
-                                         minibatch = 30)
+    sampling_alg = SobolSample(),
+    resampling = false,
+    minibatch = 30)
 
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy)
+    strategy)
 prob = NeuralPDE.discretize(pdesys, discretization)
 symprob = NeuralPDE.symbolic_discretize(pdesys, discretization)
 
@@ -158,7 +158,7 @@ phi = discretization.phi
 u_exact = (t, x) -> exp(-t) * cos(x)
 ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_predict = reshape([first(Array(phi([t, x], res.minimizer))) for t in ts for x in xs],
-                    (length(ts), length(xs)))
+    (length(ts), length(xs)))
 u_real = reshape([u_exact(t, x) for t in ts for x in xs], (length(ts), length(xs)))
 diff_u = abs.(u_predict .- u_real)
 
@@ -202,14 +202,14 @@ domains = [t ∈ Interval(t_min, t_max),
 # Neural network
 inner = 25
 chain = Flux.Chain(Dense(3, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, inner, Flux.σ),
-                   Dense(inner, 1)) |> gpu
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, inner, Flux.σ),
+    Dense(inner, 1)) |> gpu
 
 strategy = NeuralPDE.GridTraining(0.05)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             strategy)
+    strategy)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x, y], [u(t, x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)

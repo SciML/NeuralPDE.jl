@@ -50,22 +50,23 @@ include("neural_adapter.jl")
 
 # fixes #682
 include("turing_MCMC.jl")
+include("advancedHMC_MCMC.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
-       KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
-       KolmogorovParamDomain, NNParamKolmogorov,
-       PhysicsInformedNN, discretize,
-       GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
-       WeightedIntervalTraining,
-       build_loss_function, get_loss_function,
-       generate_training_sets, get_variables, get_argument, get_bounds,
-       get_phi, get_numeric_derivative, get_numeric_integral,
-       build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
-       AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
-       MiniMaxAdaptiveLoss,
-       LogOptions
+    KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
+    KolmogorovParamDomain, NNParamKolmogorov,
+    PhysicsInformedNN, discretize,
+    GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
+    WeightedIntervalTraining,
+    build_loss_function, get_loss_function,
+    generate_training_sets, get_variables, get_argument, get_bounds,
+    get_phi, get_numeric_derivative, get_numeric_integral,
+    build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
+    AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
+    MiniMaxAdaptiveLoss,
+    LogOptions
 
 #fixes #682
-export bayesian_pinn_ode
+export bayesian_pinn_ode, ahmc_bayesian_pinn_ode
 
 end # module

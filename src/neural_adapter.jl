@@ -6,7 +6,7 @@ function generate_training_sets(domains, dx, eqs, eltypeθ)
     end
     spans = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, dxs)]
     train_set = adapt(eltypeθ,
-                      hcat(vec(map(points -> collect(points), Iterators.product(spans...)))...))
+        hcat(vec(map(points -> collect(points), Iterators.product(spans...)))...))
 end
 
 function get_loss_function_(loss, init_params, pde_system, strategy::GridTraining)
@@ -16,7 +16,7 @@ function get_loss_function_(loss, init_params, pde_system, strategy::GridTrainin
     end
     domains = pde_system.domain
     depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
-                                                            pde_system.depvars)
+        pde_system.depvars)
     eltypeθ = eltype(init_params)
     dx = strategy.dx
     train_set = generate_training_sets(domains, dx, eqs, eltypeθ)
@@ -43,7 +43,7 @@ function get_loss_function_(loss, init_params, pde_system, strategy::StochasticT
     domains = pde_system.domain
 
     depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
-                                                            pde_system.depvars)
+        pde_system.depvars)
 
     eltypeθ = eltype(init_params)
     bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)[1]
@@ -59,7 +59,7 @@ function get_loss_function_(loss, init_params, pde_system, strategy::QuasiRandom
     domains = pde_system.domain
 
     depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
-                                                            pde_system.depvars)
+        pde_system.depvars)
 
     eltypeθ = eltype(init_params)
     bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)[1]
@@ -68,7 +68,7 @@ function get_loss_function_(loss, init_params, pde_system, strategy::QuasiRandom
 end
 
 function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars,
-                     strategy::QuadratureTraining)
+    strategy::QuadratureTraining)
     dict_lower_bound = Dict([Symbol(d.variables) => infimum(d.domain) for d in domains])
     dict_upper_bound = Dict([Symbol(d.variables) => supremum(d.domain) for d in domains])
 
@@ -93,7 +93,7 @@ function get_loss_function_(loss, init_params, pde_system, strategy::QuadratureT
     domains = pde_system.domain
 
     depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
-                                                            pde_system.depvars)
+        pde_system.depvars)
 
     eltypeθ = eltype(init_params)
     bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
