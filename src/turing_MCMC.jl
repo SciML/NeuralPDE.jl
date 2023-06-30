@@ -1,4 +1,4 @@
-using Turing
+using Turing, Distributions
 struct odeByNN{C, T, U}
     chain::C
     u0::U
@@ -16,12 +16,12 @@ end
 
 # nn OUTPUT AT t
 function (f::odeByNN{C, T, U})(t::Number,
-    θ) where {C <: Optimisers.Restructure, T, U}
+                               θ) where {C <: Optimisers.Restructure, T, U}
     f.u0 + (t - f.t0) * first(f.chain(θ)(adapt(parameterless_type(θ), [t])))
 end
 
 function (f::odeByNN{C, T, U})(t::AbstractVector,
-    θ) where {C <: Optimisers.Restructure, T, U}
+                               θ) where {C <: Optimisers.Restructure, T, U}
     f.u0 .+ (t .- f.t0) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
@@ -43,7 +43,7 @@ function NNodederi(phi::odeByNN, t::AbstractVector, θ, autodiff::Bool)
 end
 
 function physloglikelihood(chain::Any, prob::DiffEqBase.DEProblem,
-    t::AbstractVector; var = 0.5)
+                           t::AbstractVector; var = 0.5)
     u0 = prob.u0
     t0 = t[1]
     p = prob.p
@@ -55,7 +55,8 @@ function physloglikelihood(chain::Any, prob::DiffEqBase.DEProblem,
 
     μ = vec([f(phi(t[i], initparams), p, u0) for i in eachindex(t)])
     physsol = vec([NNodederi(phi, t[i], initparams, autodiff) for i in eachindex(t)])
-
+    # print(typeof(μ))
+    # print(typeof(physsol))
     # To reduce heap allocations but some erros came up
     # μ = similar(t)
     # physsol = similar(t)
@@ -65,14 +66,15 @@ function physloglikelihood(chain::Any, prob::DiffEqBase.DEProblem,
     #     μ[i] = f(phi(t[i], initparams), p, u0)
     #     physsol[i] = NNodederi(phi, t[i], initparams, autodiff)
     # end
-
-    return loglikelihood(MvNormal(μ, var .* ones(Float64, length(t))), physsol)
+    return sum(abs2, (μ .- physsol) ./ (-2 * (var^2)))
+    # return loglikelihood(MvNormal(physsol - μ,
+    #   Diagonal(var .* ones(Float64, length(μ)))))
 end
 
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
 function bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain, dataset;
-    sampling_strategy = Turing.NUTS(0.65), num_samples = 1000)
+                           sampling_strategy = Turing.NUTS(0.65), num_samples = 1000)
     param_initial, recon = Flux.destructure(chain)
     nparameters = length(param_initial)
 

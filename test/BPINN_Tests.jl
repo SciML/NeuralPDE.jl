@@ -55,10 +55,10 @@ Profile.init() # returns the current settings
 # Below calls with stats are usign AdvancedHMC.jl
 
 nsamples, nstats = ahmc_bayesian_pinn_ode(prob,
-    chain1,
-    dataset,
-    draw_samples = 10,
-    warmup_samples = 10)
+                                          chain1,
+                                          dataset,
+                                          draw_samples = 10,
+                                          warmup_samples = 10)
 # (100 points)
 # Sampling 100%|███████████████████████████████| Time: 0:00:05
 #   iterations:                                   10
@@ -84,10 +84,10 @@ nsamples, nstats = ahmc_bayesian_pinn_ode(prob,
 # └   average_acceptance_rate = 0.7238602930664688
 
 nsamples1, nstats1 = ahmc_bayesian_pinn_ode(prob,
-    chain1,
-    dataset,
-    draw_samples = 100,
-    warmup_samples = 500)
+                                            chain1,
+                                            dataset,
+                                            draw_samples = 100,
+                                            warmup_samples = 500)
 # 100 points at (100,500)
 # Sampling 100%|███████████████████████████████| Time: 0:13:19
 #   iterations:                                   100
@@ -187,10 +187,10 @@ dataset = (x̂, time)
 next500pointssamples = ahmc_bayesian_pinn_ode(prob, chain1, dataset, draw_samples = 100)
 next500pointssamples1 = ahmc_bayesian_pinn_ode(prob, chain1, dataset)
 next500pointssamples2 = ahmc_bayesian_pinn_ode(prob,
-    chain1,
-    dataset,
-    draw_samples = 100,
-    warmup_samples = 1000)
+                                               chain1,
+                                               dataset,
+                                               draw_samples = 100,
+                                               warmup_samples = 1000)
 
 # @profilehtml chn1 = bayesian_pinn_ode(prob, chain1, dataset, num_samples=100)
 # @profilehtml chn1 = bayesian_pinn_ode(prob, chain1, dataset, num_samples=500)
@@ -215,6 +215,7 @@ i = i.I[1]
 aftertrain = vec(chain1(time'))
 Z = nn_forward(dataset[2]', theta[i, :])
 
+# Reproduce 3 hr slow sampling
 # dataset would be (x̂,t) for this example size = (5,5)
 # # priors: pdf for W,b
 # using Turing, LinearAlgebra
@@ -277,84 +278,389 @@ plot!(time, vec(Z), label = "BPINNpreds-2", legend = :bottomright)
 
 # # t and time are same
 
-# x = get_params(chn)
-# println(x)
-# plot(chn["nnparameters[1]"]; size=(1200, 1200))
-# names(chn)
-# chn["nnparameters[1]"].data
-# get(chn; section=:parameters)
-# names(chn)
-# sort(chn)
-# get_params(chn)
+# PLOTTING FUNCTIONS
+using Plots
+plotly()
+plot!(title = "exp(-T/5)*sin(T) (0->10)logformpcforwa with var bnn ")
+ch = reconstruct(logformsamples[20])
+plot!(dataset[2], vec(ch(dataset[2]')), label = "100 th output")
+function bruh(samples)
+    plot(title = "exp(-T/5)*sin(T) (0->10)", legend = :bottomright)
+    for i in eachindex(samples)
+        ch = reconstruct(samples[i])
+        plot!(dataset[2], vec(ch(dataset[2]')), label = "$i th output")
+    end
+end
 
-# # testing stuff
-# chain2 = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
-# chn1 = bayesian_pinn_ode(prob, chain2, dataset; sampling_strategy=NUTS(0.9), num_samples=3000)
-# chain3 = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
-# chn2 = bayesian_pinn_ode(prob, chain3, dataset; sampling_strategy=NUTS(0.65), num_samples=3000)
+logpdfsamples, logpdfstats = ahmc_bayesian_pinn_ode(prob, chain1, dataset,
+                                                    draw_samples = 100)
+logpdfsamples
+# 100 points 1000warmup,100drawn samples
+# RUN - 1
+# Sampling 100%|███████████████████████████████| Time: 0:12:50
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.14
+#   n_steps:                                      1023
+#   is_accept:                                    true
+#   acceptance_rate:                              0.9563144470142292
+#   log_density:                                  -15271.845533849797
+#   hamiltonian_energy:                           15278.121731738258
+#   hamiltonian_energy_error:                     0.12927246448271035
+#   max_hamiltonian_energy_error:                 -0.2010435676365887
+#   tree_depth:                                   10
+#   numerical_error:                              false
+#   step_size:                                    0.0054621222715614615
+#   nom_step_size:                                0.0054621222715614615
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([0.0003076056962720712, 5.3 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 770.4964452 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([0.0003076056962720712, 5.3 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.00733), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.34253160077428535
+# └   average_acceptance_rate = 0.7882127810769348
 
-# chain4 = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
-# chn3 = bayesian_pinn_ode(prob, chain4, dataset; sampling_strategy=NUTS(0.9), num_samples=2000)
-# chain5 = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
-# chn4 = bayesian_pinn_ode(prob, chain5, dataset; sampling_strategy=NUTS(0.65), num_samples=2000)
+# RUN - 2
+# Sampling 100%|███████████████████████████████| Time: 0:09:20
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.1
+#   n_steps:                                      1023
+#   is_accept:                                    true
+#   acceptance_rate:                              0.8768665862746476
+#   log_density:                                  -15272.886204006449
+#   hamiltonian_energy:                           15281.696956530182
+#   hamiltonian_energy_error:                     0.24551082678044622
+#   max_hamiltonian_energy_error:                 0.2773981831378478
+#   tree_depth:                                   10
+#   numerical_error:                              false
+#   step_size:                                    0.004382810950719518
+#   nom_step_size:                                0.004382810950719518
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([34.912048543892865, 35.633 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 560.851299 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([34.912048543892865, 35.633 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.0051), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.40267051146009725
+# └   average_acceptance_rate = 0.7862124562827073
+bruh(logpdfsamples)
 
-# chain6 = Flux.Chain(Dense(1, 5, σ), Dense(5, 5, σ), Dense(5, 1))
-# chn5 = bayesian_pinn_ode(prob, chain6, dataset; sampling_strategy=NUTS(0.65), num_samples=1000)
-# chain7 = Flux.Chain(Dense(1, 5, σ), Dense(5, 5, σ), Dense(5, 1))
-# chn6 = bayesian_pinn_ode(prob, chain7, dataset; sampling_strategy=NUTS(0.65), num_samples=2000)
+loglikesamples, loglikestats = ahmc_bayesian_pinn_ode(prob, chain1, dataset,
+                                                      draw_samples = 100)
+loglikesamples
+# 100 points 1000warmup,100drawn samples
+# RUN-1
+# Sampling 100%|███████████████████████████████| Time: 0:09:45
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.13
+#   n_steps:                                      4
+#   is_accept:                                    true
+#   acceptance_rate:                              0.030908461126574967
+#   log_density:                                  -15271.887943885158
+#   hamiltonian_energy:                           15283.930415289895
+#   hamiltonian_energy_error:                     0.0
+#   max_hamiltonian_energy_error:                 1128.8259864720458
+#   tree_depth:                                   2
+#   numerical_error:                              true
+#   step_size:                                    0.008867437749359755
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([2.88135620435816, 17.49607 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 585.0805829 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([2.88135620435816, 17.49607 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.00221), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.37259664441661766
+# └   average_acceptance_rate = 0.781612814236198
 
-# chain8 = Flux.Chain(Dense(1, 5, σ), Dense(5, 5, tanh), Dense(5, 1))
-# chn7 = bayesian_pinn_ode(prob, chain8, dataset; sampling_strategy=NUTS(0.65), num_samples=1000)
-# chain9 = Flux.Chain(Dense(1, 5, σ), Dense(5, 5, tanh), Dense(5, 1))
-# chn8 = bayesian_pinn_ode(prob, chain9, dataset; sampling_strategy=NUTS(0.65), num_samples=2000)
+# RUN-2
+# Sampling 100%|███████████████████████████████| Time: 0:08:09
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.15
+#   n_steps:                                      59
+#   is_accept:                                    true
+#   acceptance_rate:                              0.35444357264885873
+#   log_density:                                  -15271.845139989402
+#   hamiltonian_energy:                           15276.51803860688
+#   hamiltonian_energy_error:                     0.0869020819063735
+#   max_hamiltonian_energy_error:                 1243.6540616378516
+#   tree_depth:                                   5
+#   numerical_error:                              true
+#   step_size:                                    0.010087308582972208
+#   nom_step_size:                                0.010087308582972208
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([5.8417644509391105, 21.300 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 489.3605312 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([5.8417644509391105, 21.300 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.00452), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.40053207226751153
+# └   average_acceptance_rate = 0.7855541665544353
+bruh(loglikesamples)
 
-# # PLOTTING CHAINS
-# chn1
-# chn2
-# chn3
-# chn4
-# chn5
-# chn6
-# chn7
-# chn8
+logformsamples, logformstats = ahmc_bayesian_pinn_ode(prob, chain1, dataset,
+                                                      draw_samples = 100)
+logformsamples
+# -------> return sum(abs2, (nnsol .- physsol) ./ (-2 * (var^2)))
+# 100 points 1000warmup,100drawn samples
+# RUN-1
+# Sampling 100%|███████████████████████████████| Time: 0:00:06
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.04
+#   n_steps:                                      3
+#   is_accept:                                    true
+#   acceptance_rate:                              0.9936457746418542
+#   log_density:                                  16371.958270823849
+#   hamiltonian_energy:                           -16353.795618226019
+#   hamiltonian_energy_error:                     0.0031999390394048532
+#   max_hamiltonian_energy_error:                 0.012711568355371128
+#   tree_depth:                                   2
+#   numerical_error:                              false
+#   step_size:                                    0.001013347477860843
+#   nom_step_size:                                0.001013347477860843
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([0.00023705855136240276, 0. ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 6.5440993 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([0.00023705855136240276, 0. ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.00147), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.003261088919982054
+# └   average_acceptance_rate = 0.7717655246027548
 
-# theta1 = MCMCChains.group(chn1, :nnparameters).value;
-# theta2 = MCMCChains.group(chn2, :nnparameters).value;
-# theta3 = MCMCChains.group(chn3, :nnparameters).value;
-# theta4 = MCMCChains.group(chn4, :nnparameters).value;
-# theta5 = MCMCChains.group(chn5, :nnparameters).value;
-# theta6 = MCMCChains.group(chn6, :nnparameters).value;
-# theta7 = MCMCChains.group(chn7, :nnparameters).value;
-# theta8 = MCMCChains.group(chn8, :nnparameters).value;
-# nn_forward(x, theta) = reconstruct(theta)(x)
+# RUN-2
+# Sampling 100%|███████████████████████████████| Time: 0:00:05
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.02
+#   n_steps:                                      3
+#   is_accept:                                    true
+#   acceptance_rate:                              0.9331758601037174
+#   log_density:                                  24029.267730447515
+#   hamiltonian_energy:                           -23793.7201448559
+#   hamiltonian_energy_error:                     0.14239990540227154
+#   max_hamiltonian_energy_error:                 0.14239990540227154
+#   tree_depth:                                   2
+#   numerical_error:                              false
+#   step_size:                                    0.0015450783603555866
+#   nom_step_size:                                0.0015450783603555866
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([0.0001884855949168989, 0.0 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 5.8228399 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([0.0001884855949168989, 0.0 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.00201), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.002734871196746394
+# └   average_acceptance_rate = 0.7742027133641893
 
-# _, i = findmax(chn3[:lp])
-# i = i.I[1]
+# USING FORWARDDIFF RUN-1
+# Sampling 100%|███████████████████████████████| Time: 0:07:26
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.03
+#   n_steps:                                      63
+#   is_accept:                                    true
+#   acceptance_rate:                              0.0901623955375686
+#   log_density:                                  33531.225900141486
+#   hamiltonian_energy:                           -31905.391124649912
+#   hamiltonian_energy_error:                     1.0579141952184727
+#   max_hamiltonian_energy_error:                 470.8753844133971
+#   tree_depth:                                   6
+#   numerical_error:                              false
+#   step_size:                                    0.00043740944337070624
+#   nom_step_size:                                0.00043740944337070624
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([0.00016850576931927736, 0. ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 446.7712559 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([0.00016850576931927736, 0. ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.000122), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.007014130445885143
+# └   average_acceptance_rate = 0.774046980073258
 
-# println(theta3[i, :])
-# Z = nn_forward(dataset[2]', theta3[i, :])
-# plot!(t, vec(Z))
+# USING FORWARDDIFF RUN-2
+# Sampling 100%|███████████████████████████████| Time: 0:06:00
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.02
+#   n_steps:                                      31
+#   is_accept:                                    true
+#   acceptance_rate:                              0.12297576613170554
+#   log_density:                                  22100.349958875497
+#   hamiltonian_energy:                           -22091.533249050637
+#   hamiltonian_energy_error:                     0.0
+#   max_hamiltonian_energy_error:                 28.814220876411127
+#   tree_depth:                                   5
+#   numerical_error:                              false
+#   step_size:                                    0.0005074527614074749
+#   nom_step_size:                                0.0005074527614074749
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([0.00016802275586959888, 0. ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 360.606352 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([0.00016802275586959888, 0. ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.00015), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.003456680349189868
+# └   average_acceptance_rate = 0.774810796422875
 
-# # ---------------------------------------------------------------
-# @btime bayesian_pinn_ode(prob, chain1, dataset)
+# USING ONLY L2LOSS + FORWARDDIFF
+# julia> logformsamples, logformstats = ahmc_bayesian_pinn_ode(prob, chain1, dataset, draw_samples=100)
+# Sampling 100%|███████████████████████████████| Time: 0:00:24
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.09
+#   n_steps:                                      959
+#   is_accept:                                    true
+#   acceptance_rate:                              0.6683146173012535
+#   log_density:                                  -3340.3826246506915
+#   hamiltonian_energy:                           3346.9492811468526
+#   hamiltonian_energy_error:                     0.021912054422955407
+#   max_hamiltonian_energy_error:                 366.35912006145463
+#   tree_depth:                                   9
+#   numerical_error:                              false
+#   step_size:                                    0.0029268197636419338
+#   nom_step_size:                                0.0029268197636419338
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([0.0012634344496764663, 0.2 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 24.9109321 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([0.0012634344496764663, 0.2 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.00234), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.05611701717517014
+# └   average_acceptance_rate = 0.7781185997585821
 
-# chain10 = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
-# chn9 = bayesian_pinn_ode(prob, chain10, dataset; sampling_strategy=NUTS(200, 0.9))
-# chain11 = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
-# chn10 = bayesian_pinn_ode(prob, chain11, dataset; sampling_strategy=NUTS(200, 0.65))
+# julia> logformsamples, logformstats = ahmc_bayesian_pinn_ode(prob, chain1, dataset, draw_samples=100)
+# Sampling 100%|███████████████████████████████| Time: 0:00:17
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.15
+#   n_steps:                                      1023
+#   is_accept:                                    true
+#   acceptance_rate:                              0.9999169847480434
+#   log_density:                                  -3080.397360098603
+#   hamiltonian_energy:                           3083.111687996316
+#   hamiltonian_energy_error:                     -0.0951502568759679
+#   max_hamiltonian_energy_error:                 -0.16819624547269996
+#   tree_depth:                                   10
+#   numerical_error:                              false
+#   step_size:                                    0.00044361575140609746
+#   nom_step_size:                                0.00044361575140609746
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([0.008488990018137863, 0.04 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 17.2757482 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([0.008488990018137863, 0.04 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.000653), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.10017704954954774
+# └   average_acceptance_rate = 0.7711002361182879
+bruh(logformsamples)
 
-# chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
-# chn = bayesian_pinn_ode(prob, chain, dataset)
-# theta = MCMCChains.group(chn, :nnparameters).value;
-# nn_forward(x, theta) = reconstruct(theta)(x)
+# -------------->WORKING ON ACCURACY(START WITH BNN(L2LOSS ONLY))
+# PLOTTING FUNCTIONS
+# VARIANCE affects answers
+plot!(title = "exp(-T/5)*sin(T) (0->10)BNN Logpdf 1var ")
+ch = reconstruct(ffsamples[1])
+plot!(dataset[2], vec(ch(dataset[2]')), label = "100 th output")
+function bruh(samples)
+    plot(title = "exp(-T/5)*sin(T) (0->10)", legend = :bottomright)
+    for i in eachindex(samples)
+        ch = reconstruct(samples[i])
+        plot!(dataset[2], vec(ch(dataset[2]')), label = "$i th output")
+    end
+end
+using Statistics
 
-# _, i = findmax(chn[:lp])
-# i = i.I[1]
-# Z = nn_forward(dataset[2]', theta[i, :])
-# plot!(t, vec(Z), label="zamnnotime-old-old", legend=:bottomleft)
-# # t and time are same
+var(dataset[2])
 
-# plot(chn; colordim=:parameter)
-# _, i = findmax(chn[:lp])
-# print(chn[:])
-# chn[:lp]
+# COMPLETE LOGPDF FORMULA(logpdf of mvnormal,0.64 var)
+ffsamples, ffstats = ahmc_bayesian_pinn_ode(prob, chain1, dataset, draw_samples = 100)
+# RUN-1
+# Sampling 100%|███████████████████████████████| Time: 0:00:23
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.09
+#   n_steps:                                      1023
+#   is_accept:                                    true
+#   acceptance_rate:                              0.992595083092237
+#   log_density:                                  -118.52948000023393
+#   hamiltonian_energy:                           127.74915583867521
+#   hamiltonian_energy_error:                     0.009264370731486338
+#   max_hamiltonian_energy_error:                 -0.07638609599329982
+#   tree_depth:                                   10
+#   numerical_error:                              false
+#   step_size:                                    0.04027281953328647
+#   nom_step_size:                                0.04027281953328647
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([160.43539397075622, 2130.1 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 23.8526909 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([160.43539397075622, 2130.1 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.0578), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 1.4217689218482938
+# └   average_acceptance_rate = 0.78812861517715
+
+# RUN-2
+# Sampling 100%|███████████████████████████████| Time: 0:00:20
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.12
+#   n_steps:                                      12
+#   is_accept:                                    true
+#   acceptance_rate:                              0.2474803047972032
+#   log_density:                                  -119.92078012420382
+#   hamiltonian_energy:                           125.75567944951601
+#   hamiltonian_energy_error:                     -0.9345980374540943
+#   max_hamiltonian_energy_error:                 1596.4982651510013
+#   tree_depth:                                   3
+#   numerical_error:                              true
+#   step_size:                                    0.0960487466692949
+#   nom_step_size:                                0.0960487466692949
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([388.0534809193257, 1116.95 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 20.0106955 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([388.0534809193257, 1116.95 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.0356), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 0.41801982165121526
+# └   average_acceptance_rate = 0.7778449909948125
+
+# COMPLETE LOGPDF FORMULA(logpdf of mvnormal,0.09 alpha)
+# RUN - 1
+# Sampling 100%|███████████████████████████████| Time: 0:00:20
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.13
+#   n_steps:                                      6
+#   is_accept:                                    true
+#   acceptance_rate:                              0.007879101773356835
+#   log_density:                                  -166.0611415869184
+#   hamiltonian_energy:                           177.6335770491318
+#   hamiltonian_energy_error:                     3.263792609192734
+#   max_hamiltonian_energy_error:                 1947.0817156242097
+#   tree_depth:                                   2
+#   numerical_error:                              true
+#   step_size:                                    0.2917869566189766
+#   nom_step_size:                                0.2917869566189766
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([30386.033908257898, 5329.2 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 20.8084753 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([30386.033908257898, 5329.2 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.0699), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 2.028980396225055
+# └   average_acceptance_rate = 0.7777386701692393
+
+# RUN - 2
+# Sampling 100%|███████████████████████████████| Time: 0:00:20
+#   iterations:                                   100
+#   ratio_divergent_transitions:                  0.0
+#   ratio_divergent_transitions_during_adaption:  0.12
+#   n_steps:                                      651
+#   is_accept:                                    true
+#   acceptance_rate:                              0.6379211896489467
+#   log_density:                                  -164.08209791645453
+#   hamiltonian_energy:                           170.11216603261437
+#   hamiltonian_energy_error:                     0.07380375065747558
+#   max_hamiltonian_energy_error:                 8300.704104737693
+#   tree_depth:                                   9
+#   numerical_error:                              true
+#   step_size:                                    0.2431568484312491
+#   nom_step_size:                                0.2431568484312491
+#   is_adapt:                                     true
+#   mass_matrix:                                  DiagEuclideanMetric([6861.381492397943, 9648.55 ...])
+# ┌ Info: Finished 100 sampling steps for 1 chains in 20.4012424 (s)
+# │   h = Hamiltonian(metric=DiagEuclideanMetric([6861.381492397943, 9648.55 ...]), kinetic=AdvancedHMC.GaussianKinetic())
+# │   κ = AdvancedHMC.HMCKernel{AdvancedHMC.FullMomentumRefreshment, AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS, AdvancedHMC.Leapfrog{Float64}, AdvancedHMC.GeneralisedNoUTurn{Float64}}}(AdvancedHMC.FullMomentumRefreshment(), Trajectory{AdvancedHMC.MultinomialTS}(integrator=Leapfrog(ϵ=0.183), tc=AdvancedHMC.GeneralisedNoUTurn{Float64}(10, 1000.0)))
+# │   EBFMI_est = 1.9409429547327703
+# └   average_acceptance_rate = 0.7830404564067538
+bruh(ffsamples)

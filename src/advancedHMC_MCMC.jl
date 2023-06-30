@@ -11,8 +11,8 @@ struct LogTargetDensity
 end
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
-    return L2LossData(Tar, θ) +
-           physloglikelihood(Tar, θ)
+    return L2LossData(Tar, θ)
+    # +           physloglikelihood(Tar, θ)
 end
 
 LogDensityProblems.dimension(Tar::LogTargetDensity) = Tar.dim
@@ -41,27 +41,30 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     var = Tar.var
     u0 = Tar.prob.u0
     t = Tar.dataset[2]
-    # let this be(will fix)
-    autodiff = false
+    # distributions cannot take in forwarddiff jacobian matrices as means
+    autodiff = true
 
     # compare derivatives
     physsol = [f(m, p, u0) for m in Tar(t, θ)]
     nnsol = NNodederi(Tar, t, θ, autodiff)
 
-    return loglikelihood(MvNormal(nnsol, Diagonal(var .* ones(length(nnsol)))), physsol)
+    # print(typeof(nnsol))
+    return sum(abs2, (nnsol .- physsol)) ./ (-2 * (var^2))
+    # return logpdf(MvNormal(mat(nnsol), Diagonal(var .* ones(length(nnsol)))), physsol)
+    # return loglikelihood(MvNormal(nnsol, Diagonal(var .* ones(length(nnsol)))), physsol)
 end
 
 # standard MvNormal Dist Assume
 function L2LossData(Tar::LogTargetDensity, θ)
-    nn = Tar.re(θ)
-    return sum(abs2, (vec(nn(Tar.dataset[2]')) .- Tar.dataset[1])) ./ -2
+    nn = vec(Tar.re(θ)(Tar.dataset[2]'))
+    return loglikelihood(MvNormal(nn, I), Tar.dataset[1])
 end
 
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
-    dataset::Tuple{AbstractVector, AbstractVector};
-    draw_samples = 500, warmup_samples = 500)
+                                dataset::Tuple{AbstractVector, AbstractVector};
+                                draw_samples = 1000, warmup_samples = 1000)
     nnparameters, recon = Flux.destructure(chain)
     nparameters = length(nnparameters)
 
@@ -71,11 +74,13 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
 
     # variance
     alpha = 0.09
-    sig = sqrt(1.0 / alpha)
+    sig = 8.58
+    # sqrt(1.0 / alpha)
 
     initial_θ = collect(Float64, vec(nnparameters))
     ℓπ = LogTargetDensity(nparameters, prob, recon, dataset,
-        sig)
+                          sig)
+    # physloglikelihood(ℓπ, initial_θ)
     n_samples, n_adapts = draw_samples, warmup_samples
     metric = DiagEuclideanMetric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
@@ -85,8 +90,8 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
     adaptor = StanHMCAdaptor(MassMatrixAdaptor(metric), StepSizeAdaptor(0.8, integrator))
 
     samples, stats = sample(hamiltonian, proposal, initial_θ,
-        n_samples, adaptor, n_adapts;
-        progress = true)
+                            n_samples, adaptor, n_adapts;
+                            progress = true)
     return samples, stats
 end
 
