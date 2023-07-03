@@ -7,23 +7,26 @@ struct LogTargetDensity
     prob::DiffEqBase.DEProblem
     re::Optimisers.Restructure
     dataset::Tuple{AbstractVector, AbstractVector}
-    var::Float32
+    var::Tuple{Float64, Float64}
 end
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
-    return L2LossData(Tar, θ)
-    # +           physloglikelihood(Tar, θ)
+    alpha = 0.1
+    return physloglikelihood(Tar, θ)
+    #  + L2LossData(Tar, θ)
+
+    # + priorweights(Tar, θ)
 end
 
 LogDensityProblems.dimension(Tar::LogTargetDensity) = Tar.dim
 
 function LogDensityProblems.capabilities(::Type{LogTargetDensity})
-    LogDensityProblems.LogDensityOrder{0}()
+    LogDensityProblems.LogDensityOrder{1}()
 end
 
 # nn OUTPUT AT t
 function (f::LogTargetDensity)(t::AbstractVector, θ)
-    vec(f.prob.u0 .+ (t .- f.prob.tspan[1]) .* f.re(θ)(adapt(parameterless_type(θ), t')))
+    f.prob.u0 .+ (t .- f.prob.tspan[1]) .* vec(f.re(θ)(t'))
 end
 
 # ODE DU/DX
@@ -38,26 +41,44 @@ end
 function physloglikelihood(Tar::LogTargetDensity, θ)
     p = Tar.prob.p
     f = Tar.prob.f
-    var = Tar.var
+    var = 0.05^2
     u0 = Tar.prob.u0
     t = Tar.dataset[2]
     # distributions cannot take in forwarddiff jacobian matrices as means
     autodiff = true
-
     # compare derivatives
-    physsol = [f(m, p, u0) for m in Tar(t, θ)]
+    out = Tar(t, θ)
+    # print(size(out))
+    physsol = [f(out[i], p, t[i]) for i in eachindex(out)]
+    # print(size(physsol))
     nnsol = NNodederi(Tar, t, θ, autodiff)
+    if autodiff
+        nnsol = diag(nnsol)
+    end
 
-    # print(typeof(nnsol))
-    return sum(abs2, (nnsol .- physsol)) ./ (-2 * (var^2))
-    # return logpdf(MvNormal(mat(nnsol), Diagonal(var .* ones(length(nnsol)))), physsol)
-    # return loglikelihood(MvNormal(nnsol, Diagonal(var .* ones(length(nnsol)))), physsol)
+    n = length(nnsol)
+
+    # # return sum(abs2, (nnsol .- physsol)) ./ (-2 * (var^2))
+    # # return ((-n / 2 * log(2π * var^2)) - (sum(abs2, (nnsol .- physsol)) / (2 * var^2)))
+    return logpdf(MvNormal(nnsol, Diagonal(var .* ones(n))), physsol)
+    # # return loglikelihood(MvNormal(nnsol, Diagonal(var .* ones(length(nnsol)))), physsol)
 end
 
 # standard MvNormal Dist Assume
 function L2LossData(Tar::LogTargetDensity, θ)
     nn = vec(Tar.re(θ)(Tar.dataset[2]'))
-    return loglikelihood(MvNormal(nn, I), Tar.dataset[1])
+    n = length(nn)
+    var = 0.05^2
+    # return loglikelihood(MvNormal(nn, Diagonal(Tar.var .* ones(length(nn)))),Tar.dataset[1])
+    return logpdf(MvNormal(nn, Diagonal(var .* ones(n))), Tar.dataset[1])
+
+    # return ((-n / 2 * log(2π * var^2)) - (sum(abs2, (nn .- Tar.dataset[1])) / (2 * var^2)))
+end
+
+function priorweights(Tar::LogTargetDensity, θ)
+    params = Tar.var
+    return logpdf(MvNormal(θ, Diagonal(params[2]^2 .* ones(length(θ)))),
+                  params[1] * ones(length(θ)))
 end
 
 # dataset would be (x̂,t)
@@ -73,14 +94,14 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
     end
 
     # variance
-    alpha = 0.09
-    sig = 8.58
-    # sqrt(1.0 / alpha)
+    varsd = 2.0
+    varμ = 0.0
+    sig = (varμ, varsd)
+    # sig = eps(eltype(dataset[1][1]))
 
     initial_θ = collect(Float64, vec(nnparameters))
     ℓπ = LogTargetDensity(nparameters, prob, recon, dataset,
                           sig)
-    # physloglikelihood(ℓπ, initial_θ)
     n_samples, n_adapts = draw_samples, warmup_samples
     metric = DiagEuclideanMetric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)

@@ -83,26 +83,34 @@ function bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain, dataset;
     end
 
     alpha = 0.09
-    sig = sqrt(1.0 / alpha)
-    # physloglikelihood(chain, prob, dataset[2], var = sig)
-    DynamicPPL.@model function bayes_pinn(dataset)
+    sig = 0.2
+
+    p = prob.p
+    f = prob.f
+    u0 = prob.u0
+    t0 = prob.tspan[1]
+    t = dataset[2]
+    # compare derivatives
+    phi, initparams = generate_phi(chain, t0, u0, nothing)
+    physsol = vec([f(phi(t[i], param_initial), p, t[i]) for i in eachindex(t)])
+
+    DynamicPPL.@model function bayes_pinn(dataset, physsol, phi)
         # parameter estimation?
 
         # prior for NN parameters(not included bias yet?) - P(Θ)
-        nnparameters ~ MvNormal(zeros(nparameters), sig .* ones(nparameters))
-        nn = recon(nnparameters)
-        preds = nn(dataset[2]')
+        nnparameters ~ MvNormal(zeros(nparameters), Diagonal(sig .* ones(nparameters)))
+        preds = [phi(ti, nnparameters) for ti in dataset[2]]
 
         # # likelihood for NN pred vs Equation satif - P(phys | Θ)
-        if DynamicPPL.leafcontext(__context__) !== Turing.PriorContext()
-            Turing.@addlogprob! physloglikelihood(nn, prob, dataset[2], var = sig)
-        end
-
+        # if DynamicPPL.leafcontext(__context__) !== Turing.PriorContext()
+        #     Turing.@addlogprob! physloglikelihood(nn, prob, dataset[2], var = sig)
+        # end
+        physsol ~ MvNormal(vec(preds), Diagonal(sig .* ones(length(dataset[2]))))
         # # likelihood for dataset vs NN pred  - P( X̄ | Θ)
-        dataset[1] ~ MvNormal(vec(preds), sig .* ones(length(dataset[2])))
+        dataset[1] ~ MvNormal(vec(preds), Diagonal(sig .* ones(length(dataset[2]))))
     end
 
-    model = bayes_pinn(dataset)
+    model = bayes_pinn(dataset, physsol, phi)
     ch = sample(model, sampling_strategy, num_samples)
     return ch
 end
