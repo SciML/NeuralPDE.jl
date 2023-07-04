@@ -32,9 +32,9 @@ domains = [x ∈ Interval(0.0, 1.0),
 
 numhid = 3
 chains = [[Lux.Chain(Dense(1, numhid, Lux.σ), Dense(numhid, numhid, Lux.σ),
-    Dense(numhid, 1)) for i in 1:2]
-    [Lux.Chain(Dense(2, numhid, Lux.σ), Dense(numhid, numhid, Lux.σ),
-    Dense(numhid, 1)) for i in 1:2]]
+                     Dense(numhid, 1)) for i in 1:2]
+          [Lux.Chain(Dense(2, numhid, Lux.σ), Dense(numhid, numhid, Lux.σ),
+                     Dense(numhid, 1)) for i in 1:2]]
 discretization = NeuralPDE.PhysicsInformedNN(chains, QuadratureTraining())
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y), r(x, y), s(y, x)])

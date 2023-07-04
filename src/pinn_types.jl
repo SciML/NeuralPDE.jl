@@ -17,7 +17,7 @@ end
 
 """This function is defined here as stubs to be overriden by the subpackage NeuralPDELogging if imported"""
 function logvector(logger, v::AbstractVector{R}, name::AbstractString,
-    step::Integer) where {R <: Real}
+                   step::Integer) where {R <: Real}
     nothing
 end
 
@@ -95,17 +95,17 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
     kwargs::K
 
     @add_kwonly function PhysicsInformedNN(chain,
-        strategy;
-        init_params = nothing,
-        phi = nothing,
-        derivative = nothing,
-        param_estim = false,
-        additional_loss = nothing,
-        adaptive_loss = nothing,
-        logger = nothing,
-        log_options = LogOptions(),
-        iteration = nothing,
-        kwargs...) where {iip}
+                                           strategy;
+                                           init_params = nothing,
+                                           phi = nothing,
+                                           derivative = nothing,
+                                           param_estim = false,
+                                           additional_loss = nothing,
+                                           adaptive_loss = nothing,
+                                           logger = nothing,
+                                           log_options = LogOptions(),
+                                           iteration = nothing,
+                                           kwargs...) where {iip}
         multioutput = typeof(chain) <: AbstractArray
 
         if phi === nothing
@@ -134,19 +134,19 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
         new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
             typeof(param_estim),
             typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(chain,
-            strategy,
-            init_params,
-            _phi,
-            _derivative,
-            param_estim,
-            additional_loss,
-            adaptive_loss,
-            logger,
-            log_options,
-            iteration,
-            self_increment,
-            multioutput,
-            kwargs)
+                                                                                            strategy,
+                                                                                            init_params,
+                                                                                            _phi,
+                                                                                            _derivative,
+                                                                                            param_estim,
+                                                                                            additional_loss,
+                                                                                            adaptive_loss,
+                                                                                            logger,
+                                                                                            log_options,
+                                                                                            iteration,
+                                                                                            self_increment,
+                                                                                            multioutput,
+                                                                                            kwargs)
     end
 end
 

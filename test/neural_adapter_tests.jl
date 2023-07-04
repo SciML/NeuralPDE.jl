@@ -31,16 +31,16 @@ bcs = [u(0, y) ~ 0.0, u(1, y) ~ -sin(pi * 1) * sin(pi * y),
 domains = [x ∈ Interval(0.0, 1.0),
     y ∈ Interval(0.0, 1.0)]
 quadrature_strategy = NeuralPDE.QuadratureTraining(reltol = 1e-2, abstol = 1e-2,
-    maxiters = 50, batch = 100)
+                                                   maxiters = 50, batch = 100)
 inner = 8
 af = Flux.tanh
 chain1 = Chain(Dense(2, inner, af),
-    Dense(inner, inner, af),
-    Dense(inner, 1)) |> f64
+               Dense(inner, inner, af),
+               Dense(inner, 1)) |> f64
 init_params = Flux.destructure(chain1)[1]
 discretization = NeuralPDE.PhysicsInformedNN(chain1,
-    quadrature_strategy;
-    init_params = init_params)
+                                             quadrature_strategy;
+                                             init_params = init_params)
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
@@ -51,9 +51,9 @@ phi = discretization.phi
 inner_ = 10
 af = Flux.tanh
 chain2 = Lux.Chain(Lux.Dense(2, inner_, af),
-    Lux.Dense(inner_, inner_, af),
-    Lux.Dense(inner_, inner_, af),
-    Lux.Dense(inner_, 1))
+                   Lux.Dense(inner_, inner_, af),
+                   Lux.Dense(inner_, inner_, af),
+                   Lux.Dense(inner_, 1))
 initp, st = Lux.setup(Random.default_rng(), chain2)
 init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
 
@@ -65,10 +65,10 @@ end
 
 grid_strategy = NeuralPDE.GridTraining(0.05)
 quadrature_strategy = NeuralPDE.QuadratureTraining(reltol = 1e-5, abstol = 1e-5,
-    maxiters = 50, batch = 100)
+                                                   maxiters = 50, batch = 100)
 stochastic_strategy = NeuralPDE.StochasticTraining(400)
 quasirandom_strategy = NeuralPDE.QuasiRandomTraining(400, resampling = false,
-    minibatch = 200)
+                                                     minibatch = 200)
 quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(250)
 
 strategies1 = [grid_strategy, quadrature_strategy]
@@ -91,9 +91,9 @@ end
 reses_ = [reses_1; reses_2]
 
 discretizations = map(res_ -> NeuralPDE.PhysicsInformedNN(chain2,
-        grid_strategy;
-        init_params = res_.minimizer),
-    reses_)
+                                                          grid_strategy;
+                                                          init_params = res_.minimizer),
+                      reses_)
 
 probs = map(discret -> NeuralPDE.discretize(pde_system, discret), discretizations)
 phis = map(discret -> discret.phi, discretizations)
@@ -102,15 +102,15 @@ xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
 u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
-    (length(xs), length(ys)))
+                    (length(xs), length(ys)))
 
 u_predicts = map(zip(phis, reses_)) do (phi_, res_)
     reshape([first(phi_([x, y], res_.minimizer)) for x in xs for y in ys],
-        (length(xs), length(ys)))
+            (length(xs), length(ys)))
 end
 
 u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-    (length(xs), length(ys)))
+                 (length(xs), length(ys)))
 
 @test_broken u_predict≈u_real atol=1e-3
 @test_broken u_predicts[1]≈u_real atol=1e-2
@@ -155,9 +155,9 @@ count_decomp = 10
 af = Flux.tanh
 inner = 12
 chains = [Lux.Chain(Lux.Dense(2, inner, af), Lux.Dense(inner, inner, af),
-    Lux.Dense(inner, 1)) for _ in 1:count_decomp]
+                    Lux.Dense(inner, 1)) for _ in 1:count_decomp]
 init_params = map(c -> Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
-        c)[1])), chains)
+                                                                         c)[1])), chains)
 
 xs_ = infimum(x_domain):(1 / count_decomp):supremum(x_domain)
 xs_domain = [(xs_[i], xs_[i + 1]) for i in 1:(length(xs_) - 1)]
@@ -203,7 +203,7 @@ for i in 1:count_decomp
     strategy = NeuralPDE.GridTraining([0.1 / count_decomp, 0.1])
 
     discretization = NeuralPDE.PhysicsInformedNN(chains[i], strategy;
-        init_params = init_params[i])
+                                                 init_params = init_params[i])
 
     prob = NeuralPDE.discretize(pde_system_, discretization)
     symprob = NeuralPDE.symbolic_discretize(pde_system_, discretization)
@@ -258,10 +258,10 @@ u_predict, diff_u = compose_result(dx)
 inner_ = 18
 af = Flux.tanh
 chain2 = Lux.Chain(Lux.Dense(2, inner_, af),
-    Lux.Dense(inner_, inner_, af),
-    Lux.Dense(inner_, inner_, af),
-    Lux.Dense(inner_, inner_, af),
-    Lux.Dense(inner_, 1))
+                   Lux.Dense(inner_, inner_, af),
+                   Lux.Dense(inner_, inner_, af),
+                   Lux.Dense(inner_, inner_, af),
+                   Lux.Dense(inner_, 1))
 
 initp, st = Lux.setup(Random.default_rng(), chain2)
 init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
@@ -277,11 +277,11 @@ losses = map(1:count_decomp) do i
 end
 
 prob_ = NeuralPDE.neural_adapter(losses, init_params2, pde_system_map,
-    NeuralPDE.GridTraining([0.1 / count_decomp, 0.1]))
+                                 NeuralPDE.GridTraining([0.1 / count_decomp, 0.1]))
 res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 2000)
 @show res_.minimum
 prob_ = NeuralPDE.neural_adapter(losses, res_.minimizer, pde_system_map,
-    NeuralPDE.GridTraining(0.01))
+                                 NeuralPDE.GridTraining(0.01))
 res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 1000)
 @show res_.minimum
 
@@ -289,9 +289,9 @@ phi_ = NeuralPDE.Phi(chain2)
 
 xs, ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
 u_predict_ = reshape([first(phi_([x, y], res_.minimizer)) for x in xs for y in ys],
-    (length(xs), length(ys)))
+                     (length(xs), length(ys)))
 u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-    (length(xs), length(ys)))
+                 (length(xs), length(ys)))
 diff_u_ = u_predict_ .- u_real
 
 @test u_predict≈u_real rtol=0.1

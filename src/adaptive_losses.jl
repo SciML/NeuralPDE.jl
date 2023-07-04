@@ -27,11 +27,11 @@ mutable struct NonAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     bc_loss_weights::Vector{T}
     additional_loss_weights::Vector{T}
     SciMLBase.@add_kwonly function NonAdaptiveLoss{T}(; pde_loss_weights = 1,
-        bc_loss_weights = 1,
-        additional_loss_weights = 1) where {
-        T <:
-        Real,
-    }
+                                                      bc_loss_weights = 1,
+                                                      additional_loss_weights = 1) where {
+                                                                                          T <:
+                                                                                          Real
+                                                                                          }
         new(vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T),
             vectorify(additional_loss_weights, T))
     end
@@ -39,15 +39,15 @@ end
 
 # default to Float64
 SciMLBase.@add_kwonly function NonAdaptiveLoss(; pde_loss_weights = 1, bc_loss_weights = 1,
-    additional_loss_weights = 1)
+                                               additional_loss_weights = 1)
     NonAdaptiveLoss{Float64}(; pde_loss_weights = pde_loss_weights,
-        bc_loss_weights = bc_loss_weights,
-        additional_loss_weights = additional_loss_weights)
+                             bc_loss_weights = bc_loss_weights,
+                             additional_loss_weights = additional_loss_weights)
 end
 
 function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
-    adaloss::NonAdaptiveLoss,
-    pde_loss_functions, bc_loss_functions)
+                                         adaloss::NonAdaptiveLoss,
+                                         pde_loss_functions, bc_loss_functions)
     function null_nonadaptive_loss(θ, pde_losses, bc_losses)
         nothing
     end
@@ -93,13 +93,13 @@ mutable struct GradientScaleAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     bc_loss_weights::Vector{T}
     additional_loss_weights::Vector{T}
     SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss{T}(reweight_every;
-        weight_change_inertia = 0.9,
-        pde_loss_weights = 1,
-        bc_loss_weights = 1,
-        additional_loss_weights = 1) where {
-        T <:
-        Real,
-    }
+                                                                weight_change_inertia = 0.9,
+                                                                pde_loss_weights = 1,
+                                                                bc_loss_weights = 1,
+                                                                additional_loss_weights = 1) where {
+                                                                                                    T <:
+                                                                                                    Real
+                                                                                                    }
         new(convert(Int64, reweight_every), convert(T, weight_change_inertia),
             vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T),
             vectorify(additional_loss_weights, T))
@@ -107,20 +107,20 @@ mutable struct GradientScaleAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
 end
 # default to Float64
 SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss(reweight_every;
-    weight_change_inertia = 0.9,
-    pde_loss_weights = 1,
-    bc_loss_weights = 1,
-    additional_loss_weights = 1)
+                                                         weight_change_inertia = 0.9,
+                                                         pde_loss_weights = 1,
+                                                         bc_loss_weights = 1,
+                                                         additional_loss_weights = 1)
     GradientScaleAdaptiveLoss{Float64}(reweight_every;
-        weight_change_inertia = weight_change_inertia,
-        pde_loss_weights = pde_loss_weights,
-        bc_loss_weights = bc_loss_weights,
-        additional_loss_weights = additional_loss_weights)
+                                       weight_change_inertia = weight_change_inertia,
+                                       pde_loss_weights = pde_loss_weights,
+                                       bc_loss_weights = bc_loss_weights,
+                                       additional_loss_weights = additional_loss_weights)
 end
 
 function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
-    adaloss::GradientScaleAdaptiveLoss,
-    pde_loss_functions, bc_loss_functions)
+                                         adaloss::GradientScaleAdaptiveLoss,
+                                         pde_loss_functions, bc_loss_functions)
     weight_change_inertia = adaloss.weight_change_inertia
     iteration = pinnrep.iteration
     adaloss_T = eltype(adaloss.pde_loss_weights)
@@ -143,14 +143,14 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
                                        (1 .- weight_change_inertia) .*
                                        bc_loss_weights_proposed
             logscalar(pinnrep.logger, pde_grads_max, "adaptive_loss/pde_grad_max",
-                iteration[1])
+                      iteration[1])
             logvector(pinnrep.logger, pde_grads_maxes, "adaptive_loss/pde_grad_maxes",
-                iteration[1])
+                      iteration[1])
             logvector(pinnrep.logger, bc_grads_mean, "adaptive_loss/bc_grad_mean",
-                iteration[1])
+                      iteration[1])
             logvector(pinnrep.logger, adaloss.bc_loss_weights,
-                "adaptive_loss/bc_loss_weights",
-                iteration[1])
+                      "adaptive_loss/bc_loss_weights",
+                      iteration[1])
         end
         nothing
     end
@@ -190,8 +190,8 @@ Levi McClenny, Ulisses Braga-Neto
 https://arxiv.org/abs/2009.04544
 """
 mutable struct MiniMaxAdaptiveLoss{T <: Real,
-    PDE_OPT <: Flux.Optimise.AbstractOptimiser,
-    BC_OPT <: Flux.Optimise.AbstractOptimiser} <:
+                                   PDE_OPT <: Flux.Optimise.AbstractOptimiser,
+                                   BC_OPT <: Flux.Optimise.AbstractOptimiser} <:
                AbstractAdaptiveLoss
     reweight_every::Int64
     pde_max_optimiser::PDE_OPT
@@ -200,19 +200,19 @@ mutable struct MiniMaxAdaptiveLoss{T <: Real,
     bc_loss_weights::Vector{T}
     additional_loss_weights::Vector{T}
     SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T,
-        PDE_OPT, BC_OPT}(reweight_every;
-        pde_max_optimiser = Flux.ADAM(1e-4),
-        bc_max_optimiser = Flux.ADAM(0.5),
-        pde_loss_weights = 1,
-        bc_loss_weights = 1,
-        additional_loss_weights = 1) where {
-        T <:
-        Real,
-        PDE_OPT <:
-        Flux.Optimise.AbstractOptimiser,
-        BC_OPT <:
-        Flux.Optimise.AbstractOptimiser,
-    }
+                                                       PDE_OPT, BC_OPT}(reweight_every;
+                                                                        pde_max_optimiser = Flux.ADAM(1e-4),
+                                                                        bc_max_optimiser = Flux.ADAM(0.5),
+                                                                        pde_loss_weights = 1,
+                                                                        bc_loss_weights = 1,
+                                                                        additional_loss_weights = 1) where {
+                                                                                                            T <:
+                                                                                                            Real,
+                                                                                                            PDE_OPT <:
+                                                                                                            Flux.Optimise.AbstractOptimiser,
+                                                                                                            BC_OPT <:
+                                                                                                            Flux.Optimise.AbstractOptimiser
+                                                                                                            }
         new(convert(Int64, reweight_every), convert(PDE_OPT, pde_max_optimiser),
             convert(BC_OPT, bc_max_optimiser),
             vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T),
@@ -222,23 +222,23 @@ end
 
 # default to Float64, ADAM, ADAM
 SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss(reweight_every;
-    pde_max_optimiser = Flux.ADAM(1e-4),
-    bc_max_optimiser = Flux.ADAM(0.5),
-    pde_loss_weights = 1,
-    bc_loss_weights = 1,
-    additional_loss_weights = 1)
+                                                   pde_max_optimiser = Flux.ADAM(1e-4),
+                                                   bc_max_optimiser = Flux.ADAM(0.5),
+                                                   pde_loss_weights = 1,
+                                                   bc_loss_weights = 1,
+                                                   additional_loss_weights = 1)
     MiniMaxAdaptiveLoss{Float64, typeof(pde_max_optimiser),
-        typeof(bc_max_optimiser)}(reweight_every;
-        pde_max_optimiser = pde_max_optimiser,
-        bc_max_optimiser = bc_max_optimiser,
-        pde_loss_weights = pde_loss_weights,
-        bc_loss_weights = bc_loss_weights,
-        additional_loss_weights = additional_loss_weights)
+                        typeof(bc_max_optimiser)}(reweight_every;
+                                                  pde_max_optimiser = pde_max_optimiser,
+                                                  bc_max_optimiser = bc_max_optimiser,
+                                                  pde_loss_weights = pde_loss_weights,
+                                                  bc_loss_weights = bc_loss_weights,
+                                                  additional_loss_weights = additional_loss_weights)
 end
 
 function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
-    adaloss::MiniMaxAdaptiveLoss,
-    pde_loss_functions, bc_loss_functions)
+                                         adaloss::MiniMaxAdaptiveLoss,
+                                         pde_loss_functions, bc_loss_functions)
     pde_max_optimiser = adaloss.pde_max_optimiser
     bc_max_optimiser = adaloss.bc_max_optimiser
     iteration = pinnrep.iteration
@@ -246,13 +246,13 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
     function run_minimax_adaptive_loss(θ, pde_losses, bc_losses)
         if iteration[1] % adaloss.reweight_every == 0
             Flux.Optimise.update!(pde_max_optimiser, adaloss.pde_loss_weights,
-                -pde_losses)
+                                  -pde_losses)
             Flux.Optimise.update!(bc_max_optimiser, adaloss.bc_loss_weights, -bc_losses)
             logvector(pinnrep.logger, adaloss.pde_loss_weights,
-                "adaptive_loss/pde_loss_weights", iteration[1])
+                      "adaptive_loss/pde_loss_weights", iteration[1])
             logvector(pinnrep.logger, adaloss.bc_loss_weights,
-                "adaptive_loss/bc_loss_weights",
-                iteration[1])
+                      "adaptive_loss/bc_loss_weights",
+                      iteration[1])
         end
         nothing
     end

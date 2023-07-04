@@ -30,10 +30,10 @@ using ComponentArrays
     dx = strategy_.dx
     eltypeθ = eltype(sym_prob.flat_init_params)
     depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = NeuralPDE.get_vars(pde_system.ivs,
-        pde_system.dvs)
+                                                                                         pde_system.dvs)
 
     train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
-        dict_indvars, dict_depvars)
+                                        dict_indvars, dict_depvars)
 
     pde_train_sets, bcs_train_sets = train_sets
     pde_train_sets = NeuralPDE.adapt(eltypeθ, pde_train_sets)[1]
@@ -47,7 +47,7 @@ end
 
 @testset "derivatives" begin
     chain = Flux.Chain(Flux.Dense(2, 16, Lux.σ), Flux.Dense(16, 16, Lux.σ),
-        Flux.Dense(16, 1)) |> Flux.f64
+                       Flux.Dense(16, 1)) |> Flux.f64
     init_params = Flux.destructure(chain)[1]
 
     eltypeθ = eltype(init_params)
@@ -101,7 +101,7 @@ end
     chain([1], init_params, st)
     strategy_ = NeuralPDE.GridTraining(0.1)
     discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_;
-        init_params = init_params)
+                                                 init_params = init_params)
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
     sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
     prob = NeuralPDE.discretize(pde_system, discretization)
@@ -120,7 +120,7 @@ end
     chain([1], init_params, st)
 
     discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_;
-        init_params = init_params)
+                                                 init_params = init_params)
     @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
     sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
     prob = SciMLBase.discretize(pde_system, discretization)

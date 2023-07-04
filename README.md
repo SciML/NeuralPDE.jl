@@ -93,9 +93,9 @@ xs, ys = [infimum(d.domain):(dx / 10):supremum(d.domain) for d in domains]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
 u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
-    (length(xs), length(ys)))
+                    (length(xs), length(ys)))
 u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-    (length(xs), length(ys)))
+                 (length(xs), length(ys)))
 diff_u = abs.(u_predict .- u_real)
 
 using Plots

@@ -29,8 +29,8 @@ func_s = func(xs)
 
 hidden = 10
 chain = Lux.Chain(Lux.Dense(1, hidden, Lux.tanh),
-    Lux.Dense(hidden, hidden, Lux.tanh),
-    Lux.Dense(hidden, 1))
+                  Lux.Dense(hidden, hidden, Lux.tanh),
+                  Lux.Dense(hidden, 1))
 
 strategy = NeuralPDE.GridTraining(0.01)
 
@@ -42,7 +42,7 @@ sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.05), maxiters = 1000)
 prob = remake(prob, u0 = res.minimizer)
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(initial_stepnorm = 0.01),
-    maxiters = 500)
+                         maxiters = 500)
 
 @test discretization.phi(xs', res.u)≈func(xs') rtol=0.01
 
@@ -64,9 +64,9 @@ domain = [x ∈ Interval(x0, x_end)]
 
 hidden = 20
 chain = Lux.Chain(Lux.Dense(1, hidden, Lux.sin),
-    Lux.Dense(hidden, hidden, Lux.sin),
-    Lux.Dense(hidden, hidden, Lux.sin),
-    Lux.Dense(hidden, 1))
+                  Lux.Dense(hidden, hidden, Lux.sin),
+                  Lux.Dense(hidden, hidden, Lux.sin),
+                  Lux.Dense(hidden, 1))
 
 strategy = NeuralPDE.GridTraining(0.01)
 
@@ -107,9 +107,9 @@ domain = [x ∈ Interval(x0, x_end), y ∈ Interval(y0, y_end)]
 
 hidden = 25
 chain = Lux.Chain(Lux.Dense(2, hidden, Lux.tanh),
-    Lux.Dense(hidden, hidden, Lux.tanh),
-    Lux.Dense(hidden, hidden, Lux.tanh),
-    Lux.Dense(hidden, 1))
+                  Lux.Dense(hidden, hidden, Lux.tanh),
+                  Lux.Dense(hidden, hidden, Lux.tanh),
+                  Lux.Dense(hidden, 1))
 
 strategy = NeuralPDE.GridTraining(d)
 discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
@@ -128,7 +128,7 @@ phi = discretization.phi
 xs = collect(x0:0.1:x_end)
 ys = collect(y0:0.1:y_end)
 u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
-    (length(xs), length(ys)))
+                    (length(xs), length(ys)))
 u_real = reshape([func(x, y) for x in xs for y in ys], (length(xs), length(ys)))
 diff_u = abs.(u_predict .- u_real)
 

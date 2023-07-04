@@ -17,25 +17,25 @@ struct GridTraining{T} <: AbstractTrainingStrategy
 end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
-    strategy::GridTraining,
-    datafree_pde_loss_function,
-    datafree_bc_loss_function)
+                                           strategy::GridTraining,
+                                           datafree_pde_loss_function,
+                                           datafree_bc_loss_function)
     @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
     dx = strategy.dx
     eltypeθ = eltype(pinnrep.flat_init_params)
 
     train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
-        dict_indvars, dict_depvars)
+                                        dict_indvars, dict_depvars)
 
     # the points in the domain and on the boundary
     pde_train_sets, bcs_train_sets = train_sets
     pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-        pde_train_sets)
+                            pde_train_sets)
     bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-        bcs_train_sets)
+                            bcs_train_sets)
     pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
                           for (_loss, _set) in zip(datafree_pde_loss_function,
-        pde_train_sets)]
+                                                   pde_train_sets)]
 
     bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
                          for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
@@ -44,7 +44,7 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
 end
 
 function get_loss_function(loss_function, train_set, eltypeθ, strategy::GridTraining;
-    τ = nothing)
+                           τ = nothing)
     loss = (θ) -> mean(abs2, loss_function(train_set, θ))
 end
 
@@ -77,15 +77,15 @@ function generate_random_points(points, bound, eltypeθ)
 end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
-    strategy::StochasticTraining,
-    datafree_pde_loss_function,
-    datafree_bc_loss_function)
+                                           strategy::StochasticTraining,
+                                           datafree_pde_loss_function,
+                                           datafree_bc_loss_function)
     @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
-        strategy)
+                        strategy)
     pde_bounds, bcs_bounds = bounds
 
     pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
@@ -98,7 +98,7 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
 end
 
 function get_loss_function(loss_function, bound, eltypeθ, strategy::StochasticTraining;
-    τ = nothing)
+                           τ = nothing)
     points = strategy.points
 
     loss = (θ) -> begin
@@ -145,13 +145,13 @@ struct QuasiRandomTraining <: AbstractTrainingStrategy
 end
 
 function QuasiRandomTraining(points; bcs_points = points,
-    sampling_alg = LatinHypercubeSample(), resampling = true,
-    minibatch = 0)
+                             sampling_alg = LatinHypercubeSample(), resampling = true,
+                             minibatch = 0)
     QuasiRandomTraining(points, bcs_points, sampling_alg, resampling, minibatch)
 end
 
 function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg,
-    minibatch)
+                                            minibatch)
     lb, ub = bound
     set = QuasiMonteCarlo.generate_design_matrices(points, lb, ub, sampling_alg, minibatch)
     set = map(s -> adapt(parameterless_type(eltypeθ), s), set)
@@ -159,24 +159,24 @@ function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_al
 end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
-    strategy::QuasiRandomTraining,
-    datafree_pde_loss_function,
-    datafree_bc_loss_function)
+                                           strategy::QuasiRandomTraining,
+                                           datafree_pde_loss_function,
+                                           datafree_bc_loss_function)
     @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
-        strategy)
+                        strategy)
     pde_bounds, bcs_bounds = bounds
 
     pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
                           for (_loss, bound) in zip(datafree_pde_loss_function, pde_bounds)]
 
     strategy_ = QuasiRandomTraining(strategy.bcs_points;
-        sampling_alg = strategy.sampling_alg,
-        resampling = strategy.resampling,
-        minibatch = strategy.minibatch)
+                                    sampling_alg = strategy.sampling_alg,
+                                    resampling = strategy.resampling,
+                                    minibatch = strategy.minibatch)
     bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy_)
                          for (_loss, bound) in zip(datafree_bc_loss_function, bcs_bounds)]
 
@@ -184,7 +184,7 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
 end
 
 function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandomTraining;
-    τ = nothing)
+                           τ = nothing)
     sampling_alg = strategy.sampling_alg
     points = strategy.points
     resampling = strategy.resampling
@@ -197,9 +197,9 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
     loss = if resampling == true
         θ -> begin
             sets = ChainRulesCore.@ignore_derivatives QuasiMonteCarlo.sample(points,
-                bound[1],
-                bound[2],
-                sampling_alg)
+                                                                             bound[1],
+                                                                             bound[2],
+                                                                             sampling_alg)
             sets_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
             mean(abs2, loss_function(sets_, θ))
         end
@@ -247,19 +247,19 @@ struct QuadratureTraining{Q <: SciMLBase.AbstractIntegralAlgorithm, T} <:
 end
 
 function QuadratureTraining(; quadrature_alg = CubatureJLh(), reltol = 1e-6, abstol = 1e-3,
-    maxiters = 1_000, batch = 100)
+                            maxiters = 1_000, batch = 100)
     QuadratureTraining(quadrature_alg, reltol, abstol, maxiters, batch)
 end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
-    strategy::QuadratureTraining,
-    datafree_pde_loss_function,
-    datafree_bc_loss_function)
+                                           strategy::QuadratureTraining,
+                                           datafree_pde_loss_function,
+                                           datafree_bc_loss_function)
     @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
     eltypeθ = eltype(pinnrep.flat_init_params)
 
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
-        strategy)
+                        strategy)
     pde_bounds, bcs_bounds = bounds
 
     lbs, ubs = pde_bounds
@@ -273,7 +273,7 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
 end
 
 function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::QuadratureTraining;
-    τ = nothing)
+                           τ = nothing)
     if length(lb) == 0
         loss = (θ) -> mean(abs2, loss_function(rand(eltypeθ, 1, 10), θ))
         return loss
@@ -290,10 +290,10 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::Quadrature
         end
         prob = IntegralProblem(integrand, lb, ub, θ, batch = strategy.batch, nout = 1)
         solve(prob,
-            strategy.quadrature_alg,
-            reltol = strategy.reltol,
-            abstol = strategy.abstol,
-            maxiters = strategy.maxiters)[1]
+              strategy.quadrature_alg,
+              reltol = strategy.reltol,
+              abstol = strategy.abstol,
+              maxiters = strategy.maxiters)[1]
     end
     loss = (θ) -> 1 / area * f_(lb, ub, loss_function, θ)
     return loss
@@ -328,7 +328,7 @@ function WeightedIntervalTraining(weights, samples)
 end
 
 function get_loss_function(loss_function, train_set, eltypeθ,
-    strategy::WeightedIntervalTraining;
-    τ = nothing)
+                           strategy::WeightedIntervalTraining;
+                           τ = nothing)
     loss = (θ) -> mean(abs2, loss_function(train_set, θ))
 end

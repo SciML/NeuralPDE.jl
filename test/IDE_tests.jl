@@ -24,12 +24,12 @@ domains = [t ∈ Interval(0.0, 2.0)]
 chain = Chain(Dense(1, 15, Flux.σ), Dense(15, 1))
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-    strategy_)
+                                             strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [t], [i(t)])
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 prob = NeuralPDE.discretize(pde_system, discretization)
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-    maxiters = 100)
+                         maxiters = 100)
 ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 
@@ -55,11 +55,11 @@ domains = [x ∈ Interval(0.0, 1.00)]
 chain = Lux.Chain(Lux.Dense(1, 15, Flux.σ), Lux.Dense(15, 1))
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-    strategy_)
+                                             strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-    maxiters = 200)
+                         maxiters = 200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict = [first(phi([x], res.minimizer)) for x in xs]
@@ -83,11 +83,11 @@ domains = [x ∈ Interval(0.0, 1.00), y ∈ Interval(0.0, 1.00)]
 chain = Chain(Dense(2, 15, Flux.σ), Dense(15, 1))
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-    strategy_)
+                                             strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-    maxiters = 100)
+                         maxiters = 100)
 xs = 0.00:0.01:1.00
 ys = 0.00:0.01:1.00
 phi = discretization.phi
@@ -113,11 +113,11 @@ domains = [x ∈ Interval(0.0, 1.00), y ∈ Interval(0.0, 1.00)]
 chain = Chain(Dense(2, 15, Flux.σ), Dense(15, 1))
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-    strategy_)
+                                             strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-    maxiters = 100)
+                         maxiters = 100)
 xs = 0.00:0.01:1.00
 ys = 0.00:0.01:1.00
 phi = discretization.phi
@@ -150,11 +150,11 @@ domains = [x ∈ Interval(1.0, 2.0)]
 chains = [Lux.Chain(Lux.Dense(1, 15, Flux.σ), Lux.Dense(15, 1)) for _ in 1:2]
 strategy_ = NeuralPDE.GridTraining(0.1)
 discretization = NeuralPDE.PhysicsInformedNN(chains,
-    strategy_)
+                                             strategy_)
 @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x), w(x)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-    maxiters = 200)
+                         maxiters = 200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 
@@ -185,7 +185,7 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, NeuralPDE.GridTraining(0.1))
 sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-    maxiters = 200)
+                         maxiters = 200)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict = [first(phi([x], res.minimizer)) for x in xs]
@@ -209,7 +209,7 @@ sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
 prob = SciMLBase.discretize(pde_system, discretization)
 prob.f(prob.u0, nothing)
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-    maxiters = 300)
+                         maxiters = 300)
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict = [first(phi([x], res.minimizer)) for x in xs]

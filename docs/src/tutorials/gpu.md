@@ -32,10 +32,10 @@ using the `gpu` function on the initial parameters, like:
 ```julia
 using Lux, ComponentArrays
 chain = Chain(Dense(3, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, 1))
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, 1))
 ps = Lux.setup(Random.default_rng(), chain)[1]
 ps = ps |> ComponentArray |> gpu .|> Float64
 ```
@@ -79,17 +79,17 @@ domains = [t ∈ Interval(t_min, t_max),
 # Neural network
 inner = 25
 chain = Chain(Dense(3, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, 1))
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, inner, Lux.σ),
+              Dense(inner, 1))
 
 strategy = GridTraining(0.05)
 ps = Lux.setup(Random.default_rng(), chain)[1]
 ps = ps |> ComponentArray |> gpu .|> Float64
 discretization = PhysicsInformedNN(chain,
-    strategy,
-    init_params = ps)
+                                   strategy,
+                                   init_params = ps)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x, y], [u(t, x, y)])
 prob = discretize(pde_system, discretization)
@@ -127,9 +127,9 @@ function plot_(res)
     anim = @animate for (i, t) in enumerate(0:0.05:t_max)
         @info "Animating frame $i..."
         u_real = reshape([analytic_sol_func(t, x, y) for x in xs for y in ys],
-            (length(xs), length(ys)))
+                         (length(xs), length(ys)))
         u_predict = reshape([Array(phi(gpu([t, x, y]), res.u))[1] for x in xs for y in ys],
-            length(xs), length(ys))
+                            length(xs), length(ys))
         u_error = abs.(u_predict .- u_real)
         title = @sprintf("predict, t = %.3f", t)
         p1 = plot(xs, ys, u_predict, st = :surface, label = "", title = title)

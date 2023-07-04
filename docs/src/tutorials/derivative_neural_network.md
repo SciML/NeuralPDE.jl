@@ -95,7 +95,7 @@ chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) f
 
 grid_strategy = NeuralPDE.GridTraining(0.07)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-    grid_strategy)
+                                             grid_strategy)
 
 vars = [u1(t, x), u2(t, x), u3(t, x), Dxu1(t, x), Dtu1(t, x), Dxu2(t, x), Dtu2(t, x)]
 @named pdesystem = PDESystem(eqs_, bcs__, domains, [t, x], vars)
