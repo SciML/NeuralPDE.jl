@@ -1,53 +1,136 @@
 # Testing out Code (will put in bpinntests.jl file in tests directory)
 
 # Define ODE problem,conditions and Model,solve using NNODE.
-using DifferentialEquations, MCMCChains
+using DifferentialEquations, MCMCChains, ForwardDiff
 using NeuralPDE, Flux, OptimizationOptimisers
+using StatProfilerHTML, Profile, Statistics
+using BenchmarkTools, Plots, StatsPlots
+plotly()
+Profile.init()   # returns the current settings
+# # Profile.init(n=10^7, delay=0.1)
 
-# prob1
-linear = (u, p, t) -> -u / 5 + exp(-t / 5) * cos(t)
-linear_analytic = (u0, p, t) -> exp(-t / 5) * (u0 + sin(t))
-# tspan = (0.0f0, 1.0f0)
-tspan = (0.0f0, 10.0f0)
-u0 = 0.0f0
-prob = ODEProblem(ODEFunction(linear, analytic = linear_analytic), u0, tspan)
+# # # prob1
+# linear = (u, p, t) -> -u / 5 + exp(-t / 5) * cos(t)
+# linear_analytic = (u0, p, t) -> exp(-t / 5) * (u0 + sin(t))
+# tspan = (0.0f0, 10.0f0)
+# u0 = 0.0f0
+# typeof(u0)
+# typeof(tspan[1])
+# prob = ODEProblem(ODEFunction(linear, analytic=linear_analytic), u0, tspan)
+# typeof(linear(u0, prob.p, tspan[1]))
+# prob = ODEProblem(ODEFunction(linear, analytic=linear_analytic), u0, tspan)
+
+# using activation funciton on first layer signficantly improved stuuff,1 for none,2 for sigmoid,3 for tanh
+# for above tspan(0-10)
+# graph 4 is tspan(0-2) sigmoid, 5 for tanh,6 for none
+# graph 7 is for all sampled results for graph 4 Case,graph 8 is the chain got
+# graph 9 is for all sampled results for graph 5 Case,graph 10 is the chain got
+# correlation between activation function,sigmoid,tanh clearly better
+# number of timepoints to train on clearly affects results
+# all above are for 100 datapoints
+
+# graph 11 is tanh, for timespan(0-1), 20 datapoints, graph 12 for all samples,graph 13 is its chain
+# graph 14 is sigmoid, for timespan(0-1), 20 datapoints, graph 15 for all samples,graph 16 is its chain
 
 # prob2
-# linear = (u, p, t) -> [cos(2pi * t)]
-# tspan = (0.0f0, 1.0f0)
-# u0 = [0.0f0]
-# prob = ODEProblem(linear, u0, tspan)
-
-chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
-chain1 = chain
+linear_analytic = (u0, p, t) -> u0 + sin(2 * π * t) / (2 * π)
+linear = (u, p, t) -> cos(2 * π * t)
+# tspan = (0.0, 10.0)
+tspan = (0.0, 1.0)
+u0 = 0.0
+prob = ODEProblem(ODEFunction(linear, analytic = linear_analytic), u0, tspan)
 
 # Numerical and Analytical Solutions
-ta = range(tspan[1], tspan[2], length = 100)
+ta = range(tspan[1], tspan[2], length = 20)
 u = [linear_analytic(u0, nothing, ti) for ti in ta]
-# sol1 = solve(prob, Tsit5())
+sol1 = solve(prob, Tsit5())
+plot(sol1.t, sol1.u)
 
-# NNODE Solutions(500, 200 iters)
-# opt = OptimizationOptimisers.Adam(0.1)
-# sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose=true, abstol=1.0f-6, maxiters=500)
-# sol2 = solve(prob, NeuralPDE.NNODE(chain, opt), verbose=true, abstol=1.0f-6, maxiters=200)
-
-# initial NN predictions
-# tspan = (0.0, 10.0)
-# t = range(tspan[1], tspan[2], length=100)
+# BPINN AND TRAINING DATASET CREATION, NN create, Reconstruct
+x̂ = collect(Float64, Array(u) + 0.8 * randn(size(u)))
 time = vec(collect(Float64, ta))
-# initialtry = vec(chain1(time'))
-
-# BPINN AND TRAINING DATASET CREATION
-x̂ = collect(Float64, Array(u) + 0.8 * randn(size(Array(u))))
-# t = collect(Float32, ta)
 dataset = (x̂, time)
-typeof(dataset)
-# chain1 = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
-# parameters_initial, reconstruct = Flux.destructure(chain1)
 
-using StatProfilerHTML, Profile
-Profile.init() # returns the current settings
-# # Profile.init(n=10^7, delay=0.1)
+# Call BPINN, create chain
+chainfh = Flux.Chain(Dense(1, 5, sigmoid), Dense(5, 1))
+fhsamples, fhstats = ahmc_bayesian_pinn_ode(prob, chainfh, dataset, warmup_samples = 500,
+                                            draw_samples = 100)
+init, re = destructure(chainfh)
+
+# plotting time points
+t = time
+p = prob.p
+
+# PLOTTING MEDIAN,MEANS AND iTH PARAMETER CURVES
+# Plot problem and its solution
+plot(title = "Problem1 y'(x,t),y(x,t) for ODE,BPINN", legend = :outerbottomright)
+physsol1 = [linear_analytic(prob.u0, p, t[i]) for i in eachindex(t)]
+physsol2 = [linear(physsol1[i], p, t[i]) for i in eachindex(t)]
+plot!(t, physsol1, label = "y(x,t)")
+plot!(t, physsol2, label = "y'(x,t)")
+
+# Create mcmc chain
+samples = fhsamples
+matrix_samples = hcat(samples...)
+fh_mcmc_chain = Chains(matrix_samples')  # Create a chain from the reshaped samples
+
+means = mean(matrix_samples, dims = 2)
+medians = median(matrix_samples, dims = 2)
+
+# plotting average of final nn outputs
+out = re.(fhsamples)
+yu = collect(out[i](t') for i in eachindex(out))
+yu = vcat(yu...)
+a = [mean(yu[:, i]) for i in eachindex(t)]
+plot!(t, prob.u0 .+ (t .- prob.tspan[1]) .* a, label = "curve averages")
+
+# plotting i'th sampled parameters NN output
+a = vec(re(vec(fhsamples[100]))(t'))
+physsol3 = prob.u0 .+ (t .- prob.tspan[1]) .* a
+plot!(t, physsol3, label = "y(x,t) 100th curve")
+
+# plotting curve when using mean of sampled parameters
+a = vec(re(vec(means))(t'))
+physsol3 = prob.u0 .+ (t .- prob.tspan[1]) .* a
+plot!(t, physsol3, label = "y(x,t) means curve")
+
+# plotting curve when using median of sampled parameters
+a = vec(re(vec(medians))(t'))
+physsol3 = prob.u0 .+ (t .- prob.tspan[1]) .* a
+plot!(t, physsol3, label = "y(x,t) median curve")
+
+# ALL SAMPLES PLOTS--------------------------------------
+# Plot problem and its solution
+plot(title = "Problem1 y'(x,t),y(x,t) for ODE,BPINN", legend = :outerbottomright)
+physsol1 = [linear_analytic(prob.u0, p, t[i]) for i in eachindex(t)]
+physsol2 = [linear(physsol1[i], p, t[i]) for i in eachindex(t)]
+plot!(t, physsol1, label = "y(x,t)")
+plot!(t, physsol2, label = "y'(x,t)")
+
+# Plot each iv'th sample in samples
+function realsol(p, out, linear, t, iv)
+    outpreds = out(t')
+    physsol3 = prob.u0 .+ (t .- prob.tspan[1]) .* vec(outpreds)
+    # physsol4 = [linear(physsol3[i], p, t[i]) for i in eachindex(t)]
+    plot!(t, physsol3, label = "y(x,t) $iv th curve")
+    # plot!(t, physsol4, label="y'(x,t) $iv th curve")
+end
+
+# Plot all NN parameter samples curve posibilities
+for i in eachindex(fhsamples)
+    out = re(fhsamples[i])
+    realsol(p, out, linear, t, i)
+end
+
+# added this as above plot takes time this lower line renders the above plot faster
+plot!(title = "Problem1 y'(x,t),y(x,t) for ODE,BPINN", legend = :outerbottomright)
+
+# PLOT MCMC Chain
+plot(fh_mcmc_chain)
+# -------------------------------------------------------------------------------------------------------------------------
+# (Above is the testing code as commented,use it in another env in case package issues arise)
+
+# -------------------------------------------------------------------------------------------------------------------------
 
 # NOTE:bayesian_pinn_ode for 500 points and 100 samples took >30mins and inaccurate results
 # also default bayesian_pinn_ode call takes 3hrs ish

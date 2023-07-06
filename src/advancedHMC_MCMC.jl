@@ -11,17 +11,13 @@ struct LogTargetDensity
 end
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
-    alpha = 0.1
-    return physloglikelihood(Tar, θ)
-    #  + L2LossData(Tar, θ)
-
-    # + priorweights(Tar, θ)
+    return physloglikelihood(Tar, θ) + L2LossData(Tar, θ) + priorweights(Tar, θ)
 end
 
 LogDensityProblems.dimension(Tar::LogTargetDensity) = Tar.dim
 
 function LogDensityProblems.capabilities(::Type{LogTargetDensity})
-    LogDensityProblems.LogDensityOrder{1}()
+    LogDensityProblems.LogDensityOrder{0}()
 end
 
 # nn OUTPUT AT t
@@ -42,37 +38,29 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     p = Tar.prob.p
     f = Tar.prob.f
     var = 0.05^2
-    u0 = Tar.prob.u0
-    t = Tar.dataset[2]
     # distributions cannot take in forwarddiff jacobian matrices as means
-    autodiff = true
+    autodiff = false
+    t = Tar.dataset[2]
+
     # compare derivatives
     out = Tar(t, θ)
-    # print(size(out))
     physsol = [f(out[i], p, t[i]) for i in eachindex(out)]
-    # print(size(physsol))
     nnsol = NNodederi(Tar, t, θ, autodiff)
+    n = length(nnsol)
+
     if autodiff
         nnsol = diag(nnsol)
     end
 
-    n = length(nnsol)
-
-    # # return sum(abs2, (nnsol .- physsol)) ./ (-2 * (var^2))
-    # # return ((-n / 2 * log(2π * var^2)) - (sum(abs2, (nnsol .- physsol)) / (2 * var^2)))
     return logpdf(MvNormal(nnsol, Diagonal(var .* ones(n))), physsol)
-    # # return loglikelihood(MvNormal(nnsol, Diagonal(var .* ones(length(nnsol)))), physsol)
 end
 
 # standard MvNormal Dist Assume
 function L2LossData(Tar::LogTargetDensity, θ)
-    nn = vec(Tar.re(θ)(Tar.dataset[2]'))
+    nn = Tar(Tar.dataset[2], θ)
     n = length(nn)
     var = 0.05^2
-    # return loglikelihood(MvNormal(nn, Diagonal(Tar.var .* ones(length(nn)))),Tar.dataset[1])
     return logpdf(MvNormal(nn, Diagonal(var .* ones(n))), Tar.dataset[1])
-
-    # return ((-n / 2 * log(2π * var^2)) - (sum(abs2, (nn .- Tar.dataset[1])) / (2 * var^2)))
 end
 
 function priorweights(Tar::LogTargetDensity, θ)
@@ -93,11 +81,10 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
         throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
     end
 
-    # variance
-    varsd = 2.0
+    # NN parameter prior mean and variance
     varμ = 0.0
+    varsd = 2
     sig = (varμ, varsd)
-    # sig = eps(eltype(dataset[1][1]))
 
     initial_θ = collect(Float64, vec(nnparameters))
     ℓπ = LogTargetDensity(nparameters, prob, recon, dataset,
