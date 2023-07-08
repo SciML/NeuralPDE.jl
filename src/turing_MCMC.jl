@@ -16,12 +16,12 @@ end
 
 # nn OUTPUT AT t
 function (f::odeByNN{C, T, U})(t::Number,
-                               θ) where {C <: Optimisers.Restructure, T, U}
+    θ) where {C <: Optimisers.Restructure, T, U}
     f.u0 + (t - f.t0) * first(f.chain(θ)(adapt(parameterless_type(θ), [t])))
 end
 
 function (f::odeByNN{C, T, U})(t::AbstractVector,
-                               θ) where {C <: Optimisers.Restructure, T, U}
+    θ) where {C <: Optimisers.Restructure, T, U}
     f.u0 .+ (t .- f.t0) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
@@ -43,7 +43,7 @@ function NNodederi(phi::odeByNN, t::AbstractVector, θ, autodiff::Bool)
 end
 
 function physloglikelihood(chain::Any, prob::DiffEqBase.DEProblem,
-                           t::AbstractVector; var = 0.5)
+    t::AbstractVector; var = 0.5)
     u0 = prob.u0
     t0 = t[1]
     p = prob.p
@@ -74,7 +74,7 @@ end
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
 function bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain, dataset;
-                           sampling_strategy = Turing.NUTS(0.65), num_samples = 1000)
+    sampling_strategy = Turing.NUTS(0.65), num_samples = 1000)
     param_initial, recon = Flux.destructure(chain)
     nparameters = length(param_initial)
 
@@ -117,7 +117,6 @@ end
 
 # ----------need speed up
 # the phase point struct
-# create chain from samples,stats
 # create custom distri?
 # using chain with updated parameters in physloglikelihood and L2LossData
 
