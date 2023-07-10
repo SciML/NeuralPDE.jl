@@ -35,7 +35,12 @@ dataset = (x̂, time)
 # Call BPINN, create chain
 chainfh = Flux.Chain(Dense(1, 5, tanh), Dense(5, 1))
 fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(prob, chainfh, dataset,
-                                                           draw_samples = 1000)
+                                                           draw_samples = 1000,
+                                                           autodiff)
+# fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(prob, chainfh, dataset,
+#                                                            draw_samples = 1000,
+#                                                            autodiff = true)
+
 init, re = destructure(chainfh)
 
 t = range(tspan[1], tspan[2], length = 600)
