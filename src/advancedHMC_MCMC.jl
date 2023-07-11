@@ -51,17 +51,12 @@ end
 
 function generate_Tar(chain::Flux.Chain, init_params)
     θ, re = Flux.destructure(chain)
-    # if init_params==nothing
-    #     θ = collect(Float64, θ)
-    #     return θ, re, nothing
-    # else 
-    #     return init_params, re, nothing
-    # end
     return init_params, re, nothing
 end
+
 function generate_Tar(chain::Flux.Chain, init_params::Nothing)
     θ, re = Flux.destructure(chain)
-    # find_good_stepsize takes only float64?
+    # find_good_stepsize,phasepoint takes only float64?
     θ = collect(Float64, θ)
     return θ, re, nothing
 end
@@ -79,25 +74,32 @@ function (f::LogTargetDensity{C, S})(t::AbstractVector,
     # Batch via data as row vectors
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
-    f.u0 .+ (t' .- f.t0) .* y
+    f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* y
 end
 
+# add similar for Lux chain
 function (f::LogTargetDensity{C, S})(t::Number,
                                      θ) where {C <: Optimisers.Restructure, S}
     f.prob.u0 + (t - f.prob.tspan[1]) * first(f.chain(θ)(adapt(parameterless_type(θ), [t])))
 end
 
-using ForwardDiff: Chunk
+function (f::LogTargetDensity{C, S})(t::Number,
+                                     θ) where {C <: Lux.AbstractExplicitLayer, S}
+    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    f.prob.u0 .+ (t .- f.prob.tspan[1]) .* y
+end
+
 # ODE DU/DX
 function NNodederi(phi::LogTargetDensity, t::AbstractVector, θ, autodiff::Bool)
     if autodiff
-        # diag(ForwardDiff.jacobian(t -> phi(t, θ), t))
-        [ForwardDiff.derivative(ti -> phi(ti, θ), ti) for ti in t]
+        ForwardDiff.derivative.(ti -> phi(ti, θ), t)
     else
         (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
     end
 end
 
+# physloglike over problem timespan
 function physloglikelihood(Tar::LogTargetDensity, θ)
     p = Tar.prob.p
     f = Tar.prob.f
@@ -108,20 +110,14 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
 
     # compare derivatives
     out = Tar(t, θ)
-    # print(size(out))
     physsol = [f(out[i], p, t[i]) for i in eachindex(out)]
-    nnsol = NNodederi(Tar, t, θ, autodiff)
+    nnsol = vec(NNodederi(Tar, t, θ, autodiff))
 
-    # distribution's mean is forwarddiff diag(jacobian)
-    # if autodiff
-    #     nnsol = vec(diag(nnsol))
-    # end
-    # typeof(nnsol), size(nnsol), typeof(physsol), size(physsol)
     n = length(nnsol)
     return logpdf(MvNormal(nnsol, Diagonal(var .* ones(n))), physsol)
 end
 
-# standard MvNormal Dist Assume
+# Standard L2 losses training dataset
 function L2LossData(Tar::LogTargetDensity, θ)
     nn = vec(Tar(Tar.dataset[2], θ))
     n = length(nn)
@@ -129,10 +125,12 @@ function L2LossData(Tar::LogTargetDensity, θ)
     return logpdf(MvNormal(nn, Diagonal(var .* ones(n))), Tar.dataset[1])
 end
 
+# priors for NN parameters
 function priorweights(Tar::LogTargetDensity, θ)
     params = Tar.priorsNN
-    return logpdf(MvNormal(θ, Diagonal(params[2]^2 .* ones(length(θ)))),
-                  params[1] * ones(length(θ)))
+    var = params[2]^2
+    pris = params[1] .* ones(length(θ))
+    return logpdf(MvNormal(θ, Diagonal(var .* ones(length(θ)))), pris)
 end
 
 # dataset would be (x̂,t)
@@ -146,7 +144,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
                                 Proposal = AdvancedHMC.NUTS{MultinomialTS,
                                                             GeneralisedNoUTurn},
                                 Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
-                                Integrator = Leapfrog, Metric = DiagEuclideanMetric)
+                                Integrator = Leapfrog, Metric = DenseEuclideanMetric)
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
         throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
@@ -158,7 +156,9 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
         error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
     end
 
-    # adding ode parameter estimation?
+    # adding ode parameter estimation
+    # seperate priors for biases
+    # Testing for Lux chains
     nparameters = length(initial_θ)
     ℓπ = LogTargetDensity(nparameters, prob, recon, st, dataset, priorsNN,
                           phystd, l2std, autodiff, physdt)
@@ -174,7 +174,11 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
     #     end
     # end
 
+    # for benchmarking
     # return physloglikelihood(ℓπ, initial_θ)
+    # return physloglikelihood(ℓπ, initial_θ) + L2LossData(ℓπ, initial_θ) +
+    #        priorweights(ℓπ, initial_θ)
+
     n_samples = draw_samples
     metric = Metric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
@@ -195,6 +199,29 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
     adaptor = Adaptor(MassMatrixAdaptor(metric),
                       StepSizeAdaptor(targetacceptancerate, integrator))
 
+    # parallel sampling option
+    # nchains = Threads.nthreads()
+
+    # # Cache to store the chains
+    # chains = Vector{Any}(undef, nchains)
+    # statsc = Vector{Any}(undef, nchains)
+    # samplesc = Vector{Any}(undef, nchains)
+
+    # # The `samples` from each parallel chain is stored in the `chains` vector 
+    # # Adjust the `verbose` flag as per need
+    # Threads.@threads for i in 1:nchains
+    #     samples, stats = sample(hamiltonian, proposal, initial_θ,
+    #                             n_samples, adaptor;
+    #                             progress = true, verbose = false)
+    #     samplesc[i] = samples
+    #     statsc[i] = stats
+
+    #     mcmc_chain = Chains(hcat(samples...)')
+    #     chains[i] = mcmc_chain
+    # end
+
+    # return chains, samplesc, statsc
+
     samples, stats = sample(hamiltonian, proposal, initial_θ,
                             n_samples, adaptor;
                             progress = true)
@@ -205,7 +232,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
     return mcmc_chain, samples, stats
 end
 
-# non vectorised functions(i noticed sampling time increase)
+# non vectorise call functions(noticed sampling time increase)
 # function NNodederi(phi::odeByNN, t::Number, θ, autodiff::Bool)
 #     if autodiff
 #         ForwardDiff.jacobian(t -> phi(t, θ), t)
