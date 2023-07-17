@@ -123,3 +123,92 @@ plot!(title = "Problem1 y'(x,t),y(x,t) for ODE,B PINN", legend = :outerbottomrig
 
 # PLOT MCMC Chain
 plot(fh_mcmc_chain1)
+
+# parameter estimation(inverse problems)
+# prob 1
+function lotka_volterra(u, p, t)
+    # Model parameters.
+    α, β, γ, δ = p
+    # Current state.
+    x, y = u
+
+    # Evaluate differential equations.
+    dx = (α - β * y) * x # prey
+    dy = (δ * x - γ) * y # predator
+
+    return [dx, dy]
+end
+
+u0 = [1.0, 1.0]
+p = [1.5, 1.0, 3.0, 1.0]
+tspan = (0.0, 10.0)
+prob = ODEProblem(lotka_volterra, u0, tspan, p)
+solution = solve(prob, Tsit5(); saveat = 0.1)
+# Plot simulation.
+plot(solution)
+time = solution.t
+u = hcat(solution.u...)
+# BPINN AND TRAINING DATASET CREATION, NN create, Reconstruct
+x = u[1, :] + 0.5 * randn(length(u[1, :]))
+y = u[2, :] + 0.5 * randn(length(u[1, :]))
+dataset = [x[1:50], y[1:50], time[1:50]]
+scatter!(time, [x, y])
+
+# prob 2
+linear = (u, p, t) -> -u / 5 + exp(-t + p[1] / 5) * cos(t) / p[2]
+tspan = (0.0, 10.0)
+u0 = 0.0
+p = [2.0, 5.0]
+prob = ODEProblem(linear, u0, tspan, p)
+
+sol1 = solve(prob, Tsit5(); saveat = 0.1)
+u = sol1.u[1:50]
+time = sol1.t[1:50]
+plot(sol1.t, sol1.u)
+
+x̂ = collect(Float64, Array(u) + 0.005 * randn(size(u)))
+dataset = [x̂, time]
+plot!(time, x̂)
+
+# chainfh = Flux.Chain(Dense(1, 8, sigmoid_fast), Dense(8, 2))
+chainfh = Flux.Chain(Dense(1, 5, sigmoid), Dense(5, 1))
+
+fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainfh, dataset,
+                                                              draw_samples = 1000,
+                                                              l2std = [0.05, 0.05],
+                                                              phystd = [0.05, 0.05],
+                                                              priorsNNw = (0.0, 3.0),
+                                                              param = [
+                                                                  (1.5, 0.5),
+                                                                  (1.2, 0.5),
+                                                                  (3.3, 0.5),
+                                                                  (1.4, 0.5),
+                                                              ])
+fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(prob, chainfh, dataset,
+                                                           draw_samples = 1000,
+                                                           autodiff = true,
+                                                           l2std = [0.05, 0.05],
+                                                           phystd = [0.05, 0.05],
+                                                           priorsNNw = (0.0, 3.0),
+                                                           param = [
+                                                               (1.5, 0.5),
+                                                               (1.2, 0.5),
+                                                               (3.3, 0.5),
+                                                               (1.4, 0.5),
+                                                           ])
+
+fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainfh, dataset,
+                                                              draw_samples = 1000,
+                                                              l2std = [0.05],
+                                                              phystd = [0.05],
+                                                              priorsNNw = (0.0, 3.0),
+                                                              param = [
+                                                                  (2.3, 0.5),
+                                                                  (4.3, 0.5),
+                                                              ])
+fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(prob, chainfh, dataset,
+                                                           draw_samples = 1000,
+                                                           autodiff = true, l2std = [0.05],
+                                                           phystd = [0.05],
+                                                           priorsNNw = (0.0, 3.0),
+                                                           param = [(2.3, 0.5), (4.3, 0.5)])
