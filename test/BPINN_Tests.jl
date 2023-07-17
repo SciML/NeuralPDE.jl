@@ -212,3 +212,10 @@ fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(prob, chainfh, datase
                                                            phystd = [0.05],
                                                            priorsNNw = (0.0, 3.0),
                                                            param = [(2.3, 0.5), (4.3, 0.5)])
+fhsamples1[1000]
+fhsamples[1000]
+param = [(1.5, 0.5), (1.2, 0.5), (3.3, 0.5), (1.4, 0.5)]
+param = [(2.3, 0.5), (4.3, 0.5)]
+yuhj = log.([i[1] for i in param])
+exp.(fhsamples1[1000][17:18] + yuhj)
+exp.(fhsamples[1000][17:18] + yuhj)
