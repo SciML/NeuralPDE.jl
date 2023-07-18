@@ -275,29 +275,31 @@ end
 L2 inner loss for DAEProblems
 """
 
+function inner_loss_DAE end
+
 function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
-                    p) where {C, T, U <: Number}
-    sum(abs2, ode_dfdx(phi, t, θ, autodiff) - f(phi(t, θ), p, t))
+                    p, u) where {C, T, U <: Number}
+    sum(abs2, ode_dfdx(phi, t, θ, autodiff) - f(phi(t, θ), u, p, t))
 end
 
 function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
-                    p) where {C, T, U <: Number}
+                    p, u) where {C, T, U <: Number}
     out = phi(t, θ)
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
-    sum(abs2, f(dxdtguess[i], p, t[i]) for i in 1:size(out, 2)) / length(t)
+    sum(abs2, f(dxdtguess[i], u, p, t[i]) for i in 1:size(out, 2)) / length(t)
 end
 
 function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
-                    p) where {C, T, U}
-    sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(phi(t, θ), p, t))
+                    p, u) where {C, T, U}
+    sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(phi(t, θ), u, p, t))
 end
 
 function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
-                    p) where {C, T, U}
+                    p, u) where {C, T, U}
     out = Array(phi(t, θ))
     arrt = Array(t)
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
-    sum(abs2, f(dxdtguess[:, i], p, arrt[i]) for i in 1:size(out, 2)) / length(t)
+    sum(abs2, f(dxdtguess[:, i], u, p, arrt[i]) for i in 1:size(out, 2)) / length(t)
 end
 
 """
@@ -385,10 +387,10 @@ end
 """
 Representation of the loss function, parametric on the training strategy `strategy` for DAE problems
 """
-function generate_loss_DAE(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
+function generate_loss_DAE(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p, u,
                        batch)
-    integrand(t::Number, θ) = abs2(inner_loss_DAE(phi, f, autodiff, t, θ, p))
-    integrand(ts, θ) = [abs2(inner_loss_DAE(phi, f, autodiff, t, θ, p)) for t in ts]
+    integrand(t::Number, θ) = abs2(inner_loss_DAE(phi, f, autodiff, t, θ, p, u))
+    integrand(ts, θ) = [abs2(inner_loss_DAE(phi, f, autodiff, t, θ, p, u)) for t in ts]
     @assert batch == 0 # not implemented
 
     function loss(θ, _)
@@ -400,36 +402,36 @@ function generate_loss_DAE(strategy::QuadratureTraining, phi, f, autodiff::Bool,
     return loss
 end
 
-function generate_loss_DAE(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
+function generate_loss_DAE(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, u, batch)
     ts = tspan[1]:(strategy.dx):tspan[2]
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
         if batch
-            sum(abs2, inner_loss_DAE(phi, f, autodiff, ts, θ, p))
+            sum(abs2, inner_loss_DAE(phi, f, autodiff, ts, θ, p, u))
         else
-            sum(abs2, [inner_loss_DAE(phi, f, autodiff, t, θ, p) for t in ts])
+            sum(abs2, [inner_loss_DAE(phi, f, autodiff, t, θ, p, u) for t in ts])
         end
     end
     return loss
 end
 
-function generate_loss_DAE(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
+function generate_loss_DAE(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p, u, 
                        batch)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
         ts = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
         if batch
-            sum(abs2, inner_loss_DAE(phi, f, autodiff, ts, θ, p))
+            sum(abs2, inner_loss_DAE(phi, f, autodiff, ts, θ, p, u))
         else
-            sum(abs2, [inner_loss_DAE(phi, f, autodiff, t, θ, p) for t in ts])
+            sum(abs2, [inner_loss_DAE(phi, f, autodiff, t, θ, p, u) for t in ts])
         end
     end
     return loss
 end
 
-function generate_loss_DAE(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
+function generate_loss_DAE(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p, u,
                        batch)
     minT = tspan[1]
     maxT = tspan[2]
@@ -452,15 +454,15 @@ function generate_loss_DAE(strategy::WeightedIntervalTraining, phi, f, autodiff:
 
     function loss(θ, _)
         if batch
-            sum(abs2, inner_loss_DAE(phi, f, autodiff, ts, θ, p))
+            sum(abs2, inner_loss_DAE(phi, f, autodiff, ts, θ, p, u))
         else
-            sum(abs2, [inner_loss_DAE(phi, f, autodiff, t, θ, p) for t in ts])
+            sum(abs2, [inner_loss_DAE(phi, f, autodiff, t, θ, p, u) for t in ts])
         end
     end
     return loss
 end
 
-function generate_loss_DAE(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
+function generate_loss_DAE(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan, p, u, batch)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
 
@@ -683,9 +685,9 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         end
     else
         alg.batch
-    end
+    endx
 
-    inner_f = generate_loss_DAE(strategy, phi, f, autodiff, tspan, p, batch)
+    inner_f = generate_loss_DAE(strategy, phi, f, autodiff, tspan, p, u0, batch)
     additional_loss = alg.additional_loss
 
     # Creates OptimizationFunction Object from total_loss
