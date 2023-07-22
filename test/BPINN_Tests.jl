@@ -118,40 +118,51 @@ u = hcat(solution.u...)
 # BPINN AND TRAINING DATASET CREATION, NN create, Reconstruct
 x = u[1, :] + 0.5 * randn(length(u[1, :]))
 y = u[2, :] + 0.5 * randn(length(u[1, :]))
-dataset = [x[1:50], y[1:50], time[1:50]]
-scatter!(time, [x, y])
+dataset = [x, y, time]
+# scatter!(time, [x, y])
 
-# PROBLEM-3
-linear = (u, p, t) -> -u / 5 + exp(-t + p[1] / 5) * cos(t) / p[2]
-tspan = (0.0, 10.0)
-u0 = 0.0
-p = [2.0, 5.0]
-prob = ODEProblem(linear, u0, tspan, p)
-
-sol1 = solve(prob, Tsit5(); saveat = 0.1)
-u = sol1.u[1:50]
-time = sol1.t[1:50]
-# plot(sol1.t, sol1.u)
-
-x̂ = collect(Float64, Array(u) + 0.005 * randn(size(u)))
-dataset = [x̂, time]
-# plot!(time, x̂)
-
-# chainfh = Flux.Chain(Dense(1, 8, sigmoid_fast), Dense(8, 2))
-chainfh = Flux.Chain(Dense(1, 5, sigmoid), Dense(5, 1))
+chainfh = Flux.Chain(Dense(1, 8, sigmoid_fast), Dense(8, 2))
+# chainfh = Flux.Chain(Dense(1, 5, sigmoid), Dense(5, 1))
 
 fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainfh, dataset,
-                                                              draw_samples = 1000,
+                                                              draw_samples = 2000,
                                                               l2std = [0.05, 0.05],
                                                               phystd = [0.05, 0.05],
                                                               priorsNNw = (0.0, 3.0),
                                                               param = [
-                                                                  (1.5, 0.5),
-                                                                  (1.2, 0.5),
-                                                                  (3.3, 0.5),
-                                                                  (1.4, 0.5),
+                                                                  Normal(1.5, 0.5),
+                                                                  Normal(1.2, 0.5),
+                                                                  Normal(3.3, 0.5),
+                                                                  Normal(1.4, 0.5),
                                                               ])
 
+init, re = destructure(chainfh)
+
+a = re(fhsamples1[2000][1:34])(time')
+physsol3 = prob.u0 .+ (time' .- prob.tspan[1]) .* a
+plot!(time, physsol3[2, :], label = "lotka(0,10)2000")
+
+p2 = fhsamples1[2000][35]
+p3 = fhsamples1[2000][36]
+p4 = fhsamples1[2000][37]
+p5 = fhsamples1[2000][38]
+# julia > p2 = fhsamples1[1000][35]
+# 1.7432577621468217
+
+# julia > p3 = fhsamples1[1000][36]
+# 1.1105561135057131
+
+# julia > p4 = fhsamples1[1000][37]
+# 2.205520643590177
+
+# julia > p5 = fhsamples1[1000][38]
+# 0.7368208188492641
+
+
+p2 = fhsamples1[1000][35]
+p3 = fhsamples1[1000][36]
+p4 = fhsamples1[1000][37]
+p5 = fhsamples1[1000][38]
 # PROBLEM-1 (WITH PARAMETER ESTIMATION)
 linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
 linear = (u, p, t) -> cos(p * t)
@@ -244,6 +255,22 @@ physsol1 = [linear_analytic(prob.u0, p2, t[i]) for i in eachindex(t)]
 physsol2 = [linear(physsol1[i], p2, t[i]) for i in eachindex(t)]
 plot!(t, physsol1, label = "y(x,t) p2")
 plot!(t, physsol2, label = "y'(x,t) p2")
+
+# PROBLEM-3
+linear = (u, p, t) -> -u / 5 + exp(-t + p[1] / 5) * cos(t) / p[2]
+tspan = (0.0, 10.0)
+u0 = 0.0
+p = [2.0, 5.0]
+prob = ODEProblem(linear, u0, tspan, p)
+
+sol1 = solve(prob, Tsit5(); saveat = 0.1)
+u = sol1.u[1:50]
+time = sol1.t[1:50]
+# plot(sol1.t, sol1.u)
+
+x̂ = collect(Float64, Array(u) + 0.005 * randn(size(u)))
+dataset = [x̂, time]
+# plot!(time, x̂)
 # --------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------
 # new destructure does not affect

@@ -129,7 +129,7 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
         return -Inf
     end
 
-    # # this is a vector{vector{dx,dy}}(handle case single u(float passed))
+    # this is a vector{vector{dx,dy}}(handle case single u(float passed))
     if length(out[:, 1]) == 1
         physsol = [f(out[:, i][1],
                      ode_params,
@@ -247,7 +247,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
 
     if ninv > 0
         # shift ode params(initialise ode params by prior means)
-        initial_θ = vcat(initial_θ, [Distributions.params(param[i])[1] for i in ninv])
+        initial_θ = vcat(initial_θ, [Distributions.params(param[i])[1] for i in 1:ninv])
         priors = vcat(priors, param)
         nparameters += ninv
     end
@@ -304,7 +304,6 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
         return chains, samplesc, statsc
     else
         initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
-        println(initial_ϵ)
         integrator = integratorchoice(Integrator, initial_ϵ)
         proposal = proposalchoice(Proposal, integrator)
         adaptor = Adaptor(MassMatrixAdaptor(metric),
