@@ -2,7 +2,7 @@
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "2638a334347dc6b97fc8562b95c1dac0ecf3cf07"
+project_hash = "e5d5f3c60fd64189ca260f41a6132583eb06a595"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e58c18d2312749847a74f5be80bb0fa53da102bd"
@@ -97,12 +97,6 @@ git-tree-sha1 = "c06a868224ecba914baa6942988e2f2aade419be"
 uuid = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
 version = "0.1.0"
 
-[[deps.BFloat16s]]
-deps = ["LinearAlgebra", "Printf", "Random", "Test"]
-git-tree-sha1 = "dbf84058d0a8cbbadee18d25cf606934b22d7c66"
-uuid = "ab4f0b2a-ad5b-11e8-123f-65d77653426b"
-version = "0.4.2"
-
 [[deps.BangBang]]
 deps = ["Compat", "ConstructionBase", "InitialValues", "LinearAlgebra", "Requires", "Setfield", "Tables"]
 git-tree-sha1 = "e28912ce94077686443433c2800104b061a827ed"
@@ -169,36 +163,6 @@ deps = ["Tokenize"]
 git-tree-sha1 = "3ddd48d200eb8ddf9cb3e0189fc059fd49b97c1f"
 uuid = "00ebfdb7-1f24-5e51-bd34-a7502290713f"
 version = "3.3.6"
-
-[[deps.CUDA]]
-deps = ["AbstractFFTs", "Adapt", "BFloat16s", "CEnum", "CUDA_Driver_jll", "CUDA_Runtime_Discovery", "CUDA_Runtime_jll", "ExprTools", "GPUArrays", "GPUCompiler", "KernelAbstractions", "LLVM", "LazyArtifacts", "Libdl", "LinearAlgebra", "Logging", "Preferences", "Printf", "Random", "Random123", "RandomNumbers", "Reexport", "Requires", "SparseArrays", "SpecialFunctions", "UnsafeAtomicsLLVM"]
-git-tree-sha1 = "35160ef0f03b14768abfd68b830f8e3940e8e0dc"
-uuid = "052768ef-5323-5732-b1bb-66c8b64840ba"
-version = "4.4.0"
-
-[[deps.CUDA_Driver_jll]]
-deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
-git-tree-sha1 = "498f45593f6ddc0adff64a9310bb6710e851781b"
-uuid = "4ee394cb-3365-5eb0-8335-949819d2adfc"
-version = "0.5.0+1"
-
-[[deps.CUDA_Runtime_Discovery]]
-deps = ["Libdl"]
-git-tree-sha1 = "bcc4a23cbbd99c8535a5318455dcf0f2546ec536"
-uuid = "1af6417a-86b4-443c-805f-a4643ffb695f"
-version = "0.2.2"
-
-[[deps.CUDA_Runtime_jll]]
-deps = ["Artifacts", "CUDA_Driver_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "5248d9c45712e51e27ba9b30eebec65658c6ce29"
-uuid = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"
-version = "0.6.0+0"
-
-[[deps.CUDNN_jll]]
-deps = ["Artifacts", "CUDA_Runtime_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "c30b29597102341a1ea4c2175c4acae9ae522c9d"
-uuid = "62b44479-cb7b-5706-934f-f13b2eb2e645"
-version = "8.9.2+0"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -303,9 +267,9 @@ version = "1.0.5+0"
 
 [[deps.ComponentArrays]]
 deps = ["ArrayInterface", "ChainRulesCore", "ForwardDiff", "Functors", "LinearAlgebra", "Requires", "StaticArrayInterface"]
-git-tree-sha1 = "00380a5de40736c634b867069347b721ca311673"
+git-tree-sha1 = "e1a6694a62f7a00cf2c4f65dccd118ac28a6c099"
 uuid = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
-version = "0.13.15"
+version = "0.14.0"
 
     [deps.ComponentArrays.extensions]
     ComponentArraysConstructionBaseExt = "ConstructionBase"
@@ -338,6 +302,11 @@ version = "0.1.2"
 
     [deps.CompositionsBase.weakdeps]
     InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
+
+[[deps.ConcreteStructs]]
+git-tree-sha1 = "f749037478283d372048690eb3b5f92a79432b34"
+uuid = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
+version = "0.2.3"
 
 [[deps.ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
@@ -649,18 +618,22 @@ uuid = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
 version = "0.8.4"
 
 [[deps.Flux]]
-deps = ["Adapt", "CUDA", "ChainRulesCore", "Functors", "LinearAlgebra", "MLUtils", "MacroTools", "NNlib", "NNlibCUDA", "OneHotArrays", "Optimisers", "Preferences", "ProgressLogging", "Random", "Reexport", "SparseArrays", "SpecialFunctions", "Statistics", "Zygote", "cuDNN"]
-git-tree-sha1 = "3e2c3704c2173ab4b1935362384ca878b53d4c34"
+deps = ["Adapt", "ChainRulesCore", "Functors", "LinearAlgebra", "MLUtils", "MacroTools", "NNlib", "OneHotArrays", "Optimisers", "Preferences", "ProgressLogging", "Random", "Reexport", "SparseArrays", "SpecialFunctions", "Statistics", "Zygote"]
+git-tree-sha1 = "e0a829d77e750a916a52df71b82fde7f6b336a92"
 uuid = "587475ba-b771-5e3f-ad9e-33799f191a9c"
-version = "0.13.17"
+version = "0.14.1"
 
     [deps.Flux.extensions]
-    AMDGPUExt = "AMDGPU"
+    FluxAMDGPUExt = "AMDGPU"
+    FluxCUDAExt = "CUDA"
+    FluxCUDAcuDNNExt = ["CUDA", "cuDNN"]
     FluxMetalExt = "Metal"
 
     [deps.Flux.weakdeps]
     AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
     Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
+    cuDNN = "02a925ec-e4fe-4b08-9a7e-0d78e3d38ccd"
 
 [[deps.Fontconfig_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Expat_jll", "FreeType2_jll", "JLLWrappers", "Libdl", "Libuuid_jll", "Pkg", "Zlib_jll"]
@@ -734,12 +707,6 @@ deps = ["Adapt"]
 git-tree-sha1 = "2d6ca471a6c7b536127afccfa7564b5b39227fe0"
 uuid = "46192b85-c4d5-4398-a991-12ede77f4527"
 version = "0.1.5"
-
-[[deps.GPUCompiler]]
-deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "Scratch", "TimerOutputs", "UUIDs"]
-git-tree-sha1 = "72b2e3c2ba583d1a7aa35129e56cf92e07c083e3"
-uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "0.21.4"
 
 [[deps.GR]]
 deps = ["Artifacts", "Base64", "DelimitedFiles", "Downloads", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Preferences", "Printf", "Random", "Serialization", "Sockets", "TOML", "Tar", "Test", "UUIDs", "p7zip_jll"]
@@ -1209,9 +1176,9 @@ version = "1.0.0"
 
 [[deps.LoopVectorization]]
 deps = ["ArrayInterface", "ArrayInterfaceCore", "CPUSummary", "CloseOpenIntervals", "DocStringExtensions", "HostCPUFeatures", "IfElse", "LayoutPointers", "LinearAlgebra", "OffsetArrays", "PolyesterWeave", "PrecompileTools", "SIMDTypes", "SLEEFPirates", "Static", "StaticArrayInterface", "ThreadingUtilities", "UnPack", "VectorizationBase"]
-git-tree-sha1 = "b206c084b224dc16dbd8fce63dd34d5050e1e130"
+git-tree-sha1 = "c88a4afe1703d731b1c4fdf4e3c7e77e3b176ea2"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
-version = "0.12.164"
+version = "0.12.165"
 weakdeps = ["ChainRulesCore", "ForwardDiff", "SpecialFunctions"]
 
     [deps.LoopVectorization.extensions]
@@ -1219,18 +1186,19 @@ weakdeps = ["ChainRulesCore", "ForwardDiff", "SpecialFunctions"]
     SpecialFunctionsExt = "SpecialFunctions"
 
 [[deps.Lux]]
-deps = ["Adapt", "ChainRulesCore", "Functors", "LinearAlgebra", "LuxCUDA", "LuxCore", "LuxLib", "Markdown", "NNlib", "Optimisers", "PackageExtensionCompat", "Random", "Setfield", "SparseArrays", "Statistics", "TruncatedStacktraces", "WeightInitializers"]
-git-tree-sha1 = "e7ea74e43e5eec0bf24f7f3df8d2b8529486b885"
+deps = ["ADTypes", "ChainRulesCore", "ConcreteStructs", "Functors", "LinearAlgebra", "LuxCore", "LuxDeviceUtils", "LuxLib", "Markdown", "Optimisers", "PackageExtensionCompat", "Random", "Reexport", "Setfield", "SparseArrays", "Statistics", "TruncatedStacktraces", "WeightInitializers"]
+git-tree-sha1 = "4b67d3b3998d93c34206d81058afa634fa51f521"
 uuid = "b2108857-7c20-44ae-9111-449ecde12c47"
-version = "0.4.58"
+version = "0.5.0"
 
     [deps.Lux.extensions]
     LuxComponentArraysExt = "ComponentArrays"
     LuxComponentArraysReverseDiffExt = ["ComponentArrays", "ReverseDiff"]
     LuxComponentArraysTrackerExt = ["ComponentArrays", "Tracker"]
     LuxComponentArraysZygoteExt = ["ComponentArrays", "Zygote"]
-    LuxFillArraysExt = "FillArrays"
     LuxFluxTransformExt = "Flux"
+    LuxLuxAMDGPUExt = "LuxAMDGPU"
+    LuxLuxCUDAExt = "LuxCUDA"
     LuxTrackerExt = "Tracker"
     LuxZygoteExt = "Zygote"
 
@@ -1238,15 +1206,11 @@ version = "0.4.58"
     ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
     FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
     Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+    LuxAMDGPU = "83120cb1-ca15-4f04-bf3b-6967d2e6b60b"
+    LuxCUDA = "d0bbae9a-e099-4d5b-a835-1c6931763bda"
     ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
     Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
     Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
-
-[[deps.LuxCUDA]]
-deps = ["CUDA", "NNlibCUDA", "Reexport", "cuDNN"]
-git-tree-sha1 = "1c5470a996cdf15beb737f4739797e4e5f7a46f5"
-uuid = "d0bbae9a-e099-4d5b-a835-1c6931763bda"
-version = "0.1.2"
 
 [[deps.LuxCore]]
 deps = ["Functors", "Random", "Setfield"]
@@ -1254,11 +1218,31 @@ git-tree-sha1 = "4b030477cb15d6d123ec39473520f1ab086f6ff0"
 uuid = "bb33d45b-7691-41d6-9220-0943567d0623"
 version = "0.1.4"
 
+[[deps.LuxDeviceUtils]]
+deps = ["Adapt", "ChainRulesCore", "Functors", "LuxCore", "PackageExtensionCompat", "Preferences", "Random", "SparseArrays", "TruncatedStacktraces"]
+git-tree-sha1 = "8aa036e35c778e775aed6c6a821a90212abc883a"
+uuid = "34f89e08-e1d5-43b4-8944-0b49ac560553"
+version = "0.1.4"
+
+    [deps.LuxDeviceUtils.extensions]
+    LuxDeviceUtilsFillArraysExt = "FillArrays"
+    LuxDeviceUtilsLuxAMDGPUExt = "LuxAMDGPU"
+    LuxDeviceUtilsLuxCUDAExt = "LuxCUDA"
+    LuxDeviceUtilsMetalExt = "Metal"
+    LuxDeviceUtilsZygoteExt = "Zygote"
+
+    [deps.LuxDeviceUtils.weakdeps]
+    FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
+    LuxAMDGPU = "83120cb1-ca15-4f04-bf3b-6967d2e6b60b"
+    LuxCUDA = "d0bbae9a-e099-4d5b-a835-1c6931763bda"
+    Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
+    Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
 [[deps.LuxLib]]
-deps = ["ChainRulesCore", "KernelAbstractions", "Markdown", "NNlib", "PackageExtensionCompat", "Random", "Reexport", "Statistics"]
-git-tree-sha1 = "e9499960327047f846427741cda1ca492b1bcfbe"
+deps = ["ChainRulesCore", "KernelAbstractions", "Markdown", "NNlib", "Random", "Reexport", "Requires", "Statistics"]
+git-tree-sha1 = "349bac76de8c610ad9af6f6630b69cb0a06cf42c"
 uuid = "82251201-b29d-42c6-8e01-566dec8acb11"
-version = "0.2.5"
+version = "0.3.1"
 
     [deps.LuxLib.extensions]
     LuxLibForwardDiffExt = "ForwardDiff"
@@ -1383,21 +1367,19 @@ version = "4.5.1"
 
 [[deps.NNlib]]
 deps = ["Adapt", "Atomix", "ChainRulesCore", "GPUArraysCore", "KernelAbstractions", "LinearAlgebra", "Pkg", "Random", "Requires", "Statistics"]
-git-tree-sha1 = "72240e3f5ca031937bd536182cb2c031da5f46dd"
+git-tree-sha1 = "3d42748c725c3f088bcda47fa2aca89e74d59d22"
 uuid = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
-version = "0.8.21"
+version = "0.9.4"
 
     [deps.NNlib.extensions]
     NNlibAMDGPUExt = "AMDGPU"
+    NNlibCUDACUDNNExt = ["CUDA", "cuDNN"]
+    NNlibCUDAExt = "CUDA"
 
     [deps.NNlib.weakdeps]
     AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
-
-[[deps.NNlibCUDA]]
-deps = ["Adapt", "CUDA", "LinearAlgebra", "NNlib", "Random", "Statistics", "cuDNN"]
-git-tree-sha1 = "f94a9684394ff0d325cc12b06da7032d8be01aaf"
-uuid = "a00861dc-f156-4864-bf3c-e6376f28a68d"
-version = "0.2.7"
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+    cuDNN = "02a925ec-e4fe-4b08-9a7e-0d78e3d38ccd"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
@@ -2477,12 +2459,6 @@ deps = ["ChainRulesCore", "MacroTools"]
 git-tree-sha1 = "977aed5d006b840e2e40c0b48984f7463109046d"
 uuid = "700de1a5-db45-46bc-99cf-38207098b444"
 version = "0.2.3"
-
-[[deps.cuDNN]]
-deps = ["CEnum", "CUDA", "CUDNN_jll"]
-git-tree-sha1 = "ee79f97d07bf875231559f9b3f2649f34fac140b"
-uuid = "02a925ec-e4fe-4b08-9a7e-0d78e3d38ccd"
-version = "1.1.0"
 
 [[deps.fzf_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]

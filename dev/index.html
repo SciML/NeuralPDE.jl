@@ -21,10 +21,10 @@ z = re(Float64(p))</code></pre><p>While one may think this recreates the neural 
   [2b5f629d] DiffEqBase v6.127.0
   [e30172f5] Documenter v0.27.25
   [5b8099bc] DomainSets v0.6.7
-⌅ [587475ba] Flux v0.13.17
+  [587475ba] Flux v0.14.1
   [de52edbc] Integrals v3.8.0
   [c31f79ba] IntegralsCubature v0.2.2
-⌅ [b2108857] Lux v0.4.58
+  [b2108857] Lux v0.5.0
   [961ee093] ModelingToolkit v8.63.0
   [315f7962] NeuralPDE v5.7.0 `~/work/NeuralPDE.jl/NeuralPDE.jl`
   [7f7a1694] Optimization v3.15.2
@@ -56,7 +56,6 @@ Platform Info:
   [4fba245c] ArrayInterface v7.4.11
   [30b0a656] ArrayInterfaceCore v0.1.29
   [a9b6321e] Atomix v0.1.0
-  [ab4f0b2a] BFloat16s v0.4.2
   [198e06fe] BangBang v0.3.39
   [9718e550] Baselet v0.1.1
   [e2ed5e7c] Bijections v0.1.4
@@ -65,8 +64,6 @@ Platform Info:
   [fa961155] CEnum v0.4.2
   [2a0fbf3d] CPUSummary v0.2.3
   [00ebfdb7] CSTParser v3.3.6
-  [052768ef] CUDA v4.4.0
-  [1af6417a] CUDA_Runtime_Discovery v0.2.2
   [49dc2e85] Calculus v0.5.1
   [082447d4] ChainRules v1.53.0
   [d360d2e6] ChainRulesCore v1.16.0
@@ -81,9 +78,10 @@ Platform Info:
   [38540f10] CommonSolve v0.2.4
   [bbf7d656] CommonSubexpressions v0.3.0
   [34da2185] Compat v4.7.0
-⌅ [b0b7db55] ComponentArrays v0.13.15
+  [b0b7db55] ComponentArrays v0.14.0
   [b152e2b5] CompositeTypes v0.1.3
   [a33af91c] CompositionsBase v0.1.2
+  [2569d6c7] ConcreteStructs v0.2.3
   [f0e56b4a] ConcurrentUtilities v2.2.1
   [88cd18e8] ConsoleProgressMonitor v0.1.2
   [187b0558] ConstructionBase v1.5.3
@@ -122,7 +120,7 @@ Platform Info:
   [1a297f60] FillArrays v1.4.2
   [6a86dc24] FiniteDiff v2.21.1
   [53c48c17] FixedPointNumbers v0.8.4
-⌅ [587475ba] Flux v0.13.17
+  [587475ba] Flux v0.14.1
   [59287772] Formatting v0.4.2
   [f6369f11] ForwardDiff v0.10.35
   [069b7b12] FunctionWrappers v1.1.3
@@ -130,7 +128,6 @@ Platform Info:
   [d9f16b24] Functors v0.4.5
   [0c68f7d7] GPUArrays v8.8.1
   [46192b85] GPUArraysCore v0.1.5
-  [61eb1bfa] GPUCompiler v0.21.4
   [28b8d3ca] GR v0.72.9
   [c145ed77] GenericSchur v0.5.3
   [c27321d9] Glob v1.3.1
@@ -177,11 +174,11 @@ Platform Info:
   [7ed4a6bd] LinearSolve v2.4.1
   [2ab3a3ac] LogExpFunctions v0.3.24
   [e6f89c97] LoggingExtras v1.0.0
-  [bdcacae8] LoopVectorization v0.12.164
-⌅ [b2108857] Lux v0.4.58
-⌅ [d0bbae9a] LuxCUDA v0.1.2
+  [bdcacae8] LoopVectorization v0.12.165
+  [b2108857] Lux v0.5.0
   [bb33d45b] LuxCore v0.1.4
-⌅ [82251201] LuxLib v0.2.5
+  [34f89e08] LuxDeviceUtils v0.1.4
+  [82251201] LuxLib v0.3.1
   [d8e11817] MLStyle v0.4.17
   [f1d291b0] MLUtils v0.4.3
   [1914dd2f] MacroTools v0.5.10
@@ -197,8 +194,7 @@ Platform Info:
   [d8a4904e] MutableArithmetics v1.3.0
   [d41bc354] NLSolversBase v7.8.3
   [2774e3e8] NLsolve v4.5.1
-⌅ [872c559c] NNlib v0.8.21
-  [a00861dc] NNlibCUDA v0.2.7
+  [872c559c] NNlib v0.9.4
   [77ba4419] NaNMath v1.0.2
   [71a1bf82] NameResolution v0.1.5
   [315f7962] NeuralPDE v5.7.0 `~/work/NeuralPDE.jl/NeuralPDE.jl`
@@ -312,11 +308,7 @@ Platform Info:
   [d49dbf32] WeightInitializers v0.1.0
   [e88e6eb3] Zygote v0.6.62
   [700de1a5] ZygoteRules v0.2.3
-  [02a925ec] cuDNN v1.1.0
   [6e34b625] Bzip2_jll v1.0.8+0
-  [4ee394cb] CUDA_Driver_jll v0.5.0+1
-  [76a88914] CUDA_Runtime_jll v0.6.0+0
-  [62b44479] CUDNN_jll v8.9.2+0
   [83423d85] Cairo_jll v1.16.1+1
   [7bc98958] Cubature_jll v1.0.5+0
   [2e619515] Expat_jll v2.5.0+0
@@ -436,4 +428,4 @@ Platform Info:
   [3f19e933] p7zip_jll v17.4.0+0
 Info Packages marked with ⌅ have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated -m`</code></pre></details>You can also download the 
 <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.7.0/assets/Manifest.toml">manifest</a> file and the
-<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.7.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Monday 24 July 2023 19:03">Monday 24 July 2023</span>. Using Julia version 1.9.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.7.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Monday 24 July 2023 21:09">Monday 24 July 2023</span>. Using Julia version 1.9.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
