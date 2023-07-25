@@ -1,6 +1,6 @@
-using AdvancedHMC, ForwardDiff, LogDensityProblems, LinearAlgebra, Distributions
+using AdvancedHMC, ForwardDiff, LogDensityProblems, LinearAlgebra, Distributions, Functors
 
-mutable struct LogTargetDensity{C, S}
+mutable struct LogTargetDensity{C, S, I}
     dim::Int
     prob::DiffEqBase.DEProblem
     chain::C
@@ -12,20 +12,24 @@ mutable struct LogTargetDensity{C, S}
     autodiff::Bool
     physdt::Float64
     extraparams::Int
+    init_params::I
 
     function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, dataset,
-                              priors, phystd, l2std, autodiff, physdt, extraparams)
-        new{typeof(chain), Nothing}(dim, prob, chain, nothing,
-                                    dataset, priors,
-                                    phystd, l2std, autodiff,
-                                    physdt, extraparams)
+                              priors, phystd, l2std, autodiff, physdt, extraparams,
+                              init_params::AbstractVector)
+        new{typeof(chain), Nothing, typeof(init_params)}(dim, prob, chain, nothing,
+                                                         dataset, priors,
+                                                         phystd, l2std, autodiff,
+                                                         physdt, extraparams, init_params)
     end
     function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, dataset,
-                              priors, phystd, l2std, autodiff, physdt, extraparams)
-        new{typeof(chain), typeof(st)}(dim, prob, re, st,
-                                       dataset, priors,
-                                       phystd, l2std, autodiff,
-                                       physdt, extraparams)
+                              priors, phystd, l2std, autodiff, physdt, extraparams,
+                              init_params::NamedTuple)
+        new{typeof(chain), typeof(st), typeof(init_params)}(dim, prob, chain, st,
+                                                            dataset, priors,
+                                                            phystd, l2std, autodiff,
+                                                            physdt, extraparams,
+                                                            init_params)
     end
 end
 
@@ -41,12 +45,12 @@ end
 
 function generate_Tar(chain::Lux.AbstractExplicitLayer, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
-    return ComponentArrays.ComponentArray(init_params), chain, st
+    return init_params, chain, st
 end
 
 function generate_Tar(chain::Lux.AbstractExplicitLayer, init_params::Nothing)
     θ, st = Lux.setup(Random.default_rng(), chain)
-    return ComponentArrays.ComponentArray(θ), chain, st
+    return θ, chain, st
 end
 
 function generate_Tar(chain::Flux.Chain, init_params)
@@ -62,6 +66,18 @@ function generate_Tar(chain::Flux.Chain, init_params::Nothing)
 end
 
 # nn OUTPUT AT t
+
+function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
+    @assert length(ps_new) == Lux.parameterlength(ps)
+    i = 1
+    function get_ps(x)
+        z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
+        i += length(x)
+        return z
+    end
+    return Functors.fmap(get_ps, ps)
+end
+
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
                                      θ) where {C <: Optimisers.Restructure, S}
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
@@ -69,13 +85,13 @@ end
 
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
                                      θ) where {C <: Lux.AbstractExplicitLayer, S}
+    θ = vector_to_parameters(θ, f.init_params)
     # Batch via data as row vectors
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* y
 end
 
-# add similar for Lux chain
 function (f::LogTargetDensity{C, S})(t::Number,
                                      θ) where {C <: Optimisers.Restructure, S}
     #  must handle paired odes hence u0 broadcasted
@@ -84,6 +100,7 @@ end
 
 function (f::LogTargetDensity{C, S})(t::Number,
                                      θ) where {C <: Lux.AbstractExplicitLayer, S}
+    θ = vector_to_parameters(θ, f.init_params)
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.prob.u0 .+ (t .- f.prob.tspan[1]) .* y
@@ -154,17 +171,21 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     return physlogprob
 end
 
-# L2 losses loglikelihood
+# L2 losses loglikelihood(needed mainly for ODE parameter estimation)
 function L2LossData(Tar::LogTargetDensity, θ)
     # matrix(each row corresponds to vector u's rows)
-    nn = Tar(Tar.dataset[end], θ[1:(length(θ) - Tar.extraparams)])
+    if Tar.extraparams == 0
+        return 0
+    else
+        nn = Tar(Tar.dataset[end], θ[1:(length(θ) - Tar.extraparams)])
 
-    L2logprob = 0
-    for i in 1:length(Tar.prob.u0)
-        # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
-        L2logprob += logpdf(MvNormal(nn[i, :], Tar.l2std[i]), Tar.dataset[i])
+        L2logprob = 0
+        for i in 1:length(Tar.prob.u0)
+            # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
+            L2logprob += logpdf(MvNormal(nn[i, :], Tar.l2std[i]), Tar.dataset[i])
+        end
+        return L2logprob
     end
-    return L2logprob
 end
 
 # priors for NN parameters + ODE constants
@@ -213,7 +234,8 @@ end
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
 # lotka specific kwargs here
-function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
+
+function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain,
                                 dataset::Vector{Vector{Float64}};
                                 init_params = nothing, nchains = 1,
                                 draw_samples = 1000, l2std = [0.05],
@@ -231,13 +253,24 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
     end
 
     if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
-        initial_θ, recon, st = generate_Tar(chain, init_params)
+        # Flux-vector, Lux-Named Tuple
+        initial_nnθ, recon, st = generate_Tar(chain, init_params)
     else
         error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
     end
 
     if nchains > Threads.nthreads()
         throw(error("number of chains is greater than available threads"))
+    elseif nchains < 1
+        throw(error("number of chains must be greater than 1"))
+    end
+
+    # 
+    if chain isa Lux.AbstractExplicitLayer
+        # Lux chain(using component array later as vector_to_parameter need namedtuple,AHMC uses Float64)
+        initial_θ = collect(Float64, vcat(ComponentArrays.ComponentArray(initial_nnθ)))
+    else
+        initial_θ = initial_nnθ
     end
 
     # adding ode parameter estimation
@@ -245,6 +278,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
     ninv = length(param)
     priors = [MvNormal(priorsNNw[1] * ones(nparameters), priorsNNw[2] * ones(nparameters))]
 
+    # append Ode params to all paramvector
     if ninv > 0
         # shift ode params(initialise ode params by prior means)
         initial_θ = vcat(initial_θ, [Distributions.params(param[i])[1] for i in 1:ninv])
@@ -252,15 +286,11 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
         nparameters += ninv
     end
 
-    # Testing for Lux chains
+    # dimensions would be total no of params,initial_nnθ for Lux namedTuples
     ℓπ = LogTargetDensity(nparameters, prob, recon, st, dataset, priors,
-                          phystd, l2std, autodiff, physdt, ninv)
+                          phystd, l2std, autodiff, physdt, ninv,
+                          initial_nnθ)
 
-    # return physloglikelihood(ℓπ, initial_θ)
-    # return L2LossData(ℓπ, initial_θ)
-    # return priorweights(ℓπ, initial_θ)
-
-    #  [add f(t,θ) for t being a number]
     t0 = prob.tspan[1]
     try
         ℓπ(t0, initial_θ[1:(nparameters - ninv)])
@@ -284,15 +314,16 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
         samplesc = Vector{Any}(undef, nchains)
 
         Threads.@threads for i in 1:nchains
-            # each chain has different initial parameter values(better posterior exploration)
-            initial_θ = randn(nparameters)
+            # each chain has different initial NNparameter values(better posterior exploration)
+            initial_θ = vcat(randn(nparameters - ninv),
+                             initial_θ[(nparameters - ninv + 1):end])
             initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
             integrator = integratorchoice(Integrator, initial_ϵ)
             proposal = proposalchoice(Proposal, integrator)
             adaptor = Adaptor(MassMatrixAdaptor(metric),
                               StepSizeAdaptor(targetacceptancerate, integrator))
 
-            samples, stats = sample(hamiltonian, proposal, initial_θ, n_samples, adaptor;
+            samples, stats = sample(hamiltonian, proposal, initial_θ, draw_samples, adaptor;
                                     progress = true, verbose = false)
             samplesc[i] = samples
             statsc[i] = stats
@@ -317,9 +348,3 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain::Flux.Chain,
         return mcmc_chain, samples, stats
     end
 end
-
-# test for lux chins
-# check if prameters estimation works(no)
-# fix predictions for odes depending upon 1,p in f(u,p,t)
-# lotka volterra parameters estimate
-# lotka volterra learn curve beyond l2 losses

@@ -49,7 +49,6 @@ include("discretize.jl")
 include("neural_adapter.jl")
 
 # fixes #682
-include("turing_MCMC.jl")
 include("advancedHMC_MCMC.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
@@ -67,6 +66,6 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        LogOptions
 
 #fixes #682
-export bayesian_pinn_ode, ahmc_bayesian_pinn_ode
+export ahmc_bayesian_pinn_ode
 
 end # module
