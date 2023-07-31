@@ -22,7 +22,7 @@ using ArrayInterface
 import Optim
 using DomainSets
 using Symbolics
-using Symbolics: wrap, unwrap, arguments, operation
+using Symbolics: wrap, unwrap, arguments, operation, symtype
 using SymbolicUtils
 using SymbolicUtils.Code
 using SymbolicUtils: Prewalk, Postwalk, Chain
@@ -34,7 +34,7 @@ import Optimisers
 import UnPack: @unpack
 import RecursiveArrayTools
 import ChainRulesCore, Flux, Lux, ComponentArrays
-import ChainRulesCore: @non_differentiable
+import ChainRulesCore: @non_differentiable, @ignore_derivatives
 
 
 RuntimeGeneratedFunctions.init(@__MODULE__)

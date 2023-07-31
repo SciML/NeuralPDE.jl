@@ -1,16 +1,5 @@
 using Base.Broadcast
 
-function get_limits(domain)
-    if domain isa AbstractInterval
-        return [leftendpoint(domain)], [rightendpoint(domain)]
-    elseif domain isa ProductDomain
-        return collect(map(leftendpoint, DomainSets.components(domain))),
-               collect(map(rightendpoint, DomainSets.components(domain)))
-    end
-end
-
-θ = gensym("θ")
-
 """
 Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
 
@@ -36,8 +25,8 @@ dottable_(x::Phi) = false
 _dot_(x) = x
 function _dot_(x::Expr)
     dotargs = Base.mapany(_dot_, x.args)
-    nodot = [:phi, Symbol("NeuralPDE.numeric_derivative")]
-    if x.head === :call && dottable_(x.args[1]) && all(s -> x.args[1] !== s, nodot)
+    nodot = [:phi, Symbol("NeuralPDE.numeric_derivative"), NeuralPDE.rvcat]
+    if x.head === :call && dottable_(x.args[1]) && all(s -> x.args[1] != s, nodot)
         Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
     elseif x.head === :comparison
         Expr(:comparison,
@@ -217,7 +206,6 @@ function get_argument(eqs, v::VariableMap)
         f_vars = filter(x -> !isempty(x), _vars)
         map(first, f_vars)
     end
-    @show vars
     args_ = map(vars) do _vars
         seen = []
         filter(reduce(vcat, arguments.(_vars), init = [])) do x
@@ -252,3 +240,5 @@ function get_number(eqs, v::VariableMap)
     args = get_argument(eqs, v)
     return map(arg -> filter(x -> x isa Number, arg), args)
 end
+
+sym_op(u) = Symbol(operation(u))

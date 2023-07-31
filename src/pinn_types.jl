@@ -239,10 +239,6 @@ mutable struct PINNRepresentation
 	The representation of the test function of the PDE solution
 	"""
 	phi::Any
-    """
-    the map of vars to chains
-    """
-    phimap::Any
 	"""
 	The function used for computing the derivative
 	"""
@@ -350,9 +346,6 @@ function (f::Phi{<:Optimisers.Restructure})(x, θ)
 	f.f(θ)(adapt(parameterless_type(θ), x))
 end
 
-ufunc(u, cord, θ, phi) = phi isa Dict ? phi[u](cord, θ) : phi(cord, θ)
-
-
 # the method to calculate the derivative
 function numeric_derivative(phi, x, εs, order, θ)
 	_type = parameterless_type(ComponentArrays.getdata(θ))
@@ -368,28 +361,23 @@ function numeric_derivative(phi, x, εs, order, θ)
 	# if order 1, this is trivially true
 
 	if order > 4 || any(x -> x != εs[1], εs)
-        @show "me"
 		return (numeric_derivative(phi, x .+ ε, @view(εs[1:(end-1)]), order - 1, θ)
 				.-
 				numeric_derivative(phi, x .- ε, @view(εs[1:(end-1)]), order - 1, θ)) .*
 			   _epsilon ./ 2
 	elseif order == 4
-        @show "me4"
 		return (phi(x .+ 2 .* ε, θ) .- 4 .* phi(x .+ ε, θ)
 				.+
 				6 .* phi(x, θ)
 				.-
 				4 .* phi(x .- ε, θ) .+ phi(x .- 2 .* ε, θ)) .* _epsilon^4
 	elseif order == 3
-        @show "me3"
 		return (phi(x .+ 2 .* ε, θ) .- 2 .* phi(x .+ ε, θ) .+ 2 .* phi(x .- ε, θ)
 				-
 				phi(x .- 2 .* ε, θ)) .* _epsilon^3 ./ 2
 	elseif order == 2
-        @show "me2"
 		return (phi(x .+ ε, θ) .+ phi(x .- ε, θ) .- 2 .* phi(x, θ)) .* _epsilon^2
 	elseif order == 1
-        @show "me1"
 		return (phi(x .+ ε, θ) .- phi(x .- ε, θ)) .* _epsilon ./ 2
 	else
 		error("This shouldn't happen! Got an order of $(order).")
@@ -397,3 +385,50 @@ function numeric_derivative(phi, x, εs, order, θ)
 end
 # Hacky workaround for metaprogramming with symbolics
 @register_symbolic(numeric_derivative(phi, x, εs, order, θ), true, [], true)
+
+function ufunc(u, phi, v)
+	if symtype(phi) isa AbstractArray
+		return phi[findfirst(w -> isequal(operation(w), operation(u)), v.ū)]
+	else
+		return phi
+	end
+end
+
+#=
+_vcat(x::Number...) = vcat(x...)
+_vcat(x::AbstractArray{<:Number}...) = vcat(x...)
+function _vcat(x::Union{Number, AbstractArray{<:Number}}...)
+    example = first(Iterators.filter(e -> !(e isa Number), x))
+    dims = (1, size(example)[2:end]...)
+    x = map(el -> el isa Number ? (typeof(example))(fill(el, dims)) : el, x)
+    _vcat(x...)
+end
+_vcat(x...) = vcat(x...)
+https://github.com/SciML/NeuralPDE.jl/pull/627/files
+=#
+
+
+
+function reducevcat(vector, eltypeθ)
+	if all(x -> x isa Number, vector)
+		return vector
+	else
+		z = findfirst(x -> !(x isa Number), vector)
+		return rvcat(vector, vector[z], eltypeθ)
+	end
+end
+
+function rvcat(example, vector, eltypeθ)
+	isnothing(vector) && return [[nothing]]
+	return mapreduce(hcat, vector) do x
+		if x isa Number
+			out = typeof(example)(fill(convert(eltypeθ, x), size(example)))
+			out
+		else
+			out = x
+			out
+		end
+	end
+end
+
+@register_symbolic(rvcat(vector, example, eltypeθ), true, [], true)

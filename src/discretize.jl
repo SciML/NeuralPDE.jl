@@ -15,7 +15,6 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, varmap)
     else
         dxs = fill(dx, length(domains))
     end
-    @show dxs
     spans = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, dxs)]
     dict_var_span = Dict([d.variables => infimum(d.domain):dx:supremum(d.domain)
                           for (d, dx) in zip(domains, dxs)])
@@ -69,11 +68,10 @@ training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
 """
 function get_bounds end
 
-function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::AbstractGridfreeStrategy)
+function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::QuadratureTraining)
     dict_lower_bound = Dict([d.variables => infimum(d.domain) for d in domains])
     dict_upper_bound = Dict([d.variables => supremum(d.domain) for d in domains])
     pde_args = get_argument(eqs, v)
-    @show pde_args
 
     pde_lower_bounds = map(pde_args) do pd
         span = map(p -> get(dict_lower_bound, p, p), pd)
@@ -86,7 +84,6 @@ function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::Abstr
     pde_bounds = [pde_lower_bounds, pde_upper_bounds]
 
     bound_vars = get_variables(bcs, v)
-    @show bound_vars
 
     bcs_lower_bounds = map(bound_vars) do bt
         map(b -> dict_lower_bound[b], bt)
@@ -95,8 +92,31 @@ function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy::Abstr
         map(b -> dict_upper_bound[b], bt)
     end
     bcs_bounds = [bcs_lower_bounds, bcs_upper_bounds]
-    @show bcs_bounds pde_bounds
     [pde_bounds, bcs_bounds]
+end
+
+function get_bounds(domains, eqs, bcs, eltypeθ, v::VariableMap, strategy)
+    dx = 1 / strategy.points
+    dict_span = Dict([d.variables => [
+                          infimum(d.domain) + dx,
+                          supremum(d.domain) - dx,
+                      ] for d in domains])
+
+    # pde_bounds = [[infimum(d.domain),supremum(d.domain)] for d in domains]
+    pde_args = get_argument(eqs, v)
+    pde_bounds = map(pde_args) do pde_arg
+        bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, pde_arg)
+        bds = eltypeθ.(bds)
+        bds[1, :], bds[2, :]
+    end
+
+    bound_args = get_argument(bcs, v)
+    bcs_bounds = map(bound_args) do bound_arg
+        bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, bound_arg)
+        bds = eltypeθ.(bds)
+        bds[1, :], bds[2, :]
+    end
+    return pde_bounds, bcs_bounds
 end
 # TODO: Get this to work with varmap
 function get_numeric_integral(pinnrep::PINNRepresentation)
@@ -268,15 +288,15 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
         dvs = v.ū
         acum = [0; accumulate(+, map(length, init_params))]
         sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
-        phimap = map(enumerate(dvs)) do (i, dv)
+        phi = map(enumerate(dvs)) do (i, dv)
             if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
                (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
                 # Flux.Chain
-                dv => (coord, expr_θ) -> phi[i](coord, expr_θ[sep[i]])
+                (coord, expr_θ) -> phi[i](coord, expr_θ[sep[i]])
             else # Lux.AbstractExplicitLayer
-                dv => (coord, expr_θ) -> phi[i](coord, expr_θ.depvar.$(dv))
+                (coord, expr_θ) -> phi[i](coord, expr_θ.depvar.$(dv))
             end
-        end |> Dict
+        end
     else
         phimap = nothing
     end
@@ -293,7 +313,7 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
     pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
                                  param_estim, additional_loss, adaloss, v, logger,
                                  multioutput, iteration, init_params, flat_init_params, phi,
-                                 phimap, derivative,
+                                 derivative,
                                  strategy, eqdata, nothing, nothing, nothing, nothing)
 
     #integral = get_numeric_integral(pinnrep)
