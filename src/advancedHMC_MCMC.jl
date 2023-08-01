@@ -1,4 +1,5 @@
-using AdvancedHMC, ForwardDiff, LogDensityProblems, LinearAlgebra, Distributions, Functors
+using AdvancedHMC, ForwardDiff, LogDensityProblems, LinearAlgebra, Distributions, Functors,
+      MCMCChains
 
 mutable struct LogTargetDensity{C, S, I}
     dim::Int
@@ -65,8 +66,7 @@ function generate_Tar(chain::Flux.Chain, init_params::Nothing)
     return θ, re, nothing
 end
 
-# nn OUTPUT AT t
-
+# For vector of samples to Lux ComponentArrays
 function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     @assert length(ps_new) == Lux.parameterlength(ps)
     i = 1
@@ -78,6 +78,7 @@ function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     return Functors.fmap(get_ps, ps)
 end
 
+# nn OUTPUT AT t
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
                                      θ) where {C <: Optimisers.Restructure, S}
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
@@ -86,7 +87,6 @@ end
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
                                      θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
-    # Batch via data as row vectors
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* y
@@ -119,7 +119,12 @@ end
 function physloglikelihood(Tar::LogTargetDensity, θ)
     f = Tar.prob.f
     p = Tar.prob.p
-    t = copy(Tar.dataset[end])
+    dt = Tar.physdt
+    if isempty(Tar.dataset[end])
+        t = collect(Float64, Tar.prob.tspan[1]:dt:Tar.prob.tspan[2])
+    else
+        t = vcat(collect(Float64, Tar.prob.tspan[1]:dt:Tar.prob.tspan[2]), Tar.dataset[end])
+    end
 
     # parameter estimation chosen or not
     if Tar.extraparams > 0
@@ -132,11 +137,6 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
 
     # train for NN deriative upon dataset as well as beyond but within timespan
     autodiff = Tar.autodiff
-    dt = Tar.physdt
-
-    if t[end] != Tar.prob.tspan[2]
-        append!(t, collect(Float64, t[end]:dt:Tar.prob.tspan[2]))
-    end
 
     # compare derivatives(matrix)
     out = Tar(t, θ[1:(length(θ) - Tar.extraparams)])
@@ -174,7 +174,7 @@ end
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)
 function L2LossData(Tar::LogTargetDensity, θ)
     # matrix(each row corresponds to vector u's rows)
-    if Tar.extraparams == 0
+    if isempty(Tar.dataset[end])
         return 0
     else
         nn = Tar(Tar.dataset[end], θ[1:(length(θ) - Tar.extraparams)])
@@ -235,8 +235,9 @@ end
 # priors: pdf for W,b + pdf for ODE params
 # lotka specific kwargs here
 
-function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain,
-                                dataset::Vector{Vector{Float64}};
+function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
+                                dataset = [[]],
+                                # dataset::Vector{Vector{Float64}}
                                 init_params = nothing, nchains = 1,
                                 draw_samples = 1000, l2std = [0.05],
                                 phystd = [0.05], priorsNNw = (0.0, 2.0),
@@ -286,12 +287,12 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain,
         nparameters += ninv
     end
 
+    t0 = prob.tspan[1]
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
     ℓπ = LogTargetDensity(nparameters, prob, recon, st, dataset, priors,
                           phystd, l2std, autodiff, physdt, ninv,
                           initial_nnθ)
 
-    t0 = prob.tspan[1]
     try
         ℓπ(t0, initial_θ[1:(nparameters - ninv)])
     catch err
@@ -344,7 +345,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain,
                                 progress = true)
         # return a chain(basic chain),samples and stats
         matrix_samples = hcat(samples...)
-        mcmc_chain = Chains(matrix_samples')
+        mcmc_chain = MCMCChains.Chains(matrix_samples')
         return mcmc_chain, samples, stats
     end
 end
