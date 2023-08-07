@@ -22,6 +22,10 @@ using DomainSets
 using Symbolics
 using Symbolics: wrap, unwrap, arguments, operation
 using SymbolicUtils
+
+#fixes 682
+using AdvancedHMC, LogDensityProblems, LinearAlgebra, Functors, MCMCChains
+
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball

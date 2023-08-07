@@ -73,9 +73,6 @@ Metric -> https://turinglang.org/AdvancedHMC.jl/stable/
 
 """
 
-using AdvancedHMC, ForwardDiff, LogDensityProblems, LinearAlgebra, Distributions, Functors,
-      MCMCChains
-
 mutable struct LogTargetDensity{C, S, I}
     dim::Int
     prob::DiffEqBase.DEProblem
