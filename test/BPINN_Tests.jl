@@ -1,8 +1,7 @@
 # Testing Code
-using DifferentialEquations, MCMCChains, ForwardDiff, Distributions
+using MCMCChains, ForwardDiff, Distributions
 using NeuralPDE, Flux, OptimizationOptimisers, AdvancedHMC, Lux
-using StatProfilerHTML, Profile, Statistics, Random, Functors, ComponentArrays
-using BenchmarkTools, Test
+using Statistics, Random, Functors, ComponentArrays, Test
 
 # for sampled params->lux ComponentArray
 function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
