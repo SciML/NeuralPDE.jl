@@ -14,7 +14,7 @@ jobs:
       matrix:
         group:
           #fixes 682
-          -"Bpinn ODE solver"
+          -"ODEBPINN"
 
           - NNPDE1
           - NNPDE2
