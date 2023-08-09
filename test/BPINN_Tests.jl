@@ -1,5 +1,5 @@
 # Testing Code
-using MCMCChains, ForwardDiff, Distributions
+using MCMCChains, ForwardDiff, Distributions, OrdinaryDiffEq
 using NeuralPDE, Flux, OptimizationOptimisers, AdvancedHMC, Lux
 using Statistics, Random, Functors, ComponentArrays, Test
 
