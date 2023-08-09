@@ -5,9 +5,10 @@ ahmc_bayesian_pinn_ode(prob, chain;
                        draw_samples = 1000, l2std = [0.05],
                        phystd = [0.05], priorsNNw = (0.0, 2.0), param = [],
                        autodiff = false, physdt = 1 / 20.0f0,
-                       Proposal = StaticTrajectory,
+                       Proposal = AdvancedHMC.StaticTrajectory,
                        Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
                        Integrator = Leapfrog, Metric = DiagEuclideanMetric)
+                                Kernel = HMC(0.1, 30),
 ```
 
 ## Example
@@ -281,8 +282,18 @@ function priorweights(Tar::LogTargetDensity, θ)
     end
 end
 
-function integratorchoice(Integrator, initial_ϵ; jitter_rate = 3.0,
-                          tempering_rate = 3.0)
+function kernelchoice(Kernel, max_depth, Δ_max, n_leapfrog, δ, λ)
+    if Kernel == HMC
+        Kernel(n_leapfrog)
+    elseif Kernel == HMCDA
+        Kernel(δ, λ)
+    else
+        Kernel(δ, max_depth = max_depth, Δ_max = Δ_max)
+    end
+end
+
+function integratorchoice(Integrator, initial_ϵ, jitter_rate,
+                          tempering_rate)
     if Integrator == JitteredLeapfrog
         Integrator(initial_ϵ, jitter_rate)
     elseif Integrator == TemperedLeapfrog
@@ -292,32 +303,28 @@ function integratorchoice(Integrator, initial_ϵ; jitter_rate = 3.0,
     end
 end
 
-function proposalchoice(Sampler, Integrator; n_steps = 50,
-                        trajectory_length = 30.0)
-    if Sampler == StaticTrajectory
-        Sampler(Integrator, n_steps)
-    elseif Sampler == AdvancedHMC.HMCDA
-        Sampler(Integrator, trajectory_length)
+function adaptorchoice(Adaptor, mma, ssa)
+    if Adaptor != AdvancedHMC.NoAdaptation()
+        Adaptor(mma, ssa)
     else
-        Sampler(Integrator)
+        AdvancedHMC.NoAdaptation()
     end
 end
 
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
-# lotka specific kwargs here
-
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
                                 dataset = [[]],
-                                init_params = nothing, nchains = 1,
-                                draw_samples = 1000, l2std = [0.05],
+                                init_params = nothing, draw_samples = 1000,
+                                physdt = 1 / 20.0, l2std = [0.05],
                                 phystd = [0.05], priorsNNw = (0.0, 2.0),
-                                param = [],
-                                autodiff = false, physdt = 1 / 20.0,
-                                Proposal = StaticTrajectory,
+                                param = [], nchains = 1,
+                                autodiff = false,
+                                Kernel = HMC, Integrator = Leapfrog,
                                 Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
-                                Integrator = Leapfrog,
-                                Metric = DiagEuclideanMetric)
+                                Metric = DiagEuclideanMetric, jitter_rate = 3.0,
+                                tempering_rate = 3.0, max_depth = 10, Δ_max = 1000,
+                                n_leapfrog = 10, δ = 0.65, λ = 0.3)
 
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
@@ -375,7 +382,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
         end
     end
 
-    # Define Hamiltonian system
+    # Define Hamiltonian system (nparameters ~ dimensionality of the sampling space)
     metric = Metric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
 
@@ -391,16 +398,17 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
             initial_θ = vcat(randn(nparameters - ninv),
                              initial_θ[(nparameters - ninv + 1):end])
             initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
-            integrator = integratorchoice(Integrator, initial_ϵ)
-            proposal = proposalchoice(Proposal, integrator)
-            adaptor = Adaptor(MassMatrixAdaptor(metric),
-                              StepSizeAdaptor(targetacceptancerate, integrator))
-
-            samples, stats = sample(hamiltonian, proposal, initial_θ, draw_samples, adaptor;
+            integrator = integratorchoice(Integrator, initial_ϵ, jitter_rate,
+                                          tempering_rate)
+            adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
+                                    StepSizeAdaptor(targetacceptancerate, integrator))
+            Kernel = AdvancedHMC.make_kernel(kernelchoice(Kernel, max_depth, Δ_max,
+                                                          n_leapfrog, δ, λ), integrator)
+            samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
                                     progress = true, verbose = false)
+
             samplesc[i] = samples
             statsc[i] = stats
-
             mcmc_chain = Chains(hcat(samples...)')
             chains[i] = mcmc_chain
         end
@@ -408,13 +416,14 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
         return chains, samplesc, statsc
     else
         initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
-        integrator = integratorchoice(Integrator, initial_ϵ)
-        proposal = proposalchoice(Proposal, integrator)
-        adaptor = Adaptor(MassMatrixAdaptor(metric),
-                          StepSizeAdaptor(targetacceptancerate, integrator))
+        integrator = integratorchoice(Integrator, initial_ϵ, jitter_rate, tempering_rate)
+        adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
+                                StepSizeAdaptor(targetacceptancerate, integrator))
+        Kernel = AdvancedHMC.make_kernel(kernelchoice(Kernel, max_depth, Δ_max, n_leapfrog,
+                                                      δ, λ), integrator)
+        samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
+                                adaptor; progress = true)
 
-        samples, stats = sample(hamiltonian, proposal, initial_θ, draw_samples, adaptor;
-                                progress = true)
         # return a chain(basic chain),samples and stats
         matrix_samples = hcat(samples...)
         mcmc_chain = MCMCChains.Chains(matrix_samples')
