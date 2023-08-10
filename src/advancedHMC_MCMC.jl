@@ -324,7 +324,8 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
                                 Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
                                 Metric = DiagEuclideanMetric, jitter_rate = 3.0,
                                 tempering_rate = 3.0, max_depth = 10, Δ_max = 1000,
-                                n_leapfrog = 10, δ = 0.65, λ = 0.3)
+                                n_leapfrog = 10, δ = 0.65, λ = 0.3, progress = false,
+                                verbose = false)
 
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
@@ -405,7 +406,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
             Kernel = AdvancedHMC.make_kernel(kernelchoice(Kernel, max_depth, Δ_max,
                                                           n_leapfrog, δ, λ), integrator)
             samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
-                                    progress = true, verbose = false)
+                                    progress = progress, verbose = verbose)
 
             samplesc[i] = samples
             statsc[i] = stats
@@ -422,7 +423,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
         Kernel = AdvancedHMC.make_kernel(kernelchoice(Kernel, max_depth, Δ_max, n_leapfrog,
                                                       δ, λ), integrator)
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
-                                adaptor; progress = true)
+                                adaptor; progress = progress, verbose = verbose)
 
         # return a chain(basic chain),samples and stats
         matrix_samples = hcat(samples...)
