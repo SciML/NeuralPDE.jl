@@ -1,14 +1,15 @@
 """
 ```julia
 ahmc_bayesian_pinn_ode(prob, chain;
-                       dataset = [[]],init_params = nothing, nchains = 1,
-                       draw_samples = 1000, l2std = [0.05],
-                       phystd = [0.05], priorsNNw = (0.0, 2.0), param = [],
-                       autodiff = false, physdt = 1 / 20.0f0,
-                       Proposal = AdvancedHMC.StaticTrajectory,
-                       Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
-                       Integrator = Leapfrog, Metric = DiagEuclideanMetric)
-                                Kernel = HMC(0.1, 30),
+                    dataset = [[]],init_params = nothing, 
+                    draw_samples = 1000, physdt = 1 / 20.0f0,l2std = [0.05],
+                    phystd = [0.05], priorsNNw = (0.0, 2.0),
+                    param = [],nchains = 1,autodiff = false, Kernel = HMC,
+                    Integrator = Leapfrog, Adaptor = StanHMCAdaptor,
+                    targetacceptancerate = 0.8, Metric = DiagEuclideanMetric,
+                    jitter_rate = 3.0, tempering_rate = 3.0, max_depth = 10,
+                    Δ_max = 1000, n_leapfrog = 10, δ = 0.65, λ = 0.3,
+                    progress = false,verbose = false)
 ```
 
 ## Example
@@ -30,25 +31,21 @@ dataset = [x̂, time]
 chainflux1 = Flux.Chain(Flux.Dense(1, 5, tanh), Flux.Dense(5, 5, tanh), Flux.Dense(5, 1)
 
 # simply solving ode here hence better to not pass dataset(uses ode params specified in prob)
-fh_mcmc_chainflux1, fhsamplesflux1, fhstatsflux1 = ahmc_bayesian_pinn_ode(prob, chainflux1,
-                                                                          draw_samples = 1000,
-                                                                          l2std = [0.05],
-                                                                          phystd = [0.05],
-                                                                          priorsNNw = (0.0,
-                                                                                       3.0))
-# solving ode + estimating parameters hence dataset needed to optimize parameters upon
-fh_mcmc_chainflux2, fhsamplesflux2, fhstatsflux2 = ahmc_bayesian_pinn_ode(prob, chainflux1,
+fh_mcmc_chainflux1, fhsamplesflux1, fhstatsflux1 = ahmc_bayesian_pinn_ode(prob,chainflux1,
                                                                           dataset = dataset,
-                                                                          draw_samples = 1000,
+                                                                          draw_samples = 1500,
                                                                           l2std = [0.05],
                                                                           phystd = [0.05],
-                                                                          priorsNNw = (0.0,
-                                                                                       3.0),
-                                                                          param = [
-                                                                              Normal(6.5,
-                                                                                     2),
-                                                                              Normal(-3, 2),
-                                                                          ])
+                                                                          priorsNNw = (0.0,3.0))
+
+# solving ode + estimating parameters hence dataset needed to optimize parameters upon + Pior Distributions for ODE params
+fh_mcmc_chainflux2, fhsamplesflux2, fhstatsflux2 = ahmc_bayesian_pinn_ode(prob,chainflux1,
+                                                                          dataset = dataset,
+                                                                          draw_samples = 1500,
+                                                                          l2std = [0.05],
+                                                                          phystd = [0.05],
+                                                                          priorsNNw = (0.0,3.0),
+                                                                          param = [Normal(6.5,0.5),Normal(-3,0.5)])
 ## Positional Arguments
 prob -> DEProblem(out of place and the function signature should be f(u,p,t)
 chain -> Lux/Flux Neural Netork which would be made the Bayesian PINN
