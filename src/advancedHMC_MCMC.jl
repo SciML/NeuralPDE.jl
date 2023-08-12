@@ -236,7 +236,11 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     physlogprob = 0
     for i in 1:length(Tar.prob.u0)
         # can add phystd[i] for u[i]
-        physlogprob += logpdf(MvNormal(nnsol[i, :], Tar.phystd[i]), physsol[i, :])
+        physlogprob += logpdf(MvNormal(nnsol[i, :],
+                                       LinearAlgebra.Diagonal(map(abs2,
+                                                                  Tar.phystd[i] .*
+                                                                  ones(length(physsol[i, :]))))),
+                              physsol[i, :])
     end
     return physlogprob
 end
@@ -252,7 +256,11 @@ function L2LossData(Tar::LogTargetDensity, θ)
         L2logprob = 0
         for i in 1:length(Tar.prob.u0)
             # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
-            L2logprob += logpdf(MvNormal(nn[i, :], Tar.l2std[i]), Tar.dataset[i])
+            L2logprob += logpdf(MvNormal(nn[i, :],
+                                         LinearAlgebra.Diagonal(map(abs2,
+                                                                    Tar.l2std[i] .*
+                                                                    ones(length(Tar.dataset[i]))))),
+                                Tar.dataset[i])
         end
         return L2logprob
     end
@@ -354,7 +362,10 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
     # adding ode parameter estimation
     nparameters = length(initial_θ)
     ninv = length(param)
-    priors = [MvNormal(priorsNNw[1] * ones(nparameters), priorsNNw[2] * ones(nparameters))]
+    priors = [
+        MvNormal(priorsNNw[1] * ones(nparameters),
+                 LinearAlgebra.Diagonal(map(abs2, priorsNNw[2] .* ones(nparameters)))),
+    ]
 
     # append Ode params to all paramvector
     if ninv > 0

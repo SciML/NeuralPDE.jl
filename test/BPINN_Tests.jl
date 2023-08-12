@@ -1,7 +1,10 @@
 # Testing Code
-using MCMCChains, ForwardDiff, Distributions, OrdinaryDiffEq
+using Test, MCMCChains
+using ForwardDiff, Distributions, OrdinaryDiffEq
 using NeuralPDE, Flux, OptimizationOptimisers, AdvancedHMC, Lux
-using Statistics, Random, Functors, ComponentArrays, Test
+using Statistics, Random, Functors, ComponentArrays
+
+Random.seed!(100)
 
 # for sampled params->lux ComponentArray
 function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
@@ -33,13 +36,14 @@ time = vec(collect(Float64, ta))
 dataset = [x̂[1:100], time[1:100]]
 
 # Call BPINN, create chain
-chainflux = Flux.Chain(Flux.Dense(1, 7, tanh), Flux.Dense(7, 1))
+chainflux = Flux.Chain(Flux.Dense(1, 7, tanh), Flux.Dense(7, 1)) |> f64
 chainlux = Lux.Chain(Lux.Dense(1, 7, tanh), Lux.Dense(7, 1))
 
 fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux,
                                                               dataset = dataset,
                                                               draw_samples = 2500,
                                                               n_leapfrog = 30)
+
 fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux,
                                                               dataset = dataset,
                                                               draw_samples = 2500,
@@ -70,6 +74,7 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test mean(abs2.(x̂ .- meanscurve2)) < 5e-4
 @test mean(abs2.(physsol1 .- meanscurve2)) < 1e-5
 
+println("now parameter estimation problem 1")
 ## PROBLEM-1 (WITH PARAMETER ESTIMATION)
 linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
 linear = (u, p, t) -> cos(p * t)
@@ -91,7 +96,7 @@ time = vec(collect(Float64, ta))
 dataset = [x̂[1:50], time[1:50]]
 
 # comparing how diff NNs capture non-linearity
-chainflux1 = Flux.Chain(Flux.Dense(1, 7, tanh), Flux.Dense(7, 1))
+chainflux1 = Flux.Chain(Flux.Dense(1, 7, tanh), Flux.Dense(7, 1)) |> f64
 chainlux1 = Lux.Chain(Lux.Dense(1, 7, tanh), Lux.Dense(7, 1))
 
 fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux1,
@@ -160,7 +165,8 @@ time = sol.t[1:100]
 x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
 dataset = [x̂, time]
 
-chainflux12 = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 6, tanh), Flux.Dense(6, 1))
+chainflux12 = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 6, tanh),
+                         Flux.Dense(6, 1)) |> f64
 chainlux12 = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
 
 fh_mcmc_chainflux12, fhsamplesflux12, fhstatsflux12 = ahmc_bayesian_pinn_ode(prob,
@@ -245,20 +251,20 @@ meanscurve1_2 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
 # estimated parameters(flux chain)
 param1 = mean(i[62] for i in fhsamplesflux22[1000:1500])
 param2 = mean(i[63] for i in fhsamplesflux22[1000:1500])
-@test abs(param1 - p[1]) < abs(0.3 * p[1])
-@test abs(param2 - p[2]) < abs(0.3 * p[2])
+@test abs(param1 - p[1]) < abs(0.2 * p[1])
+@test abs(param2 - p[2]) < abs(0.2 * p[2])
 
 # Mean of last 500 sampled parameter's curves(lux chains)[Ensemble predictions]
 θ = [vector_to_parameters(fhsampleslux12[i], θinit) for i in 1000:1500]
-luxar = [chainlux1(t', θ[i], st)[1] for i in 1:500]
+luxar = [chainlux12(t', θ[i], st)[1] for i in 1:500]
 luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
 meanscurve2_1 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-@test mean(abs2.(sol.u .- meanscurve2_1)) < 1e-2
-@test mean(abs2.(physsol1 .- meanscurve2_1)) < 1e-2
+@test mean(abs2.(sol.u .- meanscurve2_1)) < 2e-4
+@test mean(abs2.(physsol1 .- meanscurve2_1)) < 2e-4
 
 θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 2)], θinit) for i in 1000:1500]
-luxar = [chainlux1(t', θ[i], st)[1] for i in 1:500]
+luxar = [chainlux12(t', θ[i], st)[1] for i in 1:500]
 luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
 meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
