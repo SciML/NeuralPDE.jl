@@ -279,19 +279,20 @@ function inner_loss_DAE end
 
 function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
                     p) where {C, T, U <: Number}
-    sum(abs2, ode_dfdx(phi, t, θ, autodiff) - f(ode_dfdx(phi, t, θ, autodiff), phi, p, t))
+    sum(abs2,f(ode_dfdx(phi, t, θ, autodiff), phi(t, θ), p, t))
 end
 
 function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
                     p) where {C, T, U <: Number}
     out = phi(t, θ)
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
-    sum(abs2, f(dxdtguess[i], phi, p, t[i]) for i in 1:size(out, 2)) / length(t)
+    fs = reduce(hcat, [f(dxdtguess[:, i], out, p, arrt[i]) for i in 1:size(out, 2)])
+    sum(abs2, fs) / length(t)
 end
 
 function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
                     p) where {C, T, U}
-    sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(ode_dfdx(phi, t, θ, autodiff), phi, p, t))
+    sum(abs2,f(ode_dfdx(phi, t, θ, autodiff), phi(t, θ), p, t))
 end
 
 function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
@@ -299,7 +300,8 @@ function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVect
     out = Array(phi(t, θ))
     arrt = Array(t)
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
-    sum(abs2, f(dxdtguess[:, i], phi, p, arrt[i]) for i in 1:size(out, 2)) / length(t)
+    fs = reduce(hcat, [f(dxdtguess[:, i], out, p, arrt[i]) for i in 1:size(out, 2)])
+    sum(abs2, fs) / length(t)
 end
 
 """
@@ -573,7 +575,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     else
         Optimization.AutoZygote()
     end
-
     # Creates OptimizationFunction Object from total_loss
     optf = OptimizationFunction(total_loss, opt_algo)
 
@@ -698,7 +699,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         end
         L2_loss
     end
-
     # Choice of Optimization Algo for Training Strategies
     opt_algo = if strategy isa QuadratureTraining
         Optimization.AutoForwardDiff()
@@ -717,6 +717,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
     end
 
     optprob = OptimizationProblem(optf, init_params)
+    println("attempting to solve")
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     #solutions at timepoints

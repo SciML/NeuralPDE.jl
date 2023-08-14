@@ -1,5 +1,5 @@
 
-using NeuralPDE, OrdinaryDiffEq, OptimizationPolyalgorithms, Lux, OptimizationOptimJL, Test, Statistics, Plots, Optimisers
+using OrdinaryDiffEq, OptimizationPolyalgorithms, Lux, OptimizationOptimJL, Test, Statistics, Plots, Optimisers
 
 function f(u, p, t)
     [p[1] * u[1] - p[2] * u[1] * u[2], -p[3] * u[2] + p[4] * u[1] * u[2]]
@@ -20,9 +20,7 @@ samples = 200
 alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedIntervalTraining(weights, samples))
 sol = solve(prob_oop, alg, verbose=true, maxiters = 100000, saveat = 0.01)
 
-println(abs(mean(true_sol .- sol)))
-# println(abs(mean(sol) - mean(true_sol)))
-# @test abs(mean(sol) - mean(true_sol)) < 0.2
+@test abs(mean(true_sol .- sol)) < 0.2
 
 using Plots
 

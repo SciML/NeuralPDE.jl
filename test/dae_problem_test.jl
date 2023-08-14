@@ -1,15 +1,15 @@
-using DAEProblemLibrary, Sundials, Optimisers, OptimizationOptimisers, DifferentialEquations
-using NeuralPDE, Lux, Test, Statistics, Plots
+using Optimisers, OptimizationOptimisers, Sundials
+using Lux, Test, Statistics, Plots
 
-f = function (yp, y, p, tres)
+function fu(yp, y, p, tres)
     [-0.04 * y[1] + 1.0e4 * y[2] * y[3] - yp[1],
      -(-0.04 * y[1] + 1.0e4 * y[2] * y[3]) - 3.0e7 * y[2] * y[2] - yp[2],
       y[1] + y[2] + y[3] - 1.0]
 end
 u0 = [1.0, 0, 0]
 du0 = [-0.04, 0.04, 0.0]
+p = [1.5, 1.0, 3.0, 1.0]
 
-println("f defined")
 """
 The Robertson biochemical reactions in DAE form
 
@@ -27,14 +27,12 @@ Hairer Norsett Wanner Solving Ordinary Differential Equations I - Nonstiff Probl
 Usually solved on ``[0,1e11]``
 """
 
-prob_oop = DAEProblem{false}(f, du0, u0, (0.0, 100000.0))
+prob_oop = DAEProblem{false}(fu, du0, u0, (0.0, 100000.0), p)
 true_sol = solve(prob_oop, IDA(), saveat = 0.01)
 
-u0 = [1.0, 1.0, 1.0]
 func = Lux.σ
 N = 12
-chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, func),
-                    Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
+chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, length(u0)))
 
 opt = Optimisers.Adam(0.01)
 dx = 0.05
