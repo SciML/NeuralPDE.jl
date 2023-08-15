@@ -46,6 +46,11 @@ fh_mcmc_chainflux2, fhsamplesflux2, fhstatsflux2 = ahmc_bayesian_pinn_ode(prob,c
                                                                           phystd = [0.05],
                                                                           priorsNNw = (0.0,3.0),
                                                                           param = [Normal(6.5,0.5),Normal(-3,0.5)])
+
+## NOTES 
+Dataset is required for accurate Parameter estimation + solving equations
+Incase you are only solving the Equations for solution, do not provide dataset
+
 ## Positional Arguments
 prob -> DEProblem(out of place and the function signature should be f(u,p,t)
 chain -> Lux/Flux Neural Netork which would be made the Bayesian PINN
@@ -189,6 +194,8 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     f = Tar.prob.f
     p = Tar.prob.p
     dt = Tar.physdt
+
+    # Timepoints to enforce Physics
     if isempty(Tar.dataset[end])
         t = collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2])
     else
@@ -247,10 +254,11 @@ end
 
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)
 function L2LossData(Tar::LogTargetDensity, θ)
-    # matrix(each row corresponds to vector u's rows)
+    # check if dataset is provided
     if isempty(Tar.dataset[end])
         return 0
     else
+        # matrix(each row corresponds to vector u's rows)
         nn = Tar(Tar.dataset[end], θ[1:(length(θ) - Tar.extraparams)])
 
         L2logprob = 0
@@ -269,13 +277,13 @@ end
 # priors for NN parameters + ODE constants
 function priorweights(Tar::LogTargetDensity, θ)
     allparams = Tar.priors
-    # Vector of ode parameters priors
-    invpriors = allparams[2:end]
-
     # nn weights
     nnwparams = allparams[1]
 
     if Tar.extraparams > 0
+        # Vector of ode parameters priors
+        invpriors = allparams[2:end]
+
         invlogpdf = sum(logpdf(invpriors[length(θ) - i + 1], θ[i])
                         for i in (length(θ) - Tar.extraparams + 1):length(θ); init = 0.0)
 
@@ -335,6 +343,16 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
         throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
+    end
+
+    if dataset != [] && (length(dataset) < 2 || typeof(dataset) != Vector{Vector{Float64}})
+        throw(error("Invalid dataset. dataset would be timeseries (x̂,t) where type: Vector{Vector{Float64}"))
+    end
+
+    if dataset != [] && param == []
+        println("Dataset is only needed for Parameter Estimation + Forward Problem, not in only Forward Problem case.")
+    elseif dataset == [] && param != []
+        throw(error("Dataset Required for Parameter Estimation."))
     end
 
     if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
