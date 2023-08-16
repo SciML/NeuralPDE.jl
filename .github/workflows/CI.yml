@@ -13,9 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         group:
-          #fixes 682
           - ODEBPINN
-
           - NNPDE1
           - NNPDE2
           - AdaptiveLoss
