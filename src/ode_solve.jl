@@ -1,5 +1,4 @@
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
-abstract type NeuralPDEAlgorithmDAE <: DiffEqBase.AbstractDAEAlgorithm end
 
 """
 ```julia
@@ -96,25 +95,6 @@ function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
                autodiff = false, batch = nothing, additional_loss = nothing, kwargs...)
     NNODE(chain, opt, init_params, autodiff, batch, strategy, additional_loss, kwargs)
-end
-
-struct NNDAE{C, O, P, B, K, AL <: Union{Nothing, Function},
-             S <: Union{Nothing, AbstractTrainingStrategy}
-             } <:
-       NeuralPDEAlgorithmDAE
-    chain::C
-    opt::O
-    init_params::P
-    autodiff::Bool
-    batch::B
-    strategy::S
-    additional_loss::AL
-    kwargs::K
-end
-function NNDAE(chain, opt, init_params = nothing;
-               strategy = nothing,
-               autodiff = false, batch = nothing, additional_loss = nothing, kwargs...)
-    NNDAE(chain, opt, init_params, autodiff, batch, strategy, additional_loss, kwargs)
 end
 
 """
@@ -272,44 +252,12 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
 end
 
 """
-L2 inner loss for DAEProblems
-"""
-
-function inner_loss_DAE end
-
-function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
-                    p) where {C, T, U <: Number}
-    sum(abs2,f(ode_dfdx(phi, t, θ, autodiff), phi(t, θ), p, t))
-end
-
-function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
-                    p) where {C, T, U <: Number}
-    out = phi(t, θ)
-    dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
-    fs = reduce(hcat, [f(dxdtguess[:, i], out, p, arrt[i]) for i in 1:size(out, 2)])
-    sum(abs2, fs) / length(t)
-end
-
-function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
-                    p) where {C, T, U}
-    sum(abs2,f(ode_dfdx(phi, t, θ, autodiff), phi(t, θ), p, t))
-end
-
-function inner_loss_DAE(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
-                    p) where {C, T, U}
-    out = Array(phi(t, θ))
-    arrt = Array(t)
-    dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
-    fs = reduce(hcat, [f(dxdtguess[:, i], out, p, arrt[i]) for i in 1:size(out, 2)])
-    sum(abs2, fs) / length(t)
-end
-
-"""
 Representation of the loss function, parametric on the training strategy `strategy`
 """
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
                        batch)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p))
+
     integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p)) for t in ts]
     @assert batch == 0 # not implemented
 
@@ -324,6 +272,8 @@ end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
     ts = tspan[1]:(strategy.dx):tspan[2]
+    append!(ts, strategy.tstops)
+
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
@@ -340,8 +290,10 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
                        batch)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
-        ts = adapt(parameterless_type(θ),
+        temp = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
+        ts = append!(temp, strategy.tstops)
+
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
         else
@@ -371,6 +323,8 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     end
 
     ts = data
+    append!(ts, strategy.tstops)
+
 
     function loss(θ, _)
         if batch
@@ -397,88 +351,6 @@ function generate_loss(strategy::GivenPointsTraining, phi, f, autodiff::Bool, ts
 end
 
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
-    error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
-end
-
-"""
-Representation of the loss function, parametric on the training strategy `strategy` for DAE problems
-"""
-function generate_loss_DAE(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
-    integrand(t::Number, θ) = abs2(inner_loss_DAE(phi, f, autodiff, t, θ, p))
-    integrand(ts, θ) = [abs2(inner_loss_DAE(phi, f, autodiff, t, θ, p)) for t in ts]
-    @assert batch == 0 # not implemented
-
-    function loss(θ, _)
-        intprob = IntegralProblem(integrand, tspan[1], tspan[2], θ)
-        sol = solve(intprob, QuadGKJL(); abstol = strategy.abstol, reltol = strategy.reltol)
-        sol.u
-    end
-
-    return loss
-end
-
-function generate_loss_DAE(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
-    ts = tspan[1]:(strategy.dx):tspan[2]
-
-    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
-    function loss(θ, _)
-        if batch
-            sum(abs2, inner_loss_DAE(phi, f, autodiff, ts, θ, p))
-        else
-            sum(abs2, [inner_loss_DAE(phi, f, autodiff, t, θ, p) for t in ts])
-        end
-    end
-    return loss
-end
-
-function generate_loss_DAE(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
-    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
-    function loss(θ, _)
-        ts = adapt(parameterless_type(θ),
-                   [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
-        if batch
-            sum(abs2, inner_loss_DAE(phi, f, autodiff, ts, θ, p))
-        else
-            sum(abs2, [inner_loss_DAE(phi, f, autodiff, t, θ, p) for t in ts])
-        end
-    end
-    return loss
-end
-
-function generate_loss_DAE(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
-    minT = tspan[1]
-    maxT = tspan[2]
-
-    weights = strategy.weights ./ sum(strategy.weights)
-
-    N = length(weights)
-    samples = strategy.samples
-
-    difference = (maxT - minT) / N
-
-    data = Float64[]
-    for (index, item) in enumerate(weights)
-        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+
-                    ((index - 1) * difference)
-        data = append!(data, temp_data)
-    end
-
-    ts = data
-
-    function loss(θ, _)
-        if batch
-            sum(abs2, inner_loss_DAE(phi, f, autodiff, ts, θ, p))
-        else
-            sum(abs2, [inner_loss_DAE(phi, f, autodiff, t, θ, p) for t in ts])
-        end
-    end
-    return loss
-end
-
-function generate_loss_DAE(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan, p, batch)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
 
@@ -600,138 +472,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     end
 
     optprob = OptimizationProblem(optf, init_params)
-    res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
-
-    #solutions at timepoints
-    if saveat isa Number
-        ts = tspan[1]:saveat:tspan[2]
-    elseif saveat isa AbstractArray
-        ts = saveat
-    elseif dt !== nothing
-        ts = tspan[1]:dt:tspan[2]
-    elseif save_everystep
-        ts = range(tspan[1], tspan[2], length = 100)
-    else
-        ts = [tspan[1], tspan[2]]
-    end
-
-    if u0 isa Number
-        u = [first(phi(t, res.u)) for t in ts]
-    else
-        u = [phi(t, res.u) for t in ts]
-    end
-
-    sol = DiffEqBase.build_solution(prob, alg, ts, u;
-                                    k = res, dense = true,
-                                    interp = NNODEInterpolation(phi, res.u),
-                                    calculate_error = false,
-                                    retcode = ReturnCode.Success)
-    DiffEqBase.has_analytic(prob.f) &&
-        DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
-                                              dense_errors = false)
-    sol
-end #solve
-
-function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
-                            alg::NNDAE,
-                            args...;
-                            dt = nothing,
-                            timeseries_errors = true,
-                            save_everystep = true,
-                            adaptive = false,
-                            abstol = 1.0f-6,
-                            reltol = 1.0f-3,
-                            verbose = false,
-                            saveat = nothing,
-                            maxiters = nothing)
-
-    u0 = prob.u0
-    tspan = prob.tspan
-    f = prob.f
-    p = prob.p
-    t0 = tspan[1]
-
-    #hidden layer
-    chain = alg.chain
-    opt = alg.opt
-    autodiff = alg.autodiff
-
-    #train points generation
-    init_params = alg.init_params
-
-    if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
-        phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
-    else
-        error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
-    end
-
-    # if isinplace(prob)
-    #     throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
-    # end
-
-    try
-        phi(t0, init_params)
-    catch err
-        if isa(err, DimensionMismatch)
-            throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
-        else
-            throw(err)
-        end
-    end
-
-    strategy = if alg.strategy === nothing
-        if dt !== nothing
-            GridTraining(dt)
-        else
-            QuadratureTraining(; quadrature_alg = QuadGKJL(),
-                               reltol = convert(eltype(u0), reltol),
-                               abstol = convert(eltype(u0), abstol), maxiters = maxiters,
-                               batch = 0)
-        end
-    else
-        alg.strategy
-    end
-
-    batch = if alg.batch === nothing
-        if strategy isa QuadratureTraining
-            strategy.batch
-        else
-            true
-        end
-    else
-        alg.batch
-    end
-
-    inner_f = generate_loss_DAE(strategy, phi, f, autodiff, tspan, p, batch)
-    additional_loss = alg.additional_loss
-
-    # Creates OptimizationFunction Object from total_loss
-    function total_loss(θ, _)
-        L2_loss = inner_f(θ, phi)
-        if !(additional_loss isa Nothing)
-            return additional_loss(phi, θ) + L2_loss
-        end
-        L2_loss
-    end
-    # Choice of Optimization Algo for Training Strategies
-    opt_algo = if strategy isa QuadratureTraining
-        Optimization.AutoForwardDiff()
-    else
-        Optimization.AutoZygote()
-    end
-
-    # Creates OptimizationFunction Object from total_loss
-    optf = OptimizationFunction(total_loss, opt_algo)
-
-    iteration = 0
-    callback = function (p, l)
-        iteration += 1
-        verbose && println("Current loss is: $l, Iteration: $iteration")
-        l < abstol
-    end
-
-    optprob = OptimizationProblem(optf, init_params)
-    println("attempting to solve")
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     #solutions at timepoints
