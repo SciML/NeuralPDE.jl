@@ -22,6 +22,8 @@ using DomainSets
 using Symbolics
 using Symbolics: wrap, unwrap, arguments, operation
 using SymbolicUtils
+using AdvancedHMC, LogDensityProblems, LinearAlgebra, Functors, MCMCChains
+
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
@@ -47,6 +49,7 @@ include("rode_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
+include("advancedHMC_MCMC.jl")
 
 export NNODE, NNDAE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
@@ -60,6 +63,6 @@ export NNODE, NNDAE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
        AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
        MiniMaxAdaptiveLoss,
-       LogOptions
+       LogOptions, ahmc_bayesian_pinn_ode
 
 end # module

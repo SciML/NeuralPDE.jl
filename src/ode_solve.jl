@@ -204,7 +204,7 @@ end
 
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
                               θ) where {C <: Optimisers.Restructure, T, U}
-    f.u0 .+ (t .- f.t0) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
+    f.u0 .+ (t .- f.t0)' .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
 """
