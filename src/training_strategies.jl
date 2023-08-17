@@ -332,3 +332,17 @@ function get_loss_function(loss_function, train_set, eltypeθ,
                            τ = nothing)
     loss = (θ) -> mean(abs2, loss_function(train_set, θ))
 end
+
+struct GivenPointsTraining{T} <: AbstractTrainingStrategy
+    given_points::Vector{T}
+end
+
+function GivenPointsTraining(given_points)
+    GivenPointsTraining(given_points)
+end
+
+function get_loss_function(loss_function, train_set, eltypeθ,
+                           strategy::GivenPointsTraining;
+                           τ = nothing)
+    loss = (θ) -> mean(abs2, loss_function(train_set, θ))
+end
