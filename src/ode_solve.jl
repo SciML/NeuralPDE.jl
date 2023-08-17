@@ -382,6 +382,20 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     return loss
 end
 
+function generate_loss(strategy::GivenPointsTraining, phi, f, autodiff::Bool, tspan, p, batch)
+    ts =strategy.given_points
+
+    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
+    function loss(θ, _)
+        if batch
+            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
+        else
+            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
+        end
+    end
+    return loss
+end
+
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
