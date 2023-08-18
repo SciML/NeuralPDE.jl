@@ -14,11 +14,6 @@ corresponding to the grid spacing in each dimension.
 """
 struct GridTraining{T} <: AbstractTrainingStrategy
     dx::T
-    tstops::Vector{T}
-end
-
-function GridTraining(dx, tstops = [])
-    GridTraining(dx, tstops)
 end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
@@ -67,14 +62,13 @@ StochasticTraining(points; bcs_points = points)
 * `bcs_points`: number of points in random select training set for boundary conditions
   (by default, it equals `points`).
 """
-struct StochasticTraining{T} <: AbstractTrainingStrategy
+struct StochasticTraining <: AbstractTrainingStrategy
     points::Int64
     bcs_points::Int64
-    tstops::Vector{T}
 end
 
-function StochasticTraining(points; bcs_points = points, tstops = [])
-    StochasticTraining(points, bcs_points, tstops)
+function StochasticTraining(points; bcs_points = points)
+    StochasticTraining(points, bcs_points)
 end
 
 function generate_random_points(points, bound, eltypeθ)
@@ -142,19 +136,18 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
 
 For more information, see [QuasiMonteCarlo.jl](https://docs.sciml.ai/QuasiMonteCarlo/stable/)
 """
-struct QuasiRandomTraining{T} <: AbstractTrainingStrategy
+struct QuasiRandomTraining <: AbstractTrainingStrategy
     points::Int64
     bcs_points::Int64
     sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
     resampling::Bool
     minibatch::Int64
-    tstops::Vector{T}
 end
 
 function QuasiRandomTraining(points; bcs_points = points,
                              sampling_alg = LatinHypercubeSample(), resampling = true,
-                             minibatch = 0, tstops = [])
-    QuasiRandomTraining(points, bcs_points, sampling_alg, resampling, minibatch, tstops)
+                             minibatch = 0)
+    QuasiRandomTraining(points, bcs_points, sampling_alg, resampling, minibatch)
 end
 
 function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg,
@@ -251,12 +244,11 @@ struct QuadratureTraining{Q <: SciMLBase.AbstractIntegralAlgorithm, T} <:
     abstol::T
     maxiters::Int64
     batch::Int64
-    tstops::Vector{T}
 end
 
 function QuadratureTraining(; quadrature_alg = CubatureJLh(), reltol = 1e-6, abstol = 1e-3,
-                            maxiters = 1_000, batch = 100, tstops = [])
-    QuadratureTraining(quadrature_alg, reltol, abstol, maxiters, batch, tstops)
+                            maxiters = 1_000, batch = 100)
+    QuadratureTraining(quadrature_alg, reltol, abstol, maxiters, batch)
 end
 
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
@@ -328,30 +320,15 @@ This training strategy can only be used with ODEs (`NNODE`).
 """
 struct WeightedIntervalTraining{T} <: AbstractTrainingStrategy
     weights::Vector{T}
-    samples::Int64
-    tstops::Vector{T}
+    samples::Int
 end
 
-function WeightedIntervalTraining(weights, samples, tstops = [])
-    WeightedIntervalTraining(weights, samples, tstops)
+function WeightedIntervalTraining(weights, samples)
+    WeightedIntervalTraining(weights, samples)
 end
 
 function get_loss_function(loss_function, train_set, eltypeθ,
                            strategy::WeightedIntervalTraining;
-                           τ = nothing)
-    loss = (θ) -> mean(abs2, loss_function(train_set, θ))
-end
-
-struct GivenPointsTraining{T} <: AbstractTrainingStrategy
-    given_points::Vector{T}
-end
-
-function GivenPointsTraining(given_points)
-    GivenPointsTraining(given_points)
-end
-
-function get_loss_function(loss_function, train_set, eltypeθ,
-                           strategy::GivenPointsTraining;
                            τ = nothing)
     loss = (θ) -> mean(abs2, loss_function(train_set, θ))
 end

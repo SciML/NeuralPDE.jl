@@ -272,8 +272,6 @@ end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
     ts = tspan[1]:(strategy.dx):tspan[2]
-    append!(ts, strategy.tstops)
-
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
@@ -290,9 +288,8 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
                        batch)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
-        temp = adapt(parameterless_type(θ),
+        ts = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
-        ts = append!(temp, strategy.tstops)
 
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
@@ -323,8 +320,6 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     end
 
     ts = data
-    append!(ts, strategy.tstops)
-
 
     function loss(θ, _)
         if batch
@@ -336,15 +331,14 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     return loss
 end
 
-function generate_loss(strategy::GivenPointsTraining, phi, f, autodiff::Bool, tspan, p, batch)
-    ts =strategy.given_points
+function generate_additional_points_loss(tstops, phi, f, autodiff::Bool, tspan, p, batch)
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
         if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
+            sum(abs2, inner_loss(phi, f, autodiff, tstops, θ, p))
         else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
+            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in tstops])
         end
     end
     return loss
@@ -385,7 +379,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
                             reltol = 1.0f-3,
                             verbose = false,
                             saveat = nothing,
-                            maxiters = nothing)
+                            maxiters = nothing, 
+                            tstops = nothing)
     u0 = prob.u0
     tspan = prob.tspan
     f = prob.f
@@ -450,9 +445,13 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     function total_loss(θ, _)
         L2_loss = inner_f(θ, phi)
         if !(additional_loss isa Nothing)
-            return additional_loss(phi, θ) + L2_loss
+            L2_loss = L2_loss + additional_loss(phi, θ) 
         end
-        L2_loss
+        if !(tstops isa Nothing)
+            addedPointsLossFunc = generate_additional_points_loss(tstops, phi, f, autodiff, tspan, p, batch) 
+            L2_loss = L2_loss + addedPointsLossFunc(θ, phi)
+        end
+        return L2_loss
     end
 
     # Choice of Optimization Algo for Training Strategies
