@@ -1,8 +1,7 @@
-mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
-    P <: Vector{<:Distribution},
-    D <:
-    Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}},
-}
+mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
+                                D <:
+                                Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
+                                }
     dim::Int
     prob::DiffEqBase.ODEProblem
     chain::C
@@ -335,6 +334,112 @@ function NNodederi(phi::LogTargetDensity, t::AbstractVector, θ, autodiff::Bool)
     end
 end
 
+# physics loglikelihood over problem timespan
+function physloglikelihood(Tar::LogTargetDensity, θ)
+    f = Tar.prob.f
+    p = Tar.prob.p
+    dt = Tar.physdt
+
+    # Timepoints to enforce Physics
+    if Tar.dataset isa Vector{Nothing}
+        t = collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2])
+    else
+        t = vcat(collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2]),
+                 Tar.dataset[end])
+    end
+
+    # parameter estimation chosen or not
+    if Tar.extraparams > 0
+        ode_params = Tar.extraparams == 1 ?
+                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)][1] :
+                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)]
+    else
+        ode_params = p == SciMLBase.NullParameters() ? [] : p
+    end
+
+    # train for NN deriative upon dataset as well as beyond but within timespan
+    autodiff = Tar.autodiff
+
+    # compare derivatives(matrix)
+    out = Tar(t, θ[1:(length(θ) - Tar.extraparams)])
+
+    # reject samples case
+    if any(isinf, out[:, 1]) || any(isinf, ode_params)
+        return -Inf
+    end
+
+    # this is a vector{vector{dx,dy}}(handle case single u(float passed))
+    if length(out[:, 1]) == 1
+        physsol = [f(out[:, i][1],
+                     ode_params,
+                     t[i])
+                   for i in 1:length(out[1, :])]
+    else
+        physsol = [f(out[:, i],
+                     ode_params,
+                     t[i])
+                   for i in 1:length(out[1, :])]
+    end
+    physsol = reduce(hcat, physsol)
+
+    # convert to matrix as nnsol
+    nnsol = NNodederi(Tar, t, θ[1:(length(θ) - Tar.extraparams)], autodiff)
+
+    physlogprob = 0
+    for i in 1:length(Tar.prob.u0)
+        # can add phystd[i] for u[i]
+        physlogprob += logpdf(MvNormal(nnsol[i, :],
+                                       LinearAlgebra.Diagonal(map(abs2,
+                                                                  Tar.phystd[i] .*
+                                                                  ones(length(physsol[i, :]))))),
+                              physsol[i, :])
+    end
+    return physlogprob
+end
+
+# L2 losses loglikelihood(needed mainly for ODE parameter estimation)
+function L2LossData(Tar::LogTargetDensity, θ)
+    # check if dataset is provided
+    if Tar.dataset isa Vector{Nothing} || Tar.extraparams == 0
+        return 0
+    else
+        # matrix(each row corresponds to vector u's rows)
+        nn = Tar(Tar.dataset[end], θ[1:(length(θ) - Tar.extraparams)])
+
+        L2logprob = 0
+        for i in 1:length(Tar.prob.u0)
+            # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
+            L2logprob += logpdf(MvNormal(nn[i, :],
+                                         LinearAlgebra.Diagonal(map(abs2,
+                                                                    Tar.l2std[i] .*
+                                                                    ones(length(Tar.dataset[i]))))),
+                                Tar.dataset[i])
+        end
+        return L2logprob
+    end
+end
+
+# priors for NN parameters + ODE constants
+function priorweights(Tar::LogTargetDensity, θ)
+    allparams = Tar.priors
+    # nn weights
+    nnwparams = allparams[1]
+
+    if Tar.extraparams > 0
+        # Vector of ode parameters priors
+        invpriors = allparams[2:end]
+
+        invlogpdf = sum(logpdf(invpriors[length(θ) - i + 1], θ[i])
+                        for i in (length(θ) - Tar.extraparams + 1):length(θ); init = 0.0)
+
+        return (invlogpdf
+                +
+                logpdf(nnwparams, θ[1:(length(θ) - Tar.extraparams)]))
+    else
+        return logpdf(nnwparams, θ)
+    end
+end
+
 function kernelchoice(Kernel, max_depth, Δ_max, n_leapfrog, δ, λ)
     if Kernel == HMC
         Kernel(n_leapfrog)
@@ -366,7 +471,7 @@ end
 
 """
 ```julia
-ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining,
+ahmc_bayesian_pinn_ode(prob, chain;
                     dataset = [nothing],init_params = nothing, 
                     draw_samples = 1000, physdt = 1 / 20.0f0,l2std = [0.05],
                     phystd = [0.05], priorsNNw = (0.0, 2.0),
@@ -454,28 +559,27 @@ Incase you are only solving the Equations for solution, do not provide dataset
 """
 
 """
-dataset would be (x̂,t)
-priors: pdf for W,b + pdf for ODE params
-"""
+
+# dataset would be (x̂,t)
+# priors: pdf for W,b + pdf for ODE params
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
-    strategy = GridTraining, dataset = [nothing],
-    init_params = nothing, draw_samples = 1000,
-    physdt = 1 / 20.0, l2std = [0.05],
-    phystd = [0.05], priorsNNw = (0.0, 2.0),
-    param = [], nchains = 1, autodiff = false,
-    Kernel = HMC, Integrator = Leapfrog,
-    Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
-    Metric = DiagEuclideanMetric, jitter_rate = 3.0,
-    tempering_rate = 3.0, max_depth = 10, Δ_max = 1000,
-    n_leapfrog = 10, δ = 0.65, λ = 0.3, progress = false,
-    verbose = false)
+                                dataset=[nothing],
+                                init_params = nothing, draw_samples = 1000,
+                                physdt = 1 / 20.0, l2std = [0.05],
+                                phystd = [0.05], priorsNNw = (0.0, 2.0),
+                                param = [], nchains = 1,
+                                autodiff = false,
+                                Kernel = HMC, Integrator = Leapfrog,
+                                Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
+                                Metric = DiagEuclideanMetric, jitter_rate = 3.0,
+                                tempering_rate = 3.0, max_depth = 10, Δ_max = 1000,
+                                n_leapfrog = 10, δ = 0.65, λ = 0.3, progress = false,
+                                verbose = false)
 
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
         throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
     end
-
-    strategy = strategy == GridTraining ? strategy(physdt) : strategy
 
     if dataset != [nothing] &&
        (length(dataset) < 2 || !(typeof(dataset) <: Vector{<:Vector{<:AbstractFloat}}))
@@ -483,7 +587,9 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     end
 
     if dataset != [nothing] && param == []
+    if dataset != [nothing] && param == []
         println("Dataset is only needed for Parameter Estimation + Forward Problem, not in only Forward Problem case.")
+    elseif dataset == [nothing] && param != []
     elseif dataset == [nothing] && param != []
         throw(error("Dataset Required for Parameter Estimation."))
     end
