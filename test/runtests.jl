@@ -60,4 +60,8 @@ end
         @safetestset "NNPDE_gpu" begin include("NNPDE_tests_gpu.jl") end
         @safetestset "NNPDE_gpu_Lux" begin include("NNPDE_tests_gpu_Lux.jl") end
     end
+
+    if GROUP == "All" || GROUP == "Tstops"
+        @time @safetestset "Tstops" begin include("NNODE_tstops_test.jl") end
+    end
 end

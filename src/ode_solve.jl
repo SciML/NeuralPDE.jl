@@ -331,7 +331,7 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     return loss
 end
 
-function generate_additional_points_loss(tstops, phi, f, autodiff::Bool, tspan, p, batch)
+function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch)
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
@@ -448,7 +448,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
             L2_loss = L2_loss + additional_loss(phi, θ) 
         end
         if !(tstops isa Nothing)
-            addedPointsLossFunc = generate_additional_points_loss(tstops, phi, f, autodiff, tspan, p, batch) 
+            addedPointsLossFunc = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch) 
             L2_loss = L2_loss + addedPointsLossFunc(θ, phi)
         end
         return L2_loss
