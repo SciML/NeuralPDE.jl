@@ -25,6 +25,7 @@ end
     end
     if GROUP == "All" || GROUP == "NNODE"
         @time @safetestset "NNODE" begin include("NNODE_tests.jl") end
+        @time @safetestset "Tstops" begin include("NNODE_tstops_test.jl") end
     end
 
     if GROUP == "All" || GROUP == "NNPDE2"
@@ -59,9 +60,5 @@ end
     if !is_APPVEYOR && GROUP == "GPU"
         @safetestset "NNPDE_gpu" begin include("NNPDE_tests_gpu.jl") end
         @safetestset "NNPDE_gpu_Lux" begin include("NNPDE_tests_gpu_Lux.jl") end
-    end
-
-    if GROUP == "All"
-        @time @safetestset "Tstops" begin include("NNODE_tstops_test.jl") end
     end
 end
