@@ -50,6 +50,7 @@ include("transform_inf_integral.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
+include("BPINN_ode.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
@@ -63,6 +64,6 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
        AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
        MiniMaxAdaptiveLoss,
-       LogOptions, ahmc_bayesian_pinn_ode
+       LogOptions, ahmc_bayesian_pinn_ode, BNNODE
 
 end # module
