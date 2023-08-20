@@ -1,5 +1,6 @@
 mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
-                                D <: Vector{<:Vector{<:AbstractFloat}}
+                                D <:
+                                Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
                                 }
     dim::Int
     prob::DiffEqBase.ODEProblem
@@ -133,7 +134,7 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     dt = Tar.physdt
 
     # Timepoints to enforce Physics
-    if isempty(Tar.dataset[end])
+    if Tar.dataset isa Vector{Nothing}
         t = collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2])
     else
         t = vcat(collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2]),
@@ -192,7 +193,7 @@ end
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)
 function L2LossData(Tar::LogTargetDensity, θ)
     # check if dataset is provided
-    if isempty(Tar.dataset[end]) || Tar.extraparams == 0
+    if Tar.dataset isa Vector{Nothing} || Tar.extraparams == 0
         return 0
     else
         # matrix(each row corresponds to vector u's rows)
@@ -264,7 +265,7 @@ end
 """
 ```julia
 ahmc_bayesian_pinn_ode(prob, chain;
-                    dataset = [[]],init_params = nothing, 
+                    dataset = [nothing],init_params = nothing, 
                     draw_samples = 1000, physdt = 1 / 20.0f0,l2std = [0.05],
                     phystd = [0.05], priorsNNw = (0.0, 2.0),
                     param = [],nchains = 1,autodiff = false, Kernel = HMC,
@@ -346,8 +347,8 @@ verbose -> controls the verbosity. (Sample call args in AHMC)
 
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
-function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
-                                dataset = [[]],
+function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
+                                dataset=[nothing],
                                 init_params = nothing, draw_samples = 1000,
                                 physdt = 1 / 20.0, l2std = [0.05],
                                 phystd = [0.05], priorsNNw = (0.0, 2.0),
@@ -365,14 +366,14 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.DEProblem, chain;
         throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
     end
 
-    if dataset != [] &&
+    if dataset != [nothing] &&
        (length(dataset) < 2 || !(typeof(dataset) <: Vector{<:Vector{<:AbstractFloat}}))
         throw(error("Invalid dataset. dataset would be timeseries (x̂,t) where type: Vector{Vector{AbstractFloat}"))
     end
 
-    if dataset != [] && param == []
+    if dataset != [nothing] && param == []
         println("Dataset is only needed for Parameter Estimation + Forward Problem, not in only Forward Problem case.")
-    elseif dataset == [] && param != []
+    elseif dataset == [nothing] && param != []
         throw(error("Dataset Required for Parameter Estimation."))
     end
 
