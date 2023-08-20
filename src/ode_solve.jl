@@ -29,7 +29,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Example
 
-```juliap = [1.5, 1.0, 3.0, 1.0]
+```julia
 u0 = [1.0, 1.0]
     ts=[t for t in 1:100]
     (u_, t_) = (analytical_func(ts), ts)
