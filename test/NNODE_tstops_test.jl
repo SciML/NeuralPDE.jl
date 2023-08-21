@@ -1,4 +1,4 @@
-using OrdinaryDiffEq, Lux, OptimizationOptimJL, Test, Statistics, Optimisers
+using OrdinaryDiffEq, Lux, OptimizationOptimisers, Test, Statistics, Optimisers
 
 function fu(u, p, t)
     [p[1] * u[1] - p[2] * u[1] * u[2], -p[3] * u[2] + p[4] * u[1] * u[2]]
