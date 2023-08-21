@@ -448,8 +448,24 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
             L2_loss = L2_loss + additional_loss(phi, θ) 
         end
         if !(tstops isa Nothing)
-            addedPointsLossFunc = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch) 
-            L2_loss = L2_loss + addedPointsLossFunc(θ, phi)
+            num_tstops_points = length(tstops)
+            tstops_loss_func = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch) 
+            total_tstops_loss = tstops_loss_func(θ, phi) * num_tstops_points
+            if strategy isa GridTraining 
+                num_original_points = length(tspan[1]:(strategy.dx):tspan[2])
+            elseif strategy isa WeightedIntervalTraining
+                num_original_points = strategy.samples
+            elseif strategy isa StochasticTraining
+                num_original_points = strategy.points
+            else
+                L2_loss = L2_loss + tstops_loss_func(θ, phi)
+                return L2_loss
+            end
+            
+            total_original_loss = L2_loss * num_original_points
+            total_points = num_original_points + num_tstops_points
+            L2_loss = (total_original_loss + total_tstops_loss) / total_points
+
         end
         return L2_loss
     end
