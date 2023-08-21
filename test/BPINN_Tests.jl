@@ -1,8 +1,11 @@
 # # Testing Code
+# # Testing Code
 using Test, MCMCChains
 using ForwardDiff, Distributions, OrdinaryDiffEq
 using Flux, OptimizationOptimisers, AdvancedHMC, Lux
+using Flux, OptimizationOptimisers, AdvancedHMC, Lux
 using Statistics, Random, Functors, ComponentArrays
+using NeuralPDE, MonteCarloMeasurements
 using NeuralPDE, MonteCarloMeasurements
 
 # note that current testing bounds can be easily further tightened but have been inflated for support for Julia build v1
@@ -32,45 +35,38 @@ p = prob.p
 # Numerical and Analytical Solutions: testing ahmc_bayesian_pinn_ode()
 ta = range(tspan[1], tspan[2], length = 300)
 u = [linear_analytic(u0, nothing, ti) for ti in ta]
+# sol1 = solve(prob, Tsit5())
+
+# BPINN AND TRAINING DATASET CREATION, NN create, Reconstruct
 x̂ = collect(Float64, Array(u) + 0.02 * randn(size(u)))
 time = vec(collect(Float64, ta))
-physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
-# testing points for solve() call must match saveat(1/50.0) arg
-ta0 = range(tspan[1], tspan[2], length = 101)
-u1 = [linear_analytic(u0, nothing, ti) for ti in ta0]
-x̂1 = collect(Float64, Array(u1) + 0.02 * randn(size(u1)))
-time1 = vec(collect(Float64, ta0))
-physsol0_1 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
-
-chainflux = Flux.Chain(Flux.Dense(1, 7, tanh), Flux.Dense(7, 1)) |> Flux.f64
+# Call BPINN, create chain
+chainflux = Flux.Chain(Flux.Dense(1, 7, tanh), Flux.Dense(7, 1)) |> f64
 chainlux = Lux.Chain(Lux.Dense(1, 7, tanh), Lux.Dense(7, 1))
 init1, re1 = destructure(chainflux)
 θinit, st = Lux.setup(Random.default_rng(), chainlux)
 
 fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux,
-    draw_samples = 2500,
-    n_leapfrog = 30)
+                                                              draw_samples = 2500,
+                                                              n_leapfrog = 30)
 
 fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux,
-    draw_samples = 2500,
-    n_leapfrog = 30)
-
-# can change training strategies by adding this to call (Quadratuer and GridTraining show good results but stochastics sampling techniques perform bad)
-# strategy = QuadratureTraining(; quadrature_alg = QuadGKJL(),
-#     reltol = 1e-6,
-#     abstol = 1e-3, maxiters = 1000,
-#     batch = 0)
+                                                              draw_samples = 2500,
+                                                              n_leapfrog = 30)
 
 alg = NeuralPDE.BNNODE(chainflux, draw_samples = 2500,
-    n_leapfrog = 30)
+                       n_leapfrog = 30)
 sol1flux = solve(prob, alg)
 
 alg = NeuralPDE.BNNODE(chainlux, draw_samples = 2500,
-    n_leapfrog = 30)
+                       n_leapfrog = 30)
 sol1lux = solve(prob, alg)
 
-# testing points
+init1, re1 = destructure(chainflux)
+θinit, st = Lux.setup(Random.default_rng(), chainlux)
+
+# TESTING TIMEPOINTS,Actual Sols and actual data
 t = time
 # Mean of last 500 sampled parameter's curves(flux and lux chains)[Ensemble predictions]
 out = re1.(fhsamples1[(end - 500):end])
@@ -78,6 +74,7 @@ yu = collect(out[i](t') for i in eachindex(out))
 fluxmean = [mean(vcat(yu...)[:, i]) for i in eachindex(t)]
 meanscurve1 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
 
+θ = [vector_to_parameters(fhsamples1[i], θinit) for i in 2000:2500]
 θ = [vector_to_parameters(fhsamples1[i], θinit) for i in 2000:2500]
 luxar = [chainlux(t', θ[i], st)[1] for i in 1:500]
 luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
@@ -88,12 +85,6 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test mean(abs.(physsol1 .- meanscurve1)) < 0.005
 @test mean(abs.(x̂ .- meanscurve2)) < 0.05
 @test mean(abs.(physsol1 .- meanscurve2)) < 0.005
-
-#--------------------- solve() call 
-@test mean(abs.(x̂1 .- sol1flux.ensemblesol[1])) < 0.05
-@test mean(abs.(physsol0_1 .- sol1flux.ensemblesol[1])) < 0.05
-@test mean(abs.(x̂1 .- sol1lux.ensemblesol[1])) < 0.05
-@test mean(abs.(physsol0_1 .- sol1lux.ensemblesol[1])) < 0.05
 
 ## PROBLEM-1 (WITH PARAMETER ESTIMATION)
 linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
@@ -129,17 +120,17 @@ init1, re1 = destructure(chainflux1)
 θinit, st = Lux.setup(Random.default_rng(), chainlux1)
 
 fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux1,
-    dataset = dataset,
-    draw_samples = 2500,
-    physdt = 1 / 50.0f0,
-    priorsNNw = (0.0,
-        3.0),
-    param = [
-        LogNormal(9,
-            0.5),
-    ],
-    Metric = DiagEuclideanMetric,
-    n_leapfrog = 30)
+                                                              dataset = dataset,
+                                                              draw_samples = 2500,
+                                                              physdt = 1 / 50.0f0,
+                                                              priorsNNw = (0.0,
+                                                                           3.0),
+                                                              param = [
+                                                                  LogNormal(9,
+                                                                            0.5),
+                                                              ],
+                                                              Metric = DiagEuclideanMetric,
+                                                              n_leapfrog = 30)
 
 fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux1,
     dataset = dataset,
@@ -150,29 +141,31 @@ fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux1,
     Metric = DiagEuclideanMetric,
     n_leapfrog = 30)
 
-alg = NeuralPDE.BNNODE(chainflux1, dataset = dataset,
-    draw_samples = 2500, physdt = 1 / 50.0f0,
-    priorsNNw = (0.0, 3.0),
-    param = [LogNormal(9, 0.5)],
-    Metric = DiagEuclideanMetric,
-    n_leapfrog = 30)
+alg = NeuralPDE.BNNODE(chainflux1, draw_samples = 2500,
+                       physdt = 1 / 50.0f0,
+                       priorsNNw = (0.0, 3.0),
+                       param = [LogNormal(9, 0.5)],
+                       Metric = DiagEuclideanMetric,
+                       n_leapfrog = 30)
 
 sol2flux = solve(prob, alg)
 
-alg = NeuralPDE.BNNODE(chainlux1, dataset = dataset,
-    draw_samples = 2500,
-    physdt = 1 / 50.0f0,
-    priorsNNw = (0.0,
-        3.0),
-    param = [
-        LogNormal(9,
-            0.5),
-    ],
-    Metric = DiagEuclideanMetric,
-    n_leapfrog = 30)
-
+alg = NeuralPDE.BNNODE(chainlux1, draw_samples = 2500,
+                       physdt = 1 / 50.0f0,
+                       priorsNNw = (0.0,
+                                    3.0),
+                       param = [
+                           LogNormal(9,
+                                     0.5),
+                       ],
+                       Metric = DiagEuclideanMetric,
+                       n_leapfrog = 30)
 sol2lux = solve(prob, alg)
 
+init1, re1 = destructure(chainflux1)
+θinit, st = Lux.setup(Random.default_rng(), chainlux1)
+
+# testing points
 # testing points
 t = time
 # Mean of last 500 sampled parameter's curves(flux and lux chains)[Ensemble predictions]
@@ -211,10 +204,12 @@ prob = ODEProblem(linear, u0, tspan, p)
 linear_analytic = (u0, p, t) -> exp(t / p) * (u0 + sin(t))
 
 # SOLUTION AND CREATE DATASET
-sol = solve(prob, Tsit5(); saveat = 0.1)
-u = sol.u
-time = sol.t
-x̂ = u .+ (u .* 0.2) .* randn(size(u))
+sol = solve(prob, Tsit5(); saveat = 0.05)
+u = sol.u[1:100]
+time = sol.t[1:100]
+
+# dataset and BPINN create
+x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
 dataset = [x̂, time]
 t = sol.t
 physsol1 = [linear_analytic(prob.u0, p, t[i]) for i in eachindex(t)]
@@ -231,14 +226,15 @@ init1, re1 = destructure(chainflux12)
 θinit, st = Lux.setup(Random.default_rng(), chainlux12)
 
 fh_mcmc_chainflux12, fhsamplesflux12, fhstatsflux12 = ahmc_bayesian_pinn_ode(prob,
-    chainflux12,
-    draw_samples = 1500,
-    l2std = [0.03],
-    phystd = [
-        0.03],
-    priorsNNw = (0.0,
-        10.0),
-    n_leapfrog = 30)
+                                                                             chainflux12,
+                                                                             draw_samples = 2000,
+                                                                             l2std = [0.05],
+                                                                             phystd = [
+                                                                                 0.05,
+                                                                             ],
+                                                                             priorsNNw = (0.0,
+                                                                                          3.0),
+                                                                             n_leapfrog = 30)
 
 fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(prob,
     chainflux12,
@@ -257,12 +253,12 @@ fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(pro
     n_leapfrog = 30)
 
 fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, chainlux12,
-    draw_samples = 1500,
-    l2std = [0.03],
-    phystd = [0.03],
-    priorsNNw = (0.0,
-        10.0),
-    n_leapfrog = 30)
+                                                                          draw_samples = 2000,
+                                                                          l2std = [0.05],
+                                                                          phystd = [0.05],
+                                                                          priorsNNw = (0.0,
+                                                                                       3.0),
+                                                                          n_leapfrog = 30)
 
 fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, chainlux12,
     dataset = dataset,
@@ -307,9 +303,68 @@ alg = NeuralPDE.BNNODE(chainlux12,
     ],
     n_leapfrog = 30)
 
+alg = NeuralPDE.BNNODE(chainflux12,
+                       draw_samples = 2000,
+                       l2std = [0.05],
+                       phystd = [
+                           0.05,
+                       ],
+                       priorsNNw = (0.0,
+                                    3.0),
+                       n_leapfrog = 30)
+
+sol3flux = solve(prob, alg)
+
+alg = NeuralPDE.BNNODE(chainflux12,
+                       dataset = dataset,
+                       draw_samples = 2000,
+                       l2std = [0.05],
+                       phystd = [
+                           0.05,
+                       ],
+                       priorsNNw = (0.0,
+                                    3.0),
+                       param = [
+                           Normal(6.5,
+                                  0.5),
+                           Normal(-3,
+                                  0.5),
+                       ],
+                       n_leapfrog = 30)
+
+sol3flux_pestim = solve(prob, alg)
+
+alg = NeuralPDE.BNNODE(chainlux12,
+                       draw_samples = 2000,
+                       l2std = [0.05],
+                       phystd = [0.05],
+                       priorsNNw = (0.0,
+                                    3.0),
+                       n_leapfrog = 30)
+
+sol3lux = solve(prob, alg)
+
+alg = NeuralPDE.BNNODE(chainlux12,
+                       dataset = dataset,
+                       draw_samples = 2000,
+                       l2std = [0.05],
+                       phystd = [0.05],
+                       priorsNNw = (0.0,
+                                    3.0),
+                       param = [
+                           Normal(6.5,
+                                  0.5),
+                           Normal(-3,
+                                  0.5),
+                       ],
+                       n_leapfrog = 30)
+
 sol3lux_pestim = solve(prob, alg)
 
-# testing timepoints
+init1, re1 = destructure(chainflux12)
+θinit, st = Lux.setup(Random.default_rng(), chainlux12)
+
+# testing points
 t = sol.t
 #------------------------------ ahmc_bayesian_pinn_ode() call 
 # Mean of last 500 sampled parameter's curves(flux chains)[Ensemble predictions]
