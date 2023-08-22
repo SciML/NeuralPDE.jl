@@ -318,6 +318,8 @@ Incase you are only solving the Equations for solution, do not provide dataset
 ## Positional Arguments
 prob -> DEProblem(out of place and the function signature should be f(u,p,t)
 chain -> Lux/Flux Neural Netork which would be made the Bayesian PINN
+
+## Keyword Arguments
 dataset -> Vector containing Vectors of corresponding u,t values 
 init_params -> intial parameter values for BPINN (ideally for multiple chains different initializations preferred)
 nchains -> number of chains you want to sample (random initialisation of params by default)
@@ -329,7 +331,7 @@ param -> Vector of chosen ODE parameters Distributions in case of Inverse proble
 autodiff -> Boolean Value for choice of Derivative Backend(default is numerical)
 physdt -> Timestep for approximating ODE in it's Time domain. (1/20.0 by default)
 
-# AHMC still developing convenience structs so might need changes on new releases.
+# AHMC.jl is still developing convenience structs so might need changes on new releases.
 Kernel -> Choice of MCMC Sampling Algorithm (AdvancedHMC.jl implemenations HMC/NUTS/HMCDA)
 targetacceptancerate -> Target percentage(in decimal) of iterations in which the proposals were accepted(0.8 by default)
 Integrator(jitter_rate, tempering_rate), Metric, Adaptor -> https://turinglang.org/AdvancedHMC.jl/stable/
