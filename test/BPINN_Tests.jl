@@ -219,9 +219,9 @@ x̂1 = collect(Float64, Array(u1) + 0.02 * randn(size(u1)))
 time1 = vec(collect(Float64, ta0))
 physsol2 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
 
-chainflux12 = Flux.Chain(Flux.Dense(1, 5, tanh), Flux.Dense(5, 5, tanh),
-                         Flux.Dense(5, 1)) |> f64
-chainlux12 = Lux.Chain(Lux.Dense(1, 5, tanh), Lux.Dense(5, 5, tanh), Lux.Dense(5, 1))
+chainflux12 = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 6, tanh),
+                         Flux.Dense(6, 1)) |> f64
+chainlux12 = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
 init1, re1 = destructure(chainflux12)
 θinit, st = Lux.setup(Random.default_rng(), chainlux12)
 
@@ -339,12 +339,12 @@ sol3lux_pestim = solve(prob, alg)
 t = sol.t
 #------------------------------ ahmc_bayesian_pinn_ode() call 
 # Mean of last 500 sampled parameter's curves(flux chains)[Ensemble predictions]
-out = re1.([fhsamplesflux12[i][1:46] for i in 1500:2000])
+out = re1.([fhsamplesflux12[i][1:61] for i in 1500:2000])
 yu = [out[i](t') for i in eachindex(out)]
 fluxmean = [mean(vcat(yu...)[:, i]) for i in eachindex(t)]
 meanscurve1_1 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
 
-out = re1.([fhsamplesflux22[i][1:46] for i in 1500:2000])
+out = re1.([fhsamplesflux22[i][1:61] for i in 1500:2000])
 yu = [out[i](t') for i in eachindex(out)]
 fluxmean = [mean(vcat(yu...)[:, i]) for i in eachindex(t)]
 meanscurve1_2 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
@@ -355,8 +355,8 @@ meanscurve1_2 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
 @test mean(abs.(physsol1 .- meanscurve1_2)) < 5e-2
 
 # estimated parameters(flux chain)
-param1 = mean(i[47] for i in fhsamplesflux22[1500:2000])
-param2 = mean(i[48] for i in fhsamplesflux22[1500:2000])
+param1 = mean(i[62] for i in fhsamplesflux22[1500:2000])
+param2 = mean(i[63] for i in fhsamplesflux22[1500:2000])
 @test abs(param1 - p[1]) < abs(0.3 * p[1])
 @test abs(param2 - p[2]) < abs(0.3 * p[2])
 
@@ -377,8 +377,8 @@ meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test mean(abs.(physsol1 .- meanscurve2_2)) < 5e-2
 
 # estimated parameters(lux chain)
-param1 = mean(i[47] for i in fhsampleslux22[1500:2000])
-param2 = mean(i[48] for i in fhsampleslux22[1500:2000])
+param1 = mean(i[62] for i in fhsampleslux22[1500:2000])
+param2 = mean(i[63] for i in fhsampleslux22[1500:2000])
 @test abs(param1 - p[1]) < abs(0.3 * p[1])
 @test abs(param2 - p[2]) < abs(0.3 * p[2])
 
@@ -393,8 +393,8 @@ param1, param2 = sol3flux_pestim.estimated_ode_params
 @test abs(param2 - p[2]) < abs(0.3 * p[2])
 
 # (lux chain)
-@test mean(abs.(physsol2 .- sol3lux.ensemblecurve)) < 5e-2
-@test mean(abs.(physsol2 .- sol3lux_pestim.ensemblecurve)) < 5e-2
+@test mean(abs.(physsol2 .- sol3lux.ensemblesol)) < 5e-2
+@test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol)) < 5e-2
 
 # estimated parameters(lux chain)
 param1, param2 = sol3lux_pestim.estimated_ode_params
