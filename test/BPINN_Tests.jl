@@ -198,7 +198,7 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
 ## PROBLEM-2
 linear = (u, p, t) -> -u / p[1] + exp(t / p[2]) * cos(t)
-tspan = (0.0, 5.0)
+tspan = (0.0, 10.0)
 u0 = 0.0
 p = [5.0, -5.0]
 prob = ODEProblem(linear, u0, tspan, p)
@@ -206,14 +206,14 @@ linear_analytic = (u0, p, t) -> exp(-t / 5) * (u0 + sin(t))
 
 # SOLUTION AND CREATE DATASET
 sol = solve(prob, Tsit5(); saveat = 0.05)
-u = sol.u[1:40]
-time = sol.t[1:40]
+u = sol.u[1:100]
+time = sol.t[1:100]
 x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
 dataset = [x̂, time]
 t = sol.t
 physsol1 = [linear_analytic(prob.u0, p, t[i]) for i in eachindex(t)]
 
-ta0 = range(tspan[1], tspan[2], length = 251)
+ta0 = range(tspan[1], tspan[2], length = 501)
 u1 = [linear_analytic(u0, p, ti) for ti in ta0]
 x̂1 = collect(Float64, Array(u1) + 0.02 * randn(size(u1)))
 time1 = vec(collect(Float64, ta0))
@@ -240,17 +240,17 @@ fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(pro
                                                                              chainflux12,
                                                                              dataset = dataset,
                                                                              draw_samples = 2000,
-                                                                             l2std = [0.05],
+                                                                             l2std = [0.03],
                                                                              phystd = [
-                                                                                 0.05,
+                                                                                 0.03,
                                                                              ],
                                                                              priorsNNw = (0.0,
                                                                                           3.0),
                                                                              param = [
                                                                                  Normal(6.5,
-                                                                                        0.5),
+                                                                                        0.3),
                                                                                  Normal(-3,
-                                                                                        0.5),
+                                                                                        0.3),
                                                                              ],
                                                                              n_leapfrog = 30)
 
@@ -265,15 +265,15 @@ fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, 
 fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, chainlux12,
                                                                           dataset = dataset,
                                                                           draw_samples = 2000,
-                                                                          l2std = [0.05],
-                                                                          phystd = [0.05],
+                                                                          l2std = [0.03],
+                                                                          phystd = [0.03],
                                                                           priorsNNw = (0.0,
                                                                                        3.0),
                                                                           param = [
                                                                               Normal(6.5,
-                                                                                     0.5),
+                                                                                     0.3),
                                                                               Normal(-3,
-                                                                                     0.5),
+                                                                                     0.3),
                                                                           ],
                                                                           n_leapfrog = 30)
 
