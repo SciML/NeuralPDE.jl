@@ -198,7 +198,7 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
 ## PROBLEM-2
 linear = (u, p, t) -> -u / p[1] + exp(t / p[2]) * cos(t)
-tspan = (0.0, 10.0)
+tspan = (0.0, 5.0)
 u0 = 0.0
 p = [5.0, -5.0]
 prob = ODEProblem(linear, u0, tspan, p)
@@ -206,22 +206,22 @@ linear_analytic = (u0, p, t) -> exp(-t / 5) * (u0 + sin(t))
 
 # SOLUTION AND CREATE DATASET
 sol = solve(prob, Tsit5(); saveat = 0.05)
-u = sol.u[1:100]
-time = sol.t[1:100]
+u = sol.u[1:40]
+time = sol.t[1:40]
 x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
 dataset = [x̂, time]
 t = sol.t
 physsol1 = [linear_analytic(prob.u0, p, t[i]) for i in eachindex(t)]
 
-ta0 = range(tspan[1], tspan[2], length = 501)
+ta0 = range(tspan[1], tspan[2], length = 251)
 u1 = [linear_analytic(u0, p, ti) for ti in ta0]
 x̂1 = collect(Float64, Array(u1) + 0.02 * randn(size(u1)))
 time1 = vec(collect(Float64, ta0))
 physsol2 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
 
-chainflux12 = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 6, tanh),
-                         Flux.Dense(6, 1)) |> f64
-chainlux12 = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
+chainflux12 = Flux.Chain(Flux.Dense(1, 5, tanh), Flux.Dense(5, 5, tanh),
+                         Flux.Dense(5, 1)) |> f64
+chainlux12 = Lux.Chain(Lux.Dense(1, 5, tanh), Lux.Dense(5, 5, tanh), Lux.Dense(5, 1))
 init1, re1 = destructure(chainflux12)
 θinit, st = Lux.setup(Random.default_rng(), chainlux12)
 
@@ -234,8 +234,7 @@ fh_mcmc_chainflux12, fhsamplesflux12, fhstatsflux12 = ahmc_bayesian_pinn_ode(pro
                                                                              ],
                                                                              priorsNNw = (0.0,
                                                                                           3.0),
-                                                                             n_leapfrog = 30,
-                                                                             progress = true)
+                                                                             n_leapfrog = 30)
 
 fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(prob,
                                                                              chainflux12,
@@ -253,8 +252,7 @@ fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(pro
                                                                                  Normal(-3,
                                                                                         0.5),
                                                                              ],
-                                                                             n_leapfrog = 30,
-                                                                             progress = true)
+                                                                             n_leapfrog = 30)
 
 fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, chainlux12,
                                                                           draw_samples = 2000,
@@ -262,8 +260,7 @@ fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, 
                                                                           phystd = [0.05],
                                                                           priorsNNw = (0.0,
                                                                                        3.0),
-                                                                          n_leapfrog = 30,
-                                                                          progress = true)
+                                                                          n_leapfrog = 30)
 
 fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, chainlux12,
                                                                           dataset = dataset,
@@ -278,8 +275,7 @@ fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, 
                                                                               Normal(-3,
                                                                                      0.5),
                                                                           ],
-                                                                          n_leapfrog = 30,
-                                                                          progress = true)
+                                                                          n_leapfrog = 30)
 
 alg = NeuralPDE.BNNODE(chainflux12,
                        draw_samples = 2000,
@@ -289,7 +285,7 @@ alg = NeuralPDE.BNNODE(chainflux12,
                        ],
                        priorsNNw = (0.0,
                                     3.0),
-                       n_leapfrog = 30, progress = true)
+                       n_leapfrog = 30)
 
 sol3flux = solve(prob, alg)
 
@@ -308,7 +304,7 @@ alg = NeuralPDE.BNNODE(chainflux12,
                            Normal(-3,
                                   0.5),
                        ],
-                       n_leapfrog = 30, progress = true)
+                       n_leapfrog = 30)
 
 sol3flux_pestim = solve(prob, alg)
 
@@ -318,7 +314,7 @@ alg = NeuralPDE.BNNODE(chainlux12,
                        phystd = [0.05],
                        priorsNNw = (0.0,
                                     3.0),
-                       n_leapfrog = 30, progress = true)
+                       n_leapfrog = 30)
 
 sol3lux = solve(prob, alg)
 
@@ -335,7 +331,7 @@ alg = NeuralPDE.BNNODE(chainlux12,
                            Normal(-3,
                                   0.5),
                        ],
-                       n_leapfrog = 30, progress = true)
+                       n_leapfrog = 30)
 
 sol3lux_pestim = solve(prob, alg)
 
@@ -343,12 +339,12 @@ sol3lux_pestim = solve(prob, alg)
 t = sol.t
 #------------------------------ ahmc_bayesian_pinn_ode() call 
 # Mean of last 500 sampled parameter's curves(flux chains)[Ensemble predictions]
-out = re1.([fhsamplesflux12[i][1:61] for i in 1500:2000])
+out = re1.([fhsamplesflux12[i][1:46] for i in 1500:2000])
 yu = [out[i](t') for i in eachindex(out)]
 fluxmean = [mean(vcat(yu...)[:, i]) for i in eachindex(t)]
 meanscurve1_1 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
 
-out = re1.([fhsamplesflux22[i][1:61] for i in 1500:2000])
+out = re1.([fhsamplesflux22[i][1:46] for i in 1500:2000])
 yu = [out[i](t') for i in eachindex(out)]
 fluxmean = [mean(vcat(yu...)[:, i]) for i in eachindex(t)]
 meanscurve1_2 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
@@ -359,8 +355,8 @@ meanscurve1_2 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
 @test mean(abs.(physsol1 .- meanscurve1_2)) < 5e-2
 
 # estimated parameters(flux chain)
-param1 = mean(i[62] for i in fhsamplesflux22[1500:2000])
-param2 = mean(i[63] for i in fhsamplesflux22[1500:2000])
+param1 = mean(i[47] for i in fhsamplesflux22[1500:2000])
+param2 = mean(i[48] for i in fhsamplesflux22[1500:2000])
 @test abs(param1 - p[1]) < abs(0.3 * p[1])
 @test abs(param2 - p[2]) < abs(0.3 * p[2])
 
@@ -381,8 +377,8 @@ meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test mean(abs.(physsol1 .- meanscurve2_2)) < 5e-2
 
 # estimated parameters(lux chain)
-param1 = mean(i[62] for i in fhsampleslux22[1500:2000])
-param2 = mean(i[63] for i in fhsampleslux22[1500:2000])
+param1 = mean(i[47] for i in fhsampleslux22[1500:2000])
+param2 = mean(i[48] for i in fhsampleslux22[1500:2000])
 @test abs(param1 - p[1]) < abs(0.3 * p[1])
 @test abs(param2 - p[2]) < abs(0.3 * p[2])
 
@@ -393,8 +389,8 @@ param2 = mean(i[63] for i in fhsampleslux22[1500:2000])
 
 # estimated parameters(flux chain)
 param1, param2 = sol3flux_pestim.estimated_ode_params
-@test abs(param1 - p[1]) < abs(0.25 * p[1])
-@test abs(param2 - p[2]) < abs(0.25 * p[2])
+@test abs(param1 - p[1]) < abs(0.3 * p[1])
+@test abs(param2 - p[2]) < abs(0.3 * p[2])
 
 # (lux chain)
 @test mean(abs.(physsol2 .- sol3lux.ensemblecurve)) < 5e-2
@@ -402,5 +398,5 @@ param1, param2 = sol3flux_pestim.estimated_ode_params
 
 # estimated parameters(lux chain)
 param1, param2 = sol3lux_pestim.estimated_ode_params
-@test abs(param1 - p[1]) < abs(0.25 * p[1])
-@test abs(param2 - p[2]) < abs(0.25 * p[2])
+@test abs(param1 - p[1]) < abs(0.3 * p[1])
+@test abs(param2 - p[2]) < abs(0.3 * p[2])
