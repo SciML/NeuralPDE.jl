@@ -198,7 +198,7 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
 ## PROBLEM-2
 linear = (u, p, t) -> -u / p[1] + exp(t / p[2]) * cos(t)
-tspan = (0.0, 5.0)
+tspan = (0.0, 10.0)
 u0 = 0.0
 p = [5.0, -5.0]
 prob = ODEProblem(linear, u0, tspan, p)
@@ -206,14 +206,14 @@ linear_analytic = (u0, p, t) -> exp(-t / 5) * (u0 + sin(t))
 
 # SOLUTION AND CREATE DATASET
 sol = solve(prob, Tsit5(); saveat = 0.05)
-u = sol.u[1:40]
-time = sol.t[1:40]
+u = sol.u[1:100]
+time = sol.t[1:100]
 x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
 dataset = [x̂, time]
 t = sol.t
 physsol1 = [linear_analytic(prob.u0, p, t[i]) for i in eachindex(t)]
 
-ta0 = range(tspan[1], tspan[2], length = 251)
+ta0 = range(tspan[1], tspan[2], length = 501)
 u1 = [linear_analytic(u0, p, ti) for ti in ta0]
 x̂1 = collect(Float64, Array(u1) + 0.02 * randn(size(u1)))
 time1 = vec(collect(Float64, ta0))
