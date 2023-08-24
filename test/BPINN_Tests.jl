@@ -252,8 +252,7 @@ fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(pro
                                                                                  Normal(-3,
                                                                                         0.3),
                                                                              ],
-                                                                             n_leapfrog = 30,
-                                                                             progress = true)
+                                                                             n_leapfrog = 30)
 
 fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, chainlux12,
                                                                           draw_samples = 1500,
@@ -261,8 +260,7 @@ fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, 
                                                                           phystd = [0.03],
                                                                           priorsNNw = (0.0,
                                                                                        3.0),
-                                                                          n_leapfrog = 30,
-                                                                          progress = true)
+                                                                          n_leapfrog = 30)
 
 fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, chainlux12,
                                                                           dataset = dataset,
@@ -277,8 +275,7 @@ fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, 
                                                                               Normal(-3,
                                                                                      0.3),
                                                                           ],
-                                                                          n_leapfrog = 30,
-                                                                          progress = true)
+                                                                          n_leapfrog = 30)
 
 alg = NeuralPDE.BNNODE(chainflux12,
                        dataset = dataset,
@@ -295,7 +292,7 @@ alg = NeuralPDE.BNNODE(chainflux12,
                            Normal(-3,
                                   0.5),
                        ],
-                       n_leapfrog = 30, progress = true)
+                       n_leapfrog = 30)
 
 sol3flux_pestim = solve(prob, alg)
 
@@ -312,7 +309,7 @@ alg = NeuralPDE.BNNODE(chainlux12,
                            Normal(-3,
                                   0.5),
                        ],
-                       n_leapfrog = 30, progress = true)
+                       n_leapfrog = 30)
 
 sol3lux_pestim = solve(prob, alg)
 
