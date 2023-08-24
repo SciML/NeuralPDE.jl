@@ -563,7 +563,7 @@ verbose -> controls the verbosity. (Sample call args in AHMC)
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
-                                dataset=[nothing],
+                                dataset = [nothing],
                                 init_params = nothing, draw_samples = 1000,
                                 physdt = 1 / 20.0, l2std = [0.05],
                                 phystd = [0.05], priorsNNw = (0.0, 2.0),
