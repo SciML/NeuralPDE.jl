@@ -227,7 +227,7 @@ init1, re1 = destructure(chainflux12)
 
 fh_mcmc_chainflux12, fhsamplesflux12, fhstatsflux12 = ahmc_bayesian_pinn_ode(prob,
                                                                              chainflux12,
-                                                                             draw_samples = 2000,
+                                                                             draw_samples = 1500,
                                                                              l2std = [0.05],
                                                                              phystd = [
                                                                                  0.05,
@@ -239,7 +239,7 @@ fh_mcmc_chainflux12, fhsamplesflux12, fhstatsflux12 = ahmc_bayesian_pinn_ode(pro
 fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(prob,
                                                                              chainflux12,
                                                                              dataset = dataset,
-                                                                             draw_samples = 2000,
+                                                                             draw_samples = 1500,
                                                                              l2std = [0.03],
                                                                              phystd = [
                                                                                  0.03,
@@ -255,7 +255,7 @@ fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(pro
                                                                              n_leapfrog = 30)
 
 fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, chainlux12,
-                                                                          draw_samples = 2000,
+                                                                          draw_samples = 1500,
                                                                           l2std = [0.05],
                                                                           phystd = [0.05],
                                                                           priorsNNw = (0.0,
@@ -264,7 +264,7 @@ fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, 
 
 fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, chainlux12,
                                                                           dataset = dataset,
-                                                                          draw_samples = 2000,
+                                                                          draw_samples = 1500,
                                                                           l2std = [0.03],
                                                                           phystd = [0.03],
                                                                           priorsNNw = (0.0,
@@ -279,7 +279,7 @@ fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, 
 
 alg = NeuralPDE.BNNODE(chainflux12,
                        dataset = dataset,
-                       draw_samples = 2000,
+                       draw_samples = 1500,
                        l2std = [0.05],
                        phystd = [
                            0.05,
@@ -298,7 +298,7 @@ sol3flux_pestim = solve(prob, alg)
 
 alg = NeuralPDE.BNNODE(chainlux12,
                        dataset = dataset,
-                       draw_samples = 2000,
+                       draw_samples = 1500,
                        l2std = [0.05],
                        phystd = [0.05],
                        priorsNNw = (0.0,
