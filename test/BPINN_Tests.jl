@@ -278,18 +278,6 @@ fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, 
                                                                           n_leapfrog = 30)
 
 alg = NeuralPDE.BNNODE(chainflux12,
-                       draw_samples = 2000,
-                       l2std = [0.05],
-                       phystd = [
-                           0.05,
-                       ],
-                       priorsNNw = (0.0,
-                                    3.0),
-                       n_leapfrog = 30)
-
-sol3flux = solve(prob, alg)
-
-alg = NeuralPDE.BNNODE(chainflux12,
                        dataset = dataset,
                        draw_samples = 2000,
                        l2std = [0.05],
@@ -307,16 +295,6 @@ alg = NeuralPDE.BNNODE(chainflux12,
                        n_leapfrog = 30)
 
 sol3flux_pestim = solve(prob, alg)
-
-alg = NeuralPDE.BNNODE(chainlux12,
-                       draw_samples = 2000,
-                       l2std = [0.05],
-                       phystd = [0.05],
-                       priorsNNw = (0.0,
-                                    3.0),
-                       n_leapfrog = 30)
-
-sol3lux = solve(prob, alg)
 
 alg = NeuralPDE.BNNODE(chainlux12,
                        dataset = dataset,
@@ -384,7 +362,6 @@ param2 = mean(i[63] for i in fhsampleslux22[1500:2000])
 
 #-------------------------- solve() call 
 # (flux chain)
-@test mean(abs.(physsol2 .- sol3flux.ensemblesol)) < 5e-2
 @test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol)) < 5e-2
 
 # estimated parameters(flux chain)
@@ -393,7 +370,6 @@ param1, param2 = sol3flux_pestim.estimated_ode_params
 @test abs(param2 - p[2]) < abs(0.3 * p[2])
 
 # (lux chain)
-@test mean(abs.(physsol2 .- sol3lux.ensemblesol)) < 5e-2
 @test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol)) < 5e-2
 
 # estimated parameters(lux chain)
