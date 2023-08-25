@@ -184,18 +184,6 @@ struct BPINNsolution{O <: BPINNstats, E,
     end
 end
 
-# cool function to convert vector of parameters to a ComponentArray of parameters for Lux Chains
-function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
-    @assert length(ps_new) == Lux.parameterlength(ps)
-    i = 1
-    function get_ps(x)
-        z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
-        i += length(x)
-        return z
-    end
-    return Functors.fmap(get_ps, ps)
-end
-
 function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
                             alg::BNNODE,
                             args...;
