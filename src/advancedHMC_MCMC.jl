@@ -78,7 +78,7 @@ function generate_Tar(chain::Flux.Chain, init_params::Nothing)
     return θ, re, nothing
 end
 
-# For vector of samples to Lux ComponentArrays
+# cool function to convert parameter's vector to ComponentArray of parameters (for Lux Chain: vector of samples -> Lux ComponentArrays)
 function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     @assert length(ps_new) == Lux.parameterlength(ps)
     i = 1
