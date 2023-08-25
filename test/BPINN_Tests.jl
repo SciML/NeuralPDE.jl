@@ -206,8 +206,8 @@ linear_analytic = (u0, p, t) -> exp(-t / 5) * (u0 + sin(t))
 
 # SOLUTION AND CREATE DATASET
 sol = solve(prob, Tsit5(); saveat = 0.05)
-u = sol.u[1:100]
-time = sol.t[1:100]
+u = sol.u[1:120]
+time = sol.t[1:120]
 x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
 dataset = [x̂, time]
 t = sol.t

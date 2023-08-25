@@ -294,9 +294,19 @@ function generate_Tar(chain::Flux.Chain, init_params::Nothing)
     return θ, re, nothing
 end
 
-"""
-nn OUTPUT AT t,θ ~ phi(t,θ)
-"""
+# cool function to convert parameter's vector to ComponentArray of parameters (for Lux Chain: vector of samples -> Lux ComponentArrays)
+function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
+    @assert length(ps_new) == Lux.parameterlength(ps)
+    i = 1
+    function get_ps(x)
+        z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
+        i += length(x)
+        return z
+    end
+    return Functors.fmap(get_ps, ps)
+end
+
+# nn OUTPUT AT t
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
     θ) where {C <: Optimisers.Restructure, S}
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
