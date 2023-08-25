@@ -239,7 +239,7 @@ fh_mcmc_chainflux12, fhsamplesflux12, fhstatsflux12 = ahmc_bayesian_pinn_ode(pro
 fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(prob,
                                                                              chainflux12,
                                                                              dataset = dataset,
-                                                                             draw_samples = 1500,
+                                                                             draw_samples = 2000,
                                                                              l2std = [0.03],
                                                                              phystd = [
                                                                                  0.03,
@@ -264,7 +264,7 @@ fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, 
 
 fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, chainlux12,
                                                                           dataset = dataset,
-                                                                          draw_samples = 1500,
+                                                                          draw_samples = 2000,
                                                                           l2std = [0.03],
                                                                           phystd = [0.03],
                                                                           priorsNNw = (0.0,
@@ -279,7 +279,7 @@ fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, 
 
 alg = NeuralPDE.BNNODE(chainflux12,
                        dataset = dataset,
-                       draw_samples = 1500,
+                       draw_samples = 2000,
                        l2std = [0.03],
                        phystd = [
                            0.03,
@@ -298,7 +298,7 @@ sol3flux_pestim = solve(prob, alg)
 
 alg = NeuralPDE.BNNODE(chainlux12,
                        dataset = dataset,
-                       draw_samples = 1500,
+                       draw_samples = 2000,
                        l2std = [0.03],
                        phystd = [0.03],
                        priorsNNw = (0.0,
@@ -322,7 +322,7 @@ yu = [out[i](t') for i in eachindex(out)]
 fluxmean = [mean(vcat(yu...)[:, i]) for i in eachindex(t)]
 meanscurve1_1 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
 
-out = re1.([fhsamplesflux22[i][1:61] for i in 1000:1500])
+out = re1.([fhsamplesflux22[i][1:61] for i in 1500:2000])
 yu = [out[i](t') for i in eachindex(out)]
 fluxmean = [mean(vcat(yu...)[:, i]) for i in eachindex(t)]
 meanscurve1_2 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
@@ -333,8 +333,8 @@ meanscurve1_2 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
 @test mean(abs.(physsol1 .- meanscurve1_2)) < 5e-2
 
 # estimated parameters(flux chain)
-param1 = mean(i[62] for i in fhsamplesflux22[1000:1500])
-param2 = mean(i[63] for i in fhsamplesflux22[1000:1500])
+param1 = mean(i[62] for i in fhsamplesflux22[1500:2000])
+param2 = mean(i[63] for i in fhsamplesflux22[1500:2000])
 @test abs(param1 - p[1]) < abs(0.3 * p[1])
 @test abs(param2 - p[2]) < abs(0.3 * p[2])
 
@@ -344,7 +344,7 @@ luxar = [chainlux12(t', θ[i], st)[1] for i in 1:500]
 luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
 meanscurve2_1 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 2)], θinit) for i in 1000:1500]
+θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 2)], θinit) for i in 1500:2000]
 luxar = [chainlux12(t', θ[i], st)[1] for i in 1:500]
 luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
 meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
@@ -355,8 +355,8 @@ meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test mean(abs.(physsol1 .- meanscurve2_2)) < 5e-2
 
 # estimated parameters(lux chain)
-param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
-param2 = mean(i[63] for i in fhsampleslux22[1000:1500])
+param1 = mean(i[62] for i in fhsampleslux22[1500:2000])
+param2 = mean(i[63] for i in fhsampleslux22[1500:2000])
 @test abs(param1 - p[1]) < abs(0.3 * p[1])
 @test abs(param2 - p[2]) < abs(0.3 * p[2])
 
