@@ -27,7 +27,7 @@ threshold = 0.2
 
 #bad choices for weights, samples and dx so that the algorithm will fail without the added points
 weights = [0.3, 0.3, 0.4]
-samples = 3
+points = 3
 dx = 1.0
 
 #Grid Training without added points (difference between solutions should be high)
@@ -43,25 +43,25 @@ sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, t
 @test abs(mean(sol) - mean(true_sol)) < threshold
 
 #WeightedIntervalTraining without added points (difference between solutions should be high)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedIntervalTraining(weights, samples))
+alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedIntervalTraining(weights, points))
 sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
 
 @test abs(mean(sol) - mean(true_sol)) > threshold
 
 #WeightedIntervalTraining with added points (difference between solutions should be low)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedIntervalTraining(weights, samples))
+alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedIntervalTraining(weights, points))
 sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
 
 @test abs(mean(sol) - mean(true_sol)) < threshold
 
 #StochasticTraining without added points (difference between solutions should be high)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.StochasticTraining(samples))
+alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.StochasticTraining(points))
 sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
 
 @test abs(mean(sol) - mean(true_sol)) > threshold
 
 #StochasticTraining with added points (difference between solutions should be low)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.StochasticTraining(samples))
+alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.StochasticTraining(points))
 sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
 
 @test abs(mean(sol) - mean(true_sol)) < threshold
