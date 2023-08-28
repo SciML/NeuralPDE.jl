@@ -18,16 +18,16 @@ x = [0.8; 0.8]
 ann = Chain(Dense(2, 10, tanh), Dense(10, 1))
 p, re = Flux.destructure(ann)
 z = re(Float64(p))</code></pre><p>While one may think this recreates the neural network to act in <code>Float64</code> precision, <a href="https://github.com/FluxML/Flux.jl/pull/2156">it does not</a> and instead its values will silently downgrade everything to <code>Float32</code>. This is only fixed by <code>Chain(Dense(2, 10, tanh), Dense(10, 1)) |&gt; f64</code>. Similar cases will <a href="https://github.com/FluxML/Optimisers.jl/issues/95">lead to dropped gradients with complex numbers</a>. This is not an issue with the automatic differentiation library commonly associated with Flux (Zygote.jl) but rather due to choices in the neural network library&#39;s decision for how to approach type handling and precision. Thus when using DiffEqFlux.jl with Flux, the user must be very careful to ensure that the precision of the arguments are correct, and anything that requires alternative types (like <code>TrackerAdjoint</code> tracked values, <code>ForwardDiffSensitivity</code> dual numbers, and TaylorDiff.jl differentiation) are suspect.</p><p>Lux.jl has none of these issues, is simpler to work with due to the parameters in its function calls being explicit rather than implicit global references, and achieves higher performance. It is built on the same foundations as Flux.jl, such as Zygote and NNLib, and thus it supports the same layers underneith and calls the same kernels. The better performance comes from not having the overhead of <code>restructure</code> required. Thus we highly recommend people use Lux instead and only use the Flux fallbacks for legacy code.</p><h2 id="Reproducibility"><a class="docs-heading-anchor" href="#Reproducibility">Reproducibility</a><a id="Reproducibility-1"></a><a class="docs-heading-anchor-permalink" href="#Reproducibility" title="Permalink"></a></h2><details><summary>The documentation of this SciML package was built using these direct dependencies,</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NeuralPDE.jl/NeuralPDE.jl/docs/Project.toml`
-  [2b5f629d] DiffEqBase v6.128.1
+  [2b5f629d] DiffEqBase v6.128.2
   [e30172f5] Documenter v0.27.25
   [5b8099bc] DomainSets v0.6.7
-  [587475ba] Flux v0.14.2
+  [587475ba] Flux v0.14.4
   [de52edbc] Integrals v3.9.0
   [c31f79ba] IntegralsCubature v0.2.2
-  [b2108857] Lux v0.5.1
-  [961ee093] ModelingToolkit v8.64.0
+  [b2108857] Lux v0.5.3
+  [961ee093] ModelingToolkit v8.65.0
   [315f7962] NeuralPDE v5.8.0 `~/work/NeuralPDE.jl/NeuralPDE.jl`
-  [7f7a1694] Optimization v3.15.2
+  [7f7a1694] Optimization v3.16.0
   [36348300] OptimizationOptimJL v0.1.9
   [42dfb2eb] OptimizationOptimisers v0.1.5
   [500b13db] OptimizationPolyalgorithms v0.1.2
@@ -36,18 +36,20 @@ z = re(Float64(p))</code></pre><p>While one may think this recreates the neural 
 ⌅ [8a4e6c94] QuasiMonteCarlo v0.2.19
   [f2b01f46] Roots v2.0.19
   [276daf66] SpecialFunctions v2.3.1
-Info Packages marked with ⌅ have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated`</code></pre></details><details><summary>and using this machine and Julia version.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Julia Version 1.9.2
-Commit e4ee485e909 (2023-07-05 09:39 UTC)
+Info Packages marked with ⌅ have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated`</code></pre></details><details><summary>and using this machine and Julia version.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Julia Version 1.9.3
+Commit bed2cd540a1 (2023-08-24 14:43 UTC)
+Build Info:
+  Official https://julialang.org/ release
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
-  CPU: 2 × Intel(R) Xeon(R) Platinum 8171M CPU @ 2.60GHz
+  CPU: 2 × Intel(R) Xeon(R) CPU E5-2673 v4 @ 2.30GHz
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-14.0.6 (ORCJIT, skylake-avx512)
+  LLVM: libLLVM-14.0.6 (ORCJIT, broadwell)
   Threads: 1 on 2 virtual cores</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NeuralPDE.jl/NeuralPDE.jl/docs/Manifest.toml`
 ⌅ [47edcb42] ADTypes v0.1.6
   [a4c015fc] ANSIColoredPrinters v0.0.1
-  [c3fe647b] AbstractAlgebra v0.31.0
+  [c3fe647b] AbstractAlgebra v0.31.1
   [621f4979] AbstractFFTs v1.5.0
   [80f14c24] AbstractMCMC v4.4.2
   [1520ce14] AbstractTrees v0.4.4
@@ -99,8 +101,8 @@ Platform Info:
   [e2d170a0] DataValueInterfaces v1.0.0
   [244e2a9f] DefineSingletons v0.1.2
   [8bb1440f] DelimitedFiles v1.9.1
-  [2b5f629d] DiffEqBase v6.128.1
-  [459566f4] DiffEqCallbacks v2.27.0
+  [2b5f629d] DiffEqBase v6.128.2
+  [459566f4] DiffEqCallbacks v2.29.0
   [77a26b50] DiffEqNoiseProcess v5.18.0
   [163ba53b] DiffResults v1.1.0
   [b552c78f] DiffRules v1.15.1
@@ -122,10 +124,10 @@ Platform Info:
   [7034ab61] FastBroadcast v0.2.6
   [9aa1b823] FastClosures v0.3.2
   [29a986be] FastLapackInterface v2.0.0
-  [1a297f60] FillArrays v1.5.0
+  [1a297f60] FillArrays v1.6.1
   [6a86dc24] FiniteDiff v2.21.1
   [53c48c17] FixedPointNumbers v0.8.4
-  [587475ba] Flux v0.14.2
+  [587475ba] Flux v0.14.4
   [59287772] Formatting v0.4.2
   [f6369f11] ForwardDiff v0.10.36
   [069b7b12] FunctionWrappers v1.1.3
@@ -159,7 +161,7 @@ Platform Info:
   [c8e1da08] IterTools v1.8.0
   [82899510] IteratorInterfaceExtensions v1.0.0
   [1019f520] JLFzf v0.1.5
-  [692b3bcd] JLLWrappers v1.4.2
+  [692b3bcd] JLLWrappers v1.5.0
   [682c06a0] JSON v0.21.4
   [98e50ef6] JuliaFormatter v1.0.35
   [b14d175d] JuliaVariables v0.2.4
@@ -180,32 +182,32 @@ Platform Info:
   [1d6d02ad] LeftChildRightSiblingTrees v0.2.0
   [2d8b4e74] LevyArea v1.0.0
   [d3d80556] LineSearches v7.2.0
-  [7ed4a6bd] LinearSolve v2.5.0
+  [7ed4a6bd] LinearSolve v2.5.1
   [6fdf6af0] LogDensityProblems v2.1.1
   [996a588d] LogDensityProblemsAD v1.6.1
-  [2ab3a3ac] LogExpFunctions v0.3.24
-  [e6f89c97] LoggingExtras v1.0.0
+  [2ab3a3ac] LogExpFunctions v0.3.26
+  [e6f89c97] LoggingExtras v1.0.1
   [bdcacae8] LoopVectorization v0.12.165
-  [b2108857] Lux v0.5.1
-  [bb33d45b] LuxCore v0.1.4
-  [34f89e08] LuxDeviceUtils v0.1.6
+  [b2108857] Lux v0.5.3
+  [bb33d45b] LuxCore v0.1.5
+  [34f89e08] LuxDeviceUtils v0.1.7
   [82251201] LuxLib v0.3.2
   [c7f686f2] MCMCChains v6.0.3
   [be115224] MCMCDiagnosticTools v0.3.5
-  [e80e1ace] MLJModelInterface v1.9.1
+  [e80e1ace] MLJModelInterface v1.9.2
   [d8e11817] MLStyle v0.4.17
   [f1d291b0] MLUtils v0.4.3
-  [1914dd2f] MacroTools v0.5.10
+  [1914dd2f] MacroTools v0.5.11
   [d125e4d3] ManualMemory v0.1.8
   [739be429] MbedTLS v1.1.7
   [442fdcdd] Measures v0.3.2
   [128add7d] MicroCollections v0.1.4
   [e1d29d7a] Missings v1.1.0
-  [961ee093] ModelingToolkit v8.64.0
+  [961ee093] ModelingToolkit v8.65.0
 ⌅ [4886b29c] MonteCarloIntegration v0.0.3
   [46d2c3a1] MuladdMacro v0.2.4
   [102ac46a] MultivariatePolynomials v0.5.1
-  [d8a4904e] MutableArithmetics v1.3.0
+  [d8a4904e] MutableArithmetics v1.3.1
   [d41bc354] NLSolversBase v7.8.3
   [2774e3e8] NLsolve v4.5.1
   [872c559c] NNlib v0.9.4
@@ -218,8 +220,8 @@ Platform Info:
   [0b1bfda6] OneHotArrays v0.2.4
   [4d8831e6] OpenSSL v1.4.1
   [429524aa] Optim v1.7.7
-  [3bd65402] Optimisers v0.2.19
-  [7f7a1694] Optimization v3.15.2
+⌅ [3bd65402] Optimisers v0.2.20
+  [7f7a1694] Optimization v3.16.0
   [36348300] OptimizationOptimJL v0.1.9
   [42dfb2eb] OptimizationOptimisers v0.1.5
   [500b13db] OptimizationPolyalgorithms v0.1.2
@@ -239,13 +241,13 @@ Platform Info:
   [1d0040c9] PolyesterWeave v0.2.1
   [85a6dd25] PositiveFactorizations v0.2.4
   [d236fae5] PreallocationTools v0.4.12
-  [aea7be01] PrecompileTools v1.1.2
+  [aea7be01] PrecompileTools v1.2.0
   [21216c6a] Preferences v1.4.0
   [8162dcfd] PrettyPrint v0.2.0
   [08abe8d2] PrettyTables v2.2.7
   [27ebfcd6] Primes v0.5.4
   [33c8b6b6] ProgressLogging v0.1.4
-  [92933f4c] ProgressMeter v1.7.2
+  [92933f4c] ProgressMeter v1.8.0
   [1fd47b50] QuadGK v2.8.2
 ⌅ [8a4e6c94] QuasiMonteCarlo v0.2.19
   [74087812] Random123 v1.6.1
@@ -319,7 +321,7 @@ Platform Info:
   [5c2747f8] URIs v1.5.0
   [3a884ed6] UnPack v1.0.2
   [1cfade01] UnicodeFun v0.4.1
-  [1986cc42] Unitful v1.16.3
+  [1986cc42] Unitful v1.17.0
   [45397f5d] UnitfulLatexify v1.6.3
   [a7c27f48] Unityper v0.1.5
   [013be700] UnsafeAtomics v0.2.1
@@ -327,7 +329,7 @@ Platform Info:
   [41fe7b60] Unzip v0.2.0
   [3d5dd08c] VectorizationBase v0.21.64
   [19fa3120] VertexSafeGraphs v0.2.0
-  [d49dbf32] WeightInitializers v0.1.0
+  [d49dbf32] WeightInitializers v0.1.1
   [efce3f68] WoodburyMatrices v0.5.5
   [e88e6eb3] Zygote v0.6.63
   [700de1a5] ZygoteRules v0.2.3
@@ -454,4 +456,4 @@ Platform Info:
   [3f19e933] p7zip_jll v17.4.0+0
 Info Packages marked with ⌃ and ⌅ have new versions available, but those with ⌅ are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details>You can also download the 
 <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.8.0/assets/Manifest.toml">manifest</a> file and the
-<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.8.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Thursday 17 August 2023 07:57">Thursday 17 August 2023</span>. Using Julia version 1.9.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.8.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Monday 28 August 2023 15:02">Monday 28 August 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
