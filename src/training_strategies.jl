@@ -320,7 +320,7 @@ This training strategy can only be used with ODEs (`NNODE`).
 """
 struct WeightedIntervalTraining{T} <: AbstractTrainingStrategy
     weights::Vector{T}
-    points::Int64
+    points::Int
 end
 
 function WeightedIntervalTraining(weights, points)
