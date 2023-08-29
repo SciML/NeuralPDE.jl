@@ -226,10 +226,10 @@ init1, re1 = destructure(chainflux12)
 
 fh_mcmc_chainflux12, fhsamplesflux12, fhstatsflux12 = ahmc_bayesian_pinn_ode(prob,
     chainflux12,
-    draw_samples = 1000,
-    l2std = [0.05],
+    draw_samples = 1500,
+    l2std = [0.03],
     phystd = [
-        0.05],
+        0.03],
     priorsNNw = (0.0,
         10.0),
     n_leapfrog = 30)
@@ -238,9 +238,9 @@ fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(pro
     chainflux12,
     dataset = dataset,
     draw_samples = 1500,
-    l2std = [0.05],
+    l2std = [0.03],
     phystd = [
-        0.05,
+        0.03,
     ],
     priorsNNw = (0.0,
         10.0),
@@ -251,18 +251,18 @@ fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(pro
     n_leapfrog = 30)
 
 fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, chainlux12,
-    draw_samples = 1000,
-    l2std = [0.05],
-    phystd = [0.05],
+    draw_samples = 1500,
+    l2std = [0.03],
+    phystd = [0.03],
     priorsNNw = (0.0,
         10.0),
     n_leapfrog = 30)
 
 fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, chainlux12,
     dataset = dataset,
-    draw_samples = 1000,
-    l2std = [0.05],
-    phystd = [0.05],
+    draw_samples = 1500,
+    l2std = [0.03],
+    phystd = [0.03],
     priorsNNw = (0.0,
         10.0),
     param = [
@@ -273,10 +273,10 @@ fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, 
 
 alg = NeuralPDE.BNNODE(chainflux12,
     dataset = dataset,
-    draw_samples = 1000,
-    l2std = [0.05],
+    draw_samples = 1500,
+    l2std = [0.03],
     phystd = [
-        0.05,
+        0.03,
     ],
     priorsNNw = (0.0,
         10.0),
@@ -290,9 +290,9 @@ sol3flux_pestim = solve(prob, alg)
 
 alg = NeuralPDE.BNNODE(chainlux12,
     dataset = dataset,
-    draw_samples = 1000,
-    l2std = [0.05],
-    phystd = [0.05],
+    draw_samples = 1500,
+    l2std = [0.03],
+    phystd = [0.03],
     priorsNNw = (0.0,
         10.0),
     param = [
@@ -307,7 +307,7 @@ sol3lux_pestim = solve(prob, alg)
 t = sol.t
 #------------------------------ ahmc_bayesian_pinn_ode() call 
 # Mean of last 500 sampled parameter's curves(flux chains)[Ensemble predictions]
-out = re1.([fhsamplesflux12[i][1:61] for i in 500:1000])
+out = re1.([fhsamplesflux12[i][1:61] for i in 1000:1500])
 yu = [out[i](t') for i in eachindex(out)]
 fluxmean = [mean(vcat(yu...)[:, i]) for i in eachindex(t)]
 meanscurve1_1 = prob.u0 .+ (t .- prob.tspan[1]) .* fluxmean
@@ -327,12 +327,12 @@ param1 = mean(i[62] for i in fhsamplesflux22[1000:1500])
 @test abs(param1 - p) < abs(0.3 * p)
 
 # Mean of last 500 sampled parameter's curves(lux chains)[Ensemble predictions]
-θ = [vector_to_parameters(fhsampleslux12[i], θinit) for i in 500:1000]
+θ = [vector_to_parameters(fhsampleslux12[i], θinit) for i in 1000:1500]
 luxar = [chainlux12(t', θ[i], st)[1] for i in 1:500]
 luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
 meanscurve2_1 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 1)], θinit) for i in 500:1000]
+θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 1)], θinit) for i in 1000:1500]
 luxar = [chainlux12(t', θ[i], st)[1] for i in 1:500]
 luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
 meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
@@ -343,7 +343,7 @@ meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test mean(abs.(physsol1 .- meanscurve2_2)) < 5e-2
 
 # estimated parameters(lux chain)
-param1 = mean(i[62] for i in fhsampleslux22[500:1000])
+param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
 @test abs(param1 - p) < abs(0.3 * p)
 
 #-------------------------- solve() call 
@@ -355,7 +355,7 @@ param1 = sol3flux_pestim.estimated_ode_params[1]
 @test abs(param1 - p) < abs(0.3 * p)
 
 # (lux chain)
-@test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol)) < 5e-2
+@prob (mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol)) < 5e-2)
 
 # estimated parameters(lux chain)
 param1 = sol3lux_pestim.estimated_ode_params[1]
