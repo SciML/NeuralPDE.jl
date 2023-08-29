@@ -1,7 +1,7 @@
 mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
-                                D <:
-                                Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
-                                }
+    D <:
+    Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}},
+}
     dim::Int
     prob::DiffEqBase.ODEProblem
     chain::C
@@ -16,34 +16,34 @@ mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
     init_params::I
 
     function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, dataset,
-                              priors, phystd, l2std, autodiff, physdt, extraparams,
-                              init_params::AbstractVector)
+        priors, phystd, l2std, autodiff, physdt, extraparams,
+        init_params::AbstractVector)
         new{typeof(chain), Nothing, typeof(init_params), typeof(priors), typeof(dataset)}(dim,
-                                                                                          prob,
-                                                                                          chain,
-                                                                                          nothing,
-                                                                                          dataset,
-                                                                                          priors,
-                                                                                          phystd,
-                                                                                          l2std,
-                                                                                          autodiff,
-                                                                                          physdt,
-                                                                                          extraparams,
-                                                                                          init_params)
+            prob,
+            chain,
+            nothing,
+            dataset,
+            priors,
+            phystd,
+            l2std,
+            autodiff,
+            physdt,
+            extraparams,
+            init_params)
     end
     function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, dataset,
-                              priors, phystd, l2std, autodiff, physdt, extraparams,
-                              init_params::NamedTuple)
+        priors, phystd, l2std, autodiff, physdt, extraparams,
+        init_params::NamedTuple)
         new{typeof(chain), typeof(st), typeof(init_params), typeof(priors), typeof(dataset)
-            }(dim,
-              prob,
-              chain, st,
-              dataset, priors,
-              phystd, l2std,
-              autodiff,
-              physdt,
-              extraparams,
-              init_params)
+        }(dim,
+            prob,
+            chain, st,
+            dataset, priors,
+            phystd, l2std,
+            autodiff,
+            physdt,
+            extraparams,
+            init_params)
     end
 end
 
@@ -92,12 +92,12 @@ end
 
 # nn OUTPUT AT t
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
-                                     θ) where {C <: Optimisers.Restructure, S}
+    θ) where {C <: Optimisers.Restructure, S}
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
-                                     θ) where {C <: Lux.AbstractExplicitLayer, S}
+    θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -105,13 +105,13 @@ function (f::LogTargetDensity{C, S})(t::AbstractVector,
 end
 
 function (f::LogTargetDensity{C, S})(t::Number,
-                                     θ) where {C <: Optimisers.Restructure, S}
+    θ) where {C <: Optimisers.Restructure, S}
     #  must handle paired odes hence u0 broadcasted
     f.prob.u0 .+ (t - f.prob.tspan[1]) * f.chain(θ)(adapt(parameterless_type(θ), [t]))
 end
 
 function (f::LogTargetDensity{C, S})(t::Number,
-                                     θ) where {C <: Lux.AbstractExplicitLayer, S}
+    θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -138,7 +138,7 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
         t = collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2])
     else
         t = vcat(collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2]),
-                 Tar.dataset[end])
+            Tar.dataset[end])
     end
 
     # parameter estimation chosen or not
@@ -164,13 +164,13 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     # this is a vector{vector{dx,dy}}(handle case single u(float passed))
     if length(out[:, 1]) == 1
         physsol = [f(out[:, i][1],
-                     ode_params,
-                     t[i])
+            ode_params,
+            t[i])
                    for i in 1:length(out[1, :])]
     else
         physsol = [f(out[:, i],
-                     ode_params,
-                     t[i])
+            ode_params,
+            t[i])
                    for i in 1:length(out[1, :])]
     end
     physsol = reduce(hcat, physsol)
@@ -182,10 +182,10 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     for i in 1:length(Tar.prob.u0)
         # can add phystd[i] for u[i]
         physlogprob += logpdf(MvNormal(nnsol[i, :],
-                                       LinearAlgebra.Diagonal(map(abs2,
-                                                                  Tar.phystd[i] .*
-                                                                  ones(length(physsol[i, :]))))),
-                              physsol[i, :])
+                LinearAlgebra.Diagonal(map(abs2,
+                    Tar.phystd[i] .*
+                    ones(length(physsol[i, :]))))),
+            physsol[i, :])
     end
     return physlogprob
 end
@@ -203,10 +203,10 @@ function L2LossData(Tar::LogTargetDensity, θ)
         for i in 1:length(Tar.prob.u0)
             # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
             L2logprob += logpdf(MvNormal(nn[i, :],
-                                         LinearAlgebra.Diagonal(map(abs2,
-                                                                    Tar.l2std[i] .*
-                                                                    ones(length(Tar.dataset[i]))))),
-                                Tar.dataset[i])
+                    LinearAlgebra.Diagonal(map(abs2,
+                        Tar.l2std[i] .*
+                        ones(length(Tar.dataset[i]))))),
+                Tar.dataset[i])
         end
         return L2logprob
     end
@@ -244,7 +244,7 @@ function kernelchoice(Kernel, max_depth, Δ_max, n_leapfrog, δ, λ)
 end
 
 function integratorchoice(Integrator, initial_ϵ, jitter_rate,
-                          tempering_rate)
+    tempering_rate)
     if Integrator == JitteredLeapfrog
         Integrator(initial_ϵ, jitter_rate)
     elseif Integrator == TemperedLeapfrog
@@ -342,26 +342,23 @@ n_leapfrog -> number of leapfrog steps for HMC
 λ -> target trajectory length for HMCDA
 progress -> controls whether to show the progress meter or not.
 verbose -> controls the verbosity. (Sample call args in AHMC)
-
-## References  
-
 """
 
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
-                                dataset = [nothing],
-                                init_params = nothing, draw_samples = 1000,
-                                physdt = 1 / 20.0, l2std = [0.05],
-                                phystd = [0.05], priorsNNw = (0.0, 2.0),
-                                param = [], nchains = 1,
-                                autodiff = false,
-                                Kernel = HMC, Integrator = Leapfrog,
-                                Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
-                                Metric = DiagEuclideanMetric, jitter_rate = 3.0,
-                                tempering_rate = 3.0, max_depth = 10, Δ_max = 1000,
-                                n_leapfrog = 10, δ = 0.65, λ = 0.3, progress = false,
-                                verbose = false)
+    dataset = [nothing],
+    init_params = nothing, draw_samples = 1000,
+    physdt = 1 / 20.0, l2std = [0.05],
+    phystd = [0.05], priorsNNw = (0.0, 2.0),
+    param = [], nchains = 1,
+    autodiff = false,
+    Kernel = HMC, Integrator = Leapfrog,
+    Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
+    Metric = DiagEuclideanMetric, jitter_rate = 3.0,
+    tempering_rate = 3.0, max_depth = 10, Δ_max = 1000,
+    n_leapfrog = 10, δ = 0.65, λ = 0.3, progress = false,
+    verbose = false)
 
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
@@ -396,7 +393,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     if chain isa Lux.AbstractExplicitLayer
         # Lux chain(using component array later as vector_to_parameter need namedtuple)
         initial_θ = collect(eltype(physdt),
-                            vcat(ComponentArrays.ComponentArray(initial_nnθ)))
+            vcat(ComponentArrays.ComponentArray(initial_nnθ)))
     else
         initial_θ = collect(eltype(physdt), initial_nnθ)
     end
@@ -406,7 +403,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     ninv = length(param)
     priors = [
         MvNormal(priorsNNw[1] * ones(nparameters),
-                 LinearAlgebra.Diagonal(map(abs2, priorsNNw[2] .* ones(nparameters)))),
+            LinearAlgebra.Diagonal(map(abs2, priorsNNw[2] .* ones(nparameters)))),
     ]
 
     # append Ode params to all paramvector
@@ -420,8 +417,8 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     t0 = prob.tspan[1]
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
     ℓπ = LogTargetDensity(nparameters, prob, recon, st, dataset, priors,
-                          phystd, l2std, autodiff, physdt, ninv,
-                          initial_nnθ)
+        phystd, l2std, autodiff, physdt, ninv,
+        initial_nnθ)
 
     try
         ℓπ(t0, initial_θ[1:(nparameters - ninv)])
@@ -447,16 +444,16 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         Threads.@threads for i in 1:nchains
             # each chain has different initial NNparameter values(better posterior exploration)
             initial_θ = vcat(randn(nparameters - ninv),
-                             initial_θ[(nparameters - ninv + 1):end])
+                initial_θ[(nparameters - ninv + 1):end])
             initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
             integrator = integratorchoice(Integrator, initial_ϵ, jitter_rate,
-                                          tempering_rate)
+                tempering_rate)
             adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
-                                    StepSizeAdaptor(targetacceptancerate, integrator))
+                StepSizeAdaptor(targetacceptancerate, integrator))
             Kernel = AdvancedHMC.make_kernel(kernelchoice(Kernel, max_depth, Δ_max,
-                                                          n_leapfrog, δ, λ), integrator)
+                    n_leapfrog, δ, λ), integrator)
             samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
-                                    progress = progress, verbose = verbose)
+                progress = progress, verbose = verbose)
 
             samplesc[i] = samples
             statsc[i] = stats
@@ -469,11 +466,11 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
         integrator = integratorchoice(Integrator, initial_ϵ, jitter_rate, tempering_rate)
         adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
-                                StepSizeAdaptor(targetacceptancerate, integrator))
+            StepSizeAdaptor(targetacceptancerate, integrator))
         Kernel = AdvancedHMC.make_kernel(kernelchoice(Kernel, max_depth, Δ_max, n_leapfrog,
-                                                      δ, λ), integrator)
+                δ, λ), integrator)
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
-                                adaptor; progress = progress, verbose = verbose)
+            adaptor; progress = progress, verbose = verbose)
 
         # return a chain(basic chain),samples and stats
         matrix_samples = hcat(samples...)
