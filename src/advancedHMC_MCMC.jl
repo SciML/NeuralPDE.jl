@@ -1,7 +1,7 @@
 mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
-                                D <:
-                                Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
-                                }
+    D <:
+    Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}},
+}
     dim::Int
     prob::DiffEqBase.ODEProblem
     chain::C
@@ -16,21 +16,13 @@ mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
     extraparams::Int
     init_params::I
 
-    function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, strategy,
-        dataset,
+    function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, dataset,
         priors, phystd, l2std, autodiff, physdt, extraparams,
         init_params::AbstractVector)
-        new{
-            typeof(chain),
-            Nothing,
-            typeof(strategy),
-            typeof(init_params),
-            typeof(priors),
-            typeof(dataset),
-        }(dim,
+        new{typeof(chain), Nothing, typeof(init_params), typeof(priors), typeof(dataset)}(dim,
             prob,
             chain,
-            nothing, strategy,
+            nothing,
             dataset,
             priors,
             phystd,
@@ -40,20 +32,13 @@ mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
             extraparams,
             init_params)
     end
-    function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, strategy,
-        dataset,
+    function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, dataset,
         priors, phystd, l2std, autodiff, physdt, extraparams,
         init_params::NamedTuple)
-        new{
-            typeof(chain),
-            typeof(st),
-            typeof(strategy),
-            typeof(init_params),
-            typeof(priors),
-            typeof(dataset),
+        new{typeof(chain), typeof(st), typeof(init_params), typeof(priors), typeof(dataset)
         }(dim,
             prob,
-            chain, st, strategy,
+            chain, st,
             dataset, priors,
             phystd, l2std,
             autodiff,
@@ -355,7 +340,7 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
         t = collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2])
     else
         t = vcat(collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2]),
-                 Tar.dataset[end])
+            Tar.dataset[end])
     end
 
     # parameter estimation chosen or not
@@ -381,13 +366,13 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     # this is a vector{vector{dx,dy}}(handle case single u(float passed))
     if length(out[:, 1]) == 1
         physsol = [f(out[:, i][1],
-                     ode_params,
-                     t[i])
+            ode_params,
+            t[i])
                    for i in 1:length(out[1, :])]
     else
         physsol = [f(out[:, i],
-                     ode_params,
-                     t[i])
+            ode_params,
+            t[i])
                    for i in 1:length(out[1, :])]
     end
     physsol = reduce(hcat, physsol)
@@ -399,10 +384,10 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     for i in 1:length(Tar.prob.u0)
         # can add phystd[i] for u[i]
         physlogprob += logpdf(MvNormal(nnsol[i, :],
-                                       LinearAlgebra.Diagonal(map(abs2,
-                                                                  Tar.phystd[i] .*
-                                                                  ones(length(physsol[i, :]))))),
-                              physsol[i, :])
+                LinearAlgebra.Diagonal(map(abs2,
+                    Tar.phystd[i] .*
+                    ones(length(physsol[i, :]))))),
+            physsol[i, :])
     end
     return physlogprob
 end
@@ -420,10 +405,10 @@ function L2LossData(Tar::LogTargetDensity, θ)
         for i in 1:length(Tar.prob.u0)
             # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
             L2logprob += logpdf(MvNormal(nn[i, :],
-                                         LinearAlgebra.Diagonal(map(abs2,
-                                                                    Tar.l2std[i] .*
-                                                                    ones(length(Tar.dataset[i]))))),
-                                Tar.dataset[i])
+                    LinearAlgebra.Diagonal(map(abs2,
+                        Tar.l2std[i] .*
+                        ones(length(Tar.dataset[i]))))),
+                Tar.dataset[i])
         end
         return L2logprob
     end
@@ -564,26 +549,23 @@ n_leapfrog -> number of leapfrog steps for HMC
 λ -> target trajectory length for HMCDA
 progress -> controls whether to show the progress meter or not.
 verbose -> controls the verbosity. (Sample call args in AHMC)
-
-"""
-
 """
 
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
-                                dataset = [nothing],
-                                init_params = nothing, draw_samples = 1000,
-                                physdt = 1 / 20.0, l2std = [0.05],
-                                phystd = [0.05], priorsNNw = (0.0, 2.0),
-                                param = [], nchains = 1,
-                                autodiff = false,
-                                Kernel = HMC, Integrator = Leapfrog,
-                                Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
-                                Metric = DiagEuclideanMetric, jitter_rate = 3.0,
-                                tempering_rate = 3.0, max_depth = 10, Δ_max = 1000,
-                                n_leapfrog = 10, δ = 0.65, λ = 0.3, progress = false,
-                                verbose = false)
+    dataset = [nothing],
+    init_params = nothing, draw_samples = 1000,
+    physdt = 1 / 20.0, l2std = [0.05],
+    phystd = [0.05], priorsNNw = (0.0, 2.0),
+    param = [], nchains = 1,
+    autodiff = false,
+    Kernel = HMC, Integrator = Leapfrog,
+    Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
+    Metric = DiagEuclideanMetric, jitter_rate = 3.0,
+    tempering_rate = 3.0, max_depth = 10, Δ_max = 1000,
+    n_leapfrog = 10, δ = 0.65, λ = 0.3, progress = false,
+    verbose = false)
 
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
@@ -643,8 +625,9 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
 
     t0 = prob.tspan[1]
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
-    ℓπ = LogTargetDensity(nparameters, prob, recon, st, strategy, dataset, priors,
-        phystd, l2std, autodiff, physdt, ninv, initial_nnθ)
+    ℓπ = LogTargetDensity(nparameters, prob, recon, st, dataset, priors,
+        phystd, l2std, autodiff, physdt, ninv,
+        initial_nnθ)
 
     try
         ℓπ(t0, initial_θ[1:(nparameters - ninv)])

@@ -45,27 +45,26 @@ linear_analytic = (u0, p, t) -> exp(-t / 5) * (u0 + sin(t))
 sol = solve(prob, Tsit5(); saveat = 0.05)
 u = sol.u[1:100]
 time = sol.t[1:100]
-x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
+x̂ = u .+ (u .* 0.2) .* randn(size(u))
 dataset = [x̂, time]
 
-chainflux12 = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 6, tanh),
-                         Flux.Dense(6, 1)) |> f64
+chainlux = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
 
-alg = NeuralPDE.BNNODE(chainlux12, draw_samples = 2000,
+alg = NeuralPDE.BNNODE(chainlux, draw_samples = 2000,
                        l2std = [0.05], phystd = [0.05],
                        priorsNNw = (0.0, 3.0),
                        n_leapfrog = 30, progress = true)
 
-sol3lux = solve(prob, alg)
+sol_lux = solve(prob, alg)
 
-# parameter estimation
-alg = NeuralPDE.BNNODE(chainlux12,dataset = dataset,
+# with parameter estimation
+alg = NeuralPDE.BNNODE(chainlux,dataset = dataset,
                         draw_samples = 2000,l2std = [0.05],
-                        phystd = [0.05],priorsNNw = (0.0, 3.0),
+                        phystd = [0.05],priorsNNw = (0.0, 10.0),
                        param = [Normal(6.5, 0.5), Normal(-3, 0.5)],
                        n_leapfrog = 30, progress = true)
 
-sol3lux_pestim = solve(prob, alg)
+sol_lux_pestim = solve(prob, alg)
 ```
 
 ## Solution Notes
@@ -87,10 +86,10 @@ Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, El
 
 """
 struct BNNODE{C, K, IT, A, M,
-              I <: Union{Nothing, Vector{<:AbstractFloat}},
-              P <: Union{Vector{Nothing}, Vector{<:Distribution}},
-              D <:
-              Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}} <:
+    I <: Union{Nothing, Vector{<:AbstractFloat}},
+    P <: Union{Vector{Nothing}, Vector{<:Distribution}},
+    D <:
+    Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}} <:
        NeuralPDEAlgorithm
     chain::C
     Kernel::K
@@ -119,26 +118,26 @@ struct BNNODE{C, K, IT, A, M,
     verbose::Bool
 
     function BNNODE(chain, Kernel = HMC; draw_samples = 2000,
-                    priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
-                    phystd = [0.05], dataset = [nothing],
-                    init_params = nothing,
-                    physdt = 1 / 20.0, nchains = 1,
-                    autodiff = false, Integrator = Leapfrog,
-                    Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
-                    Metric = DiagEuclideanMetric, jitter_rate = 3.0,
-                    tempering_rate = 3.0, max_depth = 10, Δ_max = 1000,
-                    n_leapfrog = 20, δ = 0.65, λ = 0.3, progress = false,
-                    verbose = false)
+        priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
+        phystd = [0.05], dataset = [nothing],
+        init_params = nothing,
+        physdt = 1 / 20.0, nchains = 1,
+        autodiff = false, Integrator = Leapfrog,
+        Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
+        Metric = DiagEuclideanMetric, jitter_rate = 3.0,
+        tempering_rate = 3.0, max_depth = 10, Δ_max = 1000,
+        n_leapfrog = 20, δ = 0.65, λ = 0.3, progress = false,
+        verbose = false)
         new{typeof(chain), typeof(Kernel), typeof(Integrator), typeof(Adaptor),
             typeof(Metric), typeof(init_params), typeof(param),
             typeof(dataset)}(chain, Kernel, draw_samples,
-                             priorsNNw, param, l2std,
-                             phystd, dataset, init_params,
-                             physdt, nchains, autodiff, Integrator,
-                             Adaptor, targetacceptancerate,
-                             Metric, jitter_rate, tempering_rate,
-                             max_depth, Δ_max, n_leapfrog,
-                             δ, λ, progress, verbose)
+            priorsNNw, param, l2std,
+            phystd, dataset, init_params,
+            physdt, nchains, autodiff, Integrator,
+            Adaptor, targetacceptancerate,
+            Metric, jitter_rate, tempering_rate,
+            max_depth, Δ_max, n_leapfrog,
+            δ, λ, progress, verbose)
     end
 end
 
@@ -164,14 +163,14 @@ end
 
 """
 BPINN Solution contains the original solution from AdvancedHMC.jl sampling(BPINNstats contains fields related to that)
-> ensemblesol is the Probabilistic Etimate(MonteCarloMeasurements.jl Particles type) of Ensemble solution from All Neural Network's(made using all sampled parameters) output's.
+> ensemblesol is the Probabilistic Estimate(MonteCarloMeasurements.jl Particles type) of Ensemble solution from All Neural Network's(made using all sampled parameters) output's.
 > estimated_nn_params - Probabilistic Estimate of NN params from sampled weights,biases
 > estimated_ode_params - Probabilistic Estimate of ODE params from sampled unknown ode paramters
 """
 struct BPINNsolution{O <: BPINNstats, E,
-                     NP <: Vector{<:MonteCarloMeasurements.Particles{<:Float64}},
-                     OP <: Union{Vector{Nothing},
-                           Vector{<:MonteCarloMeasurements.Particles{<:Float64}}}}
+    NP <: Vector{<:MonteCarloMeasurements.Particles{<:Float64}},
+    OP <: Union{Vector{Nothing},
+        Vector{<:MonteCarloMeasurements.Particles{<:Float64}}}}
     original::O
     ensemblesol::E
     estimated_nn_params::NP
@@ -180,23 +179,23 @@ struct BPINNsolution{O <: BPINNstats, E,
     function BPINNsolution(original, ensemblesol, estimated_nn_params, estimated_ode_params)
         new{typeof(original), typeof(ensemblesol), typeof(estimated_nn_params),
             typeof(estimated_ode_params)}(original, ensemblesol, estimated_nn_params,
-                                          estimated_ode_params)
+            estimated_ode_params)
     end
 end
 
 function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
-                            alg::BNNODE,
-                            args...;
-                            dt = nothing,
-                            timeseries_errors = true,
-                            save_everystep = true,
-                            adaptive = false,
-                            abstol = 1.0f-6,
-                            reltol = 1.0f-3,
-                            verbose = false,
-                            saveat = 1 / 50.0,
-                            maxiters = nothing,
-                            numensemble = 500)
+    alg::BNNODE,
+    args...;
+    dt = nothing,
+    timeseries_errors = true,
+    save_everystep = true,
+    adaptive = false,
+    abstol = 1.0f-6,
+    reltol = 1.0f-3,
+    verbose = false,
+    saveat = 1 / 50.0,
+    maxiters = nothing,
+    numensemble = floor(Int, alg.draw_samples / 3))
     @unpack chain, l2std, phystd, param, priorsNNw, Kernel,
     draw_samples, dataset, init_params, Integrator, Adaptor, Metric,
     nchains, max_depth, Δ_max, n_leapfrog, physdt, targetacceptancerate,
@@ -210,26 +209,26 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
     end
 
     mcmcchain, samples, statistics = ahmc_bayesian_pinn_ode(prob, chain, dataset = dataset,
-                                                            draw_samples = draw_samples,
-                                                            init_params = init_params,
-                                                            physdt = physdt, l2std = l2std,
-                                                            phystd = phystd,
-                                                            priorsNNw = priorsNNw,
-                                                            param = param,
-                                                            nchains = nchains,
-                                                            autodiff = autodiff,
-                                                            Kernel = Kernel,
-                                                            Integrator = Integrator,
-                                                            Adaptor = Adaptor,
-                                                            targetacceptancerate = targetacceptancerate,
-                                                            Metric = Metric,
-                                                            jitter_rate = jitter_rate,
-                                                            tempering_rate = tempering_rate,
-                                                            max_depth = max_depth,
-                                                            Δ_max = Δ_max,
-                                                            n_leapfrog = n_leapfrog, δ = δ,
-                                                            λ = λ, progress = progress,
-                                                            verbose = verbose)
+        draw_samples = draw_samples,
+        init_params = init_params,
+        physdt = physdt, l2std = l2std,
+        phystd = phystd,
+        priorsNNw = priorsNNw,
+        param = param,
+        nchains = nchains,
+        autodiff = autodiff,
+        Kernel = Kernel,
+        Integrator = Integrator,
+        Adaptor = Adaptor,
+        targetacceptancerate = targetacceptancerate,
+        Metric = Metric,
+        jitter_rate = jitter_rate,
+        tempering_rate = tempering_rate,
+        max_depth = max_depth,
+        Δ_max = Δ_max,
+        n_leapfrog = n_leapfrog, δ = δ,
+        λ = λ, progress = progress,
+        verbose = verbose)
 
     fullsolution = BPINNstats(mcmcchain, samples, statistics)
     ninv = length(param)
