@@ -53,28 +53,31 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::GridTraining,
                                            datafree_pde_loss_function,
+                                           datafree_asl_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+    @unpack domains, eqs, asl, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
     dx = strategy.dx
     eltypeθ = eltype(pinnrep.flat_init_params)
 
-    train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
+    train_sets = generate_training_sets(domains, dx, eqs, asl, bcs, eltypeθ,
                                         dict_indvars, dict_depvars)
 
     # the points in the domain and on the boundary
-    pde_train_sets, bcs_train_sets = train_sets
-    pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-                            pde_train_sets)
-    bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-                            bcs_train_sets)
-    pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
-                          for (_loss, _set) in zip(datafree_pde_loss_function,
-                                                   pde_train_sets)]
+    pde_train_sets, asl_train_sets, bcs_train_sets  = train_sets
 
-    bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
-                         for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
+    all_loss_functions = 
+        map([(pde_train_sets, datafree_pde_loss_function), 
+            (asl_train_sets, datafree_asl_loss_function),
+            (bcs_train_sets, datafree_bc_loss_function)]) do (train_sets, datafree_loss_function) 
 
-    pde_loss_functions, bc_loss_functions
+                train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+                                    train_sets)
+                loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
+                                  for (_loss, _set) in zip(datafree_loss_function,
+                                                           train_sets)] 
+                return loss_functions
+            end
+    return Tuple(all_loss_functions)
 end
 
 function get_loss_function(loss_function, train_set, eltypeθ, strategy::GridTraining;
@@ -113,22 +116,25 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::StochasticTraining,
                                            datafree_pde_loss_function,
+                                           datafree_asl_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+    @unpack domains, eqs, asl, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
-    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+    bounds = get_bounds(domains, eqs, asl, bcs, eltypeθ, dict_indvars, dict_depvars,
                         strategy)
-    pde_bounds, bcs_bounds = bounds
+    pde_bounds, asl_bounds, bcs_bounds = bounds
 
-    pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
-                          for (_loss, bound) in zip(datafree_pde_loss_function, pde_bounds)]
+    all_loss_functions = map([(datafree_pde_loss_function, pde_bounds), 
+                                (datafree_asl_loss_function, asl_bounds), 
+                                (datafree_bc_loss_function, bcs_bounds)]) do (datafree_loss_function, bounds)
 
-    bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
-                         for (_loss, bound) in zip(datafree_bc_loss_function, bcs_bounds)]
+        return [get_loss_function(_loss, bound, eltypeθ, strategy)
+                  for (_loss, bound) in zip(datafree_loss_function, bounds)]
+        end
 
-    pde_loss_functions, bc_loss_functions
+    return Tuple(all_loss_functions)
 end
 
 function get_loss_function(loss_function, bound, eltypeθ, strategy::StochasticTraining;
@@ -195,17 +201,20 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuasiRandomTraining,
                                            datafree_pde_loss_function,
+                                           datafree_asl_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+    @unpack domains, eqs, asl, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
-    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+    bounds = get_bounds(domains, eqs, asl, bcs, eltypeθ, dict_indvars, dict_depvars,
                         strategy)
-    pde_bounds, bcs_bounds = bounds
+    pde_bounds, asl_bounds, bcs_bounds = bounds
 
     pde_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
                           for (_loss, bound) in zip(datafree_pde_loss_function, pde_bounds)]
+    asl_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy)
+                         for (_loss, bound) in zip(datafree_asl_loss_function, asl_bounds)]
 
     strategy_ = QuasiRandomTraining(strategy.bcs_points;
                                     sampling_alg = strategy.sampling_alg,
@@ -214,7 +223,8 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
     bc_loss_functions = [get_loss_function(_loss, bound, eltypeθ, strategy_)
                          for (_loss, bound) in zip(datafree_bc_loss_function, bcs_bounds)]
 
-    pde_loss_functions, bc_loss_functions
+
+    pde_loss_functions, asl_loss_functions, bc_loss_functions
 end
 
 function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandomTraining;
@@ -288,22 +298,24 @@ end
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuadratureTraining,
                                            datafree_pde_loss_function,
+                                           datafree_asl_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+    @unpack domains, eqs, asl, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
     eltypeθ = eltype(pinnrep.flat_init_params)
 
-    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+    bounds = get_bounds(domains, eqs, asl, bcs, eltypeθ, dict_indvars, dict_depvars,
                         strategy)
-    pde_bounds, bcs_bounds = bounds
+    pde_bounds, asl_bounds, bcs_bounds = bounds
 
-    lbs, ubs = pde_bounds
-    pde_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
-                          for (_loss, lb, ub) in zip(datafree_pde_loss_function, lbs, ubs)]
-    lbs, ubs = bcs_bounds
-    bc_loss_functions = [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
-                         for (_loss, lb, ub) in zip(datafree_bc_loss_function, lbs, ubs)]
+    all_loss_functions = map([(datafree_pde_loss_function, pde_bounds),
+            (datafree_asl_loss_function, asl_bounds),
+            (datafree_bc_loss_function, bcs_bounds)]) do (datafree_loss_function, bounds)
+        lbs, ubs = bounds
+        return [get_loss_function(_loss, lb, ub, eltypeθ, strategy)
+                  for (_loss, lb, ub) in zip(datafree_loss_function, lbs, ubs)]
+    end
 
-    pde_loss_functions, bc_loss_functions
+    return Tuple(all_loss_functions)
 end
 
 function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::QuadratureTraining;

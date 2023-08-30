@@ -204,16 +204,16 @@ strategy.
 """
 function generate_training_sets end
 
-function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, _indvars::Array,
+function generate_training_sets(domains, dx, eqs, asl, bcs, eltypeθ, _indvars::Array,
                                 _depvars::Array)
     depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    return generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars,
+        _depvars)
+    return generate_training_sets(domains, dx, eqs, asl, bcs, eltypeθ, dict_indvars,
                                   dict_depvars)
 end
 
 # Generate training set in the domain and on the boundary
-function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::Dict,
+function generate_training_sets(domains, dx, eqs, asl, bcs, eltypeθ, dict_indvars::Dict,
                                 dict_depvars::Dict)
     if dx isa Array
         dxs = dx
@@ -249,19 +249,26 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
                      hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
     end
 
-    pde_vars = get_variables(eqs, dict_indvars, dict_depvars)
-    pde_args = get_argument(eqs, dict_indvars, dict_depvars)
+    function get_eqs_train_sets(eqs)
+        eqs_vars = get_variables(eqs, dict_indvars, dict_depvars)
+        eqs_args = get_argument(eqs, dict_indvars, dict_depvars)
 
-    pde_train_set = adapt(eltypeθ,
-                          hcat(vec(map(points -> collect(points),
-                                       Iterators.product(bc_data...)))...))
+        eqs_train_set = adapt(eltypeθ,
+                              hcat(vec(map(points -> collect(points),
+                                  Iterators.product(bc_data...)))...))
 
-    pde_train_sets = map(pde_args) do bt
-        span = map(b -> get(dict_var_span_, b, b), bt)
-        _set = adapt(eltypeθ,
-                     hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
+        eqs_train_sets = map(eqs_args) do bt
+            span = map(b -> get(dict_var_span_, b, b), bt)
+            _set = adapt(eltypeθ,
+                         hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
+        end
+        return eqs_train_sets
     end
-    [pde_train_sets, bcs_train_sets]
+
+    pde_train_sets = get_eqs_train_sets(eqs)
+    asl_train_sets = get_eqs_train_sets(asl)
+
+    [pde_train_sets, asl_train_sets, bcs_train_sets]
 end
 
 """
@@ -274,35 +281,38 @@ training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
 """
 function get_bounds end
 
-function get_bounds(domains, eqs, bcs, eltypeθ, _indvars::Array, _depvars::Array, strategy)
+function get_bounds(domains, eqs, asl, bcs, eltypeθ, _indvars::Array, _depvars::Array, strategy)
     depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
                                                                                _depvars)
-    return get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
+    return get_bounds(domains, eqs, asl, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
 end
 
-function get_bounds(domains, eqs, bcs, eltypeθ, _indvars::Array, _depvars::Array,
+function get_bounds(domains, eqs, asl, bcs, eltypeθ, _indvars::Array, _depvars::Array,
                     strategy::QuadratureTraining)
     depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
                                                                                _depvars)
-    return get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
+    return get_bounds(domains, eqs, asl, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
 end
 
-function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+function get_bounds(domains, eqs, asl, bcs, eltypeθ, dict_indvars, dict_depvars,
                     strategy::QuadratureTraining)
     dict_lower_bound = Dict([Symbol(d.variables) => infimum(d.domain) for d in domains])
     dict_upper_bound = Dict([Symbol(d.variables) => supremum(d.domain) for d in domains])
 
-    pde_args = get_argument(eqs, dict_indvars, dict_depvars)
-
-    pde_lower_bounds = map(pde_args) do pd
-        span = map(p -> get(dict_lower_bound, p, p), pd)
-        map(s -> adapt(eltypeθ, s) + cbrt(eps(eltypeθ)), span)
+    function get_eqs_bounds(eqs)
+        eqs_args = get_argument(eqs, dict_indvars, dict_depvars)
+        eqs_lower_bounds = map(eqs_args) do pd
+            span = map(p -> get(dict_lower_bound, p, p), pd)
+            map(s -> adapt(eltypeθ, s) + cbrt(eps(eltypeθ)), span)
+        end
+        eqs_upper_bounds = map(eqs_args) do pd
+            span = map(p -> get(dict_upper_bound, p, p), pd)
+            map(s -> adapt(eltypeθ, s) - cbrt(eps(eltypeθ)), span)
+        end
+        return [eqs_lower_bounds, eqs_upper_bounds]
     end
-    pde_upper_bounds = map(pde_args) do pd
-        span = map(p -> get(dict_upper_bound, p, p), pd)
-        map(s -> adapt(eltypeθ, s) - cbrt(eps(eltypeθ)), span)
-    end
-    pde_bounds = [pde_lower_bounds, pde_upper_bounds]
+    pde_bounds = get_eqs_bounds(eqs)
+    asl_bounds = get_eqs_bounds(asl)
 
     bound_vars = get_variables(bcs, dict_indvars, dict_depvars)
 
@@ -314,10 +324,10 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
     end
     bcs_bounds = [bcs_lower_bounds, bcs_upper_bounds]
 
-    [pde_bounds, bcs_bounds]
+    [pde_bounds, asl_bounds, bcs_bounds]
 end
 
-function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
+function get_bounds(domains, eqs, asl, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
     dx = 1 / strategy.points
     dict_span = Dict([Symbol(d.variables) => [
                           infimum(d.domain) + dx,
@@ -325,20 +335,19 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
                       ] for d in domains])
 
     # pde_bounds = [[infimum(d.domain),supremum(d.domain)] for d in domains]
-    pde_args = get_argument(eqs, dict_indvars, dict_depvars)
-    pde_bounds = map(pde_args) do pde_arg
-        bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, pde_arg)
-        bds = eltypeθ.(bds)
-        bds[1, :], bds[2, :]
+    function get_eqs_bounds(eqs)
+        eqs_args = get_argument(eqs, dict_indvars, dict_depvars)
+        eqs_bounds = map(eqs_args) do eqs_arg
+            bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, eqs_arg)
+            bds = eltypeθ.(bds)
+            bds[1, :], bds[2, :]
+        end
+        return eqs_bounds
     end
-
-    bound_args = get_argument(bcs, dict_indvars, dict_depvars)
-    bcs_bounds = map(bound_args) do bound_arg
-        bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, bound_arg)
-        bds = eltypeθ.(bds)
-        bds[1, :], bds[2, :]
-    end
-    return pde_bounds, bcs_bounds
+    pde_bounds = get_eqs_bounds(eqs)
+    asl_bounds = get_eqs_bounds(asl)
+    bcs_bounds = get_eqs_bounds(bcs)
+    return pde_bounds, asl_bounds, bcs_bounds
 end
 
 function get_numeric_integral(pinnrep::PINNRepresentation)
@@ -404,6 +413,7 @@ For more information, see `discretize` and `PINNRepresentation`.
 function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     discretization::AbstractPINN)
     eqs = pde_system.eqs
+    asl = discretization.additional_symb_loss
     bcs = pde_system.bcs
     chain = discretization.chain
 
@@ -515,61 +525,73 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         eqs = [eqs]
     end
 
-    pde_indvars = if strategy isa QuadratureTraining
-        get_argument(eqs, dict_indvars, dict_depvars)
-    else
-        get_variables(eqs, dict_indvars, dict_depvars)
+    if !(asl isa Array)
+        asl = [asl]
     end
 
-    bc_indvars = if strategy isa QuadratureTraining
-        get_argument(bcs, dict_indvars, dict_depvars)
-    else
-        get_variables(bcs, dict_indvars, dict_depvars)
+    function get_eqs_indvars(eqs)
+        eqs_indvars = if strategy isa QuadratureTraining
+            get_argument(eqs, dict_indvars, dict_depvars)
+        else
+            get_variables(eqs, dict_indvars, dict_depvars)
+        end
+        return eqs_indvars
     end
+    pde_indvars = get_eqs_indvars(eqs)
+    bc_indvars = get_eqs_indvars(bcs)
+    asl_indvars = get_eqs_indvars(asl)
 
     pde_integration_vars = get_integration_variables(eqs, dict_indvars, dict_depvars)
     bc_integration_vars = get_integration_variables(bcs, dict_indvars, dict_depvars)
+    asl_integration_vars = get_integration_variables(asl, dict_indvars, dict_depvars)
 
-    pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
+    pinnrep = PINNRepresentation(eqs, asl, bcs, domains, eq_params, defaults,
+                                 default_p,
                                  param_estim, additional_loss, adaloss, depvars, indvars,
                                  dict_indvars, dict_depvars, dict_depvar_input, logger,
                                  multioutput, iteration, init_params, flat_init_params, phi,
                                  derivative,
-                                 strategy, pde_indvars, bc_indvars, pde_integration_vars,
-                                 bc_integration_vars, nothing, nothing, nothing, nothing)
+                                 strategy, pde_indvars, asl_indvars, bc_indvars, pde_integration_vars,
+                                 asl_integration_vars, bc_integration_vars, nothing, nothing, nothing, nothing, nothing)
 
     integral = get_numeric_integral(pinnrep)
 
-    symbolic_pde_loss_functions = [build_symbolic_loss_function(pinnrep, eq;
-                                                                bc_indvars = pde_indvar)
-                                   for (eq, pde_indvar) in zip(eqs, pde_indvars,
-                                                               pde_integration_vars)]
-
-    symbolic_bc_loss_functions = [build_symbolic_loss_function(pinnrep, bc;
-                                                               bc_indvars = bc_indvar)
-                                  for (bc, bc_indvar) in zip(bcs, bc_indvars,
-                                                             bc_integration_vars)]
+    function build_symbolic_loss_functions(eqs, eqs_indvars, eqs_integration_vars)
+        symbolic_eqs_loss_functions = [build_symbolic_loss_function(pinnrep, eq;
+                                                                    bc_indvars = eqs_indvar)
+                                       for (eq, eqs_indvar) in zip(eqs, eqs_indvars,
+                                                                   eqs_integration_vars)]
+        return symbolic_eqs_loss_functions
+    end
+    symbolic_pde_loss_functions = build_symbolic_loss_functions(eqs, pde_indvars, pde_integration_vars)
+    symbolic_asl_loss_functions = build_symbolic_loss_functions(asl, asl_indvars, asl_integration_vars)
+    symbolic_bc_loss_functions = build_symbolic_loss_functions(bcs, bc_indvars, bc_integration_vars)
 
     pinnrep.integral = integral
     pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
+    pinnrep.symbolic_asl_loss_functions = symbolic_asl_loss_functions
     pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
 
-    datafree_pde_loss_functions = [build_loss_function(pinnrep, eq, pde_indvar)
-                                   for (eq, pde_indvar, integration_indvar) in zip(eqs,
-                                                                                   pde_indvars,
-                                                                                   pde_integration_vars)]
+    function build_datafree_eqs_loss_functions(eqs, eqs_indvars, eqs_integration_vars)
+        return [build_loss_function(pinnrep, eq, eq_indvar)
+                for (eq, eq_indvar, integration_indvar) in zip(eqs,
+                                                                eqs_indvars,
+                                                                eqs_integration_vars)]
+    end
 
-    datafree_bc_loss_functions = [build_loss_function(pinnrep, bc, bc_indvar)
-                                  for (bc, bc_indvar, integration_indvar) in zip(bcs,
-                                                                                 bc_indvars,
-                                                                                 bc_integration_vars)]
+    datafree_pde_loss_functions = build_datafree_eqs_loss_functions(eqs, pde_indvars, pde_integration_vars)
+    datafree_asl_loss_functions = build_datafree_eqs_loss_functions(asl, asl_indvars, asl_integration_vars)
+    datafree_bc_loss_functions = build_datafree_eqs_loss_functions(bcs, bc_indvars, bc_integration_vars)
 
-    pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
-                                                                              strategy,
-                                                                              datafree_pde_loss_functions,
-                                                                              datafree_bc_loss_functions)
+    pde_loss_functions, asl_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
+                                                                                                  strategy,
+                                                                                                  datafree_pde_loss_functions,
+                                                                                                  datafree_asl_loss_functions,
+                                                                                                  datafree_bc_loss_functions)
+
     # setup for all adaptive losses
     num_pde_losses = length(pde_loss_functions)
+    num_asl_losses = length(asl_loss_functions)
     num_bc_losses = length(bc_loss_functions)
     # assume one single additional loss function if there is one. this means that the user needs to lump all their functions into a single one,
     num_additional_loss = additional_loss isa Nothing ? 0 : 1
@@ -578,12 +600,14 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
     adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .* adaloss.pde_loss_weights
+    adaloss.asl_loss_weights = ones(adaloss_T, num_asl_losses) .* adaloss.asl_loss_weights
     adaloss.bc_loss_weights = ones(adaloss_T, num_bc_losses) .* adaloss.bc_loss_weights
     adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
                                       adaloss.additional_loss_weights
 
     reweight_losses_func = generate_adaptive_loss_function(pinnrep, adaloss,
                                                            pde_loss_functions,
+                                                           asl_loss_functions,
                                                            bc_loss_functions)
 
     function get_likelihood_estimate_function(discretization::PhysicsInformedNN)
@@ -597,6 +621,11 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             ChainRulesCore.@ignore_derivatives if self_increment
                 iteration[1] += 1
             end
+        # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
+        # we need to type annotate the empty vector for autodiff to succeed in the case of empty equations/additional symbolic loss/boundary conditions.
+        pde_losses = num_pde_losses == 0 ? adaloss_T[] : [pde_loss_function(θ) for pde_loss_function in pde_loss_functions]
+        asl_losses = num_asl_losses == 0 ? adaloss_T[] : [asl_loss_function(θ)  for asl_loss_function in asl_loss_functions]
+        bc_losses = num_bc_losses == 0 ? adaloss_T[] : [bc_loss_function(θ) for bc_loss_function in bc_loss_functions]
 
             ChainRulesCore.@ignore_derivatives begin
                 reweight_losses_func(θ, pde_losses,
@@ -665,12 +694,21 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                         iteration[1])
                 end
             end
+        ChainRulesCore.@ignore_derivatives begin reweight_losses_func(θ, pde_losses,
+                                                                      asl_losses, bc_losses) end
 
             return full_weighted_loss
         end
+        weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
+        weighted_asl_losses = adaloss.asl_loss_weights .* asl_losses
+        weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
 
         return full_loss_function
     end
+        sum_weighted_pde_losses = sum(weighted_pde_losses)
+        sum_weighted_asl_losses = sum(weighted_asl_losses)
+        sum_weighted_bc_losses = sum(weighted_bc_losses)
+        weighted_loss_before_additional = sum_weighted_pde_losses + sum_weighted_asl_losses + sum_weighted_bc_losses
 
     function get_likelihood_estimate_function(discretization::BayesianPINN)
         dataset_pde, dataset_bc = discretization.dataset
@@ -758,13 +796,55 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         end
 
         return full_loss_function
+        ChainRulesCore.@ignore_derivatives begin if iteration[1] % log_frequency == 0
+            logvector(pinnrep.logger, pde_losses, "unweighted_loss/pde_losses",
+                      iteration[1])
+            logvector(pinnrep.logger, asl_losses, "unweighted_loss/asl_losses",
+                      iteration[1])
+            logvector(pinnrep.logger, bc_losses, "unweighted_loss/bc_losses", iteration[1])
+            logvector(pinnrep.logger, weighted_pde_losses,
+                      "weighted_loss/weighted_pde_losses",
+                      iteration[1])
+            logvector(pinnrep.logger, weighted_asl_losses,
+                      "weighted_loss/weighted_asl_losses",
+                      iteration[1])
+            logvector(pinnrep.logger, weighted_bc_losses,
+                      "weighted_loss/weighted_bc_losses",
+                      iteration[1])
+            if !(additional_loss isa Nothing)
+                logscalar(pinnrep.logger, weighted_additional_loss_val,
+                          "weighted_loss/weighted_additional_loss", iteration[1])
+            end
+            logscalar(pinnrep.logger, sum_weighted_pde_losses,
+                      "weighted_loss/sum_weighted_pde_losses", iteration[1])
+            logscalar(pinnrep.logger, sum_weighted_bc_losses,
+                      "weighted_loss/sum_weighted_bc_losses", iteration[1])
+            logscalar(pinnrep.logger, sum_weighted_asl_losses,
+                      "weighted_loss/sum_weighted_asl_losses", iteration[1])
+            logscalar(pinnrep.logger, full_weighted_loss,
+                      "weighted_loss/full_weighted_loss",
+                      iteration[1])
+            logvector(pinnrep.logger, adaloss.pde_loss_weights,
+                      "adaptive_loss/pde_loss_weights",
+                      iteration[1])
+            logvector(pinnrep.logger, adaloss.asl_loss_weights,
+                      "adaptive_loss/asl_loss_weights",
+                      iteration[1])
+            logvector(pinnrep.logger, adaloss.bc_loss_weights,
+                      "adaptive_loss/bc_loss_weights",
+                      iteration[1])
+        end end
+
+        return full_weighted_loss
     end
 
     full_loss_function = get_likelihood_estimate_function(discretization)
     pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
-                                                full_loss_function, additional_loss, 
-                                                datafree_pde_loss_functions,
-                                                datafree_bc_loss_functions)
+                                               asl_loss_functions,
+                                               full_loss_function, additional_loss,
+                                               datafree_pde_loss_functions,
+                                               datafree_asl_loss_functions,
+                                               datafree_bc_loss_functions)
 
     return pinnrep
 

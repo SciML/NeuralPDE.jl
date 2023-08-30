@@ -34,6 +34,7 @@ end
 
     if GROUP == "All" || GROUP == "NNPDE2"
         @time @safetestset "Additional Loss" begin include("additional_loss_tests.jl") end
+        @time @safetestset "Additional Symbolic Loss" begin include("additional_symbolic_loss_tests.jl") end
         @time @safetestset "Direction Function Approximation" begin include("direct_function_tests.jl") end
     end
     if GROUP == "All" || GROUP == "NeuralAdapter"

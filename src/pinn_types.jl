@@ -34,6 +34,7 @@ PhysicsInformedNN(chain,
                   phi = nothing,
                   param_estim = false,
                   additional_loss = nothing,
+                  additional_symb_loss = nothing,
                   adaptive_loss = nothing,
                   logger = nothing,
                   log_options = LogOptions(),
@@ -78,7 +79,7 @@ methodology.
 * `iteration`: used to control the iteration counter???
 * `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on `solve`.
 """
-struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
+struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ASL, ADA, LOG, K} <: AbstractPINN
     chain::Any
     strategy::T
     init_params::P
@@ -86,6 +87,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
     derivative::DER
     param_estim::PE
     additional_loss::AL
+    additional_symb_loss::ASL
     adaptive_loss::ADA
     logger::LOG
     log_options::LogOptions
@@ -101,6 +103,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             derivative = nothing,
             param_estim = false,
             additional_loss = nothing,
+	    additional_symb_loss = [],
             adaptive_loss = nothing,
             logger = nothing,
             log_options = LogOptions(),
@@ -140,6 +143,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             _derivative,
             param_estim,
             additional_loss,
+	    additional_symb_loss,
             adaptive_loss,
             logger,
             log_options,
@@ -276,6 +280,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
             _derivative,
             param_estim,
             additional_loss,
+	    additional_symb_loss,
             adaptive_loss,
             logger,
             log_options,
@@ -284,7 +289,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
             multioutput,
             dataset,
             kwargs)
-    end
+   end
 end
 
 """
@@ -302,6 +307,10 @@ mutable struct PINNRepresentation
     The equations of the PDE
     """
     eqs::Any
+    """
+    The additional symbolic loss functions
+    """
+    asl::Any
     """
     The boundary condition equations
     """
@@ -404,11 +413,19 @@ mutable struct PINNRepresentation
     """
     ???
     """
+    asl_indvars::Any
+    """
+    ???
+    """
     bc_indvars::Any
     """
     ???
     """
     pde_integration_vars::Any
+    """
+    ???
+    """
+    asl_integration_vars::Any
     """
     ???
     """
@@ -421,6 +438,10 @@ mutable struct PINNRepresentation
     The PDE loss functions as represented in Julia AST
     """
     symbolic_pde_loss_functions::Any
+    """
+    The additional loss functions as represented in Julia AST
+    """
+    symbolic_asl_loss_functions::Any
     """
     The boundary condition loss functions as represented in Julia AST
     """
@@ -450,6 +471,10 @@ struct PINNLossFunctions
     """
     pde_loss_functions::Any
     """
+    The additional symbolic loss functions
+    """
+    asl_loss_functions::Any
+    """
     The full loss function, combining the PDE and boundary condition loss functions.
     This is the loss function that is used by the optimizer.
     """
@@ -462,6 +487,10 @@ struct PINNLossFunctions
     The pre-data version of the PDE loss function
     """
     datafree_pde_loss_functions::Any
+    """
+    The pre-data version of the additional symbolic loss function
+    """
+    datafree_asl_loss_functions::Any
     """
     The pre-data version of the BC loss function
     """

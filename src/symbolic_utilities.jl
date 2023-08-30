@@ -303,7 +303,8 @@ Example:
       [(derivative(phi1, u1, [x, y], [[ε,0]], 1, θ1) + 4 * derivative(phi2, u, [x, y], [[0,ε]], 1, θ2)) - 0,
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
-function parse_equation(pinnrep::PINNRepresentation, eq)
+# Parse an equation
+function parse_equation(pinnrep::PINNRepresentation, eq::Equation)
     eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
     eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
     left_expr = transform_expression(pinnrep, toexpr(eq_lhs))
@@ -311,6 +312,11 @@ function parse_equation(pinnrep::PINNRepresentation, eq)
     left_expr = _dot_(left_expr)
     right_expr = _dot_(right_expr)
     loss_func = :($left_expr .- $right_expr)
+end
+
+# Parse an energy
+function parse_equation(pinnrep::PINNRepresentation, eq)
+    loss_func = _dot_(transform_expression(pinnrep, toexpr(eq)))
 end
 
 function get_indvars_ex(bc_indvars) # , dict_this_eq_indvars)
