@@ -130,10 +130,9 @@ fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux1,
         3.0),
     param = [
         LogNormal(9,
-            0.5),
+            5),
     ],
-    Metric = DiagEuclideanMetric,
-    n_leapfrog = 30)
+    Metric = DiagEuclideanMetric)
 
 fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux1,
     dataset = dataset,
@@ -187,7 +186,7 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
 # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
 @test abs(p - mean([fhsamples2[i][23] for i in 2000:2500])) < abs(0.2 * p)
-@test abs(p - mean([fhsamples1[i][26] for i in 2000:2500])) < abs(0.2 * p)
+@test abs(p - mean([fhsamples1[i][23] for i in 2000:2500])) < abs(0.2 * p)
 
 #---------------------- solve() call 
 @test mean(abs.(x̂1 .- sol2flux.ensemblesol)) < 5e-1
