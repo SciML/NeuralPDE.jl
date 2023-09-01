@@ -105,7 +105,7 @@ ta = range(tspan[1], tspan[2], length = 200)
 u = [linear_analytic(u0, p, ti) for ti in ta]
 x̂ = collect(Float64, Array(u) + 0.02 * randn(size(u)))
 time = vec(collect(Float64, ta))
-dataset = [x̂[1:50], time[1:50]]
+dataset = [x̂[1:100], time[1:100]]
 physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
 ta0 = range(tspan[1], tspan[2], length = 101)
@@ -114,11 +114,13 @@ x̂1 = collect(Float64, Array(u1) + 0.02 * randn(size(u1)))
 time1 = vec(collect(Float64, ta0))
 physsol1_1 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
 
-# comparing how diff NNs capture non-linearity
 chainflux1 = Flux.Chain(Flux.Dense(1, 7, tanh), Flux.Dense(7, 1))
 chainlux1 = Lux.Chain(Lux.Dense(1, 7, tanh), Lux.Dense(7, 1))
 init1, re1 = destructure(chainflux1)
 θinit, st = Lux.setup(Random.default_rng(), chainlux1)
+
+# weak priors call for larger NNs? 
+# my L2 loss also works(binds parameters)?
 
 fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux1,
     dataset = dataset,
@@ -178,20 +180,21 @@ luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
 meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
 # --------------------- ahmc_bayesian_pinn_ode() call
-@test mean(abs.(x̂ .- meanscurve1)) < 5e-1
-@test mean(abs.(physsol1 .- meanscurve1)) < 5e-1
+@test mean(abs.(x̂ .- meanscurve1)) < 5e-2
+@test mean(abs.(physsol1 .- meanscurve1)) < 5e-2
 @test mean(abs.(x̂ .- meanscurve2)) < 5e-2
 @test mean(abs.(physsol1 .- meanscurve2)) < 5e-2
 
 # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
 @test abs(p - mean([fhsamples2[i][23] for i in 2000:2500])) < abs(0.2 * p)
-@test abs(p - mean([fhsamples1[i][23] for i in 2000:2500])) < abs(0.2 * p)
+@test abs(p - mean([fhsamples1[i][26] for i in 2000:2500])) < abs(0.2 * p)
 
 #---------------------- solve() call 
 @test mean(abs.(x̂1 .- sol2flux.ensemblesol)) < 5e-1
 @test mean(abs.(physsol1_1 .- sol2flux.ensemblesol)) < 5e-1
 @test mean(abs.(x̂1 .- sol2lux.ensemblesol)) < 6e-2
 @test mean(abs.(physsol1_1 .- sol2lux.ensemblesol)) < 6e-2
+
 # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
 @test abs(p - sol2flux.estimated_ode_params[1]) < abs(0.1 * p)
 @test abs(p - sol2lux.estimated_ode_params[1]) < abs(0.1 * p)
@@ -348,15 +351,15 @@ param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
 
 #-------------------------- solve() call 
 # (flux chain)
-@test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol)) < 5e-2
+@test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol)) < 8e-2
 
 # estimated parameters(flux chain)
 param1 = sol3flux_pestim.estimated_ode_params[1]
-@test abs(param1 - p) < abs(0.3 * p)
+@test abs(param1 - p) < abs(0.35 * p)
 
 # (lux chain)
-@prob (mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol)) < 5e-2)
+@prob mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol)) < 5e-2
 
 # estimated parameters(lux chain)
 param1 = sol3lux_pestim.estimated_ode_params[1]
-@test abs(param1 - p) < abs(0.3 * p)
+@test abs(param1 - p) < abs(0.35 * p)

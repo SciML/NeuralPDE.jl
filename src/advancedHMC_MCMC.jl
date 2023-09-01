@@ -49,6 +49,8 @@ end
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
     return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ)
+    # my suggested Loss likelihood part
+    # +L2loss2(Tar, θ)
 end
 
 LogDensityProblems.dimension(Tar::LogTargetDensity) = Tar.dim
@@ -188,6 +190,66 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
             physsol[i, :])
     end
     return physlogprob
+end
+
+# My suggested extra loss function
+function L2loss2(Tar::LogTargetDensity, θ)
+    f = Tar.prob.f
+    dataset = Tar.dataset
+
+    # Timepoints to enforce Physics
+    dataset = Array(reduce(hcat, dataset)')
+    t = dataset[end, :]
+    û = dataset[1:(end - 1), :]
+
+    # parameter estimation chosen or not
+    if Tar.extraparams > 0
+        ode_params = Tar.extraparams == 1 ?
+                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)][1] :
+                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)]
+
+        if length(û[:, 1]) == 1
+            physsol = [f(û[:, i][1],
+                ode_params,
+                t[i])
+                       for i in 1:length(û[1, :])]
+        else
+            physsol = [f(û[:, i],
+                ode_params,
+                t[i])
+                       for i in 1:length(û[1, :])]
+        end
+        #form of NN output matrix output dim x n
+        deri_physsol = reduce(hcat, physsol)
+
+        #   OG deriv(basically gradient matching in case of an ODEFunction)
+        # in case of PDE or general ODE we would want to reduce residue of f(du,u,p,t)
+        if length(û[:, 1]) == 1
+            deri_sol = [f(û[:, i][1],
+                Tar.prob.p,
+                t[i])
+                        for i in 1:length(û[1, :])]
+        else
+            deri_sol = [f(û[:, i],
+                Tar.prob.p,
+                t[i])
+                        for i in 1:length(û[1, :])]
+        end
+        deri_sol = reduce(hcat, deri_sol)
+
+        physlogprob = 0
+        for i in 1:length(Tar.prob.u0)
+            # can add phystd[i] for u[i]
+            physlogprob += logpdf(MvNormal(deri_physsol[i, :],
+                    LinearAlgebra.Diagonal(map(abs2,
+                        Tar.l2std[i] .*
+                        ones(length(deri_sol[i, :]))))),
+                deri_sol[i, :])
+        end
+        return physlogprob
+    else
+        return 0
+    end
 end
 
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)
