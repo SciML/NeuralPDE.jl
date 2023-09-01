@@ -398,15 +398,16 @@ end
 # My suggested extra loss function
 function L2loss2(Tar::LogTargetDensity, θ)
     f = Tar.prob.f
-    dataset = Tar.dataset
-
-    # Timepoints to enforce Physics
-    dataset = Array(reduce(hcat, dataset)')
-    t = dataset[end, :]
-    û = dataset[1:(end - 1), :]
 
     # parameter estimation chosen or not
     if Tar.extraparams > 0
+        dataset = Tar.dataset
+
+        # Timepoints to enforce Physics
+        dataset = Array(reduce(hcat, dataset)')
+        t = dataset[end, :]
+        û = dataset[1:(end - 1), :]
+
         ode_params = Tar.extraparams == 1 ?
                      θ[((length(θ) - Tar.extraparams) + 1):length(θ)][1] :
                      θ[((length(θ) - Tar.extraparams) + 1):length(θ)]
