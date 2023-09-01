@@ -250,12 +250,37 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
         throw(error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported"))
     end
 
+    # contructing ensemble predictions
+    ensemblecurves = Vector{}[]
+    # check if NN output is more than 1
+    numoutput = size(luxar[1])[1]
+    if numoutput > 1
+        # Initialize a vector to store the separated outputs for each output dimension
+        output_matrices = [Vector{Vector{Float32}}() for _ in 1:numoutput]
+
+        # Loop through each element in `luxar`
+        for element in luxar
+            for i in 1:numoutput
+                push!(output_matrices[i], element[i, :])  # Append the i-th output (i-th row) to the i-th output_matrices
+            end
+        end
+
+        for r in 1:numoutput
+            ensem_r = hcat(output_matrices[r]...)'
+            ensemblecurve_r = prob.u0[r] .+
+                              [Particles(ensem_r[:, i]) for i in 1:length(t)] .*
+                              (t .- prob.tspan[1])
+            push!(ensemblecurves, ensemblecurve_r)
+        end
+
+    else
+        ensemblecurve = prob.u0 .+
+                        [Particles(reduce(vcat, luxar)[:, i]) for i in 1:length(t)] .*
+                        (t .- prob.tspan[1])
+        push!(ensemblecurves, ensemblecurve)
+    end
+
     nnparams = length(θinit)
-
-    ensemblecurve = prob.u0 .+
-                    [Particles(reduce(vcat, luxar)[:, i]) for i in 1:length(t)] .*
-                    (t .- prob.tspan[1])
-
     estimnnparams = [Particles(reduce(hcat, samples)[i, :]) for i in 1:nnparams]
 
     if ninv == 0
@@ -265,5 +290,5 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
                             for i in (nnparams + 1):(nnparams + ninv)]
     end
 
-    BPINNsolution(fullsolution, ensemblecurve, estimnnparams, estimated_params)
+    BPINNsolution(fullsolution, ensemblecurves, estimnnparams, estimated_params)
 end
