@@ -5,6 +5,8 @@ using Flux, OptimizationOptimisers, AdvancedHMC, Lux
 using Statistics, Random, Functors, ComponentArrays
 using NeuralPDE, MonteCarloMeasurements
 
+# note that current testing bounds can be easily further tightened but have been inflated for support for Julia build v1
+# on latest Julia version it performs much better for below tests
 Random.seed!(100)
 
 # for sampled params->lux ComponentArray
@@ -82,10 +84,10 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test mean(abs.(physsol1 .- meanscurve2)) < 0.005
 
 #--------------------- solve() call 
-@test mean(abs.(x̂1 .- sol1flux.ensemblesol)) < 0.05
-@test mean(abs.(physsol0_1 .- sol1flux.ensemblesol)) < 0.05
-@test mean(abs.(x̂1 .- sol1lux.ensemblesol)) < 0.05
-@test mean(abs.(physsol0_1 .- sol1lux.ensemblesol)) < 0.05
+@test mean(abs.(x̂1 .- sol1flux.ensemblesol[1])) < 0.05
+@test mean(abs.(physsol0_1 .- sol1flux.ensemblesol[1])) < 0.05
+@test mean(abs.(x̂1 .- sol1lux.ensemblesol[1])) < 0.05
+@test mean(abs.(physsol0_1 .- sol1lux.ensemblesol[1])) < 0.05
 
 ## PROBLEM-1 (WITH PARAMETER ESTIMATION)
 linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
@@ -189,10 +191,10 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test abs(p - mean([fhsamples1[i][23] for i in 2000:2500])) < abs(0.2 * p)
 
 #---------------------- solve() call 
-@test mean(abs.(x̂1 .- sol2flux.ensemblesol)) < 5e-1
-@test mean(abs.(physsol1_1 .- sol2flux.ensemblesol)) < 5e-1
-@test mean(abs.(x̂1 .- sol2lux.ensemblesol)) < 6e-2
-@test mean(abs.(physsol1_1 .- sol2lux.ensemblesol)) < 6e-2
+@test mean(abs.(x̂1 .- sol2flux.ensemblesol[1])) < 5e-1
+@test mean(abs.(physsol1_1 .- sol2flux.ensemblesol[1])) < 5e-1
+@test mean(abs.(x̂1 .- sol2lux.ensemblesol[1])) < 5e-1
+@test mean(abs.(physsol1_1 .- sol2lux.ensemblesol[1])) < 5e-1
 
 # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
 @test abs(p - sol2flux.estimated_ode_params[1]) < abs(0.1 * p)
@@ -350,14 +352,14 @@ param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
 
 #-------------------------- solve() call 
 # (flux chain)
-@test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol)) < 8e-2
+@test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol[1])) < 5e-2
 
 # estimated parameters(flux chain)
 param1 = sol3flux_pestim.estimated_ode_params[1]
 @test abs(param1 - p) < abs(0.35 * p)
 
 # (lux chain)
-@prob mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol)) < 5e-2
+@prob mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 5e-2
 
 # estimated parameters(lux chain)
 param1 = sol3lux_pestim.estimated_ode_params[1]

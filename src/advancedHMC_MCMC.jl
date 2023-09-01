@@ -184,10 +184,14 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
     for i in 1:length(Tar.prob.u0)
         # can add phystd[i] for u[i]
         physlogprob += logpdf(MvNormal(nnsol[i, :],
-                LinearAlgebra.Diagonal(map(abs2,
-                    Tar.phystd[i] .*
-                    ones(length(physsol[i, :]))))),
-            physsol[i, :])
+                                LinearAlgebra.Diagonal(
+                                        map(abs2,
+                                        Tar.phystd[i] .*
+                                        ones(length(physsol[i, :]))
+                                        )
+                                      )
+                                    ),
+                    physsol[i, :])
     end
     return physlogprob
 end
