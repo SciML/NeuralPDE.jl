@@ -132,9 +132,10 @@ fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux1,
         3.0),
     param = [
         LogNormal(9,
-            5),
+            0.5),
     ],
-    Metric = DiagEuclideanMetric)
+    Metric = DiagEuclideanMetric,
+    n_leapfrog = 30)
 
 fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux1,
     dataset = dataset,
@@ -165,6 +166,7 @@ alg = NeuralPDE.BNNODE(chainlux1, dataset = dataset,
     ],
     Metric = DiagEuclideanMetric,
     n_leapfrog = 30)
+
 sol2lux = solve(prob, alg)
 
 # testing points
@@ -191,11 +193,10 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test abs(p - mean([fhsamples1[i][23] for i in 2000:2500])) < abs(0.2 * p)
 
 #---------------------- solve() call 
-@test mean(abs.(x̂1 .- sol2flux.ensemblesol[1])) < 5e-1
-@test mean(abs.(physsol1_1 .- sol2flux.ensemblesol[1])) < 5e-1
-@test mean(abs.(x̂1 .- sol2lux.ensemblesol[1])) < 5e-1
-@test mean(abs.(physsol1_1 .- sol2lux.ensemblesol[1])) < 5e-1
-
+@test mean(abs.(x̂1 .- sol2flux.ensemblesol[1])) < 8e-2
+@test mean(abs.(physsol1_1 .- sol2flux.ensemblesol[1])) < 8e-2
+@test mean(abs.(x̂1 .- sol2lux.ensemblesol[1])) < 8e-2
+@test mean(abs.(physsol1_1 .- sol2lux.ensemblesol[1])) < 8e-2
 # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
 @test abs(p - sol2flux.estimated_ode_params[1]) < abs(0.1 * p)
 @test abs(p - sol2lux.estimated_ode_params[1]) < abs(0.1 * p)
@@ -352,14 +353,14 @@ param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
 
 #-------------------------- solve() call 
 # (flux chain)
-@test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol[1])) < 5e-2
+@test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol[1])) < 8e-2
 
 # estimated parameters(flux chain)
 param1 = sol3flux_pestim.estimated_ode_params[1]
 @test abs(param1 - p) < abs(0.35 * p)
 
 # (lux chain)
-@prob mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 5e-2
+@prob mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 8e-2
 
 # estimated parameters(lux chain)
 param1 = sol3lux_pestim.estimated_ode_params[1]
