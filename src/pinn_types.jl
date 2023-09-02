@@ -89,7 +89,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
     adaptive_loss::ADA
     logger::LOG
     log_options::LogOptions
-    iteration::Vector{Int64}
+    iteration::Ref{Int64}
     self_increment::Bool
     multioutput::Bool
     kwargs::K
@@ -124,10 +124,10 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             _derivative = derivative
         end
 
-        if iteration isa Vector{Int64}
+        if iteration isa Ref{Int64}
             self_increment = false
         else
-            iteration = [1]
+            iteration = Ref(1)
             self_increment = true
         end
 
@@ -228,7 +228,7 @@ mutable struct PINNRepresentation
     """
     The iteration counter used inside the cost function
     """
-    iteration::Vector{Int}
+    iteration::Ref{Int}
     """
     The initial parameters as provided by the user. If the PDE is a system of PDEs, this
     will be an array of arrays. If Lux.jl is used, then this is an array of ComponentArrays.
