@@ -113,7 +113,7 @@ Then finally defining and optimizing using the `PhysicsInformedNN` interface.
 
 ```@example param_estim
 discretization = NeuralPDE.PhysicsInformedNN([chain1, chain2, chain3],
-                                             NeuralPDE.GridTraining(dt), param_estim = true,
+                                             NeuralPDE.QuadratureTraining(), param_estim = true,
                                              additional_loss = additional_loss)
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β],
                               defaults = Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
