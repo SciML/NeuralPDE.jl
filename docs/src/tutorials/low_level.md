@@ -37,7 +37,7 @@ domains = [t ∈ Interval(0.0, 1.0),
 
 # Neural network
 chain = Lux.Chain(Dense(2, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))
-strategy = NeuralPDE.QuadratureTraining
+strategy = NeuralPDE.QuadratureTraining()
 
 indvars = [t, x]
 depvars = [u(t, x)]
