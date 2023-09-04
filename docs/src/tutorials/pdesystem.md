@@ -23,7 +23,7 @@ on the space domain:
 x \in [0, 1] \, , \ y \in [0, 1] \, ,
 ```
 
-with grid discretization `dx = 0.05` using physics-informed neural networks.
+Using physics-informed neural networks.
 
 ## Copy-Pasteable Code
 
@@ -52,7 +52,7 @@ chain = Lux.Chain(Dense(dim, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))
 
 # Discretization
 dx = 0.05
-discretization = PhysicsInformedNN(chain, GridTraining(dx))
+discretization = PhysicsInformedNN(chain, QuadratureTraining())
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = discretize(pde_system, discretization)
@@ -122,9 +122,8 @@ Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretizat
 `strategy` stores information for choosing a training strategy.
 
 ```@example poisson
-# Discretization
 dx = 0.05
-discretization = PhysicsInformedNN(chain, GridTraining(dx))
+discretization = PhysicsInformedNN(chain, QuadratureTraining())
 ```
 
 As described in the API docs, we now need to define the `PDESystem` and create PINNs
