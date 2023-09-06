@@ -76,7 +76,7 @@ And some analysis:
 ```@example low_level
 using Plots
 
-ts, xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_predict_contourf = reshape([first(phi([t, x], res.u)) for t in ts for x in xs],
                              length(xs), length(ts))
 plot(ts, xs, u_predict_contourf, linetype = :contourf, title = "predict")
