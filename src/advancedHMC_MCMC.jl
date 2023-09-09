@@ -1,4 +1,5 @@
-mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
+mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
+    P <: Vector{<:Distribution},
     D <:
     Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}},
 }
@@ -6,7 +7,6 @@ mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
     prob::DiffEqBase.ODEProblem
     chain::C
     st::S
-    strategy::ST
     strategy::ST
     dataset::D
     priors::P
@@ -17,13 +17,21 @@ mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
     extraparams::Int
     init_params::I
 
-    function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, dataset,
+    function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, strategy,
+        dataset,
         priors, phystd, l2std, autodiff, physdt, extraparams,
         init_params::AbstractVector)
-        new{typeof(chain), Nothing, typeof(init_params), typeof(priors), typeof(dataset)}(dim,
+        new{
+            typeof(chain),
+            Nothing,
+            typeof(strategy),
+            typeof(init_params),
+            typeof(priors),
+            typeof(dataset),
+        }(dim,
             prob,
             chain,
-            nothing,
+            nothing, strategy,
             dataset,
             priors,
             phystd,
@@ -33,13 +41,20 @@ mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
             extraparams,
             init_params)
     end
-    function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, dataset,
+    function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, strategy,
+        dataset,
         priors, phystd, l2std, autodiff, physdt, extraparams,
         init_params::NamedTuple)
-        new{typeof(chain), typeof(st), typeof(init_params), typeof(priors), typeof(dataset)
+        new{
+            typeof(chain),
+            typeof(st),
+            typeof(strategy),
+            typeof(init_params),
+            typeof(priors),
+            typeof(dataset),
         }(dim,
             prob,
-            chain, st,
+            chain, st, strategy,
             dataset, priors,
             phystd, l2std,
             autodiff,
@@ -49,9 +64,7 @@ mutable struct LogTargetDensity{C, S, I, P <: Vector{<:Distribution},
     end
 end
 
-"""
-cool function to convert parameter's vector to ComponentArray of parameters (for Lux Chain: vector of samples -> Lux ComponentArrays)
-"""
+# cool function to convert parameter's vector to ComponentArray of parameters (for Lux Chain: vector of samples -> Lux ComponentArrays)
 function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     @assert length(ps_new) == Lux.parameterlength(ps)
     i = 1
@@ -65,6 +78,7 @@ end
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
     return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ)
+    # +L2loss2(Tar, θ)
 end
 
 LogDensityProblems.dimension(Tar::LogTargetDensity) = Tar.dim
@@ -73,9 +87,109 @@ function LogDensityProblems.capabilities(::LogTargetDensity)
     LogDensityProblems.LogDensityOrder{1}()
 end
 
-"""
-L2 loss loglikelihood(needed for ODE parameter estimation)
-"""
+# suggested extra loss function
+function L2loss2(Tar::LogTargetDensity, θ)
+    f = Tar.prob.f
+
+    # parameter estimation chosen or not
+    if Tar.extraparams > 0
+        dataset = Tar.dataset
+        autodiff = Tar.autodiff
+
+        # Timepoints to enforce Physics
+        dataset = Array(reduce(hcat, dataset)')
+        t = dataset[end, :]
+        û = dataset[1:(end - 1), :]
+
+        ode_params = Tar.extraparams == 1 ?
+                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)][1] :
+                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)]
+
+        if length(û[:, 1]) == 1
+            physsol = [f(û[:, i][1],
+                ode_params,
+                t[i])
+                       for i in 1:length(û[1, :])]
+        else
+            physsol = [f(û[:, i],
+                ode_params,
+                t[i])
+                       for i in 1:length(û[1, :])]
+        end
+        #form of NN output matrix output dim x n
+        deri_physsol = reduce(hcat, physsol)
+
+        # > Instead of dataset gradients trying NN derivatives with dataset collocation 
+        # # convert to matrix as nnsol
+        # nnsol = NNodederi(Tar, t, θ[1:(length(θ) - Tar.extraparams)], autodiff)
+        # physlogprob += logpdf(MvNormal(deri_physsol[i, :],
+        #         LinearAlgebra.Diagonal(map(abs2,
+        #             Tar.phystd[i] .*
+        #             ones(length(nnsol[i, :]))))),
+        #     nnsol[i, :])
+
+        # > for perfect deriv(basically gradient matching in case of an ODEFunction)
+        # in case of PDE or general ODE we would want to reduce residue of f(du,u,p,t)
+        # if length(û[:, 1]) == 1
+        #     deri_sol = [f(û[:, i][1],
+        #         Tar.prob.p,
+        #         t[i])
+        #                 for i in 1:length(û[1, :])]
+        # else
+        #     deri_sol = [f(û[:, i],
+        #         Tar.prob.p,
+        #         t[i])
+        #                 for i in 1:length(û[1, :])]
+        # end
+        # deri_sol = reduce(hcat, deri_sol)
+
+        derivatives = calculate_derivatives(Tar.dataset)
+        deri_sol = reduce(hcat, derivatives)
+
+        physlogprob = 0
+        for i in 1:length(Tar.prob.u0)
+            # can add phystd[i] for u[i]
+            physlogprob += logpdf(MvNormal(deri_physsol[i, :],
+                    LinearAlgebra.Diagonal(map(abs2,
+                        (Tar.l2std[i] * 0.5) .*
+                        ones(length(deri_sol[i, :]))))),
+                deri_sol[i, :])
+        end
+        return physlogprob
+    else
+        return 0
+    end
+end
+
+# PDE(DU,U,P,T)=0
+# Derivated via Central Diff
+# function calculate_derivatives(dataset)
+#     x̂, time = dataset
+#     num_points = length(x̂)
+#     # Initialize an array to store the derivative values.
+#     derivatives = similar(x̂)
+
+#     for i in 2:(num_points - 1)
+#         # Calculate the first-order derivative using central differences.
+#         Δt_forward = time[i + 1] - time[i]
+#         Δt_backward = time[i] - time[i - 1]
+
+#         derivative = (x̂[i + 1] - x̂[i - 1]) / (Δt_forward + Δt_backward)
+
+#         derivatives[i] = derivative
+#     end
+
+#     # Derivatives at the endpoints can be calculated using forward or backward differences.
+#     derivatives[1] = (x̂[2] - x̂[1]) / (time[2] - time[1])
+#     derivatives[end] = (x̂[end] - x̂[end - 1]) / (time[end] - time[end - 1])
+#     return derivatives
+# end
+
+# Using NoiseRobustDiff,DataInterpolations
+function calculate_derivatives(dataset)
+end
+
+# L2 losses loglikelihood(needed mainly for ODE parameter estimation)
 function L2LossData(Tar::LogTargetDensity, θ)
     # check if dataset is provided
     if Tar.dataset isa Vector{Nothing} || Tar.extraparams == 0
@@ -97,9 +211,7 @@ function L2LossData(Tar::LogTargetDensity, θ)
     end
 end
 
-"""
-physics loglikelihood over problem timespan + dataset timepoints
-"""
+# physics loglikelihood over problem timespan
 function physloglikelihood(Tar::LogTargetDensity, θ)
     f = Tar.prob.f
     p = Tar.prob.p
@@ -195,9 +307,6 @@ function getlogpdf(strategy::WeightedIntervalTraining, Tar::LogTargetDensity, f,
         ode_params))
 end
 
-"""
-MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN with parameters θ 
-"""
 function innerdiff(Tar::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, θ,
     ode_params)
 
@@ -235,9 +344,7 @@ function innerdiff(Tar::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, 
         zeros(length(vals[i, :]))) for i in 1:length(Tar.prob.u0)]
 end
 
-"""
-prior logpdf for NN parameters + ODE constants
-"""
+# priors for NN parameters + ODE constants
 function priorweights(Tar::LogTargetDensity, θ)
     allparams = Tar.priors
     # nn weights
@@ -279,19 +386,7 @@ function generate_Tar(chain::Flux.Chain, init_params::Nothing)
     return θ, re, nothing
 end
 
-# cool function to convert parameter's vector to ComponentArray of parameters (for Lux Chain: vector of samples -> Lux ComponentArrays)
-function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
-    @assert length(ps_new) == Lux.parameterlength(ps)
-    i = 1
-    function get_ps(x)
-        z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
-        i += length(x)
-        return z
-    end
-    return Functors.fmap(get_ps, ps)
-end
-
-# nn OUTPUT AT t
+# nn OUTPUT AT t,θ ~ phi(t,θ)
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
     θ) where {C <: Optimisers.Restructure, S}
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
@@ -330,112 +425,6 @@ function NNodederi(phi::LogTargetDensity, t::AbstractVector, θ, autodiff::Bool)
     end
 end
 
-# physics loglikelihood over problem timespan
-function physloglikelihood(Tar::LogTargetDensity, θ)
-    f = Tar.prob.f
-    p = Tar.prob.p
-    dt = Tar.physdt
-
-    # Timepoints to enforce Physics
-    if Tar.dataset isa Vector{Nothing}
-        t = collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2])
-    else
-        t = vcat(collect(eltype(dt), Tar.prob.tspan[1]:dt:Tar.prob.tspan[2]),
-            Tar.dataset[end])
-    end
-
-    # parameter estimation chosen or not
-    if Tar.extraparams > 0
-        ode_params = Tar.extraparams == 1 ?
-                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)][1] :
-                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)]
-    else
-        ode_params = p == SciMLBase.NullParameters() ? [] : p
-    end
-
-    # train for NN deriative upon dataset as well as beyond but within timespan
-    autodiff = Tar.autodiff
-
-    # compare derivatives(matrix)
-    out = Tar(t, θ[1:(length(θ) - Tar.extraparams)])
-
-    # reject samples case
-    if any(isinf, out[:, 1]) || any(isinf, ode_params)
-        return -Inf
-    end
-
-    # this is a vector{vector{dx,dy}}(handle case single u(float passed))
-    if length(out[:, 1]) == 1
-        physsol = [f(out[:, i][1],
-            ode_params,
-            t[i])
-                   for i in 1:length(out[1, :])]
-    else
-        physsol = [f(out[:, i],
-            ode_params,
-            t[i])
-                   for i in 1:length(out[1, :])]
-    end
-    physsol = reduce(hcat, physsol)
-
-    # convert to matrix as nnsol
-    nnsol = NNodederi(Tar, t, θ[1:(length(θ) - Tar.extraparams)], autodiff)
-
-    physlogprob = 0
-    for i in 1:length(Tar.prob.u0)
-        # can add phystd[i] for u[i]
-        physlogprob += logpdf(MvNormal(nnsol[i, :],
-                LinearAlgebra.Diagonal(map(abs2,
-                    Tar.phystd[i] .*
-                    ones(length(physsol[i, :]))))),
-            physsol[i, :])
-    end
-    return physlogprob
-end
-
-# L2 losses loglikelihood(needed mainly for ODE parameter estimation)
-function L2LossData(Tar::LogTargetDensity, θ)
-    # check if dataset is provided
-    if Tar.dataset isa Vector{Nothing} || Tar.extraparams == 0
-        return 0
-    else
-        # matrix(each row corresponds to vector u's rows)
-        nn = Tar(Tar.dataset[end], θ[1:(length(θ) - Tar.extraparams)])
-
-        L2logprob = 0
-        for i in 1:length(Tar.prob.u0)
-            # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
-            L2logprob += logpdf(MvNormal(nn[i, :],
-                    LinearAlgebra.Diagonal(map(abs2,
-                        Tar.l2std[i] .*
-                        ones(length(Tar.dataset[i]))))),
-                Tar.dataset[i])
-        end
-        return L2logprob
-    end
-end
-
-# priors for NN parameters + ODE constants
-function priorweights(Tar::LogTargetDensity, θ)
-    allparams = Tar.priors
-    # nn weights
-    nnwparams = allparams[1]
-
-    if Tar.extraparams > 0
-        # Vector of ode parameters priors
-        invpriors = allparams[2:end]
-
-        invlogpdf = sum(logpdf(invpriors[length(θ) - i + 1], θ[i])
-                        for i in (length(θ) - Tar.extraparams + 1):length(θ); init = 0.0)
-
-        return (invlogpdf
-                +
-                logpdf(nnwparams, θ[1:(length(θ) - Tar.extraparams)]))
-    else
-        return logpdf(nnwparams, θ)
-    end
-end
-
 function kernelchoice(Kernel, max_depth, Δ_max, n_leapfrog, δ, λ)
     if Kernel == HMC
         Kernel(n_leapfrog)
@@ -467,7 +456,7 @@ end
 
 """
 ```julia
-ahmc_bayesian_pinn_ode(prob, chain;
+ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining,
                     dataset = [nothing],init_params = nothing, 
                     draw_samples = 1000, physdt = 1 / 20.0f0,l2std = [0.05],
                     phystd = [0.05], priorsNNw = (0.0, 2.0),
@@ -528,6 +517,7 @@ prob -> DEProblem(out of place and the function signature should be f(u,p,t)
 chain -> Lux/Flux Neural Netork which would be made the Bayesian PINN
 
 ## Keyword Arguments
+strategy -> The training strategy used to choose the points for the evaluations. By default GridTraining is used with given physdt discretization.
 dataset -> Vector containing Vectors of corresponding u,t values 
 init_params -> intial parameter values for BPINN (ideally for multiple chains different initializations preferred)
 nchains -> number of chains you want to sample (random initialisation of params by default)
@@ -555,12 +545,11 @@ verbose -> controls the verbosity. (Sample call args in AHMC)
 # dataset would be (x̂,t)
 # priors: pdf for W,b + pdf for ODE params
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
-    dataset = [nothing],
+    strategy = GridTraining, dataset = [nothing],
     init_params = nothing, draw_samples = 1000,
     physdt = 1 / 20.0, l2std = [0.05],
     phystd = [0.05], priorsNNw = (0.0, 2.0),
-    param = [], nchains = 1,
-    autodiff = false,
+    param = [], nchains = 1, autodiff = false,
     Kernel = HMC, Integrator = Leapfrog,
     Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
     Metric = DiagEuclideanMetric, jitter_rate = 3.0,
@@ -572,6 +561,8 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     if isinplace(prob)
         throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
     end
+
+    strategy = strategy == GridTraining ? strategy(physdt) : strategy
 
     if dataset != [nothing] &&
        (length(dataset) < 2 || !(typeof(dataset) <: Vector{<:Vector{<:AbstractFloat}}))
@@ -624,9 +615,8 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
 
     t0 = prob.tspan[1]
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
-    ℓπ = LogTargetDensity(nparameters, prob, recon, st, dataset, priors,
-        phystd, l2std, autodiff, physdt, ninv,
-        initial_nnθ)
+    ℓπ = LogTargetDensity(nparameters, prob, recon, st, strategy, dataset, priors,
+        phystd, l2std, autodiff, physdt, ninv, initial_nnθ)
 
     try
         ℓπ(t0, initial_θ[1:(nparameters - ninv)])
