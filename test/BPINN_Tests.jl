@@ -56,6 +56,12 @@ fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux,
     draw_samples = 2500,
     n_leapfrog = 30)
 
+# can change training strategies by adding this to call (Quadratuer and GridTraining show good results but stochastics sampling techniques perform bad)
+# strategy = QuadratureTraining(; quadrature_alg = QuadGKJL(),
+#     reltol = 1e-6,
+#     abstol = 1e-3, maxiters = 1000,
+#     batch = 0)
+
 alg = NeuralPDE.BNNODE(chainflux, draw_samples = 2500,
     n_leapfrog = 30)
 sol1flux = solve(prob, alg)
@@ -102,17 +108,18 @@ sol1 = solve(prob, Tsit5(); saveat = 0.01)
 u = sol1.u
 time = sol1.t
 
-# BPINN AND TRAINING DATASET CREATION
-ta = range(tspan[1], tspan[2], length = 200)
+# BPINN AND TRAINING DATASET CREATION(dataset must be defined only inside provlem timespan!)
+ta = range(tspan[1], tspan[2], length = 25)
 u = [linear_analytic(u0, p, ti) for ti in ta]
-x̂ = collect(Float64, Array(u) + 0.02 * randn(size(u)))
+x̂ = collect(Float64, Array(u) + 0.2 * randn(size(u)))
 time = vec(collect(Float64, ta))
-dataset = [x̂[1:100], time[1:100]]
+dataset = [x̂, time]
 physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
+# testing points for solve call(saveat=1/50.0 ∴ at t = collect(eltype(saveat), prob.tspan[1]:saveat:prob.tspan[2] internally estimates)
 ta0 = range(tspan[1], tspan[2], length = 101)
 u1 = [linear_analytic(u0, p, ti) for ti in ta0]
-x̂1 = collect(Float64, Array(u1) + 0.02 * randn(size(u1)))
+x̂1 = collect(Float64, Array(u1) + 0.2 * randn(size(u1)))
 time1 = vec(collect(Float64, ta0))
 physsol1_1 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
 
@@ -352,14 +359,12 @@ param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
 #-------------------------- solve() call 
 # (flux chain)
 @test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol[1])) < 8e-2
-
 # estimated parameters(flux chain)
 param1 = sol3flux_pestim.estimated_ode_params[1]
 @test abs(param1 - p) < abs(0.35 * p)
 
 # (lux chain)
-@prob mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 8e-2
-
+@test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 8e-2
 # estimated parameters(lux chain)
 param1 = sol3lux_pestim.estimated_ode_params[1]
 @test abs(param1 - p) < abs(0.35 * p)
