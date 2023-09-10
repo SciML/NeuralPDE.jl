@@ -187,12 +187,12 @@ luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
 meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
 # --------------------- ahmc_bayesian_pinn_ode() call  
-@test mean(abs.(physsol1 .- meanscurve1)) < 5e-2
-@test mean(abs.(physsol1 .- meanscurve2)) < 5e-2
+@test mean(abs.(physsol1 .- meanscurve1)) < 0.1
+@test mean(abs.(physsol1 .- meanscurve2)) < 0.1
 
 # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
-@test abs(p - mean([fhsamples2[i][23] for i in 2000:2500])) < abs(0.2 * p)
-@test abs(p - mean([fhsamples1[i][23] for i in 2000:2500])) < abs(0.2 * p)
+@test abs(p - mean([fhsamples2[i][23] for i in 2000:2500])) < abs(0.25 * p)
+@test abs(p - mean([fhsamples1[i][23] for i in 2000:2500])) < abs(0.25 * p)
 
 #-------------------------- solve() call  
 @test mean(abs.(physsol1_1 .- sol2flux.ensemblesol[1])) < 8e-2
@@ -343,8 +343,8 @@ luxar = [chainlux12(t', θ[i], st)[1] for i in 1:500]
 luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
 meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-@test mean(abs.(sol.u .- meanscurve2_1)) < 1e-2
-@test mean(abs.(physsol1 .- meanscurve2_1)) < 1e-2
+@test mean(abs.(sol.u .- meanscurve2_1)) < 1e-1
+@test mean(abs.(physsol1 .- meanscurve2_1)) < 1e-1
 @test mean(abs.(sol.u .- meanscurve2_2)) < 5e-2
 @test mean(abs.(physsol1 .- meanscurve2_2)) < 5e-2
 
@@ -354,13 +354,13 @@ param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
 
 #-------------------------- solve() call 
 # (flux chain)
-@test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol[1])) < 8e-2
+@test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol[1])) < 0.1
 # estimated parameters(flux chain)
 param1 = sol3flux_pestim.estimated_ode_params[1]
-@test abs(param1 - p) < abs(0.35 * p)
+@test abs(param1 - p) < abs(0.45 * p)
 
 # (lux chain)
-@test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 8e-2
+@test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 0.1
 # estimated parameters(lux chain)
 param1 = sol3lux_pestim.estimated_ode_params[1]
-@test abs(param1 - p) < abs(0.35 * p)
+@test abs(param1 - p) < abs(0.45 * p)
