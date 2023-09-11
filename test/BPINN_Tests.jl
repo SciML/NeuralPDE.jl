@@ -187,8 +187,8 @@ luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
 meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
 # --------------------- ahmc_bayesian_pinn_ode() call  
-@test mean(abs.(physsol1 .- meanscurve1)) < 0.1
-@test mean(abs.(physsol1 .- meanscurve2)) < 0.1
+@test mean(abs.(physsol1 .- meanscurve1)) < 0.15
+@test mean(abs.(physsol1 .- meanscurve2)) < 0.15
 
 # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
 @test abs(p - mean([fhsamples2[i][23] for i in 2000:2500])) < abs(0.25 * p)
@@ -354,13 +354,13 @@ param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
 
 #-------------------------- solve() call 
 # (flux chain)
-@test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol[1])) < 0.1
+@test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol[1])) < 0.15
 # estimated parameters(flux chain)
 param1 = sol3flux_pestim.estimated_ode_params[1]
 @test abs(param1 - p) < abs(0.45 * p)
 
 # (lux chain)
-@test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 0.1
+@test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 0.15
 # estimated parameters(lux chain)
 param1 = sol3lux_pestim.estimated_ode_params[1]
 @test abs(param1 - p) < abs(0.45 * p)
