@@ -64,7 +64,9 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
     end
 end
 
-# cool function to convert parameter's vector to ComponentArray of parameters (for Lux Chain: vector of samples -> Lux ComponentArrays)
+"""
+cool function to convert parameter's vector to ComponentArray of parameters (for Lux Chain: vector of samples -> Lux ComponentArrays)
+"""
 function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     @assert length(ps_new) == Lux.parameterlength(ps)
     i = 1
@@ -78,7 +80,6 @@ end
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
     return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ)
-    # +L2loss2(Tar, θ)
 end
 
 LogDensityProblems.dimension(Tar::LogTargetDensity) = Tar.dim
@@ -87,109 +88,9 @@ function LogDensityProblems.capabilities(::LogTargetDensity)
     LogDensityProblems.LogDensityOrder{1}()
 end
 
-# suggested extra loss function
-function L2loss2(Tar::LogTargetDensity, θ)
-    f = Tar.prob.f
-
-    # parameter estimation chosen or not
-    if Tar.extraparams > 0
-        dataset = Tar.dataset
-        autodiff = Tar.autodiff
-
-        # Timepoints to enforce Physics
-        dataset = Array(reduce(hcat, dataset)')
-        t = dataset[end, :]
-        û = dataset[1:(end - 1), :]
-
-        ode_params = Tar.extraparams == 1 ?
-                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)][1] :
-                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)]
-
-        if length(û[:, 1]) == 1
-            physsol = [f(û[:, i][1],
-                ode_params,
-                t[i])
-                       for i in 1:length(û[1, :])]
-        else
-            physsol = [f(û[:, i],
-                ode_params,
-                t[i])
-                       for i in 1:length(û[1, :])]
-        end
-        #form of NN output matrix output dim x n
-        deri_physsol = reduce(hcat, physsol)
-
-        # > Instead of dataset gradients trying NN derivatives with dataset collocation 
-        # # convert to matrix as nnsol
-        # nnsol = NNodederi(Tar, t, θ[1:(length(θ) - Tar.extraparams)], autodiff)
-        # physlogprob += logpdf(MvNormal(deri_physsol[i, :],
-        #         LinearAlgebra.Diagonal(map(abs2,
-        #             Tar.phystd[i] .*
-        #             ones(length(nnsol[i, :]))))),
-        #     nnsol[i, :])
-
-        # > for perfect deriv(basically gradient matching in case of an ODEFunction)
-        # in case of PDE or general ODE we would want to reduce residue of f(du,u,p,t)
-        # if length(û[:, 1]) == 1
-        #     deri_sol = [f(û[:, i][1],
-        #         Tar.prob.p,
-        #         t[i])
-        #                 for i in 1:length(û[1, :])]
-        # else
-        #     deri_sol = [f(û[:, i],
-        #         Tar.prob.p,
-        #         t[i])
-        #                 for i in 1:length(û[1, :])]
-        # end
-        # deri_sol = reduce(hcat, deri_sol)
-
-        derivatives = calculate_derivatives(Tar.dataset)
-        deri_sol = reduce(hcat, derivatives)
-
-        physlogprob = 0
-        for i in 1:length(Tar.prob.u0)
-            # can add phystd[i] for u[i]
-            physlogprob += logpdf(MvNormal(deri_physsol[i, :],
-                    LinearAlgebra.Diagonal(map(abs2,
-                        (Tar.l2std[i] * 0.5) .*
-                        ones(length(deri_sol[i, :]))))),
-                deri_sol[i, :])
-        end
-        return physlogprob
-    else
-        return 0
-    end
-end
-
-# PDE(DU,U,P,T)=0
-# Derivated via Central Diff
-# function calculate_derivatives(dataset)
-#     x̂, time = dataset
-#     num_points = length(x̂)
-#     # Initialize an array to store the derivative values.
-#     derivatives = similar(x̂)
-
-#     for i in 2:(num_points - 1)
-#         # Calculate the first-order derivative using central differences.
-#         Δt_forward = time[i + 1] - time[i]
-#         Δt_backward = time[i] - time[i - 1]
-
-#         derivative = (x̂[i + 1] - x̂[i - 1]) / (Δt_forward + Δt_backward)
-
-#         derivatives[i] = derivative
-#     end
-
-#     # Derivatives at the endpoints can be calculated using forward or backward differences.
-#     derivatives[1] = (x̂[2] - x̂[1]) / (time[2] - time[1])
-#     derivatives[end] = (x̂[end] - x̂[end - 1]) / (time[end] - time[end - 1])
-#     return derivatives
-# end
-
-# Using NoiseRobustDiff,DataInterpolations
-function calculate_derivatives(dataset)
-end
-
-# L2 losses loglikelihood(needed mainly for ODE parameter estimation)
+"""
+L2 loss loglikelihood(needed for ODE parameter estimation)
+"""
 function L2LossData(Tar::LogTargetDensity, θ)
     # check if dataset is provided
     if Tar.dataset isa Vector{Nothing} || Tar.extraparams == 0
@@ -211,7 +112,9 @@ function L2LossData(Tar::LogTargetDensity, θ)
     end
 end
 
-# physics loglikelihood over problem timespan
+"""
+physics loglikelihood over problem timespan + dataset timepoints
+"""
 function physloglikelihood(Tar::LogTargetDensity, θ)
     f = Tar.prob.f
     p = Tar.prob.p
@@ -307,6 +210,9 @@ function getlogpdf(strategy::WeightedIntervalTraining, Tar::LogTargetDensity, f,
         ode_params))
 end
 
+"""
+MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN with parameters θ 
+"""
 function innerdiff(Tar::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, θ,
     ode_params)
 
@@ -344,7 +250,9 @@ function innerdiff(Tar::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, 
         zeros(length(vals[i, :]))) for i in 1:length(Tar.prob.u0)]
 end
 
-# priors for NN parameters + ODE constants
+"""
+prior logpdf for NN parameters + ODE constants
+"""
 function priorweights(Tar::LogTargetDensity, θ)
     allparams = Tar.priors
     # nn weights
@@ -386,7 +294,9 @@ function generate_Tar(chain::Flux.Chain, init_params::Nothing)
     return θ, re, nothing
 end
 
-# nn OUTPUT AT t,θ ~ phi(t,θ)
+"""
+nn OUTPUT AT t,θ ~ phi(t,θ)
+"""
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
     θ) where {C <: Optimisers.Restructure, S}
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
@@ -414,7 +324,9 @@ function (f::LogTargetDensity{C, S})(t::Number,
     f.prob.u0 .+ (t .- f.prob.tspan[1]) .* y
 end
 
-# ODE DU/DX
+"""
+similar to ode_dfdx() in NNODE/ode_solve.jl
+"""
 function NNodederi(phi::LogTargetDensity, t::AbstractVector, θ, autodiff::Bool)
     if autodiff
         hcat(ForwardDiff.derivative.(ti -> phi(ti, θ), t)...)
@@ -465,6 +377,11 @@ ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining,
                     Δ_max = 1000, n_leapfrog = 10, δ = 0.65, λ = 0.3,
                     progress = false,verbose = false)
 ```
+!!! warn
+
+    Note that ahmc_bayesian_pinn_ode() only supports ODEs which are written in the out-of-place form, i.e.
+    `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place, then the ahmc_bayesian_pinn_ode()
+    will exit with an error.
 
 ## Example
 linear = (u, p, t) -> -u / p[1] + exp(t / p[2]) * cos(t)
@@ -506,37 +423,40 @@ Dataset is required for accurate Parameter estimation + solving equations
 Incase you are only solving the Equations for solution, do not provide dataset
 
 ## Positional Arguments
-prob -> DEProblem(out of place and the function signature should be f(u,p,t)
-chain -> Lux/Flux Neural Netork which would be made the Bayesian PINN
+* `prob`: DEProblem(out of place and the function signature should be f(u,p,t)
+* `chain`: Lux/Flux Neural Netork which would be made the Bayesian PINN
 
 ## Keyword Arguments
-strategy -> The training strategy used to choose the points for the evaluations. By default GridTraining is used with given physdt discretization.
-dataset -> Vector containing Vectors of corresponding u,t values 
-init_params -> intial parameter values for BPINN (ideally for multiple chains different initializations preferred)
-nchains -> number of chains you want to sample (random initialisation of params by default)
-draw_samples -> number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
-l2std -> standard deviation of BPINN predicition against L2 losses/Dataset
-phystd -> standard deviation of BPINN predicition against Chosen Underlying ODE System
-priorsNNw -> Vector of [mean, std] for BPINN parameter. Weights and Biases of BPINN are Normal Distributions by default
-param -> Vector of chosen ODE parameters Distributions in case of Inverse problems.
-autodiff -> Boolean Value for choice of Derivative Backend(default is numerical)
-physdt -> Timestep for approximating ODE in it's Time domain. (1/20.0 by default)
+* `strategy`: The training strategy used to choose the points for the evaluations. By default GridTraining is used with given physdt discretization.
+* `dataset`: Vector containing Vectors of corresponding u,t values 
+* `init_params`: intial parameter values for BPINN (ideally for multiple chains different initializations preferred)
+* `nchains`: number of chains you want to sample (random initialisation of params by default)
+* `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
+* `l2std`: standard deviation of BPINN predicition against L2 losses/Dataset
+* `phystd`: standard deviation of BPINN predicition against Chosen Underlying ODE System
+* `priorsNNw`: Vector of [mean, std] for BPINN parameter. Weights and Biases of BPINN are Normal Distributions by default
+* `param`: Vector of chosen ODE parameters Distributions in case of Inverse problems.
+* `autodiff`: Boolean Value for choice of Derivative Backend(default is numerical)
+* `physdt`: Timestep for approximating ODE in it's Time domain. (1/20.0 by default)
 
 # AHMC.jl is still developing convenience structs so might need changes on new releases.
-Kernel -> Choice of MCMC Sampling Algorithm (AdvancedHMC.jl implemenations HMC/NUTS/HMCDA)
-targetacceptancerate -> Target percentage(in decimal) of iterations in which the proposals were accepted(0.8 by default)
-Integrator(jitter_rate, tempering_rate), Metric, Adaptor -> https://turinglang.org/AdvancedHMC.jl/stable/
-max_depth -> Maximum doubling tree depth (NUTS)
-Δ_max -> Maximum divergence during doubling tree (NUTS)
-n_leapfrog -> number of leapfrog steps for HMC
-δ -> target acceptance probability for NUTS/HMCDA
-λ -> target trajectory length for HMCDA
-progress -> controls whether to show the progress meter or not.
-verbose -> controls the verbosity. (Sample call args in AHMC)
+* `Kernel`: Choice of MCMC Sampling Algorithm (AdvancedHMC.jl implemenations HMC/NUTS/HMCDA)
+* `targetacceptancerate`: Target percentage(in decimal) of iterations in which the proposals were accepted(0.8 by default)
+* `Integrator(jitter_rate, tempering_rate), Metric, Adaptor`: https://turinglang.org/AdvancedHMC.jl/stable/
+* `max_depth`: Maximum doubling tree depth (NUTS)
+* `Δ_max`: Maximum divergence during doubling tree (NUTS)
+* `n_leapfrog`: number of leapfrog steps for HMC
+* `δ`: target acceptance probability for NUTS/HMCDA
+* `λ`: target trajectory length for HMCDA
+* `progress`: controls whether to show the progress meter or not.
+* `verbose`: controls the verbosity. (Sample call args in AHMC)
+
 """
 
-# dataset would be (x̂,t)
-# priors: pdf for W,b + pdf for ODE params
+"""
+dataset would be (x̂,t)
+priors: pdf for W,b + pdf for ODE params
+"""
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     strategy = GridTraining, dataset = [nothing],
     init_params = nothing, draw_samples = 1000,
