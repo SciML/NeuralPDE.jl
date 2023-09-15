@@ -20,7 +20,7 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
 DiffEqBase = "6.106"
-Documenter = "0.27"
+Documenter = "0.27, 1"
 DomainSets = "0.6"
 Flux = "0.13, 0.14"
 Integrals = "3.3"
