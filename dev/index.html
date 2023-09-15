@@ -18,16 +18,16 @@ x = [0.8; 0.8]
 ann = Chain(Dense(2, 10, tanh), Dense(10, 1))
 p, re = Flux.destructure(ann)
 z = re(Float64(p))</code></pre><p>While one may think this recreates the neural network to act in <code>Float64</code> precision, <a href="https://github.com/FluxML/Flux.jl/pull/2156">it does not</a> and instead its values will silently downgrade everything to <code>Float32</code>. This is only fixed by <code>Chain(Dense(2, 10, tanh), Dense(10, 1)) |&gt; f64</code>. Similar cases will <a href="https://github.com/FluxML/Optimisers.jl/issues/95">lead to dropped gradients with complex numbers</a>. This is not an issue with the automatic differentiation library commonly associated with Flux (Zygote.jl) but rather due to choices in the neural network library&#39;s decision for how to approach type handling and precision. Thus when using DiffEqFlux.jl with Flux, the user must be very careful to ensure that the precision of the arguments are correct, and anything that requires alternative types (like <code>TrackerAdjoint</code> tracked values, <code>ForwardDiffSensitivity</code> dual numbers, and TaylorDiff.jl differentiation) are suspect.</p><p>Lux.jl has none of these issues, is simpler to work with due to the parameters in its function calls being explicit rather than implicit global references, and achieves higher performance. It is built on the same foundations as Flux.jl, such as Zygote and NNLib, and thus it supports the same layers underneith and calls the same kernels. The better performance comes from not having the overhead of <code>restructure</code> required. Thus we highly recommend people use Lux instead and only use the Flux fallbacks for legacy code.</p><h2 id="Reproducibility"><a class="docs-heading-anchor" href="#Reproducibility">Reproducibility</a><a id="Reproducibility-1"></a><a class="docs-heading-anchor-permalink" href="#Reproducibility" title="Permalink"></a></h2><details><summary>The documentation of this SciML package was built using these direct dependencies,</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NeuralPDE.jl/NeuralPDE.jl/docs/Project.toml`
-  [2b5f629d] DiffEqBase v6.128.2
-  [e30172f5] Documenter v0.27.25
+  [2b5f629d] DiffEqBase v6.128.4
+⌅ [e30172f5] Documenter v0.27.25
   [5b8099bc] DomainSets v0.6.7
   [587475ba] Flux v0.14.5
   [de52edbc] Integrals v3.9.0
   [c31f79ba] IntegralsCubature v0.2.2
   [b2108857] Lux v0.5.5
-  [961ee093] ModelingToolkit v8.68.0
+  [961ee093] ModelingToolkit v8.69.0
   [315f7962] NeuralPDE v5.8.0 `~/work/NeuralPDE.jl/NeuralPDE.jl`
-  [7f7a1694] Optimization v3.16.1
+  [7f7a1694] Optimization v3.17.0
   [36348300] OptimizationOptimJL v0.1.9
   [42dfb2eb] OptimizationOptimisers v0.1.5
   [500b13db] OptimizationPolyalgorithms v0.1.2
@@ -42,14 +42,14 @@ Build Info:
   Official https://julialang.org/ release
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
-  CPU: 2 × Intel(R) Xeon(R) CPU E5-2673 v4 @ 2.30GHz
+  CPU: 2 × Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-14.0.6 (ORCJIT, broadwell)
+  LLVM: libLLVM-14.0.6 (ORCJIT, skylake-avx512)
   Threads: 1 on 2 virtual cores</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Status `~/work/NeuralPDE.jl/NeuralPDE.jl/docs/Manifest.toml`
-  [47edcb42] ADTypes v0.2.2
+  [47edcb42] ADTypes v0.2.3
   [a4c015fc] ANSIColoredPrinters v0.0.1
-  [c3fe647b] AbstractAlgebra v0.31.1
+⌅ [c3fe647b] AbstractAlgebra v0.31.1
   [621f4979] AbstractFFTs v1.5.0
   [80f14c24] AbstractMCMC v4.4.2
   [1520ce14] AbstractTrees v0.4.4
@@ -68,7 +68,7 @@ Platform Info:
   [d1d4a3ce] BitFlags v0.1.7
   [62783981] BitTwiddlingConvenienceFunctions v0.1.5
   [fa961155] CEnum v0.4.2
-  [2a0fbf3d] CPUSummary v0.2.3
+  [2a0fbf3d] CPUSummary v0.2.4
   [00ebfdb7] CSTParser v3.3.6
   [49dc2e85] Calculus v0.5.1
   [082447d4] ChainRules v1.54.0
@@ -101,7 +101,7 @@ Platform Info:
   [e2d170a0] DataValueInterfaces v1.0.0
   [244e2a9f] DefineSingletons v0.1.2
   [8bb1440f] DelimitedFiles v1.9.1
-  [2b5f629d] DiffEqBase v6.128.2
+  [2b5f629d] DiffEqBase v6.128.4
   [459566f4] DiffEqCallbacks v2.29.1
   [77a26b50] DiffEqNoiseProcess v5.18.0
   [163ba53b] DiffResults v1.1.0
@@ -109,7 +109,7 @@ Platform Info:
   [b4f34e82] Distances v0.10.9
   [31c24e10] Distributions v0.25.100
   [ffbed154] DocStringExtensions v0.9.3
-  [e30172f5] Documenter v0.27.25
+⌅ [e30172f5] Documenter v0.27.25
   [5b8099bc] DomainSets v0.6.7
   [fa6b7ba4] DualNumbers v0.6.8
   [7c1d4256] DynamicPolynomials v0.5.3
@@ -140,10 +140,10 @@ Platform Info:
   [c27321d9] Glob v1.3.1
   [86223c79] Graphs v1.8.0
   [42e2da0e] Grisu v1.0.2
-  [0b43b601] Groebner v0.4.2
+  [0b43b601] Groebner v0.4.3
   [d5909c97] GroupsCore v0.4.0
   [19dc6840] HCubature v1.5.1
-  [cd3eb016] HTTP v1.9.14
+  [cd3eb016] HTTP v1.9.15
   [3e5b6fbb] HostCPUFeatures v0.1.16
   [34004b35] HypergeometricFunctions v0.3.23
   [b5f81e59] IOCapture v0.2.3
@@ -163,10 +163,10 @@ Platform Info:
   [1019f520] JLFzf v0.1.5
   [692b3bcd] JLLWrappers v1.5.0
   [682c06a0] JSON v0.21.4
-  [98e50ef6] JuliaFormatter v1.0.35
+  [98e50ef6] JuliaFormatter v1.0.36
   [b14d175d] JuliaVariables v0.2.4
   [ccbc3e58] JumpProcesses v9.7.3
-  [ef3ab10e] KLU v0.4.0
+  [ef3ab10e] KLU v0.4.1
   [63c18a36] KernelAbstractions v0.9.8
   [5ab0869b] KernelDensity v0.6.7
   [ba0b0d4f] Krylov v0.9.4
@@ -191,7 +191,7 @@ Platform Info:
   [b2108857] Lux v0.5.5
   [bb33d45b] LuxCore v0.1.6
   [34f89e08] LuxDeviceUtils v0.1.8
-  [82251201] LuxLib v0.3.3
+  [82251201] LuxLib v0.3.4
   [c7f686f2] MCMCChains v6.0.3
   [be115224] MCMCDiagnosticTools v0.3.5
   [e80e1ace] MLJModelInterface v1.9.2
@@ -203,8 +203,9 @@ Platform Info:
   [442fdcdd] Measures v0.3.2
   [128add7d] MicroCollections v0.1.4
   [e1d29d7a] Missings v1.1.0
-  [961ee093] ModelingToolkit v8.68.0
+  [961ee093] ModelingToolkit v8.69.0
 ⌅ [4886b29c] MonteCarloIntegration v0.0.3
+  [0987c9cc] MonteCarloMeasurements v1.1.5
   [46d2c3a1] MuladdMacro v0.2.4
   [102ac46a] MultivariatePolynomials v0.5.2
   [d8a4904e] MutableArithmetics v1.3.2
@@ -221,7 +222,7 @@ Platform Info:
   [4d8831e6] OpenSSL v1.4.1
   [429524aa] Optim v1.7.7
 ⌅ [3bd65402] Optimisers v0.2.20
-  [7f7a1694] Optimization v3.16.1
+  [7f7a1694] Optimization v3.17.0
   [36348300] OptimizationOptimJL v0.1.9
   [42dfb2eb] OptimizationOptimisers v0.1.5
   [500b13db] OptimizationPolyalgorithms v0.1.2
@@ -247,7 +248,7 @@ Platform Info:
   [08abe8d2] PrettyTables v2.2.7
   [27ebfcd6] Primes v0.5.4
   [33c8b6b6] ProgressLogging v0.1.4
-  [92933f4c] ProgressMeter v1.8.0
+  [92933f4c] ProgressMeter v1.9.0
   [1fd47b50] QuadGK v2.8.2
 ⌅ [8a4e6c94] QuasiMonteCarlo v0.2.19
   [74087812] Random123 v1.6.1
@@ -258,7 +259,7 @@ Platform Info:
   [c1ae055f] RealDot v0.1.0
   [3cdcf5f2] RecipesBase v1.3.4
   [01d81517] RecipesPipeline v0.6.12
-  [731186ca] RecursiveArrayTools v2.38.8
+  [731186ca] RecursiveArrayTools v2.38.10
   [f2c3362d] RecursiveFactorization v0.2.20
   [189a3867] Reexport v1.2.2
   [05181044] RelocatableFolders v1.0.0
@@ -270,7 +271,7 @@ Platform Info:
   [fdea26ae] SIMD v3.4.5
   [94e857df] SIMDTypes v0.1.0
   [476501e8] SLEEFPirates v0.6.39
-  [0bca4576] SciMLBase v1.97.0
+  [0bca4576] SciMLBase v1.97.1
   [e9a6253c] SciMLNLSolve v0.1.8
   [c0aeaf25] SciMLOperators v0.3.6
   [30f210dd] ScientificTypesBase v3.0.0
@@ -301,7 +302,7 @@ Platform Info:
   [4c63d2b9] StatsFuns v1.3.0
   [789caeaf] StochasticDiffEq v6.62.0
   [7792a7ef] StrideArraysCore v0.4.17
-  [892a3eda] StringManipulation v0.3.2
+  [892a3eda] StringManipulation v0.3.4
   [09ab397b] StructArrays v0.6.16
   [2efcf032] SymbolicIndexingInterface v0.2.2
   [d1185830] SymbolicUtils v1.3.0
@@ -366,7 +367,7 @@ Platform Info:
   [38a345b3] Libuuid_jll v2.36.0+0
   [856f044c] MKL_jll v2023.2.0+0
   [e7412a2a] Ogg_jll v1.3.5+1
-⌅ [458c3c95] OpenSSL_jll v1.1.22+0
+⌅ [458c3c95] OpenSSL_jll v1.1.23+0
   [efe28fd5] OpenSpecFun_jll v0.5.5+0
   [91d4177d] Opus_jll v1.3.2+0
   [30392449] Pixman_jll v0.42.2+0
@@ -457,4 +458,4 @@ Platform Info:
   [3f19e933] p7zip_jll v17.4.0+0
 Info Packages marked with ⌃ and ⌅ have new versions available, but those with ⌅ are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details>You can also download the 
 <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.8.0/assets/Manifest.toml">manifest</a> file and the
-<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.8.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Sunday 10 September 2023 00:21">Sunday 10 September 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.8.0/assets/Project.toml">project</a> file.</article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Friday 15 September 2023 16:34">Friday 15 September 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
