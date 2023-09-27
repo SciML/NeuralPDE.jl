@@ -8,12 +8,12 @@ The Lotka–Volterra equations, also known as the predator–prey equations, are
 These differential equations are frequently used to describe the dynamics of biological systems in which two species interact, one as a predator and the other as prey.
 The populations change through time according to the pair of equations
 
-$$
+$
 \begin{aligned}
 \frac{\mathrm{d}x}{\mathrm{d}t} &= (\alpha - \beta y(t))x(t), \\
 \frac{\mathrm{d}y}{\mathrm{d}t} &= (\delta x(t) - \gamma)y(t)
 \end{aligned}
-$$
+$
 
 where $x(t)$ and $y(t)$ denote the populations of prey and predator at time $t$, respectively, and $\alpha, \beta, \gamma, \delta$ are positive parameters.
 
