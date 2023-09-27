@@ -1,5 +1,6 @@
 pages = ["index.md",
-    "ODE PINN Tutorials" => Any["Introduction to NeuralPDE for ODEs" => "tutorials/ode.md"
+    "ODE PINN Tutorials" => Any["Introduction to NeuralPDE for ODEs" => "tutorials/ode.md",
+                                "Baysian PINNs - Lotka-Volterra" => "examples/Lotka_Volterra_BPINNs.md"
                                 #"examples/nnrode_example.md", # currently incorrect
                                 ],
     "PDE PINN Tutorials" => Any["Introduction to NeuralPDE for PDEs" => "tutorials/pdesystem.md",
