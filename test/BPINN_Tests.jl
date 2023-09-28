@@ -155,7 +155,7 @@ alg = NeuralPDE.BNNODE(chainflux1, dataset = dataset,
     priorsNNw = (0.0, 3.0),
     param = [LogNormal(9, 0.5)],
     Metric = DiagEuclideanMetric,
-    n_leapfrog = 30, progress = true)
+    n_leapfrog = 30)
 
 sol2flux = solve(prob, alg)
 
