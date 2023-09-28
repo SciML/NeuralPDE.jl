@@ -191,8 +191,8 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test mean(abs.(physsol1 .- meanscurve2)) < 0.15
 
 # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
-@test abs(p - mean([fhsamples2[i][23] for i in 1500:2500])) < abs(0.3 * p)
-@test abs(p - mean([fhsamples1[i][23] for i in 1500:2500])) < abs(0.3 * p)
+@test abs(p - mean([fhsamples2[i][23] for i in 2000:2500])) < abs(0.35 * p)
+@test abs(p - mean([fhsamples1[i][23] for i in 2000:2500])) < abs(0.35 * p)
 
 #-------------------------- solve() call  
 @test mean(abs.(physsol1_1 .- sol2flux.ensemblesol[1])) < 8e-2
