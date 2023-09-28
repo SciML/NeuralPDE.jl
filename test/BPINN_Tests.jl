@@ -131,7 +131,7 @@ init1, re1 = destructure(chainflux1)
 fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux1,
     dataset = dataset,
     draw_samples = 2500,
-    physdt = 1 / 50.0f0,
+    physdt = 1 / 50.0,
     priorsNNw = (0.0,
         3.0),
     param = [
@@ -144,24 +144,24 @@ fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux1,
 fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux1,
     dataset = dataset,
     draw_samples = 2500,
-    physdt = 1 / 50.0f0,
+    physdt = 1 / 50.0,
     priorsNNw = (0.0, 3.0),
     param = [LogNormal(9, 0.5)],
     Metric = DiagEuclideanMetric,
     n_leapfrog = 30)
 
 alg = NeuralPDE.BNNODE(chainflux1, dataset = dataset,
-    draw_samples = 2500, physdt = 1 / 50.0f0,
+    draw_samples = 2500, physdt = 1 / 50.0,
     priorsNNw = (0.0, 3.0),
     param = [LogNormal(9, 0.5)],
     Metric = DiagEuclideanMetric,
-    n_leapfrog = 30)
+    n_leapfrog = 30, progress = true)
 
 sol2flux = solve(prob, alg)
 
 alg = NeuralPDE.BNNODE(chainlux1, dataset = dataset,
     draw_samples = 2500,
-    physdt = 1 / 50.0f0,
+    physdt = 1 / 50.0,
     priorsNNw = (0.0,
         3.0),
     param = [

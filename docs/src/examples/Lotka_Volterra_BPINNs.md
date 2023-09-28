@@ -23,9 +23,9 @@ We then solve the equations and estimate the parameters of the model with priors
 
 And also solve the equations for the constructed ODEProblem's provided ideal `p` values using a Lux.jl Neural Network, chain_lux.
 
-```julia 
-using NeuralPDE, Flux, Lux, Plots, StatsPlots, OrdinaryDiffEq
-
+```julia
+using NeuralPDE, Flux, Lux, Plots, StatsPlots, OrdinaryDiffEq, Distributions 
+ 
 function lotka_volterra(u, p, t)
     # Model parameters.
     α, β, γ, δ = p
@@ -62,7 +62,7 @@ To make the example more realistic we add random normally distributed noise to t
 ```julia
 # Dataset creation for parameter estimation(30 percent noise)
 time = solution.t
-u = hcat(solution.u...) 
+u = hcat(solution.u...)
 x = u[1, :] + (0.3 .*u[1, :]).*randn(length(u[1, :]))
 y = u[2, :] + (0.3 .*u[2, :]).*randn(length(u[2, :]))
 dataset = [x, y, time]
@@ -70,8 +70,8 @@ dataset = [x, y, time]
 # Neural Networks must have 2 outputs as u -> [dx,dy] in function lotka_volterra()
 chainflux = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 6, tanh), 
                        Flux.Dense(6, 2)) |> Flux.f64
-chainlux = Lux.Chain(Lux.Dense(1, 6, Lux.tanh), Lux.Dense(6, 6, Lux.tanh),
-                       Lux.Dense(6, 2))
+chainlux = Lux.Chain(Lux.Dense(1, 7, Lux.tanh), Lux.Dense(7, 7, Lux.tanh),
+                    Lux.Dense(7, 2))
 
 ```
 A Dataset is required as parameter estimation is being done using provided priors in `param` keyword argument for BNNODE.
@@ -80,8 +80,8 @@ A Dataset is required as parameter estimation is being done using provided prior
 alg1 = NeuralPDE.BNNODE(chainflux,
     dataset = dataset,
     draw_samples = 1000,
-    l2std = [0.05, 0.05,],
-    phystd = [0.05, 0.05,],
+    l2std = [0.1, 0.1],
+    phystd = [0.1, 0.1],
     priorsNNw = (0.0, 3.0),
     param = [
         Normal(1, 2),
@@ -96,15 +96,14 @@ sol_flux_pestim = solve(prob, alg1)
 # Dataset not needed as we are solving the equation with ideal parameters
 alg2 = NeuralPDE.BNNODE(chainlux,
     draw_samples = 1000,
-    l2std = [0.05, 0.05],
     phystd = [0.05, 0.05],
-    priorsNNw = (0.0, 3.0),
+    priorsNNw = (0.0, 10.0),
     n_leapfrog = 30, progress = true)
 
 sol_lux = solve(prob, alg2)
 
 #testing timepoints must match keyword arg `saveat`` timepoints of solve() call
-t=collect(Float64,prob.tspan[1]:1/50.0:prob.tspan[2])
+t = collect(Float64, prob.tspan[1]:(1 / 50.0):prob.tspan[2]) 
 
 ```
 
@@ -120,13 +119,13 @@ plot!(t,sol_flux_pestim.ensemblesol[2])
 
 # estimated ODE parameters by .estimated_ode_params, weights and biases by .estimated_nn_params
 println(sol_flux_pestim.estimated_ode_params)
-println(sol_flux_pestim.estimated_nn_params)
-
+sol_flux_pestim.estimated_nn_params
+ 
 # plotting solution for x,y for chain_lux
-plot(t,sol_lux_pestim.ensemblesol[1])
-plot!(t,sol_lux_pestim.ensemblesol[2])
+plot(t,sol_lux.ensemblesol[1])
+plot!(t,sol_lux.ensemblesol[2])
 
 # estimated weights and biases by .estimated_nn_params for chain_lux 
-println(sol_lux_pestim.estimated_nn_params)
+sol_lux.estimated_nn_params
 
 ```
