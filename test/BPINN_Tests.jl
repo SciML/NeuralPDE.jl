@@ -49,12 +49,10 @@ init1, re1 = destructure(chainflux)
 θinit, st = Lux.setup(Random.default_rng(), chainlux)
 
 fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux,
-    draw_samples = 2500,
-    n_leapfrog = 30)
+    draw_samples = 2500)
 
 fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux,
-    draw_samples = 2500,
-    n_leapfrog = 30)
+    draw_samples = 2500)
 
 # can change training strategies by adding this to call (Quadratuer and GridTraining show good results but stochastics sampling techniques perform bad)
 # strategy = QuadratureTraining(; quadrature_alg = QuadGKJL(),
@@ -62,12 +60,10 @@ fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux,
 #     abstol = 1e-3, maxiters = 1000,
 #     batch = 0)
 
-alg = NeuralPDE.BNNODE(chainflux, draw_samples = 2500,
-    n_leapfrog = 30)
+alg = NeuralPDE.BNNODE(chainflux, draw_samples = 2500)
 sol1flux = solve(prob, alg)
 
-alg = NeuralPDE.BNNODE(chainlux, draw_samples = 2500,
-    n_leapfrog = 30)
+alg = NeuralPDE.BNNODE(chainlux, draw_samples = 2500)
 sol1lux = solve(prob, alg)
 
 # testing points
@@ -138,8 +134,7 @@ fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux1,
         LogNormal(9,
             0.5),
     ],
-    Metric = DiagEuclideanMetric,
-    n_leapfrog = 30)
+    Metric = DiagEuclideanMetric)
 
 fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux1,
     dataset = dataset,
@@ -147,15 +142,13 @@ fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux1,
     physdt = 1 / 50.0,
     priorsNNw = (0.0, 3.0),
     param = [LogNormal(9, 0.5)],
-    Metric = DiagEuclideanMetric,
-    n_leapfrog = 30)
+    Metric = DiagEuclideanMetric)
 
 alg = NeuralPDE.BNNODE(chainflux1, dataset = dataset,
     draw_samples = 2500, physdt = 1 / 50.0,
     priorsNNw = (0.0, 3.0),
     param = [LogNormal(9, 0.5)],
-    Metric = DiagEuclideanMetric,
-    n_leapfrog = 30)
+    Metric = DiagEuclideanMetric)
 
 sol2flux = solve(prob, alg)
 
@@ -168,8 +161,7 @@ alg = NeuralPDE.BNNODE(chainlux1, dataset = dataset,
         LogNormal(9,
             0.5),
     ],
-    Metric = DiagEuclideanMetric,
-    n_leapfrog = 30)
+    Metric = DiagEuclideanMetric)
 
 sol2lux = solve(prob, alg)
 
@@ -237,8 +229,7 @@ fh_mcmc_chainflux12, fhsamplesflux12, fhstatsflux12 = ahmc_bayesian_pinn_ode(pro
     phystd = [
         0.03],
     priorsNNw = (0.0,
-        10.0),
-    n_leapfrog = 30)
+        10.0))
 
 fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(prob,
     chainflux12,
@@ -253,16 +244,14 @@ fh_mcmc_chainflux22, fhsamplesflux22, fhstatsflux22 = ahmc_bayesian_pinn_ode(pro
     param = [
         Normal(-7,
             4),
-    ],
-    n_leapfrog = 30)
+    ])
 
 fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, chainlux12,
     draw_samples = 1500,
     l2std = [0.03],
     phystd = [0.03],
     priorsNNw = (0.0,
-        10.0),
-    n_leapfrog = 30)
+        10.0))
 
 fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, chainlux12,
     dataset = dataset,
@@ -274,8 +263,7 @@ fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, 
     param = [
         Normal(-7,
             4),
-    ],
-    n_leapfrog = 30)
+    ])
 
 alg = NeuralPDE.BNNODE(chainflux12,
     dataset = dataset,
@@ -289,8 +277,7 @@ alg = NeuralPDE.BNNODE(chainflux12,
     param = [
         Normal(-7,
             4),
-    ],
-    n_leapfrog = 30)
+    ])
 
 sol3flux_pestim = solve(prob, alg)
 
@@ -304,8 +291,7 @@ alg = NeuralPDE.BNNODE(chainlux12,
     param = [
         Normal(-7,
             4),
-    ],
-    n_leapfrog = 30)
+    ])
 
 sol3lux_pestim = solve(prob, alg)
 

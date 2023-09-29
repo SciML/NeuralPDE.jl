@@ -9,7 +9,7 @@ BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
                     autodiff = false, Integrator = Leapfrog,
                     Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
                     Metric = DiagEuclideanMetric, jitter_rate = 3.0,
-                    tempering_rate = 3.0, n_leapfrog = 20, NUTSkwargs = 0.65, HMCDAkwargs = 0.3,
+                    tempering_rate = 3.0, MCMCargs = (n_leapfrog=30),
                     progress = false, verbose = false)
 ```
 
@@ -83,7 +83,7 @@ Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, El
 "Bayesian Physics Informed Neural Networks for real-world nonlinear dynamical systems"
 
 """
-struct BNNODE{C, K, IT, A, M, N <: NamedTuple, H <: NamedTuple,
+struct BNNODE{C, K, IT, A, M, H <: Union{Int64, NamedTuple},
     ST <: Union{Nothing, AbstractTrainingStrategy},
     I <: Union{Nothing, Vector{<:AbstractFloat}},
     P <: Union{Nothing, Vector{<:Distribution}},
@@ -100,9 +100,7 @@ struct BNNODE{C, K, IT, A, M, N <: NamedTuple, H <: NamedTuple,
     phystd::Vector{Float64}
     dataset::D
     physdt::Float64
-    n_leapfrog::Int64
-    NUTSkwargs::N
-    HMCDAkwargs::H
+    MCMCargs::H
     nchains::Int64
     init_params::I
     Integrator::IT
@@ -115,19 +113,16 @@ struct BNNODE{C, K, IT, A, M, N <: NamedTuple, H <: NamedTuple,
     progress::Bool
     verbose::Bool
 end
-function BNNODE(chain, Kernel = HMC; strategy = nothing,
-    draw_samples = 2000, priorsNNw = (0.0, 2.0), param = nothing,
-    l2std = [0.05], phystd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
-    n_leapfrog = 20, NUTSkwargs = (δ = 0.65, max_depth = 10, Δ_max = 1000),
-    HMCDAkwargs = (δ = 0.65, λ = 0.3), nchains = 1,
+function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
+    priorsNNw = (0.0, 2.0), param = nothing, l2std = [0.05], phystd = [0.05],
+    dataset = [nothing], physdt = 1 / 20.0, MCMCargs = (n_leapfrog = 30), nchains = 1,
     init_params = nothing, Integrator = Leapfrog, Adaptor = StanHMCAdaptor,
     Metric = DiagEuclideanMetric, targetacceptancerate = 0.8, jitter_rate = 3.0,
     tempering_rate = 3.0, autodiff = false, progress = false, verbose = false)
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
-        phystd, dataset, physdt, n_leapfrog,
-        NUTSkwargs, HMCDAkwargs, nchains,
-        init_params, Integrator,
+        phystd, dataset, physdt, MCMCargs,
+        nchains, init_params, Integrator,
         Adaptor, Metric, targetacceptancerate,
         jitter_rate, tempering_rate,
         autodiff, progress, verbose)
@@ -190,8 +185,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
     numensemble = floor(Int, alg.draw_samples / 3))
     @unpack chain, l2std, phystd, param, priorsNNw, Kernel, strategy,
     draw_samples, dataset, init_params, Integrator, Adaptor, Metric,
-    nchains, n_leapfrog, physdt, targetacceptancerate, jitter_rate, tempering_rate,
-    NUTSkwargs, HMCDAkwargs, autodiff, progress, verbose = alg
+    nchains, physdt, targetacceptancerate, jitter_rate, tempering_rate,
+    MCMCargs, autodiff, progress, verbose = alg
 
     # ahmc_bayesian_pinn_ode needs param=[] for easier vcat operation for full vector of parameters
     param = param === nothing ? [] : param
@@ -200,9 +195,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
     if draw_samples < 0
         throw(error("Number of samples to be drawn has to be >=0."))
     end
-
-    (δ, max_depth, Δ_max) = NUTSkwargs
-    (δ, λ) = HMCDAkwargs
 
     mcmcchain, samples, statistics = ahmc_bayesian_pinn_ode(prob, chain,
         strategy = strategy, dataset = dataset,
@@ -221,10 +213,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
         Metric = Metric,
         jitter_rate = jitter_rate,
         tempering_rate = tempering_rate,
-        max_depth = max_depth,
-        Δ_max = Δ_max,
-        n_leapfrog = n_leapfrog, δ = δ,
-        λ = λ, progress = progress,
+        MCMCargs = MCMCargs,
+        progress = progress,
         verbose = verbose)
 
     fullsolution = BPINNstats(mcmcchain, samples, statistics)
