@@ -133,22 +133,19 @@ fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chainflux1,
     param = [
         LogNormal(9,
             0.5),
-    ],
-    Metric = DiagEuclideanMetric)
+    ])
 
 fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chainlux1,
     dataset = dataset,
     draw_samples = 2500,
     physdt = 1 / 50.0,
     priorsNNw = (0.0, 3.0),
-    param = [LogNormal(9, 0.5)],
-    Metric = DiagEuclideanMetric)
+    param = [LogNormal(9, 0.5)])
 
 alg = NeuralPDE.BNNODE(chainflux1, dataset = dataset,
     draw_samples = 2500, physdt = 1 / 50.0,
     priorsNNw = (0.0, 3.0),
-    param = [LogNormal(9, 0.5)],
-    Metric = DiagEuclideanMetric)
+    param = [LogNormal(9, 0.5)])
 
 sol2flux = solve(prob, alg)
 
@@ -160,8 +157,7 @@ alg = NeuralPDE.BNNODE(chainlux1, dataset = dataset,
     param = [
         LogNormal(9,
             0.5),
-    ],
-    Metric = DiagEuclideanMetric)
+    ])
 
 sol2lux = solve(prob, alg)
 

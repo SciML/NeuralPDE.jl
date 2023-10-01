@@ -4,12 +4,10 @@
 ```julia
 BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
                     priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
-                    phystd = [0.05], dataset = [nothing],
-                    init_params = nothing,  physdt = 1 / 20.0,  nchains = 1,
-                    autodiff = false, Integrator = Leapfrog,
-                    Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
-                    Metric = DiagEuclideanMetric, jitter_rate = 3.0,
-                    tempering_rate = 3.0, MCMCargs = (n_leapfrog=30),
+                    phystd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
+                    MCMCargs = (n_leapfrog=30), nchains = 1, init_params = nothing, 
+                    Adaptorkwargs = (Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8, Metric = DiagEuclideanMetric),
+                    Integratorkwargs = (Integrator = Leapfrog,), autodiff = false,
                     progress = false, verbose = false)
 ```
 
@@ -50,8 +48,7 @@ chainlux = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 
 
 alg = NeuralPDE.BNNODE(chainlux, draw_samples = 2000,
                        l2std = [0.05], phystd = [0.05],
-                       priorsNNw = (0.0, 3.0),
-                       n_leapfrog = 30, progress = true)
+                       priorsNNw = (0.0, 3.0), progress = true)
 
 sol_lux = solve(prob, alg)
 
@@ -59,8 +56,8 @@ sol_lux = solve(prob, alg)
 alg = NeuralPDE.BNNODE(chainlux,dataset = dataset,
                         draw_samples = 2000,l2std = [0.05],
                         phystd = [0.05],priorsNNw = (0.0, 10.0),
-                       param = [Normal(6.5, 0.5), Normal(-3, 0.5)],
-                       n_leapfrog = 30, progress = true)
+                        param = [Normal(6.5, 0.5), Normal(-3, 0.5)],
+                        progress = true)
 
 sol_lux_pestim = solve(prob, alg)
 ```
@@ -83,7 +80,8 @@ Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, El
 "Bayesian Physics Informed Neural Networks for real-world nonlinear dynamical systems"
 
 """
-struct BNNODE{C, K, IT, A, M, H <: Union{Int64, NamedTuple},
+struct BNNODE{C, K, IT <: NamedTuple,
+    A <: NamedTuple, H <: NamedTuple,
     ST <: Union{Nothing, AbstractTrainingStrategy},
     I <: Union{Nothing, Vector{<:AbstractFloat}},
     P <: Union{Nothing, Vector{<:Distribution}},
@@ -100,31 +98,29 @@ struct BNNODE{C, K, IT, A, M, H <: Union{Int64, NamedTuple},
     phystd::Vector{Float64}
     dataset::D
     physdt::Float64
-    MCMCargs::H
+    MCMCkwargs::H
     nchains::Int64
     init_params::I
-    Integrator::IT
-    Adaptor::A
-    Metric::M
-    targetacceptancerate::Float64
-    jitter_rate::Float64
-    tempering_rate::Float64
+    Adaptorkwargs::A
+    Integratorkwargs::IT
     autodiff::Bool
     progress::Bool
     verbose::Bool
 end
 function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
     priorsNNw = (0.0, 2.0), param = nothing, l2std = [0.05], phystd = [0.05],
-    dataset = [nothing], physdt = 1 / 20.0, MCMCargs = (n_leapfrog = 30), nchains = 1,
-    init_params = nothing, Integrator = Leapfrog, Adaptor = StanHMCAdaptor,
-    Metric = DiagEuclideanMetric, targetacceptancerate = 0.8, jitter_rate = 3.0,
-    tempering_rate = 3.0, autodiff = false, progress = false, verbose = false)
+    dataset = [nothing], physdt = 1 / 20.0, MCMCkwargs = (n_leapfrog = 30,), nchains = 1,
+    init_params = nothing,
+    Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+        Metric = DiagEuclideanMetric,
+        targetacceptancerate = 0.8),
+    Integratorkwargs = (Integrator = Leapfrog,),
+    autodiff = false, progress = false, verbose = false)
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
-        phystd, dataset, physdt, MCMCargs,
-        nchains, init_params, Integrator,
-        Adaptor, Metric, targetacceptancerate,
-        jitter_rate, tempering_rate,
+        phystd, dataset, physdt, MCMCkwargs,
+        nchains, init_params,
+        Adaptorkwargs, Integratorkwargs,
         autodiff, progress, verbose)
 end
 
@@ -184,9 +180,9 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
     maxiters = nothing,
     numensemble = floor(Int, alg.draw_samples / 3))
     @unpack chain, l2std, phystd, param, priorsNNw, Kernel, strategy,
-    draw_samples, dataset, init_params, Integrator, Adaptor, Metric,
-    nchains, physdt, targetacceptancerate, jitter_rate, tempering_rate,
-    MCMCargs, autodiff, progress, verbose = alg
+    draw_samples, dataset, init_params,
+    nchains, physdt, Adaptorkwargs, Integratorkwargs,
+    MCMCkwargs, autodiff, progress, verbose = alg
 
     # ahmc_bayesian_pinn_ode needs param=[] for easier vcat operation for full vector of parameters
     param = param === nothing ? [] : param
@@ -207,13 +203,9 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
         nchains = nchains,
         autodiff = autodiff,
         Kernel = Kernel,
-        Integrator = Integrator,
-        Adaptor = Adaptor,
-        targetacceptancerate = targetacceptancerate,
-        Metric = Metric,
-        jitter_rate = jitter_rate,
-        tempering_rate = tempering_rate,
-        MCMCargs = MCMCargs,
+        Adaptorkwargs = Adaptorkwargs,
+        Integratorkwargs = Integratorkwargs,
+        MCMCkwargs = MCMCkwargs,
         progress = progress,
         verbose = verbose)
 

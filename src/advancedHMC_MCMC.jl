@@ -335,25 +335,27 @@ function NNodederi(phi::LogTargetDensity, t::AbstractVector, θ, autodiff::Bool)
     end
 end
 
-function kernelchoice(Kernel, MCMCargs)
+function kernelchoice(Kernel, MCMCkwargs)
     if Kernel == HMCDA
-        δ, λ = MCMCargs[:δ], MCMCargs[:λ]
+        δ, λ = MCMCkwargs[:δ], MCMCkwargs[:λ]
         Kernel(δ, λ)
     elseif Kernel == NUTS
-        δ, max_depth, Δ_max = MCMCargs[:δ], MCMCargs[:max_depth], MCMCargs[:Δ_max]
+        δ, max_depth, Δ_max = MCMCkwargs[:δ], MCMCkwargs[:max_depth], MCMCkwargs[:Δ_max]
         Kernel(δ, max_depth = max_depth, Δ_max = Δ_max)
     else
         # HMC
-        n_leapfrog = MCMCargs
+        n_leapfrog = MCMCkwargs[:n_leapfrog]
         Kernel(n_leapfrog)
     end
 end
 
-function integratorchoice(Integrator, initial_ϵ, jitter_rate,
-    tempering_rate)
+function integratorchoice(Integratorkwargs, initial_ϵ)
+    Integrator = Integratorkwargs[:Integrator]
     if Integrator == JitteredLeapfrog
+        jitter_rate = Integratorkwargs[:jitter_rate]
         Integrator(initial_ϵ, jitter_rate)
     elseif Integrator == TemperedLeapfrog
+        tempering_rate = Integratorkwargs[:tempering_rate]
         Integrator(initial_ϵ, tempering_rate)
     else
         Integrator(initial_ϵ)
@@ -374,11 +376,12 @@ ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining,
                     dataset = [nothing],init_params = nothing, 
                     draw_samples = 1000, physdt = 1 / 20.0f0,l2std = [0.05],
                     phystd = [0.05], priorsNNw = (0.0, 2.0),
-                    param = [],nchains = 1,autodiff = false, Kernel = HMC,
-                    Integrator = Leapfrog, Adaptor = StanHMCAdaptor,
-                    targetacceptancerate = 0.8, Metric = DiagEuclideanMetric,
-                    jitter_rate = 3.0, tempering_rate = 3.0, 
-                    MCMCargs = (n_leapfrog = 30), progress = false,verbose = false)
+                    param = [], nchains = 1, autodiff = false, Kernel = HMC,
+                    Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+                        Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
+                    Integratorkwargs = (Integrator = Leapfrog,),
+                    MCMCkwargs = (n_leapfrog = 30,),
+                    progress = false, verbose = false)
 ```
 !!! warn
 
@@ -444,8 +447,14 @@ Incase you are only solving the Equations for solution, do not provide dataset
 
 # AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
 * `Kernel`: Choice of MCMC Sampling Algorithm (AdvancedHMC.jl implemenations HMC/NUTS/HMCDA)
-* `targetacceptancerate`: Target percentage(in decimal) of iterations in which the proposals were accepted(0.8 by default)
-* `Integrator(jitter_rate, tempering_rate), Metric, Adaptor`: https://turinglang.org/AdvancedHMC.jl/stable/
+* `Integratorkwargs`: A NamedTuple containing the chosen integrator and its keyword Arguments, as follows :
+    * `Integrator`: https://turinglang.org/AdvancedHMC.jl/stable/
+    * `jitter_rate`: https://turinglang.org/AdvancedHMC.jl/stable/
+    * `tempering_rate`: https://turinglang.org/AdvancedHMC.jl/stable/
+* `Adaptorkwargs`: A NamedTuple containing the chosen Adaptor, it's Metric and targetacceptancerate, as follows :
+    * `Adaptor`: https://turinglang.org/AdvancedHMC.jl/stable/
+    * `Metric`: https://turinglang.org/AdvancedHMC.jl/stable/
+    * `targetacceptancerate`: Target percentage(in decimal) of iterations in which the proposals were accepted(0.8 by default)
 * `MCMCargs`: A NamedTuple containing all the chosen MCMC kernel's(HMC/NUTS/HMCDA) Arguments, as follows :
     * `n_leapfrog`: number of leapfrog steps for HMC
     * `δ`: target acceptance probability for NUTS and HMCDA
@@ -467,10 +476,11 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     physdt = 1 / 20.0, l2std = [0.05],
     phystd = [0.05], priorsNNw = (0.0, 2.0),
     param = [], nchains = 1, autodiff = false,
-    Kernel = HMC, Integrator = Leapfrog,
-    Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
-    Metric = DiagEuclideanMetric, jitter_rate = 3.0,
-    tempering_rate = 3.0, MCMCargs = (n_leapfrog = 30),
+    Kernel = HMC,
+    Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+        Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
+    Integratorkwargs = (Integrator = Leapfrog,),
+    MCMCkwargs = (n_leapfrog = 30,),
     progress = false, verbose = false)
 
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
@@ -544,6 +554,9 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         end
     end
 
+    Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
+    Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
+
     # Define Hamiltonian system (nparameters ~ dimensionality of the sampling space)
     metric = Metric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
@@ -560,12 +573,11 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
             initial_θ = vcat(randn(nparameters - ninv),
                 initial_θ[(nparameters - ninv + 1):end])
             initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
-            integrator = integratorchoice(Integrator, initial_ϵ, jitter_rate,
-                tempering_rate)
+            integrator = integratorchoice(Integratorkwargs, initial_ϵ)
             adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
                 StepSizeAdaptor(targetacceptancerate, integrator))
 
-            MCMC_alg = kernelchoice(Kernel, MCMCargs)
+            MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
             Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
             samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
                 progress = progress, verbose = verbose)
@@ -579,11 +591,11 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         return chains, samplesc, statsc
     else
         initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
-        integrator = integratorchoice(Integrator, initial_ϵ, jitter_rate, tempering_rate)
+        integrator = integratorchoice(Integratorkwargs, initial_ϵ)
         adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
             StepSizeAdaptor(targetacceptancerate, integrator))
 
-        MCMC_alg = kernelchoice(Kernel, MCMCargs)
+        MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
         Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
