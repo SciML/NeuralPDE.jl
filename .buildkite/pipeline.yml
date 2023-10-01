@@ -20,7 +20,6 @@ steps:
     matrix:
       setup:
         version:
-          - "1.6"
           - "1"
         group:
           - "NNODE"
