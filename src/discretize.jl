@@ -401,7 +401,7 @@ to the PDE.
 For more information, see `discretize` and `PINNRepresentation`.
 """
 function SciMLBase.symbolic_discretize(pde_system::PDESystem,
-                                       discretization::PhysicsInformedNN)
+    discretization::PhysicsInformedNN; bayesian::Bool = false)
     eqs = pde_system.eqs
     bcs = pde_system.bcs
     chain = discretization.chain
@@ -586,87 +586,150 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                                            pde_loss_functions,
                                                            bc_loss_functions)
 
-    function full_loss_function(θ, p)
+    if bayesian
+        function full_likelihood_function(θ, allstd)
+            stdpdes, stdbcs, stdextra = allstd
+            # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
+            pde_loglikelihoods = [logpdf(Normal(0, stdpdes[i]), pde_loss_function(θ))
+                                  for (i, pde_loss_function) in enumerate(pde_loss_functions)]
 
-        # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
-        pde_losses = [pde_loss_function(θ) for pde_loss_function in pde_loss_functions]
-        bc_losses = [bc_loss_function(θ) for bc_loss_function in bc_loss_functions]
+            bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
+                                 for (j, bc_loss_function) in enumerate(bc_loss_functions)]
 
-        # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
-        # that's why we prefer the user to maintain the increment in the outer loop callback during optimization
-        ChainRulesCore.@ignore_derivatives if self_increment
-            iteration[1] += 1
-        end
+            # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
+            # that's why we prefer the user to maintain the increment in the outer loop callback during optimization
+            ChainRulesCore.@ignore_derivatives if self_increment
+                iteration[1] += 1
+            end
 
-        ChainRulesCore.@ignore_derivatives begin reweight_losses_func(θ, pde_losses,
-                                                                      bc_losses) end
+            ChainRulesCore.@ignore_derivatives begin
+                reweight_losses_func(θ, pde_loglikelihoods,
+                    bc_loglikelihoods)
+            end
 
-        weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
-        weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
+            weighted_pde_loglikelihood = adaloss.pde_loss_weights .* pde_loglikelihoods
+            weighted_bc_loglikelihood = adaloss.bc_loss_weights .* bc_loglikelihoods
 
-        sum_weighted_pde_losses = sum(weighted_pde_losses)
-        sum_weighted_bc_losses = sum(weighted_bc_losses)
-        weighted_loss_before_additional = sum_weighted_pde_losses + sum_weighted_bc_losses
+            sum_weighted_pde_loglikelihood = sum(weighted_pde_loglikelihood)
+            sum_weighted_bc_loglikelihood = sum(weighted_bc_loglikelihood)
+            weighted_loglikelihood_before_additional = sum_weighted_pde_loglikelihood +
+                                                       sum_weighted_bc_loglikelihood
 
-        full_weighted_loss = if additional_loss isa Nothing
-            weighted_loss_before_additional
-        else
-            function _additional_loss(phi, θ)
-                (θ_, p_) = if (param_estim == true)
-                    if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-                       (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-                        # Isa Flux Chain
-                        θ[1:(end - length(default_p))], θ[(end - length(default_p) + 1):end]
+            full_weighted_loglikelihood = if additional_loss isa Nothing
+                weighted_loglikelihood_before_additional
+            else
+                function _additional_loss(phi, θ)
+                    (θ_, p_) = if (param_estim == true)
+                        if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
+                           (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
+                            # Isa Flux Chain
+                            θ[1:(end - length(default_p))],
+                            θ[(end - length(default_p) + 1):end]
+                        else
+                            θ.depvar, θ.p
+                        end
                     else
-                        θ.depvar, θ.p
+                        θ, nothing
                     end
-                else
-                    θ, nothing
+                    return additional_loss(phi, θ_, p_)
                 end
-                return additional_loss(phi, θ_, p_)
+
+                _additional_loglikelihood = logpdf(Normal(0, stdextra),
+                    _additional_loss(phi, θ))
+                weighted_additional_loglikelihood = adaloss.additional_loss_weights[1] *
+                                                    _additional_loglikelihood
+
+                weighted_loglikelihood_before_additional + weighted_additional_loglikelihood
             end
-            weighted_additional_loss_val = adaloss.additional_loss_weights[1] *
-                                           _additional_loss(phi, θ)
-            weighted_loss_before_additional + weighted_additional_loss_val
+            return full_weighted_loglikelihood
         end
 
-        ChainRulesCore.@ignore_derivatives begin if iteration[1] % log_frequency == 0
-            logvector(pinnrep.logger, pde_losses, "unweighted_loss/pde_losses",
-                      iteration[1])
-            logvector(pinnrep.logger, bc_losses, "unweighted_loss/bc_losses", iteration[1])
-            logvector(pinnrep.logger, weighted_pde_losses,
-                      "weighted_loss/weighted_pde_losses",
-                      iteration[1])
-            logvector(pinnrep.logger, weighted_bc_losses,
-                      "weighted_loss/weighted_bc_losses",
-                      iteration[1])
-            if !(additional_loss isa Nothing)
-                logscalar(pinnrep.logger, weighted_additional_loss_val,
-                          "weighted_loss/weighted_additional_loss", iteration[1])
+        pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
+            full_likelihood_function, additional_loss,
+            datafree_pde_loss_functions,
+            datafree_bc_loss_functions)
+    else
+        function full_loss_function(θ, p)
+            # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
+            pde_losses = [pde_loss_function(θ) for pde_loss_function in pde_loss_functions]
+            bc_losses = [bc_loss_function(θ) for bc_loss_function in bc_loss_functions]
+
+            # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
+            # that's why we prefer the user to maintain the increment in the outer loop callback during optimization
+            ChainRulesCore.@ignore_derivatives if self_increment
+                iteration[1] += 1
             end
-            logscalar(pinnrep.logger, sum_weighted_pde_losses,
-                      "weighted_loss/sum_weighted_pde_losses", iteration[1])
-            logscalar(pinnrep.logger, sum_weighted_bc_losses,
-                      "weighted_loss/sum_weighted_bc_losses", iteration[1])
-            logscalar(pinnrep.logger, full_weighted_loss,
-                      "weighted_loss/full_weighted_loss",
-                      iteration[1])
-            logvector(pinnrep.logger, adaloss.pde_loss_weights,
-                      "adaptive_loss/pde_loss_weights",
-                      iteration[1])
-            logvector(pinnrep.logger, adaloss.bc_loss_weights,
-                      "adaptive_loss/bc_loss_weights",
-                      iteration[1])
-        end end
 
-        return full_weighted_loss
-    end
+            ChainRulesCore.@ignore_derivatives begin reweight_losses_func(θ, pde_losses,
+                                                                        bc_losses) end
 
-    pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
+            weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
+            weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
+
+            sum_weighted_pde_losses = sum(weighted_pde_losses)
+            sum_weighted_bc_losses = sum(weighted_bc_losses)
+            weighted_loss_before_additional = sum_weighted_pde_losses + sum_weighted_bc_losses
+
+            full_weighted_loss = if additional_loss isa Nothing
+                weighted_loss_before_additional
+            else
+                function _additional_loss(phi, θ)
+                    (θ_, p_) = if (param_estim == true)
+                        if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
+                        (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
+                            # Isa Flux Chain
+                            θ[1:(end - length(default_p))], θ[(end - length(default_p) + 1):end]
+                        else
+                            θ.depvar, θ.p
+                        end
+                    else
+                        θ, nothing
+                    end
+                    return additional_loss(phi, θ_, p_)
+                end
+                weighted_additional_loss_val = adaloss.additional_loss_weights[1] *
+                                            _additional_loss(phi, θ)
+                weighted_loss_before_additional + weighted_additional_loss_val
+            end
+
+            ChainRulesCore.@ignore_derivatives begin if iteration[1] % log_frequency == 0
+                logvector(pinnrep.logger, pde_losses, "unweighted_loss/pde_losses",
+                        iteration[1])
+                logvector(pinnrep.logger, bc_losses, "unweighted_loss/bc_losses", iteration[1])
+                logvector(pinnrep.logger, weighted_pde_losses,
+                        "weighted_loss/weighted_pde_losses",
+                        iteration[1])
+                logvector(pinnrep.logger, weighted_bc_losses,
+                        "weighted_loss/weighted_bc_losses",
+                        iteration[1])
+                if !(additional_loss isa Nothing)
+                    logscalar(pinnrep.logger, weighted_additional_loss_val,
+                            "weighted_loss/weighted_additional_loss", iteration[1])
+                end
+                logscalar(pinnrep.logger, sum_weighted_pde_losses,
+                        "weighted_loss/sum_weighted_pde_losses", iteration[1])
+                logscalar(pinnrep.logger, sum_weighted_bc_losses,
+                        "weighted_loss/sum_weighted_bc_losses", iteration[1])
+                logscalar(pinnrep.logger, full_weighted_loss,
+                        "weighted_loss/full_weighted_loss",
+                        iteration[1])
+                logvector(pinnrep.logger, adaloss.pde_loss_weights,
+                        "adaptive_loss/pde_loss_weights",
+                        iteration[1])
+                logvector(pinnrep.logger, adaloss.bc_loss_weights,
+                        "adaptive_loss/bc_loss_weights",
+                        iteration[1])
+            end
+            
+            return full_weighted_loss
+        end
+        
+        pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
                                                full_loss_function, additional_loss,
                                                datafree_pde_loss_functions,
                                                datafree_bc_loss_functions)
-
+    end
+    
     return pinnrep
 end
 

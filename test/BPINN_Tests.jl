@@ -346,3 +346,65 @@ param1 = sol3flux_pestim.estimated_ode_params[1]
 # estimated parameters(lux chain)
 param1 = sol3lux_pestim.estimated_ode_params[1]
 @test abs(param1 - p) < abs(0.45 * p)
+
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+import ModelingToolkit: Interval
+
+@parameters x y
+@variables p(..) q(..) r(..) s(..)
+Dx = Differential(x)
+Dy = Differential(y)
+
+# 2D PDE
+eq = p(x) + q(y) + Dx(r(x, y)) + Dy(s(y, x)) ~ 0
+
+# Initial and boundary conditions
+bcs = [p(1) ~ 0.0f0, q(-1) ~ 0.0f0,
+    r(x, -1) ~ 0.0f0, r(1, y) ~ 0.0f0,
+    s(y, 1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
+
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0),
+    y ∈ Interval(0.0, 1.0)]
+
+numhid = 3
+chains = [[Flux.Chain(Flux.Dense(1, numhid, Flux.σ), Flux.Dense(numhid, numhid, Flux.σ),
+    Flux.Dense(numhid, 1)) for i in 1:2]
+    [Flux.Chain(Flux.Dense(2, numhid, Flux.σ), Flux.Dense(numhid, numhid, Flux.σ),
+    Flux.Dense(numhid, 1)) for i in 1:2]]
+θ1, re = Flux.destructure(chains[1])
+θ2, re = Flux.destructure(chains[2])
+θ3, re = Flux.destructure(chains[3])
+θ4, re = Flux.destructure(chains[4])
+θ, re = Flux.destructure(chains)
+
+discretization = NeuralPDE.PhysicsInformedNN(chains, QuadratureTraining())
+
+@named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y), r(x, y), s(y, x)])
+prob = SciMLBase.discretize(pde_system, discretization)
+pinnrep = SciMLBase.symbolic_discretize(pde_system, discretization)
+pinnrep1 = SciMLBase.symbolic_discretize(pde_system, discretization, bayesian = true)
+
+pinnrep.loss_functions.full_loss_function
+pinnrep.loss_functions.pde_loss_functions[1](θ)
+
+pinnrep1.loss_functions.full_loss_function(θ,
+    [0.01],
+    [0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+    [0.01])
+pde_loss_functions = pinnrep1.loss_functions.pde_loss_functions
+pde_loglikelihoods = [logpdf(Normal(0, 0.1), pde_loss_function(θ))
+                      for pde_loss_function in pde_loss_functions]
+
+callback = function (p, l)
+    println("Current loss is: $l")
+    return false
+end
+
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
+
+using NeuralPDE
+ahmc_bayesian_pinn_pde(pde_system, discretization; draw_samples = 1000,
+    bcstd = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+    phystd = [0.05], priorsNNw = (0.0, 2.0),
+    progress = true)
