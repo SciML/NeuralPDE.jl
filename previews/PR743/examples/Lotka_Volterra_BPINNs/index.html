@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Baysian PINNs - Lotka-Volterra · NeuralPDE.jl</title><script async src="https://www.googletagmanager.com/gtag/js?id=UA-90474609-3"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-90474609-3', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="../../assets/warner.js"></script><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/examples/Lotka_Volterra_BPINNs/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/ode/">Introduction to NeuralPDE for ODEs</a></li><li class="is-active"><a class="tocitem" href>Baysian PINNs - Lotka-Volterra</a><ul class="internal"><li><a class="tocitem" href="#The-Lotka-Volterra-Model"><span>The Lotka-Volterra Model</span></a></li></ul></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../../tutorials/gpu/">Using GPUs</a></li><li><a class="tocitem" href="../../tutorials/systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../../tutorials/constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../../tutorials/low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../../tutorials/param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../../tutorials/integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../../tutorials/neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../../tutorials/derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="../nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">ODE PINN Tutorials</a></li><li class="is-active"><a href>Baysian PINNs - Lotka-Volterra</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Baysian PINNs - Lotka-Volterra</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/examples/Lotka_Volterra_BPINNs.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Bayesian-Physics-informed-Neural-Network-ODEs-Solvers"><a class="docs-heading-anchor" href="#Bayesian-Physics-informed-Neural-Network-ODEs-Solvers">Bayesian Physics informed Neural Network ODEs Solvers</a><a id="Bayesian-Physics-informed-Neural-Network-ODEs-Solvers-1"></a><a class="docs-heading-anchor-permalink" href="#Bayesian-Physics-informed-Neural-Network-ODEs-Solvers" title="Permalink"></a></h1><p>Bayesian inference for PINNs provides an approach to ODE solution finding and parameter estimation with quantified uncertainty.</p><h2 id="The-Lotka-Volterra-Model"><a class="docs-heading-anchor" href="#The-Lotka-Volterra-Model">The Lotka-Volterra Model</a><a id="The-Lotka-Volterra-Model-1"></a><a class="docs-heading-anchor-permalink" href="#The-Lotka-Volterra-Model" title="Permalink"></a></h2><p>The Lotka–Volterra equations, also known as the predator–prey equations, are a pair of first-order nonlinear differential equations. These differential equations are frequently used to describe the dynamics of biological systems in which two species interact, one as a predator and the other as prey. The populations change through time according to the pair of equations</p>$<p>\begin{aligned} \frac{\mathrm{d}x}{\mathrm{d}t} &amp;= (\alpha - \beta y(t))x(t), \
+\frac{\mathrm{d}y}{\mathrm{d}t} &amp;= (\delta x(t) - \gamma)y(t) \end{aligned} $</p><p>where <span>$x(t)$</span> and <span>$y(t)$</span> denote the populations of prey and predator at time <span>$t$</span>, respectively, and <span>$\alpha, \beta, \gamma, \delta$</span> are positive parameters.</p><p>We implement the Lotka-Volterra model and simulate it with ideal parameters <span>$\alpha = 1.5$</span>, <span>$\beta = 1$</span>, <span>$\gamma = 3$</span>, and <span>$\delta = 1$</span> and initial conditions <span>$x(0) = y(0) = 1$</span>. </p><p>We then solve the equations and estimate the parameters of the model with priors for <span>$\alpha$</span>, <span>$\beta$</span>, <span>$\gamma$</span> and <span>$\delta$</span> as  Normal(1,2), Normal(2,2), Normal(2,2) and Normal(0,2) using a Flux.jl Neural Network, chain_flux.</p><p>And also solve the equations for the constructed ODEProblem&#39;s provided ideal <code>p</code> values using a Lux.jl Neural Network, chain_lux.</p><pre><code class="language-julia hljs">function lotka_volterra(u, p, t)
+    # Model parameters.
+    α, β, γ, δ = p
+    # Current state.
+    x, y = u
+
+    # Evaluate differential equations.
+    dx = (α - β * y) * x # prey
+    dy = (δ * x - γ) * y # predator
+
+    return [dx, dy]
+end
+
+# initial-value problem.
+u0 = [1.0, 1.0]
+p = [1.5, 1.0, 3.0, 1.0]
+tspan = (0.0, 6.0)
+prob = ODEProblem(lotka_volterra, u0, tspan, p)
+
+# Plot simulation.</code></pre><p>With the <a href="https://docs.sciml.ai/latest/basics/common_solver_opts/"><code>saveat</code> argument</a> we can specify that the solution is stored only at <code>saveat</code> time units(default saveat=1 / 50.0).</p><pre><code class="language-julia hljs">solution = solve(prob, Tsit5(); saveat = 0.05)
+plot(solve(prob, Tsit5()))
+</code></pre><p>We generate noisy observations to use for the parameter estimation tasks in this tutorial. To make the example more realistic we add random normally distributed noise to the simulation.</p><pre><code class="language-julia hljs"># Dataset creation for parameter estimation
+time = solution.t
+u = hcat(solution.u...) 
+x = u[1, :] + 0.5 * randn(length(u[1, :]))
+y = u[2, :] + 0.5 * randn(length(u[1, :]))
+dataset = [x, y, time]
+
+# Neural Networks must have 2 outputs as u -&gt; [dx,dy] in function lotka_volterra()
+chainflux = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 6, tanh), Flux.Dense(6, 2)) |&gt; Flux.f64
+
+chainlux = Lux.Chain(Lux.Dense(1, 6, Lux.tanh), Lux.Dense(6, 6, Lux.tanh), Lux.Dense(6, 2))</code></pre><p>A Dataset is required as parameter estimation is being done using provided priors in <code>param</code> keyword argument for BNNODE.</p><pre><code class="language-julia hljs">alg1 = NeuralPDE.BNNODE(chainflux,
+    dataset = dataset,
+    draw_samples = 1000,
+    l2std = [
+        0.05,
+        0.05,
+    ],
+    phystd = [
+        0.05,
+        0.05,
+    ],
+    priorsNNw = (0.0,
+        3.0),
+    param = [
+        Normal(1,
+            2),
+        Normal(2,
+            2),
+        Normal(2,
+            2),
+        Normal(0,
+            2),
+    ],
+    n_leapfrog = 30, progress = true)
+
+sol_flux_pestim = solve(prob, alg1)
+
+# Dataset not needed as we are solving the equation with ideal parameters
+alg2 = NeuralPDE.BNNODE(chainlux,
+    draw_samples = 1000,
+    l2std = [
+        0.05,
+        0.05,
+    ],
+    phystd = [
+        0.05,
+        0.05,
+    ],
+    priorsNNw = (0.0,
+        3.0),
+    n_leapfrog = 30, progress = true)
+
+sol_lux = solve(prob, alg2)
+
+#testing timepoints must match keyword arg `saveat`` timepoints of solve() call
+t=collect(Float64,prob.tspan[1]:1/50.0:prob.tspan[2])
+</code></pre><p>the solution for the ODE is retured as a nested vector sol<em>flux</em>pestim.ensemblesol. here, [<span>$x$</span> , <span>$y$</span>] would be returned All estimated ode parameters are returned as a vector sol<em>flux</em>pestim.estimated<em>ode</em>params. here, [<span>$\alpha$</span>, <span>$\beta$</span>, <span>$\gamma$</span>, <span>$\delta$</span>] </p><pre><code class="language-julia hljs"># plotting solution for x,y for chain_flux
+plot(t,sol_flux_pestim.ensemblesol[1])
+plot!(t,sol_flux_pestim.ensemblesol[2])
+
+# estimated ODE parameters by .estimated_ode_params, weights and biases by .estimated_nn_params
+sol_flux_pestim.estimated_nn_params
+sol_flux_pestim.estimated_ode_params
+
+# plotting solution for x,y for chain_lux
+plot(t,sol_lux_pestim.ensemblesol[1])
+plot!(t,sol_lux_pestim.ensemblesol[2])
+
+# estimated weights and biases by .estimated_nn_params for chain_lux
+sol_lux_pestim.estimated_nn_params</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../tutorials/ode/">« Introduction to NeuralPDE for ODEs</a><a class="docs-footer-nextpage" href="../../tutorials/pdesystem/">Introduction to NeuralPDE for PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Monday 2 October 2023 04:23">Monday 2 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
