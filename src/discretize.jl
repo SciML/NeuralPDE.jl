@@ -645,10 +645,11 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         end
 
         pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
-            full_likelihood_function, additional_loss,
-            datafree_pde_loss_functions,
-            datafree_bc_loss_functions)
+                                        full_likelihood_function, additional_loss,
+                                        datafree_pde_loss_functions,
+                                        datafree_bc_loss_functions)
     else
+
         function full_loss_function(θ, p)
             # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
             pde_losses = [pde_loss_function(θ) for pde_loss_function in pde_loss_functions]
@@ -719,18 +720,16 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                 logvector(pinnrep.logger, adaloss.bc_loss_weights,
                         "adaptive_loss/bc_loss_weights",
                         iteration[1])
-                end
+            end end
             
-                return full_weighted_loss
-            end
-
-            pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
+            return full_weighted_loss 
+        end
+        
+        pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
                                                     full_loss_function, additional_loss,
                                                     datafree_pde_loss_functions,
                                                     datafree_bc_loss_functions)
-        end
     end
-    
     return pinnrep
 end
 
