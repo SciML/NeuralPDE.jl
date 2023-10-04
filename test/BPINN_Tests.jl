@@ -403,7 +403,6 @@ end
 
 res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
 
-using NeuralPDE
 ahmc_bayesian_pinn_pde(pde_system, discretization; draw_samples = 1000,
     bcstd = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
     phystd = [0.05], priorsNNw = (0.0, 2.0),
