@@ -719,15 +719,16 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                 logvector(pinnrep.logger, adaloss.bc_loss_weights,
                         "adaptive_loss/bc_loss_weights",
                         iteration[1])
-            end
+                end
             
-            return full_weighted_loss
+                return full_weighted_loss
+            end
+
+            pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
+                                                    full_loss_function, additional_loss,
+                                                    datafree_pde_loss_functions,
+                                                    datafree_bc_loss_functions)
         end
-        
-        pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
-                                               full_loss_function, additional_loss,
-                                               datafree_pde_loss_functions,
-                                               datafree_bc_loss_functions)
     end
     
     return pinnrep

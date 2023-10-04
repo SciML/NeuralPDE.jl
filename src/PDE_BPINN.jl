@@ -1,7 +1,10 @@
-mutable struct PDELogTargetDensity{F, PH, ST <: AbstractTrainingStrategy, I,
+mutable struct PDELogTargetDensity{
+    ST <: AbstractTrainingStrategy,
+    D <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}},
     P <: Vector{<:Distribution},
-    D <:
-    Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}},
+    I,
+    F,
+    PH,
 }
     dim::Int64
     strategy::ST
@@ -12,34 +15,52 @@ mutable struct PDELogTargetDensity{F, PH, ST <: AbstractTrainingStrategy, I,
     physdt::Float64
     extraparams::Int
     init_params::I
-    nparameters::Int
     full_loglikelihood::F
     Phi::PH
 
     function PDELogTargetDensity(dim, strategy, dataset,
-        priors, phystd, l2std, autodiff, physdt, extraparams,
+        priors, allstd, autodiff, physdt, extraparams,
         init_params::AbstractVector, full_loglikelihood, Phi)
-        new{typeof(strategy),
-            typeof(dataset), typeof(priors),
-            typeof(init_params), typeof(full_loglikelihood),
+        new{
+            typeof(strategy),
+            typeof(dataset),
+            typeof(priors),
+            typeof(init_params),
+            typeof(full_loglikelihood),
             typeof(Phi),
-        }(dim, strategy,
-            dataset, priors,
-            allstd, l2std, autodiff,
-            physdt, extraparams, init_params,
-            full_loglikelihood, Phi)
+        }(dim,
+            strategy,
+            dataset,
+            priors,
+            allstd,
+            autodiff,
+            physdt,
+            extraparams,
+            init_params,
+            full_loglikelihood,
+            Phi)
     end
     function PDELogTargetDensity(dim, strategy, dataset,
-        priors, phystd, l2std, autodiff, physdt, extraparams,
+        priors, allstd, autodiff, physdt, extraparams,
         init_params::NamedTuple, full_loglikelihood, Phi)
-        new{typeof(strategy), typeof(dataset), typeof(priors),
-            typeof(init_params), typeof(full_loglikelihood),
+        new{
+            typeof(strategy),
+            typeof(dataset),
+            typeof(priors),
+            typeof(init_params),
+            typeof(full_loglikelihood),
             typeof(Phi),
-        }(dim, strategy,
-            dataset, priors,
-            allstd, l2std, autodiff,
-            physdt, extraparams,
-            init_params, full_loglikelihood, Phi)
+        }(dim,
+            strategy,
+            dataset,
+            priors,
+            allstd,
+            autodiff,
+            physdt,
+            extraparams,
+            init_params,
+            full_loglikelihood,
+            Phi)
     end
 end
 
@@ -178,6 +199,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         priors = vcat(priors, param)
         nparameters += ninv
     end
+
+    strategy = strategy(physdt)
 
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples 
     ℓπ = PDELogTargetDensity(nparameters,
