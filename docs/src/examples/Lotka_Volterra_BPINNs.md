@@ -60,7 +60,7 @@ To make the example more realistic we add random normally distributed noise to t
 
 
 ```julia
-# Dataset creation for parameter estimation(30 percent noise)
+# Dataset creation for parameter estimation (30% noise)
 time = solution.t
 u = hcat(solution.u...)
 x = u[1, :] + (0.3 .*u[1, :]).*randn(length(u[1, :]))
@@ -88,8 +88,7 @@ alg1 = NeuralPDE.BNNODE(chainflux,
         Normal(2, 2),
         Normal(2, 2),
         Normal(0, 2),
-    ],
-    n_leapfrog = 30, progress = true)
+    ], progress = true)
 
 sol_flux_pestim = solve(prob, alg1)
 
@@ -98,7 +97,7 @@ alg2 = NeuralPDE.BNNODE(chainlux,
     draw_samples = 1000,
     phystd = [0.05, 0.05],
     priorsNNw = (0.0, 10.0),
-    n_leapfrog = 30, progress = true)
+    progress = true)
 
 sol_lux = solve(prob, alg2)
 
