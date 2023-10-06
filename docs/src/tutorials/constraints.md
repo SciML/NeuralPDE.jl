@@ -35,8 +35,6 @@ Dxx = Differential(x)^2
 _σ = 0.5
 x_0 = -2.2
 x_end = 2.2
-# Discretization
-dx = 0.01
 
 eq = Dx((α * x - β * x^3) * p(x)) ~ (_σ^2 / 2) * Dxx(p(x))
 
@@ -57,7 +55,7 @@ lb = [x_0]
 ub = [x_end]
 function norm_loss_function(phi, θ, p)
     function inner_f(x, θ)
-        dx * phi(x, θ) .- 1
+        0.01 * phi(x, θ) .- 1
     end
     prob = IntegralProblem(inner_f, lb, ub, θ)
     norm2 = solve(prob, HCubatureJL(), reltol = 1e-8, abstol = 1e-8, maxiters = 10)
@@ -65,7 +63,7 @@ function norm_loss_function(phi, θ, p)
 end
 
 discretization = PhysicsInformedNN(chain,
-                                   GridTraining(dx),
+                                   QuadratureTraining(),
                                    additional_loss = norm_loss_function)
 
 @named pdesystem = PDESystem(eq, bcs, domains, [x], [p(x)])
@@ -88,7 +86,7 @@ end
 
 res = Optimization.solve(prob, LBFGS(), callback = cb_, maxiters = 400)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, BFGS(), callback = cb_, maxiters = 2000)
+res = Optimization.solve(prob, BFGS(), callback = cb_, maxiters = 1000)
 ```
 
 And some analysis:
@@ -98,7 +96,7 @@ using Plots
 C = 142.88418699042 #fitting param
 analytic_sol_func(x) = C * exp((1 / (2 * _σ^2)) * (2 * α * x^2 - β * x^4))
 
-xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains][1]
+xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 u_real = [analytic_sol_func(x) for x in xs]
 u_predict = [first(phi(x, res.u)) for x in xs]
 
