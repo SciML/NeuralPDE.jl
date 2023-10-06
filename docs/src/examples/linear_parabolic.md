@@ -81,10 +81,14 @@ sym_prob = symbolic_discretize(pdesystem, discretization)
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
+global iteration = 0
 callback = function (p, l)
-    println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+    if iteration % 10 == 0
+        println("loss: ", l)
+        println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
+        println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+    end
+    global iteration += 1
     return false
 end
 
