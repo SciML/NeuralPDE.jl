@@ -10,7 +10,7 @@ Consider a Lorenz System,
 \end{align*}
 ```
 
-with Physics-Informed Neural Networks. Now we would consider the case where we want to optimize the parameters `\sigma`, `\beta`, and `\rho`.
+with Physics-Informed Neural Networks. Now we would consider the case where we want to optimize the parameters $\sigma$, $\beta$, and $\rho$.
 
 We start by defining the problem,
 
