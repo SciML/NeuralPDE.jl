@@ -46,7 +46,7 @@ tspan = (0.0, 6.0)
 prob = ODEProblem(lotka_volterra, u0, tspan, p)
 
 ```
-With the [`saveat` argument](https://docs.sciml.ai/latest/basics/common_solver_opts/) we can specify that the solution is stored only at `saveat` time units(default saveat=1 / 50.0).
+With the [`saveat` argument](https://docs.sciml.ai/DiffEqDocs/stable/basics/common_solver_opts/) we can specify that the solution is stored only at `saveat` time units(default saveat=1 / 50.0).
 
 ```julia
 # Plot solution got by Standard DifferentialEquations.jl ODE solver

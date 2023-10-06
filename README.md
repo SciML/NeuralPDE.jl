@@ -37,7 +37,7 @@ the documentation, which contains the unreleased features.
   - Integrated logging suite for handling connections to TensorBoard
   - Handling of (partial) integro-differential equations and various stochastic equations
   - Specialized forms for solving `ODEProblem`s with neural networks
-  - Compatability with [Flux.jl](https://docs.sciml.ai/Flux.jl/stable/) and [Lux.jl](https://docs.sciml.ai/Lux/stable/)
+  - Compatability with [Flux.jl](https://fluxml.ai/) and [Lux.jl](https://lux.csail.mit.edu/)
     for all of the GPU-powered machine learning layers available from those libraries.
   - Compatability with [NeuralOperators.jl](https://docs.sciml.ai/NeuralOperators/stable/) for
     mixing DeepONets and other neural operators (Fourier Neural Operators, Graph Neural Operators,
