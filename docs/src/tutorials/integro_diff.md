@@ -57,7 +57,7 @@ bcs = [i(0.0) ~ 0.0]
 domains = [t ∈ Interval(0.0, 2.0)]
 chain = Chain(Dense(1, 15, Flux.σ), Dense(15, 1)) |> f64
 
-strategy_ = GridTraining(0.05)
+strategy_ = QuadratureTraining()
 discretization = PhysicsInformedNN(chain,
                                    strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [t], [i(t)])
