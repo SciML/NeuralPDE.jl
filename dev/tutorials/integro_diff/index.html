@@ -14,7 +14,7 @@ bcs = [i(0.0) ~ 0.0]
 domains = [t ∈ Interval(0.0, 2.0)]
 chain = Chain(Dense(1, 15, Flux.σ), Dense(15, 1)) |&gt; f64
 
-strategy_ = GridTraining(0.05)
+strategy_ = QuadratureTraining()
 discretization = PhysicsInformedNN(chain,
                                    strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [t], [i(t)])
@@ -24,26 +24,26 @@ callback = function (p, l)
     return false
 end
 res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">u: 46-element Vector{Float64}:
-  1.0034340381649287
-  0.2520661269606612
-  2.0446826404957092
- -0.34959402880261875
- -0.49241584839519664
- -1.226688322043059
- -1.2188966883569923
-  1.8809615393513905
- -0.4226956770933367
- -1.5375923897647428
+  0.4366188256081488
+ -0.44239606007664445
+ -1.98644750876227
+ -0.4615450910380142
+  0.2697420906983332
+ -1.0963437949542052
+  1.9307369925855833
+  0.2825025020676459
+  0.07070965379920627
+  0.5726575733461513
   ⋮
- -1.4780670595496945
- -0.48200665466769244
- -1.552347407222501
-  1.1098716546805942
- -0.571838101442228
- -0.900139184453761
-  0.2688796007694765
- -0.4701098620809244
- -0.1791568353006171</code></pre><p>Plotting the final solution and analytical solution</p><pre><code class="language-julia hljs">ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+  0.23745996946687964
+  0.18561136440645604
+  0.34509105928683764
+ -0.00030475818596060523
+ -0.02269596292399636
+ -0.08668502515904311
+ -0.13568036785333912
+  0.539340608235653
+ -0.4747676336692639</code></pre><p>Plotting the final solution and analytical solution</p><pre><code class="language-julia hljs">ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict = [first(phi([t], res.u)) for t in ts]
 
@@ -51,4 +51,4 @@ analytic_sol_func(t) = 1 / 2 * (exp(-t)) * (sin(2 * t))
 u_real = [analytic_sol_func(t) for t in ts]
 using Plots
 plot(ts, u_real, label = &quot;Analytical Solution&quot;)
-plot!(ts, u_predict, label = &quot;PINN Solution&quot;)</code></pre><img src="6594d181.svg" alt="Example block output"/><p><img src="https://user-images.githubusercontent.com/12683885/129749371-18b44bbc-18c8-49c5-bf30-0cd97ecdd977.png" alt="IDE"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../param_estim/">« Optimising Parameters (Solving Inverse Problems)</a><a class="docs-footer-nextpage" href="../neural_adapter/">Transfer Learning with Neural Adapter »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.0 on <span class="colophon-date" title="Friday 6 October 2023 23:00">Friday 6 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(ts, u_predict, label = &quot;PINN Solution&quot;)</code></pre><img src="53705771.svg" alt="Example block output"/><p><img src="https://user-images.githubusercontent.com/12683885/129749371-18b44bbc-18c8-49c5-bf30-0cd97ecdd977.png" alt="IDE"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../param_estim/">« Optimising Parameters (Solving Inverse Problems)</a><a class="docs-footer-nextpage" href="../neural_adapter/">Transfer Learning with Neural Adapter »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.0 on <span class="colophon-date" title="Saturday 7 October 2023 10:18">Saturday 7 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

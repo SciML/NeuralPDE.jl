@@ -13,8 +13,6 @@ Dxx = Differential(x)^2
 _σ = 0.5
 x_0 = -2.2
 x_end = 2.2
-# Discretization
-dx = 0.01
 
 eq = Dx((α * x - β * x^3) * p(x)) ~ (_σ^2 / 2) * Dxx(p(x))
 
@@ -35,7 +33,7 @@ lb = [x_0]
 ub = [x_end]
 function norm_loss_function(phi, θ, p)
     function inner_f(x, θ)
-        dx * phi(x, θ) .- 1
+        0.01 * phi(x, θ) .- 1
     end
     prob = IntegralProblem(inner_f, lb, ub, θ)
     norm2 = solve(prob, HCubatureJL(), reltol = 1e-8, abstol = 1e-8, maxiters = 10)
@@ -43,7 +41,7 @@ function norm_loss_function(phi, θ, p)
 end
 
 discretization = PhysicsInformedNN(chain,
-                                   GridTraining(dx),
+                                   QuadratureTraining(),
                                    additional_loss = norm_loss_function)
 
 @named pdesystem = PDESystem(eq, bcs, domains, [x], [p(x)])
@@ -66,13 +64,13 @@ end
 
 res = Optimization.solve(prob, LBFGS(), callback = cb_, maxiters = 400)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, BFGS(), callback = cb_, maxiters = 2000)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">u: ComponentVector{Float64}(layer_1 = (weight = [-4.021416090167781; 5.354888280147674; … ; 2.162322770391687; 4.402692970085349;;], bias = [7.075291831018542; 7.2727183446192205; … ; -0.881057093027303; -0.3491186808834356;;]), layer_2 = (weight = [-6.001979319688132 10.546394361402072 … 1.5642565452047417 -1.025991475061783; -2.6481244560876855 7.461694713640072 … 0.9511716588151643 0.2484040652198179; … ; 0.5489396143724993 -15.059167149706754 … -2.96524536085867 -2.2479632330603785; -1.9170377020565683 -2.042632331105186 … -0.3361064239146556 0.958949133053617], bias = [-2.8620541305175102; -2.2719846668972155; … ; -0.33517041289684274; -1.331661689378821;;]), layer_3 = (weight = [-4.860219346443444 -8.249808886767834 … 1.355475817098442 1.5964960819479888; 3.9886997937497037 5.512147754440916 … -4.173606341314377 1.2483589210076567; … ; 3.836902521058596 6.900204251261871 … -4.5897786573386075 -2.847326168624038; 1.529816069800415 5.500559356700247 … -3.0138609518732027 -2.2129804883665596], bias = [2.341896715530883; -0.24258627132151875; … ; -3.5696444447183957; -3.4841755643349916;;]), layer_4 = (weight = [-25.165172686450173 22.510224394914296 … 30.34645404108994 24.517052782183004], bias = [8.76788280133537;;]))</code></pre><p>And some analysis:</p><pre><code class="language-julia hljs">using Plots
+res = Optimization.solve(prob, BFGS(), callback = cb_, maxiters = 2000)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">u: ComponentVector{Float64}(layer_1 = (weight = [-0.13355658714845622; -1.2995383826977158; … ; -3.3634377026703657; -8.536472480821546;;], bias = [4.376829428807401; -0.23413804721490777; … ; 7.314632600055308; -5.369688629417298;;]), layer_2 = (weight = [-9.883299241360548 -4.437562881744812 … -0.45015969259893895 -5.027966089813684; 0.36360840875866235 2.501548435785158 … 5.924503902145946 2.091774834722763; … ; 3.232267855498088 -1.303513395906655 … 5.388230487025012 4.053128462368064; -1.1377544079870505 2.8049522756937173 … -0.8571283003865181 0.8669976922532243], bias = [-1.5226262168082374; 3.6381691954775435; … ; -3.4256161377690475; -1.0672955928558865;;]), layer_3 = (weight = [-4.392815553094717 -2.6149560132633334 … -2.1698016608781505 2.735858926710167; 0.579950598984815 3.66939387111405 … 0.014142236266145856 2.1532380019745907; … ; -0.27917873526986003 -2.88088239322915 … 3.214480754331315 -5.399455025772179; 2.874599866545947 8.996057740116697 … -0.23015445125306386 2.7386286974183345], bias = [-0.5087934950682815; 4.210795808974191; … ; -4.030664456337281; 2.2459031178581754;;]), layer_4 = (weight = [26.392537692433557 18.891456304475597 … -25.272856919718038 -1.3362463220094647], bias = [-2.3370438717132527;;]))</code></pre><p>And some analysis:</p><pre><code class="language-julia hljs">using Plots
 C = 142.88418699042 #fitting param
 analytic_sol_func(x) = C * exp((1 / (2 * _σ^2)) * (2 * α * x^2 - β * x^4))
 
-xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains][1]
+xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 u_real = [analytic_sol_func(x) for x in xs]
 u_predict = [first(phi(x, res.u)) for x in xs]
 
 plot(xs, u_real, label = &quot;analytic&quot;)
-plot!(xs, u_predict, label = &quot;predict&quot;)</code></pre><img src="d413b820.svg" alt="Example block output"/><p><img src="https://user-images.githubusercontent.com/12683885/129405830-3d00c24e-adf1-443b-aa36-6af0e5305821.png" alt="fp"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../systems/">« Defining Systems of PDEs</a><a class="docs-footer-nextpage" href="../low_level/">The symbolic_discretize Interface »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.0 on <span class="colophon-date" title="Friday 6 October 2023 23:00">Friday 6 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(xs, u_predict, label = &quot;predict&quot;)</code></pre><img src="ec2d93e8.svg" alt="Example block output"/><p><img src="https://user-images.githubusercontent.com/12683885/129405830-3d00c24e-adf1-443b-aa36-6af0e5305821.png" alt="fp"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../systems/">« Defining Systems of PDEs</a><a class="docs-footer-nextpage" href="../low_level/">The symbolic_discretize Interface »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.0 on <span class="colophon-date" title="Saturday 7 October 2023 10:18">Saturday 7 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
