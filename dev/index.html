@@ -24,8 +24,8 @@ z = re(Float64(p))</code></pre><p>While one may think this recreates the neural 
 <span class="sgr32">⌃</span> <span class="sgr90">[961ee093] </span>ModelingToolkit v8.70.0
   <span class="sgr90">[315f7962] </span>NeuralPDE v5.9.0 `/var/lib/buildkite-agent/builds/gpuci-9/julialang/neuralpde-dot-jl`
   <span class="sgr90">[7f7a1694] </span>Optimization v3.19.1
-  <span class="sgr90">[36348300] </span>OptimizationOptimJL v0.1.10
-  <span class="sgr90">[42dfb2eb] </span>OptimizationOptimisers v0.1.5
+  <span class="sgr90">[36348300] </span>OptimizationOptimJL v0.1.12
+  <span class="sgr90">[42dfb2eb] </span>OptimizationOptimisers v0.1.6
   <span class="sgr90">[500b13db] </span>OptimizationPolyalgorithms v0.1.2
   <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.58.0
   <span class="sgr90">[91a5bcdd] </span>Plots v1.39.0
@@ -50,7 +50,7 @@ Environment:
   JULIA_IMAGE_THREADS = 1</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Status</span></span> `/var/lib/buildkite-agent/builds/gpuci-9/julialang/neuralpde-dot-jl/docs/Manifest.toml`
   <span class="sgr90">[47edcb42] </span>ADTypes v0.2.4
   <span class="sgr90">[a4c015fc] </span>ANSIColoredPrinters v0.0.1
-  <span class="sgr90">[c3fe647b] </span>AbstractAlgebra v0.32.5
+<span class="sgr33">⌅</span> <span class="sgr90">[c3fe647b] </span>AbstractAlgebra v0.32.5
   <span class="sgr90">[621f4979] </span>AbstractFFTs v1.5.0
   <span class="sgr90">[80f14c24] </span>AbstractMCMC v4.4.2
   <span class="sgr90">[1520ce14] </span>AbstractTrees v0.4.4
@@ -151,7 +151,7 @@ Environment:
   <span class="sgr90">[b5f81e59] </span>IOCapture v0.2.3
   <span class="sgr90">[7869d1d1] </span>IRTools v0.4.10
   <span class="sgr90">[615f187c] </span>IfElse v0.1.1
-  <span class="sgr90">[d25df0c9] </span>Inflate v0.1.3
+  <span class="sgr90">[d25df0c9] </span>Inflate v0.1.4
   <span class="sgr90">[22cec73e] </span>InitialValues v0.3.1
   <span class="sgr90">[505f98c9] </span>InplaceOps v0.3.0
   <span class="sgr90">[18e54dd8] </span>IntegerMathUtils v0.1.2
@@ -202,7 +202,7 @@ Environment:
   <span class="sgr90">[f1d291b0] </span>MLUtils v0.4.3
   <span class="sgr90">[1914dd2f] </span>MacroTools v0.5.11
   <span class="sgr90">[d125e4d3] </span>ManualMemory v0.1.8
-  <span class="sgr90">[d0879d2d] </span>MarkdownAST v0.1.1
+  <span class="sgr90">[d0879d2d] </span>MarkdownAST v0.1.2
   <span class="sgr90">[739be429] </span>MbedTLS v1.1.7
   <span class="sgr90">[442fdcdd] </span>Measures v0.3.2
   <span class="sgr90">[128add7d] </span>MicroCollections v0.1.4
@@ -224,11 +224,11 @@ Environment:
   <span class="sgr90">[6fe1bfb0] </span>OffsetArrays v1.12.10
   <span class="sgr90">[0b1bfda6] </span>OneHotArrays v0.2.4
   <span class="sgr90">[4d8831e6] </span>OpenSSL v1.4.1
-<span class="sgr32">⌃</span> <span class="sgr90">[429524aa] </span>Optim v1.7.6
-<span class="sgr33">⌅</span> <span class="sgr90">[3bd65402] </span>Optimisers v0.2.20
+  <span class="sgr90">[429524aa] </span>Optim v1.7.8
+  <span class="sgr90">[3bd65402] </span>Optimisers v0.3.1
   <span class="sgr90">[7f7a1694] </span>Optimization v3.19.1
-  <span class="sgr90">[36348300] </span>OptimizationOptimJL v0.1.10
-  <span class="sgr90">[42dfb2eb] </span>OptimizationOptimisers v0.1.5
+  <span class="sgr90">[36348300] </span>OptimizationOptimJL v0.1.12
+  <span class="sgr90">[42dfb2eb] </span>OptimizationOptimisers v0.1.6
   <span class="sgr90">[500b13db] </span>OptimizationPolyalgorithms v0.1.2
   <span class="sgr90">[bac558e1] </span>OrderedCollections v1.6.2
   <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.58.0
@@ -267,7 +267,7 @@ Environment:
   <span class="sgr90">[f2c3362d] </span>RecursiveFactorization v0.2.20
   <span class="sgr90">[189a3867] </span>Reexport v1.2.2
   <span class="sgr90">[2792f1a3] </span>RegistryInstances v0.1.0
-  <span class="sgr90">[05181044] </span>RelocatableFolders v1.0.0
+  <span class="sgr90">[05181044] </span>RelocatableFolders v1.0.1
   <span class="sgr90">[ae029012] </span>Requires v1.3.0
   <span class="sgr90">[ae5879a3] </span>ResettableStacks v1.1.1
   <span class="sgr90">[79098fc4] </span>Rmath v0.7.1
@@ -341,7 +341,7 @@ Environment:
   <span class="sgr90">[e88e6eb3] </span>Zygote v0.6.65
   <span class="sgr90">[700de1a5] </span>ZygoteRules v0.2.3
   <span class="sgr90">[6e34b625] </span>Bzip2_jll v1.0.8+0
-  <span class="sgr90">[83423d85] </span>Cairo_jll v1.16.1+1
+  <span class="sgr90">[83423d85] </span>Cairo_jll v1.18.0+0
   <span class="sgr90">[7bc98958] </span>Cubature_jll v1.0.5+0
   <span class="sgr90">[2702e6a9] </span>EpollShim_jll v0.0.20230411+0
   <span class="sgr90">[2e619515] </span>Expat_jll v2.5.0+0
@@ -471,4 +471,4 @@ Environment:
   <span class="sgr90">[8e850b90] </span>libblastrampoline_jll v5.8.0+0
   <span class="sgr90">[8e850ede] </span>nghttp2_jll v1.48.0+0
   <span class="sgr90">[3f19e933] </span>p7zip_jll v17.4.0+0
-<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.9.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.9.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.0 on <span class="colophon-date" title="Saturday 7 October 2023 10:18">Saturday 7 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.9.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.9.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.0 on <span class="colophon-date" title="Monday 9 October 2023 00:14">Monday 9 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
