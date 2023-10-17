@@ -378,7 +378,7 @@ chains = [[Flux.Chain(Flux.Dense(1, numhid, Flux.σ), Flux.Dense(numhid, numhid,
 θ4, re = Flux.destructure(chains[4])
 θ, re = Flux.destructure(chains)
 
-discretization = NeuralPDE.PhysicsInformedNN(chains, QuadratureTraining())
+discretization = NeuralPDE.PhysicsInformedNN(chains, GridTraining([0.01, 0.01]))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y), r(x, y), s(y, x)])
 prob = SciMLBase.discretize(pde_system, discretization)
@@ -401,9 +401,128 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 200)
 
-ahmc_bayesian_pinn_pde(pde_system, discretization; draw_samples = 1000,
-    bcstd = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
-    phystd = [0.05], priorsNNw = (0.0, 2.0),
-    progress = true)
+mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system, discretization;
+    draw_samples = 200,
+    bcstd = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+    phystd = [0.05], priorsNNw = (0.0, 10.0)
+    # ,progress = true
+)
+
+ninv = 0
+out = re.([samples[i][1:(end - ninv)]
+           for i in (200 - 100):200])
+
+xr = collect(Float64, 0.0:(1 / 100.0):1.0)
+yr = collect(Float64, 0.0:(1 / 100.0):1.0)
+
+eq = p(x) + q(y) + Dx(r(x, y)) + Dy(s(y, x)) ~ 0
+
+# plot(xr, out[100][1](xr')')
+# plot!(xr, chains[1](xr')')
+luxar1 = collect(out[i][1](xr') for i in eachindex(out))
+luxar2 = collect(out[i][2](yr')[1] for i in eachindex(out))
+luxar3 = collect(out[i][3](hcat(xr, yr)')[1] for i in eachindex(out))
+luxar4 = collect(out[i][4](hcat(yr, xr)')[1] for i in eachindex(out))
+
+# plot(xr', luxar1)
+# plot!(yr, luxar2)
+# plot!(xr, yr, luxar3)
+# plot!(yr, xr, luxar4)
+
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters x, t
+@variables u(..)
+Dt = Differential(t)
+Dx = Differential(x)
+Dx2 = Differential(x)^2
+Dx3 = Differential(x)^3
+Dx4 = Differential(x)^4
+
+α = 1
+β = 4
+γ = 1
+eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) + α * Dx2(u(x, t)) + β * Dx3(u(x, t)) + γ * Dx4(u(x, t)) ~ 0
+
+u_analytic(x, t; z = -x / 2 + t) = 11 + 15 * tanh(z) - 15 * tanh(z)^2 - 15 * tanh(z)^3
+du(x, t; z = -x / 2 + t) = 15 / 2 * (tanh(z) + 1) * (3 * tanh(z) - 1) * sech(z)^2
+
+bcs = [u(x, 0) ~ u_analytic(x, 0),
+    u(-10, t) ~ u_analytic(-10, t),
+    u(10, t) ~ u_analytic(10, t),
+    Dx(u(-10, t)) ~ du(-10, t),
+    Dx(u(10, t)) ~ du(10, t)]
+
+# Space and time domains
+domains = [x ∈ Interval(-10.0, 10.0),
+    t ∈ Interval(0.0, 1.0)]
+# Discretization
+dx = 0.4;
+dt = 0.2;
+
+# Neural network
+chain = Flux.Chain(Flux.Dense(2, 12, Flux.σ), Flux.Dense(12, 12, Flux.σ), Flux.Dense(12, 1))
+θ, re = Flux.destructure(chain)
+discretization = PhysicsInformedNN(chain, GridTraining([dx, dt]))
+@named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+prob = discretize(pde_system, discretization)
+
+callback = function (p, l)
+    println("Current loss is: $l")
+    return false
+end
+
+opt = OptimizationOptimJL.BFGS()
+res = Optimization.solve(prob, opt; callback = callback, maxiters = 2000)
+phi = discretization.phi
+
+using Plots
+
+xs, ts = [infimum(d.domain):dx:supremum(d.domain)
+          for (d, dx) in zip(domains, [dx / 10, dt])]
+
+u_predict = [[first(phi([x, t], res.u)) for x in xs] for t in ts]
+u_real = [[u_analytic(x, t) for x in xs] for t in ts]
+diff_u = [[abs(u_analytic(x, t) - first(phi([x, t], res.u))) for x in xs] for t in ts]
+
+# p1 = plot(xs, u_predict, title = "predict")
+# p2 = plot(xs, u_real, title = "analytic")
+# p3 = plot(xs, diff_u, title = "error")
+# plot(p1, p2, p3)
+
+mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system, discretization;
+    draw_samples = 500,
+    bcstd = [0.1, 0.1, 0.1, 0.1, 0.1],
+    phystd = [0.05], priorsNNw = (0.0, 10.0)
+    # ,progress = true
+)
+
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using Plots
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t
+@variables x(..) y(..)
+
+α, β, γ, δ = [1.5, 1.0, 3.0, 1.0]
+
+Dt = Differential(t)
+eqs = [Dt(x(t)) ~ (α - β * y(t)) * x(t), Dt(y(t)) ~ (δ * x(t) - γ) * y(t)]
+bcs = [x(0) ~ 1.0, y(0) ~ 1.0]
+domains = [t ∈ Interval(0.0, 6.0)]
+
+chain = [Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh),
+        Lux.Dense(6, 1)), Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh),
+        Lux.Dense(6, 1))]
+discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining([0.01]))
+@named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t)])
+
+mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system, discretization;
+    draw_samples = 100,
+    bcstd = [0.1, 0.1],
+    phystd = [0.05, 0.05], priorsNNw = (0.0, 10.0)
+    # ,progress = true
+)s

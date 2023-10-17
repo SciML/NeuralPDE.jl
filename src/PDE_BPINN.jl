@@ -65,7 +65,12 @@ mutable struct PDELogTargetDensity{
 end
 
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
-    return Tar.full_loglikelihood(θ, Tar.allstd) + L2LossData(Tar, θ) + priorlogpdf(Tar, θ)
+    # print(typeof(collect([Float64(i.value) for i in θ])))
+    # println(Tar.full_loglikelihood([Float64(i.value) for i in θ], Tar.allstd))
+    # println(collect([Float64(i.value) for i in θ]))
+    return Tar.full_loglikelihood([Float64(i.value) for i in θ], Tar.allstd) +
+           L2LossData(Tar, θ) +
+           priorlogpdf(Tar, θ)
 end
 
 LogDensityProblems.dimension(Tar::PDELogTargetDensity) = Tar.dim
@@ -77,7 +82,7 @@ end
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)
 function L2LossData(Tar::PDELogTargetDensity, θ)
     # matrix(each row corresponds to vector u's rows)
-    if isempty(Tar.dataset[end])
+    if Tar.dataset isa Vector{Nothing} || Tar.extraparams == 0
         return 0
     else
         nn = Tar.Phi(Tar.dataset[end], θ[1:(length(θ) - Tar.extraparams)])
@@ -184,7 +189,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         # Lux chain(using component array later as vector_to_parameter need namedtuple,AHMC uses Float64)
         initial_θ = collect(Float64, vcat(ComponentArrays.ComponentArray(initial_nnθ)))
     else
-        initial_θ = initial_nnθ
+        initial_θ = collect(Float64, initial_nnθ)
     end
 
     # adding ode parameter estimation
@@ -214,6 +219,10 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         initial_nnθ,
         full_weighted_loglikelihood,
         Phi)
+
+    println(ℓπ.full_loglikelihood(initial_nnθ, ℓπ.allstd))
+    println(priorlogpdf(ℓπ, initial_nnθ))
+    println(L2LossData(ℓπ, initial_nnθ))
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
