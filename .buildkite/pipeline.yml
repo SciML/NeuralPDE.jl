@@ -41,7 +41,6 @@ steps:
     # Don't run Buildkite if the commit message includes the text [skip tests]
     if: build.message !~ /\[skip tests\]/
 
-steps:
   - label: "Documentation"
     plugins:
       - JuliaCI/julia#v1:
