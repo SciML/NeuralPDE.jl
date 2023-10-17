@@ -84,7 +84,7 @@ chain = Chain(Dense(3, inner, Lux.σ),
               Dense(inner, inner, Lux.σ),
               Dense(inner, 1))
 
-strategy = GridTraining(0.05)
+strategy = QuadratureTraining()
 ps = Lux.setup(Random.default_rng(), chain)[1]
 ps = ps |> ComponentArray |> gpu .|> Float64
 discretization = PhysicsInformedNN(chain,

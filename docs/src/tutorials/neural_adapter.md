@@ -67,7 +67,7 @@ function loss(cord, θ)
     chain2(cord, θ) .- phi(cord, res.u)
 end
 
-strategy = NeuralPDE.GridTraining(0.02)
+strategy = NeuralPDE.QuadratureTraining()
 
 prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy)
 callback = function (p, l)
@@ -179,7 +179,7 @@ for i in 1:count_decomp
     bcs_ = create_bcs(domains_[1].domain, phi_bound)
     @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
     push!(pde_system_map, pde_system_)
-    strategy = NeuralPDE.GridTraining([0.1 / count_decomp, 0.1])
+    strategy = NeuralPDE.QuadratureTraining()
 
     discretization = NeuralPDE.PhysicsInformedNN(chains[i], strategy;
                                                  init_params = init_params[i])
@@ -243,10 +243,10 @@ callback = function (p, l)
 end
 
 prob_ = NeuralPDE.neural_adapter(losses, init_params2, pde_system_map,
-                                 NeuralPDE.GridTraining([0.1 / count_decomp, 0.1]))
+                                 NeuralPDE.QuadratureTraining())
 res_ = Optimization.solve(prob_, BFGS(); callback = callback, maxiters = 2000)
 prob_ = NeuralPDE.neural_adapter(losses, res_.minimizer, pde_system_map,
-                                 NeuralPDE.GridTraining([0.05 / count_decomp, 0.05]))
+                                 NeuralPDE.QuadratureTraining())
 res_ = Optimization.solve(prob_, BFGS(); callback = callback, maxiters = 1000)
 
 phi_ = NeuralPDE.get_phi(chain2)
