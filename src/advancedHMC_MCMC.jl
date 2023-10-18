@@ -103,9 +103,8 @@ function L2LossData(Tar::LogTargetDensity, θ)
         for i in 1:length(Tar.prob.u0)
             # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
             L2logprob += logpdf(MvNormal(nn[i, :],
-                    LinearAlgebra.Diagonal(map(abs2,
-                        Tar.l2std[i] .*
-                        ones(length(Tar.dataset[i]))))),
+                    LinearAlgebra.Diagonal(abs2.(Tar.l2std[i] .*
+                                                 ones(length(Tar.dataset[i]))))),
                 Tar.dataset[i])
         end
         return L2logprob
@@ -244,9 +243,8 @@ function innerdiff(Tar::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, 
 
     # N dimensional vector if N outputs for NN(each row has logpdf of i[i] where u is vector of dependant variables)
     return [logpdf(MvNormal(vals[i, :],
-            LinearAlgebra.Diagonal(map(abs2,
-                Tar.phystd[i] .*
-                ones(length(vals[i, :]))))),
+            LinearAlgebra.Diagonal(abs2.(Tar.phystd[i] .*
+                                         ones(length(vals[i, :]))))),
         zeros(length(vals[i, :]))) for i in 1:length(Tar.prob.u0)]
 end
 
@@ -528,7 +526,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     ninv = length(param)
     priors = [
         MvNormal(priorsNNw[1] * ones(nparameters),
-            LinearAlgebra.Diagonal(map(abs2, priorsNNw[2] .* ones(nparameters)))),
+            LinearAlgebra.Diagonal(abs2.(priorsNNw[2] .* ones(nparameters)))),
     ]
 
     # append Ode params to all paramvector
