@@ -16,11 +16,12 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
     physdt::Float64
     extraparams::Int
     init_params::I
+    estim_collocate::Bool
 
     function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, strategy,
         dataset,
         priors, phystd, l2std, autodiff, physdt, extraparams,
-        init_params::AbstractVector)
+        init_params::AbstractVector, estim_collocate)
         new{
             typeof(chain),
             Nothing,
@@ -39,12 +40,13 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
             autodiff,
             physdt,
             extraparams,
-            init_params)
+            init_params,
+            estim_collocate)
     end
     function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, strategy,
         dataset,
         priors, phystd, l2std, autodiff, physdt, extraparams,
-        init_params::NamedTuple)
+        init_params::NamedTuple, estim_collocate)
         new{
             typeof(chain),
             typeof(st),
@@ -60,7 +62,8 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
             autodiff,
             physdt,
             extraparams,
-            init_params)
+            init_params,
+            estim_collocate)
     end
 end
 
@@ -79,7 +82,11 @@ function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
 end
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
-    return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ)
+    if Tar.estim_collocate
+        return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ) + L2loss2(Tar, θ)
+    else
+        return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ)
+    end
 end
 
 LogDensityProblems.dimension(Tar::LogTargetDensity) = Tar.dim
@@ -481,7 +488,8 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
     Integratorkwargs = (Integrator = Leapfrog,),
     MCMCkwargs = (n_leapfrog = 30,),
-    progress = false, verbose = false)
+    progress = false, verbose = false,
+    estim_collocate = false)
 
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
@@ -542,7 +550,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     t0 = prob.tspan[1]
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
     ℓπ = LogTargetDensity(nparameters, prob, recon, st, strategy, dataset, priors,
-        phystd, l2std, autodiff, physdt, ninv, initial_nnθ)
+        phystd, l2std, autodiff, physdt, ninv, initial_nnθ, estim_collocate)
 
     try
         ℓπ(t0, initial_θ[1:(nparameters - ninv)])

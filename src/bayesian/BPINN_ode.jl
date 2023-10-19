@@ -178,7 +178,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
     verbose = false,
     saveat = 1 / 50.0,
     maxiters = nothing,
-    numensemble = floor(Int, alg.draw_samples / 3))
+    numensemble = floor(Int, alg.draw_samples / 3),
+    estim_collocate = false)
     @unpack chain, l2std, phystd, param, priorsNNw, Kernel, strategy,
     draw_samples, dataset, init_params,
     nchains, physdt, Adaptorkwargs, Integratorkwargs,
@@ -207,7 +208,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
         Integratorkwargs = Integratorkwargs,
         MCMCkwargs = MCMCkwargs,
         progress = progress,
-        verbose = verbose)
+        verbose = verbose,
+        estim_collocate = estim_collocate)
 
     fullsolution = BPINNstats(mcmcchain, samples, statistics)
     ninv = length(param)
