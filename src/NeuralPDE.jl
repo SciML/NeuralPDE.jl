@@ -65,7 +65,7 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
     get_phi, get_numeric_derivative, get_numeric_integral,
     build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
     AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
-    MiniMaxAdaptiveLoss,
-    LogOptions, ahmc_bayesian_pinn_ode, BNNODE, ahmc_bayesian_pinn_pde
+    MiniMaxAdaptiveLoss, LogOptions,
+    ahmc_bayesian_pinn_ode, BNNODE, ahmc_bayesian_pinn_pde, vector_to_parameters
 
 end # module

@@ -347,182 +347,142 @@ param1 = sol3flux_pestim.estimated_ode_params[1]
 param1 = sol3lux_pestim.estimated_ode_params[1]
 @test abs(param1 - p) < abs(0.45 * p)
 
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
-import ModelingToolkit: Interval
-
-@parameters x y
-@variables p(..) q(..) r(..) s(..)
-Dx = Differential(x)
-Dy = Differential(y)
-
-# 2D PDE
-eq = p(x) + q(y) + Dx(r(x, y)) + Dy(s(y, x)) ~ 0
-
-# Initial and boundary conditions
-bcs = [p(1) ~ 0.0f0, q(-1) ~ 0.0f0,
-    r(x, -1) ~ 0.0f0, r(1, y) ~ 0.0f0,
-    s(y, 1) ~ 0.0f0, s(-1, x) ~ 0.0f0]
-
-# Space and time domains
-domains = [x ∈ Interval(0.0, 1.0),
-    y ∈ Interval(0.0, 1.0)]
-
-numhid = 3
-chains = [[Flux.Chain(Flux.Dense(1, numhid, Flux.σ), Flux.Dense(numhid, numhid, Flux.σ),
-    Flux.Dense(numhid, 1)) for i in 1:2]
-    [Flux.Chain(Flux.Dense(2, numhid, Flux.σ), Flux.Dense(numhid, numhid, Flux.σ),
-    Flux.Dense(numhid, 1)) for i in 1:2]]
-θ1, re = Flux.destructure(chains[1])
-θ2, re = Flux.destructure(chains[2])
-θ3, re = Flux.destructure(chains[3])
-θ4, re = Flux.destructure(chains[4])
-θ, re = Flux.destructure(chains)
-
-discretization = NeuralPDE.PhysicsInformedNN(chains, GridTraining([0.01, 0.01]))
-
-@named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y), r(x, y), s(y, x)])
-prob = SciMLBase.discretize(pde_system, discretization)
-pinnrep = SciMLBase.symbolic_discretize(pde_system, discretization)
-pinnrep1 = SciMLBase.symbolic_discretize(pde_system, discretization, bayesian = true)
-
-pinnrep.loss_functions.full_loss_function
-pinnrep.loss_functions.pde_loss_functions[1](θ)
-
-pinnrep1.loss_functions.full_loss_function(θ,
-    [0.01],
-    [0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
-    [0.01])
-pde_loss_functions = pinnrep1.loss_functions.pde_loss_functions
-pde_loglikelihoods = [logpdf(Normal(0, 0.1), pde_loss_function(θ))
-                      for pde_loss_function in pde_loss_functions]
-
-callback = function (p, l)
-    println("Current loss is: $l")
-    return false
-end
-
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 200)
-
-mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system, discretization;
-    draw_samples = 200,
-    bcstd = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
-    phystd = [0.05], priorsNNw = (0.0, 10.0)
-    # ,progress = true
-)
-
-ninv = 0
-out = re.([samples[i][1:(end - ninv)]
-           for i in (200 - 100):200])
-
-xr = collect(Float64, 0.0:(1 / 100.0):1.0)
-yr = collect(Float64, 0.0:(1 / 100.0):1.0)
-
-eq = p(x) + q(y) + Dx(r(x, y)) + Dy(s(y, x)) ~ 0
-
-# plot(xr, out[100][1](xr')')
-# plot!(xr, chains[1](xr')')
-luxar1 = collect(out[i][1](xr') for i in eachindex(out))
-luxar2 = collect(out[i][2](yr')[1] for i in eachindex(out))
-luxar3 = collect(out[i][3](hcat(xr, yr)')[1] for i in eachindex(out))
-luxar4 = collect(out[i][4](hcat(yr, xr)')[1] for i in eachindex(out))
-
-# plot(xr', luxar1)
-# plot!(yr, luxar2)
-# plot!(xr, yr, luxar3)
-# plot!(yr, xr, luxar4)
+# ______________________________________________PDE_BPINN_SOLVER_________________________________________________________________
 
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using Plots, OrdinaryDiffEq, Distributions, Random
 import ModelingToolkit: Interval, infimum, supremum
 
-@parameters x, t
-@variables u(..)
-Dt = Differential(t)
-Dx = Differential(x)
-Dx2 = Differential(x)^2
-Dx3 = Differential(x)^3
-Dx4 = Differential(x)^4
+# @parameters t
+# @variables x(..) y(..)
 
-α = 1
-β = 4
-γ = 1
-eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) + α * Dx2(u(x, t)) + β * Dx3(u(x, t)) + γ * Dx4(u(x, t)) ~ 0
+# α, β, γ, δ = [1.5, 1.0, 3.0, 1.0]
 
-u_analytic(x, t; z = -x / 2 + t) = 11 + 15 * tanh(z) - 15 * tanh(z)^2 - 15 * tanh(z)^3
-du(x, t; z = -x / 2 + t) = 15 / 2 * (tanh(z) + 1) * (3 * tanh(z) - 1) * sech(z)^2
+# Dt = Differential(t)
+# eqs = [Dt(x(t)) ~ (α - β * y(t)) * x(t), Dt(y(t)) ~ (δ * x(t) - γ) * y(t)]
+# bcs = [x(0) ~ 1.0, y(0) ~ 1.0]
+# domains = [t ∈ Interval(0.0, 6.0)]
 
-bcs = [u(x, 0) ~ u_analytic(x, 0),
-    u(-10, t) ~ u_analytic(-10, t),
-    u(10, t) ~ u_analytic(10, t),
-    Dx(u(-10, t)) ~ du(-10, t),
-    Dx(u(10, t)) ~ du(10, t)]
+# chain = [Flux.Chain(Flux.Dense(1, 4, tanh), Flux.Dense(4, 4),
+#         Flux.Dense(4, 1)), Flux.Chain(Flux.Dense(1, 4, tanh), Flux.Dense(4, 4),
+#         Flux.Dense(4, 1))]
 
-# Space and time domains
-domains = [x ∈ Interval(-10.0, 10.0),
-    t ∈ Interval(0.0, 1.0)]
-# Discretization
-dx = 0.4;
-dt = 0.2;
+# chainf = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 6, tanh),
+#     Flux.Dense(6, 2))
 
-# Neural network
-chain = Flux.Chain(Flux.Dense(2, 12, Flux.σ), Flux.Dense(12, 12, Flux.σ), Flux.Dense(12, 1))
-θ, re = Flux.destructure(chain)
-discretization = PhysicsInformedNN(chain, GridTraining([dx, dt]))
-@named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
-prob = discretize(pde_system, discretization)
+# init, re = destructure(chainf)
+# init1, re1 = destructure(chain[1])
+# init2, re2 = destructure(chain[2])
+# chainf = re(ones(size(init)))
+# chain[1] = re1(ones(size(init1)))
+# chain[2] = re2(ones(size(init2)))
 
-callback = function (p, l)
-    println("Current loss is: $l")
-    return false
-end
+# discretization = NeuralPDE.PhysicsInformedNN(chain,
+#     GridTraining([0.01]))
+# @named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t)])
 
-opt = OptimizationOptimJL.BFGS()
-res = Optimization.solve(prob, opt; callback = callback, maxiters = 2000)
-phi = discretization.phi
+# mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system, discretization;
+#     draw_samples = 100,
+#     bcstd = [0.1, 0.1],
+#     phystd = [0.1, 0.1], priorsNNw = (0.0, 10.0), progress = true)
 
-using Plots
+# # FLUX CHAIN post sampling
+# tspan = (0.0, 6.0)
+# t1 = collect(tspan[1]:0.01:tspan[2])
+# out1 = re1.([samples[i][1:33]
+#              for i in 80:100])
+# out2 = re2.([samples[i][34:end]
+#              for i in 80:100])
 
-xs, ts = [infimum(d.domain):dx:supremum(d.domain)
-          for (d, dx) in zip(domains, [dx / 10, dt])]
+# luxar1 = collect(out1[i](t1') for i in eachindex(out1))
+# luxar2 = collect(out2[i](t1') for i in eachindex(out2))
+# plot(t1, luxar1[end]')
+# plot!(t1, luxar2[end]')
 
-u_predict = [[first(phi([x, t], res.u)) for x in xs] for t in ts]
-u_real = [[u_analytic(x, t) for x in xs] for t in ts]
-diff_u = [[abs(u_analytic(x, t) - first(phi([x, t], res.u))) for x in xs] for t in ts]
+# # LUX CHAIN post sampling
+# θinit, st = Lux.setup(Random.default_rng(), chain[1])
+# θinit1, st1 = Lux.setup(Random.default_rng(), chain[2])
 
-# p1 = plot(xs, u_predict, title = "predict")
-# p2 = plot(xs, u_real, title = "analytic")
-# p3 = plot(xs, diff_u, title = "error")
-# plot(p1, p2, p3)
+# θ1 = [vector_to_parameters(samples[i][1:22], θinit) for i in 50:100]
+# θ2 = [vector_to_parameters(samples[i][23:end], θinit1) for i in 50:100]
+# tspan = (0.0, 6.0)
+# t1 = collect(tspan[1]:0.01:tspan[2])
+# luxar1 = [chain[1](t1', θ1[i], st)[1] for i in 1:50]
+# luxar2 = [chain[2](t1', θ2[i], st1)[1] for i in 1:50]
 
-mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system, discretization;
-    draw_samples = 500,
-    bcstd = [0.1, 0.1, 0.1, 0.1, 0.1],
-    phystd = [0.05], priorsNNw = (0.0, 10.0)
-    # ,progress = true
-)
+# plot(t1, luxar1[500]')
+# plot!(t1, luxar2[500]')
 
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
-using Plots
-import ModelingToolkit: Interval, infimum, supremum
+# # BPINN 0DE SOLVER COMPARISON CASE
+# function lotka_volterra(u, p, t)
+#     # Model parameters.
+#     α, β, γ, δ = p
+#     # Current state.
+#     x, y = u
 
+#     # Evaluate differential equations.
+#     dx = (α - β * y) * x # prey
+#     dy = (δ * x - γ) * y # predator
+
+#     return [dx, dy]
+# end
+
+# # initial-value problem.
+# u0 = [1.0, 1.0]
+# p = [1.5, 1.0, 3.0, 1.0]
+# tspan = (0.0, 6.0)
+# prob = ODEProblem(lotka_volterra, u0, tspan, p)
+
+# cospit example
 @parameters t
-@variables x(..) y(..)
-
-α, β, γ, δ = [1.5, 1.0, 3.0, 1.0]
+@variables u(..)
 
 Dt = Differential(t)
-eqs = [Dt(x(t)) ~ (α - β * y(t)) * x(t), Dt(y(t)) ~ (δ * x(t) - γ) * y(t)]
-bcs = [x(0) ~ 1.0, y(0) ~ 1.0]
-domains = [t ∈ Interval(0.0, 6.0)]
+linear_analytic = (u0, p, t) -> u0 + sin(2 * π * t) / (2 * π)
+linear = (u, p, t) -> cos(2 * π * t)
 
-chain = [Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh),
-        Lux.Dense(6, 1)), Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh),
-        Lux.Dense(6, 1))]
-discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining([0.01]))
-@named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t)])
+Dt = Differential(t)
+eqs = Dt(u(t)) - cos(2 * π * t) ~ 0
+bcs = [u(0) ~ 0.0]
+domains = [t ∈ Interval(0.0, 4.0)]
 
-mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system, discretization;
-    draw_samples = 100,
-    bcstd = [0.1, 0.1],
-    phystd = [0.05, 0.05], priorsNNw = (0.0, 10.0)
-    # ,progress = true
-)s
+chainf = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 1))
+initf, re = destructure(chainf)
+
+chainl = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 1))
+initl, st = Lux.setup(Random.default_rng(), chainl)
+
+@named pde_system = PDESystem(eqs, bcs, domains, [t], [u(t)])
+
+# non adaptive case
+discretization = NeuralPDE.PhysicsInformedNN(chainf, GridTraining([0.01]))
+mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
+    discretization;
+    draw_samples = 1000,
+    bcstd = [0.01],
+    phystd = [0.01],
+    priorsNNw = (0.0, 10.0),
+    progress = true)
+
+discretization = NeuralPDE.PhysicsInformedNN(chainl, GridTraining([0.01]))
+mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
+    discretization;
+    draw_samples = 1000,
+    bcstd = [0.01],
+    phystd = [0.01],
+    priorsNNw = (0.0, 10.0),
+    progress = true)
+
+tspan = (0.0, 4.0)
+t1 = collect(tspan[1]:0.01:tspan[2])
+
+out1 = re.([samples[i] for i in 800:1000])
+luxar1 = collect(out1[i](t1') for i in eachindex(out1))
+
+transsamples = [vector_to_parameters(sample, initl) for sample in samples]
+luxar2 = [chainl(t1', transsamples[i], st)[1] for i in 800:1000]
+
+yu = [linear_analytic(0, nothing, t) for t in t1]
+plot(t1, yu)
+plot!(t1, luxar1[end]')
+plot!(t1, luxar2[end]')

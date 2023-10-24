@@ -65,12 +65,8 @@ mutable struct PDELogTargetDensity{
 end
 
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
-    # print(typeof(collect([Float64(i.value) for i in θ])))
-    # println(Tar.full_loglikelihood([Float64(i.value) for i in θ], Tar.allstd))
-    # println(collect([Float64(i.value) for i in θ]))
-    return Tar.full_loglikelihood([Float64(i.value) for i in θ], Tar.allstd) +
-           L2LossData(Tar, θ) +
-           priorlogpdf(Tar, θ)
+    return Tar.full_loglikelihood(vector_to_parameters(θ, Tar.init_params), Tar.allstd) +
+           L2LossData(Tar, θ) + priorlogpdf(Tar, θ)
 end
 
 LogDensityProblems.dimension(Tar::PDELogTargetDensity) = Tar.dim
@@ -171,9 +167,10 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
     # for physics loglikelihood
     full_weighted_loglikelihood = pinnrep.loss_functions.full_loss_function
+    chain = discretization.chain
+
     # NN solutions for loglikelihood which is used for L2lossdata
     Phi = pinnrep.phi
-    chain = discretization.chain
     # for new L2 loss
     # discretization.additional_loss = 
 
@@ -188,6 +185,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     if chain isa Lux.AbstractExplicitLayer
         # Lux chain(using component array later as vector_to_parameter need namedtuple,AHMC uses Float64)
         initial_θ = collect(Float64, vcat(ComponentArrays.ComponentArray(initial_nnθ)))
+        # namedtuple form of Lux params required for RuntimeGeneratedFunctions
+        initial_nnθ, st = Lux.setup(Random.default_rng(), chain)
     else
         initial_θ = collect(Float64, initial_nnθ)
     end
@@ -221,8 +220,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         Phi)
 
     println(ℓπ.full_loglikelihood(initial_nnθ, ℓπ.allstd))
-    println(priorlogpdf(ℓπ, initial_nnθ))
-    println(L2LossData(ℓπ, initial_nnθ))
+    println(priorlogpdf(ℓπ, initial_θ))
+    println(L2LossData(ℓπ, initial_θ))
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]

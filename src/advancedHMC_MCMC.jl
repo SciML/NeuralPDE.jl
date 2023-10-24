@@ -65,9 +65,14 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
 end
 
 """
-cool function to convert parameter's vector to ComponentArray of parameters (for Lux Chain: vector of samples -> Lux ComponentArrays)
+Cool function needed for converting vector of sampled parameters into namedTuples in case of Lux chain output, derivatives
+the sampled parameters are of exotic type `Dual` due to ForwardDiff's autodiff tagging
 """
-function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
+function vector_to_parameters(ps_new::AbstractVector,
+    ps::Union{NamedTuple, <:AbstractVector})
+    if typeof(ps) <: AbstractVector
+        return ps_new
+    end
     @assert length(ps_new) == Lux.parameterlength(ps)
     i = 1
     function get_ps(x)
@@ -553,6 +558,10 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
             throw(err)
         end
     end
+
+    println(physloglikelihood(ℓπ, initial_θ))
+    println(priorweights(ℓπ, initial_θ))
+    # println(L2LossData(ℓπ, initial_nnθ))
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
