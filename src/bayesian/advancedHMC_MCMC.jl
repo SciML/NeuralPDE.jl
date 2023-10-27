@@ -587,8 +587,8 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
 
             MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
             Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
-            samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
-                progress = progress, verbose = verbose)
+            samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor, draw_samples;
+                progress = progress, verbose = verbose, drop_warmup = true)
 
             samplesc[i] = samples
             statsc[i] = stats
@@ -606,7 +606,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
         Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
-            adaptor; progress = progress, verbose = verbose)
+            adaptor, draw_samples; progress = progress, verbose = verbose, drop_warmup = true)
 
         # return a chain(basic chain),samples and stats
         matrix_samples = hcat(samples...)

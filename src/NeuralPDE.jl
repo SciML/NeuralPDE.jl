@@ -52,6 +52,7 @@ include("discretize.jl")
 include("neural_adapter.jl")
 include("bayesian/advancedHMC_MCMC.jl")
 include("bayesian/BPINN_ode.jl")
+include("bayesian/collocated_estim.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
