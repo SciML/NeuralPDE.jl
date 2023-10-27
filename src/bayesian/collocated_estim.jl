@@ -4,10 +4,8 @@ function L2loss2(Tar::LogTargetDensity, θ)
 
     # parameter estimation chosen or not
     if Tar.extraparams > 0
-        dataset, deri_sol = Tar.dataset
         # deri_sol = deri_sol'
         autodiff = Tar.autodiff
-
         # # Timepoints to enforce Physics
         # dataset = Array(reduce(hcat, dataset)')
         # t = dataset[end, :]
@@ -48,9 +46,9 @@ function L2loss2(Tar::LogTargetDensity, θ)
         # deri_sol = reduce(hcat, derivatives)
 
         # Timepoints to enforce Physics 
-        t = dataset[end]
-        u1 = dataset[2]
-        û = dataset[1]
+        t = Tar.dataset[end]
+        u1 = Tar.dataset[2]
+        û = Tar.dataset[1]
         # Tar(t, θ[1:(length(θ) - Tar.extraparams)])'
         #  
 
@@ -69,7 +67,7 @@ function L2loss2(Tar::LogTargetDensity, θ)
             physsol = [f([û[i], u1[i]],
                 ode_params,
                 t[i])
-                       for i in 1:length(û[:, 1])]
+                       for i in 1:length(û)]
         end
         #form of NN output matrix output dim x n 
         deri_physsol = reduce(hcat, physsol)
