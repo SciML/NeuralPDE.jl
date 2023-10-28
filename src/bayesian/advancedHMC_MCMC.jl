@@ -83,9 +83,9 @@ end
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
     if Tar.estim_collocate
-        return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ) + L2loss2(Tar, θ)
+        return physloglikelihood(Tar, θ)/length(Tar.dataset[1]) + priorweights(Tar, θ) + L2LossData(Tar, θ)/length(Tar.dataset[1]) + L2loss2(Tar, θ)/length(Tar.dataset[1])
     else
-        return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ)
+        return physloglikelihood(Tar, θ)/length(Tar.dataset[1]) + priorweights(Tar, θ) + L2LossData(Tar, θ)/length(Tar.dataset[1])
     end
 end
 
@@ -587,7 +587,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
 
             MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
             Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
-            samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor, draw_samples;
+            samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
                 progress = progress, verbose = verbose, drop_warmup = true)
 
             samplesc[i] = samples
@@ -606,11 +606,10 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
         Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
-            adaptor, draw_samples; progress = progress, verbose = verbose, drop_warmup = true)
-
+            adaptor; progress = progress, verbose = verbose, drop_warmup = true)
         # return a chain(basic chain),samples and stats
-        matrix_samples = hcat(samples...)
-        mcmc_chain = MCMCChains.Chains(matrix_samples')
+        matrix_samples = reshape(hcat(samples...), (length(samples[1]), length(samples), 1)) 
+        mcmc_chain = MCMCChains.Chains(matrix_samples)
         return mcmc_chain, samples, stats
     end
 end
