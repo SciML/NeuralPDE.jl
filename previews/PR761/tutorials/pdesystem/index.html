@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Introduction to NeuralPDE for PDEs · NeuralPDE.jl</title><meta name="title" content="Introduction to NeuralPDE for PDEs · NeuralPDE.jl"/><meta property="og:title" content="Introduction to NeuralPDE for PDEs · NeuralPDE.jl"/><meta property="twitter:title" content="Introduction to NeuralPDE for PDEs · NeuralPDE.jl"/><meta name="description" content="Documentation for NeuralPDE.jl."/><meta property="og:description" content="Documentation for NeuralPDE.jl."/><meta property="twitter:description" content="Documentation for NeuralPDE.jl."/><meta property="og:url" content="https://docs.sciml.ai/NeuralPDE/stable/tutorials/pdesystem/"/><meta property="twitter:url" content="https://docs.sciml.ai/NeuralPDE/stable/tutorials/pdesystem/"/><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/tutorials/pdesystem/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../ode/">Introduction to NeuralPDE for ODEs</a></li><li><a class="tocitem" href="../Lotka_Volterra_BPINNs/">Bayesian PINNs for Coupled ODEs</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li class="is-active"><a class="tocitem" href>Introduction to NeuralPDE for PDEs</a><ul class="internal"><li><a class="tocitem" href="#Copy-Pasteable-Code"><span>Copy-Pasteable Code</span></a></li><li><a class="tocitem" href="#Detailed-Description"><span>Detailed Description</span></a></li></ul></li><li><a class="tocitem" href="../gpu/">Using GPUs</a></li><li><a class="tocitem" href="../systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../../examples/wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../../examples/3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../../examples/ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../../examples/heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../../examples/linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">PDE PINN Tutorials</a></li><li class="is-active"><a href>Introduction to NeuralPDE for PDEs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Introduction to NeuralPDE for PDEs</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/tutorials/pdesystem.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Specifying-and-Solving-PDESystems-with-Physics-Informed-Neural-Networks-(PINNs)"><a class="docs-heading-anchor" href="#Specifying-and-Solving-PDESystems-with-Physics-Informed-Neural-Networks-(PINNs)">Specifying and Solving PDESystems with Physics-Informed Neural Networks (PINNs)</a><a id="Specifying-and-Solving-PDESystems-with-Physics-Informed-Neural-Networks-(PINNs)-1"></a><a class="docs-heading-anchor-permalink" href="#Specifying-and-Solving-PDESystems-with-Physics-Informed-Neural-Networks-(PINNs)" title="Permalink"></a></h1><p>In this example, we will solve a Poisson equation:</p><p class="math-container">\[∂^2_x u(x, y) + ∂^2_y u(x, y) = - \sin(\pi x) \sin(\pi y) \, ,\]</p><p>with the boundary conditions:</p><p class="math-container">\[\begin{align*}
+u(0, y) &amp;= 0 \, ,\\
+u(1, y) &amp;= 0 \, ,\\
+u(x, 0) &amp;= 0 \, ,\\
+u(x, 1) &amp;= 0 \, ,
+\end{align*}\]</p><p>on the space domain:</p><p class="math-container">\[x \in [0, 1] \, , \ y \in [0, 1] \, ,\]</p><p>Using physics-informed neural networks.</p><h2 id="Copy-Pasteable-Code"><a class="docs-heading-anchor" href="#Copy-Pasteable-Code">Copy-Pasteable Code</a><a id="Copy-Pasteable-Code-1"></a><a class="docs-heading-anchor-permalink" href="#Copy-Pasteable-Code" title="Permalink"></a></h2><pre><code class="language-julia hljs">using NeuralPDE, Lux, Optimization, OptimizationOptimJL
+import ModelingToolkit: Interval
+
+@parameters x y
+@variables u(..)
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
+
+# 2D PDE
+eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
+
+# Boundary conditions
+bcs = [u(0, y) ~ 0.0, u(1, y) ~ 0.0,
+    u(x, 0) ~ 0.0, u(x, 1) ~ 0.0]
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0),
+    y ∈ Interval(0.0, 1.0)]
+
+# Neural network
+dim = 2 # number of dimensions
+chain = Lux.Chain(Dense(dim, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))
+
+# Discretization
+dx = 0.05
+discretization = PhysicsInformedNN(chain, QuadratureTraining())
+
+@named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
+prob = discretize(pde_system, discretization)
+
+#Optimizer
+opt = OptimizationOptimJL.BFGS()
+
+#Callback function
+callback = function (p, l)
+    println(&quot;Current loss is: $l&quot;)
+    return false
+end
+
+res = Optimization.solve(prob, opt, callback = callback, maxiters = 1000)
+phi = discretization.phi
+
+using Plots
+
+xs, ys = [infimum(d.domain):(dx / 10):supremum(d.domain) for d in domains]
+analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
+
+u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
+                    (length(xs), length(ys)))
+u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
+                 (length(xs), length(ys)))
+diff_u = abs.(u_predict .- u_real)
+
+p1 = plot(xs, ys, u_real, linetype = :contourf, title = &quot;analytic&quot;);
+p2 = plot(xs, ys, u_predict, linetype = :contourf, title = &quot;predict&quot;);
+p3 = plot(xs, ys, diff_u, linetype = :contourf, title = &quot;error&quot;);
+plot(p1, p2, p3)</code></pre><img src="f4e45dda.svg" alt="Example block output"/><h2 id="Detailed-Description"><a class="docs-heading-anchor" href="#Detailed-Description">Detailed Description</a><a id="Detailed-Description-1"></a><a class="docs-heading-anchor-permalink" href="#Detailed-Description" title="Permalink"></a></h2><p>The ModelingToolkit PDE interface for this example looks like this:</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+import ModelingToolkit: Interval
+
+@parameters x y
+@variables u(..)
+@derivatives Dxx&#39;&#39; ~ x
+@derivatives Dyy&#39;&#39; ~ y
+
+# 2D PDE
+eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
+
+# Boundary conditions
+bcs = [u(0, y) ~ 0.0, u(1, y) ~ 0.0,
+    u(x, 0) ~ 0.0, u(x, 1) ~ 0.0]
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0),
+    y ∈ Interval(0.0, 1.0)]</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Symbolics.VarDomainPairing}:
+ Symbolics.VarDomainPairing(x, 0.0 .. 1.0)
+ Symbolics.VarDomainPairing(y, 0.0 .. 1.0)</code></pre><p>Here, we define the neural network, where the input of NN equals the number of dimensions and output equals the number of equations in the system.</p><pre><code class="language-julia hljs"># Neural network
+dim = 2 # number of dimensions
+chain = Lux.Chain(Dense(dim, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Chain(
+    layer_1 = Dense(2 =&gt; 16, sigmoid_fast),  <span class="sgr90"># 48 parameters</span>
+    layer_2 = Dense(16 =&gt; 16, sigmoid_fast),  <span class="sgr90"># 272 parameters</span>
+    layer_3 = Dense(16 =&gt; 1),           <span class="sgr90"># 17 parameters</span>
+) <span class="sgr90">        # Total: </span>337 parameters,
+<span class="sgr90">          #        plus </span>0 states.</code></pre><p>Here, we build PhysicsInformedNN algorithm where <code>dx</code> is the step of discretization where <code>strategy</code> stores information for choosing a training strategy.</p><pre><code class="language-julia hljs">dx = 0.05
+discretization = PhysicsInformedNN(chain, QuadratureTraining())</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">PhysicsInformedNN{QuadratureTraining{IntegralsCubature.CubatureJLh, Float64}, Nothing, NeuralPDE.Phi{Lux.Chain{NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}}, Nothing}, NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}}}}, typeof(NeuralPDE.numeric_derivative), Bool, Nothing, Nothing, Nothing, Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}}(Chain(), QuadratureTraining{IntegralsCubature.CubatureJLh, Float64}(IntegralsCubature.CubatureJLh(), 1.0e-6, 0.001, 1000, 100), nothing, NeuralPDE.Phi{Lux.Chain{NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}}, Nothing}, NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}}}}(Chain(), (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple())), NeuralPDE.numeric_derivative, false, nothing, nothing, nothing, LogOptions(50), [1], true, false, Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}())</code></pre><p>As described in the API docs, we now need to define the <code>PDESystem</code> and create PINNs problem using the <code>discretize</code> method.</p><pre><code class="language-julia hljs">@named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
+prob = discretize(pde_system, discretization)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr38_2" style="color:#56b6c2">OptimizationProblem</span>. In-place: <span class="sgr38_2" style="color:#56b6c2">true</span>
+u0: ComponentVector{Float64}(layer_1 = (weight = [0.08633258938789368 0.5010774731636047; -0.17278611660003662 -0.44693031907081604; … ; -0.5437984466552734 -0.11098416894674301; 0.2850743234157562 0.5033554434776306], bias = [0.0; 0.0; … ; 0.0; 0.0;;]), layer_2 = (weight = [-0.12473464757204056 0.0556216835975647 … 0.22923263907432556 -0.233219176530838; 0.056037578731775284 0.0018619538750499487 … -0.10902224481105804 0.33668994903564453; … ; 0.3379356563091278 0.14069078862667084 … -0.1893954575061798 -0.08589878678321838; 0.2852998971939087 -0.14110426604747772 … -0.43165135383605957 -0.011207236908376217], bias = [0.0; 0.0; … ; 0.0; 0.0;;]), layer_3 = (weight = [-0.5275296568870544 0.24939805269241333 … 0.3026462197303772 0.43298742175102234], bias = [0.0;;]))</code></pre><p>Here, we define the callback function and the optimizer. And now we can solve the PDE using PINNs (with the number of epochs <code>maxiters=1000</code>).</p><pre><code class="language-julia hljs">#Optimizer
+opt = OptimizationOptimJL.BFGS()
+
+callback = function (p, l)
+    println(&quot;Current loss is: $l&quot;)
+    return false
+end
+
+res = Optimization.solve(prob, opt, callback = callback, maxiters = 1000)
+phi = discretization.phi</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NeuralPDE.Phi{Lux.Chain{NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}}, Nothing}, NamedTuple{(:layer_1, :layer_2, :layer_3), Tuple{NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}, NamedTuple{(), Tuple{}}}}}(Chain(), (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()))</code></pre><p>We can plot the predicted solution of the PDE and compare it with the analytical solution to plot the relative error.</p><pre><code class="language-julia hljs">xs, ys = [infimum(d.domain):(dx / 10):supremum(d.domain) for d in domains]
+analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
+
+u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
+                    (length(xs), length(ys)))
+u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
+                 (length(xs), length(ys)))
+diff_u = abs.(u_predict .- u_real)
+
+using Plots
+
+p1 = plot(xs, ys, u_real, linetype = :contourf, title = &quot;analytic&quot;);
+p2 = plot(xs, ys, u_predict, linetype = :contourf, title = &quot;predict&quot;);
+p3 = plot(xs, ys, diff_u, linetype = :contourf, title = &quot;error&quot;);
+plot(p1, p2, p3)</code></pre><img src="0212505b.svg" alt="Example block output"/><p><img src="https://user-images.githubusercontent.com/12683885/90962648-2db35980-e4ba-11ea-8e58-f4f07c77bcb9.png" alt="poissonplot"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Lotka_Volterra_BPINNs/">« Bayesian PINNs for Coupled ODEs</a><a class="docs-footer-nextpage" href="../gpu/">Using GPUs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Saturday 28 October 2023 22:55">Saturday 28 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
