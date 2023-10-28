@@ -86,7 +86,7 @@ sol = solve(prob_ode_fitzhughnagumo, Tsit5(), saveat = dt)
 sig = 0.20
 data = Array(sol)
 dataset = [data[1,:] .+ (sig .* rand(length(sol.t))), data[2, :] .+ (sig .* rand(length(sol.t))), sol.t]
-priors = [truncated(Normal(0.5,1.0),0,1.5), truncated(Normal(0.5,1.0),0,1.5), truncated(Normal(0.0,0.5),0.0,0.5), truncated(Normal(0.5,1.0),0,1)]
+priors = [Normal(0.5,1.0), Normal(0.5,1.0), Normal(0.0,0.5), Normal(0.5,1.0)]
 
 
 plot(sol.t, dataset[1], label = "noisy x")
@@ -97,22 +97,22 @@ chain = Lux.Chain(Lux.Dense(1, 10, tanh), Lux.Dense(10, 10, tanh),
     Lux.Dense(10, 2))
 
 Adaptorkwargs = (Adaptor = AdvancedHMC.StanHMCAdaptor,
-    Metric = AdvancedHMC.DiagEuclideanMetric, targetacceptancerate = 0.65)
+    Metric = AdvancedHMC.DiagEuclideanMetric, targetacceptancerate = 0.8)
 alg = BNNODE(chain;
 dataset = dataset,
-draw_samples = 10000,
+draw_samples = 1000,
 l2std = [0.1, 0.1],
 phystd = [0.1, 0.1],
 priorsNNw = (0.01, 3.0),
 Adaptorkwargs = Adaptorkwargs,
 param = priors, progress = true)
 
-@time sol_pestim1 = solve(prob_ode_fitzhughnagumo, alg; saveat = dt)
-@time sol_pestim2 = solve(prob_ode_fitzhughnagumo, alg; estim_collocate = true, saveat = dt)
-plot!(sol.t, sol_pestim1.ensemblesol[1], label = "estimated x1")
-plot!(sol.t, sol_pestim2.ensemblesol[1], label = "estimated x2")
-plot!(sol.t, sol_pestim1.ensemblesol[2], label = "estimated y1")
-plot!(sol.t, sol_pestim2.ensemblesol[2], label = "estimated y2")
+@time sol_pestim3 = solve(prob_ode_fitzhughnagumo, alg; saveat = dt)
+@time sol_pestim4 = solve(prob_ode_fitzhughnagumo, alg; estim_collocate = true, saveat = dt)
+plot!(sol.t, sol_pestim3.ensemblesol[1], label = "estimated x1")
+plot!(sol.t, sol_pestim4.ensemblesol[1], label = "estimated x2")
+plot!(sol.t, sol_pestim3.ensemblesol[2], label = "estimated y1")
+plot!(sol.t, sol_pestim4.ensemblesol[2], label = "estimated y2")
 
-@show sol_pestim1.estimated_ode_params
-@show sol_pestim2.estimated_ode_params
+@show sol_pestim3.estimated_ode_params
+@show sol_pestim4.estimated_ode_params
