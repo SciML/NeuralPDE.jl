@@ -489,7 +489,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     strategy = strategy == GridTraining ? strategy(physdt) : strategy
 
     if dataset != [nothing] &&
-       (length(dataset) < 2 || !(typeof(dataset) <: Vector{<:Vector{<:AbstractFloat}}))
+       (length(dataset) < 2 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
         throw(error("Invalid dataset. dataset would be timeseries (x̂,t) where type: Vector{Vector{AbstractFloat}"))
     end
 
