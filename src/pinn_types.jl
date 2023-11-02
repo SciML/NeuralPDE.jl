@@ -106,7 +106,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                                            log_options = LogOptions(),
                                            iteration = nothing,
                                            kwargs...)
-        multioutput = typeof(chain) <: AbstractArray
+        multioutput = chain isa AbstractArray
 
         if phi === nothing
             if multioutput
