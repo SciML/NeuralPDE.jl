@@ -43,7 +43,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 Adapt = "3"
-AdvancedHMC = "0.5"
+AdvancedHMC = "0.5, 0.6"
 ArrayInterface = "6, 7"
 CUDA = "4"
 ChainRulesCore = "1"
