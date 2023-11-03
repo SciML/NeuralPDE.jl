@@ -65,7 +65,35 @@ mutable struct PDELogTargetDensity{
 end
 
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
-    return Tar.full_loglikelihood(vector_to_parameters(θ, Tar.init_params), Tar.allstd) +
+    # forward solving 
+    # Tar.full_loglikelihood(vector_to_parameters(θ, Tar.init_params), Tar.allstd)
+    # println("1 : ",
+    #     length(Tar.full_loglikelihood(vector_to_parameters(θ,
+    #             Tar.init_params),
+    #         Tar.allstd).partials))
+    # println("2 : ", L2LossData(Tar, θ).value)
+    # println("2 : ", L2LossData(Tar, θ).partials)
+
+    # # println("3 : ", length(priorlogpdf(Tar, θ).partials))
+
+    # # println("sum : ",
+    # #     (Tar.full_loglikelihood(vcat(vector_to_parameters(θ[1:(end - 1)],
+    # #                  Tar.init_params[1:(end - 1)]), θ[end]),
+    # #          Tar.allstd) +
+    # #      L2LossData(Tar, θ) + priorlogpdf(Tar, θ)).value)
+    # println(typeof(θ) <: AbstractVector)
+    # println(length(θ))
+
+    # println("1 : ",
+    #     length(Tar.full_loglikelihood(vcat(vector_to_parameters(θ[1:(end - Tar.extraparams)],
+    #                 Tar.init_params[1:(end - Tar.extraparams)]), θ[(end - Tar.extraparams + 1):end]),
+    #         Tar.allstd).partials))
+    # println("2 : ", length(L2LossData(Tar, θ).partials))
+    # println("3 : ", length(priorlogpdf(Tar, θ).partials))
+
+    return Tar.full_loglikelihood(vcat(vector_to_parameters(θ[1:(end - Tar.extraparams)],
+                       Tar.init_params[1:(end - Tar.extraparams)]), θ[(end - Tar.extraparams + 1):end]),
+               Tar.allstd) +
            L2LossData(Tar, θ) + priorlogpdf(Tar, θ)
 end
 
@@ -81,13 +109,17 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
     if Tar.dataset isa Vector{Nothing} || Tar.extraparams == 0
         return 0
     else
-        nn = Tar.Phi(Tar.dataset[end], θ[1:(length(θ) - Tar.extraparams)])
+        nn = [phi(Tar.dataset[end]', θ[1:(length(θ) - Tar.extraparams)])
+              for phi in Tar.Phi]
 
         L2logprob = 0
-        for i in 1:length(Tar.dataset)
+        for i in 1:(length(Tar.dataset) - 1)
             # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
-            L2logprob += logpdf(MvNormal(nn[i, :], Tar.l2std[i]), Tar.dataset[i])
+            L2logprob += logpdf(MvNormal(nn[i][:],
+                    ones(length(Tar.dataset[end])) .* Tar.allstd[3]),
+                Tar.dataset[i])
         end
+
         return L2logprob
     end
 end
@@ -171,10 +203,12 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
     # NN solutions for loglikelihood which is used for L2lossdata
     Phi = pinnrep.phi
+
     # for new L2 loss
     # discretization.additional_loss = 
 
-    initial_nnθ = pinnrep.flat_init_params
+    # remove inv params
+    initial_nnθ = pinnrep.flat_init_params[1:(end - length(param))]
 
     if nchains > Threads.nthreads()
         throw(error("number of chains is greater than available threads"))
@@ -188,17 +222,23 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         # namedtuple form of Lux params required for RuntimeGeneratedFunctions
         initial_nnθ, st = Lux.setup(Random.default_rng(), chain)
     else
+        # flat_init_params contains also inv params
+        # initial_θ = collect(Float64, initial_nnθ[1:(length(initial_nnθ) - length(param))])
         initial_θ = collect(Float64, initial_nnθ)
     end
 
     # adding ode parameter estimation
     nparameters = length(initial_θ)
+
+    # println(Tar.Phi(initial_θ))
+
     ninv = length(param)
     priors = [MvNormal(priorsNNw[1] * ones(nparameters), priorsNNw[2] * ones(nparameters))]
 
     # append Ode params to all paramvector
     if ninv > 0
         # shift ode params(initialise ode params by prior means)
+        # check if means or user speified is better
         initial_θ = vcat(initial_θ, [Distributions.params(param[i])[1] for i in 1:ninv])
         priors = vcat(priors, param)
         nparameters += ninv
@@ -219,7 +259,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         full_weighted_loglikelihood,
         Phi)
 
-    println(ℓπ.full_loglikelihood(initial_nnθ, ℓπ.allstd))
+    println(ℓπ.full_loglikelihood(initial_θ, ℓπ.allstd))
     println(priorlogpdf(ℓπ, initial_θ))
     println(L2LossData(ℓπ, initial_θ))
 
