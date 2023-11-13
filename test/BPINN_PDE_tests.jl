@@ -189,55 +189,123 @@ eqs = Dt(u(t)) - cos(p * t) ~ 0
 bcs = [u(0) ~ 0.0]
 
 domains = [t ∈ Interval(0.0, 4.0)]
-
 chainf = Flux.Chain(Flux.Dense(1, 8, tanh), Flux.Dense(8, 1))
 initf, re = destructure(chainf)
 
-# chainl = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 1))
-# initl, st = Lux.setup(Random.default_rng(), chainl)
+chainl = Lux.Chain(Lux.Dense(1, 8, tanh), Lux.Dense(8, 1))
+initl, st = Lux.setup(Random.default_rng(), chainl)
+initl
 
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [u(t)], [p],
     defaults = Dict(p => 3))
-discretization = NeuralPDE.PhysicsInformedNN([chainf],
+
+function additional_loss(phi, θ, p)
+    # return sum(sum(abs2, phi[i](time', θ[depvars[i]]) .- 1.0) / len for i in 1:1)
+    return 2
+end
+discretization = NeuralPDE.PhysicsInformedNN([chainl],
     GridTraining(0.01),
     # QuadratureTraining(),
+    additional_loss = additional_loss,
     param_estim = true)
-# pinnrep = NeuralPDE.discretize(pde_system, discretization)
+
+# discretization.multioutput
+pinnrep = NeuralPDE.discretize(pde_system, discretization)
 
 # res = Optimization.solve(pinnrep, BFGS(); callback = callback, maxiters = 5000)
 # p_ = res.u[end]
 # res.u
 # plot!(t1, re(res.u[1:(end - 1)])(t1')')
+# depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = NeuralPDE.get_vars(pde_system.indvars,
+# pde_system.depvars)
 
-ta = range(tspan[1], tspan[2], length = 50)
+ntuple(i -> depvars[i], length(chainl))
+
+[:u]
+length(chainl)
+
+ta = range(0.0, 4.0, length = 50)
 u = [linear_analytic(0.0, p, ti) for ti in ta]
 x̂ = collect(Float64, Array(u) + 0.2 .* Array(u) .* randn(size(u)))
 # x̂ = collect(Float64, Array(u) + 0.2  .* randn(size(u)))
 time = vec(collect(Float64, ta))
 dataset = [x̂, time]
-# plot!(dataset[2], dataset[1])
+plot!(dataset[2], dataset[1])
 # plotly()
 # physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
+callback = function (p, l)
+    println("Current loss is: $l")
+    return false
+end
+res = Optimization.solve(pinnrep, BFGS(); callback = callback, maxiters = 5000)
+p_ = res.u[(end - 2):end] # p_ = [9.93, 28.002, 2.667]
+
 mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
-    draw_samples = 2000, physdt = 1 / 20.0,
+    draw_samples = 1500, physdt = 1 / 20.0,
+    bcstd = [1.0],
+    phystd = [0.005], l2std = [0.008], param = [Normal(9, 2)],
+    priorsNNw = (0.0, 10.0),
+    dataset = dataset,
+    progress = true)
+
+typeof((1, 2, 3))
+a = [1 2 4 5]'
+
+size(a)
+a[1, :]
+a[:, 1]
+chains = [chainl]
+chainn = map(chains) do chain
+    Float64.(ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
+        chain)))
+end
+names = ntuple(i -> depvars[i], length(chain))
+init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in chainn))
+init_params isa ComponentVector
+mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
+    discretization;
+    draw_samples = 1500,
     bcstd = [0.1],
-    phystd = [0.01], l2std = [0.01], param = [LogNormal(9, 2)],
-    priorsNNw = (0.0, 1.0),
+    phystd = [0.01], l2std = [0.01], param = [LogNormal(4, 2)],
+    priorsNNw = (0.0, 10.0),
     dataset = dataset,
     progress = true)
 
 tspan = (0.0, 4.0)
 t1 = collect(tspan[1]:0.01:tspan[2])
+
+# prior 0-1
+# 2000
 samples[1000]
+# 1500
 samples[1000]
+# 1000
+samples[1500]
+
+# prior 0-10
+# 2000
+samples[2000]
+# 1500
+samples[1500]
+# 1000
+samples[1000]
+
+# prior 0-10
+# 2000
+samples[2000]
+# 1500
+samples[1500]
+# 1000
 samples[1000]
 
 # plot!(t1, chainf(t1')')
 # t1
 # chainf(t1')'
+out1 = re.([samples[i][1:(end - 1)] for i in 1300:1500])
 out1 = re.([samples[i][1:(end - 1)] for i in 800:1000])
+out1 = re.([samples[i][1:(end)] for i in 800:1000])
 luxar1 = collect(out1[i](t1') for i in eachindex(out1))
 
 transsamples = [vector_to_parameters(sample, initl) for sample in samples]
@@ -428,6 +496,205 @@ println(sym_prob1)
 # # checking solution
 # p_optimized = res.u[end]
 
+# minimizer = res.u.depvar[1]
+# T_in_predict = minimizer(t_data)
+
+# using Plots
+# plot(t_data, T_in_data, label = "Dati Osservati")
+# plot!(t_data, T_in_predict, label = "Temperatura Prevista", linestyle = :dash)
+
+# Paper experiments
+# function sir_ode!(u, p, t)
+#     (S, I, R) = u
+#     (β, γ) = p
+#     N = S + I + R
+
+#     dS = -β * I / N * S
+#     dI = β * I / N * S - γ * I
+#     dR = γ * I
+#     return [dS, dI, dR]
+# end;
+
+# δt = 1.0
+# tmax = 40.0
+# tspan = (0.0, tmax)
+# u0 = [990.0, 10.0, 0.0]; # S,I,R
+# p = [0.5, 0.25]; # β,γ (removed c as a parameter as it was just getting multipled with β, so ideal value for c and β taken in new ideal β value)
+# prob_ode = ODEProblem(sir_ode!, u0, tspan, p)
+# sol = solve(prob_ode, Tsit5(), saveat = δt / 5)
+# sig = 0.20
+# data = Array(sol)
+# dataset = [
+#     data[1, :] .+ (minimum(data[1, :]) * sig .* rand(length(sol.t))),
+#     data[2, :] .+ (mean(data[2, :]) * sig .* rand(length(sol.t))),
+#     data[3, :] .+ (mean(data[3, :]) * sig .* rand(length(sol.t))),
+#     sol.t,
+# ]
+# priors = [Normal(1.0, 1.0), Normal(0.5, 1.0)]
+
+# plot(sol.t, dataset[1], label = "noisy s")
+# plot!(sol.t, dataset[2], label = "noisy i")
+# plot!(sol.t, dataset[3], label = "noisy r")
+# plot!(sol, labels = ["s" "i" "r"])
+
+# chain = Flux.Chain(Flux.Dense(1, 8, tanh), Flux.Dense(8, 8, tanh),
+#     Flux.Dense(8, 3))
+
+# Adaptorkwargs = (Adaptor = AdvancedHMC.StanHMCAdaptor,
+#     Metric = AdvancedHMC.DiagEuclideanMetric, targetacceptancerate = 0.8)
+
+# alg = BNNODE(chain;
+#     dataset = dataset,
+#     draw_samples = 500,
+#     l2std = [5.0, 5.0, 10.0],
+#     phystd = [1.0, 1.0, 1.0],
+#     priorsNNw = (0.01, 3.0),
+#     Adaptorkwargs = Adaptorkwargs,
+#     param = priors, progress = true)
+
+# # our version
+# @time sol_pestim3 = solve(prob_ode, alg; estim_collocate = true, saveat = δt)
+# @show sol_pestim3.estimated_ode_params
+
+# # old version
+# @time sol_pestim4 = solve(prob_ode, alg; saveat = δt)
+# @show sol_pestim4.estimated_ode_params
+
+# # plotting solutions
+# plot(sol_pestim3.ensemblesol[1], label = "estimated x1")
+# plot!(sol_pestim3.ensemblesol[2], label = "estimated y1")
+# plot!(sol_pestim3.ensemblesol[3], label = "estimated z1")
+
+# plot(sol_pestim4.ensemblesol[1], label = "estimated x2_1")
+# plot!(sol_pestim4.ensemblesol[2], label = "estimated y2_1")
+# plot!(sol_pestim4.ensemblesol[3], label = "estimated z2_1")
+
+# using NeuralPDE, Lux, ModelingToolkit, DataFrames, CSV, DataLoaders, Flux, IntervalSets,
+#     Optimization, OptimizationOptimJL
+
+# # Definisci il modello dell'equazione differenziale
+# @parameters t, R, C, Cs
+
+# @variables T_in(..),
+# T_ext(..),
+# Q_heating(..),
+# Q_cooling(..),
+# Q_sun(..),
+# Q_lights(..),
+# Q_equipment(..)
+
+# # R, C, Cs = [1, 2, 3]
+
+# Dt = Differential(t)
+
+# # eqs = Dt(T_in(t)) ~ (-T_ext(t) + T_in(t)) / (R * C)
+# eqs = Dt(T_in(t)) ~ (T_ext(t) - T_in(t)) / (R * C) + Q_heating(t) / C - Q_cooling(t) / C +
+#                     Q_sun(t) / Cs + (Q_lights(t) + Q_equipment(t)) / C
+
+# domains = [t ∈ Interval(0.0, 365.0 * 24.0 * 60.0)]
+# bcs = [Dt(T_in(0.0)) ~ 4.48]
+
+# dt = 10.0  # 600 seconds (10 minute)
+
+# # Define the temporal space
+# tspan = (0.0, 365.0 * 24.0 * 60.0)  # Dati per un anno
+
+# # load sampled data from CSV
+# data = CSV.File("shoebox_free.csv") |> DataFrame
+
+# # Put the sampled data in dedicated variables
+# T_in_data = data."OSGB1000005735772_FLOOR_1:Zone Mean Air Temperature [C](TimeStep)"
+# T_ext_data = data."Environment:Site Outdoor Air Drybulb Temperature [C](TimeStep)"
+# Q_heating_data = data."OSGB1000005735772_FLOOR_1_HVAC:Zone Ideal Loads Zone Total Heating Rate [W](TimeStep)"
+# Q_cooling_data = data."OSGB1000005735772_FLOOR_1_HVAC:Zone Ideal Loads Zone Total Cooling Rate [W](TimeStep)"
+# Q_sun_data = data."Environment:Site Direct Solar Radiation Rate per Area [W/m2](TimeStep)"
+# Q_lights_data = data."OSGB1000005735772_FLOOR_1:Zone Lights Total Heating Rate [W](TimeStep)"
+# Q_equipment_data = data."OSGB1000005735772_FLOOR_1:Zone Electric Equipment Total Heating Rate [W](TimeStep)"
+
+# t_data = collect(Float64, 1:size(data, 1))
+
+# dataloader = DataLoader([
+#     vcat(T_in_data,
+#         T_ext_data,
+#         Q_heating_data,
+#         Q_cooling_data,
+#         Q_sun_data,
+#         Q_lights_data,
+#         Q_equipment_data,
+#         t_data),
+# ])
+
+# dataloader
+# # Define the NN
+# input_dim = 1
+# hidden_units = 8
+# len = length(t_data)
+
+# chain1 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
+#          Flux.f64
+# chain2 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
+#          Flux.f64
+# chain3 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
+#          Flux.f64
+# chain4 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
+#          Flux.f64
+# chain5 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
+#          Flux.f64
+# chain6 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
+#          Flux.f64
+# chain7 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
+#          Flux.f64
+
+# #Define dependent and independent vatiables
+# indvars = [t]
+# depvars = [:T_in, :T_ext, :Q_heating, :Q_cooling, :Q_sun, :Q_lights, :Q_equipment]
+# u_ = hcat(T_in_data,
+#     T_ext_data,
+#     Q_heating_data,
+#     Q_cooling_data,
+#     Q_sun_data,
+#     Q_lights_data,
+#     Q_equipment_data)
+
+# # Define the loss(additional loss will be using all data vectors)
+# init_params = [Flux.destructure(c)[1]
+#                for c in [chain1, chain2, chain3, chain4, chain5, chain6, chain7]]
+# acum = [0; accumulate(+, length.(init_params))]
+# sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
+
+# function additional_loss(phi, θ, p)
+#     return sum(sum(abs2, phi[i](t_data[1:500]', θ[sep[i]]) .- u_[:, [i]]') / 500.0
+#                for i in 1:1:1)
+# end
+
+# @named pde_system = NeuralPDE.PDESystem(eqs,
+#     bcs,
+#     domains,
+#     [t],
+#     [T_in(t), T_ext(t), Q_heating(t), Q_cooling(t), Q_sun(t), Q_lights(t), Q_equipment(t)
+#     ],
+#     [R, C, Cs],
+#     defaults = Dict([R => 1.0, C => 1.0, Cs => 1.0]))#[R, C, Cs])
+
+# discretization = NeuralPDE.PhysicsInformedNN([
+#         chain1,
+#         chain2,
+#         chain3,
+#         chain4,
+#         chain5,
+#         chain6, chain7,
+#     ],
+#     NeuralPDE.GridTraining(dt), param_estim = true, additional_loss = additional_loss)
+# prob = NeuralPDE.discretize(pde_system, discretization)
+
+# # Parameter Optimization
+# res = Optimization.solve(prob,
+#     BFGS(),
+#     maxiters = 1000,
+#     callback = callback)
+
+# p_optimized = res.u[end]
+# # Plot fo results
 # minimizer = res.u.depvar[1]
 # T_in_predict = minimizer(t_data)
 
