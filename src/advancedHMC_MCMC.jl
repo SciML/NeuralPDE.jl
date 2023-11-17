@@ -65,22 +65,23 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
 end
 
 """
-Cool function needed for converting vector of sampled parameters into namedTuples in case of Lux chain output, derivatives
+Cool function needed for converting vector of sampled parameters into ComponentVector in case of Lux chain output, derivatives
 the sampled parameters are of exotic type `Dual` due to ForwardDiff's autodiff tagging
 """
 function vector_to_parameters(ps_new::AbstractVector,
-    ps::Union{NamedTuple, <:AbstractVector})
-    if typeof(ps) <: AbstractVector
+        ps::Union{ComponentArrays.ComponentVector, AbstractVector})
+    if ps isa ComponentArrays.ComponentVector
+        @assert length(ps_new) == Lux.parameterlength(ps)
+        i = 1
+        function get_ps(x)
+            z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
+            i += length(x)
+            return z
+        end
+        return Functors.fmap(get_ps, ps)
+    else
         return ps_new
     end
-    @assert length(ps_new) == Lux.parameterlength(ps)
-    i = 1
-    function get_ps(x)
-        z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
-        i += length(x)
-        return z
-    end
-    return Functors.fmap(get_ps, ps)
 end
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
@@ -559,9 +560,10 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         end
     end
 
-    println(physloglikelihood(ℓπ, initial_θ))
-    println(priorweights(ℓπ, initial_θ))
-    # println(L2LossData(ℓπ, initial_nnθ))
+    println("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, initial_θ))
+    println("Current Prior Log-likelihood : ", priorweights(ℓπ, initial_θ))
+    println("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
+    println("Current custom loss Log-likelihood : ", L2loss2(ℓπ, initial_θ))
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
@@ -608,6 +610,12 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
+
+        println("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, samples[end]))
+        println("Current Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
+        println("Current MSE against dataset Log-likelihood : ",
+            L2LossData(ℓπ, samples[end]))
+        println("Current custom loss Log-likelihood : ", L2loss2(ℓπ, samples[end]))
 
         # return a chain(basic chain),samples and stats
         matrix_samples = hcat(samples...)

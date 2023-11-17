@@ -129,6 +129,10 @@ mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
     priorsNNw = (0.0, 10.0),
     progress = true)
 
+# println(ℓπ.full_loglikelihood(setparameters(ℓπ, initial_θ), ℓπ.allstd))
+# println(priorlogpdf(ℓπ, initial_θ))
+# println(L2LossData(ℓπ, initial_θ))
+
 # discretization = NeuralPDE.PhysicsInformedNN(chainf,
 #     GridTraining([
 #         0.01,
@@ -190,11 +194,14 @@ bcs = [u(0) ~ 0.0]
 
 domains = [t ∈ Interval(0.0, 4.0)]
 chainf = Flux.Chain(Flux.Dense(1, 8, tanh), Flux.Dense(8, 1))
+typeof(chainf)
 initf, re = destructure(chainf)
 
 chainl = Lux.Chain(Lux.Dense(1, 8, tanh), Lux.Dense(8, 1))
 initl, st = Lux.setup(Random.default_rng(), chainl)
-initl
+Lux.initialparameters(Random.default_rng(), chainl)
+initl isa ComponentArrays.ComponentVector
+typeof(initl) <: NamedTuple
 
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [u(t)], [p],
     defaults = Dict(p => 3))
@@ -203,14 +210,22 @@ function additional_loss(phi, θ, p)
     # return sum(sum(abs2, phi[i](time', θ[depvars[i]]) .- 1.0) / len for i in 1:1)
     return 2
 end
-discretization = NeuralPDE.PhysicsInformedNN([chainl],
-    GridTraining(0.01),
-    # QuadratureTraining(),
-    additional_loss = additional_loss,
-    param_estim = true)
 
-# discretization.multioutput
-pinnrep = NeuralPDE.discretize(pde_system, discretization)
+# collect(Float64, pinnrep.init_params)
+# typeof(pinnrep.init_params) <: AbstractVector
+# pinnrep.init_params[names[1]]
+# typeof(pinnrep.init_params[names[1]]) <: ComponentArrays.ComponentVector
+# pinnrep.init_params
+# pinnrep.flat_init_params
+# pinnrep.init_params
+
+# pinnrep.flat_init_params
+# pinnrep.init_params
+
+# pinnrep.flat_init_params
+# pinnrep.init_params
+
+# names = ntuple(i -> pinnrep.depvars[i], length(pinnrep.depvars))
 
 # res = Optimization.solve(pinnrep, BFGS(); callback = callback, maxiters = 5000)
 # p_ = res.u[end]
@@ -219,10 +234,10 @@ pinnrep = NeuralPDE.discretize(pde_system, discretization)
 # depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = NeuralPDE.get_vars(pde_system.indvars,
 # pde_system.depvars)
 
-ntuple(i -> depvars[i], length(chainl))
+# ntuple(i -> depvars[i], length(chainl))
 
-[:u]
-length(chainl)
+# [:u]
+# length(chainl)
 
 ta = range(0.0, 4.0, length = 50)
 u = [linear_analytic(0.0, p, ti) for ti in ta]
@@ -230,7 +245,7 @@ x̂ = collect(Float64, Array(u) + 0.2 .* Array(u) .* randn(size(u)))
 # x̂ = collect(Float64, Array(u) + 0.2  .* randn(size(u)))
 time = vec(collect(Float64, ta))
 dataset = [x̂, time]
-plot!(dataset[2], dataset[1])
+# plot!(dataset[2], dataset[1])
 # plotly()
 # physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
@@ -238,14 +253,32 @@ callback = function (p, l)
     println("Current loss is: $l")
     return false
 end
-res = Optimization.solve(pinnrep, BFGS(); callback = callback, maxiters = 5000)
-p_ = res.u[(end - 2):end] # p_ = [9.93, 28.002, 2.667]
+# res = Optimization.solve(pinnrep, BFGS(); callback = callback, maxiters = 5000)
+# p_ = res.u[(end - 2):end] # p_ = [9.93, 28.002, 2.667]
 
+discretization = NeuralPDE.PhysicsInformedNN([chainf],
+    GridTraining(0.01),
+    # QuadratureTraining(),
+    additional_loss = additional_loss,
+    param_estim = true)
+
+discretization.multioutput
+discretization.flat_init_params
+pinnrep = NeuralPDE.symbolic_discretize(pde_system, discretization)
+prob = NeuralPDE.discretize(pde_system, discretization)
+res = Optimization.solve(prob,
+    BFGS();
+    maxiters = 5000,
+    callback = (p, l) -> println("Current loss is: $l"))
+
+pinnrep.init_params
+pinnrep.flat_init_params
 mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
     draw_samples = 1500, physdt = 1 / 20.0,
     bcstd = [1.0],
-    phystd = [0.005], l2std = [0.008], param = [Normal(9, 2)],
+    phystd = [0.005], l2std = [0.008, 0.004],
+    param = [Normal(9, 2)],
     priorsNNw = (0.0, 10.0),
     dataset = dataset,
     progress = true)
@@ -568,136 +601,3 @@ println(sym_prob1)
 # plot(sol_pestim4.ensemblesol[1], label = "estimated x2_1")
 # plot!(sol_pestim4.ensemblesol[2], label = "estimated y2_1")
 # plot!(sol_pestim4.ensemblesol[3], label = "estimated z2_1")
-
-# using NeuralPDE, Lux, ModelingToolkit, DataFrames, CSV, DataLoaders, Flux, IntervalSets,
-#     Optimization, OptimizationOptimJL
-
-# # Definisci il modello dell'equazione differenziale
-# @parameters t, R, C, Cs
-
-# @variables T_in(..),
-# T_ext(..),
-# Q_heating(..),
-# Q_cooling(..),
-# Q_sun(..),
-# Q_lights(..),
-# Q_equipment(..)
-
-# # R, C, Cs = [1, 2, 3]
-
-# Dt = Differential(t)
-
-# # eqs = Dt(T_in(t)) ~ (-T_ext(t) + T_in(t)) / (R * C)
-# eqs = Dt(T_in(t)) ~ (T_ext(t) - T_in(t)) / (R * C) + Q_heating(t) / C - Q_cooling(t) / C +
-#                     Q_sun(t) / Cs + (Q_lights(t) + Q_equipment(t)) / C
-
-# domains = [t ∈ Interval(0.0, 365.0 * 24.0 * 60.0)]
-# bcs = [Dt(T_in(0.0)) ~ 4.48]
-
-# dt = 10.0  # 600 seconds (10 minute)
-
-# # Define the temporal space
-# tspan = (0.0, 365.0 * 24.0 * 60.0)  # Dati per un anno
-
-# # load sampled data from CSV
-# data = CSV.File("shoebox_free.csv") |> DataFrame
-
-# # Put the sampled data in dedicated variables
-# T_in_data = data."OSGB1000005735772_FLOOR_1:Zone Mean Air Temperature [C](TimeStep)"
-# T_ext_data = data."Environment:Site Outdoor Air Drybulb Temperature [C](TimeStep)"
-# Q_heating_data = data."OSGB1000005735772_FLOOR_1_HVAC:Zone Ideal Loads Zone Total Heating Rate [W](TimeStep)"
-# Q_cooling_data = data."OSGB1000005735772_FLOOR_1_HVAC:Zone Ideal Loads Zone Total Cooling Rate [W](TimeStep)"
-# Q_sun_data = data."Environment:Site Direct Solar Radiation Rate per Area [W/m2](TimeStep)"
-# Q_lights_data = data."OSGB1000005735772_FLOOR_1:Zone Lights Total Heating Rate [W](TimeStep)"
-# Q_equipment_data = data."OSGB1000005735772_FLOOR_1:Zone Electric Equipment Total Heating Rate [W](TimeStep)"
-
-# t_data = collect(Float64, 1:size(data, 1))
-
-# dataloader = DataLoader([
-#     vcat(T_in_data,
-#         T_ext_data,
-#         Q_heating_data,
-#         Q_cooling_data,
-#         Q_sun_data,
-#         Q_lights_data,
-#         Q_equipment_data,
-#         t_data),
-# ])
-
-# dataloader
-# # Define the NN
-# input_dim = 1
-# hidden_units = 8
-# len = length(t_data)
-
-# chain1 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
-#          Flux.f64
-# chain2 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
-#          Flux.f64
-# chain3 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
-#          Flux.f64
-# chain4 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
-#          Flux.f64
-# chain5 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
-#          Flux.f64
-# chain6 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
-#          Flux.f64
-# chain7 = Flux.Chain(Flux.Dense(input_dim, hidden_units, σ), Flux.Dense(hidden_units, 1)) |>
-#          Flux.f64
-
-# #Define dependent and independent vatiables
-# indvars = [t]
-# depvars = [:T_in, :T_ext, :Q_heating, :Q_cooling, :Q_sun, :Q_lights, :Q_equipment]
-# u_ = hcat(T_in_data,
-#     T_ext_data,
-#     Q_heating_data,
-#     Q_cooling_data,
-#     Q_sun_data,
-#     Q_lights_data,
-#     Q_equipment_data)
-
-# # Define the loss(additional loss will be using all data vectors)
-# init_params = [Flux.destructure(c)[1]
-#                for c in [chain1, chain2, chain3, chain4, chain5, chain6, chain7]]
-# acum = [0; accumulate(+, length.(init_params))]
-# sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
-
-# function additional_loss(phi, θ, p)
-#     return sum(sum(abs2, phi[i](t_data[1:500]', θ[sep[i]]) .- u_[:, [i]]') / 500.0
-#                for i in 1:1:1)
-# end
-
-# @named pde_system = NeuralPDE.PDESystem(eqs,
-#     bcs,
-#     domains,
-#     [t],
-#     [T_in(t), T_ext(t), Q_heating(t), Q_cooling(t), Q_sun(t), Q_lights(t), Q_equipment(t)
-#     ],
-#     [R, C, Cs],
-#     defaults = Dict([R => 1.0, C => 1.0, Cs => 1.0]))#[R, C, Cs])
-
-# discretization = NeuralPDE.PhysicsInformedNN([
-#         chain1,
-#         chain2,
-#         chain3,
-#         chain4,
-#         chain5,
-#         chain6, chain7,
-#     ],
-#     NeuralPDE.GridTraining(dt), param_estim = true, additional_loss = additional_loss)
-# prob = NeuralPDE.discretize(pde_system, discretization)
-
-# # Parameter Optimization
-# res = Optimization.solve(prob,
-#     BFGS(),
-#     maxiters = 1000,
-#     callback = callback)
-
-# p_optimized = res.u[end]
-# # Plot fo results
-# minimizer = res.u.depvar[1]
-# T_in_predict = minimizer(t_data)
-
-# using Plots
-# plot(t_data, T_in_data, label = "Dati Osservati")
-# plot!(t_data, T_in_predict, label = "Temperatura Prevista", linestyle = :dash)
