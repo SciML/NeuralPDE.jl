@@ -69,8 +69,8 @@ Cool function needed for converting vector of sampled parameters into ComponentV
 the sampled parameters are of exotic type `Dual` due to ForwardDiff's autodiff tagging
 """
 function vector_to_parameters(ps_new::AbstractVector,
-        ps::Union{ComponentArrays.ComponentVector, AbstractVector})
-    if ps isa ComponentArrays.ComponentVector
+        ps::Union{NamedTuple, ComponentArrays.ComponentVector, AbstractVector})
+    if (ps isa ComponentArrays.ComponentVector) || (ps isa NamedTuple)
         @assert length(ps_new) == Lux.parameterlength(ps)
         i = 1
         function get_ps(x)
@@ -563,7 +563,6 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     println("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, initial_θ))
     println("Current Prior Log-likelihood : ", priorweights(ℓπ, initial_θ))
     println("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
-    println("Current custom loss Log-likelihood : ", L2loss2(ℓπ, initial_θ))
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
@@ -611,11 +610,11 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
 
+        println("Sampling Complete.")
         println("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, samples[end]))
         println("Current Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
         println("Current MSE against dataset Log-likelihood : ",
             L2LossData(ℓπ, samples[end]))
-        println("Current custom loss Log-likelihood : ", L2loss2(ℓπ, samples[end]))
 
         # return a chain(basic chain),samples and stats
         matrix_samples = hcat(samples...)

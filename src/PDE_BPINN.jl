@@ -71,10 +71,11 @@ function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
     # + L2loss2(Tar, θ)
 end
 
-function L2loss2(Tar::PDELogTargetDensity, θ)
-    return Tar.full_loglikelihood(setparameters(Tar, θ),
-        Tar.allstd)
-end
+# function L2loss2(Tar::PDELogTargetDensity, θ)
+#     return Tar.full_loglikelihood(setparameters(Tar, θ),
+#         Tar.allstd)
+# end
+
 function setparameters(Tar::PDELogTargetDensity, θ)
     names = Tar.names
     ps_new = θ[1:(end - Tar.extraparams)]
@@ -291,6 +292,12 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     metric = Metric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
 
+    println("Current Physics Log-likelihood : ",
+        ℓπ.full_loglikelihood(setparameters(ℓπ, initial_θ),
+            ℓπ.allstd))
+    println("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, initial_θ))
+    println("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
+
     # parallel sampling option
     if nchains != 1
         # Cache to store the chains
@@ -333,6 +340,15 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         # return a chain(basic chain),samples and stats
         matrix_samples = hcat(samples...)
         mcmc_chain = MCMCChains.Chains(matrix_samples')
+
+        println("Sampling Complete.")
+        println("Current Physics Log-likelihood : ",
+            ℓπ.full_loglikelihood(setparameters(ℓπ, samples[end]),
+                ℓπ.allstd))
+        println("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, samples[end]))
+        println("Current MSE against dataset Log-likelihood : ",
+            L2LossData(ℓπ, samples[end]))
+
         return mcmc_chain, samples, stats
     end
 end
