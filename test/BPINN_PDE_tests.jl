@@ -1,9 +1,7 @@
-using Test, MCMCChains, Plots
-using Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using Test, MCMCChains, Lux, ModelingToolkit
 import ModelingToolkit: Interval, infimum, supremum
 using ForwardDiff, Distributions, OrdinaryDiffEq
-using Flux, OptimizationOptimisers, AdvancedHMC
-using Statistics, Random, Functors, ComponentArrays
+using Flux, AdvancedHMC, Statistics, Random, Functors
 using NeuralPDE, MonteCarloMeasurements
 
 # Forward solving example
@@ -81,10 +79,6 @@ initl, st = Lux.setup(Random.default_rng(), chainl)
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [u(t)], [p],
     defaults = Dict(p => 3))
 
-function additional_loss(phi, θ, p)
-    return sum(sum(abs2, phi[i](time', θ[depvars[i]]) .- 1.0) / len for i in 1:1)
-end
-
 ta = range(0.0, 4.0, length = 50)
 u = [linear_analytic(0.0, p, ti) for ti in ta]
 x̂ = collect(Float64, Array(u) + 0.2 .* Array(u) .* randn(size(u)))
@@ -93,7 +87,6 @@ dataset = [x̂, time]
 
 discretization = NeuralPDE.PhysicsInformedNN([chainf],
     GridTraining(0.01),
-    additional_loss = additional_loss,
     param_estim = true)
 
 mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
@@ -108,7 +101,6 @@ mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
 
 discretization = NeuralPDE.PhysicsInformedNN([chainl],
     GridTraining(0.01),
-    additional_loss = additional_loss,
     param_estim = true)
 
 mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
@@ -138,119 +130,3 @@ u = [linear_analytic(0, nothing, t) for t in t1]
 
 @test mean(p .- [samples[i][end] for i in 1300:1500]) < 0.4 * p
 @test mean(p .- [samples[i][end] for i in 1300:1500]) < 0.4 * p
-
-# Paper experiments
-# function sir_ode!(u, p, t)
-#     (S, I, R) = u
-#     (β, γ) = p
-#     N = S + I + R
-
-#     dS = -β * I / N * S
-#     dI = β * I / N * S - γ * I
-#     dR = γ * I
-#     return [dS, dI, dR]
-# end;
-
-# δt = 1.0
-# tmax = 40.0
-# tspan = (0.0, tmax)
-# u0 = [990.0, 10.0, 0.0]; # S,I,R
-# p = [0.5, 0.25]; # β,γ (removed c as a parameter as it was just getting multipled with β, so ideal value for c and β taken in new ideal β value)
-# prob_ode = ODEProblem(sir_ode!, u0, tspan, p)
-# sol = solve(prob_ode, Tsit5(), saveat = δt / 5)
-# sig = 0.20
-# data = Array(sol)
-# dataset = [
-#     data[1, :] .+ (minimum(data[1, :]) * sig .* rand(length(sol.t))),
-#     data[2, :] .+ (mean(data[2, :]) * sig .* rand(length(sol.t))),
-#     data[3, :] .+ (mean(data[3, :]) * sig .* rand(length(sol.t))),
-#     sol.t,
-# ]
-# priors = [Normal(1.0, 1.0), Normal(0.5, 1.0)]
-
-# plot(sol.t, dataset[1], label = "noisy s")
-# plot!(sol.t, dataset[2], label = "noisy i")
-# plot!(sol.t, dataset[3], label = "noisy r")
-# plot!(sol, labels = ["s" "i" "r"])
-
-# chain = Flux.Chain(Flux.Dense(1, 8, tanh), Flux.Dense(8, 8, tanh),
-#     Flux.Dense(8, 3))
-
-# Adaptorkwargs = (Adaptor = AdvancedHMC.StanHMCAdaptor,
-#     Metric = AdvancedHMC.DiagEuclideanMetric, targetacceptancerate = 0.8)
-
-# alg = BNNODE(chain;
-#     dataset = dataset,
-#     draw_samples = 500,
-#     l2std = [5.0, 5.0, 10.0],
-#     phystd = [1.0, 1.0, 1.0],
-#     priorsNNw = (0.01, 3.0),
-#     Adaptorkwargs = Adaptorkwargs,
-#     param = priors, progress = true)
-
-# # our version
-# @time sol_pestim3 = solve(prob_ode, alg; estim_collocate = true, saveat = δt)
-# @show sol_pestim3.estimated_ode_params
-
-# # old version
-# @time sol_pestim4 = solve(prob_ode, alg; saveat = δt)
-# @show sol_pestim4.estimated_ode_params
-
-# # plotting solutions
-# plot(sol_pestim3.ensemblesol[1], label = "estimated x1")
-# plot!(sol_pestim3.ensemblesol[2], label = "estimated y1")
-# plot!(sol_pestim3.ensemblesol[3], label = "estimated z1")
-
-# plot(sol_pestim4.ensemblesol[1], label = "estimated x2_1")
-# plot!(sol_pestim4.ensemblesol[2], label = "estimated y2_1")
-# plot!(sol_pestim4.ensemblesol[3], label = "estimated z2_1")
-
-# discretization = NeuralPDE.PhysicsInformedNN(chainf,
-#     GridTraining([
-#         0.01,
-#     ]),
-#     adaptive_loss = MiniMaxAdaptiveLoss(2;
-#         pde_max_optimiser = Flux.ADAM(1e-4),
-#         bc_max_optimiser = Flux.ADAM(0.5),
-#         pde_loss_weights = 1,
-#         bc_loss_weights = 1,
-#         additional_loss_weights = 1)
-
-#     # GradientScaleAdaptiveLoss{Float64, ForwardDiff.Dual{Float64}}(2;
-#     #     weight_change_inertia = 0.9,
-#     #     pde_loss_weights = ForwardDiff.Dual{Float64}(1.0,
-#     #         ntuple(_ -> 0.0, 19)),
-#     #     bc_loss_weights = ForwardDiff.Dual{Float64}(1.0,
-#     #         ntuple(_ -> 0.0, 19)),
-#     #     additional_loss_weights = ForwardDiff.Dual{Float64}(1.0,
-#     #         ntuple(_ -> 0.0, 19)))
-#     #     GradientScaleAdaptiveLoss{Float64, ForwardDiff.Dual{Float64, Float64}}(2;
-#     # weight_change_inertia = 0.9,
-#     # pde_loss_weights = ForwardDiff.Dual{Float64}(1.0, ntuple(_ -> 0.0, 19)),
-#     # bc_loss_weights = ForwardDiff.Dual{Float64}(1.0, ntuple(_ -> 0.0, 19)),
-#     # additional_loss_weights = ForwardDiff.Dual{Float64}(1.0, ntuple(_ -> 0.0, 19))))
-# )
-
-# # ForwardDiff.Dual{Float64}(1.0, ntuple(_ -> 0.0, 19))
-# # typeof(ForwardDiff.Dual{Float64}(1.0, ntuple(_ -> 0.0, 19))) <: ForwardDiff.Dual
-
-# a = GradientScaleAdaptiveLoss{Float64, ForwardDiff.Dual{Float64, Float64}}(2;
-# weight_change_inertia = 0.9,
-# pde_loss_weights = ForwardDiff.Dual{Float64}(1.0,
-# zeros(19))),
-# bc_loss_weights = ForwardDiff.Dual{Float64}(1.0,
-# zeros(19)),
-# additional_loss_weights = ForwardDiff.Dual{Float64}(1.0,
-#     zeros(19))
-
-# as = ForwardDiff.Dual{Float64}(1.0, ForwardDiff.Partials(ntuple(_ -> 0.0, 19)))
-# typeof(ForwardDiff.Dual{Float64}(1.0, ntuple(_ -> 0.0, 19)))
-
-# a = GradientScaleAdaptiveLoss{Float64, Float64}(2; weight_change_inertia = 0.9,
-#     pde_loss_weights = 1,
-#     bc_loss_weights = 1,
-#     additional_loss_weights = 1)
-# ForwardDiff.Dual{Float64, Float64, 19} <: ForwardDiff.Dual{Float64, Float64}
-# typeof(ntuple(_ -> 0.0, 19)) <: Tuple
-# ForwardDiff.Dual{Float64}(ForwardDiff.value(1.0), ntuple(_ -> 0.0, 19))
-# typeof(ForwardDiff.Dual{Float64}(1.0, ntuple(_ -> 0.0, 19))) <: Real
