@@ -401,7 +401,7 @@ to the PDE.
 For more information, see `discretize` and `PINNRepresentation`.
 """
 function SciMLBase.symbolic_discretize(pde_system::PDESystem,
-    discretization::PhysicsInformedNN; bayesian::Bool = false)
+    discretization::PhysicsInformedNN; bayesian::Bool = false,dataset_given=[nothing])
     eqs = pde_system.eqs
     bcs = pde_system.bcs
     chain = discretization.chain
@@ -567,7 +567,6 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                                                               strategy,
                                                                               datafree_pde_loss_functions,
                                                                               datafree_bc_loss_functions)
-
     # setup for all adaptive losses
     num_pde_losses = length(pde_loss_functions)
     num_bc_losses = length(bc_loss_functions)
@@ -587,14 +586,34 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                                            bc_loss_functions)
 
     if bayesian
+        # required as Physics loss also needed on dataset domain points
+        pde_loss_functions1, bc_loss_functions1 = if !(dataset_given[1] isa Nothing)
+            if !(strategy isa  GridTraining)
+                println("only GridTraining strategy allowed")
+            else
+                merge_strategy_with_loglikelihood_function(pinnrep,
+                strategy,
+                datafree_pde_loss_functions,
+                datafree_bc_loss_functions, train_sets_L2loss2 = dataset_given)
+            end
+        end
+
         function full_likelihood_function(θ, allstd)
             stdpdes, stdbcs, stdextra = allstd
             # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
             pde_loglikelihoods = [logpdf(Normal(0, stdpdes[i]), pde_loss_function(θ))
-                                  for (i, pde_loss_function) in enumerate(pde_loss_functions)]
+                                      for (i, pde_loss_function) in enumerate(pde_loss_functions)] 
 
             bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
-                                 for (j, bc_loss_function) in enumerate(bc_loss_functions)]
+                                 for (j, bc_loss_function) in enumerate(bc_loss_functions)]    
+
+            if !(dataset_given[1] isa Nothing)
+                pde_loglikelihoods += [logpdf(Normal(0, stdpdes[j]), pde_loss_function1(θ))
+                                       for (j, pde_loss_function1) in enumerate(pde_loss_functions1)]
+
+                bc_loglikelihoods += [logpdf(Normal(0, stdbcs[j]), bc_loss_function1(θ))
+                                          for (j, bc_loss_function1) in enumerate(bc_loss_functions1)]
+            end
 
             # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
             # that's why we prefer the user to maintain the increment in the outer loop callback during optimization
@@ -634,8 +653,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                     return additional_loss(phi, θ_, p_)
                 end
 
-                _additional_loglikelihood = logpdf(Normal(0, stdextra),
-                    _additional_loss(phi, θ))
+                _additional_loglikelihood = logpdf(Normal(0, stdextra) _additional_loss(phi, θ))
+
                 weighted_additional_loglikelihood = adaloss.additional_loss_weights[1] *
                                                     _additional_loglikelihood
 
@@ -645,7 +664,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         end
 
         pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
-                                        full_likelihood_function, additional_loss,
+                                        full_likelihood_function, additional_loss, 
                                         datafree_pde_loss_functions,
                                         datafree_bc_loss_functions)
     else

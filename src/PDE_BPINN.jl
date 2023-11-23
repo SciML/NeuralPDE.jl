@@ -1,6 +1,6 @@
 mutable struct PDELogTargetDensity{
     ST <: AbstractTrainingStrategy,
-    D <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}},
+    D <: Union{Vector{Nothing}, Vector{<:Matrix{<:Real}}},
     P <: Vector{<:Distribution},
     I,
     F,
@@ -12,7 +12,7 @@ mutable struct PDELogTargetDensity{
     priors::P
     allstd::Vector{Vector{Float64}}
     names::Tuple
-    physdt::Float64
+    physdt::Vector{Float64}
     extraparams::Int
     init_params::I
     full_loglikelihood::F
@@ -42,7 +42,8 @@ mutable struct PDELogTargetDensity{
     end
     function PDELogTargetDensity(dim, strategy, dataset,
             priors, allstd, names, physdt, extraparams,
-            init_params::NamedTuple, full_loglikelihood, Phi)
+            init_params::Union{NamedTuple, ComponentArrays.ComponentVector},
+            full_loglikelihood, Phi)
         new{
             typeof(strategy),
             typeof(dataset),
@@ -126,22 +127,48 @@ end
 function L2loss2(Tar::PDELogTargetDensity, θ)
     return logpdf(MvNormal(pde(phi, Tar.dataset[end], θ)), zeros(length(pde_eqs)))
 end
+
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)
 function L2LossData(Tar::PDELogTargetDensity, θ)
+    Phi = Tar.Phi
+    init_params = Tar.init_params
+    dataset = Tar.dataset
+    sumt = 0
+    L2stds = Tar.allstd[3]
+    # each dep var has a diff dataset depending on its indep var and thier domains
+    # these datasets are matrices of first col-dep var and remaining cols-all indep var
+    # Tar.init_params is needed to contruct a vector of parameters into a ComponentVector
+
+    # dataset of form Vector[matrix_x, matrix_y, matrix_z]
+    # matrix_i is of form [i,indvar1,indvar2,..] (needed in case if heterogenous domains)
+
+    # Phi is the trial solution for each NN in chain array
+    # Creating logpdf( MvNormal(Phi(t,θ),std), dataset[i] )
+    # dataset[i][:, 2:end] -> indepvar cols of a particular depvar's dataset 
+    # dataset[i][:, 1] -> depvar col of depvar's dataset
+
     if Tar.extraparams > 0
         if Tar.init_params isa ComponentArrays.ComponentVector
-            return sum([logpdf(MvNormal(Tar.Phi[i](Tar.dataset[end]',
-                        vector_to_parameters(θ[1:(end - Tar.extraparams)],
-                            Tar.init_params)[Tar.names[i]])[1,
-                        :], ones(length(Tar.dataset[end])) .* Tar.allstd[3][i]), Tar.dataset[i])
-                        for i in eachindex(Tar.Phi)])
+            for i in eachindex(Phi)
+                sumt += logpdf(MvNormal(Phi[i](dataset[i][:, 2:end]',
+                            vector_to_parameters(θ[1:(end - Tar.extraparams)],
+                                init_params)[Tar.names[i]])[1,
+                            :],
+                        ones(size(dataset[i])[1]) .* L2stds[i]),
+                    dataset[i][:, 1])
+            end
+            sumt
         else
             # Flux case needs subindexing wrt Tar.names indices(hence stored in Tar.names)
-            return sum([logpdf(MvNormal(Tar.Phi[i](Tar.dataset[end]',
-                        vector_to_parameters(θ[1:(end - Tar.extraparams)],
-                            Tar.init_params)[Tar.names[2][i]])[1,
-                        :], ones(length(Tar.dataset[end])) .* Tar.allstd[3][i]), Tar.dataset[i])
-                        for i in eachindex(Tar.Phi)])
+            for i in eachindex(Phi)
+                sumt += logpdf(MvNormal(Phi[i](dataset[i][:, 2:end]',
+                            vector_to_parameters(θ[1:(end - Tar.extraparams)],
+                                init_params)[Tar.names[2][i]])[1,
+                            :],
+                        ones(size(dataset[i])[1]) .* L2stds[i]),
+                    dataset[i][:, 1])
+            end
+            sumt
         end
     else
         return 0
@@ -204,21 +231,58 @@ function adaptorchoice(Adaptor, mma, ssa)
     end
 end
 
-# dataset would be (x̂,t)
+# function inference(samples, discretization, saveat, numensemble, ℓπ)
+#     ranges = []
+#     for i in eachindex(domains)
+#         push!(ranges, [infimum(domains[i].domain), supremum(infimum(domains[i].domain))])
+#     end
+#     ranges = map(ranges) do x
+#         collect(x[1]:saveat:x[2])
+#     end
+#     samples = samples[(end - numensemble):end]
+#     chain = discretization.chain
+
+#     if discretization.multioutput && chain[1] isa Lux.AbstractExplicitLayer
+#         temp = [setparameters(ℓπ, samples[i]) for i in eachindex(samples)]
+
+#         luxar = map(temp) do x
+#             chain(t', x, st[i])
+#         end
+
+#     elseif discretization.multioutput && chain[1] isa Flux.chain
+
+#     elseif chain isa Flux.Chain
+#         re = Flux.destructure(chain)[2]
+#         out1 = re.([sample for sample in samples])
+#         luxar = [collect(out1[i](t') for t in ranges)]
+#         fluxmean = map(luxar) do x
+#             mean(vcat(x...)[:, i]) for i in eachindex(x)
+#         end
+#     else
+#         transsamples = [vector_to_parameters(sample, initl) for sample in samples]
+#         luxar2 = [chainl(t1', transsamples[i], st)[1] for i in 800:1000]
+#         luxmean = [mean(vcat(luxar2...)[:, i]) for i in eachindex(t1)]
+#     end
+# end
+
 # priors: pdf for W,b + pdf for ODE params
-# lotka specific kwargs here
 function ahmc_bayesian_pinn_pde(pde_system, discretization;
         strategy = GridTraining, dataset = [nothing],
-        init_params = nothing, draw_samples = 1000,
-        physdt = 1 / 20.0, bcstd = [0.01], l2std = [0.05],
+        draw_samples = 1000, physdt = [1 / 20.0],
+        bcstd = [0.01], l2std = [0.05],
         phystd = [0.05], priorsNNw = (0.0, 2.0),
         param = [], nchains = 1, Kernel = HMC,
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,),
-        MCMCkwargs = (n_leapfrog = 30,),
+        MCMCkwargs = (n_leapfrog = 30,), saveat = 1 / 50.0,
+        numensemble = 100,
+        #  floor(Int, alg.draw_samples / 3),
         progress = false, verbose = false)
-    pinnrep = symbolic_discretize(pde_system, discretization, bayesian = true)
+    pinnrep = symbolic_discretize(pde_system,
+        discretization,
+        bayesian = true,
+        dataset_given = dataset)
 
     # for physics loglikelihood
     full_weighted_loglikelihood = pinnrep.loss_functions.full_loss_function
@@ -245,7 +309,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         # converting vector of parameters to ComponentArray for runtimegenerated functions
         names = ntuple(i -> pinnrep.depvars[i], length(chain))
     else
-        # this case is for Flux multioutput
+        # Flux multioutput
         i = 0
         temp = []
         for j in eachindex(initial_nnθ)
@@ -270,7 +334,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         nparameters += ninv
     end
 
-    strategy = strategy(physdt)
+    # physdt vector in case of N-dimensional domains
+    strategy = discretization.strategy
 
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples 
     ℓπ = PDELogTargetDensity(nparameters,
@@ -318,10 +383,13 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
             samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
                 progress = progress, verbose = verbose)
+            mcmc_chain = Chains(hcat(samples...)')
+
+            fullsolution = BPINNstats(mcmcchain, samples, statistics)
+            estimsol = inference(samples, discretization, saveat, numensemble, ℓπ)
 
             samplesc[i] = samples
             statsc[i] = stats
-            mcmc_chain = Chains(hcat(samples...)')
             chains[i] = mcmc_chain
         end
 
@@ -348,7 +416,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         println("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, samples[end]))
         println("Current MSE against dataset Log-likelihood : ",
             L2LossData(ℓπ, samples[end]))
-
+        fullsolution = BPINNstats(mcmc_chain, samples, stats)
         return mcmc_chain, samples, stats
     end
 end
