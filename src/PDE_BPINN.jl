@@ -12,14 +12,13 @@ mutable struct PDELogTargetDensity{
     priors::P
     allstd::Vector{Vector{Float64}}
     names::Tuple
-    physdt::Vector{Float64}
     extraparams::Int
     init_params::I
     full_loglikelihood::F
     Phi::PH
 
     function PDELogTargetDensity(dim, strategy, dataset,
-            priors, allstd, names, physdt, extraparams,
+            priors, allstd, names, extraparams,
             init_params::AbstractVector, full_loglikelihood, Phi)
         new{
             typeof(strategy),
@@ -34,14 +33,13 @@ mutable struct PDELogTargetDensity{
             priors,
             allstd,
             names,
-            physdt,
             extraparams,
             init_params,
             full_loglikelihood,
             Phi)
     end
     function PDELogTargetDensity(dim, strategy, dataset,
-            priors, allstd, names, physdt, extraparams,
+            priors, allstd, names, extraparams,
             init_params::Union{NamedTuple, ComponentArrays.ComponentVector},
             full_loglikelihood, Phi)
         new{
@@ -57,7 +55,6 @@ mutable struct PDELogTargetDensity{
             priors,
             allstd,
             names,
-            physdt,
             extraparams,
             init_params,
             full_loglikelihood,
@@ -113,7 +110,7 @@ function setparameters(Tar::PDELogTargetDensity, θ)
                 depvar = a)
         end
     else
-        # multioutput Lux case
+        # multioutput fLux case
         return vector_to_parameters(Luxparams, ps)
     end
 end
@@ -231,44 +228,9 @@ function adaptorchoice(Adaptor, mma, ssa)
     end
 end
 
-# function inference(samples, discretization, saveat, numensemble, ℓπ)
-#     ranges = []
-#     for i in eachindex(domains)
-#         push!(ranges, [infimum(domains[i].domain), supremum(infimum(domains[i].domain))])
-#     end
-#     ranges = map(ranges) do x
-#         collect(x[1]:saveat:x[2])
-#     end
-#     samples = samples[(end - numensemble):end]
-#     chain = discretization.chain
-
-#     if discretization.multioutput && chain[1] isa Lux.AbstractExplicitLayer
-#         temp = [setparameters(ℓπ, samples[i]) for i in eachindex(samples)]
-
-#         luxar = map(temp) do x
-#             chain(t', x, st[i])
-#         end
-
-#     elseif discretization.multioutput && chain[1] isa Flux.chain
-
-#     elseif chain isa Flux.Chain
-#         re = Flux.destructure(chain)[2]
-#         out1 = re.([sample for sample in samples])
-#         luxar = [collect(out1[i](t') for t in ranges)]
-#         fluxmean = map(luxar) do x
-#             mean(vcat(x...)[:, i]) for i in eachindex(x)
-#         end
-#     else
-#         transsamples = [vector_to_parameters(sample, initl) for sample in samples]
-#         luxar2 = [chainl(t1', transsamples[i], st)[1] for i in 800:1000]
-#         luxmean = [mean(vcat(luxar2...)[:, i]) for i in eachindex(t1)]
-#     end
-# end
-
 # priors: pdf for W,b + pdf for ODE params
 function ahmc_bayesian_pinn_pde(pde_system, discretization;
-        strategy = GridTraining, dataset = [nothing],
-        draw_samples = 1000, physdt = [1 / 20.0],
+        dataset = [nothing], draw_samples = 1000,
         bcstd = [0.01], l2std = [0.05],
         phystd = [0.05], priorsNNw = (0.0, 2.0),
         param = [], nchains = 1, Kernel = HMC,
@@ -283,6 +245,14 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         discretization,
         bayesian = true,
         dataset_given = dataset)
+
+    if discretization.param_estim && isempty(param)
+        throw(UndefVarError(:param))
+    elseif discretization.param_estim && dataset isa Vector{Nothing}
+        throw(UndefVarError(:dataset))
+    elseif discretization.param_estim && length(l2std) != length(pinnrep.depvars)
+        throw(error("L2 stds length must match number of dependant variables"))
+    end
 
     # for physics loglikelihood
     full_weighted_loglikelihood = pinnrep.loss_functions.full_loss_function
@@ -334,7 +304,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         nparameters += ninv
     end
 
-    # physdt vector in case of N-dimensional domains
+    # vector in case of N-dimensional domains
     strategy = discretization.strategy
 
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples 
@@ -344,7 +314,6 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         priors,
         [phystd, bcstd, l2std],
         names,
-        physdt,
         ninv,
         initial_nnθ,
         full_weighted_loglikelihood,

@@ -29,12 +29,15 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
                 dict_indvars, dict_depvars)
             
     bcs_train_sets = train_sets[2]
+    # vec later each _set in pde_sets as coloumns as points->vector of points(pde_train_sets must be rowwise)
     pde_train_sets = [train_set[:, 2:end] for train_set in train_sets_L2loss2]
     # the points in the domain and on the boundary
+    
     pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
         pde_train_sets)
     bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
         bcs_train_sets)
+
     pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
                           for (_loss, _set) in zip(datafree_pde_loss_function,
         pde_train_sets)]

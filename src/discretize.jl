@@ -587,15 +587,17 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     if bayesian
         # required as Physics loss also needed on dataset domain points
-        pde_loss_functions1, bc_loss_functions1 = if !(dataset_given[1] isa Nothing)
+        pde_loss_functions1, bc_loss_functions1 = if !(dataset_given isa Vector{Nothing})
             if !(strategy isa  GridTraining)
-                println("only GridTraining strategy allowed")
+                throw("only GridTraining strategy allowed")
             else
                 merge_strategy_with_loglikelihood_function(pinnrep,
                 strategy,
                 datafree_pde_loss_functions,
                 datafree_bc_loss_functions, train_sets_L2loss2 = dataset_given)
             end
+        else
+            ([],[])
         end
 
         function full_likelihood_function(θ, allstd)
@@ -607,7 +609,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
                                  for (j, bc_loss_function) in enumerate(bc_loss_functions)]    
 
-            if !(dataset_given[1] isa Nothing)
+            if !(dataset_given isa Vector{Nothing})
                 pde_loglikelihoods += [logpdf(Normal(0, stdpdes[j]), pde_loss_function1(θ))
                                        for (j, pde_loss_function1) in enumerate(pde_loss_functions1)]
 
@@ -653,7 +655,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                     return additional_loss(phi, θ_, p_)
                 end
 
-                _additional_loglikelihood = logpdf(Normal(0, stdextra) _additional_loss(phi, θ))
+                _additional_loglikelihood = logpdf(Normal(0, stdextra), _additional_loss(phi, θ))
 
                 weighted_additional_loglikelihood = adaloss.additional_loss_weights[1] *
                                                     _additional_loglikelihood

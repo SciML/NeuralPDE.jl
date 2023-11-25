@@ -126,7 +126,7 @@
 # x̂ = collect(Float64, Array(u) + 0.2 .* Array(u) .* randn(size(u)))
 # time = vec(collect(Float64, ta))
 # # x = time .* 2.0
-# dataset = [hcat(x̂, time)]
+# dataset = [hcat(x̂, time), hcat(x̂, time), hcat(x̂, time, time), hcat(x̂, time, time)]
 # hcat(datase[:, 2:end] for datase in dataset)
 
 # discretization = NeuralPDE.PhysicsInformedNN([chainf],
@@ -137,10 +137,10 @@
 # mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
 #     discretization;
 #     draw_samples = 1500, physdt = [1 / 20.0],
-#     bcstd = [0.5],
-#     phystd = [0.01], l2std = [0.02],
+#     bcstd = [0.05],
+#     phystd = [0.03], l2std = [0.02],
 #     param = [Normal(9, 2)],
-#     priorsNNw = (0.0, 1.0),
+#     priorsNNw = (0.0, 10.0),
 #     dataset = dataset,
 #     progress = true)
 
@@ -169,6 +169,9 @@
 # plot!(t1, fluxmean)
 # plot!(dataset[1][:, 2], dataset[1][:, 1])
 
+# samples[1500]
+# samples[1500]
+
 # transsamples = [vector_to_parameters(sample, initl) for sample[1:(end - 1)] in samples]
 # luxar2 = [chainl(t1', transsamples[i], st)[1] for i in 1300:1500]
 # luxmean = [mean(vcat(luxar2...)[:, i]) for i in eachindex(t1)]
@@ -188,13 +191,13 @@
 # using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 # import ModelingToolkit: Interval
 
-# @parameters x y
+# @parameters x y z
 # @variables p(..) q(..) r(..) s(..)
 # Dx = Differential(x)
 # Dy = Differential(y)
 
 # # 2D PDE
-# eq = p(x) + q(y) + Dx(r(x, y)) + Dy(s(y, x)) ~ 0
+# eq = p(x) + z * q(y) + Dx(r(x, y)) + Dy(s(y, x)) ~ 0
 
 # # Initial and boundary conditions
 # bcs = [p(1) ~ 0.0f0, q(-1) ~ 0.0f0,
@@ -206,35 +209,81 @@
 #     y ∈ Interval(0.0, 1.0)]
 
 # numhid = 3
-# chains = [[Lux.Chain(Lux.Dense(1, numhid, Lux.σ), Lux.Dense(numhid, numhid, Lux.σ),
-#     Lux.Dense(numhid, 1)) for i in 1:2]
-#     [Lux.Chain(Lux.Dense(2, numhid, Lux.σ), Lux.Dense(numhid, numhid, Lux.σ),
-#     Lux.Dense(numhid, 1)) for i in 1:2]]
-# discretization = NeuralPDE.PhysicsInformedNN(chains, GridTraining([0.01, 0.01]))
+# chains = [
+#     Flux.Chain(Flux.Dense(1, numhid, σ), Flux.Dense(numhid, numhid, σ),
+#         Flux.Dense(numhid, 1)),
+#     Flux.Chain(Flux.Dense(1, numhid, σ), Flux.Dense(numhid, numhid, σ),
+#         Flux.Dense(numhid, 1)),
+#     Flux.Chain(Flux.Dense(2, numhid, σ), Flux.Dense(numhid, numhid, σ),
+#         Flux.Dense(numhid, 1)),
+#     Flux.Chain(Flux.Dense(2, numhid, σ), Flux.Dense(numhid, numhid, σ),
+#         Flux.Dense(numhid, 1))]
 
-# @named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y), r(x, y), s(y, x)])
+# discretization = NeuralPDE.PhysicsInformedNN(chains,
+#     GridTraining([0.1, 0.1]),
+#     param_estim = true)
+# discretization.strategy
+# @named pde_system = PDESystem(eq,
+#     bcs,
+#     domains,
+#     [x, y],
+#     [p(x), q(y), r(x, y), s(y, x)],
+#     [z],
+#     defaults = Dict(z => 3))
+# dataset = [hcat(x̂, time), hcat(x̂, time), hcat(x̂, time, time), hcat(x̂, time, time)]
+
 # prob = SciMLBase.discretize(pde_system, discretization)
+# a = [train_set[:, 2:end]' for train_set in dataset]
+# b = zip(a)
+# c = [yuh for yuh in b]
+# c[[2], [1:50]]
+# c[2]
+# c[[2], [1:50]]
+# zip(a)
 
 # mcmc_chain, samples, stats = ahmc_bayesian_pinn_pde(pde_system,
 #     discretization;
 #     draw_samples = 1500,
 #     bcstd = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-#     phystd = [0.1],
+#     phystd = [0.1], l2std = [0.1, 0.1, 0.1, 0.1],
 #     priorsNNw = (0.0, 10.0),
+#     param = [Normal(3, 2)],
+#     dataset = dataset,
 #     progress = true)
+# # Example dataset structure
+# matrix_dep_var_1 = dataset[1]
 
+# matrix_dep_var_2 = dataset[2]
+
+# dataset = [matrix_dep_var_1, matrix_dep_var_2]
+
+# # Extract independent variable values
+# indep_var_values = [matrix[:, 2:end] for matrix in dataset]
+
+# # Adapt the existing code
+# eltypeθ = Float64  # Replace with your desired element type
+# pde_args = [[:indep_var]]
+
+# # Generate training sets for each variable
+# # Generate training sets for each variable
+# pde_train_sets = map(pde_args) do bt
+#     span = map(b -> vcat([indep_vars[:, b] for indep_vars in indep_var_values]...), bt)
+#     _set = adapt(eltypeθ, hcat(span...))
+# end
+
+# pinnrep.depvars
 # firstelement(domains[1])
 # infimum(domains[1])
 # infimum(domains[1].domain)
 # domains = [x ∈ Interval(0.0, 1.0)]
 # size(domains)
 
-# # callback = function (p, l)
-# #     println("Current loss is: $l")
-# #     return false
-# # end
+# callback = function (p, l)
+#     println("Current loss is: $l")
+#     return false
+# end
 
-# # res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
+# res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
 
 # # Paper experiments
 # # function sir_ode!(u, p, t)
