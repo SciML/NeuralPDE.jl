@@ -83,7 +83,7 @@ Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, El
 struct BNNODE{C, K, IT <: NamedTuple,
     A <: NamedTuple, H <: NamedTuple,
     ST <: Union{Nothing, AbstractTrainingStrategy},
-    I <: Union{Nothing, Vector{<:AbstractFloat}},
+    I <: Union{Nothing, <:NamedTuple, Vector{<:AbstractFloat}},
     P <: Union{Nothing, Vector{<:Distribution}},
     D <:
     Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}} <:

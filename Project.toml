@@ -66,11 +66,12 @@ MonteCarloMeasurements = "1"
 Optim = ">= 1.7.8"
 Optimisers = "0.2, 0.3"
 Optimization = "3"
-QuasiMonteCarlo = "0.2.1"
+QuasiMonteCarlo = "0.3.2"
 RecursiveArrayTools = "2.31"
 Reexport = "1.0"
 RuntimeGeneratedFunctions = "0.5"
 SciMLBase = "1.91, 2"
+Statistics = "1"
 StochasticDiffEq = "6.13"
 SymbolicUtils = "1"
 Symbolics = "5"
@@ -80,7 +81,6 @@ julia = "1.6"
 
 [extras]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-IntegralsCuba = "1e5cbd8a-c439-4026-92c2-98742b2c817b"
 OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
 OptimizationOptimisers = "42dfb2eb-d2b4-4451-abcd-913932933ac1"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
@@ -89,4 +89,4 @@ SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "CUDA", "SafeTestsets", "OptimizationOptimisers", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "IntegralsCuba"]
+test = ["Test", "CUDA", "SafeTestsets", "OptimizationOptimisers", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq"]

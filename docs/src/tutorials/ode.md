@@ -3,7 +3,7 @@
 !!! note
     
     It is highly recommended you first read the [solving ordinary differential
-    equations with DifferentialEquations.jl tutorial](https://docs.sciml.ai/DiffEqDocs/stable/tutorials/ode_example/)
+    equations with DifferentialEquations.jl tutorial](https://docs.sciml.ai/DiffEqDocs/stable/getting_started/)
     before reading this tutorial.
 
 This tutorial is an introduction to using physics-informed neural networks (PINNs) for solving ordinary differential equations (ODEs). In contrast to the later parts of this documentation which use the symbolic interface, here we will focus on the simplified [`NNODE`](@ref) which uses the `ODEProblem` specification for the ODE.
