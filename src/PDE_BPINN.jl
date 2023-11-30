@@ -228,6 +228,91 @@ function adaptorchoice(Adaptor, mma, ssa)
     end
 end
 
+function inference(samples, pinnrep, saveats, numensemble, ℓπ)
+    domains = pinnrep.domains
+    phi = pinnrep.phi
+    dict_depvar_input = pinnrep.dict_depvar_input
+    depvars = pinnrep.depvars
+
+    names = ℓπ.names
+    initial_nnθ = ℓπ.init_params
+    ninv = ℓπ.extraparams
+
+    ranges = Dict([Symbol(d.variables) => infimum(d.domain):dx:supremum(d.domain)
+                   for (d, dx) in zip(domains, saveats)])
+    inputs = [dict_depvar_input[i] for i in depvars]
+
+    span = [[ranges[indvar] for indvar in input] for input in inputs]
+    points = [hcat(vec(map(points -> collect(points), Iterators.product(span[i]...)))...)
+              for i in eachindex(phi)]
+
+    # order of range's domains must match chain's inputs and dep_vars
+    samples = samples[(end - numensemble):end]
+    nnparams = length(samples[1][1:(end - ninv)])
+    # get rows-ith param and col-ith sample value
+    estimnnparams = [Particles(reduce(hcat, samples)[i, :])
+                     for i in 1:nnparams]
+
+    #  PDE params
+    if ninv == 0
+        estimated_params = [nothing]
+    else
+        estimated_params = [Particles(reduce(hcat, samples)[i, :])
+                            for i in (nnparams + 1):(nnparams + ninv)]
+    end
+
+    # names is an indicator of type of chain
+    if names[1] != 1
+        # getting parameter ranges in case of Lux chains
+        Luxparams = []
+        i = 0
+        for x in names
+            len = length(initial_nnθ[x])
+            push!(Luxparams, (i + 1):(i + len))
+            i += len
+        end
+
+        # convert to format directly usable by lux
+        estimatedLuxparams = [vector_to_parameters(estimnnparams[Luxparams[i]],
+            initial_nnθ[names[i]]) for i in eachindex(phi)]
+
+        # infer predictions(preds) each row - NN, each col - ith sample
+        samplesn = reduce(hcat, samples)
+        preds = []
+        for j in eachindex(phi)
+            push!(preds,
+                [phi[j](points[j],
+                    vector_to_parameters(samplesn[:, i][Luxparams[j]],
+                        initial_nnθ[names[j]])) for i in 1:numensemble])
+        end
+
+        # note here no of samples referse to numensemble and points is the no of points in each dep_vars discretization
+        # each phi will give output in single domain of depvar(so we have each row as a vector of vector outputs)
+        # so we get after reduce a single matrix of n rows(samples), and j cols(points)
+        ensemblecurves = [Particles(reduce(vcat, preds[i])) for i in eachindex(phi)]
+
+        return ensemblecurves, estimatedLuxparams, estimated_params, points
+    else
+        # get intervals for parameters corresponding to flux chains
+        Fluxparams = names[2]
+
+        # convert to format directly usable by Flux
+        estimatedFluxparams = [estimnnparams[Fluxparams[i]] for i in eachindex(phi)]
+
+        # infer predictions(preds) each row - NN, each col - ith sample
+        samplesn = reduce(hcat, samples)
+        preds = []
+        for j in eachindex(phi)
+            push!(preds,
+                [phi[j](points[j], samplesn[:, i][Fluxparams[j]]) for i in 1:numensemble])
+        end
+
+        ensemblecurves = [Particles(reduce(vcat, preds[i])) for i in eachindex(phi)]
+
+        return ensemblecurves, estimatedFluxparams, estimated_params, points
+    end
+end
+
 # priors: pdf for W,b + pdf for ODE params
 function ahmc_bayesian_pinn_pde(pde_system, discretization;
         dataset = [nothing], draw_samples = 1000,
@@ -237,10 +322,9 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,),
-        MCMCkwargs = (n_leapfrog = 30,), saveat = 1 / 50.0,
-        numensemble = 100,
-        #  floor(Int, alg.draw_samples / 3),
-        progress = false, verbose = false)
+        MCMCkwargs = (n_leapfrog = 30,), saveats = [1 / 10.0],
+        numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
+        
     pinnrep = symbolic_discretize(pde_system,
         discretization,
         bayesian = true,
@@ -258,6 +342,10 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     full_weighted_loglikelihood = pinnrep.loss_functions.full_loss_function
     chain = discretization.chain
 
+    if length(pinnrep.domains) != length(saveats)
+        throw(error("Number of independant variables must match saveat inference discretization steps"))
+    end
+
     # NN solutions for loglikelihood which is used for L2lossdata
     Phi = pinnrep.phi
 
@@ -273,6 +361,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # remove inv params take only NN params, AHMC uses Float64
     initial_nnθ = pinnrep.flat_init_params[1:(end - length(param))]
     initial_θ = collect(Float64, initial_nnθ)
+
+    # contains only NN parameters
     initial_nnθ = pinnrep.init_params
 
     if (discretization.multioutput && chain[1] isa Lux.AbstractExplicitLayer)
@@ -334,10 +424,9 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
     # parallel sampling option
     if nchains != 1
+
         # Cache to store the chains
-        chains = Vector{Any}(undef, nchains)
-        statsc = Vector{Any}(undef, nchains)
-        samplesc = Vector{Any}(undef, nchains)
+        bpinnsols = Vector{Any}(undef, nchains)
 
         Threads.@threads for i in 1:nchains
             # each chain has different initial NNparameter values(better posterior exploration)
@@ -352,17 +441,24 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
             samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
                 progress = progress, verbose = verbose)
-            mcmc_chain = Chains(hcat(samples...)')
 
-            fullsolution = BPINNstats(mcmcchain, samples, statistics)
-            estimsol = inference(samples, discretization, saveat, numensemble, ℓπ)
+            # return a chain(basic chain),samples and stats
+            matrix_samples = hcat(samples...)
+            mcmc_chain = MCMCChains.Chains(matrix_samples')
 
-            samplesc[i] = samples
-            statsc[i] = stats
-            chains[i] = mcmc_chain
+            fullsolution = BPINNstats(mcmc_chain, samples, stats)
+            ensemblecurves, estimnnparams, estimated_params, points = inference(samples,
+                pinnrep,
+                saveat,
+                numensemble,
+                ℓπ)
+
+            bpinnsols[i] = BPINNsolution(fullsolution,
+                ensemblecurves,
+                estimnnparams,
+                estimated_params, points)
         end
-
-        return chains, samplesc, statsc
+        return bpinnsols
     else
         initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
         integrator = integratorchoice(Integratorkwargs, initial_ϵ)
@@ -385,7 +481,17 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         println("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, samples[end]))
         println("Current MSE against dataset Log-likelihood : ",
             L2LossData(ℓπ, samples[end]))
+
         fullsolution = BPINNstats(mcmc_chain, samples, stats)
-        return mcmc_chain, samples, stats
+        ensemblecurves, estimnnparams, estimated_params, points = inference(samples,
+            pinnrep,
+            saveats,
+            numensemble,
+            ℓπ)
+
+        return BPINNsolution(fullsolution,
+            ensemblecurves,
+            estimnnparams,
+            estimated_params, points)
     end
 end

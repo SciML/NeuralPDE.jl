@@ -187,8 +187,8 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test mean(abs.(physsol1_1 .- sol2lux.ensemblesol[1])) < 8e-2
 
 # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
-@test abs(p - sol2flux.estimated_ode_params[1]) < abs(0.15 * p)
-@test abs(p - sol2lux.estimated_ode_params[1]) < abs(0.15 * p)
+@test abs(p - sol2flux.estimated_de_params[1]) < abs(0.15 * p)
+@test abs(p - sol2lux.estimated_de_params[1]) < abs(0.15 * p)
 
 ## PROBLEM-2
 linear = (u, p, t) -> u / p + exp(t / p) * cos(t)
@@ -338,11 +338,11 @@ param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
 # (flux chain)
 @test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol[1])) < 0.15
 # estimated parameters(flux chain)
-param1 = sol3flux_pestim.estimated_ode_params[1]
+param1 = sol3flux_pestim.estimated_de_params[1]
 @test abs(param1 - p) < abs(0.45 * p)
 
 # (lux chain)
 @test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 0.15
 # estimated parameters(lux chain)
-param1 = sol3lux_pestim.estimated_ode_params[1]
+param1 = sol3lux_pestim.estimated_de_params[1]
 @test abs(param1 - p) < abs(0.45 * p)
