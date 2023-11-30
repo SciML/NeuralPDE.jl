@@ -15,9 +15,14 @@ function dev_subpkg(subpkg)
 end
 
 @time begin
-    #fixes 682
     if GROUP == "All" || GROUP == "ODEBPINN"
         @time @safetestset "Bpinn ODE solver" begin include("BPINN_Tests.jl") end
+    end
+
+    if GROUP == "All" || GROUP == "PDEBPINN"
+        @time @safetestset "Bpinn PDE solver" begin
+            include("BPINN_PDE_Tests.jl")
+        end
     end
 
     if GROUP == "All" || GROUP == "NNPDE1"
