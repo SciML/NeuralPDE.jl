@@ -27,6 +27,7 @@ with a physics-informed neural network.
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using Plots
 import ModelingToolkit: Interval, infimum, supremum
+using LineSearches
 
 @parameters t, x
 @variables u(..), w(..)
@@ -92,7 +93,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 5000)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); callback = callback, maxiters = 5000)
 
 phi = discretization.phi
 
