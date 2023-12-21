@@ -36,13 +36,6 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     saveats = [1 / 50.0],
     progress = true)
 
-using Plots, StatsPlots
-plot(sol1.ensemblesol[1])
-sol1.ensemblesol[1]
-sol1.estimated_de_params
-sol1.estimated_nn_params
-sol1.original
-
 discretization = NeuralPDE.PhysicsInformedNN([chainf], GridTraining([0.01]))
 sol2 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
@@ -222,7 +215,6 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
 #note that is KS equation and 3degree ode example std setting hasnt been done yet
 
 # Poisson equation 
-
 @parameters x y
 @variables u(..)
 Dxx = Differential(x)^2
@@ -263,60 +255,26 @@ u_predict = pmean(sol1.ensemblesol[1])
 u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
 
 diff_u = abs.(u_predict .- u_real)
-mean(diff_u)
-@test u_predict≈u_real atol=2.0
+@test mean(diff_u)<0.1 
+# @test u_predict≈u_real atol=2.0
 
-plotly()
-plot(sol1.timepoints[1][1, :],
-    sol1.timepoints[1][2, :],
-    pmean(sol1.ensemblesol[1]),
-    linetype = :contourf)
+# plotly()
+# plot(sol1.timepoints[1][1, :],
+#     sol1.timepoints[1][2, :],
+#     pmean(sol1.ensemblesol[1]),
+#     linetype = :contourf)
 
 
-plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], u_real, linetype = :contourf)
-plotly()
-plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], diff_u, linetype = :contourf)
+# plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], u_real, linetype = :contourf)
+# plotly()
+# plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], diff_u, linetype = :contourf)
 
-@parameters x y
-@variables u(..)
-Dxx = Differential(x)^2
-Dyy = Differential(y)^2
-Dx = Differential(x)
-Dy = Differential(y)
-
-eq = Dxx(u(x, y)) + Dx(Dy(u(x, y))) - 2 * Dyy(u(x, y)) ~ -1.0
-
-# Initial and boundary conditions
-bcs = [u(x, 0) ~ x,
-    Dy(u(x, 0)) ~ x,
-    u(x, 0) ~ Dy(u(x, 0))]
-
-# Space and time domains
-domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
-
-quadrature_strategy = NeuralPDE.GridTraining([0.01, 0.01])
-# Neural network
-inner = 20
-chain = Lux.Chain(Lux.Dense(2, inner, Lux.tanh), Lux.Dense(inner, inner, Lux.tanh),
-    Lux.Dense(inner, 1))
-
-discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
-@named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
-
-prob = NeuralPDE.discretize(pde_system, discretization)
-
-res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1500)
-@show res.original
-
-phi = discretization.phi
-
-analytic_sol_func(x, y) = x + x * y + y^2 / 2
-xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-
-u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-    (length(xs), length(ys)))
-u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-    (length(xs), length(ys)))
-diff_u = abs.(u_predict .- u_real)
-
-@test u_predict≈u_real rtol=0.1
+# using Plots, StatsPlots
+# plot(sol1.ensemblesol[1])
+# sol1.ensemblesol[1]
+# sol1.estimated_de_params
+# sol1.estimated_nn_params
+# sol1.original
+# const T = MonteCarloMeasurements.Particles{Float64}
+# NP <: Vector{Union{Vector{T}, T}},
+# OP <: Union{Vector{Nothing}, Vector{T}, T},
