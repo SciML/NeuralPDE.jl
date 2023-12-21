@@ -36,11 +36,12 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     saveats = [1 / 50.0],
     progress = true)
 
-# plot(sol1.ensemblesol[1])
-# sol1.ensemblesol[1]
-# sol1.estimated_de_params
-# sol1.estimated_nn_params
-# sol1.original
+using Plots, StatsPlots
+plot(sol1.ensemblesol[1])
+sol1.ensemblesol[1]
+sol1.estimated_de_params
+sol1.estimated_nn_params
+sol1.original
 
 discretization = NeuralPDE.PhysicsInformedNN([chainf], GridTraining([0.01]))
 sol2 = ahmc_bayesian_pinn_pde(pde_system,
@@ -91,6 +92,49 @@ u_predict = sol1.ensemblesol[1]
 
 # example 3 (3 degree ODE)
 @parameters x
+@variables u(..), Dxu(..), Dxxu(..), O1(..), O2(..)
+Dxxx = Differential(x)^3
+Dx = Differential(x)
+
+# ODE
+eq = Dx(Dxxu(x)) ~ cos(pi * x)
+
+# Initial and boundary conditions
+bcs_ = [u(0.0) ~ 0.0,
+    u(1.0) ~ cos(pi),
+    Dxu(1.0) ~ 1.0]
+ep = (cbrt(eps(eltype(Float64))))^2 / 6
+
+der = [Dxu(x) ~ Dx(u(x)) + ep * O1(x),
+    Dxxu(x) ~ Dx(Dxu(x)) + ep * O2(x)]
+
+bcs = [bcs_; der]
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0)]
+
+# Neural network
+chain = [
+    Lux.Chain(Lux.Dense(1, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
+        Lux.Dense(12, 1)), Lux.Chain(Lux.Dense(1, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
+        Lux.Dense(12, 1)), Lux.Chain(Lux.Dense(1, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
+        Lux.Dense(12, 1)), Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1)),
+    Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1))]
+
+discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.01))
+
+@named pde_system = PDESystem(eq, bcs, domains, [x],
+    [u(x), Dxu(x), Dxxu(x), O1(x), O2(x)])
+
+sol1 = ahmc_bayesian_pinn_pde(pde_system,
+    discretization;
+    draw_samples = 1000,
+    bcstd = [0.1, 0.1, 0.1],
+    phystd = [0.05],
+    priorsNNw = (0.0, 10.0),
+    saveats = [1 / 100.0],
+    progress = true)
+
+@parameters x
 @variables u(..)
 
 Dxxx = Differential(x)^3
@@ -105,6 +149,15 @@ bcs = [u(0.0) ~ 0.0,
 
 # Space and time domains
 domains = [x ∈ Interval(0.0, 1.0)]
+
+analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)
+
+xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+u_real = [analytic_sol_func(x) for x in xs]
+plot
+u_predict = [first(phi(x, res.u.depvar.u)) for x in xs]
+
+@test u_predict≈u_real atol=10^-4
 
 # Neural network
 chain = Lux.Chain(Lux.Dense(1, 8, Lux.σ), Lux.Dense(8, 1))
@@ -197,9 +250,73 @@ discretization = PhysicsInformedNN([chain], GridTraining(dx))
 
 sol1 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
-    draw_samples = 500,
-    bcstd = [0.05, 0.05, 0.05, 0.05],
-    phystd = [0.01],
+    draw_samples = 200,
+    bcstd = [0.001, 0.001, 0.001, 0.001],
+    phystd = [0.001],
     priorsNNw = (0.0, 10.0),
     saveats = [1 / 100.0, 1 / 100.0],
     progress = true)
+
+xs = sol1.timepoints[1]
+analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
+u_predict = pmean(sol1.ensemblesol[1]) 
+u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
+
+diff_u = abs.(u_predict .- u_real)
+mean(diff_u)
+@test u_predict≈u_real atol=2.0
+
+plotly()
+plot(sol1.timepoints[1][1, :],
+    sol1.timepoints[1][2, :],
+    pmean(sol1.ensemblesol[1]),
+    linetype = :contourf)
+
+
+plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], u_real, linetype = :contourf)
+plotly()
+plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], diff_u, linetype = :contourf)
+
+@parameters x y
+@variables u(..)
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
+Dx = Differential(x)
+Dy = Differential(y)
+
+eq = Dxx(u(x, y)) + Dx(Dy(u(x, y))) - 2 * Dyy(u(x, y)) ~ -1.0
+
+# Initial and boundary conditions
+bcs = [u(x, 0) ~ x,
+    Dy(u(x, 0)) ~ x,
+    u(x, 0) ~ Dy(u(x, 0))]
+
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
+
+quadrature_strategy = NeuralPDE.GridTraining([0.01, 0.01])
+# Neural network
+inner = 20
+chain = Lux.Chain(Lux.Dense(2, inner, Lux.tanh), Lux.Dense(inner, inner, Lux.tanh),
+    Lux.Dense(inner, 1))
+
+discretization = NeuralPDE.PhysicsInformedNN(chain, quadrature_strategy)
+@named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
+
+prob = NeuralPDE.discretize(pde_system, discretization)
+
+res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1500)
+@show res.original
+
+phi = discretization.phi
+
+analytic_sol_func(x, y) = x + x * y + y^2 / 2
+xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+
+u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
+    (length(xs), length(ys)))
+u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
+    (length(xs), length(ys)))
+diff_u = abs.(u_predict .- u_real)
+
+@test u_predict≈u_real rtol=0.1

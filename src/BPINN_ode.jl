@@ -150,34 +150,22 @@ BPINN Solution contains the original solution from AdvancedHMC.jl sampling(BPINN
 > estimated_nn_params - Probabilistic Estimate of NN params from sampled weights,biases
 > estimated_de_params - Probabilistic Estimate of DE params from sampled unknown de paramters
 """
-struct BPINNsolution{O <: BPINNstats, E,
-    NP <:
-    Union{
-        Vector{<:MonteCarloMeasurements.Particles{<:Float64}},
-        Vector{
-            <:ComponentArrays.ComponentVector{
-                <:MonteCarloMeasurements.Particles{<:Float64},
-            },
-        },
-        Vector{<:Vector{<:MonteCarloMeasurements.Particles{<:Float64}}
-        },
-    },
-    OP <: Union{Vector{Nothing},
-        Vector{<:MonteCarloMeasurements.Particles{<:Float64}}}, P}
+
+struct BPINNsolution{O <: BPINNstats, E, NP, OP, P}
     original::O
     ensemblesol::E
     estimated_nn_params::NP
     estimated_de_params::OP
-    points::P
+    timepoints::P
 
     function BPINNsolution(original,
             ensemblesol,
             estimated_nn_params,
             estimated_de_params,
-            points)
+            timepoints)
         new{typeof(original), typeof(ensemblesol), typeof(estimated_nn_params),
-            typeof(estimated_de_params), typeof(points)}(original, ensemblesol, estimated_nn_params,
-            estimated_de_params, points)
+            typeof(estimated_de_params), typeof(timepoints)}(original, ensemblesol, estimated_nn_params,
+            estimated_de_params, timepoints)
     end
 end
 

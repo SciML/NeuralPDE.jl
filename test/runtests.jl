@@ -21,7 +21,7 @@ end
 
     if GROUP == "All" || GROUP == "PDEBPINN"
         @time @safetestset "Bpinn PDE solver" begin
-            include("BPINN_PDE_Tests.jl")
+            include("BPINN_PDE_tests.jl")
         end
     end
 

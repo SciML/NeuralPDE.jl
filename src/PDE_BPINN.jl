@@ -15,18 +15,18 @@ mutable struct PDELogTargetDensity{
     extraparams::Int
     init_params::I
     full_loglikelihood::F
-    Phi::PH
+    Φ::PH
 
     function PDELogTargetDensity(dim, strategy, dataset,
             priors, allstd, names, extraparams,
-            init_params::AbstractVector, full_loglikelihood, Phi)
+            init_params::AbstractVector, full_loglikelihood, Φ)
         new{
             typeof(strategy),
             typeof(dataset),
             typeof(priors),
             typeof(init_params),
             typeof(full_loglikelihood),
-            typeof(Phi),
+            typeof(Φ),
         }(dim,
             strategy,
             dataset,
@@ -36,19 +36,19 @@ mutable struct PDELogTargetDensity{
             extraparams,
             init_params,
             full_loglikelihood,
-            Phi)
+            Φ)
     end
     function PDELogTargetDensity(dim, strategy, dataset,
             priors, allstd, names, extraparams,
             init_params::Union{NamedTuple, ComponentArrays.ComponentVector},
-            full_loglikelihood, Phi)
+            full_loglikelihood, Φ)
         new{
             typeof(strategy),
             typeof(dataset),
             typeof(priors),
             typeof(init_params),
             typeof(full_loglikelihood),
-            typeof(Phi),
+            typeof(Φ),
         }(dim,
             strategy,
             dataset,
@@ -58,7 +58,7 @@ mutable struct PDELogTargetDensity{
             extraparams,
             init_params,
             full_loglikelihood,
-            Phi)
+            Φ)
     end
 end
 
@@ -83,7 +83,7 @@ function setparameters(Tar::PDELogTargetDensity, θ)
         # multioutput case for Lux chains, for each depvar ps would contain Lux ComponentVectors
         # which we use for mapping current ahmc sampled vector of parameters onto NNs
         i = 0
-        Luxparams = []
+        Luxparams = Vector{ComponentArrays.ComponentVector}()
         for x in names
             endind = length(ps[x])
             push!(Luxparams, vector_to_parameters(ps_new[(i + 1):(i + endind)], ps[x]))
@@ -127,7 +127,7 @@ end
 
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)
 function L2LossData(Tar::PDELogTargetDensity, θ)
-    Phi = Tar.Phi
+    Φ = Tar.Φ
     init_params = Tar.init_params
     dataset = Tar.dataset
     sumt = 0
@@ -146,8 +146,8 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
 
     if Tar.extraparams > 0
         if Tar.init_params isa ComponentArrays.ComponentVector
-            for i in eachindex(Phi)
-                sumt += logpdf(MvNormal(Phi[i](dataset[i][:, 2:end]',
+            for i in eachindex(Φ)
+                sumt += logpdf(MvNormal(Φ[i](dataset[i][:, 2:end]',
                             vector_to_parameters(θ[1:(end - Tar.extraparams)],
                                 init_params)[Tar.names[i]])[1,
                             :],
@@ -157,8 +157,8 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
             sumt
         else
             # Flux case needs subindexing wrt Tar.names indices(hence stored in Tar.names)
-            for i in eachindex(Phi)
-                sumt += logpdf(MvNormal(Phi[i](dataset[i][:, 2:end]',
+            for i in eachindex(Φ)
+                sumt += logpdf(MvNormal(Φ[i](dataset[i][:, 2:end]',
                             vector_to_parameters(θ[1:(end - Tar.extraparams)],
                                 init_params)[Tar.names[2][i]])[1,
                             :],
@@ -243,8 +243,9 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
     inputs = [dict_depvar_input[i] for i in depvars]
 
     span = [[ranges[indvar] for indvar in input] for input in inputs]
-    points = [hcat(vec(map(points -> collect(points), Iterators.product(span[i]...)))...)
-              for i in eachindex(phi)]
+    timepoints = [hcat(vec(map(points -> collect(points),
+        Iterators.product(span[i]...)))...)
+                  for i in eachindex(phi)]
 
     # order of range's domains must match chain's inputs and dep_vars
     samples = samples[(end - numensemble):end]
@@ -281,7 +282,7 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
         preds = []
         for j in eachindex(phi)
             push!(preds,
-                [phi[j](points[j],
+                [phi[j](timepoints[j],
                     vector_to_parameters(samplesn[:, i][Luxparams[j]],
                         initial_nnθ[names[j]])) for i in 1:numensemble])
         end
@@ -291,7 +292,7 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
         # so we get after reduce a single matrix of n rows(samples), and j cols(points)
         ensemblecurves = [Particles(reduce(vcat, preds[i])) for i in eachindex(phi)]
 
-        return ensemblecurves, estimatedLuxparams, estimated_params, points
+        return ensemblecurves, estimatedLuxparams, estimated_params, timepoints
     else
         # get intervals for parameters corresponding to flux chains
         Fluxparams = names[2]
@@ -304,12 +305,12 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
         preds = []
         for j in eachindex(phi)
             push!(preds,
-                [phi[j](points[j], samplesn[:, i][Fluxparams[j]]) for i in 1:numensemble])
+                [phi[j](timepoints[j], samplesn[:, i][Fluxparams[j]]) for i in 1:numensemble])
         end
 
         ensemblecurves = [Particles(reduce(vcat, preds[i])) for i in eachindex(phi)]
 
-        return ensemblecurves, estimatedFluxparams, estimated_params, points
+        return ensemblecurves, estimatedFluxparams, estimated_params, timepoints
     end
 end
 
@@ -324,7 +325,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         Integratorkwargs = (Integrator = Leapfrog,),
         MCMCkwargs = (n_leapfrog = 30,), saveats = [1 / 10.0],
         numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
-        
+
     pinnrep = symbolic_discretize(pde_system,
         discretization,
         bayesian = true,
@@ -347,7 +348,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     end
 
     # NN solutions for loglikelihood which is used for L2lossdata
-    Phi = pinnrep.phi
+    Φ = pinnrep.phi
 
     # for new L2 loss
     # discretization.additional_loss = 
@@ -407,7 +408,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         ninv,
         initial_nnθ,
         full_weighted_loglikelihood,
-        Phi)
+        Φ)
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
@@ -447,7 +448,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             mcmc_chain = MCMCChains.Chains(matrix_samples')
 
             fullsolution = BPINNstats(mcmc_chain, samples, stats)
-            ensemblecurves, estimnnparams, estimated_params, points = inference(samples,
+            ensemblecurves, estimnnparams, estimated_params, timepoints = inference(samples,
                 pinnrep,
                 saveat,
                 numensemble,
@@ -456,7 +457,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             bpinnsols[i] = BPINNsolution(fullsolution,
                 ensemblecurves,
                 estimnnparams,
-                estimated_params, points)
+                estimated_params
+                timepoints)
         end
         return bpinnsols
     else
@@ -483,7 +485,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             L2LossData(ℓπ, samples[end]))
 
         fullsolution = BPINNstats(mcmc_chain, samples, stats)
-        ensemblecurves, estimnnparams, estimated_params, points = inference(samples,
+        ensemblecurves, estimnnparams, estimated_params, timepoints = inference(samples,
             pinnrep,
             saveats,
             numensemble,
@@ -492,6 +494,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         return BPINNsolution(fullsolution,
             ensemblecurves,
             estimnnparams,
-            estimated_params, points)
+            estimated_params,
+            timepoints)
     end
 end
