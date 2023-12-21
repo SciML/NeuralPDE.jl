@@ -127,6 +127,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     saveats = [1 / 100.0],
     progress = true)
 
+# Test solve 2
 @parameters x
 @variables u(..)
 
@@ -205,7 +206,7 @@ discretization = PhysicsInformedNN(chain, GridTraining([dx, dt]))
 
 sol1 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
-    draw_samples = 500,
+    draw_samples = 200,
     bcstd = [0.1, 0.1, 0.1, 0.1, 0.1],
     phystd = [0.05],
     priorsNNw = (0.0, 10.0),
@@ -251,11 +252,11 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
 
 xs = sol1.timepoints[1]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
-u_predict = pmean(sol1.ensemblesol[1]) 
+u_predict = pmean(sol1.ensemblesol[1])
 u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
 
 diff_u = abs.(u_predict .- u_real)
-@test mean(diff_u)<0.1 
+@test mean(diff_u) < 0.1
 # @test u_predict≈u_real atol=2.0
 
 # plotly()
@@ -263,7 +264,6 @@ diff_u = abs.(u_predict .- u_real)
 #     sol1.timepoints[1][2, :],
 #     pmean(sol1.ensemblesol[1]),
 #     linetype = :contourf)
-
 
 # plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], u_real, linetype = :contourf)
 # plotly()
