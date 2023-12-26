@@ -31,8 +31,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     bcstd = [0.02],
     phystd = [0.01],
     priorsNNw = (0.0, 1.0),
-    saveats = [1 / 50.0],
-    progress = true)
+    saveats = [1 / 50.0])
 
 discretization = NeuralPDE.PhysicsInformedNN([chainf], GridTraining([0.01]))
 sol2 = ahmc_bayesian_pinn_pde(pde_system,
@@ -41,8 +40,7 @@ sol2 = ahmc_bayesian_pinn_pde(pde_system,
     bcstd = [0.01],
     phystd = [0.005],
     priorsNNw = (0.0, 1.0),
-    saveats = [1 / 50.0],
-    progress = true)
+    saveats = [1 / 50.0])
 
 analytic_sol_func(u0, t) = u0 + sin(2 * π * t) / (2 * π)
 ts = vec(sol1.timepoints[1])
@@ -86,8 +84,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     bcstd = [0.1],
     phystd = [0.05],
     priorsNNw = (0.0, 10.0),
-    saveats = [1 / 100.0],
-    progress = true)
+    saveats = [1 / 100.0])
 
 analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
 ts = sol1.timepoints[1]
@@ -135,8 +132,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     bcstd = [0.01, 0.01, 0.01, 0.01, 0.01],
     phystd = [0.005],
     priorsNNw = (0.0, 10.0),
-    saveats = [1 / 100.0],
-    progress = true)
+    saveats = [1 / 100.0])
 
 analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)
 
@@ -187,8 +183,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     bcstd = [0.0007, 0.0007, 0.0007, 0.0007],
     phystd = [0.0005],
     priorsNNw = (0.0, 10.0),
-    saveats = [1 / 100.0, 1 / 100.0],
-    progress = true)
+    saveats = [1 / 100.0, 1 / 100.0])
 
 xs = sol1.timepoints[1]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
