@@ -139,8 +139,7 @@ analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) 
 u_predict = sol1.ensemblesol[1]
 xs = vec(sol1.timepoints[1])
 u_real = [analytic_sol_func(x) for x in xs]
-
-@test u_predict≈u_real atol=1.5
+@test u_predict≈u_real atol=0.5
 
 xs = vec(sol1.timepoints[1])
 u_predict = pmean(sol1.ensemblesol[1])
