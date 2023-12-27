@@ -42,7 +42,7 @@ UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
-Adapt = "3"
+Adapt = "3, 4"
 AdvancedHMC = "0.5"
 ArrayInterface = "6, 7"
 CUDA = "4"
