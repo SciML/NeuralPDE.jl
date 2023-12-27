@@ -13,7 +13,7 @@ Dt = Differential(t)
 
 eqs = Dt(u(t)) - cos(2 * π * t) ~ 0
 bcs = [u(0) ~ 0.0]
-domains = [t ∈ Interval(0.0, 4.0)]
+domains = [t ∈ Interval(0.0, 2.0)]
 
 chainf = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 1))
 init1, re1 = Flux.destructure(chainf)
