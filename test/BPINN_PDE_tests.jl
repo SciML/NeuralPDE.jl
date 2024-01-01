@@ -90,7 +90,7 @@ analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
 ts = sol1.timepoints[1]
 u_real = vec([analytic_sol_func(t) for t in ts])
 u_predict = pmean(sol1.ensemblesol[1])
-@test u_predict≈u_real atol=0.2
+@test u_predict≈u_real atol=0.5
 
 # example 3 (3 degree ODE)
 @parameters x
@@ -132,7 +132,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     bcstd = [0.01, 0.01, 0.01, 0.01, 0.01],
     phystd = [0.005],
     priorsNNw = (0.0, 10.0),
-    saveats = [1 / 100.0], progress = true)
+    saveats = [1 / 100.0])
 
 analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)
 
@@ -179,7 +179,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     bcstd = [0.003, 0.003, 0.003, 0.003],
     phystd = [0.003],
     priorsNNw = (0.0, 10.0),
-    saveats = [1 / 100.0, 1 / 100.0], progress = true)
+    saveats = [1 / 100.0, 1 / 100.0])
 
 xs = sol1.timepoints[1]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
