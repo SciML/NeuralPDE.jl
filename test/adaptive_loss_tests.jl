@@ -37,7 +37,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
     domains = [x ∈ Interval(0.0, 1.0),
         y ∈ Interval(0.0, 1.0)]
 
-    iteration = [0]
+    iteration = Ref(0)
     discretization = NeuralPDE.PhysicsInformedNN(chain_,
                                                  strategy_;
                                                  adaptive_loss = adaptive_loss,
@@ -55,9 +55,9 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
                      (length(xs), length(ys)))
 
     callback = function (p, l)
-        iteration[1] += 1
-        if iteration[1] % 100 == 0
-            @info "Current loss is: $l, iteration is $(iteration[1])"
+        iteration[] += 1
+        if iteration[] % 100 == 0
+            @info "Current loss is: $l, iteration is $(iteration[])"
         end
         return false
     end

@@ -45,7 +45,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
     domains = [x ∈ Interval(0.0, 1.0),
         y ∈ Interval(0.0, 1.0)]
 
-    iteration = [0]
+    iteration = Ref(0)
     discretization = NeuralPDE.PhysicsInformedNN(chain_,
                                                  strategy_;
                                                  adaptive_loss = adaptive_loss,
@@ -63,25 +63,25 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
                      (length(xs), length(ys)))
 
     callback = function (p, l)
-        iteration[1] += 1
-        if iteration[1] % 100 == 0
-            @info "Current loss is: $l, iteration is $(iteration[1])"
+        iteration += 1
+        if iteration[] % 100 == 0
+            @info "Current loss is: $l, iteration is $(iteration)"
         end
         if haslogger
-            log_value(logger, "outer_error/loss", l, step = iteration[1])
-            if iteration[1] % 30 == 0
+            log_value(logger, "outer_error/loss", l, step = iteration)
+            if iteration[] % 30 == 0
                 u_predict = reshape([first(phi([x, y], p)) for x in xs for y in ys],
                                     (length(xs), length(ys)))
                 diff_u = abs.(u_predict .- u_real)
                 total_diff = sum(diff_u)
-                log_value(logger, "outer_error/total_diff", total_diff, step = iteration[1])
+                log_value(logger, "outer_error/total_diff", total_diff, step = iteration)
                 total_u = sum(abs.(u_real))
                 total_diff_rel = total_diff / total_u
                 log_value(logger, "outer_error/total_diff_rel", total_diff_rel,
-                          step = iteration[1])
+                          step = iteration)
                 total_diff_sq = sum(diff_u .^ 2)
                 log_value(logger, "outer_error/total_diff_sq", total_diff_sq,
-                          step = iteration[1])
+                          step = iteration)
             end
         end
         return false
