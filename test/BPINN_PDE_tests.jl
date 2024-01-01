@@ -128,24 +128,20 @@ discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.01))
 
 sol1 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
-    draw_samples = 100,
+    draw_samples = 200,
     bcstd = [0.01, 0.01, 0.01, 0.01, 0.01],
     phystd = [0.005],
     priorsNNw = (0.0, 10.0),
-    saveats = [1 / 100.0])
+    saveats = [1 / 100.0], progress = true)
 
 analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)
 
-u_predict = sol1.ensemblesol[1]
+u_predict = pmean(sol1.ensemblesol[1])
 xs = vec(sol1.timepoints[1])
 u_real = [analytic_sol_func(x) for x in xs]
 @test u_predict≈u_real atol=0.5
 
-xs = vec(sol1.timepoints[1])
-u_predict = pmean(sol1.ensemblesol[1])
-u_real = [analytic_sol_func(xs[i]) for i in eachindex(xs)]
-diff_u = abs.(u_real .- u_predict)
-
+# diff_u = abs.(u_real .- u_predict)
 # plot(xs, u_real)
 # plot!(xs, u_predict)
 # plot!(xs, diff_u)
@@ -162,13 +158,14 @@ eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
 # Boundary conditions
 bcs = [u(0, y) ~ 0.0, u(1, y) ~ 0.0,
     u(x, 0) ~ 0.0, u(x, 1) ~ 0.0]
+
 # Space and time domains
 domains = [x ∈ Interval(0.0, 1.0),
     y ∈ Interval(0.0, 1.0)]
 
 # Neural network
 dim = 2 # number of dimensions
-chain = Lux.Chain(Lux.Dense(dim, 10, Lux.σ), Lux.Dense(10, 10, Lux.σ), Lux.Dense(10, 1))
+chain = Lux.Chain(Lux.Dense(dim, 9, Lux.σ), Lux.Dense(9, 9, Lux.σ), Lux.Dense(9, 1))
 
 # Discretization
 dx = 0.05
@@ -179,18 +176,18 @@ discretization = PhysicsInformedNN([chain], GridTraining(dx))
 sol1 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
     draw_samples = 200,
-    bcstd = [0.007, 0.007, 0.007, 0.007],
-    phystd = [0.005],
+    bcstd = [0.003, 0.003, 0.003, 0.003],
+    phystd = [0.003],
     priorsNNw = (0.0, 10.0),
-    saveats = [1 / 100.0, 1 / 100.0])
+    saveats = [1 / 100.0, 1 / 100.0], progress = true)
 
 xs = sol1.timepoints[1]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
+
 u_predict = pmean(sol1.ensemblesol[1])
 u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
 diff_u = abs.(u_predict .- u_real)
-
-@test u_predict≈u_real atol=2.5
+@test u_predict≈u_real atol=1.5
 
 # using Plots, StatsPlots
 # plotly()
@@ -198,6 +195,5 @@ diff_u = abs.(u_predict .- u_real)
 #     sol1.timepoints[1][2, :],
 #     pmean(sol1.ensemblesol[1]),
 #     linetype = :contourf)
-
 # plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], u_real, linetype = :contourf)
 # plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], diff_u, linetype = :contourf)
