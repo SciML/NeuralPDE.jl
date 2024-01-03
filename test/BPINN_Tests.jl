@@ -9,18 +9,6 @@ using NeuralPDE, MonteCarloMeasurements
 # on latest Julia version it performs much better for below tests
 Random.seed!(100)
 
-# for sampled params->lux ComponentArray
-function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
-    @assert length(ps_new) == Lux.parameterlength(ps)
-    i = 1
-    function get_ps(x)
-        z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
-        i += length(x)
-        return z
-    end
-    return Functors.fmap(get_ps, ps)
-end
-
 ## PROBLEM-1 (WITHOUT PARAMETER ESTIMATION)
 linear_analytic = (u0, p, t) -> u0 + sin(2 * π * t) / (2 * π)
 linear = (u, p, t) -> cos(2 * π * t)
