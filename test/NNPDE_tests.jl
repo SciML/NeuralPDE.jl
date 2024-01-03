@@ -37,7 +37,7 @@ function test_ode(strategy_)
     discretization = NeuralPDE.PhysicsInformedNN(chain,
                                                  strategy_)
 
-    @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
+    @named pde_system = PDESystem(eq, bcs, domains, [θ], [u(θ)])
     prob = NeuralPDE.discretize(pde_system, discretization)
 
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 1000)
@@ -331,7 +331,7 @@ end
     eq = Dx(Dxxu(x)) ~ cos(pi * x)
 
     # Initial and boundary conditions
-    bcs_ = [u(0.0) ~ 0.0,
+    bcs = [u(0.0) ~ 0.0,
         u(1.0) ~ cos(pi),
         Dxu(1.0) ~ 1.0]
     ep = (cbrt(eps(eltype(Float64))))^2 / 6
@@ -339,7 +339,7 @@ end
     der = [Dxu(x) ~ Dx(u(x)) + ep * O1(x),
         Dxxu(x) ~ Dx(Dxu(x)) + ep * O2(x)]
 
-    bcs = [bcs_; der]
+    eqs = [eq; der]
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0)]
 
@@ -352,7 +352,7 @@ end
 
     discretization = NeuralPDE.PhysicsInformedNN(chain, quasirandom_strategy)
 
-    @named pde_system = PDESystem(eq, bcs, domains, [x],
+    @named pde_system = PDESystem(eqs, bcs, domains, [x],
                                   [u(x), Dxu(x), Dxxu(x), O1(x), O2(x)])
 
     prob = NeuralPDE.discretize(pde_system, discretization)

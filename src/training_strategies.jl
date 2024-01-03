@@ -20,12 +20,12 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::GridTraining,
                                            datafree_pde_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+    @unpack domains, eqs, bcs, varmap, flat_init_params = pinnrep
     dx = strategy.dx
     eltypeθ = eltype(pinnrep.flat_init_params)
 
     train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
-                                        dict_indvars, dict_depvars)
+                                        varmap)
 
     # the points in the domain and on the boundary
     pde_train_sets, bcs_train_sets = train_sets
@@ -62,7 +62,7 @@ StochasticTraining(points; bcs_points = points)
 * `bcs_points`: number of points in random select training set for boundary conditions
   (by default, it equals `points`).
 """
-struct StochasticTraining <: AbstractTrainingStrategy
+struct StochasticTraining <: AbstractGridfreeStrategy
     points::Int64
     bcs_points::Int64
 end
@@ -80,11 +80,11 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::StochasticTraining,
                                            datafree_pde_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+    @unpack domains, eqs, bcs, varmap, flat_init_params = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
-    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+    bounds = get_bounds(domains, eqs, bcs, eltypeθ, varmap,
                         strategy)
     pde_bounds, bcs_bounds = bounds
 
@@ -136,7 +136,7 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
 
 For more information, see [QuasiMonteCarlo.jl](https://docs.sciml.ai/QuasiMonteCarlo/stable/)
 """
-struct QuasiRandomTraining <: AbstractTrainingStrategy
+struct QuasiRandomTraining <: AbstractGridfreeStrategy
     points::Int64
     bcs_points::Int64
     sampling_alg::QuasiMonteCarlo.SamplingAlgorithm
@@ -162,11 +162,11 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuasiRandomTraining,
                                            datafree_pde_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+    @unpack domains, eqs, bcs, varmap, flat_init_params = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
-    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+    bounds = get_bounds(domains, eqs, bcs, eltypeθ, varmap,
                         strategy)
     pde_bounds, bcs_bounds = bounds
 
@@ -238,7 +238,7 @@ For more information on the argument values and algorithm choices, see
 [Integrals.jl](https://docs.sciml.ai/Integrals/stable/).
 """
 struct QuadratureTraining{Q <: SciMLBase.AbstractIntegralAlgorithm, T} <:
-       AbstractTrainingStrategy
+       AbstractGridfreeStrategy
     quadrature_alg::Q
     reltol::T
     abstol::T
@@ -255,10 +255,10 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::QuadratureTraining,
                                            datafree_pde_loss_function,
                                            datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+    @unpack domains, eqs, bcs, varmap, flat_init_params = pinnrep
     eltypeθ = eltype(pinnrep.flat_init_params)
 
-    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
+    bounds = get_bounds(domains, eqs, bcs, eltypeθ, varmap,
                         strategy)
     pde_bounds, bcs_bounds = bounds
 
@@ -304,8 +304,8 @@ end
 WeightedIntervalTraining(weights, samples)
 ```
 
-A training strategy that generates points for training based on the given inputs. 
-We split the timespan into equal segments based on the number of weights, 
+A training strategy that generates points for training based on the given inputs.
+We split the timespan into equal segments based on the number of weights,
 then sample points in each segment based on that segments corresponding weight,
 such that the total number of sampled points is equivalent to the given samples
 
@@ -318,7 +318,7 @@ such that the total number of sampled points is equivalent to the given samples
 
 This training strategy can only be used with ODEs (`NNODE`).
 """
-struct WeightedIntervalTraining{T} <: AbstractTrainingStrategy
+struct WeightedIntervalTraining{T} <: AbstractGridfreeStrategy
     weights::Vector{T}
     points::Int
 end
