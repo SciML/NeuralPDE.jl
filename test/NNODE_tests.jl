@@ -207,6 +207,22 @@ sol = solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
             abstol = 1.0f-8, dt = 1 / 5.0f0)
 @test sol.errors[:l2] < 0.5
 
+#Example 3 ODEs system
+linear = (u, p, t) -> [cos(2pi * t), sin(2pi * t)]
+tspan = (0.0f0, 1.0f0)
+u0 = [0.0f0, -1.0f0 / 2pi]
+linear_analytic = (u0, p, t) -> [sin(2pi * t) / 2pi, -cos(2pi * t) / 2pi]
+odefunction = ODEFunction(linear, analytic = linear_analytic)
+prob = ODEProblem(odefunction, u0, tspan)
+chain = Flux.Chain(Dense(1, 10, σ), Dense(10, 2))
+opt = OptimizationOptimisers.Adam(0.1)
+alg = NeuralPDE.NNODE(chain, opt; autodiff = false)
+
+sol = solve(prob,
+            alg, verbose = true, dt = 1 / 40.0f0,
+            maxiters = 2000, abstol = 1.0f-7)
+@test sol.errors[:l2] < 0.5
+
 # WeightedIntervalTraining(Lux Chain)
 function f(u, p, t)
     [p[1] * u[1] - p[2] * u[1] * u[2], -p[3] * u[2] + p[4] * u[1] * u[2]]
@@ -223,9 +239,9 @@ chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, 
 
 opt = Optimisers.Adam(0.01)
 weights = [0.7, 0.2, 0.1]
-samples = 200
+points = 200
 alg = NeuralPDE.NNODE(chain, opt, autodiff = false,
-                      strategy = NeuralPDE.WeightedIntervalTraining(weights, samples))
+                      strategy = NeuralPDE.WeightedIntervalTraining(weights, points))
 sol = solve(prob_oop, alg, verbose = true, maxiters = 100000, saveat = 0.01)
 
 @test abs(mean(sol) - mean(true_sol)) < 0.2

@@ -8,4 +8,4 @@ Manifest.toml
 docs/build/*
 scratch
 scratch/*
-.DS_Store
+.DS_store

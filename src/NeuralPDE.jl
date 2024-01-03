@@ -24,6 +24,8 @@ using DomainSets
 using Symbolics
 using Symbolics: wrap, unwrap, arguments, operation, symtype
 using SymbolicUtils
+using AdvancedHMC, LogDensityProblems, LinearAlgebra, Functors, MCMCChains
+using MonteCarloMeasurements
 using SymbolicUtils.Code
 using SymbolicUtils: Prewalk, Postwalk, Chain
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
@@ -55,6 +57,8 @@ include("transform_inf_integral.jl")
 include("loss_function_generation.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
+include("advancedHMC_MCMC.jl")
+include("BPINN_ode.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
@@ -68,6 +72,6 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
        build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
        AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
        MiniMaxAdaptiveLoss,
-       LogOptions
+       LogOptions, ahmc_bayesian_pinn_ode, BNNODE
 
 end # module

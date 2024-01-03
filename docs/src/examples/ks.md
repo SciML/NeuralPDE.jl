@@ -6,13 +6,13 @@ Let's consider the Kuramoto–Sivashinsky equation, which contains a 4th-order d
 ∂_t u(x, t) + u(x, t) ∂_x u(x, t) + \alpha ∂^2_x u(x, t) + \beta ∂^3_x u(x, t) + \gamma ∂^4_x u(x, t) =  0 \, ,
 ```
 
-where `\alpha = \gamma = 1` and `\beta = 4`. The exact solution is:
+where $\alpha = \gamma = 1$ and $\beta = 4$. The exact solution is:
 
 ```math
 u_e(x, t) = 11 + 15 \tanh \theta - 15 \tanh^2 \theta - 15 \tanh^3 \theta \, ,
 ```
 
-where `\theta = t - x/2` and with initial and boundary conditions:
+where $\theta = t - x/2$ and with initial and boundary conditions:
 
 ```math
 \begin{align*}

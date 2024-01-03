@@ -15,12 +15,19 @@ function dev_subpkg(subpkg)
 end
 
 @time begin
+    #fixes 682
+    if GROUP == "All" || GROUP == "ODEBPINN"
+        @time @safetestset "Bpinn ODE solver" begin include("BPINN_Tests.jl") end
+    end
+
     if GROUP == "All" || GROUP == "NNPDE1"
         @time @safetestset "NNPDE" begin include("NNPDE_tests.jl") end
     end
     if GROUP == "All" || GROUP == "NNODE"
         @time @safetestset "NNODE" begin include("NNODE_tests.jl") end
+        @time @safetestset "NNODE_tstops" begin include("NNODE_tstops_test.jl") end
     end
+
     if GROUP == "All" || GROUP == "NNPDE2"
         @time @safetestset "Additional Loss" begin include("additional_loss_tests.jl") end
         @time @safetestset "Direction Function Approximation" begin include("direct_function_tests.jl") end

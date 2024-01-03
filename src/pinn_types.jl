@@ -67,7 +67,7 @@ methodology.
   should only be used to more directly impose functional information in the training problem,
   for example imposing the boundary condition by the test function formulation.
 * `adaptive_loss`: the choice for the adaptive loss function. See the
-  [adaptive loss page](@id adaptive_loss) for more details. Defaults to no adaptivity.
+  [adaptive loss page](@ref adaptive_loss) for more details. Defaults to no adaptivity.
 * `additional_loss`: a function `additional_loss(phi, θ, p_)` where `phi` are the neural
   network trial solutions, `θ` are the weights of the neural network(s), and `p_` are the
   hyperparameters of the `OptimizationProblem`. If `param_estim = true`, then `θ` additionally
@@ -106,8 +106,8 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: SciMLBase.Abstra
                                            logger = nothing,
                                            log_options = LogOptions(),
                                            iteration = nothing,
-                                           kwargs...) where {iip}
-        multioutput = typeof(chain) <: AbstractArray
+                                           kwargs...)
+        multioutput = chain isa AbstractArray
 
         if phi === nothing
             if multioutput

@@ -30,6 +30,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 ## Example
 
 ```julia
+u0 = [1.0, 1.0]
     ts=[t for t in 1:100]
     (u_, t_) = (analytical_func(ts), ts)
     function additional_loss(phi, θ)
@@ -120,23 +121,21 @@ mutable struct ODEPhi{C, T, U, S}
     end
 end
 
-function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params::Nothing)
-    θ, st = Lux.setup(Random.default_rng(), chain)
-    ODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(θ)
-end
-
 function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
-    ODEPhi(chain, t, u0, st), ComponentArrays.ComponentArray(init_params)
-end
-
-function generate_phi_θ(chain::Flux.Chain, t, u0, init_params::Nothing)
-    θ, re = Flux.destructure(chain)
-    ODEPhi(re, t, u0), θ
+    if init_params === nothing
+        init_params = ComponentArrays.ComponentArray(θ)
+    else
+        init_params = ComponentArrays.ComponentArray(init_params)
+    end
+    ODEPhi(chain, t, u0, st), init_params
 end
 
 function generate_phi_θ(chain::Flux.Chain, t, u0, init_params)
     θ, re = Flux.destructure(chain)
+    if init_params === nothing
+        init_params = θ
+    end
     ODEPhi(re, t, u0), init_params
 end
 
@@ -185,7 +184,7 @@ end
 
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
                               θ) where {C <: Optimisers.Restructure, T, U}
-    f.u0 .+ (t .- f.t0) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
+    f.u0 .+ (t .- f.t0)' .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
 """
@@ -258,6 +257,7 @@ Representation of the loss function, parametric on the training strategy `strate
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
                        batch)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p))
+
     integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p)) for t in ts]
     @assert batch == 0 # not implemented
 
@@ -290,6 +290,7 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
     function loss(θ, _)
         ts = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
+
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
         else
@@ -307,13 +308,13 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     weights = strategy.weights ./ sum(strategy.weights)
 
     N = length(weights)
-    samples = strategy.samples
+    points = strategy.points
 
     difference = (maxT - minT) / N
 
     data = Float64[]
     for (index, item) in enumerate(weights)
-        temp_data = rand(1, trunc(Int, samples * item)) .* difference .+ minT .+
+        temp_data = rand(1, trunc(Int, points * item)) .* difference .+ minT .+
                     ((index - 1) * difference)
         data = append!(data, temp_data)
     end
@@ -330,9 +331,23 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     return loss
 end
 
+function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch)
+
+    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
+    function loss(θ, _)
+        if batch
+            sum(abs2, inner_loss(phi, f, autodiff, tstops, θ, p))
+        else
+            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in tstops])
+        end
+    end
+    return loss
+end
+
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
+
 
 struct NNODEInterpolation{T <: ODEPhi, T2}
     phi::T
@@ -364,7 +379,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
                             reltol = 1.0f-3,
                             verbose = false,
                             saveat = nothing,
-                            maxiters = nothing)
+                            maxiters = nothing, 
+                            tstops = nothing)
     u0 = prob.u0
     tspan = prob.tspan
     f = prob.f
@@ -429,9 +445,27 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     function total_loss(θ, _)
         L2_loss = inner_f(θ, phi)
         if !(additional_loss isa Nothing)
-            return additional_loss(phi, θ) + L2_loss
+            L2_loss = L2_loss + additional_loss(phi, θ) 
         end
-        L2_loss
+        if !(tstops isa Nothing)
+            num_tstops_points = length(tstops)
+            tstops_loss_func = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch) 
+            tstops_loss = tstops_loss_func(θ, phi)
+            if strategy isa GridTraining 
+                num_original_points = length(tspan[1]:(strategy.dx):tspan[2])
+            elseif strategy isa Union{WeightedIntervalTraining, StochasticTraining}
+                num_original_points = strategy.points
+            else
+                return L2_loss + tstops_loss
+            end
+            
+            total_original_loss = L2_loss * num_original_points
+            total_tstops_loss = tstops_loss * num_original_points
+            total_points = num_original_points + num_tstops_points
+            L2_loss = (total_original_loss + total_tstops_loss) / total_points
+
+        end
+        return L2_loss
     end
 
     # Choice of Optimization Algo for Training Strategies
@@ -440,7 +474,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     else
         Optimization.AutoZygote()
     end
-
     # Creates OptimizationFunction Object from total_loss
     optf = OptimizationFunction(total_loss, opt_algo)
 

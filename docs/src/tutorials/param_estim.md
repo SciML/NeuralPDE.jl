@@ -10,7 +10,7 @@ Consider a Lorenz System,
 \end{align*}
 ```
 
-with Physics-Informed Neural Networks. Now we would consider the case where we want to optimize the parameters `\sigma`, `\beta`, and `\rho`.
+with Physics-Informed Neural Networks. Now we would consider the case where we want to optimize the parameters $\sigma$, $\beta$, and $\rho$.
 
 We start by defining the problem,
 
@@ -58,7 +58,7 @@ u0 = [1.0; 0.0; 0.0]
 tspan = (0.0, 1.0)
 prob = ODEProblem(lorenz!, u0, tspan)
 sol = solve(prob, Tsit5(), dt = 0.1)
-ts = [infimum(d.domain):dt:supremum(d.domain) for d in domains][1]
+ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 function getData(sol)
     data = []
     us = hcat(sol(ts).u...)
@@ -113,7 +113,7 @@ Then finally defining and optimizing using the `PhysicsInformedNN` interface.
 
 ```@example param_estim
 discretization = NeuralPDE.PhysicsInformedNN([chain1, chain2, chain3],
-                                             NeuralPDE.GridTraining(dt), param_estim = true,
+                                             NeuralPDE.QuadratureTraining(), param_estim = true,
                                              additional_loss = additional_loss)
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β],
                               defaults = Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
@@ -130,7 +130,7 @@ And then finally some analysis by plotting.
 
 ```@example param_estim
 minimizers = [res.u.depvar[depvars[i]] for i in 1:3]
-ts = [infimum(d.domain):(dt / 10):supremum(d.domain) for d in domains][1]
+ts = [infimum(d.domain):(0.001):supremum(d.domain) for d in domains][1]
 u_predict = [[discretization.phi[i]([t], minimizers[i])[1] for t in ts] for i in 1:3]
 plot(sol)
 plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])

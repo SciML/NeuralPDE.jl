@@ -35,12 +35,9 @@ bcs = [u(0, x) ~ -sin(pi * x),
 domains = [t ∈ Interval(0.0, 1.0),
     x ∈ Interval(-1.0, 1.0)]
 
-# Discretization
-dx = 0.05
-
 # Neural network
 chain = Lux.Chain(Dense(2, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))
-strategy = NeuralPDE.GridTraining(dx)
+strategy = NeuralPDE.QuadratureTraining()
 
 indvars = [t, x]
 depvars = [u(t, x)]
@@ -79,7 +76,7 @@ And some analysis:
 ```@example low_level
 using Plots
 
-ts, xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_predict_contourf = reshape([first(phi([t, x], res.u)) for t in ts for x in xs],
                              length(xs), length(ts))
 plot(ts, xs, u_predict_contourf, linetype = :contourf, title = "predict")
