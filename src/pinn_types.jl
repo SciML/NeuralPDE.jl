@@ -431,4 +431,4 @@ function rvcat(example, vector, eltypeθ)
 	end
 end
 
-@register_symbolic(rvcat(vector, example, eltypeθ), true, [], true)
+@register_symbolic(rvcat(vector, example, eltypeθ), true, [])
