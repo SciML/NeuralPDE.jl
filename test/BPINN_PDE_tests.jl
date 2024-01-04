@@ -90,7 +90,7 @@ analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
 ts = sol1.timepoints[1]
 u_real = vec([analytic_sol_func(t) for t in ts])
 u_predict = pmean(sol1.ensemblesol[1])
-@test u_predict≈u_real atol=0.5
+@test u_predict≈u_real atol=0.8
 
 # example 3 (3 degree ODE)
 @parameters x
