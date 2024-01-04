@@ -65,7 +65,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
 end
 
 """
-Cool function needed for converting vector of sampled parameters into ComponentVector in case of Lux chain output, derivatives
+function needed for converting vector of sampled parameters into ComponentVector in case of Lux chain output, derivatives
 the sampled parameters are of exotic type `Dual` due to ForwardDiff's autodiff tagging
 """
 function vector_to_parameters(ps_new::AbstractVector,
@@ -558,9 +558,9 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         end
     end
 
-    println("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, initial_θ))
-    println("Current Prior Log-likelihood : ", priorweights(ℓπ, initial_θ))
-    println("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
+    @info("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, initial_θ))
+    @info("Current Prior Log-likelihood : ", priorweights(ℓπ, initial_θ))
+    @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
@@ -608,10 +608,10 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
 
-        println("Sampling Complete.")
-        println("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, samples[end]))
-        println("Current Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
-        println("Current MSE against dataset Log-likelihood : ",
+        @info("Sampling Complete.")
+        @info("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, samples[end]))
+        @info("Current Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
+        @info("Current MSE against dataset Log-likelihood : ",
             L2LossData(ℓπ, samples[end]))
 
         # return a chain(basic chain),samples and stats

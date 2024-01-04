@@ -417,11 +417,11 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     metric = Metric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
 
-    println("Current Physics Log-likelihood : ",
+    @info("Current Physics Log-likelihood : ",
         ℓπ.full_loglikelihood(setparameters(ℓπ, initial_θ),
             ℓπ.allstd))
-    println("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, initial_θ))
-    println("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
+    @info("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, initial_θ))
+    @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
 
     # parallel sampling option
     if nchains != 1
@@ -476,12 +476,12 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         matrix_samples = hcat(samples...)
         mcmc_chain = MCMCChains.Chains(matrix_samples')
 
-        println("Sampling Complete.")
-        println("Current Physics Log-likelihood : ",
+        @info("Sampling Complete.")
+        @info("Current Physics Log-likelihood : ",
             ℓπ.full_loglikelihood(setparameters(ℓπ, samples[end]),
                 ℓπ.allstd))
-        println("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, samples[end]))
-        println("Current MSE against dataset Log-likelihood : ",
+        @info("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, samples[end]))
+        @info("Current MSE against dataset Log-likelihood : ",
             L2LossData(ℓπ, samples[end]))
 
         fullsolution = BPINNstats(mcmc_chain, samples, stats)

@@ -148,7 +148,7 @@ end
 BPINN Solution contains the original solution from AdvancedHMC.jl sampling(BPINNstats contains fields related to that)
 > ensemblesol is the Probabilistic Estimate(MonteCarloMeasurements.jl Particles type) of Ensemble solution from All Neural Network's(made using all sampled parameters) output's.
 > estimated_nn_params - Probabilistic Estimate of NN params from sampled weights,biases
-> estimated_de_params - Probabilistic Estimate of DE params from sampled unknown de paramters
+> estimated_de_params - Probabilistic Estimate of DE params from sampled unknown DE paramters
 """
 
 struct BPINNsolution{O <: BPINNstats, E, NP, OP, P}

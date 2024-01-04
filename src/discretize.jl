@@ -401,7 +401,7 @@ to the PDE.
 For more information, see `discretize` and `PINNRepresentation`.
 """
 function SciMLBase.symbolic_discretize(pde_system::PDESystem,
-    discretization::PhysicsInformedNN; bayesian::Bool = false,dataset_given=[nothing])
+    discretization::PhysicsInformedNN; bayesian::Bool = false,dataset_given=nothing)
     eqs = pde_system.eqs
     bcs = pde_system.bcs
     chain = discretization.chain
@@ -587,7 +587,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     if bayesian
         # required as Physics loss also needed on dataset domain points
-        pde_loss_functions1, bc_loss_functions1 = if !(dataset_given isa Vector{Nothing})
+        pde_loss_functions1, bc_loss_functions1 = if !(dataset_given isa Nothing)
             if !(strategy isa  GridTraining)
                 throw("only GridTraining strategy allowed")
             else
@@ -609,7 +609,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
                                  for (j, bc_loss_function) in enumerate(bc_loss_functions)]    
 
-            if !(dataset_given isa Vector{Nothing})
+            if !(dataset_given isa Nothing)
                 pde_loglikelihoods += [logpdf(Normal(0, stdpdes[j]), pde_loss_function1(θ))
                                        for (j, pde_loss_function1) in enumerate(pde_loss_functions1)]
 

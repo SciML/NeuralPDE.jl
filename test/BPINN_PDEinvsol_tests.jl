@@ -149,8 +149,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     priorsNNw = (0.0, 1.0),
     saveats = [0.01],
     param = [Normal(12.0, 2)],
-    dataset = dataset,
-    progress = true)
+    dataset = dataset)
 
 idealp = 10.0
 p_ = sol1.estimated_de_params
