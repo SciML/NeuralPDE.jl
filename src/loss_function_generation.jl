@@ -120,7 +120,6 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
     sym_coords = DestructuredArgs(ivs)
     ps = DestructuredArgs(varmap.ps)
 
-
     args = [sym_coords, θ_SYMBOL, phi, ps]
 
     ex = Func(args, [], expr) |> toexpr |> _dot_
@@ -137,12 +136,13 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
     end
 
     dvs = get_depvars(term, varmap.depvar_ops)
+    ivs = get_indvars(term, v)
     @show eltypeθ
     @show methods(derivative)
     # Orthodox derivatives
     n(w) = length(arguments(w))
     rs = reduce(vcat, [reduce(vcat, [[@rule $((Differential(x)^d)(w)) =>
-                                          derivative(ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ),
+                                          derivative(ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ, switch),
                                                      [get_ε(n(w),
                                                            j, eltypeθ, i) for i in 1:d],
                                                      d, θ)
@@ -159,7 +159,7 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
                     ε1 = [get_ε(n(w), j, eltypeθ, i) for i in 1:2]
                     ε2 = [get_ε(n(w), k, eltypeθ, i) for i in 1:2]
                     [@rule $((Differential(x))((Differential(y))(w))) =>
-                        derivative((coord_, θ_) -> derivative(ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ),
+                        derivative((coord_, θ_) -> derivative(ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ, switch),
                                                              ε2, 1, θ_),
                                    reducevcat(arguments(w), eltypeθ), ε1, 1, θ)]
                 end
