@@ -384,7 +384,7 @@ function numeric_derivative(phi, x, εs, order, θ)
 	end
 end
 # Hacky workaround for metaprogramming with symbolics
-@register_symbolic(numeric_derivative(phi, x, εs, order, θ), true, [])
+@register_symbolic(numeric_derivative(phi, x, εs, order, θ))
 
 function ufunc(u, phi, v)
 	if symtype(phi) isa AbstractArray
@@ -409,7 +409,7 @@ https://github.com/SciML/NeuralPDE.jl/pull/627/files
 
 
 
-function reducevcat(vector, eltypeθ)
+function reducevcat(vector::Vector, eltypeθ)
 	if all(x -> x isa Number, vector)
 		return vector
 	else
@@ -418,7 +418,7 @@ function reducevcat(vector, eltypeθ)
 	end
 end
 
-function rvcat(example, vector, eltypeθ)
+function rvcat(example, vector, eltypeθ, switch)
 	isnothing(vector) && return [[nothing]]
 	return mapreduce(hcat, vector) do x
 		if x isa Number
@@ -431,4 +431,4 @@ function rvcat(example, vector, eltypeθ)
 	end
 end
 
-@register_symbolic(rvcat(vector, example, eltypeθ), true, [])
+@register_symbolic(rvcat(vector, example, eltypeθ, switch))

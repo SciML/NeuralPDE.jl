@@ -105,9 +105,9 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
     ex_vars = get_depvars(term, varmap.depvar_ops)
 
     if multioutput
-        dummyvars = @variables phi[1:length(varmap.ū)](..), θ_SYMBOL
+        dummyvars = @variables phi[1:length(varmap.ū)](..), θ_SYMBOL, switch
     else
-        dummyvars = @variables phi(..), θ_SYMBOL
+        dummyvars = @variables phi(..), θ_SYMBOL, switch
     end
 
     dummyvars = unwrap.(dummyvars)
@@ -131,13 +131,14 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
 end
 
 function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap, multioutput)
-    phi, θ = dummyvars
+    phi, θ, switch = dummyvars
     if symtype(phi) isa AbstractArray
         phi = collect(phi)
     end
 
     dvs = get_depvars(term, varmap.depvar_ops)
     @show eltypeθ
+    @show methods(derivative)
     # Orthodox derivatives
     n(w) = length(arguments(w))
     rs = reduce(vcat, [reduce(vcat, [[@rule $((Differential(x)^d)(w)) =>
@@ -169,7 +170,9 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
         @rule w => ufunc(w, phi, varmap)(reducevcat(arguments(w), eltypeθ), θ)
     end
 
-    return [mx; rs; vr]
+    sr = @rule switch => 1
+
+    return [mx; rs; vr; sr]
 end
 
 function generate_integral_rules(eq, eqdata, dummyvars)
@@ -178,3 +181,4 @@ function generate_integral_rules(eq, eqdata, dummyvars)
     #! with rules without putting symbols through the solve
 
 end
+

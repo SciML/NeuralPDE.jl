@@ -89,6 +89,7 @@ function get_ε(dim::Int, der_num::Int, ::Type{eltypeθ}, order) where {eltypeθ
     epsilon = ^(eps(eltypeθ), one(eltypeθ) / (2 + order))
     ε = zeros(eltypeθ, dim)
     ε[der_num] = epsilon
+    @show typeof(ε)
     ε
 end
 
