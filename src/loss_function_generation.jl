@@ -136,7 +136,6 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
     end
 
     dvs = get_depvars(term, varmap.depvar_ops)
-    ivs = get_indvars(term, v)
     @show eltypeθ
     @show methods(derivative)
     # Orthodox derivatives
@@ -181,4 +180,3 @@ function generate_integral_rules(eq, eqdata, dummyvars)
     #! with rules without putting symbols through the solve
 
 end
-
