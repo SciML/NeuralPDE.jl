@@ -409,7 +409,7 @@ https://github.com/SciML/NeuralPDE.jl/pull/627/files
 
 
 
-function reducevcat(vector::Vector, eltypeθ)
+function reducevcat(vector::Vector, eltypeθ, switch)
 	if all(x -> x isa Number, vector)
 		return vector
 	else
