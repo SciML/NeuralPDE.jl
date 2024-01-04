@@ -414,7 +414,7 @@ function reducevcat(vector::Vector, eltypeθ)
 		return vector
 	else
 		z = findfirst(x -> !(x isa Number), vector)
-		return rvcat(vector, vector[z], eltypeθ)
+		return rvcat(vector, vector[z], eltypeθ, switch)
 	end
 end
 
