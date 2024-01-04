@@ -37,7 +37,7 @@ discretization = NeuralPDE.PhysicsInformedNN([chainl],
 
 analytic_sol_func1(u0, t) = u0 + sin(2 * π * t) / (2 * π)
 timepoints = collect(0.0:(1 / 100.0):2.0)
-u = [analytic_sol_func(0.0, timepoint) for timepoint in timepoints]
+u = [analytic_sol_func1(0.0, timepoint) for timepoint in timepoints]
 u = u .+ (u .* 0.2) .* randn(size(u))
 dataset = [hcat(u, timepoints)]
 
@@ -78,7 +78,7 @@ u_predict = pmean(sol1.ensemblesol[1])
 @test sol1.estimated_de_params[1]≈param atol=param * 0.3
 
 ts = vec(sol2.timepoints[1])
-u_real = [analytic_sol_func(0.0, t) for t in ts]
+u_real = [analytic_sol_func1(0.0, t) for t in ts]
 u_predict = pmean(sol2.ensemblesol[1])
 
 @test u_predict≈u_real atol=0.5
