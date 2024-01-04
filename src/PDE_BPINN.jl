@@ -1,6 +1,6 @@
 mutable struct PDELogTargetDensity{
     ST <: AbstractTrainingStrategy,
-    D <: Union{Vector{Nothing}, Vector{<:Matrix{<:Real}}},
+    D <: Union{Nothing, Vector{<:Matrix{<:Real}}},
     P <: Vector{<:Distribution},
     I,
     F,
@@ -316,7 +316,7 @@ end
 
 # priors: pdf for W,b + pdf for ODE params
 function ahmc_bayesian_pinn_pde(pde_system, discretization;
-        dataset = [nothing], draw_samples = 1000,
+        dataset = nothing, draw_samples = 1000,
         bcstd = [0.01], l2std = [0.05],
         phystd = [0.05], priorsNNw = (0.0, 2.0),
         param = [], nchains = 1, Kernel = HMC,
@@ -333,7 +333,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
     if discretization.param_estim && isempty(param)
         throw(UndefVarError(:param))
-    elseif discretization.param_estim && dataset isa Vector{Nothing}
+    elseif discretization.param_estim && dataset isa Nothing
         throw(UndefVarError(:dataset))
     elseif discretization.param_estim && length(l2std) != length(pinnrep.depvars)
         throw(error("L2 stds length must match number of dependant variables"))
