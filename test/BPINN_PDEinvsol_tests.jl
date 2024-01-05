@@ -84,6 +84,7 @@ u_predict = pmean(sol2.ensemblesol[1])
 @test mean(u_predict .- u_real) < 0.1
 @test sol2.estimated_de_params[1]≈param atol=param * 0.3
 
+println("yeah")
 # ## Example Lorenz System (Parameter Estimation)
 # println("Example 2, Lorenz System")
 
