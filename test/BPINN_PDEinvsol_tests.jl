@@ -17,7 +17,7 @@ eqs = Dt(u(t)) - cos(p * t) ~ 0
 bcs = [u(0) ~ 0.0]
 domains = [t ∈ Interval(0.0, 2.0)]
 
-chainf = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 1))
+chainf = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 1)) |> Flux.f64
 init1, re1 = Flux.destructure(chainf)
 chainl = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 1))
 initl, st = Lux.setup(Random.default_rng(), chainl)
