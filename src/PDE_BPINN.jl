@@ -151,7 +151,8 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
                             vector_to_parameters(θ[1:(end - Tar.extraparams)],
                                 init_params)[Tar.names[i]])[1,
                             :],
-                        ones(size(dataset[i])[1]) .* L2stds[i]),
+                        LinearAlgebra.Diagonal(abs2.(ones(size(dataset[i])[1]) .*
+                                                     L2stds[i]))),
                     dataset[i][:, 1])
             end
             sumt
@@ -162,7 +163,8 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
                             vector_to_parameters(θ[1:(end - Tar.extraparams)],
                                 init_params)[Tar.names[2][i]])[1,
                             :],
-                        ones(size(dataset[i])[1]) .* L2stds[i]),
+                        LinearAlgebra.Diagonal(abs2.(ones(size(dataset[i])[1]) .*
+                                                     L2stds[i]))),
                     dataset[i][:, 1])
             end
             sumt

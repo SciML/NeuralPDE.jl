@@ -5,6 +5,8 @@
 # using NeuralPDE, MonteCarloMeasurements
 # using ComponentArrays
 
+# Random.seed!(100)
+
 # # Cospit example
 # @parameters t
 # @variables u(..)

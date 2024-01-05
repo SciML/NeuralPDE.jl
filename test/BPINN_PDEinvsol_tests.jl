@@ -5,8 +5,10 @@ using Flux, AdvancedHMC, Statistics, Random, Functors
 using NeuralPDE, MonteCarloMeasurements
 using ComponentArrays
 
+Random.seed!(100)
+
 # Cos(pit) periodic curve (Parameter Estimation)
-# println("Example 1, 2d Periodic System")
+println("Example 1, 2d Periodic System")
 
 @parameters t, p
 @variables u(..)
@@ -84,7 +86,6 @@ u_predict = pmean(sol2.ensemblesol[1])
 @test mean(u_predict .- u_real) < 0.1
 @test sol2.estimated_de_params[1]≈param atol=param * 0.3
 
-println("yeah")
 # ## Example Lorenz System (Parameter Estimation)
 # println("Example 2, Lorenz System")
 
