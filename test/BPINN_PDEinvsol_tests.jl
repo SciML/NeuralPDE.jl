@@ -6,7 +6,7 @@ using NeuralPDE, MonteCarloMeasurements
 using ComponentArrays
 
 # Cos(pit) periodic curve (Parameter Estimation)
-println("Example 1, 2d Periodic System")
+# println("Example 1, 2d Periodic System")
 
 @parameters t, p
 @variables u(..)
