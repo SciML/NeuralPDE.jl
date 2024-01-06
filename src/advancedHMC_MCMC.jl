@@ -69,20 +69,18 @@ function needed for converting vector of sampled parameters into ComponentVector
 the sampled parameters are of exotic type `Dual` due to ForwardDiff's autodiff tagging
 """
 function vector_to_parameters(ps_new::AbstractVector,
-        ps::Union{NamedTuple, ComponentArrays.ComponentVector, AbstractVector})
-    if (ps isa ComponentArrays.ComponentVector) || (ps isa NamedTuple)
-        @assert length(ps_new) == Lux.parameterlength(ps)
-        i = 1
-        function get_ps(x)
-            z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
-            i += length(x)
-            return z
-        end
-        return Functors.fmap(get_ps, ps)
-    else
-        return ps_new
+        ps::Union{NamedTuple, ComponentArrays.ComponentVector})
+    @assert length(ps_new) == Lux.parameterlength(ps)
+    i = 1
+    function get_ps(x)
+        z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
+        i += length(x)
+        return z
     end
+    return Functors.fmap(get_ps, ps)
 end
+
+vector_to_parameters(ps_new::AbstractVector, ps::AbstractVector) = ps_new
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
     return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ)

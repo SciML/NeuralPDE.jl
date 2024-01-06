@@ -82,14 +82,11 @@ function setparameters(Tar::PDELogTargetDensity, θ)
     if (ps[names[1]] isa ComponentArrays.ComponentVector)
         # multioutput case for Lux chains, for each depvar ps would contain Lux ComponentVectors
         # which we use for mapping current ahmc sampled vector of parameters onto NNs
+
         i = 0
-        Luxparams = Vector{ComponentArrays.ComponentVector}()
-        for x in names
-            endind = length(ps[x])
-            push!(Luxparams, vector_to_parameters(ps_new[(i + 1):(i + endind)], ps[x]))
-            i += endind
-        end
-        Luxparams
+        Luxparams = [vector_to_parameters(ps_new[((i += length(ps[x])) - length(ps[x]) + 1):i],
+            ps[x]) for x in names]
+
     else
         # multioutput Flux
         Luxparams = θ
@@ -192,20 +189,6 @@ function priorlogpdf(Tar::PDELogTargetDensity, θ)
                 logpdf(nnwparams, θ[1:(length(θ) - Tar.extraparams)]))
     else
         return logpdf(nnwparams, θ)
-    end
-end
-
-function kernelchoice(Kernel, MCMCkwargs)
-    if Kernel == HMCDA
-        δ, λ = MCMCkwargs[:δ], MCMCkwargs[:λ]
-        Kernel(δ, λ)
-    elseif Kernel == NUTS
-        δ, max_depth, Δ_max = MCMCkwargs[:δ], MCMCkwargs[:max_depth], MCMCkwargs[:Δ_max]
-        Kernel(δ, max_depth = max_depth, Δ_max = Δ_max)
-    else
-        # HMC
-        n_leapfrog = MCMCkwargs[:n_leapfrog]
-        Kernel(n_leapfrog)
     end
 end
 
@@ -321,13 +304,11 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         dataset = nothing, draw_samples = 1000,
         bcstd = [0.01], l2std = [0.05],
         phystd = [0.05], priorsNNw = (0.0, 2.0),
-        param = [], nchains = 1, Kernel = HMC,
+        param = [], nchains = 1, Kernel = HMC(0.1, 30),
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
-        Integratorkwargs = (Integrator = Leapfrog,),
-        MCMCkwargs = (n_leapfrog = 30,), saveats = [1 / 10.0],
+        Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
         numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
-
     pinnrep = symbolic_discretize(pde_system,
         discretization,
         bayesian = true,
@@ -355,10 +336,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # for new L2 loss
     # discretization.additional_loss = 
 
-    if nchains > Threads.nthreads()
-        throw(error("number of chains is greater than available threads"))
-    elseif nchains < 1
-        throw(error("number of chains must be greater than 1"))
+    if nchains < 1
+        throw(error("number of chains must be greater than or equal to 1"))
     end
 
     # remove inv params take only NN params, AHMC uses Float64
@@ -439,9 +418,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             integrator = integratorchoice(Integratorkwargs, initial_ϵ)
             adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
                 StepSizeAdaptor(targetacceptancerate, integrator))
-
-            MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
-            Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
+            Kernel = AdvancedHMC.make_kernel(Kernel, integrator)
             samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
                 progress = progress, verbose = verbose)
 
@@ -469,8 +446,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
             StepSizeAdaptor(targetacceptancerate, integrator))
 
-        MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
-        Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
+        Kernel = AdvancedHMC.make_kernel(Kernel, integrator)
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
 
