@@ -401,7 +401,7 @@ to the PDE.
 For more information, see `discretize` and `PINNRepresentation`.
 """
 function SciMLBase.symbolic_discretize(pde_system::PDESystem,
-    discretization)
+    discretization::AbstractPINN)
     eqs = pde_system.eqs
     bcs = pde_system.bcs
     chain = discretization.chain
