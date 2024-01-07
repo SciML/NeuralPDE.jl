@@ -160,7 +160,7 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
                     [@rule $((Differential(x))((Differential(y))(w))) =>
                         derivative((coord_, θ_) -> derivative(ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ, switch),
                                                              ε2, 1, θ_),
-                                   reducevcat(arguments(w), eltypeθ), ε1, 1, θ)]
+                                   reducevcat(arguments(w), eltypeθ, switch), ε1, 1, θ)]
                 end
             end
         end
