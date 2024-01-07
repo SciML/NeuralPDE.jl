@@ -301,7 +301,7 @@ end
 
 # priors: pdf for W,b + pdf for ODE params
 function ahmc_bayesian_pinn_pde(pde_system, discretization;
-        dataset = nothing, draw_samples = 1000,
+        draw_samples = 1000,
         bcstd = [0.01], l2std = [0.05],
         phystd = [0.05], priorsNNw = (0.0, 2.0),
         param = [], nchains = 1, Kernel = HMC(0.1, 30),
@@ -309,10 +309,18 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
         numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
-    pinnrep = symbolic_discretize(pde_system,
-        discretization,
-        bayesian = true,
-        dataset_given = dataset)
+    pinnrep = symbolic_discretize(pde_system, discretization)
+    dataset_pde, dataset_bc = discretization.dataset
+
+    if ((dataset_bc isa Nothing) && (dataset_pde isa Nothing))
+        dataset = nothing
+    elseif dataset_bc isa Nothing
+        dataset = dataset_pde
+    elseif dataset_pde isa Nothing
+        dataset = dataset_bc
+    else
+        dataset = [vcat(dataset_pde[i], dataset_bc[i]) for i in eachindex(dataset_pde)]
+    end
 
     if discretization.param_estim && isempty(param)
         throw(UndefVarError(:param))

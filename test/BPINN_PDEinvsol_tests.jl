@@ -9,7 +9,6 @@ Random.seed!(100)
 
 # Cos(pit) periodic curve (Parameter Estimation)
 println("Example 1, 2d Periodic System")
-
 @parameters t, p
 @variables u(..)
 
@@ -31,11 +30,6 @@ initl, st = Lux.setup(Random.default_rng(), chainl)
     [p],
     defaults = Dict([p => 4.0]))
 
-# non adaptive case
-discretization = NeuralPDE.PhysicsInformedNN([chainl],
-    GridTraining([0.02]),
-    param_estim = true)
-
 analytic_sol_func1(u0, t) = u0 + sin(2 * π * t) / (2 * π)
 timepoints = collect(0.0:(1 / 100.0):2.0)
 u = [analytic_sol_func1(0.0, timepoint) for timepoint in timepoints]
@@ -45,6 +39,49 @@ dataset = [hcat(u, timepoints)]
 # plot(dataset[1][:, 2], dataset[1][:, 1])
 # plot!(timepoints, u)
 
+# checking all training strategies
+discretization = NeuralPDE.BayesianPINN([chainl],
+    StochasticTraining(200),
+    param_estim = true, dataset = [dataset, nothing])
+
+ahmc_bayesian_pinn_pde(pde_system,
+    discretization;
+    draw_samples = 1500,
+    bcstd = [0.05],
+    phystd = [0.01], l2std = [0.01],
+    priorsNNw = (0.0, 1.0),
+    saveats = [1 / 50.0],
+    param = [LogNormal(6.0, 0.5)])
+
+discretization = NeuralPDE.BayesianPINN([chainl],
+    QuasiRandomTraining(200),
+    param_estim = true, dataset = [dataset, nothing])
+
+ahmc_bayesian_pinn_pde(pde_system,
+    discretization;
+    draw_samples = 1500,
+    bcstd = [0.05],
+    phystd = [0.01], l2std = [0.01],
+    priorsNNw = (0.0, 1.0),
+    saveats = [1 / 50.0],
+    param = [LogNormal(6.0, 0.5)])
+
+discretization = NeuralPDE.BayesianPINN([chainl],
+    QuadratureTraining(), param_estim = true, dataset = [dataset, nothing])
+
+ahmc_bayesian_pinn_pde(pde_system,
+    discretization;
+    draw_samples = 1500,
+    bcstd = [0.05],
+    phystd = [0.01], l2std = [0.01],
+    priorsNNw = (0.0, 1.0),
+    saveats = [1 / 50.0],
+    param = [LogNormal(6.0, 0.5)])
+
+discretization = NeuralPDE.BayesianPINN([chainl],
+    GridTraining([0.02]),
+    param_estim = true, dataset = [dataset, nothing])
+
 sol1 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
     draw_samples = 1500,
@@ -52,12 +89,10 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     phystd = [0.01], l2std = [0.01],
     priorsNNw = (0.0, 1.0),
     saveats = [1 / 50.0],
-    param = [LogNormal(6.0, 0.5)],
-    dataset = dataset)
+    param = [LogNormal(6.0, 0.5)])
 
-discretization = NeuralPDE.PhysicsInformedNN([chainf],
-    GridTraining([0.01]),
-    param_estim = true)
+discretization = NeuralPDE.BayesianPINN([chainf],
+    GridTraining([0.01]), param_estim = true, dataset = [dataset, nothing])
 
 sol2 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
@@ -66,8 +101,7 @@ sol2 = ahmc_bayesian_pinn_pde(pde_system,
     phystd = [0.01], l2std = [0.01],
     priorsNNw = (0.0, 1.0),
     saveats = [1 / 50.0],
-    param = [LogNormal(6.0, 0.5)],
-    dataset = dataset)
+    param = [LogNormal(6.0, 0.5)])
 
 param = 2 * π
 ts = vec(sol1.timepoints[1])
@@ -88,7 +122,6 @@ u_predict = pmean(sol2.ensemblesol[1])
 
 ## Example Lorenz System (Parameter Estimation)
 println("Example 2, Lorenz System")
-
 @parameters t, σ_
 @variables x(..), y(..), z(..)
 Dt = Differential(t)
@@ -134,9 +167,8 @@ dataset = [hcat(us[i, :], ts_) for i in 1:3]
 # plot!(dataset[2][:, 2:end], dataset[2][:, 1])
 # plot!(dataset[3][:, 2:end], dataset[3][:, 1])
 
-discretization = NeuralPDE.PhysicsInformedNN(chain,
-    NeuralPDE.GridTraining([0.01])
-    ; param_estim = true)
+discretization = NeuralPDE.BayesianPINN(chain, NeuralPDE.GridTraining([0.01]);
+    param_estim = true, dataset = [dataset, nothing])
 
 @named pde_system = PDESystem(eqs, bcs, domains,
     [t], [x(t), y(t), z(t)], [σ_], defaults = Dict([p => 1.0 for p in [σ_]]))
@@ -149,16 +181,15 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     l2std = [1, 1, 1],
     priorsNNw = (0.0, 1.0),
     saveats = [0.01],
-    param = [Normal(12.0, 2)],
-    dataset = dataset)
+    param = [Normal(12.0, 2)])
 
 idealp = 10.0
-p_ = sol1.estimated_de_params
+p_ = sol1.estimated_de_params[1]
 
 # plot(pmean(sol1.ensemblesol[1]), pmean(sol1.ensemblesol[2]), pmean(sol1.ensemblesol[3]))
 # plot(sol1.timepoints[1]', pmean(sol1.ensemblesol[1]))
 # plot!(sol1.timepoints[2]', pmean(sol1.ensemblesol[2]))
 # plot!(sol1.timepoints[3]', pmean(sol1.ensemblesol[3]))
 
-@test sum(abs, pmean(p_[1]) - 10.00) < 0.3 * idealp[1]
+@test sum(abs, pmean(p_) - 10.00) < 0.3 * idealp[1]
 # @test sum(abs, pmean(p_[2]) - (8 / 3)) < 0.3 * idealp[2]

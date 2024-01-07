@@ -23,9 +23,9 @@ chainl = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 1))
 initl, st = Lux.setup(Random.default_rng(), chainl)
 
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [u(t)])
-
++
 # non adaptive case
-discretization = NeuralPDE.PhysicsInformedNN([chainl], GridTraining([0.01]))
+discretization = NeuralPDE.BayesianPINN([chainl], GridTraining([0.01]))
 
 sol1 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
@@ -35,7 +35,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     priorsNNw = (0.0, 1.0),
     saveats = [1 / 50.0])
 
-discretization = NeuralPDE.PhysicsInformedNN([chainf], GridTraining([0.01]))
+discretization = NeuralPDE.BayesianPINN([chainf], GridTraining([0.01]))
 sol2 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
     draw_samples = 1500,
@@ -75,7 +75,7 @@ domains = [θ ∈ Interval(0.0, 1.0)]
 # Neural network
 chain = Lux.Chain(Lux.Dense(1, 12, Flux.σ), Lux.Dense(12, 1))
 
-discretization = NeuralPDE.PhysicsInformedNN([chain],
+discretization = NeuralPDE.BayesianPINN([chain],
     GridTraining([0.01]))
 
 @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
@@ -123,7 +123,7 @@ chain = [
         Lux.Dense(10, 1)), Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1)),
     Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1))]
 
-discretization = NeuralPDE.PhysicsInformedNN(chain, GridTraining(0.01))
+discretization = NeuralPDE.BayesianPINN(chain, GridTraining(0.01))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x],
     [u(x), Dxu(x), Dxxu(x), O1(x), O2(x)])
@@ -171,7 +171,7 @@ chain = Lux.Chain(Lux.Dense(dim, 9, Lux.σ), Lux.Dense(9, 9, Lux.σ), Lux.Dense(
 
 # Discretization
 dx = 0.05
-discretization = PhysicsInformedNN([chain], GridTraining(dx))
+discretNeuralPDE.BayesianPINN([chain], GridTraining(dx))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
