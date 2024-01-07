@@ -683,7 +683,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                 datafree_pde_loss_functions,
                 datafree_bc_loss_functions, train_sets_pde = dataset_pde, train_sets_bc = dataset_bc)
         else
-            ([], [])
+            (nothing, nothing)
         end
 
         function full_loss_function(θ, allstd::Vector{Vector{Float64}})
@@ -699,12 +699,12 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                 pde_loglikelihoods += [logpdf(Normal(0, stdpdes[j]), pde_loss_function(θ))
                                     for (j, pde_loss_function) in enumerate(datapde_loss_functions)]
 
-                end
+            end
 
-                if !(databc_loss_functions isa Nothing)
-                    bc_loglikelihoods += [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
-                                        for (j, bc_loss_function) in enumerate(databc_loss_functions)]
-                end
+            if !(databc_loss_functions isa Nothing)
+                bc_loglikelihoods += [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ)) 
+                                    for (j, bc_loss_function) in enumerate(databc_loss_functions)]
+            end
 
             # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
             # that's why we prefer the user to maintain the increment in the outer loop callback during optimization

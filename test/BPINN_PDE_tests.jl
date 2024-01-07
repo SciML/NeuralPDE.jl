@@ -23,7 +23,7 @@ chainl = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 1))
 initl, st = Lux.setup(Random.default_rng(), chainl)
 
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [u(t)])
-+
+
 # non adaptive case
 discretization = NeuralPDE.BayesianPINN([chainl], GridTraining([0.01]))
 
