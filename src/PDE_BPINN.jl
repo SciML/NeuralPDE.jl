@@ -118,10 +118,6 @@ function LogDensityProblems.capabilities(::PDELogTargetDensity)
     LogDensityProblems.LogDensityOrder{1}()
 end
 
-function L2loss2(Tar::PDELogTargetDensity, θ)
-    return logpdf(MvNormal(pde(phi, Tar.dataset[end], θ)), zeros(length(pde_eqs)))
-end
-
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)
 function L2LossData(Tar::PDELogTargetDensity, θ)
     Φ = Tar.Φ
@@ -373,7 +369,10 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     #ode parameter estimation
     nparameters = length(initial_θ)
     ninv = length(param)
-    priors = [MvNormal(priorsNNw[1] * ones(nparameters), priorsNNw[2] * ones(nparameters))]
+    priors = [
+        MvNormal(priorsNNw[1] * ones(nparameters),
+            LinearAlgebra.Diagonal(abs2.(priorsNNw[2] .* ones(nparameters)))),
+    ]
 
     # append Ode params to all paramvector - initial_θ
     if ninv > 0
