@@ -92,7 +92,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     param = [LogNormal(6.0, 0.5)])
 
 discretization = NeuralPDE.BayesianPINN([chainf],
-    GridTraining([0.01]), param_estim = true, dataset = [dataset, nothing])
+    GridTraining([0.02]), param_estim = true, dataset = [dataset, nothing])
 
 sol2 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
