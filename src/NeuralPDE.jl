@@ -52,19 +52,21 @@ include("discretize.jl")
 include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
+include("PDE_BPINN.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
-       KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
-       KolmogorovParamDomain, NNParamKolmogorov,
-       PhysicsInformedNN, discretize,
-       GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
-       WeightedIntervalTraining,
-       build_loss_function, get_loss_function,
-       generate_training_sets, get_variables, get_argument, get_bounds,
-       get_phi, get_numeric_derivative, get_numeric_integral,
-       build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
-       AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
-       MiniMaxAdaptiveLoss,
-       LogOptions, ahmc_bayesian_pinn_ode, BNNODE
+    KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
+    KolmogorovParamDomain, NNParamKolmogorov,
+    PhysicsInformedNN, discretize,
+    GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
+    WeightedIntervalTraining,
+    build_loss_function, get_loss_function,
+    generate_training_sets, get_variables, get_argument, get_bounds,
+    get_phi, get_numeric_derivative, get_numeric_integral,
+    build_symbolic_equation, build_symbolic_loss_function, symbolic_discretize,
+    AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
+    MiniMaxAdaptiveLoss, LogOptions,
+    ahmc_bayesian_pinn_ode, BNNODE, ahmc_bayesian_pinn_pde, vector_to_parameters,
+    BPINNsolution
 
 end # module

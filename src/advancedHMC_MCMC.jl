@@ -65,9 +65,11 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
 end
 
 """
-cool function to convert parameter's vector to ComponentArray of parameters (for Lux Chain: vector of samples -> Lux ComponentArrays)
+function needed for converting vector of sampled parameters into ComponentVector in case of Lux chain output, derivatives
+the sampled parameters are of exotic type `Dual` due to ForwardDiff's autodiff tagging
 """
-function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
+function vector_to_parameters(ps_new::AbstractVector,
+        ps::Union{NamedTuple, ComponentArrays.ComponentVector})
     @assert length(ps_new) == Lux.parameterlength(ps)
     i = 1
     function get_ps(x)
@@ -77,6 +79,8 @@ function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
     end
     return Functors.fmap(get_ps, ps)
 end
+
+vector_to_parameters(ps_new::AbstractVector, ps::AbstractVector) = ps_new
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
     return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ)
@@ -552,6 +556,10 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         end
     end
 
+    @info("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, initial_θ))
+    @info("Current Prior Log-likelihood : ", priorweights(ℓπ, initial_θ))
+    @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
+
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
 
@@ -597,6 +605,12 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
+
+        @info("Sampling Complete.")
+        @info("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, samples[end]))
+        @info("Current Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
+        @info("Current MSE against dataset Log-likelihood : ",
+            L2LossData(ℓπ, samples[end]))
 
         # return a chain(basic chain),samples and stats
         matrix_samples = hcat(samples...)

@@ -9,18 +9,6 @@ using NeuralPDE, MonteCarloMeasurements
 # on latest Julia version it performs much better for below tests
 Random.seed!(100)
 
-# for sampled params->lux ComponentArray
-function vector_to_parameters(ps_new::AbstractVector, ps::NamedTuple)
-    @assert length(ps_new) == Lux.parameterlength(ps)
-    i = 1
-    function get_ps(x)
-        z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
-        i += length(x)
-        return z
-    end
-    return Functors.fmap(get_ps, ps)
-end
-
 ## PROBLEM-1 (WITHOUT PARAMETER ESTIMATION)
 linear_analytic = (u0, p, t) -> u0 + sin(2 * π * t) / (2 * π)
 linear = (u, p, t) -> cos(2 * π * t)
@@ -187,8 +175,8 @@ meanscurve2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 @test mean(abs.(physsol1_1 .- sol2lux.ensemblesol[1])) < 8e-2
 
 # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
-@test abs(p - sol2flux.estimated_ode_params[1]) < abs(0.15 * p)
-@test abs(p - sol2lux.estimated_ode_params[1]) < abs(0.15 * p)
+@test abs(p - sol2flux.estimated_de_params[1]) < abs(0.15 * p)
+@test abs(p - sol2lux.estimated_de_params[1]) < abs(0.15 * p)
 
 ## PROBLEM-2
 linear = (u, p, t) -> u / p + exp(t / p) * cos(t)
@@ -338,11 +326,11 @@ param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
 # (flux chain)
 @test mean(abs.(physsol2 .- sol3flux_pestim.ensemblesol[1])) < 0.15
 # estimated parameters(flux chain)
-param1 = sol3flux_pestim.estimated_ode_params[1]
+param1 = sol3flux_pestim.estimated_de_params[1]
 @test abs(param1 - p) < abs(0.45 * p)
 
 # (lux chain)
 @test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 0.15
 # estimated parameters(lux chain)
-param1 = sol3lux_pestim.estimated_ode_params[1]
+param1 = sol3lux_pestim.estimated_de_params[1]
 @test abs(param1 - p) < abs(0.45 * p)
