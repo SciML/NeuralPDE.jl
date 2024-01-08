@@ -163,7 +163,7 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
                                    reducevcat(arguments(w), eltypeθ, switch), ε1, 1, θ)]
                 end
             end
-        end
+        end 
     end
     vr = mapreduce(vcat, dvs, init = []) do w
         @rule w => ufunc(w, phi, varmap)(reducevcat(arguments(w), eltypeθ, switch), θ)
