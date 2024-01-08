@@ -108,7 +108,7 @@ plot!(solution, labels = ["true x" "true y"])
 We can see the estimated ODE parameters by -
 
 ```@example bpinn
-sol_pestim.estimated_ode_params
+sol_pestim.estimated_de_params
 ```
 
 We can see it is close to the true values of the parameters.

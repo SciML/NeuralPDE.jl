@@ -154,6 +154,135 @@ end
 
 
 """
+```julia
+BayesianPINN(chain,
+                  strategy;
+                  init_params = nothing,
+                  phi = nothing,
+                  param_estim = false,
+                  additional_loss = nothing,
+                  adaptive_loss = nothing,
+                  logger = nothing,
+                  log_options = LogOptions(),
+                  iteration = nothing,
+                  dataset=nothing,
+                  kwargs...) where {iip}
+```
+
+## Positional Arguments
+
+* `chain`: a vector of Flux.jl or Lux.jl chains with a d-dimensional input and a
+  1-dimensional output corresponding to each of the dependent variables. Note that this
+  specification respects the order of the dependent variables as specified in the PDESystem.
+* `strategy`: determines which training strategy will be used. See the Training Strategy
+  documentation for more details.
+
+## Keyword Arguments
+
+* `init_params`: the initial parameters of the neural networks. This should match the
+  specification of the chosen `chain` library. For example, if a Flux.chain is used, then
+  `init_params` should match `Flux.destructure(chain)[1]` in shape. If `init_params` is not
+  given, then the neural network default parameters are used. Note that for Lux, the default
+  will convert to Float64.
+* `phi`: a trial solution, specified as `phi(x,p)` where `x` is the coordinates vector for
+  the dependent variable and `p` are the weights of the phi function (generally the weights
+  of the neural network defining `phi`). By default, this is generated from the `chain`. This
+  should only be used to more directly impose functional information in the training problem,
+  for example imposing the boundary condition by the test function formulation.
+* `adaptive_loss`: the choice for the adaptive loss function. See the
+  [adaptive loss page](@ref adaptive_loss) for more details. Defaults to no adaptivity.
+* `additional_loss`: a function `additional_loss(phi, θ, p_)` where `phi` are the neural
+  network trial solutions, `θ` are the weights of the neural network(s), and `p_` are the
+  hyperparameters . If `param_estim = true`, then `θ` additionally
+  contains the parameters of the differential equation appended to the end of the vector.
+* `param_estim`: whether the parameters of the differential equation should be included in
+  the values sent to the `additional_loss` function. Defaults to `false`.
+* `logger`: ?? needs docs
+* `log_options`: ?? why is this separate from the logger?
+* `iteration`: used to control the iteration counter???
+* `kwargs`: Extra keyword arguments.
+"""
+struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
+    chain::Any
+    strategy::T
+    init_params::P
+    phi::PH
+    derivative::DER
+    param_estim::PE
+    additional_loss::AL
+    adaptive_loss::ADA
+    logger::LOG
+    log_options::LogOptions
+    iteration::Vector{Int64}
+    self_increment::Bool
+    multioutput::Bool
+    dataset::D
+    kwargs::K
+
+    @add_kwonly function BayesianPINN(chain,
+            strategy;
+            init_params = nothing,
+            phi = nothing,
+            derivative = nothing,
+            param_estim = false,
+            additional_loss = nothing,
+            adaptive_loss = nothing,
+            logger = nothing,
+            log_options = LogOptions(),
+            iteration = nothing,
+            dataset = nothing,
+            kwargs...)
+        multioutput = chain isa AbstractArray
+
+        if phi === nothing
+            if multioutput
+                _phi = Phi.(chain)
+            else
+                _phi = Phi(chain)
+            end
+        else
+            _phi = phi
+        end
+
+        if derivative === nothing
+            _derivative = numeric_derivative
+        else
+            _derivative = derivative
+        end
+
+        if iteration isa Vector{Int64}
+            self_increment = false
+        else
+            iteration = [1]
+            self_increment = true
+        end
+
+        if dataset isa Nothing
+            dataset = (nothing, nothing)
+        end
+
+        new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
+            typeof(param_estim),
+            typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(dataset),
+            typeof(kwargs)}(chain,
+            strategy,
+            init_params,
+            _phi,
+            _derivative,
+            param_estim,
+            additional_loss,
+            adaptive_loss,
+            logger,
+            log_options,
+            iteration,
+            self_increment,
+            multioutput,
+            dataset,
+            kwargs)
+    end
+end
+
+"""
 `PINNRepresentation``
 
 An internal representation of a physics-informed neural network (PINN). This is the struct

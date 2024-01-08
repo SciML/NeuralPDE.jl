@@ -148,21 +148,24 @@ end
 BPINN Solution contains the original solution from AdvancedHMC.jl sampling(BPINNstats contains fields related to that)
 > ensemblesol is the Probabilistic Estimate(MonteCarloMeasurements.jl Particles type) of Ensemble solution from All Neural Network's(made using all sampled parameters) output's.
 > estimated_nn_params - Probabilistic Estimate of NN params from sampled weights,biases
-> estimated_ode_params - Probabilistic Estimate of ODE params from sampled unknown ode paramters
+> estimated_de_params - Probabilistic Estimate of DE params from sampled unknown DE paramters
 """
-struct BPINNsolution{O <: BPINNstats, E,
-    NP <: Vector{<:MonteCarloMeasurements.Particles{<:Float64}},
-    OP <: Union{Vector{Nothing},
-        Vector{<:MonteCarloMeasurements.Particles{<:Float64}}}}
+
+struct BPINNsolution{O <: BPINNstats, E, NP, OP, P}
     original::O
     ensemblesol::E
     estimated_nn_params::NP
-    estimated_ode_params::OP
+    estimated_de_params::OP
+    timepoints::P
 
-    function BPINNsolution(original, ensemblesol, estimated_nn_params, estimated_ode_params)
+    function BPINNsolution(original,
+            ensemblesol,
+            estimated_nn_params,
+            estimated_de_params,
+            timepoints)
         new{typeof(original), typeof(ensemblesol), typeof(estimated_nn_params),
-            typeof(estimated_ode_params)}(original, ensemblesol, estimated_nn_params,
-            estimated_ode_params)
+            typeof(estimated_de_params), typeof(timepoints)}(original, ensemblesol, estimated_nn_params,
+            estimated_de_params, timepoints)
     end
 end
 
@@ -260,14 +263,14 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
     end
 
     nnparams = length(θinit)
-    estimnnparams = [Particles(reduce(hcat, samples)[i, :]) for i in 1:nnparams]
+    estimnnparams = [Particles(reduce(hcat, samples[(end - numensemble):end])[i, :]) for i in 1:nnparams]
 
     if ninv == 0
         estimated_params = [nothing]
     else
-        estimated_params = [Particles(reduce(hcat, samples[(end - ninv + 1):end])[i, :])
+        estimated_params = [Particles(reduce(hcat, samples[(end - numensemble):end])[i, :])
                             for i in (nnparams + 1):(nnparams + ninv)]
     end
 
-    BPINNsolution(fullsolution, ensemblecurves, estimnnparams, estimated_params)
+    BPINNsolution(fullsolution, ensemblecurves, estimnnparams, estimated_params, t)
 end

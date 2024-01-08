@@ -16,6 +16,40 @@ struct GridTraining{T} <: AbstractTrainingStrategy
     dx::T
 end
 
+# include dataset points in pde_residual loglikelihood (BayesianPINN)
+function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
+        strategy::GridTraining,
+        datafree_pde_loss_function,
+        datafree_bc_loss_function; train_sets_pde = nothing,train_sets_bc=nothing)
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+
+    eltypeθ = eltype(pinnrep.flat_init_params)
+
+    # is vec as later each _set in pde_train_sets are coloumns as points transformed to vector of points (pde_train_sets must be rowwise)
+    pde_loss_functions = if !(train_sets_pde isa Nothing)
+        pde_train_sets = [train_set[:, 2:end] for train_set in train_sets_pde]
+        pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+            pde_train_sets)
+        [get_loss_function(_loss, _set, eltypeθ, strategy)
+                              for (_loss, _set) in zip(datafree_pde_loss_function,
+            pde_train_sets)]
+    else
+        nothing
+    end
+    
+    bc_loss_functions = if !(train_sets_bc isa Nothing)
+        bcs_train_sets = [train_set[:, 2:end] for train_set in train_sets_bc]
+        bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+        bcs_train_sets)
+        [get_loss_function(_loss, _set, eltypeθ, strategy)
+                         for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
+    else
+        nothing
+    end
+
+    pde_loss_functions, bc_loss_functions
+end
+
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                                            strategy::GridTraining,
                                            datafree_pde_loss_function,
