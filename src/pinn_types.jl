@@ -17,7 +17,7 @@ end
 
 """This function is defined here as stubs to be overriden by the subpackage NeuralPDELogging if imported"""
 function logvector(logger, v::AbstractVector{R}, name::AbstractString,
-                   step::Integer) where {R <: Real}
+        step::Integer) where {R <: Real}
     nothing
 end
 
@@ -95,17 +95,17 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
     kwargs::K
 
     @add_kwonly function PhysicsInformedNN(chain,
-                                           strategy;
-                                           init_params = nothing,
-                                           phi = nothing,
-                                           derivative = nothing,
-                                           param_estim = false,
-                                           additional_loss = nothing,
-                                           adaptive_loss = nothing,
-                                           logger = nothing,
-                                           log_options = LogOptions(),
-                                           iteration = nothing,
-                                           kwargs...)
+            strategy;
+            init_params = nothing,
+            phi = nothing,
+            derivative = nothing,
+            param_estim = false,
+            additional_loss = nothing,
+            adaptive_loss = nothing,
+            logger = nothing,
+            log_options = LogOptions(),
+            iteration = nothing,
+            kwargs...)
         multioutput = chain isa AbstractArray
 
         if phi === nothing
@@ -134,22 +134,21 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
         new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
             typeof(param_estim),
             typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(chain,
-                                                                                            strategy,
-                                                                                            init_params,
-                                                                                            _phi,
-                                                                                            _derivative,
-                                                                                            param_estim,
-                                                                                            additional_loss,
-                                                                                            adaptive_loss,
-                                                                                            logger,
-                                                                                            log_options,
-                                                                                            iteration,
-                                                                                            self_increment,
-                                                                                            multioutput,
-                                                                                            kwargs)
+            strategy,
+            init_params,
+            _phi,
+            _derivative,
+            param_estim,
+            additional_loss,
+            adaptive_loss,
+            logger,
+            log_options,
+            iteration,
+            self_increment,
+            multioutput,
+            kwargs)
     end
 end
-
 
 """
 ```julia
@@ -177,6 +176,9 @@ BayesianPINN(chain,
 
 ## Keyword Arguments
 
+* `Dataset`: A vector of matrix, each matrix for ith dependant
+  variable and first col in matrix is for dependant variables,
+  remaining coloumns for independant variables.
 * `init_params`: the initial parameters of the neural networks. This should match the
   specification of the chosen `chain` library. For example, if a Flux.chain is used, then
   `init_params` should match `Flux.destructure(chain)[1]` in shape. If `init_params` is not

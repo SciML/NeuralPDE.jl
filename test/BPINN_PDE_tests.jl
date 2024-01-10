@@ -171,7 +171,7 @@ chain = Lux.Chain(Lux.Dense(dim, 9, Lux.σ), Lux.Dense(9, 9, Lux.σ), Lux.Dense(
 
 # Discretization
 dx = 0.05
-discretization=NeuralPDE.BayesianPINN([chain], GridTraining(dx))
+discretization = NeuralPDE.BayesianPINN([chain], GridTraining(dx))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
@@ -199,3 +199,50 @@ diff_u = abs.(u_predict .- u_real)
 #     linetype = :contourf)
 # plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], u_real, linetype = :contourf)
 # plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], diff_u, linetype = :contourf)
+
+using NeuralPDE, Lux, ModelingToolkit
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u(..)
+Dt = Differential(t)
+Dx = Differential(x)
+Dxx = Differential(x)^2
+
+#2D PDE
+eq = Dt(u(t, x)) + u(t, x) * Dx(u(t, x)) - (0.01 / pi) * Dxx(u(t, x)) ~ 0
+
+# Initial and boundary conditions
+bcs = [u(0, x) ~ -sin(pi * x),
+    u(t, -1) ~ 0.0,
+    u(t, 1) ~ 0.0,
+    u(t, -1) ~ u(t, 1)]
+
+# Space and time domains
+domains = [t ∈ Interval(0.0, 1.0),
+    x ∈ Interval(-1.0, 1.0)]
+# Discretization
+dx = 0.05
+# Neural network
+chain = Lux.Chain(Lux.Dense(2, 8, Lux.tanh), Lux.Dense(8, 8, Lux.tanh), Lux.Dense(8, 1))
+strategy = NeuralPDE.GridTraining([dx, dx])
+
+discretization = NeuralPDE.BayesianPINN([chain], strategy)
+
+@named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+sol1 = ahmc_bayesian_pinn_pde(pde_system,
+    discretization;
+    draw_samples = 200,
+    bcstd = [0.01, 0.01, 0.01, 0.01],
+    phystd = [0.01],
+    priorsNNw = (0.0, 10.0),
+    saveats = [1 / 100.0, 1 / 100.0], progress = true)
+
+using Plots, StatsPlots
+plotly()
+plot(sol1.timepoints[1][2, :], sol1.timepoints[1][1, :],
+    pmean(sol1.ensemblesol[1]),
+    linetype = :contourf)
+
+plot(sol1.timepoints[1][1, :], pmean(sol1.ensemblesol[1]))

@@ -436,7 +436,6 @@ Incase you are only solving the Equations for solution, do not provide dataset
 
 ## Keyword Arguments
 * `strategy`: The training strategy used to choose the points for the evaluations. By default GridTraining is used with given physdt discretization.
-* `dataset`: Vector containing Vectors of corresponding u,t values 
 * `init_params`: intial parameter values for BPINN (ideally for multiple chains different initializations preferred)
 * `nchains`: number of chains you want to sample (random initialisation of params by default)
 * `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
@@ -469,7 +468,6 @@ Incase you are only solving the Equations for solution, do not provide dataset
 """
 
 """
-dataset would be (x̂,t)
 priors: pdf for W,b + pdf for ODE params
 """
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
