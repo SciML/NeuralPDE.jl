@@ -2,6 +2,7 @@ using Lux, ComponentArrays, OptimizationOptimisers
 using Test, NeuralPDE
 using Optimization
 using CUDA, QuasiMonteCarlo
+using ComponentArrays
 import ModelingToolkit: Interval, infimum, supremum
 
 using Random

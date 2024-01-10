@@ -10,35 +10,81 @@ Take expressions in the form:
 
 to
 
-:((cord, θ, phi, derivative, u)->begin
-          #= ... =#
-          #= ... =#
-          begin
-              (θ1, θ2) = (θ[1:33], θ"[34:66])
-              (phi1, phi2) = (phi[1], phi[2])
-              let (x, y) = (cord[1], cord[2])
-                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, θ1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, θ2))) - 0,
-                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, θ2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, θ1))) - 0]
-              end
-          end
-      end)
+:((cord, θ, phi, derivative, integral, u, p)->begin
+        #= ... =#
+        #= ... =#
+        begin
+            (θ1, θ2) = (θ[1:205], θ[206:410])
+            (phi1, phi2) = (phi[1], phi[2])
+            let (x, y) = (cord[[1], :], cord[[2], :])
+                begin
+                    cord2 = vcat(x, y)
+                    cord1 = vcat(x, y)
+                end
+                (+).((*).(4, derivative(phi2, u, _vcat(x, y), [[0.0, ε]], 1, θ2)), derivative(phi1, u, _vcat(x, y), [[ε, 0.0]], 1, θ1)) .- 0
+            end
+        end
+    end)
 
-for Flux.Chain, and
+for Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0, and
 
-:((cord, θ, phi, derivative, u)->begin
-          #= ... =#
-          #= ... =#
-          begin
-              (u1, u2) = (θ.depvar.u1, θ.depvar.u2)
-              (phi1, phi2) = (phi[1], phi[2])
-              let (x, y) = (cord[1], cord[2])
-                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, u1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, u1))) - 0,
-                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, u2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, u2))) - 0]
-              end
-          end
-      end)
+:((cord, θ, phi, derivative, integral, u, p)->begin
+        #= ... =#
+        #= ... =#
+        begin
+            (θ1, θ2) = (θ[1:205], θ[206:410])
+            (phi1, phi2) = (phi[1], phi[2])
+            let (x, y) = (cord[[1], :], cord[[2], :])
+                begin
+                    cord2 = vcat(x, y)
+                    cord1 = vcat(x, y)
+                end
+                (+).((*).(9, derivative(phi1, u, _vcat(x, y), [[0.0, ε]], 1, θ1)), derivative(phi2, u, _vcat(x, y), [[ε, 0.0]], 1, θ2)) .- 0
+            end
+        end
+    end)
 
-for Lux.AbstractExplicitLayer
+for Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0 (i.e., separate loss functions are created for each equation)
+
+with Flux.Chain; and
+
+:((cord, θ, phi, derivative, integral, u, p)->begin
+        #= ... =#
+        #= ... =#
+        begin
+            (θ1, θ2) = (θ.depvar.u1, θ.depvar.u2)
+            (phi1, phi2) = (phi[1], phi[2])
+            let (x, y) = (cord[[1], :], cord[[2], :])
+                begin
+                    cord2 = vcat(x, y)
+                    cord1 = vcat(x, y)
+                end
+                (+).((*).(4, derivative(phi2, u, _vcat(x, y), [[0.0, ε]], 1, θ2)), derivative(phi1, u, _vcat(x, y), [[ε, 0.0]], 1, θ1)) .- 0
+            end
+        end
+    end)
+
+for Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0 and
+
+:((cord, θ, phi, derivative, integral, u, p)->begin
+        #= ... =#
+        #= ... =#
+        begin
+            (θ1, θ2) = (θ.depvar.u1, θ.depvar.u2)
+            (phi1, phi2) = (phi[1], phi[2])
+            let (x, y) = (cord[[1], :], cord[[2], :])
+                begin
+                    cord2 = vcat(x, y)
+                    cord1 = vcat(x, y)
+                end
+                (+).((*).(9, derivative(phi1, u, _vcat(x, y), [[0.0, ε]], 1, θ1)), derivative(phi2, u, _vcat(x, y), [[ε, 0.0]], 1, θ2)) .- 0
+            end
+        end
+    end)
+
+for Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0
+
+with Lux.Chain
 """
 function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                                       eq_params = SciMLBase.NullParameters(),
@@ -61,7 +107,9 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
         this_eq_indvars = unique(vcat(values(this_eq_pair)...))
     else
-        this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => dict_depvar_input[intvars],
+        this_eq_pair = Dict(map(intvars -> dict_depvars[intvars] => filter(arg -> !isempty(find_thing_in_expr(integrand,
+                                                                                                              arg)),
+                                                                           dict_depvar_input[intvars]),
                                 integrating_depvars))
         this_eq_indvars = transformation_vars isa Nothing ?
                           unique(vcat(values(this_eq_pair)...)) : transformation_vars
@@ -142,17 +190,10 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
     vcat_expr = Expr(:block, :($(eq_pair_expr...)))
     vcat_expr_loss_functions = Expr(:block, vcat_expr, loss_function) # TODO rename
 
-    if strategy isa QuadratureTraining
-        indvars_ex = get_indvars_ex(bc_indvars)
-        left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-        vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
-                       build_expr(:tuple, right_arg_pairs))
-    else
-        indvars_ex = [:($:cord[[$i], :]) for (i, x) in enumerate(this_eq_indvars)]
-        left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-        vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
-                       build_expr(:tuple, right_arg_pairs))
-    end
+    indvars_ex = [:($:cord[[$i], :]) for (i, x) in enumerate(this_eq_indvars)]
+    left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
+    vars_eq = Expr(:(=), build_expr(:tuple, left_arg_pairs),
+                   build_expr(:tuple, right_arg_pairs))
 
     if !(dict_transformation_vars isa Nothing)
         transformation_expr_ = Expr[]
@@ -256,7 +297,7 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
                           hcat(vec(map(points -> collect(points),
                                        Iterators.product(bc_data...)))...))
 
-    pde_train_sets = map(pde_args) do bt
+    pde_train_sets = map(pde_vars) do bt
         span = map(b -> get(dict_var_span_, b, b), bt)
         _set = adapt(eltypeθ,
                      hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
@@ -292,7 +333,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
     dict_lower_bound = Dict([Symbol(d.variables) => infimum(d.domain) for d in domains])
     dict_upper_bound = Dict([Symbol(d.variables) => supremum(d.domain) for d in domains])
 
-    pde_args = get_argument(eqs, dict_indvars, dict_depvars)
+    pde_args = get_variables(eqs, dict_indvars, dict_depvars)
 
     pde_lower_bounds = map(pde_args) do pd
         span = map(p -> get(dict_lower_bound, p, p), pd)
@@ -325,19 +366,33 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
                       ] for d in domains])
 
     # pde_bounds = [[infimum(d.domain),supremum(d.domain)] for d in domains]
-    pde_args = get_argument(eqs, dict_indvars, dict_depvars)
-    pde_bounds = map(pde_args) do pde_arg
-        bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, pde_arg)
-        bds = eltypeθ.(bds)
-        bds[1, :], bds[2, :]
+    pde_vars = get_variables(eqs, dict_indvars, dict_depvars)
+    pde_bounds = map(pde_vars) do pde_var
+        if !isempty(pde_var)
+            bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, pde_var)
+            bds = eltypeθ.(bds)
+            bds[1, :], bds[2, :]
+        else
+            [eltypeθ(0.0)], [eltypeθ(0.0)]
+        end
     end
 
-    bound_args = get_argument(bcs, dict_indvars, dict_depvars)
-    bcs_bounds = map(bound_args) do bound_arg
-        bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, bound_arg)
-        bds = eltypeθ.(bds)
-        bds[1, :], bds[2, :]
+    dx_bcs = 1 / strategy.bcs_points
+    dict_span_bcs = Dict([Symbol(d.variables) => [
+                              infimum(d.domain) + dx_bcs,
+                              supremum(d.domain) - dx_bcs,
+                          ] for d in domains])
+    bound_vars = get_variables(bcs, dict_indvars, dict_depvars)
+    bcs_bounds = map(bound_vars) do bound_var
+        if !isempty(bound_var)
+            bds = mapreduce(s -> get(dict_span_bcs, s, fill(s, 2)), hcat, bound_var)
+            bds = eltypeθ.(bds)
+            bds[1, :], bds[2, :]
+        else
+            [eltypeθ(0.0)], [eltypeθ(0.0)]
+        end
     end
+
     return pde_bounds, bcs_bounds
 end
 

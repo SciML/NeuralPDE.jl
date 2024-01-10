@@ -15,18 +15,25 @@ callback = function (p, l)
 end
 
 ## Example 1, 1D ode
-function test_ode(strategy_)
-    println("Example 1, 1D ode: strategy: $(nameof(typeof(strategy_)))")
+function test_ode(strategy_, ic_hard_constraint)
+    if ic_hard_constraint
+        println("Example 1, 1D ode, initial condition as hard constraint: strategy: $(nameof(typeof(strategy_)))")
+    else
+        println("Example 1, 1D ode, initial condition as soft constraint: strategy: $(nameof(typeof(strategy_)))")
+    end
     @parameters θ
     @variables u(..)
     Dθ = Differential(θ)
 
     # 1D ODE
-    eq = Dθ(u(θ)) ~ θ^3 + 2 * θ + (θ^2) * ((1 + 3 * (θ^2)) / (1 + θ + (θ^3))) -
+    eq = ic_hard_constraint ?
+         Dθ(u(θ)) ~ θ^3 + 2 * θ + (θ^2) * ((1 + 3 * (θ^2)) / (1 + θ + (θ^3))) -
+                    (u(θ) - u(0.0) + 1.0) * (θ + ((1 + 3 * (θ^2)) / (1 + θ + θ^3))) :
+         Dθ(u(θ)) ~ θ^3 + 2 * θ + (θ^2) * ((1 + 3 * (θ^2)) / (1 + θ + (θ^3))) -
                     u(θ) * (θ + ((1 + 3 * (θ^2)) / (1 + θ + θ^3)))
 
     # Initial and boundary conditions
-    bcs = [u(0.0) ~ 1.0]
+    bcs = ic_hard_constraint ? [u(0.0) ~ u(0.0)] : [u(0.0) ~ 1.0]
 
     # Space and time domains
     domains = [θ ∈ Interval(0.0, 1.0)]
@@ -50,7 +57,10 @@ function test_ode(strategy_)
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     u_real = [analytic_sol_func(t) for t in ts]
-    u_predict = [first(phi(t, res.minimizer)) for t in ts]
+    u_predict = ic_hard_constraint ?
+                [first(phi(t, res.minimizer)) - first(phi(0.0, res.minimizer)) + 1.0
+                 for t in ts] :
+                [first(phi(t, res.minimizer)) for t in ts]
 
     @test u_predict≈u_real atol=0.1
     # using Plots
@@ -157,9 +167,10 @@ strategies = [
 ]
 @testset "Test ODE/Heterogeneous" begin
 
-map(strategies) do strategy_
-    test_ode(strategy_)
-end end
+map(Iterators.product(strategies, [true, false])) do (strategy_, ic_hard_constraint)
+    test_ode(strategy_, ic_hard_constraint)
+end
+end
 
 ## Heterogeneous system
 @testset "Example 1: Heterogeneous system" begin
@@ -347,7 +358,7 @@ end
     chain = [[Lux.Chain(Lux.Dense(1, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
                         Lux.Dense(12, 1)) for _ in 1:3]
              [Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1)) for _ in 1:2]]
-    quasirandom_strategy = NeuralPDE.QuasiRandomTraining(100; #points
+    quasirandom_strategy = NeuralPDE.QuasiRandomTraining(200; #points
                                                          sampling_alg = LatinHypercubeSample())
 
     discretization = NeuralPDE.PhysicsInformedNN(chain, quasirandom_strategy)
@@ -368,7 +379,7 @@ end
         return false
     end
 
-    res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1000)
+    res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 1500)
     phi = discretization.phi[1]
 
     analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)

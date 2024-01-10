@@ -46,8 +46,7 @@ println("Simple Integral Test")
 @parameters x
 @variables u(..)
 Ix = Integral(x in DomainSets.ClosedInterval(0, x))
-# eq = Ix(u(x)) ~ (x^3)/3
-eq = Ix(u(x) * cos(x)) ~ (x^3) / 3
+eq = Ix(u(x)) ~ (x^3) / 3
 
 bcs = [u(0.0) ~ 0.0]
 domains = [x ∈ Interval(0.0, 1.00)]
@@ -63,7 +62,71 @@ res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
 xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict = [first(phi([x], res.minimizer)) for x in xs]
-u_real = [x^2 / cos(x) for x in xs]
+u_real = [x^2 for x in xs]
+@test Flux.mse(u_real, u_predict) < 0.001
+
+# plot(xs,u_real)
+# plot!(xs,u_predict)
+
+## Simple Integral Test 2
+println("Simple Integral Test 2")
+
+@parameters x y
+@variables u(..)
+Iy = Integral(y in DomainSets.ClosedInterval(0, y))
+# eq = Iy(u(x, y) * cos(y)) ~ x * (y^3) / 3 # This is the same, but we're testing the parsing of the version below
+eqs = [Iy(u(1.0, y) * cos(y)) ~ (y^3) / 3,
+    u(x, y) ~ x * u(1.0, y)]
+
+bcs = [u(x, 0.0) ~ 0.0]
+domains = [ x ∈ Interval(0.5, 2.00), 
+            y ∈ Interval(0.0, 1.00)
+    ]
+# chain = Chain(Dense(1,15,Flux.σ),Dense(15,1))
+chain = Lux.Chain(Lux.Dense(2, 15, Flux.σ), Lux.Dense(15, 1))
+strategy_ = NeuralPDE.GridTraining(0.1)
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy_)
+@named pde_system = PDESystem(eqs, bcs, domains, [x, y], [u(x, y)])
+prob = NeuralPDE.discretize(pde_system, discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
+                         maxiters = 2000)
+xys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+xs = Iterators.product(xys...)
+phi = discretization.phi
+u_predict = [first(phi([x...], res.minimizer)) for x in xs]
+u_real = [x[2]^2 / cos(x[2]) * x[1] for x in xs]
+@test Flux.mse(u_real, u_predict) < 0.001
+
+# p1 = plot(xys..., u_real', linetype=:contourf, title="Analytic");
+# p2 = plot(xys..., u_predict', linetype=:contourf, title="Predicted");
+# plot(p1,p2)
+
+## Simple Integral Test 3
+println("Simple Integral Test 3")
+
+@parameters x
+@variables u(..)
+Ix = Integral(x in DomainSets.ClosedInterval(0, x))
+eq = Ix(u(sin(pi * x / 2))) ~ (x^3) / 3
+
+bcs = [u(0.0) ~ 0.0]
+domains = [x ∈ Interval(0.0, 1.00)]
+# chain = Chain(Dense(1,15,Flux.σ),Dense(15,1))
+chain = Lux.Chain(Lux.Dense(1, 15, Flux.σ), Lux.Dense(15, 1))
+strategy_ = NeuralPDE.GridTraining(0.1)
+discretization = NeuralPDE.PhysicsInformedNN(chain,
+                                             strategy_)
+@named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
+prob = NeuralPDE.discretize(pde_system, discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
+                         maxiters = 300)
+xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+phi = discretization.phi
+u_predict = [first(phi([sin(pi * x / 2)], res.minimizer)) for x in xs]
+u_real = [x^2 for x in xs]
 @test Flux.mse(u_real, u_predict) < 0.001
 
 # plot(xs,u_real)

@@ -19,10 +19,42 @@ julia> _dot_(e)
 dottable_(x) = Broadcast.dottable(x)
 dottable_(x::Function) = true
 
+"""
+    _vcat(x...)
+
+Wraps vcat, but isn't dottable. Also, if x contains a mixture of arrays and
+scalars, it fills the scalars to match the dimensions of the arrays.
+
+# Examples
+```julia-repl
+julia> _vcat([1 2], [3 4])
+2×2 Matrix{Int64}:
+ 1  2
+ 3  4
+
+julia> _vcat(0, [1 2])
+2×2 Matrix{Int64}:
+ 0  0
+ 1  2
+```
+"""
+_vcat(x::Number...) = vcat(x...)
+_vcat(x::AbstractArray{<:Number}...) = vcat(x...)
+function _vcat(x::Union{Number, AbstractArray{<:Number}}...)
+    example = first(Iterators.filter(e -> !(e isa Number), x))
+    dims = (1, size(example)[2:end]...)
+    x = map(el -> el isa Number ? (typeof(example))(fill(el, dims)) : el, x)
+    _vcat(x...)
+end
+_vcat(x...) = vcat(x...)
+dottable_(x::typeof(_vcat)) = false
+
 _dot_(x) = x
 function _dot_(x::Expr)
     dotargs = Base.mapany(_dot_, x.args)
-    if x.head === :call && dottable_(x.args[1])
+    if x.head === :call && x.args[1] === :_vcat
+        Expr(x.head, dotargs...)
+    elseif x.head === :call && dottable_(x.args[1])
         Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
     elseif x.head === :comparison
         Expr(:comparison,
@@ -125,17 +157,20 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
     _args = ex.args
     for (i, e) in enumerate(_args)
         if !(e isa Expr)
-            if e in keys(dict_depvars)
+            if e in keys(dict_depvars) # _args represents a call to a dependent variable
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
-                indvars = _args[2:end]
+                indvars = map((indvar_) -> transform_expression(pinnrep, indvar_),
+                              _args[2:end])
                 var_ = is_integral ? :(u) : :($(Expr(:$, :u)))
                 ex.args = if !multioutput
-                    [var_, Symbol(:cord, num_depvar), :($θ), :phi]
-                else
+                    # Make something like u(x,y) into u([x,y], θ, phi), since the neural net needs to be called with parameters 
+                    # Note that [x,y] is achieved with _vcat, which can also fill scalars, as in the u(0,x) case, where vcat(0,x) would fail if x were a row vector
+                    [var_, :((_vcat)($(indvars...))), :($θ), :phi]
+                else # If multioutput, there are different θ and phir for each dependent variable
                     [
                         var_,
-                        Symbol(:cord, num_depvar),
+                        :((_vcat)($(indvars...))),
                         Symbol(:($θ), num_depvar),
                         Symbol(:phi, num_depvar),
                     ]
@@ -151,7 +186,8 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                 end
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
-                indvars = _args[2:end]
+                indvars = map((indvar_) -> transform_expression(pinnrep, indvar_),
+                              _args[2:end])
                 dict_interior_indvars = Dict([indvar .=> j
                                               for (j, indvar) in enumerate(dict_depvar_input[depvar])])
                 dim_l = length(dict_interior_indvars)
@@ -162,13 +198,13 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                 εs_dnv = [εs[d] for d in undv]
 
                 ex.args = if !multioutput
-                    [var_, :phi, :u, Symbol(:cord, num_depvar), εs_dnv, order, :($θ)]
+                    [var_, :phi, :u, :((_vcat)($(indvars...))), εs_dnv, order, :($θ)]
                 else
                     [
                         var_,
                         Symbol(:phi, num_depvar),
                         :u,
-                        Symbol(:cord, num_depvar),
+                        :((_vcat)($(indvars...))),
                         εs_dnv,
                         order,
                         Symbol(:($θ), num_depvar),
@@ -336,7 +372,8 @@ function pair(eq, depvars, dict_depvars, dict_depvar_input)
     expr = toexpr(eq)
     pair_ = map(depvars) do depvar
         if !isempty(find_thing_in_expr(expr, depvar))
-            dict_depvars[depvar] => dict_depvar_input[depvar]
+            dict_depvars[depvar] => filter(arg -> !isempty(find_thing_in_expr(expr, arg)),
+                                           dict_depvar_input[depvar])
         end
     end
     Dict(filter(p -> p !== nothing, pair_))
@@ -419,6 +456,13 @@ function find_thing_in_expr(ex::Expr, thing; ans = [])
     return collect(Set(ans))
 end
 
+function find_thing_in_expr(ex::Symbol, thing::Symbol; ans = [])
+    if thing == ex
+        push!(ans, ex)
+    end
+    return ans
+end
+
 """
 ```julia
 get_argument(eqs,_indvars::Array,_depvars::Array)
@@ -435,27 +479,50 @@ function get_argument(eqs, _indvars::Array, _depvars::Array)
     get_argument(eqs, dict_indvars, dict_depvars)
 end
 function get_argument(eqs, dict_indvars, dict_depvars)
-    exprs = toexpr.(eqs)
-    vars = map(exprs) do expr
+    exprs = toexpr.(eqs) # Equations, as expressions
+    # vars is an array of arrays of arrays, representing instances of each dependent variable that appears in the expression, by dependent variable, by equation
+    vars = map(exprs) do expr # For each equation,...
+        # For each dependent variable, make an array of instances of the dependent variable
         _vars = map(depvar -> find_thing_in_expr(expr, depvar), collect(keys(dict_depvars)))
+        # Remove any empty arrays, representing dependent variables that don't appear in the equation
         f_vars = filter(x -> !isempty(x), _vars)
-        map(x -> first(x), f_vars)
     end
-    args_ = map(vars) do _vars
-        ind_args_ = map(var -> var.args[2:end], _vars)
+
+    args_ = map(vars) do _vars # For each equation, ... 
+        # _vars is an array of arrays of instances of each dependent variables that appears in the equation, by dependent variable
+
+        # For each dependent variable, for each instance of the dependent variable, get all arguments of that instance
+        ind_args_ = map.(var -> var.args[2:end], _vars)
+
+        # Get all arguments used in any instance of any dependent variable
+        all_ind_args = reduce(vcat, reduce(vcat, ind_args_, init = Any[]), init = Any[])
+
+        # Add any independent variables from expression-typed dependent variable calls
+        for ind_arg in all_ind_args
+            if ind_arg isa Expr
+                for ind_var in collect(keys(dict_indvars))
+                    if !isempty(NeuralPDE.find_thing_in_expr(ind_arg, ind_var))
+                        push!(all_ind_args, ind_var)
+                    end
+                end
+            end
+        end
+
         syms = Set{Symbol}()
-        filter(vcat(ind_args_...)) do ind_arg
+        filter(all_ind_args) do ind_arg # For each argument
             if ind_arg isa Symbol
                 if ind_arg ∈ syms
-                    false
+                    false # remove symbols that have already occurred
                 else
                     push!(syms, ind_arg)
-                    true
+                    true # keep symbols that haven't occurred yet, but note their occurance
                 end
+            elseif ind_arg isa Expr # we've already taken what we wanted from the expressions
+                false
             else
-                true
+                true # keep all non-symbols
             end
         end
     end
-    return args_ # TODO for all arguments
+    return args_
 end
