@@ -111,11 +111,12 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
     end
 
     dummyvars = unwrap.(dummyvars)
-    deriv_rules = generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap, multioutput)
+    deriv_rules, swch = generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap, multioutput)
 
     ch = Prewalk(Chain(deriv_rules))
 
     expr = ch(term)
+    expr = swch(expr)
 
     sym_coords = DestructuredArgs(ivs)
     ps = DestructuredArgs(varmap.ps)
@@ -170,8 +171,8 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
     end
 
     sr = @rule switch => 1
-
-    return [mx; rs; vr; sr]
+    swch = Postwalk(sr)
+    return [mx; rs; vr], swch
 end
 
 function generate_integral_rules(eq, eqdata, dummyvars)
