@@ -369,6 +369,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     #ode parameter estimation
     nparameters = length(initial_θ)
     ninv = length(param)
+    # add init_params for NN params
     priors = [
         MvNormal(priorsNNw[1] * ones(nparameters),
             LinearAlgebra.Diagonal(abs2.(priorsNNw[2] .* ones(nparameters)))),

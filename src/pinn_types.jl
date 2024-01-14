@@ -162,7 +162,7 @@ BayesianPINN(chain,
                   logger = nothing,
                   log_options = LogOptions(),
                   iteration = nothing,
-                  dataset=nothing,
+                  dataset = nothing,
                   kwargs...) where {iip}
 ```
 
@@ -178,7 +178,7 @@ BayesianPINN(chain,
 
 * `Dataset`: A vector of matrix, each matrix for ith dependant
   variable and first col in matrix is for dependant variables,
-  remaining coloumns for independant variables.
+  remaining coloumns for independant variables. Needed for inverse problem solving.
 * `init_params`: the initial parameters of the neural networks. This should match the
   specification of the chosen `chain` library. For example, if a Flux.chain is used, then
   `init_params` should match `Flux.destructure(chain)[1]` in shape. If `init_params` is not
@@ -189,7 +189,7 @@ BayesianPINN(chain,
   of the neural network defining `phi`). By default, this is generated from the `chain`. This
   should only be used to more directly impose functional information in the training problem,
   for example imposing the boundary condition by the test function formulation.
-* `adaptive_loss`: the choice for the adaptive loss function. See the
+* `adaptive_loss`: (STILL WIP), the choice for the adaptive loss function. See the
   [adaptive loss page](@ref adaptive_loss) for more details. Defaults to no adaptivity.
 * `additional_loss`: a function `additional_loss(phi, θ, p_)` where `phi` are the neural
   network trial solutions, `θ` are the weights of the neural network(s), and `p_` are the

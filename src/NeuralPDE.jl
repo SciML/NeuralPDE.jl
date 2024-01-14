@@ -67,6 +67,6 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
     AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
     MiniMaxAdaptiveLoss, LogOptions,
     ahmc_bayesian_pinn_ode, BNNODE, ahmc_bayesian_pinn_pde, vector_to_parameters,
-    BPINNsolution
+    BPINNsolution, BayesianPINN
 
 end # module
