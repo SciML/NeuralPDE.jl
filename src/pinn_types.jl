@@ -166,6 +166,11 @@ BayesianPINN(chain,
                   kwargs...) where {iip}
 ```
 
+A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
+`PDESystem` into a likelihood function used for HMC based Posterior Sampling Algorithms [AdvancedHMC.jl](https://turinglang.org/AdvancedHMC.jl/stable/)
+which is later optimized upon to give the Solution Distribution of the PDE, using the Physics-Informed Neural Networks (PINN)
+methodology.
+
 ## Positional Arguments
 
 * `chain`: a vector of Flux.jl or Lux.jl chains with a d-dimensional input and a

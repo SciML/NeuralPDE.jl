@@ -437,11 +437,11 @@ Incase you are only solving the Equations for solution, do not provide dataset
 ## Keyword Arguments
 * `strategy`: The training strategy used to choose the points for the evaluations. By default GridTraining is used with given physdt discretization.
 * `init_params`: intial parameter values for BPINN (ideally for multiple chains different initializations preferred)
-* `nchains`: number of chains you want to sample (random initialisation of params by default)
+* `nchains`: number of chains you want to sample
 * `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
-* `l2std`: standard deviation of BPINN predicition against L2 losses/Dataset
-* `phystd`: standard deviation of BPINN predicition against Chosen Underlying ODE System
-* `priorsNNw`: Vector of [mean, std] for BPINN parameter. Weights and Biases of BPINN are Normal Distributions by default
+* `l2std`: standard deviation of BPINN prediction against L2 losses/Dataset
+* `phystd`: standard deviation of BPINN prediction against Chosen Underlying ODE System
+* `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of BPINN are Normal Distributions by default.
 * `param`: Vector of chosen ODE parameters Distributions in case of Inverse problems.
 * `autodiff`: Boolean Value for choice of Derivative Backend(default is numerical)
 * `physdt`: Timestep for approximating ODE in it's Time domain. (1/20.0 by default)
