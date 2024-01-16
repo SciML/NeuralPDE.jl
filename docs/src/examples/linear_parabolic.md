@@ -93,7 +93,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); callback = callback, maxiters = 5000)
+res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); callback = callback, maxiters = 5000)
 
 phi = discretization.phi
 
