@@ -1,6 +1,6 @@
 using Flux, NeuralPDE, Test
 using Optimization, OptimizationOptimJL, OptimizationOptimisers
-using Integrals, IntegralsCubature
+using Integrals, Cubature
 using QuasiMonteCarlo
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets

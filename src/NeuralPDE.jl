@@ -11,7 +11,7 @@ using Reexport, Statistics
 using Zygote, ForwardDiff, Random, Distributions
 using Adapt, DiffEqNoiseProcess, StochasticDiffEq
 using Optimization
-using Integrals, IntegralsCubature
+using Integrals, Cubature
 using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
