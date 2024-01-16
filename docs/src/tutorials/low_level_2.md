@@ -90,7 +90,15 @@ datasetpde = [generate_dataset_matrix(domains, dx, dt)]
 noisydataset = deepcopy(datasetpde)
 noisydataset[1][:, 1] = noisydataset[1][:, 1] .+ randn(size(noisydataset[1][:, 1])) .* 5 / 100 .*
                       noisydataset[1][:, 1]
+```
 
+Plotting dataset, added noise is set at 5%.
+```@example low_level_2
+plot(datasetpde[1][:, 2], datasetpde[1][:, 1], title="Dataset from Analytical Solution")
+plot!(noisydataset[1][:, 2], noisydataset[1][:, 1])
+```
+
+```@example low_level_2
 # Neural network
 chain = Lux.Chain(Lux.Dense(2, 8, Lux.tanh),
     Lux.Dense(8, 8, Lux.tanh),
@@ -119,10 +127,6 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
 And some analysis:
 
 ```@example low_level_2
-# Dataset
-plot(datasetpde[1][:, 2], datasetpde[1][:, 1], title="Dataset from Analytical Solution")
-plot!(noisydataset[1][:, 2], noisydataset[1][:, 1])
-
 phi = discretization.phi[1]
 xs, ts = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, [dx / 10, dt])]
 u_predict = [[first(pmean(phi([x, t], sol1.estimated_nn_params[1]))) for x in xs]
