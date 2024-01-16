@@ -62,6 +62,12 @@ mutable struct PDELogTargetDensity{
     end
 end
 
+LogDensityProblems.dimension(Tar::PDELogTargetDensity) = Tar.dim
+
+function LogDensityProblems.capabilities(::Type{<:PDELogTargetDensity})
+    LogDensityProblems.LogDensityOrder{1}()
+end
+
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
     # for parameter estimation neccesarry to use multioutput case
     return Tar.full_loglikelihood(setparameters(Tar, θ),
@@ -110,12 +116,6 @@ function setparameters(Tar::PDELogTargetDensity, θ)
         # multioutput fLux case
         return vector_to_parameters(Luxparams, ps)
     end
-end
-
-LogDensityProblems.dimension(Tar::PDELogTargetDensity) = Tar.dim
-
-function LogDensityProblems.capabilities(::PDELogTargetDensity)
-    LogDensityProblems.LogDensityOrder{1}()
 end
 
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)

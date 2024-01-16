@@ -171,7 +171,7 @@ chain = Lux.Chain(Lux.Dense(dim, 9, Lux.σ), Lux.Dense(9, 9, Lux.σ), Lux.Dense(
 
 # Discretization
 dx = 0.05
-discretization=NeuralPDE.BayesianPINN([chain], GridTraining(dx))
+discretization = NeuralPDE.BayesianPINN([chain], GridTraining(dx))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
@@ -199,3 +199,201 @@ diff_u = abs.(u_predict .- u_real)
 #     linetype = :contourf)
 # plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], u_real, linetype = :contourf)
 # plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], diff_u, linetype = :contourf)
+
+using NeuralPDE, Flux, Lux, ModelingToolkit, LinearAlgebra, AdvancedHMC
+import ModelingToolkit: Interval, infimum, supremum, Distributions
+
+@parameters x, t, α
+@variables u(..)
+Dt = Differential(t)
+Dx = Differential(x)
+Dx2 = Differential(x)^2
+Dx3 = Differential(x)^3
+Dx4 = Differential(x)^4
+
+# α = 1
+β = 4
+γ = 1
+eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) + α * Dx2(u(x, t)) + β * Dx3(u(x, t)) + γ * Dx4(u(x, t)) ~ 0
+
+u_analytic(x, t; z = -x / 2 + t) = 11 + 15 * tanh(z) - 15 * tanh(z)^2 - 15 * tanh(z)^3
+du(x, t; z = -x / 2 + t) = 15 / 2 * (tanh(z) + 1) * (3 * tanh(z) - 1) * sech(z)^2
+
+bcs = [u(x, 0) ~ u_analytic(x, 0),
+    u(-10, t) ~ u_analytic(-10, t),
+    u(10, t) ~ u_analytic(10, t),
+    Dx(u(-10, t)) ~ du(-10, t),
+    Dx(u(10, t)) ~ du(10, t)]
+
+# Space and time domains
+domains = [x ∈ Interval(-10.0, 10.0),
+    t ∈ Interval(0.0, 1.0)]
+
+# Discretization
+dx = 0.4;
+dt = 0.2;
+
+# Function to compute analytical solution at a specific point (x, t)
+function u_analytic_point(x, t)
+    z = -x / 2 + t
+    return 11 + 15 * tanh(z) - 15 * tanh(z)^2 - 15 * tanh(z)^3
+end
+
+# Function to generate the dataset matrix
+function generate_dataset_matrix(domains, dx, dt)
+    x_values = -10:dx:10
+    t_values = 0.0:dt:1.0
+
+    dataset = []
+
+    for t in t_values
+        for x in x_values
+            u_value = u_analytic_point(x, t)
+            push!(dataset, [u_value, x, t])
+        end
+    end
+
+    return vcat([data' for data in dataset]...)
+end
+
+using Plots, MonteCarloMeasurements, StatsPlots
+plotly()
+
+datasetpde = [generate_dataset_matrix(domains, dx, dt)]
+plot(datasetpde[1][:, 2], datasetpde[1][:, 1])
+
+# Add noise to dataset
+datasetpde[1][:, 1] = datasetpde[1][:, 1] .+
+                      randn(size(datasetpde[1][:, 1])) .* 5 / 100 .*
+                      datasetpde[1][:, 1]
+plot!(datasetpde[1][:, 2], datasetpde[1][:, 1])
+
+# Neural network
+chain = Lux.Chain(Lux.Dense(2, 8, Lux.tanh),
+    Lux.Dense(8, 8, Lux.tanh),
+    Lux.Dense(8, 1))
+
+discretization = NeuralPDE.BayesianPINN([chain],
+    adaptive_loss =GradientScaleAdaptiveLoss(5), 
+    # MiniMaxAdaptiveLoss(5),
+    GridTraining([dx, dt]), param_estim = true, dataset = [datasetpde, nothing])
+@named pde_system = PDESystem(eq,
+    bcs,
+    domains,
+    [x, t],
+    [u(x, t)],
+    [α],
+    defaults = Dict([α => 0.5]))
+
+sol1 = ahmc_bayesian_pinn_pde(pde_system,
+    discretization;
+    draw_samples = 100, Kernel = AdvancedHMC.NUTS(0.80),
+    bcstd = [0.2, 0.2, 0.2, 0.2, 0.2],
+    phystd = [1.0], l2std = [0.05], param = [Distributions.LogNormal(0.5, 2)],
+    priorsNNw = (0.0, 10.0),
+    saveats = [1 / 100.0, 1 / 100.0], progress = true)
+
+phi = discretization.phi[1]
+xs, ts = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, [dx / 10, dt])]
+u_predict = [[first(pmean(phi([x, t], sol1.estimated_nn_params[1]))) for x in xs]
+             for t in ts]
+u_real = [[u_analytic(x, t) for x in xs] for t in ts]
+diff_u = [[abs(u_analytic(x, t) - first(pmean(phi([x, t], sol1.estimated_nn_params[1]))))
+           for x in xs]
+          for t in ts]
+
+p1 = plot(xs, u_predict, title = "predict")
+p2 = plot(xs, u_real, title = "analytic")
+p3 = plot(xs, diff_u, title = "error")
+plot(p1, p2, p3)
+
+using NeuralPDE, Flux, Lux, ModelingToolkit, LinearAlgebra, AdvancedHMC
+import ModelingToolkit: Interval, infimum, supremum, Distributions
+using Plots, MonteCarloMeasurements, StatsPlots
+
+@parameters x, t, α
+@variables u(..)
+Dt = Differential(t)
+Dx = Differential(x)
+Dx2 = Differential(x)^2
+Dx3 = Differential(x)^3
+Dx4 = Differential(x)^4
+
+# α = 1
+β = 4
+γ = 1
+eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) + α * Dx2(u(x, t)) + β * Dx3(u(x, t)) + γ * Dx4(u(x, t)) ~ 0
+
+u_analytic(x, t; z = -x / 2 + t) = 11 + 15 * tanh(z) - 15 * tanh(z)^2 - 15 * tanh(z)^3
+du(x, t; z = -x / 2 + t) = 15 / 2 * (tanh(z) + 1) * (3 * tanh(z) - 1) * sech(z)^2
+
+bcs = [u(x, 0) ~ u_analytic(x, 0),
+    u(-10, t) ~ u_analytic(-10, t),
+    u(10, t) ~ u_analytic(10, t),
+    Dx(u(-10, t)) ~ du(-10, t),
+    Dx(u(10, t)) ~ du(10, t)]
+
+# Space and time domains
+domains = [x ∈ Interval(-10.0, 10.0),
+    t ∈ Interval(0.0, 1.0)]
+
+# Discretization
+dx = 0.4;
+dt = 0.2;
+
+# Function to compute analytical solution at a specific point (x, t)
+function u_analytic_point(x, t)
+    z = -x / 2 + t
+    return 11 + 15 * tanh(z) - 15 * tanh(z)^2 - 15 * tanh(z)^3
+end
+
+# Function to generate the dataset matrix
+function generate_dataset_matrix(domains, dx, dt)
+    x_values = -10:dx:10
+    t_values = 0.0:dt:1.0
+
+    dataset = []
+
+    for t in t_values
+        for x in x_values
+            u_value = u_analytic_point(x, t)
+            push!(dataset, [u_value, x, t])
+        end
+    end
+
+    return vcat([data' for data in dataset]...)
+end
+
+datasetpde = [generate_dataset_matrix(domains, dx, dt)]
+plot(datasetpde[1][:, 2], datasetpde[1][:, 1], title = "Dataset from Analytical Solution")
+
+# Add noise to dataset
+datasetpde[1][:, 1] = datasetpde[1][:, 1] .+
+                      randn(size(datasetpde[1][:, 1])) .* 5 / 100 .*
+                      datasetpde[1][:, 1]
+plot!(datasetpde[1][:, 2], datasetpde[1][:, 1])
+
+
+function CostFun(x::AbstractVector{T}) where {T}
+    function SpringEqu!(du, u, x, t)
+        du[1] = u[2]
+        du[2] = -(x[1] / x[3]) * u[2] - (x[2] / x[3]) * u[1] + 50 / x[3]
+    end
+
+    u0 = T[2.0, 0.0]
+    tspan = (0.0, 1.0)
+    prob = ODEProblem(SpringEqu!, u0, tspan, x)
+    sol = solve(prob)
+
+    Simpos = zeros(T, length(sol.t))
+    Simvel = zeros(T, length(sol.t))
+    tout = zeros(T, length(sol.t))
+    for i in 1:length(sol.t)
+        tout[i] = sol.t[i]
+        Simpos[i] = sol[1, i]
+        Simvel[i] = sol[2, i]
+    end
+
+    totalCost = sum(Simpos)
+    return totalCost
+end
