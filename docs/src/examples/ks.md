@@ -27,7 +27,7 @@ where $\theta = t - x/2$ and with initial and boundary conditions:
 We use physics-informed neural networks.
 
 ```@example ks
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters x, t
@@ -71,7 +71,7 @@ callback = function (p, l)
     return false
 end
 
-opt = OptimizationOptimJL.BFGS()
+opt = OptimizationOptimJL.LBFGS(linesearch = BackTracking())
 res = Optimization.solve(prob, opt; callback = callback, maxiters = 2000)
 phi = discretization.phi
 ```
