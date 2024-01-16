@@ -68,6 +68,12 @@ function LogDensityProblems.capabilities(::PDELogTargetDensity)
     LogDensityProblems.LogDensityOrder{1}()
 end
 
+LogDensityProblems.dimension(Tar::PDELogTargetDensity) = Tar.dim
+
+function LogDensityProblems.capabilities(::Type{<:PDELogTargetDensity})
+    LogDensityProblems.LogDensityOrder{1}()
+end
+
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
     # for parameter estimation neccesarry to use multioutput case
     return Tar.full_loglikelihood(setparameters(Tar, θ),
@@ -93,15 +99,22 @@ function setparameters(Tar::PDELogTargetDensity, θ)
 
     a = ComponentArrays.ComponentArray(NamedTuple{Tar.names}(i for i in Luxparams))
 
-    if Tar.extraparams > 0
+   if Tar.extraparams > 0
         b = θ[(end - Tar.extraparams + 1):end]
+
         return ComponentArrays.ComponentArray(;
-            depvar = a,
-            p = b)
+               depvar = a,
+               p = b)
     else
         return ComponentArrays.ComponentArray(;
             depvar = a)
     end
+end
+
+LogDensityProblems.dimension(Tar::PDELogTargetDensity) = Tar.dim
+
+function LogDensityProblems.capabilities(::PDELogTargetDensity)
+    LogDensityProblems.LogDensityOrder{1}()
 end
 
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)
