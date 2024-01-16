@@ -327,15 +327,10 @@ ahmc_bayesian_pinn_pde(pde_system, discretization;
 * `nchains`: number of chains you want to sample
 
 # AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
-* `Kernel`: Choice of MCMC Sampling Algorithm object with appropriat args/kwargs (AdvancedHMC.jl implemenations HMC/NUTS/HMCDA).
-* `Adaptorkwargs`: A NamedTuple containing the chosen Adaptor, it's Metric and targetacceptancerate, as follows :
-    * `Adaptor`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `Metric`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `targetacceptancerate`: Target percentage(in decimal) of iterations in which the proposals were accepted(0.8 by default)
-* `Integratorkwargs`: A NamedTuple containing the chosen integrator and its keyword Arguments, as follows :
-    * `Integrator`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `jitter_rate`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `tempering_rate`: https://turinglang.org/AdvancedHMC.jl/stable/
+* `Kernel`: Choice of MCMC Sampling Algorithm object HMC/NUTS/HMCDA (AdvancedHMC.jl implemenations ).
+* `Adaptorkwargs`: `Adaptor`, `Metric`, `targetacceptancerate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
+   Note: Target percentage(in decimal) of iterations in which the proposals are accepted (0.8 by default)
+* `Integratorkwargs`: `Integrator`, `jitter_rate`, `tempering_rate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
 * `saveats`: Grid spacing for each independant variable for evaluation of ensemble solution, estimated parameters.
 * `numensemble`: Number of last samples to take for creation of ensemble solution, estimated parameters.
 * `progress`: controls whether to show the progress meter or not.

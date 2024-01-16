@@ -448,20 +448,16 @@ Incase you are only solving the Equations for solution, do not provide dataset
 
 # AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
 * `Kernel`: Choice of MCMC Sampling Algorithm (AdvancedHMC.jl implemenations HMC/NUTS/HMCDA)
-* `Integratorkwargs`: A NamedTuple containing the chosen integrator and its keyword Arguments, as follows :
-    * `Integrator`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `jitter_rate`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `tempering_rate`: https://turinglang.org/AdvancedHMC.jl/stable/
-* `Adaptorkwargs`: A NamedTuple containing the chosen Adaptor, it's Metric and targetacceptancerate, as follows :
-    * `Adaptor`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `Metric`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `targetacceptancerate`: Target percentage(in decimal) of iterations in which the proposals were accepted(0.8 by default)
+* `Integratorkwargs`: `Integrator`, `jitter_rate`, `tempering_rate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
+* `Adaptorkwargs`: `Adaptor`, `Metric`, `targetacceptancerate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
+    Note: Target percentage(in decimal) of iterations in which the proposals are accepted (0.8 by default)
 * `MCMCargs`: A NamedTuple containing all the chosen MCMC kernel's(HMC/NUTS/HMCDA) Arguments, as follows :
     * `n_leapfrog`: number of leapfrog steps for HMC
     * `δ`: target acceptance probability for NUTS and HMCDA
     * `λ`: target trajectory length for HMCDA
     * `max_depth`: Maximum doubling tree depth (NUTS)
     * `Δ_max`: Maximum divergence during doubling tree (NUTS)
+    Refer: https://turinglang.org/AdvancedHMC.jl/stable/
 * `progress`: controls whether to show the progress meter or not.
 * `verbose`: controls the verbosity. (Sample call args in AHMC)
 
