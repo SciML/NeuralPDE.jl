@@ -31,7 +31,6 @@ import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly, parameterless_type
 import Optimisers
 import UnPack: @unpack
-import RecursiveArrayTools
 import ChainRulesCore, Flux, Lux, ComponentArrays
 import ChainRulesCore: @non_differentiable
 
