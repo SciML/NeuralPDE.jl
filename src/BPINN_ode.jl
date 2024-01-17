@@ -26,7 +26,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 * `Kernel`: Choice of MCMC Sampling Algorithm. Defaults to `AdvancedHMC.HMC`
 
 ## Keyword Arguments
-(refer ahmc_bayesian_pinn_ode() keyword arguments.)
+(refer `NeuralPDE.ahmc_bayesian_pinn_ode` keyword arguments.)
 
 ## Example
 

@@ -436,40 +436,34 @@ Incase you are only solving the Equations for solution, do not provide dataset
 
 ## Keyword Arguments
 * `strategy`: The training strategy used to choose the points for the evaluations. By default GridTraining is used with given physdt discretization.
-* `dataset`: Vector containing Vectors of corresponding u,t values 
 * `init_params`: intial parameter values for BPINN (ideally for multiple chains different initializations preferred)
-* `nchains`: number of chains you want to sample (random initialisation of params by default)
+* `nchains`: number of chains you want to sample
 * `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
-* `l2std`: standard deviation of BPINN predicition against L2 losses/Dataset
-* `phystd`: standard deviation of BPINN predicition against Chosen Underlying ODE System
-* `priorsNNw`: Vector of [mean, std] for BPINN parameter. Weights and Biases of BPINN are Normal Distributions by default
+* `l2std`: standard deviation of BPINN prediction against L2 losses/Dataset
+* `phystd`: standard deviation of BPINN prediction against Chosen Underlying ODE System
+* `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of BPINN are Normal Distributions by default.
 * `param`: Vector of chosen ODE parameters Distributions in case of Inverse problems.
 * `autodiff`: Boolean Value for choice of Derivative Backend(default is numerical)
 * `physdt`: Timestep for approximating ODE in it's Time domain. (1/20.0 by default)
 
 # AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
 * `Kernel`: Choice of MCMC Sampling Algorithm (AdvancedHMC.jl implemenations HMC/NUTS/HMCDA)
-* `Integratorkwargs`: A NamedTuple containing the chosen integrator and its keyword Arguments, as follows :
-    * `Integrator`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `jitter_rate`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `tempering_rate`: https://turinglang.org/AdvancedHMC.jl/stable/
-* `Adaptorkwargs`: A NamedTuple containing the chosen Adaptor, it's Metric and targetacceptancerate, as follows :
-    * `Adaptor`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `Metric`: https://turinglang.org/AdvancedHMC.jl/stable/
-    * `targetacceptancerate`: Target percentage(in decimal) of iterations in which the proposals were accepted(0.8 by default)
+* `Integratorkwargs`: `Integrator`, `jitter_rate`, `tempering_rate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
+* `Adaptorkwargs`: `Adaptor`, `Metric`, `targetacceptancerate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
+    Note: Target percentage(in decimal) of iterations in which the proposals are accepted (0.8 by default)
 * `MCMCargs`: A NamedTuple containing all the chosen MCMC kernel's(HMC/NUTS/HMCDA) Arguments, as follows :
     * `n_leapfrog`: number of leapfrog steps for HMC
     * `δ`: target acceptance probability for NUTS and HMCDA
     * `λ`: target trajectory length for HMCDA
     * `max_depth`: Maximum doubling tree depth (NUTS)
     * `Δ_max`: Maximum divergence during doubling tree (NUTS)
+    Refer: https://turinglang.org/AdvancedHMC.jl/stable/
 * `progress`: controls whether to show the progress meter or not.
 * `verbose`: controls the verbosity. (Sample call args in AHMC)
 
 """
 
 """
-dataset would be (x̂,t)
 priors: pdf for W,b + pdf for ODE params
 """
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;

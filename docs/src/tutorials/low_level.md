@@ -1,4 +1,4 @@
-# Investigating `symbolic_discretize` with the 1-D Burgers' Equation
+# Investigating `symbolic_discretize` with the `PhysicsInformedNN` Discretizer for the 1-D Burgers' Equation
 
 Let's consider the Burgers' equation:
 
