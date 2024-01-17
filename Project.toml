@@ -45,10 +45,10 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 Adapt = "3, 4"
 AdvancedHMC = "0.5"
 ArrayInterface = "6, 7"
-Cubature = "1.5"
 CUDA = "4"
 ChainRulesCore = "1"
 ComponentArrays = "0.13.2, 0.14, 0.15"
+Cubature = "1.5"
 DiffEqBase = "6"
 DiffEqNoiseProcess = "5.1"
 Distributions = "0.23, 0.24, 0.25"
@@ -58,6 +58,7 @@ Flux = "0.13, 0.14"
 ForwardDiff = "0.10"
 Functors = "0.4"
 Integrals = "4"
+LineSearches = "7.2"
 LogDensityProblems = "2"
 Lux = "0.4, 0.5"
 MCMCChains = "6"
@@ -81,6 +82,7 @@ julia = "1.6"
 
 [extras]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
 OptimizationOptimisers = "42dfb2eb-d2b4-4451-abcd-913932933ac1"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
@@ -89,4 +91,4 @@ SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "CUDA", "SafeTestsets", "OptimizationOptimisers", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq"]
+test = ["Test", "CUDA", "SafeTestsets", "OptimizationOptimisers", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "LineSearches"]
