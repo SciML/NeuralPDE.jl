@@ -556,7 +556,7 @@ function reducevcat(vector::Vector, eltypeθ, switch)
 end
 
 function rvcat(example, sym, eltypeθ, switch)
-	return mapreduce(hcat, example) do x
+	return map(example) do x
 		if x isa Number
 			out = convert(eltypeθ, x)
 			out
