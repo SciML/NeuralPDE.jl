@@ -103,7 +103,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ASL, ADA, LOG, K} <: AbstractPIN
             derivative = nothing,
             param_estim = false,
             additional_loss = nothing,
-	    additional_symb_loss = [],
+	        additional_symb_loss = [],
             adaptive_loss = nothing,
             logger = nothing,
             log_options = LogOptions(),
@@ -136,14 +136,14 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ASL, ADA, LOG, K} <: AbstractPIN
 
         new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
             typeof(param_estim),
-            typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(chain,
+            typeof(additional_loss), typeof(additional_symb_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(chain,
             strategy,
             init_params,
             _phi,
             _derivative,
             param_estim,
             additional_loss,
-	    additional_symb_loss,
+	        additional_symb_loss,
             adaptive_loss,
             logger,
             log_options,
@@ -162,6 +162,7 @@ BayesianPINN(chain,
                   phi = nothing,
                   param_estim = false,
                   additional_loss = nothing,
+                  additional_symb_loss = nothing,
                   adaptive_loss = nothing,
                   logger = nothing,
                   log_options = LogOptions(),
@@ -211,7 +212,7 @@ methodology.
 * `iteration`: used to control the iteration counter???
 * `kwargs`: Extra keyword arguments.
 """
-struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
+struct BayesianPINN{T, P, PH, DER, PE, AL, ASL, ADA, LOG, D, K} <: AbstractPINN
     chain::Any
     strategy::T
     init_params::P
@@ -219,6 +220,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
     derivative::DER
     param_estim::PE
     additional_loss::AL
+    additional_symb_loss::ASL
     adaptive_loss::ADA
     logger::LOG
     log_options::LogOptions
@@ -235,6 +237,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
             derivative = nothing,
             param_estim = false,
             additional_loss = nothing,
+            additional_symb_loss = nothing,
             adaptive_loss = nothing,
             logger = nothing,
             log_options = LogOptions(),
@@ -272,7 +275,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
 
         new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
             typeof(param_estim),
-            typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(dataset),
+            typeof(additional_loss), typeof(additional_symb_loss), typeof(adaptive_loss), typeof(logger), typeof(dataset),
             typeof(kwargs)}(chain,
             strategy,
             init_params,
