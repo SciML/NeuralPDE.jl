@@ -37,7 +37,6 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
         (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
 
         if psform
-            @show length(phi)
             last_indx = [0; accumulate(+, map(length, init_params))][end]
             ps_range = 1:param_len .+ last_indx
             get_ps = (θ) -> θ[ps_range]
@@ -137,8 +136,6 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
     end
 
     dvs = get_depvars(term, varmap.depvar_ops)
-    @show eltypeθ
-    @show methods(derivative)
     # Orthodox derivatives
     n(w) = length(arguments(w))
     rs = reduce(vcat, [reduce(vcat, [[@rule $((Differential(x)^d)(w)) =>
