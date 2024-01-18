@@ -539,6 +539,7 @@ https://github.com/SciML/NeuralPDE.jl/pull/627/files
 
 
 function reducevcat(vector::Vector, eltypeθ, switch)
+	isnothing(vector) && return [[nothing]]
 	if all(x -> x isa Number, vector)
 		return vector
 	else
@@ -547,9 +548,8 @@ function reducevcat(vector::Vector, eltypeθ, switch)
 	end
 end
 
-function rvcat(example, vector, eltypeθ, switch)
-	isnothing(vector) && return [[nothing]]
-	return mapreduce(hcat, vector) do x
+function rvcat(example, sym, eltypeθ, switch)
+	return mapreduce(hcat, example) do x
 		if x isa Number
 			out = typeof(example)(fill(convert(eltypeθ, x), size(example)))
 			out
