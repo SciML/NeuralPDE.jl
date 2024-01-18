@@ -29,10 +29,10 @@ NeuralPDE.Phi
 SciMLBase.discretize(::PDESystem, ::NeuralPDE.PhysicsInformedNN)
 ```
 
-## `symbolic_discretize` and the lower-level interface
+## `symbolic_discretize` for `PhysicsInformedNN` and the lower-level interface
 
 ```@docs
-SciMLBase.symbolic_discretize(::PDESystem, ::NeuralPDE.PhysicsInformedNN)
+SciMLBase.symbolic_discretize(::PDESystem, ::NeuralPDE.AbstractPINN)
 NeuralPDE.PINNRepresentation
 NeuralPDE.PINNLossFunctions
 ```

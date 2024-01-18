@@ -171,7 +171,7 @@ chain = Lux.Chain(Lux.Dense(dim, 9, Lux.σ), Lux.Dense(9, 9, Lux.σ), Lux.Dense(
 
 # Discretization
 dx = 0.05
-discretization=NeuralPDE.BayesianPINN([chain], GridTraining(dx))
+discretization = NeuralPDE.BayesianPINN([chain], GridTraining(dx))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
