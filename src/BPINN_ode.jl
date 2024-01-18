@@ -150,7 +150,6 @@ BPINN Solution contains the original solution from AdvancedHMC.jl sampling(BPINN
 > estimated_nn_params - Probabilistic Estimate of NN params from sampled weights,biases
 > estimated_de_params - Probabilistic Estimate of DE params from sampled unknown DE paramters
 """
-
 struct BPINNsolution{O <: BPINNstats, E, NP, OP, P}
     original::O
     ensemblesol::E
