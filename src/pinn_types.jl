@@ -558,7 +558,7 @@ end
 function rvcat(example, sym, eltypeθ, switch)
 	return mapreduce(hcat, example) do x
 		if x isa Number
-			out = typeof(example)(fill(convert(eltypeθ, x), size(example)))
+			out = convert(eltypeθ, x)
 			out
 		else
 			out = x
