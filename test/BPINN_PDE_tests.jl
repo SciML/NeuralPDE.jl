@@ -480,7 +480,7 @@ chain = Lux.Chain(Lux.Dense(2, 8, Lux.tanh),
     Lux.Dense(8, 1))
 
 discretization = NeuralPDE.BayesianPINN([chain],
-    adaptive_loss =GradientScaleAdaptiveLoss(5), 
+    adaptive_loss = GradientScaleAdaptiveLoss(5),
     # MiniMaxAdaptiveLoss(5),
     GridTraining([dx, dt]), param_estim = true, dataset = [datasetpde, nothing])
 @named pde_system = PDESystem(eq,
@@ -493,9 +493,10 @@ discretization = NeuralPDE.BayesianPINN([chain],
 
 sol1 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
-    draw_samples = 100, Kernel = AdvancedHMC.NUTS(0.80),
-    bcstd = [0.2, 0.2, 0.2, 0.2, 0.2],
-    phystd = [1.0], l2std = [0.05], param = [Distributions.LogNormal(0.5, 2)],
+    draw_samples = 1000,
+     Kernel = AdvancedHMC.NUTS(0.80),
+    bcstd = [1.0, 1.0, 1.0, 1.0, 1.0],
+    phystd = [0.1], l2std = [0.05], param = [Distributions.LogNormal(0.5, 2)],
     priorsNNw = (0.0, 10.0),
     saveats = [1 / 100.0, 1 / 100.0], progress = true)
 
@@ -579,7 +580,6 @@ datasetpde[1][:, 1] = datasetpde[1][:, 1] .+
                       datasetpde[1][:, 1]
 plot!(datasetpde[1][:, 2], datasetpde[1][:, 1])
 
-
 function CostFun(x::AbstractVector{T}) where {T}
     function SpringEqu!(du, u, x, t)
         du[1] = u[2]
@@ -603,3 +603,55 @@ function CostFun(x::AbstractVector{T}) where {T}
     totalCost = sum(Simpos)
     return totalCost
 end
+
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters x, t
+@variables u(..)
+Dt = Differential(t)
+Dx = Differential(x)
+Dx2 = Differential(x)^2
+Dx3 = Differential(x)^3
+Dx4 = Differential(x)^4
+
+α = 1
+β = 4
+γ = 1
+eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) + α * Dx2(u(x, t)) + β * Dx3(u(x, t)) + γ * Dx4(u(x, t)) ~ 0
+
+u_analytic(x, t; z = -x / 2 + t) = 11 + 15 * tanh(z) - 15 * tanh(z)^2 - 15 * tanh(z)^3
+du(x, t; z = -x / 2 + t) = 15 / 2 * (tanh(z) + 1) * (3 * tanh(z) - 1) * sech(z)^2
+
+bcs = [u(x, 0) ~ u_analytic(x, 0),
+    u(-10, t) ~ u_analytic(-10, t),
+    u(10, t) ~ u_analytic(10, t),
+    Dx(u(-10, t)) ~ du(-10, t),
+    Dx(u(10, t)) ~ du(10, t)]
+
+# Space and time domains
+domains = [x ∈ Interval(-10.0, 10.0),
+    t ∈ Interval(0.0, 1.0)]
+# Discretization
+dx = 0.4;
+dt = 0.2;
+
+# Neural network
+chain = Lux.Chain(Lux.Dense(2, 8, Lux.tanh),
+    Lux.Dense(8, 8, Lux.tanh),
+    Lux.Dense(8, 1))
+
+discretization = PhysicsInformedNN(chain,
+    adaptive_loss = GradientScaleAdaptiveLoss(1),
+    GridTraining([dx, dt]))
+@named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+prob = discretize(pde_system, discretization)
+
+callback = function (p, l)
+    println("Current loss is: $l")
+    return false
+end
+
+opt = OptimizationOptimJL.BFGS()
+res = Optimization.solve(prob, opt; callback = callback, maxiters = 100)
+phi = discretization.phi

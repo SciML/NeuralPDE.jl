@@ -80,37 +80,51 @@ https://arxiv.org/abs/2001.04536v1
 With code reference:
 https://github.com/PredictiveIntelligenceLab/GradientPathologiesPINNs
 """
-mutable struct GradientScaleAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
+mutable struct GradientScaleAdaptiveLoss{T <: Real, R <: Real} <: AbstractAdaptiveLoss
     reweight_every::Int64
     weight_change_inertia::T
     pde_loss_weights::Vector{T}
-    bc_loss_weights::Vector{T}
+    bc_loss_weights::Vector{R}
     additional_loss_weights::Vector{T}
-    SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss{T}(reweight_every;
+    SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss{T, R}(reweight_every;
                                                                 weight_change_inertia = 0.9,
                                                                 pde_loss_weights = 1.0,
                                                                 bc_loss_weights = 1.0,
                                                                 additional_loss_weights = 1.0) where {
                                                                                                     T <:
+                                                                                                    Real, 
+                                                                                                    R <: 
                                                                                                     Real
                                                                                                     }
         new(convert(Int64, reweight_every), convert(T, weight_change_inertia),
-            vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T),
+            vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, R),
             vectorify(additional_loss_weights, T))
     end
 end
 # default to Float64
 SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss(reweight_every;
                                                          weight_change_inertia = 0.9,
-                                                         pde_loss_weights = 1.0,
-                                                         bc_loss_weights = 1.0,
-                                                         additional_loss_weights = 1.0)
-    GradientScaleAdaptiveLoss{Float64}(reweight_every;
+                                                         pde_loss_weights = 1,
+                                                         bc_loss_weights = 1,
+                                                         additional_loss_weights = 1)
+    GradientScaleAdaptiveLoss{Float64, Float64}(reweight_every;
                                        weight_change_inertia = weight_change_inertia,
                                        pde_loss_weights = pde_loss_weights,
                                        bc_loss_weights = bc_loss_weights,
                                        additional_loss_weights = additional_loss_weights)
 end
+
+# function GradientScaleAdaptiveLoss(reweight_every;
+#                                                         weight_change_inertia = 0.9,
+#                                                         pde_loss_weights = 1,
+#                                                         bc_loss_weights = 1,
+#                                                         additional_loss_weights = 1)
+#     GradientScaleAdaptiveLoss{Float64, ForwardDiff.Dual}(reweight_every;
+#                                         weight_change_inertia = weight_change_inertia,
+#                                         pde_loss_weights = pde_loss_weights,
+#                                         bc_loss_weights = bc_loss_weights,
+#                                         additional_loss_weights = additional_loss_weights)
+# end
 
 function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
                                          adaloss::GradientScaleAdaptiveLoss,
@@ -118,33 +132,42 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
     weight_change_inertia = adaloss.weight_change_inertia
     iteration = pinnrep.iteration
     adaloss_T = eltype(adaloss.pde_loss_weights)
-
+    
     function run_loss_gradients_adaptive_loss(θ, pde_losses, bc_losses)
         if iteration[1] % adaloss.reweight_every == 0
             # the paper assumes a single pde loss function, so here we grab the maximum of the maximums of each pde loss function
-            pde_grads_maxes = [maximum(abs.(Zygote.gradient(pde_loss_function, θ)[1]))
+            pde_grads_maxes = [maximum(abs.(ForwardDiff.gradient(pde_loss_function, θ)[1]))
                                for pde_loss_function in pde_loss_functions]
             pde_grads_max = maximum(pde_grads_maxes)
-            bc_grads_mean = [mean(abs.(Zygote.gradient(bc_loss_function, θ)[1]))
+            bc_grads_mean = [mean(abs.(ForwardDiff.gradient(bc_loss_function, θ)[1]))
                              for bc_loss_function in bc_loss_functions]
-
             nonzero_divisor_eps = adaloss_T isa Float64 ? Float64(1e-11) :
                                   convert(adaloss_T, 1e-7)
             bc_loss_weights_proposed = pde_grads_max ./
                                        (bc_grads_mean .+ nonzero_divisor_eps)
+                                   
+            # println("adaloss.bc_loss_weights :", adaloss.bc_loss_weights)
+            if bc_loss_weights_proposed[1] isa ForwardDiff.Dual
+                bc_loss_weights_proposed = [bc_loss_weights_propose.value
+                                            for bc_loss_weights_propose in bc_loss_weights_proposed]
+            end
+            
             adaloss.bc_loss_weights .= weight_change_inertia .*
                                        adaloss.bc_loss_weights .+
                                        (1 .- weight_change_inertia) .*
                                        bc_loss_weights_proposed
-            logscalar(pinnrep.logger, pde_grads_max, "adaptive_loss/pde_grad_max",
-                      iteration[1])
-            logvector(pinnrep.logger, pde_grads_maxes, "adaptive_loss/pde_grad_maxes",
-                      iteration[1])
-            logvector(pinnrep.logger, bc_grads_mean, "adaptive_loss/bc_grad_mean",
-                      iteration[1])
-            logvector(pinnrep.logger, adaloss.bc_loss_weights,
-                      "adaptive_loss/bc_loss_weights",
-                      iteration[1])
+
+            println("iteration : ", iteration[1])
+            println(" adaloss.bc_loss_weights : ", adaloss.bc_loss_weights)
+            # logscalar(pinnrep.logger, pde_grads_max, "adaptive_loss/pde_grad_max",
+            #           iteration[1])
+            # logvector(pinnrep.logger, pde_grads_maxes, "adaptive_loss/pde_grad_maxes",
+            #           iteration[1])
+            # logvector(pinnrep.logger, bc_grads_mean, "adaptive_loss/bc_grad_mean",
+            #           iteration[1])
+            # logvector(pinnrep.logger, adaloss.bc_loss_weights,
+            #           "adaptive_loss/bc_loss_weights",
+            #           iteration[1])
         end
         nothing
     end
