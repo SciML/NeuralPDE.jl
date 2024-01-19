@@ -709,14 +709,13 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
             # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
             # that's why we prefer the user to maintain the increment in the outer loop callback during optimization
-            ChainRulesCore.@ignore_derivatives if self_increment
-                iteration[1] += 1
-            end
 
-            ChainRulesCore.@ignore_derivatives begin
-                reweight_losses_func(θ, pde_loglikelihoods,
-                    bc_loglikelihoods)
-            end
+            # println("terminate increment")
+            # ChainRulesCore.@ignore_derivatives if iteration[1] > 100
+            #     self_increment=false
+            # end
+            pinnrep.iteration[1] += 1
+            reweight_losses_func(θ, pde_loglikelihoods, bc_loglikelihoods)
 
             weighted_pde_loglikelihood = adaloss.pde_loss_weights .* pde_loglikelihoods
             weighted_bc_loglikelihood = adaloss.bc_loss_weights .* bc_loglikelihoods
@@ -751,8 +750,45 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                 weighted_additional_loglikelihood = adaloss.additional_loss_weights[1] *
                                                     _additional_loglikelihood
 
-                    weighted_loglikelihood_before_additional + weighted_additional_loglikelihood
+                weighted_loglikelihood_before_additional + weighted_additional_loglikelihood
             end
+
+            # println("full_weighted_loglikelihood : ", full_weighted_loglikelihood)
+
+            # ChainRulesCore.@ignore_derivatives begin
+            #     println(" inside lower chainrules logging log_frequency part ")
+            #     if iteration[1] % log_frequency == 0
+            #         logvector(pinnrep.logger, pde_loglikelihoods, "unweighted_likelihood/pde_loglikelihoods",
+            #             iteration[1])
+            #         logvector(pinnrep.logger,
+            #             bc_loglikelihoods,
+            #             "unweighted_likelihood/bc_loglikelihoods",
+            #             iteration[1])
+            #         logvector(pinnrep.logger, weighted_pde_loglikelihood,
+            #             "weighted_likelihood/weighted_pde_loglikelihood",
+            #             iteration[1])
+            #         logvector(pinnrep.logger, weighted_bc_loglikelihood,
+            #             "weighted_likelihood/weighted_bc_loglikelihood",
+            #             iteration[1])
+            #         if !(additional_loss isa Nothing)
+            #             logscalar(pinnrep.logger, weighted_additional_loglikelihood,
+            #                 "weighted_likelihood/weighted_additional_loglikelihood", iteration[1])
+            #         end
+            #         logscalar(pinnrep.logger, sum_weighted_pde_loglikelihood,
+            #             "weighted_likelihood/sum_weighted_pde_loglikelihood", iteration[1])
+            #         logscalar(pinnrep.logger, sum_weighted_bc_loglikelihood,
+            #             "weighted_likelihood/sum_weighted_bc_loglikelihood", iteration[1])
+            #         logscalar(pinnrep.logger, full_weighted_loglikelihood,
+            #             "weighted_likelihood/full_weighted_loglikelihood",
+            #             iteration[1])
+            #         logvector(pinnrep.logger, adaloss.pde_loss_weights,
+            #             "adaptive_loss/pde_loss_weights",
+            #             iteration[1])
+            #         logvector(pinnrep.logger, adaloss.bc_loss_weights,
+            #             "adaptive_loss/bc_loss_weights",
+            #             iteration[1])
+            #     end
+            # end
 
             return full_weighted_loglikelihood
         end

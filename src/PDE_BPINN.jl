@@ -64,7 +64,7 @@ end
 
 LogDensityProblems.dimension(Tar::PDELogTargetDensity) = Tar.dim
 
-function LogDensityProblems.capabilities(::Type{<:PDELogTargetDensity})
+function LogDensityProblems.capabilities(::PDELogTargetDensity)
     LogDensityProblems.LogDensityOrder{1}()
 end
 
@@ -351,6 +351,9 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
         numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
     pinnrep = symbolic_discretize(pde_system, discretization)
+    
+    pinnrep.iteration = [0]
+
     dataset_pde, dataset_bc = discretization.dataset
 
     if ((dataset_bc isa Nothing) && (dataset_pde isa Nothing))
@@ -494,12 +497,16 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         end
         return bpinnsols
     else
+        println("now 1")
+
         initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
         integrator = integratorchoice(Integratorkwargs, initial_ϵ)
         adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
             StepSizeAdaptor(targetacceptancerate, integrator))
 
         Kernel = AdvancedHMC.make_kernel(Kernel, integrator)
+        println("now 2")
+
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
 
