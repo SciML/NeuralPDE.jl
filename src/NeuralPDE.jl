@@ -17,6 +17,7 @@ using RuntimeGeneratedFunctions
 using SciMLBase
 using Statistics
 using ArrayInterface
+using LinearAlgebra
 import Optim
 using DomainSets
 using Symbolics
