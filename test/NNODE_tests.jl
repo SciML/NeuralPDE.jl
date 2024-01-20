@@ -17,7 +17,7 @@ opt = OptimizationOptimisers.Adam(0.1, (0.9, 0.95))
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt = 1 / 20.0f0, verbose = true,
             abstol = 1.0f-10, maxiters = 200)
 
-@test_throws Any solve(prob, NeuralPDE.NNODE(chain, opt; autodiff = true), dt = 1 / 20.0f0,
+solve(prob, NeuralPDE.NNODE(chain, opt; autodiff = true), dt = 1 / 20.0f0,
                        verbose = true, abstol = 1.0f-10, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true,
@@ -26,7 +26,7 @@ sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true,
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), dt = 1 / 20.0f0, verbose = true,
             abstol = 1.0f-10, maxiters = 200)
 
-Any solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
+solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
                        dt = 1 / 20.0f0,
                        verbose = true, abstol = 1.0f-10, maxiters = 200)
 
@@ -90,13 +90,13 @@ opt = OptimizationOptimisers.Adam(0.01)
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
-solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true,
+@test_throws AssertionError solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true,
                        maxiters = 400)
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
-@test_throws Any solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
+@test_throws AssertionError solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
                        maxiters = 400)
 
 sol = solve(prob,
@@ -150,7 +150,7 @@ sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400,
             abstol = 1.0f-8)
 @test sol.errors[:l2] < 0.5
 
-@test_throws Any solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true,
+@test_throws AssertionError solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true,
                        maxiters = 400,
                        abstol = 1.0f-8)
 
@@ -158,7 +158,7 @@ sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), verbose = true, maxiters = 400
             abstol = 1.0f-8)
 @test sol.errors[:l2] < 0.5
 
-@test_throws Any solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
+@test_throws AssertionError solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
                        maxiters = 400,
                        abstol = 1.0f-8)
 
