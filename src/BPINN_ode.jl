@@ -214,7 +214,6 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem, alg::BNNODE, args...; dt 
         push!(ensemblecurves, ensemblecurve)
     end
 
-    # estimated using all samples
     nnparams = length(θinit)
     estimnnparams = [Particles(reduce(hcat, samples[(end - numensemble):end])[i, :])
                      for i in 1:nnparams]

@@ -745,11 +745,6 @@ function ahmc_bayesian_pinn_ode(
     metric = Metric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
 
-    println("physics Logpdf is : ", physloglikelihood(ℓπ, initial_θ))
-    println("prior Logpdf is : ", priorweights(ℓπ, initial_θ))
-    println("L2lossData Logpdf is : ", L2LossData(ℓπ, initial_θ))
-    println("L2loss2 Logpdf is : ", L2loss2(ℓπ, initial_θ))
-
     # parallel sampling option
     if nchains != 1
         # Cache to store the chains
