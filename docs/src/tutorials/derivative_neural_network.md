@@ -93,9 +93,9 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:7]
 
-grid_strategy = NeuralPDE.GridTraining(0.07)
+training_strategy = NeuralPDE.QuadratureTraining()
 discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             grid_strategy)
+                                             training_strategy)
 
 vars = [u1(t, x), u2(t, x), u3(t, x), Dxu1(t, x), Dtu1(t, x), Dxu2(t, x), Dtu2(t, x)]
 @named pdesystem = PDESystem(eqs_, bcs__, domains, [t, x], vars)

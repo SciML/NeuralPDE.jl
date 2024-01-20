@@ -3,9 +3,13 @@ on:
   pull_request:
     branches:
       - master
+    paths-ignore:
+      - "docs/**"
   push:
     branches:
       - master
+    paths-ignore:
+      - "docs/**"
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -14,14 +18,14 @@ jobs:
       matrix:
         group:
           - ODEBPINN
+          - PDEBPINN
           - NNPDE1
           - NNPDE2
           - AdaptiveLoss
           - Logging
           - Forward
         version:
-          - "1"
-          - "1.6"
+          - "1.9"
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1

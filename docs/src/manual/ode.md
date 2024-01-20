@@ -3,3 +3,9 @@
 ```@docs
 NNODE
 ```
+
+# Bayesian inference with PINNs
+
+```@docs
+BNNODE
+```

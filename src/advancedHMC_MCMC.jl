@@ -467,17 +467,17 @@ Incase you are only solving the Equations for solution, do not provide dataset
 priors: pdf for W,b + pdf for ODE params
 """
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
-        strategy = GridTraining, dataset = [nothing],
-        init_params = nothing, draw_samples = 1000,
-        physdt = 1 / 20.0, l2std = [0.05],
-        phystd = [0.05], priorsNNw = (0.0, 2.0),
-        param = [], nchains = 1, autodiff = false,
-        Kernel = HMC,
-        Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
-        Integratorkwargs = (Integrator = Leapfrog,),
-        MCMCkwargs = (n_leapfrog = 30,),
-        progress = false, verbose = false)
+    strategy = GridTraining, dataset = [nothing],
+    init_params = nothing, draw_samples = 1000,
+    physdt = 1 / 20.0, l2std = [0.05],
+    phystd = [0.05], priorsNNw = (0.0, 2.0),
+    param = [], nchains = 1, autodiff = false,
+    Kernel = HMC,
+    Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+        Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
+    Integratorkwargs = (Integrator = Leapfrog,),
+    MCMCkwargs = (n_leapfrog = 30,),
+    progress = false, verbose = false)
 
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)

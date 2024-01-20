@@ -2,7 +2,7 @@ steps:
   - label: "GPU"
     plugins:
       - JuliaCI/julia#v1:
-          version: "1"
+          version: "1.9"
       - JuliaCI/julia-test#v1:
            coverage: false # 1000x slowdown
     agents:
@@ -20,8 +20,7 @@ steps:
     matrix:
       setup:
         version:
-          - "1.6"
-          - "1"
+          - "1.9"
         group:
           - "NNODE"
           - "NeuralAdapter"
@@ -41,3 +40,22 @@ steps:
     timeout_in_minutes: 680
     # Don't run Buildkite if the commit message includes the text [skip tests]
     if: build.message !~ /\[skip tests\]/
+
+  - label: "Documentation"
+    plugins:
+      - JuliaCI/julia#v1:
+          version: "1.9"
+    command: |
+      julia --project=docs -e '
+        println("--- :julia: Instantiating project")
+        using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()
+        println("+++ :julia: Building documentation")
+        include("docs/make.jl")'
+    agents:
+      queue: "juliagpu"
+      cuda: "*"
+    if: build.message !~ /\[skip docs\]/ && !build.pull_request.draft
+    timeout_in_minutes: 1000
+
+env:
+  SECRET_DOCUMENTER_KEY: "yBJHrf5zUPu3VFotb0W4TRdauMTGgNUei3ax0xrVTmcrrP3EX8zSGaj9MNZji9H6JqyNEhCqZMGcHhxR5XK0f97YjhAp5rDNpwV6FbIXY8FXgFyIOLAenYUklta1W6fNM7KTz3Dq3UnKBAprKhQBwUw3SldTuvtm+IhiVT2rFmADqxMSQcv+5LivYEgAFrrd6LX+PHhonj38VN46z5Bi3TOIGAnByVlZssX7cOwaRg/8TloLPsWAUlQiPr89Vdlow9k6SQV8W9mf00/Rq4LFd1Eq1EYTCSmReVawMxVpXh1mj7MSabf9ppVWYOmjP5Rzatk8YFWlJf80HVvzY7tXRQ==;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"

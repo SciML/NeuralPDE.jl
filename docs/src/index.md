@@ -3,7 +3,7 @@
 [NeuralPDE.jl](https://github.com/SciML/NeuralPDE.jl) is a solver package which 
 consists of neural network solvers for partial differential equations using 
 physics-informed neural networks (PINNs) and the ability to generate neural
-networks which both approximate physical laws and real data simultaniously.
+networks which both approximate physical laws and real data simultaneously.
 
 ## Features
 
@@ -15,7 +15,7 @@ networks which both approximate physical laws and real data simultaniously.
   - Integrated logging suite for handling connections to TensorBoard.
   - Handling of (partial) integro-differential equations and various stochastic equations.
   - Specialized forms for solving `ODEProblem`s with neural networks.
-  - Compatibility with [Flux.jl](https://docs.sciml.ai/Flux.jl/stable/) and [Lux.jl](https://docs.sciml.ai/Lux/stable/).
+  - Compatibility with [Flux.jl](https://fluxml.ai/) and [Lux.jl](https://lux.csail.mit.edu/).
     for all the GPU-powered machine learning layers available from those libraries.
   - Compatibility with [NeuralOperators.jl](https://docs.sciml.ai/NeuralOperators/stable/) for
     mixing DeepONets and other neural operators (Fourier Neural Operators, Graph Neural Operators,
@@ -132,32 +132,19 @@ Pkg.status(; mode = PKGMODE_MANIFEST) # hide
 </details>
 ```
 
-```@raw html
-You can also download the 
-<a href="
-```
-
 ```@eval
 using TOML
+using Markdown
 version = TOML.parse(read("../../Project.toml", String))["version"]
 name = TOML.parse(read("../../Project.toml", String))["name"]
-link = "https://github.com/SciML/" * name * ".jl/tree/gh-pages/v" * version *
-       "/assets/Manifest.toml"
-```
-
-```@raw html
-">manifest</a> file and the
-<a href="
-```
-
-```@eval
-using TOML
-version = TOML.parse(read("../../Project.toml", String))["version"]
-name = TOML.parse(read("../../Project.toml", String))["name"]
-link = "https://github.com/SciML/" * name * ".jl/tree/gh-pages/v" * version *
-       "/assets/Project.toml"
-```
-
-```@raw html
-">project</a> file.
+link_manifest = "https://github.com/SciML/" * name * ".jl/tree/gh-pages/v" * version *
+                "/assets/Manifest.toml"
+link_project = "https://github.com/SciML/" * name * ".jl/tree/gh-pages/v" * version *
+               "/assets/Project.toml"
+Markdown.parse("""You can also download the
+[manifest]($link_manifest)
+file and the
+[project]($link_project)
+file.
+""")
 ```
