@@ -18,9 +18,9 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
     init_params::I
 
     function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, strategy,
-            dataset,
-            priors, phystd, l2std, autodiff, physdt, extraparams,
-            init_params::AbstractVector)
+        dataset,
+        priors, phystd, l2std, autodiff, physdt, extraparams,
+        init_params::AbstractVector)
         new{
             typeof(chain),
             Nothing,
@@ -42,9 +42,9 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
             init_params)
     end
     function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, strategy,
-            dataset,
-            priors, phystd, l2std, autodiff, physdt, extraparams,
-            init_params::NamedTuple)
+        dataset,
+        priors, phystd, l2std, autodiff, physdt, extraparams,
+        init_params::NamedTuple)
         new{
             typeof(chain),
             typeof(st),
@@ -138,8 +138,8 @@ function physloglikelihood(Tar::LogTargetDensity, θ)
 end
 
 function getlogpdf(strategy::GridTraining, Tar::LogTargetDensity, f, autodiff::Bool,
-        tspan,
-        ode_params, θ)
+    tspan,
+    ode_params, θ)
     if Tar.dataset isa Vector{Nothing}
         t = collect(eltype(strategy.dx), tspan[1]:(strategy.dx):tspan[2])
     else
@@ -152,12 +152,12 @@ function getlogpdf(strategy::GridTraining, Tar::LogTargetDensity, f, autodiff::B
 end
 
 function getlogpdf(strategy::StochasticTraining,
-        Tar::LogTargetDensity,
-        f,
-        autodiff::Bool,
-        tspan,
-        ode_params,
-        θ)
+    Tar::LogTargetDensity,
+    f,
+    autodiff::Bool,
+    tspan,
+    ode_params,
+    θ)
     if Tar.dataset isa Vector{Nothing}
         t = [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)]
     else
@@ -170,9 +170,9 @@ function getlogpdf(strategy::StochasticTraining,
 end
 
 function getlogpdf(strategy::QuadratureTraining, Tar::LogTargetDensity, f,
-        autodiff::Bool,
-        tspan,
-        ode_params, θ)
+    autodiff::Bool,
+    tspan,
+    ode_params, θ)
     function integrand(t::Number, θ)
         innerdiff(Tar, f, autodiff, [t], θ, ode_params)
     end
@@ -182,9 +182,9 @@ function getlogpdf(strategy::QuadratureTraining, Tar::LogTargetDensity, f,
 end
 
 function getlogpdf(strategy::WeightedIntervalTraining, Tar::LogTargetDensity, f,
-        autodiff::Bool,
-        tspan,
-        ode_params, θ)
+    autodiff::Bool,
+    tspan,
+    ode_params, θ)
     minT = tspan[1]
     maxT = tspan[2]
 
@@ -217,7 +217,7 @@ end
 MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN with parameters θ 
 """
 function innerdiff(Tar::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, θ,
-        ode_params)
+    ode_params)
 
     # Tar used for phi and LogTargetDensity object attributes access
     out = Tar(t, θ[1:(length(θ) - Tar.extraparams)])
@@ -300,12 +300,12 @@ end
 nn OUTPUT AT t,θ ~ phi(t,θ)
 """
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
-        θ) where {C <: Optimisers.Restructure, S}
+    θ) where {C <: Optimisers.Restructure, S}
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
-        θ) where {C <: Lux.AbstractExplicitLayer, S}
+    θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -313,13 +313,13 @@ function (f::LogTargetDensity{C, S})(t::AbstractVector,
 end
 
 function (f::LogTargetDensity{C, S})(t::Number,
-        θ) where {C <: Optimisers.Restructure, S}
+    θ) where {C <: Optimisers.Restructure, S}
     #  must handle paired odes hence u0 broadcasted
     f.prob.u0 .+ (t - f.prob.tspan[1]) * f.chain(θ)(adapt(parameterless_type(θ), [t]))
 end
 
 function (f::LogTargetDensity{C, S})(t::Number,
-        θ) where {C <: Lux.AbstractExplicitLayer, S}
+    θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -467,17 +467,17 @@ Incase you are only solving the Equations for solution, do not provide dataset
 priors: pdf for W,b + pdf for ODE params
 """
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
-        strategy = GridTraining, dataset = [nothing],
-        init_params = nothing, draw_samples = 1000,
-        physdt = 1 / 20.0, l2std = [0.05],
-        phystd = [0.05], priorsNNw = (0.0, 2.0),
-        param = [], nchains = 1, autodiff = false,
-        Kernel = HMC,
-        Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
-        Integratorkwargs = (Integrator = Leapfrog,),
-        MCMCkwargs = (n_leapfrog = 30,),
-        progress = false, verbose = false)
+    strategy = GridTraining, dataset = [nothing],
+    init_params = nothing, draw_samples = 1000,
+    physdt = 1 / 20.0, l2std = [0.05],
+    phystd = [0.05], priorsNNw = (0.0, 2.0),
+    param = [], nchains = 1, autodiff = false,
+    Kernel = HMC,
+    Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+        Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
+    Integratorkwargs = (Integrator = Leapfrog,),
+    MCMCkwargs = (n_leapfrog = 30,),
+    progress = false, verbose = false)
 
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
