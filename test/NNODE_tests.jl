@@ -10,7 +10,7 @@ linear = (u, p, t) -> cos(2pi * t)
 tspan = (0.0f0, 1.0f0)
 u0 = 0.0f0
 prob = ODEProblem(linear, u0, tspan)
-chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
+chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1)) |> Flux.f64
 luxchain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
 opt = OptimizationOptimisers.Adam(0.1, (0.9, 0.95))
 
@@ -26,7 +26,7 @@ sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true,
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), dt = 1 / 20.0f0, verbose = true,
             abstol = 1.0f-10, maxiters = 200)
 
-@test_throws Any solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
+Any solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
                        dt = 1 / 20.0f0,
                        verbose = true, abstol = 1.0f-10, maxiters = 200)
 
@@ -51,14 +51,14 @@ linear = (u, p, t) -> [cos(2pi * t)]
 tspan = (0.0f0, 1.0f0)
 u0 = [0.0f0]
 prob = ODEProblem(linear, u0, tspan)
-chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
+chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1)) |> Flux.f64
 luxchain = Lux.Chain(Lux.Dense(1, 5, σ), Lux.Dense(5, 1))
 
 opt = OptimizationOptimJL.BFGS()
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt = 1 / 20.0f0, abstol = 1e-10,
             verbose = true, maxiters = 200)
 
-@test_throws Any solve(prob, NeuralPDE.NNODE(chain, opt; autodiff = true), dt = 1 / 20.0f0,
+solve(prob, NeuralPDE.NNODE(chain, opt; autodiff = true), dt = 1 / 20.0f0,
                        abstol = 1e-10, verbose = true, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), abstol = 1.0f-6,
@@ -67,7 +67,7 @@ sol = solve(prob, NeuralPDE.NNODE(chain, opt), abstol = 1.0f-6,
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), dt = 1 / 20.0f0, abstol = 1e-10,
             verbose = true, maxiters = 200)
 
-@test_throws Any solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
+solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
                        dt = 1 / 20.0f0,
                        abstol = 1e-10, verbose = true, maxiters = 200)
 
@@ -83,14 +83,14 @@ linear = (u, p, t) -> @. t^3 + 2 * t + (t^2) * ((1 + 3 * (t^2)) / (1 + t + (t^3)
                          u * (t + ((1 + 3 * (t^2)) / (1 + t + t^3)))
 linear_analytic = (u0, p, t) -> [exp(-(t^2) / 2) / (1 + t + t^3) + t^2]
 prob = ODEProblem(ODEFunction(linear, analytic = linear_analytic), [1.0f0], (0.0f0, 1.0f0))
-chain = Flux.Chain(Dense(1, 128, σ), Dense(128, 1))
+chain = Flux.Chain(Dense(1, 128, σ), Dense(128, 1)) |> Flux.f64
 luxchain = Lux.Chain(Lux.Dense(1, 128, σ), Lux.Dense(128, 1))
 opt = OptimizationOptimisers.Adam(0.01)
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true, maxiters = 400)
 @test sol.errors[:l2] < 0.5
 
-@test_throws Any solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true,
+solve(prob, NeuralPDE.NNODE(chain, opt; batch = true), verbose = true,
                        maxiters = 400)
 
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), verbose = true, maxiters = 400)
@@ -142,7 +142,7 @@ sol = solve(prob, NeuralPDE.NNODE(luxchain, opt; batch = true), verbose = true,
 linear = (u, p, t) -> -u / 5 + exp(-t / 5) .* cos(t)
 linear_analytic = (u0, p, t) -> exp(-t / 5) * (u0 + sin(t))
 prob = ODEProblem(ODEFunction(linear, analytic = linear_analytic), 0.0f0, (0.0f0, 1.0f0))
-chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
+chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1)) |> Flux.f64
 luxchain = Lux.Chain(Lux.Dense(1, 5, σ), Lux.Dense(5, 1))
 
 opt = OptimizationOptimisers.Adam(0.1)
@@ -214,7 +214,7 @@ u0 = [0.0f0, -1.0f0 / 2pi]
 linear_analytic = (u0, p, t) -> [sin(2pi * t) / 2pi, -cos(2pi * t) / 2pi]
 odefunction = ODEFunction(linear, analytic = linear_analytic)
 prob = ODEProblem(odefunction, u0, tspan)
-chain = Flux.Chain(Dense(1, 10, σ), Dense(10, 2))
+chain = Flux.Chain(Dense(1, 10, σ), Dense(10, 2)) |> Flux.f64
 opt = OptimizationOptimisers.Adam(0.1)
 alg = NeuralPDE.NNODE(chain, opt; autodiff = false)
 
@@ -313,7 +313,7 @@ sol1 = solve(prob, alg1, verbose = true, abstol = 1.0f-10, maxiters = 200)
 @test sol1.errors[:l2] < 0.5
 
 # StochasticTraining(Flux Chain)
-chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1))
+chain = Flux.Chain(Dense(1, 5, σ), Dense(5, 1)) |> Flux.f64
 
 (u_, t_) = (u_analytical(ts), ts)
 function additional_loss(phi, θ)
