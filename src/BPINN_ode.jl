@@ -284,7 +284,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
         push!(ensemblecurves, ensemblecurve)
     end
 
-    # estimated using all samples
     nnparams = length(θinit)
     estimnnparams = [Particles(reduce(hcat, samples)[i, :]) for i in 1:nnparams]
 
