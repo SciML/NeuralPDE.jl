@@ -17,7 +17,7 @@ opt = OptimizationOptimisers.Adam(0.1, (0.9, 0.95))
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt = 1 / 20.0f0, verbose = true,
             abstol = 1.0f-10, maxiters = 200)
 
-solve(prob, NeuralPDE.NNODE(chain, opt; autodiff = true), dt = 1 / 20.0f0,
+@test_throws ArgumentError solve(prob, NeuralPDE.NNODE(chain, opt; autodiff = true), dt = 1 / 20.0f0,
                        verbose = true, abstol = 1.0f-10, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true,
@@ -26,7 +26,7 @@ sol = solve(prob, NeuralPDE.NNODE(chain, opt), verbose = true,
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), dt = 1 / 20.0f0, verbose = true,
             abstol = 1.0f-10, maxiters = 200)
 
-solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
+@test_throws ArgumentError solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
                        dt = 1 / 20.0f0,
                        verbose = true, abstol = 1.0f-10, maxiters = 200)
 
@@ -58,7 +58,7 @@ opt = OptimizationOptimJL.BFGS()
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), dt = 1 / 20.0f0, abstol = 1e-10,
             verbose = true, maxiters = 200)
 
-solve(prob, NeuralPDE.NNODE(chain, opt; autodiff = true), dt = 1 / 20.0f0,
+@test_throws ArgumentError solve(prob, NeuralPDE.NNODE(chain, opt; autodiff = true), dt = 1 / 20.0f0,
                        abstol = 1e-10, verbose = true, maxiters = 200)
 
 sol = solve(prob, NeuralPDE.NNODE(chain, opt), abstol = 1.0f-6,
@@ -67,7 +67,7 @@ sol = solve(prob, NeuralPDE.NNODE(chain, opt), abstol = 1.0f-6,
 sol = solve(prob, NeuralPDE.NNODE(luxchain, opt), dt = 1 / 20.0f0, abstol = 1e-10,
             verbose = true, maxiters = 200)
 
-solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
+@test_throws ArgumentError solve(prob, NeuralPDE.NNODE(luxchain, opt; autodiff = true),
                        dt = 1 / 20.0f0,
                        abstol = 1e-10, verbose = true, maxiters = 200)
 
