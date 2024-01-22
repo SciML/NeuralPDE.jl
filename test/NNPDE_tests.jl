@@ -1,10 +1,11 @@
 using Flux, NeuralPDE, Test
 using Optimization, OptimizationOptimJL, OptimizationOptimisers
-using Integrals, IntegralsCubature
+using Integrals, Cubature
 using QuasiMonteCarlo
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 import Lux
+using LineSearches
 
 using Random
 Random.seed!(100)
@@ -477,7 +478,7 @@ end
         return false
     end
 
-    res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 500, f_abstol = 10^-6)
+    res = solve(prob, OptimizationOptimJL.BFGS(linesearch = BackTracking()); maxiters = 500)
 
     dx = 0.1
     xs, ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
