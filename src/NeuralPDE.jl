@@ -11,7 +11,7 @@ using Reexport, Statistics
 using Zygote, ForwardDiff, Random, Distributions
 using Adapt, DiffEqNoiseProcess, StochasticDiffEq
 using Optimization
-using Integrals, IntegralsCubature
+using Integrals, Cubature
 using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
@@ -32,7 +32,6 @@ import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly, parameterless_type
 import Optimisers
 import UnPack: @unpack
-import RecursiveArrayTools
 import ChainRulesCore, Flux, Lux, ComponentArrays
 import ChainRulesCore: @non_differentiable
 

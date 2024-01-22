@@ -272,8 +272,8 @@ end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
     ts = tspan[1]:(strategy.dx):tspan[2]
-
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
+    autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     function loss(θ, _)
         if batch
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
@@ -287,6 +287,7 @@ end
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
                        batch)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
+    autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
     function loss(θ, _)
         ts = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
@@ -302,6 +303,7 @@ end
 
 function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
                        batch)
+    autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT = tspan[1]
     maxT = tspan[2]
 

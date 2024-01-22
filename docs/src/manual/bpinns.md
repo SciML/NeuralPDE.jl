@@ -14,8 +14,11 @@ NeuralPDE.ahmc_bayesian_pinn_pde
 
 ## `symbolic_discretize` for `BayesianPINN` and lower level interface.
 
-```@docs
+```@docs; canonical=false
 SciMLBase.symbolic_discretize(::PDESystem, ::NeuralPDE.AbstractPINN)
+```
+
+```@docs
 NeuralPDE.BPINNstats
 NeuralPDE.BPINNsolution
 ```

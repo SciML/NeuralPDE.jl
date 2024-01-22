@@ -25,7 +25,7 @@ eq = Dθ(u(θ)) ~ θ^3 + 2.0f0 * θ + (θ^2) * ((1.0f0 + 3 * (θ^2)) / (1.0f0 + 
                 u(θ) * (θ + ((1.0f0 + 3.0f0 * (θ^2)) / (1.0f0 + θ + θ^3)))
 
 # Initial and boundary conditions
-bcs = [u(0.0) ~ 1.0f0]
+bcs = [u(0.f0) ~ 1.0f0]
 
 # Space and time domains
 domains = [θ ∈ Interval(0.0f0, 1.0f0)]
@@ -85,7 +85,7 @@ chain = Flux.Chain(Dense(2, inner, Flux.σ),
                    Dense(inner, inner, Flux.σ),
                    Dense(inner, inner, Flux.σ),
                    Dense(inner, inner, Flux.σ),
-                   Dense(inner, 1)) |> gpu
+                   Dense(inner, 1)) |> gpu |> f64
 
 strategy = NeuralPDE.StochasticTraining(500)
 discretization = NeuralPDE.PhysicsInformedNN(chain,
@@ -138,7 +138,7 @@ chain = Flux.Chain(Dense(2, inner, Flux.σ),
                    Dense(inner, inner, Flux.σ),
                    Dense(inner, inner, Flux.σ),
                    Dense(inner, inner, Flux.σ),
-                   Dense(inner, 1)) |> gpu
+                   Dense(inner, 1)) |> gpu |> f64
 
 strategy = NeuralPDE.QuasiRandomTraining(500; #points
                                          sampling_alg = SobolSample(),
@@ -205,7 +205,7 @@ chain = Flux.Chain(Dense(3, inner, Flux.σ),
                    Dense(inner, inner, Flux.σ),
                    Dense(inner, inner, Flux.σ),
                    Dense(inner, inner, Flux.σ),
-                   Dense(inner, 1)) |> gpu
+                   Dense(inner, 1)) |> gpu |> f64
 
 strategy = NeuralPDE.GridTraining(0.05)
 discretization = NeuralPDE.PhysicsInformedNN(chain,

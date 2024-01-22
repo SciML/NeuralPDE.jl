@@ -3,7 +3,7 @@ using Optimization, OptimizationOptimJL, OptimizationOptimisers
 using QuasiMonteCarlo, Random
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
-using Integrals, IntegralsCubature
+using Integrals, Cubature
 using OrdinaryDiffEq, ComponentArrays
 import Lux
 using ComponentArrays
