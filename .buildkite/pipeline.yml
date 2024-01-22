@@ -2,7 +2,7 @@ steps:
   - label: "GPU"
     plugins:
       - JuliaCI/julia#v1:
-          version: "1.9"
+          version: "1"
       - JuliaCI/julia-test#v1:
            coverage: false # 1000x slowdown
     agents:
@@ -20,7 +20,7 @@ steps:
     matrix:
       setup:
         version:
-          - "1.9"
+          - "1"
         group:
           - "NNODE"
           - "NeuralAdapter"
@@ -44,7 +44,7 @@ steps:
   - label: "Documentation"
     plugins:
       - JuliaCI/julia#v1:
-          version: "1.9"
+          version: "1"
     command: |
       julia --project=docs -e '
         println("--- :julia: Instantiating project")

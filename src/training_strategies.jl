@@ -320,9 +320,10 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::Quadrature
             # mean(abs2,loss_(x,θ), dims=2)
             # size_x = fill(size(x)[2],(1,1))
             x = adapt(parameterless_type(ComponentArrays.getdata(θ)), x)
-            sum(abs2, loss_(x, θ), dims = 2) #./ size_x
+            sum(abs2, view(loss_(x, θ), 1, :), dims = 2) #./ size_x
         end
-        prob = IntegralProblem(integrand, lb, ub, θ, batch = strategy.batch, nout = 1)
+        integral_function = BatchIntegralFunction(integrand, max_batch = strategy.batch)
+        prob = IntegralProblem(integral_function, lb, ub, θ)
         solve(prob,
               strategy.quadrature_alg,
               reltol = strategy.reltol,
