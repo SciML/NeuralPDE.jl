@@ -11,7 +11,6 @@ function vectorify(x, t::Type{T}) where {T <: Real}
 end
 
 # Dispatches
-
 """
 ```julia
 NonAdaptiveLoss{T}(; pde_loss_weights = 1,
@@ -159,8 +158,8 @@ end
 """
 ```julia
 function MiniMaxAdaptiveLoss(reweight_every;
-                             pde_max_optimiser = Flux.ADAM(1e-4),
-                             bc_max_optimiser = Flux.ADAM(0.5),
+                             pde_max_optimiser = OptimizationOptimisers.Adam(1e-4),
+                             bc_max_optimiser = OptimizationOptimisers.Adam(0.5),
                              pde_loss_weights = 1,
                              bc_loss_weights = 1,
                              additional_loss_weights = 1)
@@ -178,9 +177,9 @@ where loss functions that have not been satisfied get a greater weight,
 
 ## Keyword Arguments
 
-* `pde_max_optimiser`: a Flux.Optimise.AbstractOptimiser that is used internally to
+* `pde_max_optimiser`: a OptimizationOptimisers optimiser that is used internally to
   maximize the weights of the PDE loss functions.
-* `bc_max_optimiser`: a Flux.Optimise.AbstractOptimiser that is used internally to maximize
+* `bc_max_optimiser`: a OptimizationOptimisers optimiser that is used internally to maximize
   the weights of the BC loss functions.
 
 ## References
@@ -190,8 +189,8 @@ Levi McClenny, Ulisses Braga-Neto
 https://arxiv.org/abs/2009.04544
 """
 mutable struct MiniMaxAdaptiveLoss{T <: Real,
-                                   PDE_OPT <: Flux.Optimise.AbstractOptimiser,
-                                   BC_OPT <: Flux.Optimise.AbstractOptimiser} <:
+                                   PDE_OPT,
+                                   BC_OPT} <:
                AbstractAdaptiveLoss
     reweight_every::Int64
     pde_max_optimiser::PDE_OPT
@@ -201,17 +200,15 @@ mutable struct MiniMaxAdaptiveLoss{T <: Real,
     additional_loss_weights::Vector{T}
     SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss{T,
                                                        PDE_OPT, BC_OPT}(reweight_every;
-                                                                        pde_max_optimiser = Flux.ADAM(1e-4),
-                                                                        bc_max_optimiser = Flux.ADAM(0.5),
+                                                                        pde_max_optimiser = OptimizationOptimisers.Adam(1e-4),
+                                                                        bc_max_optimiser = OptimizationOptimisers.Adam(0.5),
                                                                         pde_loss_weights = 1,
                                                                         bc_loss_weights = 1,
                                                                         additional_loss_weights = 1) where {
                                                                                                             T <:
                                                                                                             Real,
-                                                                                                            PDE_OPT <:
-                                                                                                            Flux.Optimise.AbstractOptimiser,
-                                                                                                            BC_OPT <:
-                                                                                                            Flux.Optimise.AbstractOptimiser
+                                                                                                            PDE_OPT,
+                                                                                                            BC_OPT
                                                                                                             }
         new(convert(Int64, reweight_every), convert(PDE_OPT, pde_max_optimiser),
             convert(BC_OPT, bc_max_optimiser),
@@ -222,8 +219,8 @@ end
 
 # default to Float64, ADAM, ADAM
 SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss(reweight_every;
-                                                   pde_max_optimiser = Flux.ADAM(1e-4),
-                                                   bc_max_optimiser = Flux.ADAM(0.5),
+                                                   pde_max_optimiser = OptimizationOptimisers.Adam(1e-4),
+                                                   bc_max_optimiser = OptimizationOptimisers.Adam(0.5),
                                                    pde_loss_weights = 1,
                                                    bc_loss_weights = 1,
                                                    additional_loss_weights = 1)
@@ -245,9 +242,8 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
 
     function run_minimax_adaptive_loss(θ, pde_losses, bc_losses)
         if iteration[1] % adaloss.reweight_every == 0
-            Flux.Optimise.update!(pde_max_optimiser, adaloss.pde_loss_weights,
-                                  -pde_losses)
-            Flux.Optimise.update!(bc_max_optimiser, adaloss.bc_loss_weights, -bc_losses)
+            OptimizationOptimisers.Optimisers.update(pde_max_optimiser, adaloss.pde_loss_weights, -pde_losses)
+            OptimizationOptimisers.Optimisers.update(bc_max_optimiser, adaloss.bc_loss_weights, -bc_losses)
             logvector(pinnrep.logger, adaloss.pde_loss_weights,
                       "adaptive_loss/pde_loss_weights", iteration[1])
             logvector(pinnrep.logger, adaloss.bc_loss_weights,

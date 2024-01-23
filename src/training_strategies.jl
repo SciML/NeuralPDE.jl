@@ -366,4 +366,5 @@ function get_loss_function(loss_function, train_set, eltypeθ,
                            strategy::WeightedIntervalTraining;
                            τ = nothing)
     loss = (θ) -> mean(abs2, loss_function(train_set, θ))
+    return loss
 end

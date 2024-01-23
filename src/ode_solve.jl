@@ -18,7 +18,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.AbstractExplicitLayer`.
+* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer`.
 * `opt`: The optimizer to train the neural network. Defaults to `OptimizationPolyalgorithms.PolyOpt()`
 * `init_params`: The initial parameter of the neural network. By default, this is `nothing`
   which thus uses the random initialization provided by the neural network library.
@@ -60,8 +60,8 @@ f(u,p,t) = cos(2pi*t)
 tspan = (0.0f0, 1.0f0)
 u0 = 0.0f0
 prob = ODEProblem(linear, u0 ,tspan)
-chain = Flux.Chain(Dense(1,5,σ),Dense(5,1))
-opt = Flux.ADAM(0.1)
+chain = Lux.Chain(Lux.Dense(1,5,σ), Lux.Dense(5,1))
+opt = OptimizationOptimisers.Adam(0.1)
 sol = solve(prob, NeuralPDE.NNODE(chain,opt), dt=1/20f0, verbose = true,
             abstol=1e-10, maxiters = 200)
 ```
@@ -100,7 +100,6 @@ end
 """
 ```julia
 ODEPhi(chain::Lux.AbstractExplicitLayer, t, u0, st)
-ODEPhi(chain::Flux.Chain, t, u0, nothing)
 ```
 
 Internal, used as a constructor used for representing the ODE solution as a
@@ -112,12 +111,8 @@ mutable struct ODEPhi{C, T, U, S}
     t0::T
     u0::U
     st::S
-
     function ODEPhi(chain::Lux.AbstractExplicitLayer, t::Number, u0, st)
         new{typeof(chain), typeof(t), typeof(u0), typeof(st)}(chain, t, u0, st)
-    end
-    function ODEPhi(re::Optimisers.Restructure, t, u0)
-        new{typeof(re), typeof(t), typeof(u0), Nothing}(re, t, u0, nothing)
     end
 end
 
@@ -129,14 +124,6 @@ function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params)
         init_params = ComponentArrays.ComponentArray(init_params)
     end
     ODEPhi(chain, t, u0, st), init_params
-end
-
-function generate_phi_θ(chain::Flux.Chain, t, u0, init_params)
-    θ, re = Flux.destructure(chain)
-    if init_params === nothing
-        init_params = θ
-    end
-    ODEPhi(re, t, u0), init_params
 end
 
 function (f::ODEPhi{C, T, U})(t::Number,
@@ -166,25 +153,6 @@ function (f::ODEPhi{C, T, U})(t::AbstractVector,
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
-end
-
-function (f::ODEPhi{C, T, U})(t::Number,
-                              θ) where {C <: Optimisers.Restructure, T, U <: Number}
-    f.u0 + (t - f.t0) * first(f.chain(θ)(adapt(parameterless_type(θ), [t])))
-end
-
-function (f::ODEPhi{C, T, U})(t::AbstractVector,
-                              θ) where {C <: Optimisers.Restructure, T, U <: Number}
-    f.u0 .+ (t' .- f.t0) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
-end
-
-function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Optimisers.Restructure, T, U}
-    f.u0 + (t - f.t0) * f.chain(θ)(adapt(parameterless_type(θ), [t]))
-end
-
-function (f::ODEPhi{C, T, U})(t::AbstractVector,
-                              θ) where {C <: Optimisers.Restructure, T, U}
-    f.u0 .+ (t .- f.t0)' .* f.chain(θ)(adapt(parameterless_type(θ), t'))
 end
 
 """
@@ -397,10 +365,10 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     #train points generation
     init_params = alg.init_params
 
-    if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
+    if chain isa Lux.AbstractExplicitLayer
         phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
     else
-        error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
+        error("Only Lux.AbstractExplicitLayer neural networks are supported")
     end
 
     if isinplace(prob)

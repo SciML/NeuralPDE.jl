@@ -285,37 +285,15 @@ function generate_Tar(chain::Lux.AbstractExplicitLayer, init_params::Nothing)
     return θ, chain, st
 end
 
-function generate_Tar(chain::Flux.Chain, init_params)
-    θ, re = Flux.destructure(chain)
-    return init_params, re, nothing
-end
-
-function generate_Tar(chain::Flux.Chain, init_params::Nothing)
-    θ, re = Flux.destructure(chain)
-    # find_good_stepsize,phasepoint takes only float64
-    return θ, re, nothing
-end
-
 """
 nn OUTPUT AT t,θ ~ phi(t,θ)
 """
-function (f::LogTargetDensity{C, S})(t::AbstractVector,
-    θ) where {C <: Optimisers.Restructure, S}
-    f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
-end
-
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
     θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* y
-end
-
-function (f::LogTargetDensity{C, S})(t::Number,
-    θ) where {C <: Optimisers.Restructure, S}
-    #  must handle paired odes hence u0 broadcasted
-    f.prob.u0 .+ (t - f.prob.tspan[1]) * f.chain(θ)(adapt(parameterless_type(θ), [t]))
 end
 
 function (f::LogTargetDensity{C, S})(t::Number,
@@ -407,24 +385,24 @@ time = sol.t[1:100]
 x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
 dataset = [x̂, time]
 
-chainflux1 = Flux.Chain(Flux.Dense(1, 5, tanh), Flux.Dense(5, 5, tanh), Flux.Dense(5, 1)
+chain1 = Lux.Chain(Lux.Dense(1, 5, tanh), Lux.Dense(5, 5, tanh), Lux.Dense(5, 1)
 
 # simply solving ode here hence better to not pass dataset(uses ode params specified in prob)
-fh_mcmc_chainflux1, fhsamplesflux1, fhstatsflux1 = ahmc_bayesian_pinn_ode(prob,chainflux1,
-                                                                          dataset = dataset,
-                                                                          draw_samples = 1500,
-                                                                          l2std = [0.05],
-                                                                          phystd = [0.05],
-                                                                          priorsNNw = (0.0,3.0))
+fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chain1,
+                                                            dataset = dataset,
+                                                            draw_samples = 1500,
+                                                            l2std = [0.05],
+                                                            phystd = [0.05],
+                                                            priorsNNw = (0.0,3.0))
 
 # solving ode + estimating parameters hence dataset needed to optimize parameters upon + Pior Distributions for ODE params
-fh_mcmc_chainflux2, fhsamplesflux2, fhstatsflux2 = ahmc_bayesian_pinn_ode(prob,chainflux1,
-                                                                          dataset = dataset,
-                                                                          draw_samples = 1500,
-                                                                          l2std = [0.05],
-                                                                          phystd = [0.05],
-                                                                          priorsNNw = (0.0,3.0),
-                                                                          param = [Normal(6.5,0.5),Normal(-3,0.5)])
+fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chain1,
+                                                            dataset = dataset,
+                                                            draw_samples = 1500,
+                                                            l2std = [0.05],
+                                                            phystd = [0.05],
+                                                            priorsNNw = (0.0,3.0),
+                                                            param = [Normal(6.5,0.5), Normal(-3,0.5)])
 
 ## NOTES 
 Dataset is required for accurate Parameter estimation + solving equations
@@ -432,7 +410,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
 
 ## Positional Arguments
 * `prob`: DEProblem(out of place and the function signature should be f(u,p,t)
-* `chain`: Lux/Flux Neural Netork which would be made the Bayesian PINN
+* `chain`: Lux Neural Netork which would be made the Bayesian PINN
 
 ## Keyword Arguments
 * `strategy`: The training strategy used to choose the points for the evaluations. By default GridTraining is used with given physdt discretization.
@@ -497,11 +475,11 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         throw(error("Dataset Required for Parameter Estimation."))
     end
 
-    if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
-        # Flux-vector, Lux-Named Tuple
+    if chain isa Lux.AbstractExplicitLayer
+        # Lux-Named Tuple
         initial_nnθ, recon, st = generate_Tar(chain, init_params)
     else
-        error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
+        error("Only Lux.AbstractExplicitLayer neural networks are supported")
     end
 
     if nchains > Threads.nthreads()
@@ -511,13 +489,9 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     end
 
     # eltype(physdt) cause needs Float64 for find_good_stepsize
-    if chain isa Lux.AbstractExplicitLayer
-        # Lux chain(using component array later as vector_to_parameter need namedtuple)
-        initial_θ = collect(eltype(physdt),
-            vcat(ComponentArrays.ComponentArray(initial_nnθ)))
-    else
-        initial_θ = collect(eltype(physdt), initial_nnθ)
-    end
+    # Lux chain(using component array later as vector_to_parameter need namedtuple)
+    initial_θ = collect(eltype(physdt),
+        vcat(ComponentArrays.ComponentArray(initial_nnθ)))
 
     # adding ode parameter estimation
     nparameters = length(initial_θ)

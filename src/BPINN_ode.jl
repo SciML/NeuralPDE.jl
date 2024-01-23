@@ -22,7 +22,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.AbstractExplicitLayer`.
+* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer`.
 * `Kernel`: Choice of MCMC Sampling Algorithm. Defaults to `AdvancedHMC.HMC`
 
 ## Keyword Arguments
@@ -46,18 +46,18 @@ dataset = [x̂, time]
 
 chainlux = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
 
-alg = NeuralPDE.BNNODE(chainlux, draw_samples = 2000,
+alg = BNNODE(chainlux, draw_samples = 2000,
                        l2std = [0.05], phystd = [0.05],
                        priorsNNw = (0.0, 3.0), progress = true)
 
 sol_lux = solve(prob, alg)
 
 # with parameter estimation
-alg = NeuralPDE.BNNODE(chainlux,dataset = dataset,
-                        draw_samples = 2000,l2std = [0.05],
-                        phystd = [0.05],priorsNNw = (0.0, 10.0),
-                        param = [Normal(6.5, 0.5), Normal(-3, 0.5)],
-                        progress = true)
+alg = BNNODE(chainlux,dataset = dataset,
+                draw_samples = 2000,l2std = [0.05],
+                phystd = [0.05],priorsNNw = (0.0, 10.0),
+                param = [Normal(6.5, 0.5), Normal(-3, 0.5)],
+                progress = true)
 
 sol_lux_pestim = solve(prob, alg)
 ```
@@ -222,13 +222,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
         luxar = [chain(t', θ[i], st)[1] for i in 1:numensemble]
         # only need for size
         θinit = collect(ComponentArrays.ComponentArray(θinit))
-    elseif chain isa Flux.Chain
-        θinit, re1 = Flux.destructure(chain)
-        out = re1.([samples[i][1:(end - ninv)]
-                    for i in (draw_samples - numensemble):draw_samples])
-        luxar = collect(out[i](t') for i in eachindex(out))
     else
-        throw(error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported"))
+        throw(error("Only Lux.AbstractExplicitLayer neural networks are supported"))
     end
 
     # contructing ensemble predictions
