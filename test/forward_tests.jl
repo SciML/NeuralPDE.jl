@@ -2,7 +2,7 @@ using Test, NeuralPDE
 using SciMLBase
 using DomainSets
 import ModelingToolkit: Interval
-import Lux, Random, Zygote, Flux
+import Lux, Random, Zygote
 using ComponentArrays
 
 @testset "ODE" begin
@@ -18,10 +18,10 @@ using ComponentArrays
     init_params = Float64[]
 
     chain([1], Float64[], st)
-    strategy_ = NeuralPDE.GridTraining(0.1)
-    discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_; init_params = Float64[])
+    strategy_ = GridTraining(0.1)
+    discretization = PhysicsInformedNN(chain, strategy_; init_params = Float64[])
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
-    prob = NeuralPDE.discretize(pde_system, discretization)
+    prob = discretize(pde_system, discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
     eqs = pde_system.eqs
@@ -46,9 +46,9 @@ using ComponentArrays
 end
 
 @testset "derivatives" begin
-    chain = Flux.Chain(Flux.Dense(2, 16, Lux.σ), Flux.Dense(16, 16, Lux.σ),
-                       Flux.Dense(16, 1)) |> Flux.f64
-    init_params = Flux.destructure(chain)[1]
+    chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ), Lux.Dense(16, 16, Lux.σ),
+                       Lux.Dense(16, 1))
+    init_params = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray .|> Float64 
 
     eltypeθ = eltype(init_params)
     phi = NeuralPDE.Phi(chain)
@@ -96,15 +96,13 @@ end
     domains = [x ∈ Interval(1.0, 2.0)]
     chain = Lux.Chain(x -> exp.(x) ./ (exp.(2 .* x) .+ 3))
     init_params, st = Lux.setup(Random.default_rng(), chain)
-    init_params = Float64[]
-
     chain([1], init_params, st)
-    strategy_ = NeuralPDE.GridTraining(0.1)
-    discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_;
+    strategy_ = GridTraining(0.1)
+    discretization = PhysicsInformedNN(chain, strategy_;
                                                  init_params = init_params)
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
-    sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
-    prob = NeuralPDE.discretize(pde_system, discretization)
+    sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+    prob = discretize(pde_system, discretization)
     inner_loss = sym_prob.loss_functions.datafree_pde_loss_functions[1]
     exact_u = π / (3 * sqrt(3))
     @test inner_loss(ones(1, 1), init_params)[1]≈exact_u rtol=1e-5
@@ -119,11 +117,11 @@ end
     chain = Lux.Chain(x -> x .* exp.(-x .^ 2))
     chain([1], init_params, st)
 
-    discretization = NeuralPDE.PhysicsInformedNN(chain, strategy_;
-                                                 init_params = init_params)
+    discretization = PhysicsInformedNN(chain, strategy_;
+                                        init_params = init_params)
     @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
-    sym_prob = SciMLBase.symbolic_discretize(pde_system, discretization)
-    prob = SciMLBase.discretize(pde_system, discretization)
+    sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+    prob = discretize(pde_system, discretization)
     inner_loss = sym_prob.loss_functions.datafree_pde_loss_functions[1]
     exact_u = 0
     @test inner_loss(ones(1, 1), init_params)[1]≈exact_u rtol=1e-9

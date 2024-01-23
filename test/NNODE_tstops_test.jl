@@ -1,4 +1,4 @@
-using OrdinaryDiffEq, Lux, OptimizationOptimisers, Test, Statistics, Optimisers, NeuralPDE
+using OrdinaryDiffEq, Lux, OptimizationOptimisers, Test, Statistics, NeuralPDE
 
 function fu(u, p, t)
     [p[1] * u[1] - p[2] * u[1] * u[2], -p[3] * u[2] + p[4] * u[1] * u[2]]
@@ -22,7 +22,7 @@ N = 12
 chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, func),
                     Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
 
-opt = Optimisers.Adam(0.01)
+opt = OptimizationOptimisers.Adam(0.01)
 threshold = 0.2
 
 #bad choices for weights, samples and dx so that the algorithm will fail without the added points

@@ -70,11 +70,6 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
     total_diff = sum(diff_u)
     total_u = sum(abs.(u_real))
     total_diff_rel = total_diff / total_u
-
-    #p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-    #p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-    #p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-    #(plot=plot(p1,p2,p3), error=total_diff, total_diff_rel=total_diff_rel)
     (error = total_diff, total_diff_rel = total_diff_rel)
 end
 
@@ -94,7 +89,3 @@ error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_s
 @test error_results_no_logs[1][:total_diff_rel] < 0.4
 @test error_results_no_logs[2][:total_diff_rel] < 0.4
 @test error_results_no_logs[3][:total_diff_rel] < 0.4
-
-#plots_diffs[1][:plot]
-#plots_diffs[2][:plot]
-#plots_diffs[3][:plot]

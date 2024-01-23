@@ -122,9 +122,6 @@ u_predict = [first(phi(x, res.u)) for x in xs]
 
 @test u_predict≈u_real rtol=1e-3
 
-# plot(xs ,u_real, label = "analytic")
-# plot!(xs ,u_predict, label = "predict")
-
 ## Example 8, Lorenz System (Parameter Estimation)
 println("Example 8, Lorenz System")
 
@@ -228,16 +225,6 @@ p_ = res.minimizer[(end - 2):end]
 @test sum(abs2, p_[2] - 28.00) < 0.1
 @test sum(abs2, p_[3] - (8 / 3)) < 0.1
 
-#Plotting the system
-# init_params = discretization.init_params
-# acum =  [0;accumulate(+, length.(init_params))]
-# sep = [acum[i]+1 : acum[i+1] for i in 1:length(acum)-1]
-# minimizers = [res.minimizer[s] for s in sep]
-# ts = [infimum(d.domain):dt/10:supremum(d.domain) for d in domains][1]
-# u_predict  = [[discretization.phi[i]([t],minimizers[i])[1] for t in ts] for i in 1:3]
-# plot(sol)
-# plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
-
 ## approximation from data
 println("Approximation of function from data and additional_loss")
 
@@ -282,10 +269,3 @@ prob = remake(prob, u0 = res.minimizer)
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(), maxiters = 500)
 
 @test phi(xs, res.u)≈aproxf_(xs) rtol=0.01
-
-# xs_ = xs'
-# plot(xs_,data')
-# plot!(xs_, phi(xs,res.u)')
-
-# func(x,y) = -20.0 * exp(-0.2 * sqrt(0.5 * (x^2 + y^2))) - exp(0.5 * (cos(2 * pi * x) + cos(2 * pi * y))) + e + 20
-# func(x,y) = -abs(sin(x) * cos(y) * exp(abs(1 - (sqrt(x^2 + y^2)/pi))))

@@ -1,7 +1,7 @@
 using Test, MCMCChains, Lux, ModelingToolkit
 import ModelingToolkit: Interval, infimum, supremum
 using ForwardDiff, Distributions, OrdinaryDiffEq
-using Flux, AdvancedHMC, Statistics, Random, Functors
+using AdvancedHMC, Statistics, Random, Functors
 using NeuralPDE, MonteCarloMeasurements
 using ComponentArrays
 
@@ -17,8 +17,6 @@ eqs = Dt(u(t)) - cos(2 * π * t) ~ 0
 bcs = [u(0) ~ 0.0]
 domains = [t ∈ Interval(0.0, 2.0)]
 
-chainf = Flux.Chain(Flux.Dense(1, 6, tanh), Flux.Dense(6, 1)) |> Flux.f64
-init1, re1 = Flux.destructure(chainf)
 chainl = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 1))
 initl, st = Lux.setup(Random.default_rng(), chainl)
 
@@ -35,25 +33,10 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     priorsNNw = (0.0, 1.0),
     saveats = [1 / 50.0])
 
-discretization = NeuralPDE.BayesianPINN([chainf], GridTraining([0.01]))
-sol2 = ahmc_bayesian_pinn_pde(pde_system,
-    discretization;
-    draw_samples = 1500,
-    bcstd = [0.01],
-    phystd = [0.005],
-    priorsNNw = (0.0, 1.0),
-    saveats = [1 / 50.0])
-
 analytic_sol_func(u0, t) = u0 + sin(2 * π * t) / (2 * π)
 ts = vec(sol1.timepoints[1])
 u_real = [analytic_sol_func(0.0, t) for t in ts]
 u_predict = pmean(sol1.ensemblesol[1])
-@test u_predict≈u_real atol=0.5
-@test mean(u_predict .- u_real) < 0.1
-
-ts = vec(sol2.timepoints[1])
-u_real = [analytic_sol_func(0.0, t) for t in ts]
-u_predict = pmean(sol2.ensemblesol[1])
 @test u_predict≈u_real atol=0.5
 @test mean(u_predict .- u_real) < 0.1
 
@@ -73,10 +56,9 @@ bcs = [u(0.0) ~ 1.0]
 domains = [θ ∈ Interval(0.0, 1.0)]
 
 # Neural network
-chain = Lux.Chain(Lux.Dense(1, 12, Flux.σ), Lux.Dense(12, 1))
+chain = Lux.Chain(Lux.Dense(1, 12, Lux.σ), Lux.Dense(12, 1))
 
-discretization = NeuralPDE.BayesianPINN([chain],
-    GridTraining([0.01]))
+discretization = BayesianPINN([chain], GridTraining([0.01]))
 
 @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
 
@@ -123,7 +105,7 @@ chain = [
         Lux.Dense(10, 1)), Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1)),
     Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1))]
 
-discretization = NeuralPDE.BayesianPINN(chain, GridTraining(0.01))
+discretization = BayesianPINN(chain, GridTraining(0.01))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x],
     [u(x), Dxu(x), Dxxu(x), O1(x), O2(x)])
@@ -142,11 +124,6 @@ u_predict = pmean(sol1.ensemblesol[1])
 xs = vec(sol1.timepoints[1])
 u_real = [analytic_sol_func(x) for x in xs]
 @test u_predict≈u_real atol=0.5
-
-# diff_u = abs.(u_real .- u_predict)
-# plot(xs, u_real)
-# plot!(xs, u_predict)
-# plot!(xs, diff_u)
 
 # 2D Poissons equation 
 @parameters x y
@@ -171,7 +148,7 @@ chain = Lux.Chain(Lux.Dense(dim, 9, Lux.σ), Lux.Dense(9, 9, Lux.σ), Lux.Dense(
 
 # Discretization
 dx = 0.05
-discretization = NeuralPDE.BayesianPINN([chain], GridTraining(dx))
+discretization = BayesianPINN([chain], GridTraining(dx))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
@@ -190,12 +167,3 @@ u_predict = pmean(sol1.ensemblesol[1])
 u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
 diff_u = abs.(u_predict .- u_real)
 @test u_predict≈u_real atol=1.5
-
-# using Plots, StatsPlots
-# plotly()
-# plot(sol1.timepoints[1][1, :],
-#     sol1.timepoints[1][2, :],
-#     pmean(sol1.ensemblesol[1]),
-#     linetype = :contourf)
-# plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], u_real, linetype = :contourf)
-# plot(sol1.timepoints[1][1, :], sol1.timepoints[1][2, :], diff_u, linetype = :contourf)
