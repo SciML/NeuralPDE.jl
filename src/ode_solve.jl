@@ -1,4 +1,4 @@
-abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
+abstract type NeuralPDEAlgorithm end #<: DiffEqBase.AbstractDEAlgorithm
 
 """
 ```julia
@@ -216,6 +216,29 @@ function ode_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool)
         ForwardDiff.jacobian(t -> phi(t, θ), t)
     else
         (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
+            end
+end
+
+function dae_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_vars)
+    if autodiff
+        autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
+    else
+        dphi = (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
+        dim = size(dphi)[1]
+        batch_size = size(t)[1]
+        # @show dim
+        # @show size(dphi)
+        # @show dphi
+        # reduce(vcat, [dphi[[i], :] for i in 1:dim])
+        # differential_vars = [true, false]
+        # reduce(vcat, [[dphi[[i], :] for i in 1:dim-1]; [zeros(1, batch_size)]])
+        reduce(vcat,
+            [if dv == true
+                dphi[[i], :]
+            else
+                zeros(1, batch_size)
+            end
+             for (i, dv) in enumerate(differential_vars)])
     end
 end
 
@@ -251,6 +274,11 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
     sum(abs2, dxdtguess .- fs) / length(t)
 end
 
+function inner_loss_dae(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+        p, differential_vars) where {C, T, U}
+    sum(abs2, dae_dfdx(phi, t, θ, autodiff, differential_vars) .- f(phi(t, θ), p, t))
+end
+
 """
 Representation of the loss function, parametric on the training strategy `strategy`
 """
@@ -269,6 +297,20 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
 
     return loss
 end
+function generate_dae_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch,
+                           differential_vars)
+    ts = tspan[1]:(strategy.dx):tspan[2]
+    autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
+    function loss(θ, _)
+        if batch
+            sum(abs2, inner_loss_dae(phi, f, autodiff, ts, θ, p, differential_vars))
+        else
+            sum(abs2,
+                [inner_loss_dae(phi, f, autodiff, t, θ, p, differential_vars) for t in ts])
+        end
+    end
+    return loss
+end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
     ts = tspan[1]:(strategy.dx):tspan[2]
@@ -285,9 +327,9 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
 end
 
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
+        batch)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
-    autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
+autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
     function loss(θ, _)
         ts = adapt(parameterless_type(θ),
                    [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
@@ -302,8 +344,8 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
 end
 
 function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-                       batch)
-    autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
+batch)
+autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT = tspan[1]
     maxT = tspan[2]
 
@@ -370,7 +412,7 @@ end
 
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
 
-function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
+function DiffEqBase.__solve(prob::DiffEqBase.AbstractDEProblem,
                             alg::NNODE,
                             args...;
                             dt = nothing,
@@ -381,7 +423,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
                             reltol = 1.0f-3,
                             verbose = false,
                             saveat = nothing,
-                            maxiters = nothing, 
+                            maxiters = nothing,
                             tstops = nothing)
     u0 = prob.u0
     tspan = prob.tspan
@@ -439,28 +481,37 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     else
         alg.batch
     end
+    inner_f = if prob isa DiffEqBase.ODEProblem
+        f_(u, p, t) =  f(nothing, u, p, t)
+        generate_loss(strategy, phi, f_, autodiff, tspan, p, batch)
+    elseif prob isa DiffEqBase.DAEProblem
+        differential_vars =  prob.differential_vars
+        generate_dae_loss(strategy, phi, f, autodiff, tspan, p, batch, differential_vars)
+    else
+        #TODO
+        error("TODO")
+    end
 
-    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch)
     additional_loss = alg.additional_loss
 
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
         L2_loss = inner_f(θ, phi)
         if !(additional_loss isa Nothing)
-            L2_loss = L2_loss + additional_loss(phi, θ) 
+            L2_loss = L2_loss + additional_loss(phi, θ)
         end
         if !(tstops isa Nothing)
             num_tstops_points = length(tstops)
-            tstops_loss_func = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch) 
+            tstops_loss_func = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch)
             tstops_loss = tstops_loss_func(θ, phi)
-            if strategy isa GridTraining 
+            if strategy isa GridTraining
                 num_original_points = length(tspan[1]:(strategy.dx):tspan[2])
             elseif strategy isa Union{WeightedIntervalTraining, StochasticTraining}
                 num_original_points = strategy.points
             else
                 return L2_loss + tstops_loss
             end
-            
+
             total_original_loss = L2_loss * num_original_points
             total_tstops_loss = tstops_loss * num_original_points
             total_points = num_original_points + num_tstops_points
