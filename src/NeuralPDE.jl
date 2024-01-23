@@ -24,12 +24,10 @@ using Symbolics: wrap, unwrap, arguments, operation
 using SymbolicUtils
 using AdvancedHMC, LogDensityProblems, LinearAlgebra, Functors, MCMCChains
 using MonteCarloMeasurements
-
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly, parameterless_type
-import Optimisers
 import UnPack: @unpack
 import ChainRulesCore, Flux, Lux, ComponentArrays
 import ChainRulesCore: @non_differentiable
