@@ -33,6 +33,7 @@ import Optimisers
 import UnPack: @unpack
 import ChainRulesCore, Flux, Lux, ComponentArrays
 import ChainRulesCore: @non_differentiable
+@non_differentiable zero(::Any)
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
