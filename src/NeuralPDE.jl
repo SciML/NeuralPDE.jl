@@ -34,6 +34,21 @@ import UnPack: @unpack
 import ChainRulesCore, Flux, Lux, ComponentArrays
 import ChainRulesCore: @non_differentiable
 
+function ChainRulesCore.frule((_, Δ1), ::typeof(zero), x)
+    var"∂f/∂x" = ChainRulesCore.ZeroTangent()
+    (zero(x), Δ1 * var"∂f/∂x")
+end
+
+function ChainRulesCore.rrule(::typeof(zero), x)
+    Ω = zero(x)
+    proj_x = ChainRulesCore.ProjectTo(x)
+    var"∂f/∂x" = ChainRulesCore.ZeroTangent()
+    pullback(Δ1) = (ChainRulesCore.NoTangent(), proj_x(conj(var"∂f/∂x") * Δ1))
+    (Ω, pullback)
+end
+
+
+
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 abstract type AbstractPINN end
