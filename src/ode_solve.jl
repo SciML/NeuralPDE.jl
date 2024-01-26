@@ -215,33 +215,9 @@ function ode_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool)
     if autodiff
         ForwardDiff.jacobian(t -> phi(t, θ), t)
     else
-        (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
-            end
+        #this
+        (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t))) end
 end
-
-function dae_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_vars)
-    if autodiff
-        autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
-    else
-        dphi = (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
-        dim = size(dphi)[1]
-        batch_size = size(t)[1]
-        # @show dim
-        # @show size(dphi)
-        # @show dphi
-        # reduce(vcat, [dphi[[i], :] for i in 1:dim])
-        # differential_vars = [true, false]
-        # reduce(vcat, [[dphi[[i], :] for i in 1:dim-1]; [zeros(1, batch_size)]])
-        reduce(vcat,
-            [if dv == true
-                dphi[[i], :]
-            else
-                zeros(1, batch_size)
-            end
-             for (i, dv) in enumerate(differential_vars)])
-    end
-end
-
 """
 Simple L2 inner loss at a time `t` with parameters θ
 """
@@ -271,12 +247,73 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
     arrt = Array(t)
     fs = reduce(hcat, [f(out[:, i], p, arrt[i]) for i in 1:size(out, 2)])
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
+    #this
     sum(abs2, dxdtguess .- fs) / length(t)
 end
 
-function inner_loss_dae(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+function ode_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool)
+    if autodiff
+        ForwardDiff.jacobian(t -> phi(t, θ), t)
+    else
+        #this
+        (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
+    end
+end
+
+function dae_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_vars)
+    if autodiff
+        autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
+    else
+        dphi = (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
+        dim = size(dphi)[1]
+        batch_size = size(t)[1]
+        # @show dim
+        # @show size(dphi)
+        # @show dphi
+        # reduce(vcat, [dphi[[i], :] for i in 1:dim])
+        # differential_vars = [true, false]
+        # reduce(vcat, [[dphi[[i], :] for i in 1:dim-1]; [zeros(1, batch_size)]])
+        reduce(vcat,
+            [if dv == true
+                dphi[[i], :]
+            else
+                zeros(1, batch_size)
+            end
+             for (i, dv) in enumerate(differential_vars)])
+    end
+end
+
+
+function inner_loss_dae(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
         p, differential_vars) where {C, T, U}
-    sum(abs2, dae_dfdx(phi, t, θ, autodiff, differential_vars) .- f(phi(t, θ), p, t))
+    out = Array(phi(t, θ))
+    arrt = Array(t)
+    fs = reduce(hcat, [f(out[:, i], p, arrt[i]) for i in 1:size(out, 2)])
+    dxdtguess = Array(dae_dfdx(phi, t, θ, autodiff, differential_vars))
+    #this
+    sum(abs2, dxdtguess .- fs) / length(t)
+end
+
+# function inner_loss_dae(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
+#         p, differential_vars) where {C, T, U}
+#     # dphi = dae_dfdx(phi, t, θ, autodiff, differential_vars)
+#     # sum(abs2, dphi .- f(dphi, phi(t, θ), p, t))
+#     sum(abs2, dae_dfdx(phi, t, θ, autodiff, differential_vars) .- f(phi(t, θ), p, t))
+# end
+
+function generate_dae_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch,
+        differential_vars)
+    ts = tspan[1]:(strategy.dx):tspan[2]
+    autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
+    function loss(θ, _)
+        if batch
+            sum(abs2, inner_loss_dae(phi, f, autodiff, ts, θ, p, differential_vars))
+        else
+            sum(abs2,
+                [inner_loss_dae(phi, f, autodiff, t, θ, p, differential_vars) for t in ts])
+        end
+    end
+    return loss
 end
 
 """
@@ -297,20 +334,7 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
 
     return loss
 end
-function generate_dae_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch,
-                           differential_vars)
-    ts = tspan[1]:(strategy.dx):tspan[2]
-    autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
-    function loss(θ, _)
-        if batch
-            sum(abs2, inner_loss_dae(phi, f, autodiff, ts, θ, p, differential_vars))
-        else
-            sum(abs2,
-                [inner_loss_dae(phi, f, autodiff, t, θ, p, differential_vars) for t in ts])
-        end
-    end
-    return loss
-end
+
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
     ts = tspan[1]:(strategy.dx):tspan[2]
@@ -482,11 +506,11 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDEProblem,
         alg.batch
     end
     inner_f = if prob isa DiffEqBase.ODEProblem
-        f_(u, p, t) =  f(nothing, u, p, t)
-        generate_loss(strategy, phi, f_, autodiff, tspan, p, batch)
+        generate_loss(strategy, phi, f, autodiff, tspan, p, batch)
     elseif prob isa DiffEqBase.DAEProblem
         differential_vars =  prob.differential_vars
-        generate_dae_loss(strategy, phi, f, autodiff, tspan, p, batch, differential_vars)
+        f_(u, p, t) = f(nothing, u, p, t)
+        generate_dae_loss(strategy, phi, f_, autodiff, tspan, p, batch, differential_vars)
     else
         #TODO
         error("TODO")
