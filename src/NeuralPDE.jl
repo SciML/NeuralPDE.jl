@@ -54,7 +54,7 @@ include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 
-export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
+export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE, NNDAE,
     KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
     KolmogorovParamDomain, NNParamKolmogorov,
     PhysicsInformedNN, discretize,

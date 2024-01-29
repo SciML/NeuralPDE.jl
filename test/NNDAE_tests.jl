@@ -26,7 +26,7 @@ differential_vars = [true, false]
 prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars)
 chain = Flux.Chain(Dense(1, 15, cos), Dense(15, 15, sin), Dense(15, 2))
 opt = OptimizationOptimisers.Adam(0.1)
-alg = NeuralPDE.NNODE(chain, opt; autodiff = false)
+alg = NeuralPDE.NNDAE(chain, opt; autodiff = false)
 
 sol = solve(prob,
     alg, verbose = false, dt = 1 / 100.0f0,
@@ -56,7 +56,7 @@ differential_vars = [false, true]
 prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars)
 chain = Flux.Chain(Dense(1, 15, σ), Dense(15, 2))
 opt = OptimizationOptimisers.Adam(0.1)
-alg = NeuralPDE.NNODE(chain, opt; autodiff = false)
+alg = NeuralPDE.NNDAE(chain, opt; autodiff = false)
 
 sol = solve(prob,
     alg, verbose = false, dt = 1 / 100.0f0,

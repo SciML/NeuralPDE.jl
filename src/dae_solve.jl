@@ -1,9 +1,28 @@
+"""
+```julia
+```
+
+"""
+struct NNDAE{C, O, P, K, S <: Union{Nothing, AbstractTrainingStrategy},
+            } <: DiffEqBase.AbstractDEAlgorithm
+                chain::C
+                opt::O
+                init_params::P
+                autodiff::Bool
+                strategy::S
+                kwargs::K
+end
+
+function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
+               kwargs...)
+        NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
+end
+
 function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_vars)
     if autodiff
         autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
     else
         dphi = (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
-        # dim = size(dphi)[1]
         batch_size = size(t)[1]
 
         reduce(vcat,
@@ -26,7 +45,7 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
     sum(abs2, dxdtguess .- fs) / length(t)
 end
 
-function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch,
+function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
         differential_vars)
     ts = tspan[1]:(strategy.dx):tspan[2]
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
@@ -37,18 +56,18 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
 end
 
 function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
-        alg::NNODE,
-        args...;
-        dt = nothing,
-        timeseries_errors = true,
-        save_everystep = true,
-        adaptive = false,
-        abstol = 1.0f-6,
-        reltol = 1.0f-3,
-        verbose = false,
-        saveat = nothing,
-        maxiters = nothing,
-        tstops = nothing)
+                            alg::NNDAE,
+                            args...;
+                            dt = nothing,
+                            # timeseries_errors = true,
+                            save_everystep = true,
+                            # adaptive = false,
+                            abstol = 1.0f-6,
+                            reltol = 1.0f-3,
+                            verbose = false,
+                            saveat = nothing,
+                            maxiters = nothing,
+                            tstops = nothing)
     u0 = prob.u0
     du0 = prob.du0
     tspan = prob.tspan
@@ -74,7 +93,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
     end
 
     if isinplace(prob)
-        throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
+        throw(error("The NNODE solver only supports out-of-place DAE definitions, i.e. du=f(u,p,t)."))
     end
 
     try
@@ -91,26 +110,11 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         if dt !== nothing
             GridTraining(dt)
         else
-            QuadratureTraining(; quadrature_alg = QuadGKJL(),
-                reltol = convert(eltype(u0), reltol),
-                abstol = convert(eltype(u0), abstol), maxiters = maxiters,
-                batch = 0)
+             error("dt is not defined")
         end
-    else
-        alg.strategy
     end
 
-    batch = if alg.batch === nothing
-        if strategy isa QuadratureTraining
-            strategy.batch
-        else
-            true
-        end
-    else
-        alg.batch
-    end
-
-    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, differential_vars)
+    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, differential_vars)
 
     # Creates OptimizationFunction Object from total_loss
     total_loss(θ, _) = inner_f(θ, phi)
@@ -130,7 +134,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     #solutions at timepoints
-    @show saveat
     if saveat isa Number
         ts = tspan[1]:saveat:tspan[2]
     elseif saveat isa AbstractArray
