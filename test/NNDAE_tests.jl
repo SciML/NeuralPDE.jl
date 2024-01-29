@@ -31,7 +31,7 @@ alg = NeuralPDE.NNODE(chain, opt; autodiff = false)
 sol = solve(prob,
     alg, verbose = false, dt = 1 / 100.0f0,
     maxiters = 3000, abstol = 1.0f-10)
-@test ground_sol(0:(1 / 100):1)≈sol atol=0.4
+@test ground_sol(0:(1 / 100):1) ≈ sol atol=0.4
 
 # plot(ground_sol, tspan = tspan, layout = (2, 1))
 # plot!(sol, tspan = tspan, layout = (2, 1))
@@ -48,7 +48,7 @@ u₀ = [0.0, 0.0]
 du₀ = [0.0, 0.0]
 tspan = (0.0f0, pi / 2.0f0)
 f = ODEFunction(example2, mass_matrix = M)
-prob_mm = ODEProblem(f, [0.0, 0.0], tspan)
+prob_mm = ODEProblem(f, u₀, tspan)
 ground_sol = solve(prob_mm, Rodas5(), reltol = 1e-8, abstol = 1e-8)
 
 example = (du, u, p, t) -> [u[1] - t, u[2] - t]
@@ -59,10 +59,10 @@ opt = OptimizationOptimisers.Adam(0.1)
 alg = NeuralPDE.NNODE(chain, opt; autodiff = false)
 
 sol = solve(prob,
-    alg, verbose = true, dt = 1 / 100.0f0,
+    alg, verbose = false, dt = 1 / 100.0f0,
     maxiters = 3000, abstol = 1.0f-10)
 
-@test ground_sol(0:(1 / 100):(pi / 2))≈sol atol=0.4
+@test ground_sol(0:(1 / 100):(pi / 2)) ≈ sol atol=0.4
 
-# plot(ground_sol, tspan = (0.0, pi / 2), layout = (2, 1))
-# plot!(sol, tspan = (0.0, pi / 2), layout = (2, 1))
+# plot(ground_sol(0:(1 / 100):(pi / 2.01)), tspan = (0.0, pi / 2), layout = (2, 1))
+# plot!(sol, tspan = (0.0, pi / 2.01), layout = (2, 1))
