@@ -46,6 +46,7 @@ include("training_strategies.jl")
 include("adaptive_losses.jl")
 include("ode_solve.jl")
 include("rode_solve.jl")
+include("dae_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
@@ -53,7 +54,7 @@ include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 
-export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE,
+export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE, NNDAE,
     KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
     KolmogorovParamDomain, NNParamKolmogorov,
     PhysicsInformedNN, discretize,

@@ -30,6 +30,7 @@ end
     if GROUP == "All" || GROUP == "NNODE"
         @time @safetestset "NNODE" begin include("NNODE_tests.jl") end
         @time @safetestset "NNODE_tstops" begin include("NNODE_tstops_test.jl") end
+        @time @safetestset "NNDAE" begin include("NNDAE_tests.jl") end
     end
 
     if GROUP == "All" || GROUP == "NNPDE2"
