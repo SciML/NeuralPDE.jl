@@ -21,7 +21,7 @@ tspan = (0.0f0, 1.0f0)
 prob_mm = ODEProblem(f, u₀, tspan)
 ground_sol = solve(prob_mm, Rodas5(), reltol = 1e-8, abstol = 1e-8)
 
-example = (du, u, p, t) -> [cos(2pi * t), u[2] + cos(2pi * t)]
+example = (du, u, p, t) -> [cos(2pi * t) - du[1], u[2] + cos(2pi * t) - du[2]]
 differential_vars = [true, false]
 prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars)
 chain = Flux.Chain(Dense(1, 15, cos), Dense(15, 15, sin), Dense(15, 2))
