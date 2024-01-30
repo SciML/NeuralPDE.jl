@@ -19,7 +19,7 @@ using Random, Flux
 using OrdinaryDiffEq, Optimisers, Statistics
 import Lux, OptimizationOptimisers, OptimizationOptimJL
 
-example = (du, u, p, t) -> [cos(2pi * t), u[2] + cos(2pi * t)]
+example = (du, u, p, t) -> [cos(2pi * t) - du[1], u[2] + cos(2pi * t) - du[2]]
 u₀ = [1.0, -1.0]
 du₀ = [0.0, 0.0]
 tspan = (0.0f0, 1.0f0)
@@ -45,6 +45,11 @@ sol = solve(prob,
 Now lets compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the DAE.
 
 ```@example dae
+function example1(du, u, p, t)
+    du[1] = cos(2pi * t)
+    du[2] = u[2] + cos(2pi * t)
+    nothing
+end
 M = [1.0 0
     0 0]
 f = ODEFunction(example1, mass_matrix = M)

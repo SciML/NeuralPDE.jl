@@ -32,7 +32,7 @@ of the physics-informed neural network which is used as a solver for a standard 
               By default, `GridTraining` is used with `dt` if given.
 """
 struct NNDAE{C, O, P, K, S <: Union{Nothing, AbstractTrainingStrategy}
-} <: DiffEqBase.AbstractDEAlgorithm
+} <: DiffEqBase.AbstractDAEAlgorithm
     chain::C
     opt::O
     init_params::P
@@ -67,10 +67,9 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
         p, differential_vars) where {C, T, U}
     out = Array(phi(t, θ))
     dphi = Array(dfdx(phi, t, θ, autodiff, differential_vars))
-    dxdtguess = Array(dfdx(phi, t, θ, autodiff, differential_vars))
     arrt = Array(t)
-    fs = reduce(hcat, [f(dphi[:, i], out[:, i], p, arrt[i]) for i in 1:size(out, 2)])
-    sum(abs2, dxdtguess .- fs) / length(t)
+    loss = reduce(hcat, [f(dphi[:, i], out[:, i], p, arrt[i]) for i in 1:size(out, 2)])
+    sum(abs2, loss) / length(t)
 end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
