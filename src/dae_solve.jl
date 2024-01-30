@@ -1,21 +1,49 @@
 """
 ```julia
+NNDAE(chain,
+    OptimizationOptimisers.Adam(0.1),
+    init_params = nothing;
+    autodiff = false,
+    kwargs...)
 ```
 
+Algorithm for solving differential algebraic equationsusing a neural network. This is a specialization
+of the physics-informed neural network which is used as a solver for a standard `DAEProblem`.
+
+!!! warn
+
+    Note that NNDAE only supports DAEs which are written in the out-of-place form, i.e.
+    `du = f(du,u,p,t)`, and not `f(out,du,u,p,t)`. If not declared out-of-place, then the NNDAE
+    will exit with an error.
+
+## Positional Arguments
+
+* `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.AbstractExplicitLayer`.
+* `opt`: The optimizer to train the neural network.
+* `init_params`: The initial parameter of the neural network. By default, this is `nothing`
+  which thus uses the random initialization provided by the neural network library.
+
+## Keyword Arguments
+* `autodiff`: The switch between automatic(not supported yet) and numerical differentiation for
+              the PDE operators. The reverse mode of the loss function is always
+              automatic differentiation (via Zygote), this is only for the derivative
+              in the loss function (the derivative with respect to time).
+* `strategy`: The training strategy used to choose the points for the evaluations.
+              By default, `GridTraining` is used with `dt` if given.
 """
-struct NNDAE{C, O, P, K, S <: Union{Nothing, AbstractTrainingStrategy},
-            } <: DiffEqBase.AbstractDEAlgorithm
-                chain::C
-                opt::O
-                init_params::P
-                autodiff::Bool
-                strategy::S
-                kwargs::K
+struct NNDAE{C, O, P, K, S <: Union{Nothing, AbstractTrainingStrategy}
+} <: DiffEqBase.AbstractDEAlgorithm
+    chain::C
+    opt::O
+    init_params::P
+    autodiff::Bool
+    strategy::S
+    kwargs::K
 end
 
 function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-               kwargs...)
-        NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
+        kwargs...)
+    NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
 end
 
 function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_vars)
@@ -56,18 +84,18 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
 end
 
 function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
-                            alg::NNDAE,
-                            args...;
-                            dt = nothing,
-                            # timeseries_errors = true,
-                            save_everystep = true,
-                            # adaptive = false,
-                            abstol = 1.0f-6,
-                            reltol = 1.0f-3,
-                            verbose = false,
-                            saveat = nothing,
-                            maxiters = nothing,
-                            tstops = nothing)
+        alg::NNDAE,
+        args...;
+        dt = nothing,
+        # timeseries_errors = true,
+        save_everystep = true,
+        # adaptive = false,
+        abstol = 1.0f-6,
+        reltol = 1.0f-3,
+        verbose = false,
+        saveat = nothing,
+        maxiters = nothing,
+        tstops = nothing)
     u0 = prob.u0
     du0 = prob.du0
     tspan = prob.tspan
@@ -83,7 +111,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
     #train points generation
     init_params = alg.init_params
 
-    # A logical array which declares which variables are thedifferential (non-algebraic) vars
+    # A logical array which declares which variables are the differential (non-algebraic) vars
     differential_vars = prob.differential_vars
 
     if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
@@ -110,7 +138,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         if dt !== nothing
             GridTraining(dt)
         else
-             error("dt is not defined")
+            error("dt is not defined")
         end
     end
 

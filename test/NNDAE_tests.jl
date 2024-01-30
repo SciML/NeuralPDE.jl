@@ -7,7 +7,7 @@ Random.seed!(100)
 
 #Example 1
 function example1(du, u, p, t)
-    du[1] =  cos(2pi * t)
+    du[1] = cos(2pi * t)
     du[2] = u[2] + cos(2pi * t)
     nothing
 end
@@ -31,10 +31,7 @@ alg = NeuralPDE.NNDAE(chain, opt; autodiff = false)
 sol = solve(prob,
     alg, verbose = false, dt = 1 / 100.0f0,
     maxiters = 3000, abstol = 1.0f-10)
-@test ground_sol(0:(1 / 100):1) ≈ sol atol=0.4
-
-# plot(ground_sol, tspan = tspan, layout = (2, 1))
-# plot!(sol, tspan = tspan, layout = (2, 1))
+@test ground_sol(0:(1 / 100):1)≈sol atol=0.4
 
 #Example 2
 function example2(du, u, p, t)
@@ -56,13 +53,10 @@ differential_vars = [false, true]
 prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars)
 chain = Flux.Chain(Dense(1, 15, σ), Dense(15, 2))
 opt = OptimizationOptimisers.Adam(0.1)
-alg = NeuralPDE.NNDAE(chain, opt; autodiff = false)
+alg = NNDAE(chain, OptimizationOptimisers.Adam(0.1); autodiff = false)
 
 sol = solve(prob,
     alg, verbose = false, dt = 1 / 100.0f0,
     maxiters = 3000, abstol = 1.0f-10)
 
-@test ground_sol(0:(1 / 100):(pi / 2)) ≈ sol atol=0.4
-
-# plot(ground_sol(0:(1 / 100):(pi / 2.01)), tspan = (0.0, pi / 2), layout = (2, 1))
-# plot!(sol, tspan = (0.0, pi / 2.01), layout = (2, 1))
+@test ground_sol(0:(1 / 100):(pi / 2))≈sol atol=0.4
