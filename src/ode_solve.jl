@@ -1,11 +1,7 @@
 abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
 
 """
-```julia
-NNODE(chain, opt=OptimizationPolyalgorithms.PolyOpt(), init_params = nothing;
-                          autodiff=false, batch=0,additional_loss=nothing,
-                          kwargs...)
-```
+    NNODE(chain, opt, init_params = nothing; autodiff = false, batch = 0, additional_loss = nothing, kwargs...)
 
 Algorithm for solving ordinary differential equations using a neural network. This is a specialization
 of the physics-informed neural network which is used as a solver for a standard `ODEProblem`.
@@ -18,52 +14,49 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer`.
-* `opt`: The optimizer to train the neural network. Defaults to `OptimizationPolyalgorithms.PolyOpt()`
-* `init_params`: The initial parameter of the neural network. By default, this is `nothing`
-  which thus uses the random initialization provided by the neural network library.
+* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`. 
+          `Flux.Chain` will be converted to `Lux` using `Lux.transform`.
+* `opt`: The optimizer to train the neural network.
+* `init_params`: The initial parameter of the neural network. By default, this is `nothing` 
+                 which thus uses the random initialization provided by the neural network library.
 
 ## Keyword Arguments
 * `additional_loss`: A function additional_loss(phi, θ) where phi are the neural network trial solutions,
                      θ are the weights of the neural network(s).
-
-## Example
-
-```julia
-u0 = [1.0, 1.0]
-    ts=[t for t in 1:100]
-    (u_, t_) = (analytical_func(ts), ts)
-    function additional_loss(phi, θ)
-        return sum(sum(abs2, [phi(t, θ) for t in t_] .- u_)) / length(u_)
-    end
-    alg = NeuralPDE.NNODE(chain, opt, additional_loss = additional_loss)
-```
-
 * `autodiff`: The switch between automatic and numerical differentiation for
               the PDE operators. The reverse mode of the loss function is always
               automatic differentiation (via Zygote), this is only for the derivative
               in the loss function (the derivative with respect to time).
 * `batch`: The batch size to use for the internal quadrature. Defaults to `0`, which
-  means the application of the neural network is done at individual time points one
-  at a time. `batch>0` means the neural network is applied at a row vector of values
-  `t` simultaneously, i.e. it's the batch size for the neural network evaluations.
-  This requires a neural network compatible with batched data.
+           means the application of the neural network is done at individual time points one
+           at a time. `batch>0` means the neural network is applied at a row vector of values
+           `t` simultaneously, i.e. it's the batch size for the neural network evaluations.
+           This requires a neural network compatible with batched data.
 * `strategy`: The training strategy used to choose the points for the evaluations.
-  Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
-  `dt` is given, and `GridTraining` is used with `dt` if given.
+              Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
+              `dt` is given, and `GridTraining` is used with `dt` if given.
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
-## Example
+## Examples
+
+```julia
+u0 = [1.0, 1.0]
+ts = [t for t in 1:100]
+(u_, t_) = (analytical_func(ts), ts)
+function additional_loss(phi, θ)
+    return sum(sum(abs2, [phi(t, θ) for t in t_] .- u_)) / length(u_)
+end
+alg = NNODE(chain, opt, additional_loss = additional_loss)
+```
 
 ```julia
 f(u,p,t) = cos(2pi*t)
-tspan = (0.0f0, 1.0f0)
-u0 = 0.0f0
+tspan = (0.0, 1.0)
+u0 = 0.0
 prob = ODEProblem(linear, u0 ,tspan)
-chain = Lux.Chain(Lux.Dense(1,5,σ), Lux.Dense(5,1))
+chain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
 opt = OptimizationOptimisers.Adam(0.1)
-sol = solve(prob, NeuralPDE.NNODE(chain,opt), dt=1/20f0, verbose = true,
-            abstol=1e-10, maxiters = 200)
+sol = solve(prob, NNODE(chain, opt), verbose = true, abstol = 1e-10, maxiters = 200)
 ```
 
 ## Solution Notes
@@ -94,16 +87,14 @@ end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
                autodiff = false, batch = nothing, additional_loss = nothing, kwargs...)
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     NNODE(chain, opt, init_params, autodiff, batch, strategy, additional_loss, kwargs)
 end
 
 """
-```julia
-ODEPhi(chain::Lux.AbstractExplicitLayer, t, u0, st)
-```
+    ODEPhi(chain::Lux.AbstractExplicitLayer, t, u0, st)
 
-Internal, used as a constructor used for representing the ODE solution as a
-neural network in a form that respects boundary conditions, i.e.
+Internal struct, used for representing the ODE solution as a neural network in a form that respects boundary conditions, i.e.
 `phi(t) = u0 + t*NN(t)`.
 """
 mutable struct ODEPhi{C, T, U, S}
@@ -156,8 +147,9 @@ function (f::ODEPhi{C, T, U})(t::AbstractVector,
 end
 
 """
-Computes u' using either forward-mode automatic differentiation or
-numerical differentiation.
+    ode_dfdx(phi, t, θ, autodiff)
+
+Computes u' using either forward-mode automatic differentiation or numerical differentiation.
 """
 function ode_dfdx end
 
@@ -188,7 +180,9 @@ function ode_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool)
 end
 
 """
-Simple L2 inner loss at a time `t` with parameters θ
+    inner_loss(phi, f, autodiff, t, θ, p)
+
+Simple L2 inner loss at a time `t` with parameters `θ` of the neural network.
 """
 function inner_loss end
 
@@ -200,7 +194,7 @@ end
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
                     p) where {C, T, U <: Number}
     out = phi(t, θ)
-    fs = reduce(hcat, [f(out[i], p, t[i]) for i in 1:size(out, 2)])
+    fs = reduce(hcat, [f(out[i], p, t[i]) for i in axes(out, 2)])
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
     sum(abs2, dxdtguess .- fs) / length(t)
 end
@@ -220,7 +214,9 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
 end
 
 """
-Representation of the loss function, parametric on the training strategy `strategy`
+    generate_loss(strategy, phi, f, autodiff, tspan, p, batch)
+
+Representation of the loss function, parametric on the training strategy `strategy`.
 """
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
                        batch)
@@ -328,12 +324,12 @@ end
 
 function (f::NNODEInterpolation)(t::Vector, idxs::Nothing, ::Type{Val{0}}, p, continuity)
     out = f.phi(t, f.θ)
-    SciMLBase.RecursiveArrayTools.DiffEqArray([out[:, i] for i in 1:size(out, 2)], t)
+    SciMLBase.RecursiveArrayTools.DiffEqArray([out[:, i] for i in axes(out, 2)], t)
 end
 
 function (f::NNODEInterpolation)(t::Vector, idxs, ::Type{Val{0}}, p, continuity)
     out = f.phi(t, f.θ)
-    SciMLBase.RecursiveArrayTools.DiffEqArray([out[idxs, i] for i in 1:size(out, 2)], t)
+    SciMLBase.RecursiveArrayTools.DiffEqArray([out[idxs, i] for i in axes(out, 2)], t)
 end
 
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
@@ -365,15 +361,10 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     #train points generation
     init_params = alg.init_params
 
-    if chain isa Lux.AbstractExplicitLayer
-        phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
-    else
-        error("Only Lux.AbstractExplicitLayer neural networks are supported")
-    end
+    !(chain isa Lux.AbstractExplicitLayer) && error("Only Lux.AbstractExplicitLayer neural networks are supported")
+    phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
 
-    if isinplace(prob)
-        throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
-    end
+    isinplace(prob) && throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
         phi(t0, init_params)
@@ -428,12 +419,10 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
             else
                 return L2_loss + tstops_loss
             end
-            
             total_original_loss = L2_loss * num_original_points
             total_tstops_loss = tstops_loss * num_original_points
             total_points = num_original_points + num_tstops_points
             L2_loss = (total_original_loss + total_tstops_loss) / total_points
-
         end
         return L2_loss
     end
