@@ -30,38 +30,47 @@ weights = [0.3, 0.3, 0.4]
 points = 3
 dx = 1.0
 
-#Grid Training without added points (difference between solutions should be high)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.GridTraining(dx))
-sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
+@testset "GridTraining" begin
+    @testset "Without added points" begin
+        # (difference between solutions should be high)
+        alg = NNODE(chain, opt, autodiff = false, strategy = GridTraining(dx))
+        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
+        @test abs(mean(sol) - mean(true_sol)) > threshold
+    end
+    @testset "With added points" begin
+        # (difference between solutions should be low)
+        alg = NNODE(chain, opt, autodiff = false, strategy = GridTraining(dx))
+        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
+        @test abs(mean(sol) - mean(true_sol)) < threshold
+    end
+end
 
-@test abs(mean(sol) - mean(true_sol)) > threshold
+@testset "WeightedIntervalTraining" begin
+    @testset "Without added points" begin
+        # (difference between solutions should be high)
+        alg = NNODE(chain, opt, autodiff = false, strategy = WeightedIntervalTraining(weights, points))
+        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
+        @test abs(mean(sol) - mean(true_sol)) > threshold
+    end
+    @testset "With added points" begin
+        # (difference between solutions should be low)
+        alg = NNODE(chain, opt, autodiff = false, strategy = WeightedIntervalTraining(weights, points))
+        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
+        @test abs(mean(sol) - mean(true_sol)) < threshold
+    end
+end
 
-#Grid Training with added points (difference between solutions should be low)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.GridTraining(dx))
-sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
-
-@test abs(mean(sol) - mean(true_sol)) < threshold
-
-#WeightedIntervalTraining without added points (difference between solutions should be high)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedIntervalTraining(weights, points))
-sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
-
-@test abs(mean(sol) - mean(true_sol)) > threshold
-
-#WeightedIntervalTraining with added points (difference between solutions should be low)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.WeightedIntervalTraining(weights, points))
-sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
-
-@test abs(mean(sol) - mean(true_sol)) < threshold
-
-#StochasticTraining without added points (difference between solutions should be high)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.StochasticTraining(points))
-sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
-
-@test abs(mean(sol) - mean(true_sol)) > threshold
-
-#StochasticTraining with added points (difference between solutions should be low)
-alg = NeuralPDE.NNODE(chain, opt, autodiff = false, strategy = NeuralPDE.StochasticTraining(points))
-sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
-
-@test abs(mean(sol) - mean(true_sol)) < threshold
+@testset "StochasticTraining" begin
+    @testset "Without added points" begin
+        # (difference between solutions should be high)
+        alg = NNODE(chain, opt, autodiff = false, strategy = StochasticTraining(points))
+        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
+        @test abs(mean(sol) - mean(true_sol)) > threshold
+    end
+    @testset "With added points" begin
+        # (difference between solutions should be low)
+        alg = NNODE(chain, opt, autodiff = false, strategy = StochasticTraining(points))
+        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
+        @test abs(mean(sol) - mean(true_sol)) < threshold
+    end
+end
