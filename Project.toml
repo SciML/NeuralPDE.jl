@@ -52,6 +52,7 @@ DiffEqNoiseProcess = "5.1"
 Distributions = "0.23, 0.24, 0.25"
 DocStringExtensions = "0.8, 0.9"
 DomainSets = "0.6, 0.7"
+Flux = "0.14"
 ForwardDiff = "0.10"
 Functors = "0.4"
 Integrals = "4"
@@ -78,6 +79,7 @@ julia = "1.6"
 
 [extras]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 LuxCUDA = "d0bbae9a-e099-4d5b-a835-1c6931763bda"
 OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
@@ -88,4 +90,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 cuDNN = "02a925ec-e4fe-4b08-9a7e-0d78e3d38ccd"
 
 [targets]
-test = ["Test", "CUDA", "SafeTestsets", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "LineSearches", "cuDNN", "LuxCUDA"]
+test = ["Test", "CUDA", "SafeTestsets", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "LineSearches", "cuDNN", "LuxCUDA", "Flux"]
