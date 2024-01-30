@@ -48,7 +48,7 @@ f = ODEFunction(example2, mass_matrix = M)
 prob_mm = ODEProblem(f, u₀, tspan)
 ground_sol = solve(prob_mm, Rodas5(), reltol = 1e-8, abstol = 1e-8)
 
-example = (du, u, p, t) -> [u[1] - t, u[2] - t]
+example = (du, u, p, t) -> [u[1] - t - du[1], u[2] - t - du[2]]
 differential_vars = [false, true]
 prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars)
 chain = Flux.Chain(Dense(1, 15, σ), Dense(15, 2))
