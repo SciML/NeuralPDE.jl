@@ -6,6 +6,7 @@ import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 import Lux
 using LineSearches
+using Flux
 
 using Random
 Random.seed!(100)
@@ -15,7 +16,6 @@ callback = function (p, l)
     return false
 end
 
-## Example 1, 1D ode
 function test_ode(strategy_)
     println("Example 1, 1D ode: strategy: $(nameof(typeof(strategy_)))")
     @parameters θ
@@ -35,11 +35,9 @@ function test_ode(strategy_)
     # Neural network
     chain = Lux.Chain(Lux.Dense(1, 12, Lux.σ), Lux.Dense(12, 1))
 
-    discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                                 strategy_)
-
+    discretization = PhysicsInformedNN(chain, strategy_)
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
-    prob = NeuralPDE.discretize(pde_system, discretization)
+    prob = discretize(pde_system, discretization)
 
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 1000)
     prob = remake(prob, u0 = res.minimizer)
@@ -47,12 +45,10 @@ function test_ode(strategy_)
     prob = remake(prob, u0 = res.minimizer)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 500)
     phi = discretization.phi
-
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     u_real = [analytic_sol_func(t) for t in ts]
     u_predict = [first(phi(t, res.minimizer)) for t in ts]
-
     @test u_predict≈u_real atol=0.1
 end
 
@@ -78,13 +74,13 @@ strategies = [
     quasirandom_strategy_resampling,
     quadrature_strategy,
 ]
+
 @testset "Test ODE/Heterogeneous" begin
+    map(strategies) do strategy_
+        test_ode(strategy_)
+    end 
+end
 
-map(strategies) do strategy_
-    test_ode(strategy_)
-end end
-
-## Heterogeneous system
 @testset "Example 1: Heterogeneous system" begin
     @parameters x, y, z
     @variables u(..), v(..), h(..), p(..)
@@ -162,7 +158,6 @@ end end
     end
 end
 
-## Example 2, 2D Poisson equation
 function test_2d_poisson_equation(chain_, strategy_)
     println("Example 2, 2D Poisson equation, chain: $(nameof(typeof(chain_))), strategy: $(nameof(typeof(strategy_)))")
     @parameters x y
@@ -205,7 +200,6 @@ end
                            Lux.Dense(12, 1))
         test_2d_poisson_equation(chain_, strategy_)
     end
-
     algs = [CubatureJLp()] #CubatureJLh(),
     for alg in algs
         chain_ = Lux.Chain(Lux.Dense(2, 12, Lux.σ), Lux.Dense(12, 12, Lux.σ),
@@ -216,7 +210,6 @@ end
     end
 end
 
-## Example 3, 3rd-order
 @testset "Example 3, 3rd-order ode" begin
     @parameters x
     @variables u(..), Dxu(..), Dxxu(..), O1(..), O2(..)
@@ -275,7 +268,6 @@ end
     @test u_predict≈u_real atol=10^-4
 end
 
-## Example 4, system of pde
 @testset "Example 4, system of pde" begin
     @parameters x, y
     @variables u1(..), u2(..)
@@ -323,7 +315,6 @@ end
     @test u_predict[2]≈u_real[2] atol=0.1
 end
 
-## Example 5, 2d wave equation, neumann boundary condition
 @testset "Example 5, 2d wave equation, neumann boundary condition" begin
     #here we use low level api for build solution
     @parameters x, t
@@ -380,7 +371,6 @@ end
     @test u_predict≈u_real atol=0.1
 end
 
-## Example 6, pde with mixed derivative
 @testset "Example 6, pde with mixed derivative" begin
     @parameters x y
     @variables u(..)
@@ -423,4 +413,32 @@ end
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
                      (length(xs), length(ys)))
     @test u_predict≈u_real rtol=0.1
+end
+
+@testset "Translating from Flux" begin
+    @parameters θ
+    @variables u(..)
+    Dθ = Differential(θ)
+    eq = Dθ(u(θ)) ~ θ^3 + 2 * θ + (θ^2) * ((1 + 3 * (θ^2)) / (1 + θ + (θ^3))) -
+                    u(θ) * (θ + ((1 + 3 * (θ^2)) / (1 + θ + θ^3)))
+    bcs = [u(0.0) ~ 1.0]
+    domains = [θ ∈ Interval(0.0, 1.0)]
+    
+    chain = Flux.Chain(Flux.Dense(1, 12, Flux.σ), Flux.Dense(12, 1))
+    discretization = PhysicsInformedNN(chain, QuadratureTraining())
+    @test discretization.chain isa Lux.AbstractExplicitLayer
+    
+    @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
+    prob = discretize(pde_system, discretization)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 1000)
+    prob = remake(prob, u0 = res.minimizer)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 500)
+    prob = remake(prob, u0 = res.minimizer)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 500)
+    phi = discretization.phi
+    analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
+    ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+    u_real = [analytic_sol_func(t) for t in ts]
+    u_predict = [first(phi(t, res.minimizer)) for t in ts]
+    @test u_predict≈u_real atol=0.1
 end
