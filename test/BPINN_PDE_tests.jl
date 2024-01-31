@@ -4,6 +4,7 @@ using ForwardDiff, Distributions, OrdinaryDiffEq
 using AdvancedHMC, Statistics, Random, Functors
 using NeuralPDE, MonteCarloMeasurements
 using ComponentArrays
+using Flux
 
 Random.seed!(100)
 

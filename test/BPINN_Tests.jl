@@ -4,6 +4,7 @@ using ForwardDiff, Distributions, OrdinaryDiffEq
 using OptimizationOptimisers, AdvancedHMC, Lux
 using Statistics, Random, Functors, ComponentArrays
 using NeuralPDE, MonteCarloMeasurements
+using Flux
 
 # note that current testing bounds can be easily further tightened but have been inflated for support for Julia build v1
 # on latest Julia version it performs much better for below tests
