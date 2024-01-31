@@ -237,13 +237,15 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
                                          adaloss::MiniMaxAdaptiveLoss,
                                          pde_loss_functions, bc_loss_functions)
     pde_max_optimiser = adaloss.pde_max_optimiser
+    pde_max_optimiser_setup = OptimizationOptimisers.Optimisers.setup(pde_max_optimiser, adaloss.pde_loss_weights)
     bc_max_optimiser = adaloss.bc_max_optimiser
+    bc_max_optimiser_setup = OptimizationOptimisers.Optimisers.setup(bc_max_optimiser, adaloss.bc_loss_weights)
     iteration = pinnrep.iteration
 
     function run_minimax_adaptive_loss(θ, pde_losses, bc_losses)
         if iteration[1] % adaloss.reweight_every == 0
-            OptimizationOptimisers.Optimisers.update(pde_max_optimiser, adaloss.pde_loss_weights, -pde_losses)
-            OptimizationOptimisers.Optimisers.update(bc_max_optimiser, adaloss.bc_loss_weights, -bc_losses)
+            OptimizationOptimisers.Optimisers.update!(pde_max_optimiser_setup, adaloss.pde_loss_weights, -pde_losses)
+            OptimizationOptimisers.Optimisers.update!(bc_max_optimiser_setup, adaloss.bc_loss_weights, -bc_losses)
             logvector(pinnrep.logger, adaloss.pde_loss_weights,
                       "adaptive_loss/pde_loss_weights", iteration[1])
             logvector(pinnrep.logger, adaloss.bc_loss_weights,
