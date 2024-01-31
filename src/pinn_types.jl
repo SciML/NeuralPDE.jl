@@ -104,7 +104,11 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             iteration = nothing,
             kwargs...)
         multioutput = chain isa AbstractArray
-        !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+        if multioutput
+            !all(i -> i isa Lux.AbstractExplicitLayer, chain) && (chain = Lux.transform.(chain))
+        else
+            !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+        end
         if phi === nothing
             if multioutput
                 _phi = Phi.(chain)
@@ -232,7 +236,11 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
             dataset = nothing,
             kwargs...)
         multioutput = chain isa AbstractArray
-        !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+        if multioutput
+            !all(i -> i isa Lux.AbstractExplicitLayer, chain) && (chain = Lux.transform.(chain))
+        else
+            !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+        end
         if phi === nothing
             if multioutput
                 _phi = Phi.(chain)
@@ -240,7 +248,11 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
                 _phi = Phi(chain)
             end
         else
-            !(phi.f isa Lux.AbstractExplicitLayer) && throw(ArgumentError("Only Lux Chains are supported"))
+            if multioutput
+                all([phi.f[i] isa Lux.AbstractExplicitLayer for i in eachindex(phi.f)]) || throw(ArgumentError("Only Lux Chains are supported"))
+            else
+                (phi.f isa Lux.AbstractExplicitLayer) || throw(ArgumentError("Only Lux Chains are supported"))
+            end
             _phi = phi
         end
 
