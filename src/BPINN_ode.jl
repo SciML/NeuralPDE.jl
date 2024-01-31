@@ -1,15 +1,13 @@
 # HIGH level API for BPINN ODE solver
 
 """
-```julia
-BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
-                    priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
-                    phystd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
-                    MCMCargs = (n_leapfrog=30), nchains = 1, init_params = nothing, 
-                    Adaptorkwargs = (Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8, Metric = DiagEuclideanMetric),
-                    Integratorkwargs = (Integrator = Leapfrog,), autodiff = false,
-                    progress = false, verbose = false)
-```
+    BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
+                        priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
+                        phystd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
+                        MCMCargs = (n_leapfrog=30), nchains = 1, init_params = nothing, 
+                        Adaptorkwargs = (Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8, Metric = DiagEuclideanMetric),
+                        Integratorkwargs = (Integrator = Leapfrog,), autodiff = false,
+                        progress = false, verbose = false)
 
 Algorithm for solving ordinary differential equations using a Bayesian neural network. This is a specialization
 of the physics-informed neural network which is used as a solver for a standard `ODEProblem`.
@@ -116,6 +114,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
         targetacceptancerate = 0.8),
     Integratorkwargs = (Integrator = Leapfrog,),
     autodiff = false, progress = false, verbose = false)
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
         phystd, dataset, physdt, MCMCkwargs,

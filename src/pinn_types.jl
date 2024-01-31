@@ -27,19 +27,17 @@ function logscalar(logger, s::R, name::AbstractString, step::Integer) where {R <
 end
 
 """
-```julia
-PhysicsInformedNN(chain,
-                  strategy;
-                  init_params = nothing,
-                  phi = nothing,
-                  param_estim = false,
-                  additional_loss = nothing,
-                  adaptive_loss = nothing,
-                  logger = nothing,
-                  log_options = LogOptions(),
-                  iteration = nothing,
-                  kwargs...) where {iip}
-```
+    PhysicsInformedNN(chain,
+                    strategy;
+                    init_params = nothing,
+                    phi = nothing,
+                    param_estim = false,
+                    additional_loss = nothing,
+                    adaptive_loss = nothing,
+                    logger = nothing,
+                    log_options = LogOptions(),
+                    iteration = nothing,
+                    kwargs...)
 
 A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
 `PDESystem` into an `OptimizationProblem` using the Physics-Informed Neural Networks (PINN)
@@ -47,11 +45,12 @@ methodology.
 
 ## Positional Arguments
 
-* `chain`: a vector of Lux.jl chains with a d-dimensional input and a
-  1-dimensional output corresponding to each of the dependent variables. Note that this
-  specification respects the order of the dependent variables as specified in the PDESystem.
+* `chain`: a vector of Lux/Flux chains with a d-dimensional input and a
+           1-dimensional output corresponding to each of the dependent variables. Note that this
+           specification respects the order of the dependent variables as specified in the PDESystem.
+           Flux chains will be converted to Lux internally using `Lux.transform`.
 * `strategy`: determines which training strategy will be used. See the Training Strategy
-  documentation for more details.
+              documentation for more details.
 
 ## Keyword Arguments
 
@@ -105,7 +104,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             iteration = nothing,
             kwargs...)
         multioutput = chain isa AbstractArray
-
+        !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
         if phi === nothing
             if multioutput
                 _phi = Phi.(chain)
@@ -113,6 +112,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                 _phi = Phi(chain)
             end
         else
+            !(phi.f isa Lux.AbstractExplicitLayer) && throw(ArgumentError("Only Lux Chains are supported"))
             _phi = phi
         end
 
@@ -149,8 +149,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
 end
 
 """
-```julia
-BayesianPINN(chain,
+    BayesianPINN(chain,
                   strategy;
                   init_params = nothing,
                   phi = nothing,
@@ -161,8 +160,7 @@ BayesianPINN(chain,
                   log_options = LogOptions(),
                   iteration = nothing,
                   dataset = nothing,
-                  kwargs...) where {iip}
-```
+                  kwargs...)
 
 A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
 `PDESystem` into a likelihood function used for HMC based Posterior Sampling Algorithms [AdvancedHMC.jl](https://turinglang.org/AdvancedHMC.jl/stable/)
@@ -234,7 +232,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
             dataset = nothing,
             kwargs...)
         multioutput = chain isa AbstractArray
-
+        !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
         if phi === nothing
             if multioutput
                 _phi = Phi.(chain)
@@ -242,6 +240,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
                 _phi = Phi(chain)
             end
         else
+            !(phi.f isa Lux.AbstractExplicitLayer) && throw(ArgumentError("Only Lux Chains are supported"))
             _phi = phi
         end
 

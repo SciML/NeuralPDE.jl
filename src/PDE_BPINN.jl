@@ -244,17 +244,16 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
 end
 
 """
-```julia
-ahmc_bayesian_pinn_pde(pde_system, discretization;
-        draw_samples = 1000,
-        bcstd = [0.01], l2std = [0.05],
-        phystd = [0.05], priorsNNw = (0.0, 2.0),
-        param = [], nchains = 1, Kernel = HMC(0.1, 30),
-        Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
-        Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
-        numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)               
-```
+    ahmc_bayesian_pinn_pde(pde_system, discretization;
+            draw_samples = 1000,
+            bcstd = [0.01], l2std = [0.05],
+            phystd = [0.05], priorsNNw = (0.0, 2.0),
+            param = [], nchains = 1, Kernel = HMC(0.1, 30),
+            Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+                Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
+            Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
+            numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)               
+
 ## NOTES 
 * Dataset is required for accurate Parameter estimation + solving equations.
 * Returned solution is a BPINNsolution consisting of Ensemble solution, estimated PDE and NN parameters
@@ -272,22 +271,18 @@ ahmc_bayesian_pinn_pde(pde_system, discretization;
 * `phystd`: Vector of standard deviations of BPINN prediction against Chosen Underlying PDE equations.
 * `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of BPINN are Normal Distributions by default.
 * `param`: Vector of chosen PDE's parameter's Distributions in case of Inverse problems.
-* `nchains`: number of chains you want to sample
-
-# AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
-* `Kernel`: Choice of MCMC Sampling Algorithm object HMC/NUTS/HMCDA (AdvancedHMC.jl implemenations ).
+* `nchains`: number of chains you want to sample.
+* `Kernel`: Choice of MCMC Sampling Algorithm object HMC/NUTS/HMCDA (AdvancedHMC.jl implementations).
 * `Adaptorkwargs`: `Adaptor`, `Metric`, `targetacceptancerate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
-   Note: Target percentage(in decimal) of iterations in which the proposals are accepted (0.8 by default)
+   Note: Target percentage(in decimal) of iterations in which the proposals are accepted (0.8 by default).
 * `Integratorkwargs`: `Integrator`, `jitter_rate`, `tempering_rate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
 * `saveats`: Grid spacing for each independant variable for evaluation of ensemble solution, estimated parameters.
 * `numensemble`: Number of last samples to take for creation of ensemble solution, estimated parameters.
 * `progress`: controls whether to show the progress meter or not.
-* `verbose`: controls the verbosity. (Sample call args in AHMC)
+* `verbose`: controls the verbosity. (Sample call args in AHMC).
 
-"""
-
-"""
-priors: pdf for W,b + pdf for PDE params
+## Warnings
+* AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
 """
 function ahmc_bayesian_pinn_pde(pde_system, discretization;
         draw_samples = 1000,
