@@ -1,6 +1,7 @@
 pages = ["index.md",
     "ODE PINN Tutorials" => Any["Introduction to NeuralPDE for ODEs" => "tutorials/ode.md",
-                                "Bayesian PINNs for Coupled ODEs" => "tutorials/Lotka_Volterra_BPINNs.md"
+                                "Bayesian PINNs for Coupled ODEs" => "tutorials/Lotka_Volterra_BPINNs.md",
+                                "PINNs DAEs" => "tutorials/dae.md"
                                 #"examples/nnrode_example.md", # currently incorrect
                                 ],
     "PDE PINN Tutorials" => Any["Introduction to NeuralPDE for PDEs" => "tutorials/pdesystem.md",
@@ -21,6 +22,7 @@ pages = ["index.md",
                                "examples/nonlinear_elliptic.md",
                                "examples/nonlinear_hyperbolic.md"],
     "Manual" => Any["manual/ode.md",
+                    "manual/dae.md",
                     "manual/pinns.md",
                     "manual/bpinns.md",
                     "manual/training_strategies.md",

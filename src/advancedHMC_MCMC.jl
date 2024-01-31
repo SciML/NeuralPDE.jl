@@ -329,27 +329,6 @@ function kernelchoice(Kernel, MCMCkwargs)
     end
 end
 
-function integratorchoice(Integratorkwargs, initial_ϵ)
-    Integrator = Integratorkwargs[:Integrator]
-    if Integrator == JitteredLeapfrog
-        jitter_rate = Integratorkwargs[:jitter_rate]
-        Integrator(initial_ϵ, jitter_rate)
-    elseif Integrator == TemperedLeapfrog
-        tempering_rate = Integratorkwargs[:tempering_rate]
-        Integrator(initial_ϵ, tempering_rate)
-    else
-        Integrator(initial_ϵ)
-    end
-end
-
-function adaptorchoice(Adaptor, mma, ssa)
-    if Adaptor != AdvancedHMC.NoAdaptation()
-        Adaptor(mma, ssa)
-    else
-        AdvancedHMC.NoAdaptation()
-    end
-end
-
 """
 ```julia
 ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining,
