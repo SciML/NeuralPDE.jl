@@ -148,7 +148,7 @@ end
     chain = Lux.Chain(Lux.Dense(dim, 9, Lux.σ), Lux.Dense(9, 9, Lux.σ), Lux.Dense(9, 1))
 
     # Discretization
-    dx = 0.05
+    dx = 0.04
     discretization = BayesianPINN([chain], GridTraining(dx))
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
@@ -166,7 +166,6 @@ end
 
     u_predict = pmean(sol1.ensemblesol[1])
     u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
-    diff_u = abs.(u_predict .- u_real)
     @test u_predict≈u_real atol=1.5
 end
 
@@ -189,7 +188,7 @@ end
     chain = Flux.Chain(Flux.Dense(1, 12, Flux.σ), Flux.Dense(12, 1))
 
     discretization = BayesianPINN([chain], GridTraining([0.01]))
-    @test discretization.chain isa Lux.AbstractExplicitLayer
+    @test discretization.chain[1] isa Lux.AbstractExplicitLayer
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
 
