@@ -27,19 +27,17 @@ function logscalar(logger, s::R, name::AbstractString, step::Integer) where {R <
 end
 
 """
-```julia
-PhysicsInformedNN(chain,
-                  strategy;
-                  init_params = nothing,
-                  phi = nothing,
-                  param_estim = false,
-                  additional_loss = nothing,
-                  adaptive_loss = nothing,
-                  logger = nothing,
-                  log_options = LogOptions(),
-                  iteration = nothing,
-                  kwargs...) where {iip}
-```
+    PhysicsInformedNN(chain,
+                    strategy;
+                    init_params = nothing,
+                    phi = nothing,
+                    param_estim = false,
+                    additional_loss = nothing,
+                    adaptive_loss = nothing,
+                    logger = nothing,
+                    log_options = LogOptions(),
+                    iteration = nothing,
+                    kwargs...)
 
 A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
 `PDESystem` into an `OptimizationProblem` using the Physics-Informed Neural Networks (PINN)
@@ -47,17 +45,16 @@ methodology.
 
 ## Positional Arguments
 
-* `chain`: a vector of Flux.jl or Lux.jl chains with a d-dimensional input and a
-  1-dimensional output corresponding to each of the dependent variables. Note that this
-  specification respects the order of the dependent variables as specified in the PDESystem.
+* `chain`: a vector of Lux/Flux chains with a d-dimensional input and a
+           1-dimensional output corresponding to each of the dependent variables. Note that this
+           specification respects the order of the dependent variables as specified in the PDESystem.
+           Flux chains will be converted to Lux internally using `Lux.transform`.
 * `strategy`: determines which training strategy will be used. See the Training Strategy
-  documentation for more details.
+              documentation for more details.
 
 ## Keyword Arguments
 
-* `init_params`: the initial parameters of the neural networks. This should match the
-  specification of the chosen `chain` library. For example, if a Flux.chain is used, then
-  `init_params` should match `Flux.destructure(chain)[1]` in shape. If `init_params` is not
+* `init_params`: the initial parameters of the neural networks. If `init_params` is not
   given, then the neural network default parameters are used. Note that for Lux, the default
   will convert to Float64.
 * `phi`: a trial solution, specified as `phi(x,p)` where `x` is the coordinates vector for
@@ -107,7 +104,11 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             iteration = nothing,
             kwargs...)
         multioutput = chain isa AbstractArray
-
+        if multioutput
+            !all(i -> i isa Lux.AbstractExplicitLayer, chain) && (chain = Lux.transform.(chain))
+        else
+            !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+        end
         if phi === nothing
             if multioutput
                 _phi = Phi.(chain)
@@ -115,6 +116,11 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                 _phi = Phi(chain)
             end
         else
+            if multioutput
+                all([phi.f[i] isa Lux.AbstractExplicitLayer for i in eachindex(phi.f)]) || throw(ArgumentError("Only Lux Chains are supported"))
+            else
+                (phi.f isa Lux.AbstractExplicitLayer) || throw(ArgumentError("Only Lux Chains are supported"))
+            end
             _phi = phi
         end
 
@@ -151,8 +157,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
 end
 
 """
-```julia
-BayesianPINN(chain,
+    BayesianPINN(chain,
                   strategy;
                   init_params = nothing,
                   phi = nothing,
@@ -163,8 +168,7 @@ BayesianPINN(chain,
                   log_options = LogOptions(),
                   iteration = nothing,
                   dataset = nothing,
-                  kwargs...) where {iip}
-```
+                  kwargs...)
 
 A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
 `PDESystem` into a likelihood function used for HMC based Posterior Sampling Algorithms [AdvancedHMC.jl](https://turinglang.org/AdvancedHMC.jl/stable/)
@@ -173,7 +177,7 @@ methodology.
 
 ## Positional Arguments
 
-* `chain`: a vector of Flux.jl or Lux.jl chains with a d-dimensional input and a
+* `chain`: a vector of Lux.jl chains with a d-dimensional input and a
   1-dimensional output corresponding to each of the dependent variables. Note that this
   specification respects the order of the dependent variables as specified in the PDESystem.
 * `strategy`: determines which training strategy will be used. See the Training Strategy
@@ -184,9 +188,7 @@ methodology.
 * `Dataset`: A vector of matrix, each matrix for ith dependant
   variable and first col in matrix is for dependant variables,
   remaining coloumns for independant variables. Needed for inverse problem solving.
-* `init_params`: the initial parameters of the neural networks. This should match the
-  specification of the chosen `chain` library. For example, if a Flux.chain is used, then
-  `init_params` should match `Flux.destructure(chain)[1]` in shape. If `init_params` is not
+* `init_params`: the initial parameters of the neural networks. If `init_params` is not
   given, then the neural network default parameters are used. Note that for Lux, the default
   will convert to Float64.
 * `phi`: a trial solution, specified as `phi(x,p)` where `x` is the coordinates vector for
@@ -238,7 +240,11 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
             dataset = nothing,
             kwargs...)
         multioutput = chain isa AbstractArray
-
+        if multioutput
+            !all(i -> i isa Lux.AbstractExplicitLayer, chain) && (chain = Lux.transform.(chain))
+        else
+            !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+        end
         if phi === nothing
             if multioutput
                 _phi = Phi.(chain)
@@ -246,6 +252,11 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
                 _phi = Phi(chain)
             end
         else
+            if multioutput
+                all([phi.f[i] isa Lux.AbstractExplicitLayer for i in eachindex(phi.f)]) || throw(ArgumentError("Only Lux Chains are supported"))
+            else
+                (phi.f isa Lux.AbstractExplicitLayer) || throw(ArgumentError("Only Lux Chains are supported"))
+            end
             _phi = phi
         end
 
@@ -380,9 +391,7 @@ mutable struct PINNRepresentation
     If `param_estim = true`, then `flat_init_params.p` are the parameters and
     `flat_init_params.depvar.x` are the neural network parameters, so
     `flat_init_params.depvar.x` would be the parameters of the neural network for the
-    dependent variable `x` if it's a system. If a Flux.jl neural network is used, this is
-    simply an `AbstractArray` to be indexed and the sizes from the chains must be
-    remembered/stored/used.
+    dependent variable `x` if it's a system.
     """
     flat_init_params::Any
     """
@@ -474,10 +483,8 @@ value at domain points x
 
 Fields:
 
-- `f`: A representation of the chain function. If FastChain, then `f(x,p)`,
-  if Chain then `f(p)(x)` (from Flux.destructure)
-- `st`: The state of the Lux.AbstractExplicitLayer. If a Flux.Chain then this is `nothing`.
-  It should be updated on each call.
+- `f`: A representation of the chain function.
+- `st`: The state of the Lux.AbstractExplicitLayer. It should be updated on each call.
 """
 mutable struct Phi{C, S}
     f::C
@@ -485,10 +492,6 @@ mutable struct Phi{C, S}
     function Phi(chain::Lux.AbstractExplicitLayer)
         st = Lux.initialstates(Random.default_rng(), chain)
         new{typeof(chain), typeof(st)}(chain, st)
-    end
-    function Phi(chain::Flux.Chain)
-        re = Flux.destructure(chain)[2]
-        new{typeof(re), Nothing}(re, nothing)
     end
 end
 

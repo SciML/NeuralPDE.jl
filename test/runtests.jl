@@ -5,10 +5,6 @@ const GROUP = get(ENV, "GROUP", "All")
 
 const is_APPVEYOR = Sys.iswindows() && haskey(ENV, "APPVEYOR")
 
-const is_TRAVIS = haskey(ENV, "TRAVIS")
-
-const is_CI = haskey(ENV, "CI")
-
 function dev_subpkg(subpkg)
     subpkg_path = joinpath(dirname(@__DIR__), "lib", subpkg)
     Pkg.develop(PackageSpec(path = subpkg_path))
@@ -63,7 +59,6 @@ end
         Pkg.test(PackageSpec(name = "NeuralPDELogging", path = subpkg_path))
     end
     if !is_APPVEYOR && GROUP == "GPU"
-        @safetestset "NNPDE_gpu" begin include("NNPDE_tests_gpu.jl") end
         @safetestset "NNPDE_gpu_Lux" begin include("NNPDE_tests_gpu_Lux.jl") end
     end
 end

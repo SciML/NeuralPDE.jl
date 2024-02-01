@@ -1,5 +1,5 @@
 """
-Build a loss function for a PDE or a boundary condition
+Build a loss function for a PDE or a boundary condition.
 
 # Examples: System of PDEs:
 
@@ -14,21 +14,6 @@ to
           #= ... =#
           #= ... =#
           begin
-              (θ1, θ2) = (θ[1:33], θ"[34:66])
-              (phi1, phi2) = (phi[1], phi[2])
-              let (x, y) = (cord[1], cord[2])
-                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, θ1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, θ2))) - 0,
-                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, θ2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, θ1))) - 0]
-              end
-          end
-      end)
-
-for Flux.Chain, and
-
-:((cord, θ, phi, derivative, u)->begin
-          #= ... =#
-          #= ... =#
-          begin
               (u1, u2) = (θ.depvar.u1, θ.depvar.u2)
               (phi1, phi2) = (phi[1], phi[2])
               let (x, y) = (cord[1], cord[2])
@@ -38,7 +23,7 @@ for Flux.Chain, and
           end
       end)
 
-for Lux.AbstractExplicitLayer
+for Lux.AbstractExplicitLayer.
 """
 function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                                       eq_params = SciMLBase.NullParameters(),
@@ -86,13 +71,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
 
         for i in eachindex(depvars)
-            if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-               (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-                # Flux.Chain
-                push!(expr_θ, :($θ[$(sep[i])]))
-            else # Lux.AbstractExplicitLayer
-                push!(expr_θ, :($θ.depvar.$(depvars[i])))
-            end
+            push!(expr_θ, :($θ.depvar.$(depvars[i])))
             push!(expr_phi, :(phi[$i]))
         end
 
@@ -105,17 +84,10 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
 
     #Add an expression for parameter symbols
     if param_estim == true && eq_params != SciMLBase.NullParameters()
-        param_len = length(eq_params)
-        last_indx = [0; accumulate(+, map(length, init_params))][end]
         params_symbols = Symbol[]
         expr_params = Expr[]
         for (i, eq_param) in enumerate(eq_params)
-            if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-               (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-                push!(expr_params, :($θ[$((i + last_indx):(i + last_indx))]))
-            else
-                push!(expr_params, :($θ.p[$((i):(i))]))
-            end
+            push!(expr_params, :($θ.p[$((i):(i))]))
             push!(params_symbols, Symbol(:($eq_param)))
         end
         params_eq = Expr(:(=), build_expr(:tuple, params_symbols),
@@ -156,7 +128,6 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
 
     if !(dict_transformation_vars isa Nothing)
         transformation_expr_ = Expr[]
-
         for (i, u) in dict_transformation_vars
             push!(transformation_expr_, :($i = $u))
         end
@@ -170,9 +141,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
 end
 
 """
-```julia
-build_loss_function(eqs, indvars, depvars, phi, derivative, init_params; bc_indvars=nothing)
-```
+    build_loss_function(eqs, indvars, depvars, phi, derivative, init_params; bc_indvars=nothing)
 
 Returns the body of loss function, which is the executable Julia function, for the main
 equation or boundary condition.
@@ -195,9 +164,7 @@ function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
 end
 
 """
-```julia
-generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
-```
+    generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
 
 Returns training sets for equations and boundary condition, that is used for GridTraining
 strategy.
@@ -265,9 +232,7 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
 end
 
 """
-```julia
-get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
-```
+    get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
 
 Returns pairs with lower and upper bounds for all domains. It is used for all non-grid
 training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
@@ -388,9 +353,7 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
 end
 
 """
-```julia
-prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
-```
+    prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
 
 `symbolic_discretize` is the lower level interface to `discretize` for inspecting internals.
 It transforms a symbolic description of a ModelingToolkit-defined `PDESystem` into a
@@ -426,63 +389,40 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     if init_params === nothing
         # Use the initialization of the neural network framework
         # But for Lux, default to Float64
-        # For Flux, default to the types matching the values in the neural network
         # This is done because Float64 is almost always better for these applications
-        # But with Flux there's already a chosen type from the user
-
         if chain isa AbstractArray
-            if chain[1] isa Flux.Chain
-                init_params = map(chain) do x
-                    _x = Flux.destructure(x)[1]
-                end
-            else
-                x = map(chain) do x
-                    _x = ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
-                                                                              x))
-                    Float64.(_x) # No ComponentArray GPU support
-                end
-                names = ntuple(i -> depvars[i], length(chain))
-                init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
-                                                                               for i in x))
+            x = map(chain) do x
+                _x = ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
+                                                                          x))
+                Float64.(_x) # No ComponentArray GPU support
             end
+            names = ntuple(i -> depvars[i], length(chain))
+            init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
+                                                                           for i in x))
         else
-            if chain isa Flux.Chain
-                init_params = Flux.destructure(chain)[1]
-                init_params = init_params isa Array ? Float64.(init_params) :
-                              init_params
-            else
-                init_params = Float64.(ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
+            init_params = Float64.(ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
                                                                                             chain)))
-            end
         end
     else
         init_params = init_params
     end
 
-    if (discretization.phi isa Vector && discretization.phi[1].f isa Optimisers.Restructure) ||
-       (!(discretization.phi isa Vector) && discretization.phi.f isa Optimisers.Restructure)
-        # Flux.Chain
-        flat_init_params = multioutput ? reduce(vcat, init_params) : init_params
-        flat_init_params = param_estim == false ? flat_init_params :
-                           vcat(flat_init_params,
-                                adapt(typeof(flat_init_params), default_p))
+    flat_init_params = if init_params isa ComponentArrays.ComponentArray
+        init_params
+    elseif multioutput
+        @assert length(init_params) == length(depvars)
+        names = ntuple(i -> depvars[i], length(init_params))
+        x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in init_params))
     else
-        flat_init_params = if init_params isa ComponentArrays.ComponentArray
-            init_params
-        elseif multioutput
-            @assert length(init_params) == length(depvars)
-            names = ntuple(i -> depvars[i], length(init_params))
-            x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in init_params))
-        else
-            ComponentArrays.ComponentArray(init_params)
-        end
-        flat_init_params = if param_estim == false && multioutput
-            ComponentArrays.ComponentArray(; depvar = flat_init_params)
-        elseif param_estim == false && !multioutput
-            flat_init_params
-        else
-            ComponentArrays.ComponentArray(; depvar = flat_init_params, p = default_p)
-        end
+        ComponentArrays.ComponentArray(init_params)
+    end
+
+    flat_init_params = if param_estim == false && multioutput
+        ComponentArrays.ComponentArray(; depvar = flat_init_params)
+    elseif param_estim == false && !multioutput
+        flat_init_params
+    else
+        ComponentArrays.ComponentArray(; depvar = flat_init_params, p = default_p)
     end
 
     eltypeθ = eltype(flat_init_params)
@@ -615,13 +555,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             else
                 function _additional_loss(phi, θ)
                     (θ_, p_) = if (param_estim == true)
-                        if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-                        (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-                            # Isa Flux Chain
-                            θ[1:(end - length(default_p))], θ[(end - length(default_p) + 1):end]
-                        else
-                            θ.depvar, θ.p
-                        end
+                        θ.depvar, θ.p
                     else
                         θ, nothing
                     end
@@ -731,14 +665,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             else
                 function _additional_loss(phi, θ)
                     (θ_, p_) = if (param_estim == true)
-                        if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-                        (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-                            # Isa Flux Chain
-                            θ[1:(end - length(default_p))],
-                            θ[(end - length(default_p) + 1):end]
-                        else
-                            θ.depvar, θ.p
-                        end
+                        θ.depvar, θ.p
                     else
                         θ, nothing
                     end
@@ -771,9 +698,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 end
 
 """
-```julia
-prob = discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-```
+    prob = discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
 
 Transforms a symbolic description of a ModelingToolkit-defined `PDESystem` and generates
 an `OptimizationProblem` for [Optimization.jl](https://docs.sciml.ai/Optimization/stable/) whose

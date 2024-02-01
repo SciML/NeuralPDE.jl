@@ -1,11 +1,9 @@
 """
-```julia
-NNDAE(chain,
-    OptimizationOptimisers.Adam(0.1),
-    init_params = nothing;
-    autodiff = false,
-    kwargs...)
-```
+    NNDAE(chain,
+        OptimizationOptimisers.Adam(0.1),
+        init_params = nothing;
+        autodiff = false,
+        kwargs...)
 
 Algorithm for solving differential algebraic equationsusing a neural network. This is a specialization
 of the physics-informed neural network which is used as a solver for a standard `DAEProblem`.
@@ -24,6 +22,7 @@ of the physics-informed neural network which is used as a solver for a standard 
   which thus uses the random initialization provided by the neural network library.
 
 ## Keyword Arguments
+
 * `autodiff`: The switch between automatic(not supported yet) and numerical differentiation for
               the PDE operators. The reverse mode of the loss function is always
               automatic differentiation (via Zygote), this is only for the derivative
@@ -43,10 +42,11 @@ end
 
 function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         kwargs...)
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
 end
 
-function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_vars)
+function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_vars::AbstractVector)
     if autodiff
         autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
     else
@@ -64,7 +64,7 @@ function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_v
 end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
-        p, differential_vars) where {C, T, U}
+        p, differential_vars::AbstractVector) where {C, T, U}
     out = Array(phi(t, θ))
     dphi = Array(dfdx(phi, t, θ, autodiff, differential_vars))
     arrt = Array(t)
@@ -73,7 +73,7 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
 end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
-        differential_vars)
+        differential_vars::AbstractVector)
     ts = tspan[1]:(strategy.dx):tspan[2]
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     function loss(θ, _)
