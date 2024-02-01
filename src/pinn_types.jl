@@ -116,7 +116,11 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
                 _phi = Phi(chain)
             end
         else
-            !(phi.f isa Lux.AbstractExplicitLayer) && throw(ArgumentError("Only Lux Chains are supported"))
+            if multioutput
+                all([phi.f[i] isa Lux.AbstractExplicitLayer for i in eachindex(phi.f)]) || throw(ArgumentError("Only Lux Chains are supported"))
+            else
+                (phi.f isa Lux.AbstractExplicitLayer) || throw(ArgumentError("Only Lux Chains are supported"))
+            end
             _phi = phi
         end
 
