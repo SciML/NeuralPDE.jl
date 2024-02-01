@@ -1,5 +1,5 @@
 """
-Build a loss function for a PDE or a boundary condition
+Build a loss function for a PDE or a boundary condition.
 
 # Examples: System of PDEs:
 
@@ -23,7 +23,7 @@ to
           end
       end)
 
-for Lux.AbstractExplicitLayer
+for Lux.AbstractExplicitLayer.
 """
 function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
                                       eq_params = SciMLBase.NullParameters(),
@@ -141,9 +141,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
 end
 
 """
-```julia
-build_loss_function(eqs, indvars, depvars, phi, derivative, init_params; bc_indvars=nothing)
-```
+    build_loss_function(eqs, indvars, depvars, phi, derivative, init_params; bc_indvars=nothing)
 
 Returns the body of loss function, which is the executable Julia function, for the main
 equation or boundary condition.
@@ -166,9 +164,7 @@ function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
 end
 
 """
-```julia
-generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
-```
+    generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
 
 Returns training sets for equations and boundary condition, that is used for GridTraining
 strategy.
@@ -236,9 +232,7 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
 end
 
 """
-```julia
-get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
-```
+    get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
 
 Returns pairs with lower and upper bounds for all domains. It is used for all non-grid
 training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
@@ -359,9 +353,7 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
 end
 
 """
-```julia
-prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
-```
+    prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
 
 `symbolic_discretize` is the lower level interface to `discretize` for inspecting internals.
 It transforms a symbolic description of a ModelingToolkit-defined `PDESystem` into a
@@ -706,9 +698,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 end
 
 """
-```julia
-prob = discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-```
+    prob = discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
 
 Transforms a symbolic description of a ModelingToolkit-defined `PDESystem` and generates
 an `OptimizationProblem` for [Optimization.jl](https://docs.sciml.ai/Optimization/stable/) whose

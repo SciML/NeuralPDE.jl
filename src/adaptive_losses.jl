@@ -12,11 +12,9 @@ end
 
 # Dispatches
 """
-```julia
-NonAdaptiveLoss{T}(; pde_loss_weights = 1,
-                     bc_loss_weights = 1,
-                     additional_loss_weights = 1)
-```
+    NonAdaptiveLoss(; pde_loss_weights = 1.0,
+                      bc_loss_weights = 1.0,
+                      additional_loss_weights = 1.0)
 
 A way of loss weighting the components of the loss function in the total sum that does not
 change during optimization
@@ -25,9 +23,9 @@ mutable struct NonAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     pde_loss_weights::Vector{T}
     bc_loss_weights::Vector{T}
     additional_loss_weights::Vector{T}
-    SciMLBase.@add_kwonly function NonAdaptiveLoss{T}(; pde_loss_weights = 1,
-                                                      bc_loss_weights = 1,
-                                                      additional_loss_weights = 1) where {
+    SciMLBase.@add_kwonly function NonAdaptiveLoss{T}(; pde_loss_weights = 1.0,
+                                                      bc_loss_weights = 1.0,
+                                                      additional_loss_weights = 1.0) where {
                                                                                           T <:
                                                                                           Real
                                                                                           }
@@ -37,8 +35,8 @@ mutable struct NonAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
 end
 
 # default to Float64
-SciMLBase.@add_kwonly function NonAdaptiveLoss(; pde_loss_weights = 1, bc_loss_weights = 1,
-                                               additional_loss_weights = 1)
+SciMLBase.@add_kwonly function NonAdaptiveLoss(; pde_loss_weights = 1.0, bc_loss_weights = 1.0,
+                                               additional_loss_weights = 1.0)
     NonAdaptiveLoss{Float64}(; pde_loss_weights = pde_loss_weights,
                              bc_loss_weights = bc_loss_weights,
                              additional_loss_weights = additional_loss_weights)
@@ -53,17 +51,14 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
 end
 
 """
-```julia
-GradientScaleAdaptiveLoss(reweight_every;
-                          weight_change_inertia = 0.9,
-                          pde_loss_weights = 1,
-                          bc_loss_weights = 1,
-                          additional_loss_weights = 1)
-```
+    GradientScaleAdaptiveLoss(reweight_every;
+                            weight_change_inertia = 0.9,
+                            pde_loss_weights = 1.0,
+                            bc_loss_weights = 1.0,
+                            additional_loss_weights = 1.0)
 
 A way of adaptively reweighting the components of the loss function in the total sum such
-that BC_i loss weights are scaled by the exponential moving average of
-max(|∇pde_loss|)/mean(|∇bc_i_loss|) )
+that BC_i loss weights are scaled by the exponential moving average of max(|∇pde_loss|) / mean(|∇bc_i_loss|)).
 
 ## Positional Arguments
 
@@ -93,9 +88,9 @@ mutable struct GradientScaleAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     additional_loss_weights::Vector{T}
     SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss{T}(reweight_every;
                                                                 weight_change_inertia = 0.9,
-                                                                pde_loss_weights = 1,
-                                                                bc_loss_weights = 1,
-                                                                additional_loss_weights = 1) where {
+                                                                pde_loss_weights = 1.0,
+                                                                bc_loss_weights = 1.0,
+                                                                additional_loss_weights = 1.0) where {
                                                                                                     T <:
                                                                                                     Real
                                                                                                     }
@@ -107,9 +102,9 @@ end
 # default to Float64
 SciMLBase.@add_kwonly function GradientScaleAdaptiveLoss(reweight_every;
                                                          weight_change_inertia = 0.9,
-                                                         pde_loss_weights = 1,
-                                                         bc_loss_weights = 1,
-                                                         additional_loss_weights = 1)
+                                                         pde_loss_weights = 1.0,
+                                                         bc_loss_weights = 1.0,
+                                                         additional_loss_weights = 1.0)
     GradientScaleAdaptiveLoss{Float64}(reweight_every;
                                        weight_change_inertia = weight_change_inertia,
                                        pde_loss_weights = pde_loss_weights,
@@ -156,18 +151,16 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
 end
 
 """
-```julia
-function MiniMaxAdaptiveLoss(reweight_every;
-                             pde_max_optimiser = OptimizationOptimisers.Adam(1e-4),
-                             bc_max_optimiser = OptimizationOptimisers.Adam(0.5),
-                             pde_loss_weights = 1,
-                             bc_loss_weights = 1,
-                             additional_loss_weights = 1)
-```
+    function MiniMaxAdaptiveLoss(reweight_every;
+                                pde_max_optimiser = OptimizationOptimisers.Adam(1e-4),
+                                bc_max_optimiser = OptimizationOptimisers.Adam(0.5),
+                                pde_loss_weights = 1,
+                                bc_loss_weights = 1,
+                                additional_loss_weights = 1)
 
 A way of adaptively reweighting the components of the loss function in the total sum such
 that the loss weights are maximized by an internal optimizer, which leads to a behavior
-where loss functions that have not been satisfied get a greater weight,
+where loss functions that have not been satisfied get a greater weight.
 
 ## Positional Arguments
 
@@ -202,9 +195,9 @@ mutable struct MiniMaxAdaptiveLoss{T <: Real,
                                                        PDE_OPT, BC_OPT}(reweight_every;
                                                                         pde_max_optimiser = OptimizationOptimisers.Adam(1e-4),
                                                                         bc_max_optimiser = OptimizationOptimisers.Adam(0.5),
-                                                                        pde_loss_weights = 1,
-                                                                        bc_loss_weights = 1,
-                                                                        additional_loss_weights = 1) where {
+                                                                        pde_loss_weights = 1.0,
+                                                                        bc_loss_weights = 1.0,
+                                                                        additional_loss_weights = 1.0) where {
                                                                                                             T <:
                                                                                                             Real,
                                                                                                             PDE_OPT,
@@ -221,9 +214,9 @@ end
 SciMLBase.@add_kwonly function MiniMaxAdaptiveLoss(reweight_every;
                                                    pde_max_optimiser = OptimizationOptimisers.Adam(1e-4),
                                                    bc_max_optimiser = OptimizationOptimisers.Adam(0.5),
-                                                   pde_loss_weights = 1,
-                                                   bc_loss_weights = 1,
-                                                   additional_loss_weights = 1)
+                                                   pde_loss_weights = 1.0,
+                                                   bc_loss_weights = 1.0,
+                                                   additional_loss_weights = 1.0)
     MiniMaxAdaptiveLoss{Float64, typeof(pde_max_optimiser),
                         typeof(bc_max_optimiser)}(reweight_every;
                                                   pde_max_optimiser = pde_max_optimiser,

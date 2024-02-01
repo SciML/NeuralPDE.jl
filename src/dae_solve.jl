@@ -1,11 +1,9 @@
 """
-```julia
-NNDAE(chain,
-    OptimizationOptimisers.Adam(0.1),
-    init_params = nothing;
-    autodiff = false,
-    kwargs...)
-```
+    NNDAE(chain,
+        OptimizationOptimisers.Adam(0.1),
+        init_params = nothing;
+        autodiff = false,
+        kwargs...)
 
 Algorithm for solving differential algebraic equationsusing a neural network. This is a specialization
 of the physics-informed neural network which is used as a solver for a standard `DAEProblem`.
@@ -24,6 +22,7 @@ of the physics-informed neural network which is used as a solver for a standard 
   which thus uses the random initialization provided by the neural network library.
 
 ## Keyword Arguments
+
 * `autodiff`: The switch between automatic(not supported yet) and numerical differentiation for
               the PDE operators. The reverse mode of the loss function is always
               automatic differentiation (via Zygote), this is only for the derivative

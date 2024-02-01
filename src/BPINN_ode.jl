@@ -72,11 +72,10 @@ is an accurate interpolation (up to the neural network training result). In addi
 ## References
 
 Liu Yanga, Xuhui Menga, George Em Karniadakis. "B-PINNs: Bayesian Physics-Informed Neural Networks for
-Forward and Inverse PDE Problems with Noisy Data"
+Forward and Inverse PDE Problems with Noisy Data".
 
-Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, Ellen Kuhl. 
-"Bayesian Physics Informed Neural Networks for real-world nonlinear dynamical systems"
-
+Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, Ellen Kuhl
+"Bayesian Physics Informed Neural Networks for real-world nonlinear dynamical systems".
 """
 struct BNNODE{C, K, IT <: NamedTuple,
     A <: NamedTuple, H <: NamedTuple,

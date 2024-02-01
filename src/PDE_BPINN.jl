@@ -254,17 +254,20 @@ end
             Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
             numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)               
 
-## NOTES 
+## NOTES
+
 * Dataset is required for accurate Parameter estimation + solving equations.
 * Returned solution is a BPINNsolution consisting of Ensemble solution, estimated PDE and NN parameters
   for chosen `saveats` grid spacing and last n = `numensemble` samples in Chain. the complete set of samples
   in the MCMC chain is returned as `fullsolution`,  refer `BPINNsolution` for more details.
 
 ## Positional Arguments
+
 * `pde_system`: ModelingToolkit defined PDE equation or system of equations.
 * `discretization`: BayesianPINN discretization for the given pde_system, Neural Network and training strategy.
 
 ## Keyword Arguments
+
 * `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
 * `bcstd`: Vector of standard deviations of BPINN prediction against Initial/Boundary Condition equations.
 * `l2std`: Vector of standard deviations of BPINN prediction against L2 losses/Dataset for each dependant variable of interest.
@@ -282,6 +285,7 @@ end
 * `verbose`: controls the verbosity. (Sample call args in AHMC).
 
 ## Warnings
+
 * AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
 """
 function ahmc_bayesian_pinn_pde(pde_system, discretization;

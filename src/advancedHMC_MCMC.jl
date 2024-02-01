@@ -65,8 +65,8 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
 end
 
 """
-function needed for converting vector of sampled parameters into ComponentVector in case of Lux chain output, derivatives
-the sampled parameters are of exotic type `Dual` due to ForwardDiff's autodiff tagging
+Function needed for converting vector of sampled parameters into ComponentVector in case of Lux chain output, derivatives
+the sampled parameters are of exotic type `Dual` due to ForwardDiff's autodiff tagging.
 """
 function vector_to_parameters(ps_new::AbstractVector,
         ps::Union{NamedTuple, ComponentArrays.ComponentVector})
@@ -93,7 +93,7 @@ function LogDensityProblems.capabilities(::LogTargetDensity)
 end
 
 """
-L2 loss loglikelihood(needed for ODE parameter estimation)
+L2 loss loglikelihood(needed for ODE parameter estimation).
 """
 function L2LossData(Tar::LogTargetDensity, θ)
     # check if dataset is provided
@@ -116,7 +116,7 @@ function L2LossData(Tar::LogTargetDensity, θ)
 end
 
 """
-physics loglikelihood over problem timespan + dataset timepoints
+Physics loglikelihood over problem timespan + dataset timepoints.
 """
 function physloglikelihood(Tar::LogTargetDensity, θ)
     f = Tar.prob.f
@@ -214,7 +214,7 @@ function getlogpdf(strategy::WeightedIntervalTraining, Tar::LogTargetDensity, f,
 end
 
 """
-MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN with parameters θ 
+MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN with parameters θ.
 """
 function innerdiff(Tar::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, θ,
     ode_params)
@@ -253,7 +253,7 @@ function innerdiff(Tar::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, 
 end
 
 """
-prior logpdf for NN parameters + ODE constants
+Prior logpdf for NN parameters + ODE constants.
 """
 function priorweights(Tar::LogTargetDensity, θ)
     allparams = Tar.priors
@@ -286,7 +286,7 @@ function generate_Tar(chain::Lux.AbstractExplicitLayer, init_params::Nothing)
 end
 
 """
-nn OUTPUT AT t,θ ~ phi(t,θ)
+NN OUTPUT AT t,θ ~ phi(t,θ).
 """
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
     θ) where {C <: Lux.AbstractExplicitLayer, S}
@@ -305,7 +305,7 @@ function (f::LogTargetDensity{C, S})(t::Number,
 end
 
 """
-similar to ode_dfdx() in NNODE/ode_solve.jl
+Similar to ode_dfdx() in NNODE.
 """
 function NNodederi(phi::LogTargetDensity, t::AbstractVector, θ, autodiff::Bool)
     if autodiff
@@ -330,18 +330,18 @@ function kernelchoice(Kernel, MCMCkwargs)
 end
 
 """
-```julia
-ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining,
-                    dataset = [nothing],init_params = nothing, 
-                    draw_samples = 1000, physdt = 1 / 20.0f0,l2std = [0.05],
-                    phystd = [0.05], priorsNNw = (0.0, 2.0),
-                    param = [], nchains = 1, autodiff = false, Kernel = HMC,
-                    Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-                        Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
-                    Integratorkwargs = (Integrator = Leapfrog,),
-                    MCMCkwargs = (n_leapfrog = 30,),
-                    progress = false, verbose = false)
-```
+    ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining,
+                        dataset = [nothing],init_params = nothing, 
+                        draw_samples = 1000, physdt = 1 / 20.0f0,l2std = [0.05],
+                        phystd = [0.05], priorsNNw = (0.0, 2.0),
+                        param = [], nchains = 1, autodiff = false, Kernel = HMC,
+                        Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+                                         Metric = DiagEuclideanMetric, 
+                                         targetacceptancerate = 0.8),
+                        Integratorkwargs = (Integrator = Leapfrog,),
+                        MCMCkwargs = (n_leapfrog = 30,),
+                        progress = false, verbose = false)
+
 !!! warn
 
     Note that ahmc_bayesian_pinn_ode() only supports ODEs which are written in the out-of-place form, i.e.
@@ -349,24 +349,26 @@ ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining,
     will exit with an error.
 
 ## Example
+
+```julia
 linear = (u, p, t) -> -u / p[1] + exp(t / p[2]) * cos(t)
 tspan = (0.0, 10.0)
 u0 = 0.0
 p = [5.0, -5.0]
 prob = ODEProblem(linear, u0, tspan, p)
 
-# CREATE DATASET (Necessity for accurate Parameter estimation)
+### CREATE DATASET (Necessity for accurate Parameter estimation)
 sol = solve(prob, Tsit5(); saveat = 0.05)
 u = sol.u[1:100]
 time = sol.t[1:100]
 
-# dataset and BPINN create
+### dataset and BPINN create
 x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
 dataset = [x̂, time]
 
 chain1 = Lux.Chain(Lux.Dense(1, 5, tanh), Lux.Dense(5, 5, tanh), Lux.Dense(5, 1)
 
-# simply solving ode here hence better to not pass dataset(uses ode params specified in prob)
+### simply solving ode here hence better to not pass dataset(uses ode params specified in prob)
 fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chain1,
                                                             dataset = dataset,
                                                             draw_samples = 1500,
@@ -374,7 +376,7 @@ fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chain1,
                                                             phystd = [0.05],
                                                             priorsNNw = (0.0,3.0))
 
-# solving ode + estimating parameters hence dataset needed to optimize parameters upon + Pior Distributions for ODE params
+### solving ode + estimating parameters hence dataset needed to optimize parameters upon + Pior Distributions for ODE params
 fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chain1,
                                                             dataset = dataset,
                                                             draw_samples = 1500,
@@ -382,16 +384,20 @@ fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chain1,
                                                             phystd = [0.05],
                                                             priorsNNw = (0.0,3.0),
                                                             param = [Normal(6.5,0.5), Normal(-3,0.5)])
+```
 
-## NOTES 
+## NOTES
+
 Dataset is required for accurate Parameter estimation + solving equations
 Incase you are only solving the Equations for solution, do not provide dataset
 
 ## Positional Arguments
-* `prob`: DEProblem(out of place and the function signature should be f(u,p,t)
-* `chain`: Lux Neural Netork which would be made the Bayesian PINN
+
+* `prob`: DEProblem(out of place and the function signature should be f(u,p,t).
+* `chain`: Lux Neural Netork which would be made the Bayesian PINN.
 
 ## Keyword Arguments
+
 * `strategy`: The training strategy used to choose the points for the evaluations. By default GridTraining is used with given physdt discretization.
 * `init_params`: intial parameter values for BPINN (ideally for multiple chains different initializations preferred)
 * `nchains`: number of chains you want to sample
@@ -417,6 +423,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
 * `verbose`: controls the verbosity. (Sample call args in AHMC)
 
 ## Warnings
+
 * AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
 """
 function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
