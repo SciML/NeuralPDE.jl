@@ -290,37 +290,15 @@ function generate_Tar(chain::Lux.AbstractExplicitLayer, init_params::Nothing)
     return θ, chain, st
 end
 
-function generate_Tar(chain::Flux.Chain, init_params)
-    θ, re = Flux.destructure(chain)
-    return init_params, re, nothing
-end
-
-function generate_Tar(chain::Flux.Chain, init_params::Nothing)
-    θ, re = Flux.destructure(chain)
-    # find_good_stepsize,phasepoint takes only float64
-    return θ, re, nothing
-end
-
 """
 nn OUTPUT AT t,θ ~ phi(t,θ)
 """
-function (f::LogTargetDensity{C, S})(t::AbstractVector,
-    θ) where {C <: Optimisers.Restructure, S}
-    f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* f.chain(θ)(adapt(parameterless_type(θ), t'))
-end
-
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
     θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* y
-end
-
-function (f::LogTargetDensity{C, S})(t::Number,
-    θ) where {C <: Optimisers.Restructure, S}
-    #  must handle paired odes hence u0 broadcasted
-    f.prob.u0 .+ (t - f.prob.tspan[1]) * f.chain(θ)(adapt(parameterless_type(θ), [t]))
 end
 
 function (f::LogTargetDensity{C, S})(t::Number,
