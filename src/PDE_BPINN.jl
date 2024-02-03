@@ -179,36 +179,22 @@ function setparameters(Tar::PDELogTargetDensity, θ)
     ps_new = θ[1:(end - Tar.extraparams)]
     ps = Tar.init_params
 
-    if (ps[names[1]] isa ComponentArrays.ComponentVector)
-        # multioutput case for Lux chains, for each depvar ps would contain Lux ComponentVectors
-        # which we use for mapping current ahmc sampled vector of parameters onto NNs
+    # multioutput case for Lux chains, for each depvar ps would contain Lux ComponentVectors
+    # which we use for mapping current ahmc sampled vector of parameters onto NNs
+    i = 0
+    Luxparams = [vector_to_parameters(ps_new[((i += length(ps[x])) - length(ps[x]) + 1):i],
+        ps[x]) for x in names]
 
-        i = 0
-        Luxparams = [vector_to_parameters(ps_new[((i += length(ps[x])) - length(ps[x]) + 1):i],
-            ps[x]) for x in names]
+    a = ComponentArrays.ComponentArray(NamedTuple{Tar.names}(i for i in Luxparams))
 
+    if Tar.extraparams > 0
+        b = θ[(end - Tar.extraparams + 1):end]
+        return ComponentArrays.ComponentArray(;
+            depvar = a,
+            p = b)
     else
-        # multioutput Flux
-        Luxparams = θ
-    end
-
-    if (Luxparams isa AbstractVector) && (Luxparams[1] isa ComponentArrays.ComponentVector)
-        # multioutput Lux
-        a = ComponentArrays.ComponentArray(NamedTuple{Tar.names}(i for i in Luxparams))
-
-        if Tar.extraparams > 0
-            b = θ[(end - Tar.extraparams + 1):end]
-
-            return ComponentArrays.ComponentArray(;
-                depvar = a,
-                p = b)
-        else
-            return ComponentArrays.ComponentArray(;
-                depvar = a)
-        end
-    else
-        # multioutput fLux case
-        return vector_to_parameters(Luxparams, ps)
+        return ComponentArrays.ComponentArray(;
+            depvar = a)
     end
 end
 
@@ -240,33 +226,18 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
     # dataset[i][:, 1] -> depvar col of depvar's dataset
 
     if Tar.extraparams > 0
-        if Tar.init_params isa ComponentArrays.ComponentVector
-            for i in eachindex(Φ)
-                sumt += logpdf(MvNormal(Φ[i](dataset[i][:, 2:end]',
-                            vector_to_parameters(θ[1:(end - Tar.extraparams)],
-                                init_params)[Tar.names[i]])[1,
-                            :],
-                        LinearAlgebra.Diagonal(abs2.(ones(size(dataset[i])[1]) .*
-                                                     L2stds[i]))),
-                    dataset[i][:, 1])
-            end
-            sumt
-        else
-            # Flux case needs subindexing wrt Tar.names indices(hence stored in Tar.names)
-            for i in eachindex(Φ)
-                sumt += logpdf(MvNormal(Φ[i](dataset[i][:, 2:end]',
-                            vector_to_parameters(θ[1:(end - Tar.extraparams)],
-                                init_params)[Tar.names[2][i]])[1,
-                            :],
-                        LinearAlgebra.Diagonal(abs2.(ones(size(dataset[i])[1]) .*
-                                                     L2stds[i]))),
-                    dataset[i][:, 1])
-            end
-            sumt
+        for i in eachindex(Φ)
+            sumt += logpdf(MvNormal(Φ[i](dataset[i][:, 2:end]',
+                        vector_to_parameters(θ[1:(end - Tar.extraparams)],
+                            init_params)[Tar.names[i]])[1,
+                        :],
+                    LinearAlgebra.Diagonal(abs2.(ones(size(dataset[i])[1]) .*
+                                                 L2stds[i]))),
+                dataset[i][:, 1])
         end
-    else
-        return 0
+        return sumt
     end
+    return 0
 end
 
 # priors for NN parameters + ODE constants
@@ -284,10 +255,9 @@ function priorlogpdf(Tar::PDELogTargetDensity, θ)
 
         return (invlogpdf
                 +
-                logpdf(nnwparams, θ[1:(length(θ) - Tar.extraparams)]))
-    else
-        return logpdf(nnwparams, θ)
+                logpdf(nnwparams, θ[1:(length(θ) - Tar.extraparams)])) 
     end
+    return logpdf(nnwparams, θ)
 end
 
 function inference(samples, pinnrep, saveats, numensemble, ℓπ)
@@ -324,56 +294,34 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
                             for i in (nnparams + 1):(nnparams + ninv)]
     end
 
-    # names is an indicator of type of chain
-    if names[1] != 1
-        # getting parameter ranges in case of Lux chains
-        Luxparams = []
-        i = 0
-        for x in names
-            len = length(initial_nnθ[x])
-            push!(Luxparams, (i + 1):(i + len))
-            i += len
-        end
-
-        # convert to format directly usable by lux
-        estimatedLuxparams = [vector_to_parameters(estimnnparams[Luxparams[i]],
-            initial_nnθ[names[i]]) for i in eachindex(phi)]
-
-        # infer predictions(preds) each row - NN, each col - ith sample
-        samplesn = reduce(hcat, samples)
-        preds = []
-        for j in eachindex(phi)
-            push!(preds,
-                [phi[j](timepoints[j],
-                    vector_to_parameters(samplesn[:, i][Luxparams[j]],
-                        initial_nnθ[names[j]])) for i in 1:numensemble])
-        end
-
-        # note here no of samples referse to numensemble and points is the no of points in each dep_vars discretization
-        # each phi will give output in single domain of depvar(so we have each row as a vector of vector outputs)
-        # so we get after reduce a single matrix of n rows(samples), and j cols(points)
-        ensemblecurves = [Particles(reduce(vcat, preds[i])) for i in eachindex(phi)]
-
-        return ensemblecurves, estimatedLuxparams, estimated_params, timepoints
-    else
-        # get intervals for parameters corresponding to flux chains
-        Fluxparams = names[2]
-
-        # convert to format directly usable by Flux
-        estimatedFluxparams = [estimnnparams[Fluxparams[i]] for i in eachindex(phi)]
-
-        # infer predictions(preds) each row - NN, each col - ith sample
-        samplesn = reduce(hcat, samples)
-        preds = []
-        for j in eachindex(phi)
-            push!(preds,
-                [phi[j](timepoints[j], samplesn[:, i][Fluxparams[j]]) for i in 1:numensemble])
-        end
-
-        ensemblecurves = [Particles(reduce(vcat, preds[i])) for i in eachindex(phi)]
-
-        return ensemblecurves, estimatedFluxparams, estimated_params, timepoints
+    # getting parameter ranges in case of Lux chains
+    Luxparams = []
+    i = 0
+    for x in names
+        len = length(initial_nnθ[x])
+        push!(Luxparams, (i + 1):(i + len))
+        i += len
     end
+
+    # convert to format directly usable by lux
+    estimatedLuxparams = [vector_to_parameters(estimnnparams[Luxparams[i]],
+        initial_nnθ[names[i]]) for i in eachindex(phi)]
+
+    # infer predictions(preds) each row - NN, each col - ith sample
+    samplesn = reduce(hcat, samples)
+    preds = []
+    for j in eachindex(phi)
+        push!(preds,
+            [phi[j](timepoints[j],
+                vector_to_parameters(samplesn[:, i][Luxparams[j]],
+                    initial_nnθ[names[j]])) for i in 1:numensemble])
+    end
+
+    # note here no of samples referse to numensemble and points is the no of points in each dep_vars discretization
+    # each phi will give output in single domain of depvar(so we have each row as a vector of vector outputs)
+    # so we get after reduce a single matrix of n rows(samples), and j cols(points)
+    ensemblecurves = [Particles(reduce(vcat, preds[i])) for i in eachindex(phi)]
+    return ensemblecurves, estimatedLuxparams, estimated_params, timepoints
 end
 
 function integratorchoice(Integratorkwargs, initial_ϵ)
@@ -398,50 +346,49 @@ function adaptorchoice(Adaptor, mma, ssa)
 end
 
 """
-```julia
-ahmc_bayesian_pinn_pde(pde_system, discretization;
-        draw_samples = 1000,
-        bcstd = [0.01], l2std = [0.05],
-        phystd = [0.05], priorsNNw = (0.0, 2.0),
-        param = [], nchains = 1, Kernel = HMC(0.1, 30),
-        Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
-        Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
-        numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)               
-```
-## NOTES 
+    ahmc_bayesian_pinn_pde(pde_system, discretization;
+            draw_samples = 1000,
+            bcstd = [0.01], l2std = [0.05],
+            phystd = [0.05], priorsNNw = (0.0, 2.0),
+            param = [], nchains = 1, Kernel = HMC(0.1, 30),
+            Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+                Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
+            Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
+            numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)               
+
+## NOTES
+
 * Dataset is required for accurate Parameter estimation + solving equations.
 * Returned solution is a BPINNsolution consisting of Ensemble solution, estimated PDE and NN parameters
   for chosen `saveats` grid spacing and last n = `numensemble` samples in Chain. the complete set of samples
   in the MCMC chain is returned as `fullsolution`,  refer `BPINNsolution` for more details.
 
 ## Positional Arguments
+
 * `pde_system`: ModelingToolkit defined PDE equation or system of equations.
 * `discretization`: BayesianPINN discretization for the given pde_system, Neural Network and training strategy.
 
 ## Keyword Arguments
+
 * `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
 * `bcstd`: Vector of standard deviations of BPINN prediction against Initial/Boundary Condition equations.
 * `l2std`: Vector of standard deviations of BPINN prediction against L2 losses/Dataset for each dependant variable of interest.
 * `phystd`: Vector of standard deviations of BPINN prediction against Chosen Underlying PDE equations.
 * `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of BPINN are Normal Distributions by default.
 * `param`: Vector of chosen PDE's parameter's Distributions in case of Inverse problems.
-* `nchains`: number of chains you want to sample
-
-# AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
-* `Kernel`: Choice of MCMC Sampling Algorithm object HMC/NUTS/HMCDA (AdvancedHMC.jl implemenations ).
+* `nchains`: number of chains you want to sample.
+* `Kernel`: Choice of MCMC Sampling Algorithm object HMC/NUTS/HMCDA (AdvancedHMC.jl implementations).
 * `Adaptorkwargs`: `Adaptor`, `Metric`, `targetacceptancerate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
-   Note: Target percentage(in decimal) of iterations in which the proposals are accepted (0.8 by default)
+   Note: Target percentage(in decimal) of iterations in which the proposals are accepted (0.8 by default).
 * `Integratorkwargs`: `Integrator`, `jitter_rate`, `tempering_rate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
 * `saveats`: Grid spacing for each independant variable for evaluation of ensemble solution, estimated parameters.
 * `numensemble`: Number of last samples to take for creation of ensemble solution, estimated parameters.
 * `progress`: controls whether to show the progress meter or not.
-* `verbose`: controls the verbosity. (Sample call args in AHMC)
+* `verbose`: controls the verbosity. (Sample call args in AHMC).
 
-"""
+## Warnings
 
-"""
-priors: pdf for W,b + pdf for PDE params
+* AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
 """
 function ahmc_bayesian_pinn_pde(pde_system, discretization;
         draw_samples = 1000,
@@ -522,20 +469,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # contains only NN parameters
     initial_nnθ = pinnrep.init_params
 
-    if (discretization.multioutput && chain[1] isa Lux.AbstractExplicitLayer)
-        # converting vector of parameters to ComponentArray for runtimegenerated functions
-        names = ntuple(i -> pinnrep.depvars[i], length(chain))
-    else
-        # Flux multioutput
-        i = 0
-        temp = []
-        for j in eachindex(initial_nnθ)
-            len = length(initial_nnθ[j])
-            push!(temp, (i + 1):(i + len))
-            i += len
-        end
-        names = tuple(1, temp)
-    end
+    names = ntuple(i -> pinnrep.depvars[i], length(chain))
 
     #ode parameter estimation
     nparameters = length(initial_θ)

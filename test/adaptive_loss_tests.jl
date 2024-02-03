@@ -38,17 +38,15 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
         y ∈ Interval(0.0, 1.0)]
 
     iteration = [0]
-    discretization = NeuralPDE.PhysicsInformedNN(chain_,
-                                                 strategy_;
-                                                 adaptive_loss = adaptive_loss,
-                                                 logger = nothing,
-                                                 iteration = iteration)
+    discretization = PhysicsInformedNN(chain_,
+                                    strategy_;
+                                    adaptive_loss = adaptive_loss,
+                                    logger = nothing,
+                                    iteration = iteration)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
-    prob = NeuralPDE.discretize(pde_system, discretization)
+    prob = discretize(pde_system, discretization)
     phi = discretization.phi
-    sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
@@ -61,20 +59,13 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
         end
         return false
     end
-    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.03); maxiters = maxiters,
-                             callback = callback)
-
+    res = solve(prob, OptimizationOptimisers.Adam(0.03); maxiters = maxiters, callback = callback)
     u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
                         (length(xs), length(ys)))
     diff_u = abs.(u_predict .- u_real)
     total_diff = sum(diff_u)
     total_u = sum(abs.(u_real))
     total_diff_rel = total_diff / total_u
-
-    #p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-    #p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-    #p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-    #(plot=plot(p1,p2,p3), error=total_diff, total_diff_rel=total_diff_rel)
     (error = total_diff, total_diff_rel = total_diff_rel)
 end
 
@@ -94,7 +85,3 @@ error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_s
 @test error_results_no_logs[1][:total_diff_rel] < 0.4
 @test error_results_no_logs[2][:total_diff_rel] < 0.4
 @test error_results_no_logs[3][:total_diff_rel] < 0.4
-
-#plots_diffs[1][:plot]
-#plots_diffs[2][:plot]
-#plots_diffs[3][:plot]
