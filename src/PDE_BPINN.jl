@@ -3,7 +3,7 @@ mutable struct PDELogTargetDensity{
     D <: Union{Nothing, Vector{<:Matrix{<:Real}}},
     P <: Vector{<:Distribution},
     I,
-    F,
+    F, FF,
     PH,
 }
     dim::Int64
@@ -15,17 +15,18 @@ mutable struct PDELogTargetDensity{
     extraparams::Int
     init_params::I
     full_loglikelihood::F
+    L2_loss2::FF
     Φ::PH
 
     function PDELogTargetDensity(dim, strategy, dataset,
             priors, allstd, names, extraparams,
-            init_params::AbstractVector, full_loglikelihood, Φ)
+            init_params::AbstractVector, full_loglikelihood, L2_loss2, Φ)
         new{
             typeof(strategy),
             typeof(dataset),
             typeof(priors),
             typeof(init_params),
-            typeof(full_loglikelihood),
+            typeof(full_loglikelihood), typeof(L2_loss2),
             typeof(Φ),
         }(dim,
             strategy,
@@ -35,19 +36,19 @@ mutable struct PDELogTargetDensity{
             names,
             extraparams,
             init_params,
-            full_loglikelihood,
+            full_loglikelihood, L2_loss2,
             Φ)
     end
     function PDELogTargetDensity(dim, strategy, dataset,
             priors, allstd, names, extraparams,
             init_params::Union{NamedTuple, ComponentArrays.ComponentVector},
-            full_loglikelihood, Φ)
+            full_loglikelihood, L2_loss2, Φ)
         new{
             typeof(strategy),
             typeof(dataset),
             typeof(priors),
             typeof(init_params),
-            typeof(full_loglikelihood),
+            typeof(full_loglikelihood), typeof(L2_loss2),
             typeof(Φ),
         }(dim,
             strategy,
@@ -57,22 +58,121 @@ mutable struct PDELogTargetDensity{
             names,
             extraparams,
             init_params,
-            full_loglikelihood,
+            full_loglikelihood, L2_loss2,
             Φ)
     end
+end
+
+# dataset_pde has normal matrix format 
+# dataset_bc has format of Vector{typeof(dataset_pde )} as each bc has different domain requirements
+function get_symbols(dict_depvar_input, dataset, depvars)
+    # get datasets into splattable form
+    splat_form = [[dataset_i[:, i] for i in 1:size(dataset_i)[2]] for dataset_i in dataset]
+    # splat datasets onto Linear interpolations tables
+    interps = [LinearInterpolation(splat_i...) for splat_i in splat_form]
+    interps = Dict(depvars .=> interps)
+
+    Dict_symbol_interps = Dict(depvar => (interps[depvar], dict_depvar_input[depvar])
+                               for depvar in depvars)
+
+    tobe_subs = Dict()
+    for (a, b) in dict_depvar_input
+        tobe_subs[a] = eval(:($a($(b...))))
+    end
+
+    to_subs = Dict()
+    for (a, b) in Dict_symbol_interps
+        b1, b2 = b
+        to_subs[a] = eval(:($b1($(b2...))))
+    end
+    return to_subs, tobe_subs
+end
+
+function recur_expression(exp, Dict_differentials)
+    for in_exp in exp.args
+        if !(in_exp isa Expr)
+            # skip +,== symbols, characters etc
+            continue
+
+        elseif in_exp.args[1] isa ModelingToolkit.Differential
+            # first symbol of differential term
+            # Dict_differentials for masking differential terms
+            # and resubstituting differentials in equations after putting in interpolations
+            Dict_differentials[eval(in_exp)] = Symbol("diff_$(length(Dict_differentials)+1)")
+            return
+
+        else
+            recur_expression(in_exp, Dict_differentials)
+        end
+    end
+end
+
+# get datafree loss functions for new loss type
+# need to call merge_strategy_with_loss_function() variant after this
+function merge_dataset_with_loss_function(pinnrep::NeuralPDE.PINNRepresentation,
+        dataset,
+        datafree_pde_loss_function,
+        datafree_bc_loss_function)
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
+
+    eltypeθ = eltype(pinnrep.flat_init_params)
+
+    train_sets = [[dataset[i][:, 2] for i in eachindex(dataset)], [[0;;], [0;;], [0;;]]]
+
+    # the points in the domain and on the boundary
+    pde_train_sets, bcs_train_sets = train_sets
+    pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+        pde_train_sets)
+    bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+        bcs_train_sets)
+    pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ)
+                          for (_loss, _set) in zip(datafree_pde_loss_function,
+        pde_train_sets)]
+
+    bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ)
+                         for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
+
+    pde_loss_functions, bc_loss_functions
+end
+
+function get_loss_function(loss_function, train_set, eltypeθ; τ = nothing)
+    loss = (θ) -> mean(abs2, loss_function(train_set, θ))
+end
+
+# for bc case, [bc]/bc eqs must be passed along with dataset_bc[i]
+# and final loss for bc must be together in a vector(bcs has seperate type of dataset_bc)
+# eqs is vector of pde eqs and dataset here is dataset_pde
+# normally you get vector of losses
+function get_loss_2(pinnrep, dataset, eqs)
+    depvars = pinnrep.depvars # order is same as dataset and interps
+    dict_depvar_input = pinnrep.dict_depvar_input
+
+    to_subs, tobe_subs = get_symbols(dict_depvar_input, dataset, depvars)
+    interp_subs_dict = Dict(tobe_subs[depvar] => to_subs[depvar] for depvar in depvars)
+
+    Dict_differentials = Dict()
+    exp = toexpr(eqs)
+    void_value = [recur_expression(exp_i, Dict_differentials) for exp_i in exp]
+    # Dict_differentials is now filled with Differential operator => diff_i key-value pairs
+
+    # masking operation
+    a = substitute.(eqs, Ref(Dict_differentials))
+    b = substitute.(a, Ref(interp_subs_dict))
+    # reverse dict for re-substituing values of Differential(t)(u(t)) etc
+    rev_Dict_differentials = Dict(value => key for (key, value) in Dict_differentials)
+    eqs = substitute.(b, Ref(rev_Dict_differentials))
+    # get losses
+    loss_functions = [NeuralPDE.build_loss_function(pinnrep,
+        eqs[i],
+        pinnrep.pde_indvars[i]) for i in eachindex(eqs)]
 end
 
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
     # for parameter estimation neccesarry to use multioutput case
     return Tar.full_loglikelihood(setparameters(Tar, θ),
-               Tar.allstd) + priorlogpdf(Tar, θ) + L2LossData(Tar, θ)
-    # + L2loss2(Tar, θ)
+               Tar.allstd) + priorlogpdf(Tar, θ) + Tar.L2_loss2(setparameters(Tar, θ),
+               Tar.allstd)
 end
-
-# function L2loss2(Tar::PDELogTargetDensity, θ)
-#     return Tar.full_loglikelihood(setparameters(Tar, θ),
-#         Tar.allstd)
-# end
 
 function setparameters(Tar::PDELogTargetDensity, θ)
     names = Tar.names
@@ -131,6 +231,8 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
 
     # dataset of form Vector[matrix_x, matrix_y, matrix_z]
     # matrix_i is of form [i,indvar1,indvar2,..] (needed in case if heterogenous domains)
+    # note that indvar1,indvar2.. cols can be different values for different depvar matrices
+    # order follows pinnrep.depvars orders of variables (order of declaration in @variables macro)
 
     # Phi is the trial solution for each NN in chain array
     # Creating logpdf( MvNormal(Phi(t,θ),std), dataset[i] )
@@ -185,27 +287,6 @@ function priorlogpdf(Tar::PDELogTargetDensity, θ)
                 logpdf(nnwparams, θ[1:(length(θ) - Tar.extraparams)]))
     else
         return logpdf(nnwparams, θ)
-    end
-end
-
-function integratorchoice(Integratorkwargs, initial_ϵ)
-    Integrator = Integratorkwargs[:Integrator]
-    if Integrator == JitteredLeapfrog
-        jitter_rate = Integratorkwargs[:jitter_rate]
-        Integrator(initial_ϵ, jitter_rate)
-    elseif Integrator == TemperedLeapfrog
-        tempering_rate = Integratorkwargs[:tempering_rate]
-        Integrator(initial_ϵ, tempering_rate)
-    else
-        Integrator(initial_ϵ)
-    end
-end
-
-function adaptorchoice(Adaptor, mma, ssa)
-    if Adaptor != AdvancedHMC.NoAdaptation()
-        Adaptor(mma, ssa)
-    else
-        AdvancedHMC.NoAdaptation()
     end
 end
 
@@ -353,6 +434,30 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     pinnrep = symbolic_discretize(pde_system, discretization)
     dataset_pde, dataset_bc = discretization.dataset
 
+    eqs = pinnrep.eqs
+    yuh1 = get_loss_2(pinnrep, dataset_pde, eqs)
+    eqs = pinnrep.bcs
+    yuh2 = get_loss_2(pinnrep, dataset_bc, eqs)
+
+    pde_loss_functions, bc_loss_functions = merge_dataset_with_loss_function(pinnrep,
+        dataset,
+        yuh1,
+        yuh2)
+
+    function L2_loss2(θ, allstd)
+        stdpdes, stdbcs, stdextra = allstd
+        pde_loglikelihoods = [logpdf(Normal(0, stdpdes[i]), pde_loss_function(θ))
+                              for (i, pde_loss_function) in enumerate(pde_loss_functions)]
+
+        bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
+                             for (j, bc_loss_function) in enumerate(bc_loss_functions)]
+        println("pde_loglikelihoods : ", pde_loglikelihoods)
+        println("bc_loglikelihoods : ", bc_loglikelihoods)
+        return sum(sum(pde_loglikelihoods) + sum(bc_loglikelihoods))
+    end
+
+    println(L2_loss2)
+    # WIP split dataset to respective equations
     if ((dataset_bc isa Nothing) && (dataset_pde isa Nothing))
         dataset = nothing
     elseif dataset_bc isa Nothing
@@ -441,7 +546,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         names,
         ninv,
         initial_nnθ,
-        full_weighted_loglikelihood,
+        full_weighted_loglikelihood, L2_loss2,
         Φ)
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
