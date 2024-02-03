@@ -399,7 +399,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
 ## Keyword Arguments
 
 * `strategy`: The training strategy used to choose the points for the evaluations. By default GridTraining is used with given physdt discretization.
-* `init_params`: intial parameter values for BPINN (ideally for multiple chains different initializations preferred)
+* `init_params`: initial parameter values for BPINN (ideally for multiple chains different initializations preferred)
 * `nchains`: number of chains you want to sample
 * `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
 * `l2std`: standard deviation of BPINN prediction against L2 losses/Dataset
@@ -408,7 +408,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
 * `param`: Vector of chosen ODE parameters Distributions in case of Inverse problems.
 * `autodiff`: Boolean Value for choice of Derivative Backend(default is numerical)
 * `physdt`: Timestep for approximating ODE in it's Time domain. (1/20.0 by default)
-* `Kernel`: Choice of MCMC Sampling Algorithm (AdvancedHMC.jl implemenations HMC/NUTS/HMCDA)
+* `Kernel`: Choice of MCMC Sampling Algorithm (AdvancedHMC.jl implementations HMC/NUTS/HMCDA)
 * `Integratorkwargs`: `Integrator`, `jitter_rate`, `tempering_rate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
 * `Adaptorkwargs`: `Adaptor`, `Metric`, `targetacceptancerate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
     Note: Target percentage(in decimal) of iterations in which the proposals are accepted (0.8 by default)

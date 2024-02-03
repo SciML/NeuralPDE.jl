@@ -146,7 +146,7 @@ end
 BPINN Solution contains the original solution from AdvancedHMC.jl sampling(BPINNstats contains fields related to that)
 > ensemblesol is the Probabilistic Estimate(MonteCarloMeasurements.jl Particles type) of Ensemble solution from All Neural Network's(made using all sampled parameters) output's.
 > estimated_nn_params - Probabilistic Estimate of NN params from sampled weights,biases
-> estimated_de_params - Probabilistic Estimate of DE params from sampled unknown DE paramters
+> estimated_de_params - Probabilistic Estimate of DE params from sampled unknown DE parameters
 """
 struct BPINNsolution{O <: BPINNstats, E, NP, OP, P}
     original::O
@@ -224,7 +224,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
         throw(error("Only Lux.AbstractExplicitLayer neural networks are supported"))
     end
 
-    # contructing ensemble predictions
+    # constructing ensemble predictions
     ensemblecurves = Vector{}[]
     # check if NN output is more than 1
     numoutput = size(luxar[1])[1]
