@@ -178,7 +178,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
     verbose = false,
     saveat = 1 / 50.0,
     maxiters = nothing,
-    numensemble = floor(Int, alg.draw_samples / 3))
+    numensemble = floor(Int, alg.draw_samples / 3),
+    estim_collocate = false)
     @unpack chain, l2std, phystd, param, priorsNNw, Kernel, strategy,
     draw_samples, dataset, init_params,
     nchains, physdt, Adaptorkwargs, Integratorkwargs,
@@ -207,7 +208,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
         Integratorkwargs = Integratorkwargs,
         MCMCkwargs = MCMCkwargs,
         progress = progress,
-        verbose = verbose)
+        verbose = verbose,
+        estim_collocate = estim_collocate)
 
     fullsolution = BPINNstats(mcmcchain, samples, statistics)
     ninv = length(param)
@@ -215,8 +217,12 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
 
     if chain isa Lux.AbstractExplicitLayer
         θinit, st = Lux.setup(Random.default_rng(), chain)
+        println(length(θinit))
+        println(length(samples[1]))
+        println(draw_samples)
         θ = [vector_to_parameters(samples[i][1:(end - ninv)], θinit)
-             for i in (draw_samples - numensemble):draw_samples]
+             for i in 1:max(draw_samples - draw_samples ÷ 10, draw_samples - 1000)]
+        
         luxar = [chain(t', θ[i], st)[1] for i in 1:numensemble]
         # only need for size
         θinit = collect(ComponentArrays.ComponentArray(θinit))
