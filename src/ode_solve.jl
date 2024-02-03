@@ -32,6 +32,7 @@ of the physics-informed neural network which is used as a solver for a standard 
            at a time. `batch>0` means the neural network is applied at a row vector of values
            `t` simultaneously, i.e. it's the batch size for the neural network evaluations.
            This requires a neural network compatible with batched data.
+* `param_estim`: Boolean to indicate whether parameters of the differential equations are learnt along with parameters of the neural network.
 * `strategy`: The training strategy used to choose the points for the evaluations.
               Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
               `dt` is given, and `GridTraining` is used with `dt` if given.
@@ -71,7 +72,7 @@ is an accurate interpolation (up to the neural network training result). In addi
 Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving
 ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.
 """
-struct NNODE{C, O, P, B, K, AL <: Union{Nothing, Function},
+struct NNODE{C, O, P, B, PE, K, AL <: Union{Nothing, Function},
     S <: Union{Nothing, AbstractTrainingStrategy},
 } <:
        NeuralPDEAlgorithm
@@ -81,14 +82,15 @@ struct NNODE{C, O, P, B, K, AL <: Union{Nothing, Function},
     autodiff::Bool
     batch::B
     strategy::S
+    param_estim::PE
     additional_loss::AL
     kwargs::K
 end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
-               autodiff = false, batch = nothing, additional_loss = nothing, kwargs...)
+               autodiff = false, batch = nothing, param_estim = false, additional_loss = nothing, kwargs...)
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
-    NNODE(chain, opt, init_params, autodiff, batch, strategy, additional_loss, kwargs)
+    NNODE(chain, opt, init_params, autodiff, batch, strategy, param_estim, additional_loss, kwargs)
 end
 
 """
@@ -119,7 +121,7 @@ end
 
 function (f::ODEPhi{C, T, U})(t::Number,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
+    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 + (t - f.t0) * first(y)
 end
@@ -127,13 +129,13 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
     # Batch via data as row vectors
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
+    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
 end
 
 function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractExplicitLayer, T, U}
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
+    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t .- f.t0) .* y
 end
@@ -141,7 +143,7 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U}
     # Batch via data as row vectors
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
+    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
 end
@@ -187,28 +189,32 @@ Simple L2 inner loss at a time `t` with parameters `θ` of the neural network.
 function inner_loss end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
-        p) where {C, T, U <: Number}
-    sum(abs2, ode_dfdx(phi, t, θ, autodiff) - f(phi(t, θ), p, t))
+        p, param_estim) where {C, T, U <: Number}
+    p_ = param_estim ? θ.p : p
+    sum(abs2, ode_dfdx(phi, t, θ, autodiff) - f(phi(t, θ), p_, t))
 end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
-        p) where {C, T, U <: Number}
+        p, param_estim) where {C, T, U <: Number}
+    p_ = param_estim ? θ.p : p
     out = phi(t, θ)
-    fs = reduce(hcat, [f(out[i], p, t[i]) for i in axes(out, 2)])
+    fs = reduce(hcat, [f(out[i], p_, t[i]) for i in axes(out, 2)])
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
     sum(abs2, dxdtguess .- fs) / length(t)
 end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
-        p) where {C, T, U}
-    sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(phi(t, θ), p, t))
+        p, param_estim) where {C, T, U}
+    p_ = param_estim ? θ.p : p
+    sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(phi(t, θ), p_, t))
 end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
-        p) where {C, T, U}
+        p, param_estim) where {C, T, U}
+    p_ = param_estim ? θ.p : p
     out = Array(phi(t, θ))
     arrt = Array(t)
-    fs = reduce(hcat, [f(out[:, i], p, arrt[i]) for i in 1:size(out, 2)])
+    fs = reduce(hcat, [f(out[:, i], p_, arrt[i]) for i in 1:size(out, 2)])
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
     sum(abs2, dxdtguess .- fs) / length(t)
 end
@@ -219,10 +225,10 @@ end
 Representation of the loss function, parametric on the training strategy `strategy`.
 """
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
-        batch)
-    integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p))
+        batch, param_estim)
+    integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
 
-    integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p)) for t in ts]
+    integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim)) for t in ts]
     @assert batch == 0 # not implemented
 
     function loss(θ, _)
@@ -234,22 +240,22 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
     return loss
 end
 
-function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch)
+function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim)
     ts = tspan[1]:(strategy.dx):tspan[2]
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     function loss(θ, _)
         if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
+            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, param_estim))
         else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
+            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
         end
     end
     return loss
 end
 
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
-        batch)
+        batch, param_estim)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
     function loss(θ, _)
@@ -257,16 +263,16 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
             [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
 
         if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
+            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, param_estim))
         else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
+            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
         end
     end
     return loss
 end
 
 function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-        batch)
+        batch, param_estim)
     autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT = tspan[1]
     maxT = tspan[2]
@@ -289,22 +295,22 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
 
     function loss(θ, _)
         if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p))
+            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, param_estim))
         else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in ts])
+            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
         end
     end
     return loss
 end
 
-function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch)
+function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim)
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
         if batch
-            sum(abs2, inner_loss(phi, f, autodiff, tstops, θ, p))
+            sum(abs2, inner_loss(phi, f, autodiff, tstops, θ, p, param_estim))
         else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p) for t in tstops])
+            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in tstops])
         end
     end
     return loss
@@ -351,6 +357,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     f = prob.f
     p = prob.p
     t0 = tspan[1]
+    param_estim = alg.param_estim
 
     #hidden layer
     chain = alg.chain
@@ -362,6 +369,12 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
 
     !(chain isa Lux.AbstractExplicitLayer) && error("Only Lux.AbstractExplicitLayer neural networks are supported")
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
+
+    init_params = if alg.param_estim
+        ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params), p = prob.p)
+    else
+        ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params))
+    end
 
     isinplace(prob) && throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
@@ -398,8 +411,9 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         alg.batch
     end
 
-    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch)
+    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
     additional_loss = alg.additional_loss
+    (param_estim && isnothing(additional_loss)) && throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
 
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
@@ -409,7 +423,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         end
         if !(tstops isa Nothing)
             num_tstops_points = length(tstops)
-            tstops_loss_func = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch)
+            tstops_loss_func = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch, param_estim)
             tstops_loss = tstops_loss_func(θ, phi)
             if strategy isa GridTraining
                 num_original_points = length(tspan[1]:(strategy.dx):tspan[2])
