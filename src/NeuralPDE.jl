@@ -50,10 +50,10 @@ include("dae_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
-include("advancedHMC_MCMC.jl")
-include("BPINN_ode.jl")
+include("bayesian/advancedHMC_MCMC.jl")
+include("bayesian/BPINN_ode.jl")
 include("PDE_BPINN.jl")
-include("collocated_estim.jl")
+include("bayesian/collocated_estim.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE, NNDAE,
     KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
