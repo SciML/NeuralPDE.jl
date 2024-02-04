@@ -104,7 +104,7 @@ plot(p1, p2, p3, p4, p5)
 ## Domain decomposition
 
 In this example, we first obtain a prediction of 2D Poisson equation on subdomains. We split up full domain into 10 sub problems by x, and create separate neural networks for each sub interval. If x domain ∈ [x_0, x_end] so, it is decomposed on 10 part: sub x domains = {[x_0, x_1], ... [x_i,x_i+1], ..., x_9,x_end]}.
-And then using the method neural_adapter, we retrain the banch of 10 predictions to the one prediction for full domain of task.
+And then using the method neural_adapter, we retrain the batch of 10 predictions to the one prediction for full domain of task.
 
 ![domain_decomposition](https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png)
 

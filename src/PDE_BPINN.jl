@@ -111,9 +111,9 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
     dataset = Tar.dataset
     sumt = 0
     L2stds = Tar.allstd[3]
-    # each dep var has a diff dataset depending on its indep var and thier domains
+    # each dep var has a diff dataset depending on its indep var and their domains
     # these datasets are matrices of first col-dep var and remaining cols-all indep var
-    # Tar.init_params is needed to contruct a vector of parameters into a ComponentVector
+    # Tar.init_params is needed to construct a vector of parameters into a ComponentVector
 
     # dataset of form Vector[matrix_x, matrix_y, matrix_z]
     # matrix_i is of form [i,indvar1,indvar2,..] (needed in case if heterogenous domains)
@@ -279,7 +279,7 @@ end
 * `Adaptorkwargs`: `Adaptor`, `Metric`, `targetacceptancerate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
    Note: Target percentage(in decimal) of iterations in which the proposals are accepted (0.8 by default).
 * `Integratorkwargs`: `Integrator`, `jitter_rate`, `tempering_rate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
-* `saveats`: Grid spacing for each independant variable for evaluation of ensemble solution, estimated parameters.
+* `saveats`: Grid spacing for each independent variable for evaluation of ensemble solution, estimated parameters.
 * `numensemble`: Number of last samples to take for creation of ensemble solution, estimated parameters.
 * `progress`: controls whether to show the progress meter or not.
 * `verbose`: controls the verbosity. (Sample call args in AHMC).
@@ -323,7 +323,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     chain = discretization.chain
 
     if length(pinnrep.domains) != length(saveats)
-        throw(error("Number of independant variables must match saveat inference discretization steps"))
+        throw(error("Number of independent variables must match saveat inference discretization steps"))
     end
 
     # NN solutions for loglikelihood which is used for L2lossdata

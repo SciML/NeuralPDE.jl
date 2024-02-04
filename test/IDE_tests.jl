@@ -59,7 +59,7 @@ eq = Ix(u(x) * cos(x)) ~ (x^3) / 3
     @test Flux.mse(u_real, u_predict) < 0.001
 end
 
-@testset "Example 3 - 2 Inputs, 1 Ouput" begin
+@testset "Example 3 - 2 Inputs, 1 Output" begin
     @parameters x, y
     @variables u(..)
     Dx = Differential(x)
@@ -82,7 +82,7 @@ end
     @test Flux.mse(u_real, u_predict) < 0.001
 end
 
-@testset "Example 4 - 2 Inputs, 1 Ouput" begin
+@testset "Example 4 - 2 Inputs, 1 Output" begin
     @parameters x, y
     @variables u(..)
     Dx = Differential(x)

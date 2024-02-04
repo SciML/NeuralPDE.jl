@@ -15,13 +15,13 @@ struct LogOptions
     end
 end
 
-"""This function is defined here as stubs to be overriden by the subpackage NeuralPDELogging if imported"""
+"""This function is defined here as stubs to be overridden by the subpackage NeuralPDELogging if imported"""
 function logvector(logger, v::AbstractVector{R}, name::AbstractString,
         step::Integer) where {R <: Real}
     nothing
 end
 
-"""This function is defined here as stubs to be overriden by the subpackage NeuralPDELogging if imported"""
+"""This function is defined here as stubs to be overridden by the subpackage NeuralPDELogging if imported"""
 function logscalar(logger, s::R, name::AbstractString, step::Integer) where {R <: Real}
     nothing
 end
@@ -187,7 +187,7 @@ methodology.
 
 * `Dataset`: A vector of matrix, each matrix for ith dependant
   variable and first col in matrix is for dependant variables,
-  remaining coloumns for independant variables. Needed for inverse problem solving.
+  remaining columns for independent variables. Needed for inverse problem solving.
 * `init_params`: the initial parameters of the neural networks. If `init_params` is not
   given, then the neural network default parameters are used. Note that for Lux, the default
   will convert to Float64.

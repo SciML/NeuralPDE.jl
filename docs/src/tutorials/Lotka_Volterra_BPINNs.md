@@ -94,7 +94,7 @@ sol_pestim = solve(prob, alg; saveat = dt)
 nothing #hide
 ```
 
-The solution for the ODE is retured as a nested vector `sol_flux_pestim.ensemblesol`. Here, [$x$ , $y$] would be returned.
+The solution for the ODE is returned as a nested vector `sol_flux_pestim.ensemblesol`. Here, [$x$ , $y$] would be returned.
 
 ```@example bpinn
 # plotting solution for x,y for chain

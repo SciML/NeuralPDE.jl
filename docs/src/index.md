@@ -88,7 +88,7 @@ the precision of the arguments are correct, and anything that requires alternati
 
 Lux.jl has none of these issues, is simpler to work with due to the parameters in its function calls being explicit rather than implicit global
 references, and achieves higher performance. It is built on the same foundations as Flux.jl, such as Zygote and NNLib, and thus it supports the
-same layers underneith and calls the same kernels. The better performance comes from not having the overhead of `restructure` required.
+same layers underneath and calls the same kernels. The better performance comes from not having the overhead of `restructure` required.
 Thus we highly recommend people use Lux instead and only use the Flux fallbacks for legacy code.
 
 ## Reproducibility
