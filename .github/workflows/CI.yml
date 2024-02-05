@@ -48,6 +48,6 @@ jobs:
       - uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,lib/NeuralPDELogging/src
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           files: lcov.info
