@@ -62,6 +62,12 @@ mutable struct PDELogTargetDensity{
     end
 end
 
+LogDensityProblems.dimension(Tar::PDELogTargetDensity) = Tar.dim
+
+function LogDensityProblems.capabilities(::PDELogTargetDensity)
+    LogDensityProblems.LogDensityOrder{1}()
+end
+
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
     # for parameter estimation neccesarry to use multioutput case
     return Tar.full_loglikelihood(setparameters(Tar, θ),
@@ -87,11 +93,12 @@ function setparameters(Tar::PDELogTargetDensity, θ)
 
     a = ComponentArrays.ComponentArray(NamedTuple{Tar.names}(i for i in Luxparams))
 
-    if Tar.extraparams > 0
+   if Tar.extraparams > 0
         b = θ[(end - Tar.extraparams + 1):end]
+
         return ComponentArrays.ComponentArray(;
-            depvar = a,
-            p = b)
+               depvar = a,
+               p = b)
     else
         return ComponentArrays.ComponentArray(;
             depvar = a)
@@ -298,6 +305,12 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
         numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
     pinnrep = symbolic_discretize(pde_system, discretization)
+    
+    pinnrep.iteration = [0]
+
+    
+    pinnrep.iteration = [0]
+
     dataset_pde, dataset_bc = discretization.dataset
 
     if ((dataset_bc isa Nothing) && (dataset_pde isa Nothing))
@@ -428,12 +441,20 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         end
         return bpinnsols
     else
+        println("now 1")
+
+        println("now 1")
+
         initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
         integrator = integratorchoice(Integratorkwargs, initial_ϵ)
         adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
             StepSizeAdaptor(targetacceptancerate, integrator))
 
         Kernel = AdvancedHMC.make_kernel(Kernel, integrator)
+        println("now 2")
+
+        println("now 2")
+
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
 
