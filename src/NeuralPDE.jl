@@ -52,6 +52,7 @@ include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
+include("dgm.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE, NNDAE,
     KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
@@ -66,6 +67,7 @@ export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE, NNDAE,
     AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
     MiniMaxAdaptiveLoss, LogOptions,
     ahmc_bayesian_pinn_ode, BNNODE, ahmc_bayesian_pinn_pde, vector_to_parameters,
-    BPINNsolution, BayesianPINN
+    BPINNsolution, BayesianPINN,
+    DGM
 
 end # module
