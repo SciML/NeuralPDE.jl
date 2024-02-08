@@ -19,7 +19,7 @@ import Lux: tanh, identity
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
-    strategy= QuasiRandomTraining(4_000);
+    strategy = QuasiRandomTraining(4_000);
     discretization= DeepGalerkin(2, 1, 30, 3, tanh, tanh, identity, strategy);
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
