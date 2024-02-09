@@ -1,7 +1,5 @@
 """
-```julia
-GridTraining(dx)
-```
+    GridTraining(dx)
 
 A training strategy that uses the grid points in a multidimensional grid
 with spacings `dx`. If the grid is multidimensional, then `dx` is expected
@@ -25,7 +23,7 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
-    # is vec as later each _set in pde_train_sets are coloumns as points transformed to vector of points (pde_train_sets must be rowwise)
+    # is vec as later each _set in pde_train_sets are columns as points transformed to vector of points (pde_train_sets must be rowwise)
     pde_loss_functions = if !(train_sets_pde isa Nothing)
         pde_train_sets = [train_set[:, 2:end] for train_set in train_sets_pde]
         pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
@@ -83,9 +81,7 @@ function get_loss_function(loss_function, train_set, eltypeθ, strategy::GridTra
 end
 
 """
-```julia
-StochasticTraining(points; bcs_points = points)
-```
+    StochasticTraining(points; bcs_points = points)
 
 ## Positional Arguments
 
@@ -144,11 +140,10 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::StochasticT
 end
 
 """
-```julia
-QuasiRandomTraining(points; bcs_points = points,
-                            sampling_alg = LatinHypercubeSample(), resampling = true,
-                            minibatch = 0)
-```
+    QuasiRandomTraining(points; bcs_points = points,
+                                sampling_alg = LatinHypercubeSample(), resampling = true,
+                                minibatch = 0)
+
 
 A training strategy which uses quasi-Monte Carlo sampling for low discrepancy sequences
 that accelerate the convergence in high dimensional spaces over pure random sequences.
@@ -168,7 +163,7 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
    points is generated directly at each iteration in runtime. In this case, `minibatch` has no effect,
 * `minibatch`: the number of subsets, if resampling == false.
 
-For more information, see [QuasiMonteCarlo.jl](https://docs.sciml.ai/QuasiMonteCarlo/stable/)
+For more information, see [QuasiMonteCarlo.jl](https://docs.sciml.ai/QuasiMonteCarlo/stable/).
 """
 struct QuasiRandomTraining <: AbstractGridfreeStrategy
     points::Int64
@@ -248,11 +243,9 @@ function get_loss_function(loss_function, bound, eltypeθ, strategy::QuasiRandom
 end
 
 """
-```julia
-QuadratureTraining(; quadrature_alg = CubatureJLh(),
-                     reltol = 1e-6, abstol = 1e-3,
-                     maxiters = 1_000, batch = 100)
-```
+    QuadratureTraining(; quadrature_alg = CubatureJLh(),
+                        reltol = 1e-6, abstol = 1e-3,
+                        maxiters = 1_000, batch = 100)
 
 A training strategy which treats the loss function as the integral of
 ||condition|| over the domain. Uses an Integrals.jl algorithm for
@@ -320,9 +313,10 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::Quadrature
             # mean(abs2,loss_(x,θ), dims=2)
             # size_x = fill(size(x)[2],(1,1))
             x = adapt(parameterless_type(ComponentArrays.getdata(θ)), x)
-            sum(abs2, loss_(x, θ), dims = 2) #./ size_x
+            sum(abs2, view(loss_(x, θ), 1, :), dims = 2) #./ size_x
         end
-        prob = IntegralProblem(integrand, lb, ub, θ, batch = strategy.batch, nout = 1)
+        integral_function = BatchIntegralFunction(integrand, max_batch = strategy.batch)
+        prob = IntegralProblem(integral_function, lb, ub, θ)
         solve(prob,
               strategy.quadrature_alg,
               reltol = strategy.reltol,
@@ -334,9 +328,7 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::Quadrature
 end
 
 """
-```julia
-WeightedIntervalTraining(weights, samples)
-```
+    WeightedIntervalTraining(weights, samples)
 
 A training strategy that generates points for training based on the given inputs.
 We split the timespan into equal segments based on the number of weights,
@@ -365,4 +357,5 @@ function get_loss_function(loss_function, train_set, eltypeθ,
                            strategy::WeightedIntervalTraining;
                            τ = nothing)
     loss = (θ) -> mean(abs2, loss_function(train_set, θ))
+    return loss
 end

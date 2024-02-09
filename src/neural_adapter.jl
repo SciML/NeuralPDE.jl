@@ -92,9 +92,7 @@ function get_loss_function_(loss, init_params, pde_system, varmap, strategy::Qua
 end
 
 """
-```julia
-neural_adapter(loss, init_params, pde_system, strategy)
-```
+    neural_adapter(loss, init_params, pde_system, strategy)
 
 Trains a neural network using the results from one already obtained prediction.
 

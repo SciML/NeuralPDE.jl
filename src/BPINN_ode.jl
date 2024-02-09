@@ -1,15 +1,13 @@
 # HIGH level API for BPINN ODE solver
 
 """
-```julia
-BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
-                    priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
-                    phystd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
-                    MCMCargs = (n_leapfrog=30), nchains = 1, init_params = nothing, 
-                    Adaptorkwargs = (Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8, Metric = DiagEuclideanMetric),
-                    Integratorkwargs = (Integrator = Leapfrog,), autodiff = false,
-                    progress = false, verbose = false)
-```
+    BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
+                        priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
+                        phystd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
+                        MCMCargs = (n_leapfrog=30), nchains = 1, init_params = nothing, 
+                        Adaptorkwargs = (Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8, Metric = DiagEuclideanMetric),
+                        Integratorkwargs = (Integrator = Leapfrog,), autodiff = false,
+                        progress = false, verbose = false)
 
 Algorithm for solving ordinary differential equations using a Bayesian neural network. This is a specialization
 of the physics-informed neural network which is used as a solver for a standard `ODEProblem`.
@@ -22,7 +20,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.AbstractExplicitLayer`.
+* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer`.
 * `Kernel`: Choice of MCMC Sampling Algorithm. Defaults to `AdvancedHMC.HMC`
 
 ## Keyword Arguments
@@ -46,18 +44,18 @@ dataset = [x̂, time]
 
 chainlux = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
 
-alg = NeuralPDE.BNNODE(chainlux, draw_samples = 2000,
+alg = BNNODE(chainlux, draw_samples = 2000,
                        l2std = [0.05], phystd = [0.05],
                        priorsNNw = (0.0, 3.0), progress = true)
 
 sol_lux = solve(prob, alg)
 
 # with parameter estimation
-alg = NeuralPDE.BNNODE(chainlux,dataset = dataset,
-                        draw_samples = 2000,l2std = [0.05],
-                        phystd = [0.05],priorsNNw = (0.0, 10.0),
-                        param = [Normal(6.5, 0.5), Normal(-3, 0.5)],
-                        progress = true)
+alg = BNNODE(chainlux,dataset = dataset,
+                draw_samples = 2000,l2std = [0.05],
+                phystd = [0.05],priorsNNw = (0.0, 10.0),
+                param = [Normal(6.5, 0.5), Normal(-3, 0.5)],
+                progress = true)
 
 sol_lux_pestim = solve(prob, alg)
 ```
@@ -74,11 +72,10 @@ is an accurate interpolation (up to the neural network training result). In addi
 ## References
 
 Liu Yanga, Xuhui Menga, George Em Karniadakis. "B-PINNs: Bayesian Physics-Informed Neural Networks for
-Forward and Inverse PDE Problems with Noisy Data"
+Forward and Inverse PDE Problems with Noisy Data".
 
-Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, Ellen Kuhl. 
-"Bayesian Physics Informed Neural Networks for real-world nonlinear dynamical systems"
-
+Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, Ellen Kuhl
+"Bayesian Physics Informed Neural Networks for real-world nonlinear dynamical systems".
 """
 struct BNNODE{C, K, IT <: NamedTuple,
     A <: NamedTuple, H <: NamedTuple,
@@ -116,6 +113,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
         targetacceptancerate = 0.8),
     Integratorkwargs = (Integrator = Leapfrog,),
     autodiff = false, progress = false, verbose = false)
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
         phystd, dataset, physdt, MCMCkwargs,
@@ -148,9 +146,8 @@ end
 BPINN Solution contains the original solution from AdvancedHMC.jl sampling(BPINNstats contains fields related to that)
 > ensemblesol is the Probabilistic Estimate(MonteCarloMeasurements.jl Particles type) of Ensemble solution from All Neural Network's(made using all sampled parameters) output's.
 > estimated_nn_params - Probabilistic Estimate of NN params from sampled weights,biases
-> estimated_de_params - Probabilistic Estimate of DE params from sampled unknown DE paramters
+> estimated_de_params - Probabilistic Estimate of DE params from sampled unknown DE parameters
 """
-
 struct BPINNsolution{O <: BPINNstats, E, NP, OP, P}
     original::O
     ensemblesol::E
@@ -223,16 +220,11 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
         luxar = [chain(t', θ[i], st)[1] for i in 1:numensemble]
         # only need for size
         θinit = collect(ComponentArrays.ComponentArray(θinit))
-    elseif chain isa Flux.Chain
-        θinit, re1 = Flux.destructure(chain)
-        out = re1.([samples[i][1:(end - ninv)]
-                    for i in (draw_samples - numensemble):draw_samples])
-        luxar = collect(out[i](t') for i in eachindex(out))
     else
-        throw(error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported"))
+        throw(error("Only Lux.AbstractExplicitLayer neural networks are supported"))
     end
 
-    # contructing ensemble predictions
+    # constructing ensemble predictions
     ensemblecurves = Vector{}[]
     # check if NN output is more than 1
     numoutput = size(luxar[1])[1]

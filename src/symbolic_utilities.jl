@@ -3,7 +3,7 @@ using Base.Broadcast
 """
 Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
 
-# Example
+## Example
 
 ```julia
 julia> e = :(1 + $sin(x))
@@ -58,14 +58,14 @@ end
 """
 Create dictionary: variable => unique number for variable
 
-# Example 1
+## Example 1
 
 Dict{Symbol,Int64} with 3 entries:
   :y => 2
   :t => 3
   :x => 1
 
-# Example 2
+## Example 2
 
  Dict{Symbol,Int64} with 2 entries:
   :u1 => 1
@@ -106,24 +106,24 @@ end
 """
 Transform the derivative expression to inner representation
 
-# Examples
+## Examples
 
 1. First compute the derivative of function 'u(x,y)' with respect to x.
 
 Take expressions in the form: `derivative(u(x,y), x)` to `derivative(phi, u, [x, y], εs, order, θ)`,
 where
- phi - trial solution
- u - function
- x,y - coordinates of point
- εs - epsilon mask
- order - order of derivative
- θ - weight in neural network
+- phi - trial solution.
+- u - function.
+- x,y - coordinates of point.
+- εs - epsilon mask.
+- order - order of derivative.
+- θ - weights in neural network.
 """
 
 """
 Parse ModelingToolkit equation form to the inner representation.
 
-Example:
+## Examples:
 
 1)  1-D ODE: Dt(u(t)) ~ t +1
 
@@ -192,9 +192,7 @@ function get_integration_variables(eqs, v::VariableMap)
 end
 
 """
-```julia
-get_argument(eqs,_indvars::Array,_depvars::Array)
-```
+    get_argument(eqs,_indvars::Array,_depvars::Array)
 
 Returns all arguments that are used in each equations or boundary condition.
 """

@@ -2,7 +2,6 @@
 ```julia
 generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
 ```
-
 Returns training sets for equations and boundary condition, that is used for GridTraining
 strategy.
 """
@@ -59,9 +58,7 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, varmap)
 end
 
 """
-```julia
-get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
-```
+    get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
 
 Returns pairs with lower and upper bounds for all domains. It is used for all non-grid
 training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
@@ -218,63 +215,40 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
     if init_params === nothing
         # Use the initialization of the neural network framework
         # But for Lux, default to Float64
-        # For Flux, default to the types matching the values in the neural network
         # This is done because Float64 is almost always better for these applications
-        # But with Flux there's already a chosen type from the user
-
         if chain isa AbstractArray
-            if chain[1] isa Flux.Chain
-                init_params = map(chain) do x
-                    _x = Flux.destructure(x)[1]
-                end
-            else
-                x = map(chain) do x
-                    _x = ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
-                        x))
-                    Float64.(_x) # No ComponentArray GPU support
-                end
-                names = ntuple(i -> Symbol.(v.ū)[i], length(chain))
-                init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
-                                                                                for i in x))
+            x = map(chain) do x
+                _x = ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
+                                                                          x))
+                Float64.(_x) # No ComponentArray GPU support
             end
+            names = ntuple(i -> depvars[i], length(chain))
+            init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
+                                                                           for i in x))
         else
-            if chain isa Flux.Chain
-                init_params = Flux.destructure(chain)[1]
-                init_params = init_params isa Array ? Float64.(init_params) :
-                                init_params
-            else
-                init_params = Float64.(ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
-                    chain)))
-            end
+            init_params = Float64.(ComponentArrays.ComponentArray(Lux.initialparameters(Random.default_rng(),
+                                                                                            chain)))
         end
     else
         init_params = init_params
     end
 
-    if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-        (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-        # Flux.Chain
-        flat_init_params = multioutput ? reduce(vcat, init_params) : init_params
-        flat_init_params = param_estim == false ? flat_init_params :
-                            vcat(flat_init_params,
-            adapt(typeof(flat_init_params), default_p))
+    flat_init_params = if init_params isa ComponentArrays.ComponentArray
+        init_params
+    elseif multioutput
+        @assert length(init_params) == length(depvars)
+        names = ntuple(i -> depvars[i], length(init_params))
+        x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in init_params))
     else
-        flat_init_params = if init_params isa ComponentArrays.ComponentArray
-            init_params
-        elseif multioutput
-            @assert length(init_params) == length(depvars)
-            names = ntuple(i -> depvars[i], length(init_params))
-            x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in init_params))
-        else
-            ComponentArrays.ComponentArray(init_params)
-        end
-        flat_init_params = if param_estim == false && multioutput
-            ComponentArrays.ComponentArray(; depvar = flat_init_params)
-        elseif param_estim == false && !multioutput
-            flat_init_params
-        else
-            ComponentArrays.ComponentArray(; depvar = flat_init_params, p = default_p)
-        end
+        ComponentArrays.ComponentArray(init_params)
+    end
+
+    flat_init_params = if param_estim == false && multioutput
+        ComponentArrays.ComponentArray(; depvar = flat_init_params)
+    elseif param_estim == false && !multioutput
+        flat_init_params
+    else
+        ComponentArrays.ComponentArray(; depvar = flat_init_params, p = default_p)
     end
 
     if (phi isa Vector && phi[1].f isa Lux.AbstractExplicitLayer)
@@ -384,13 +358,7 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
             else
                 function _additional_loss(phi, θ)
                     (θ_, p_) = if (param_estim == true)
-                        if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-                        (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-                            # Isa Flux Chain
-                            θ[1:(end - length(default_p))], θ[(end - length(default_p) + 1):end]
-                        else
-                            θ.depvar, θ.p
-                        end
+                        θ.depvar, θ.p
                     else
                         θ, nothing
                     end
@@ -500,14 +468,7 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
             else
                 function _additional_loss(phi, θ)
                     (θ_, p_) = if (param_estim == true)
-                        if (phi isa Vector && phi[1].f isa Optimisers.Restructure) ||
-                        (!(phi isa Vector) && phi.f isa Optimisers.Restructure)
-                            # Isa Flux Chain
-                            θ[1:(end - length(default_p))],
-                            θ[(end - length(default_p) + 1):end]
-                        else
-                            θ.depvar, θ.p
-                        end
+                        θ.depvar, θ.p
                     else
                         θ, nothing
                     end

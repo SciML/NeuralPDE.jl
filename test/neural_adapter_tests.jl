@@ -1,4 +1,3 @@
-using Flux
 using Test, NeuralPDE
 using Optimization, OptimizationOptimJL
 import ModelingToolkit: Interval, infimum, supremum
@@ -33,23 +32,22 @@ domains = [x ∈ Interval(0.0, 1.0),
 quadrature_strategy = NeuralPDE.QuadratureTraining(reltol = 1e-2, abstol = 1e-2,
                                                    maxiters = 50, batch = 100)
 inner = 8
-af = Flux.tanh
-chain1 = Chain(Dense(2, inner, af),
-               Dense(inner, inner, af),
-               Dense(inner, 1)) |> f64
-init_params = Flux.destructure(chain1)[1]
+af = Lux.tanh
+chain1 = Lux.Chain(Lux.Dense(2, inner, af),
+               Lux.Dense(inner, inner, af),
+               Lux.Dense(inner, 1))
+init_params = Lux.setup(Random.default_rng(), chain1)[1] |> ComponentArray .|> Float64 
 discretization = NeuralPDE.PhysicsInformedNN(chain1,
                                              quadrature_strategy;
                                              init_params = init_params)
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = NeuralPDE.discretize(pde_system, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); maxiters = 2000)
 phi = discretization.phi
 
 inner_ = 10
-af = Flux.tanh
+af = Lux.tanh
 chain2 = Lux.Chain(Lux.Dense(2, inner_, af),
                    Lux.Dense(inner_, inner_, af),
                    Lux.Dense(inner_, inner_, af),
@@ -63,39 +61,39 @@ function loss(cord, θ)
     ch2 .- phi(cord, res.minimizer)
 end
 
-grid_strategy = NeuralPDE.GridTraining(0.05)
-quadrature_strategy = NeuralPDE.QuadratureTraining(reltol = 1e-5, abstol = 1e-5,
+grid_strategy = GridTraining(0.05)
+quadrature_strategy = QuadratureTraining(reltol = 1e-5, abstol = 1e-5,
                                                    maxiters = 50, batch = 100)
-stochastic_strategy = NeuralPDE.StochasticTraining(400)
-quasirandom_strategy = NeuralPDE.QuasiRandomTraining(400, resampling = false,
+stochastic_strategy = StochasticTraining(400)
+quasirandom_strategy = QuasiRandomTraining(400, resampling = false,
                                                      minibatch = 200)
-quasirandom_strategy_resampling = NeuralPDE.QuasiRandomTraining(250)
+quasirandom_strategy_resampling = QuasiRandomTraining(250)
 
 strategies1 = [grid_strategy, quadrature_strategy]
 
 reses_1 = map(strategies1) do strategy_
     println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
     prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
-    res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(0.01); maxiters = 8000)
+    res_ = solve(prob_, OptimizationOptimisers.Adam(0.01); maxiters = 8000)
     prob_ = remake(prob_, u0 = res_.minimizer)
-    res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 200)
+    res_ = solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 200)
 end
 strategies2 = [stochastic_strategy, quasirandom_strategy]# quasirandom_strategy_resampling]
 reses_2 = map(strategies2) do strategy_
     println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
     prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
-    res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(0.01); maxiters = 8000)
+    res_ = solve(prob_, OptimizationOptimisers.Adam(0.01); maxiters = 8000)
     prob_ = remake(prob_, u0 = res_.minimizer)
-    res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 200)
+    res_ = solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 200)
 end
 reses_ = [reses_1; reses_2]
 
-discretizations = map(res_ -> NeuralPDE.PhysicsInformedNN(chain2,
+discretizations = map(res_ -> PhysicsInformedNN(chain2,
                                                           grid_strategy;
                                                           init_params = res_.minimizer),
                       reses_)
 
-probs = map(discret -> NeuralPDE.discretize(pde_system, discret), discretizations)
+probs = map(discret -> discretize(pde_system, discret), discretizations)
 phis = map(discret -> discret.phi, discretizations)
 
 xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
@@ -118,17 +116,6 @@ map(u_predicts[2:end]) do upred
     @test_broken upred≈u_real atol=1e-2
 end
 
-#using Plots
-# i=3
-# diff_u = abs.(u_predict .- u_real)
-# diff_u_ = abs.(u_predicts[i] .- u_real)
-# p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-# p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-# p5 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-# p3 = plot(xs, ys, u_predicts[i],linetype=:contourf,title = "predict_");
-# p6 = plot(xs, ys, diff_u_,linetype=:contourf,title = "error_");
-# plot(p2,p1,p5,p3,p6)
-
 ## Example, 2D Poisson equation, domain decomposition
 println("Example, 2D Poisson equation, domain decomposition")
 @parameters x y
@@ -146,13 +133,11 @@ x_0 = 0.0
 x_end = 1.0
 x_domain = Interval(x_0, x_end)
 y_domain = Interval(0.0, 1.0)
-domains = [x ∈ x_domain,
-    y ∈ y_domain]
-
+domains = [x ∈ x_domain, y ∈ y_domain]
 count_decomp = 10
 
 # Neural network
-af = Flux.tanh
+af = Lux.tanh
 inner = 12
 chains = [Lux.Chain(Lux.Dense(2, inner, af), Lux.Dense(inner, inner, af),
                     Lux.Dense(inner, 1)) for _ in 1:count_decomp]
@@ -200,31 +185,15 @@ for i in 1:count_decomp
     bcs_ = create_bcs(domains_[1].domain, phi_bound)
     @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
     push!(pde_system_map, pde_system_)
-    strategy = NeuralPDE.GridTraining([0.1 / count_decomp, 0.1])
-
-    discretization = NeuralPDE.PhysicsInformedNN(chains[i], strategy;
-                                                 init_params = init_params[i])
-
-    prob = NeuralPDE.discretize(pde_system_, discretization)
-    symprob = NeuralPDE.symbolic_discretize(pde_system_, discretization)
+    strategy = GridTraining([0.1 / count_decomp, 0.1])
+    discretization = PhysicsInformedNN(chains[i], strategy;  init_params = init_params[i])
+    prob = discretize(pde_system_, discretization)
     res_ = Optimization.solve(prob, OptimizationOptimJL.BFGS(), maxiters = 1500)
     @show res_.minimum
     phi = discretization.phi
     push!(reses, res_)
     push!(phis, phi)
 end
-
-# function plot_(i)
-#     xs, ys = [infimum(d.domain):dx:supremum(d.domain) for (dx,d) in zip([0.001,0.01], domains_map[i])]
-#     u_predict = reshape([first(phis[i]([x,y],reses[i].minimizer)) for x in xs for y in ys],(length(xs),length(ys)))
-#     u_real = reshape([analytic_sol_func(x,y) for x in xs for y in ys], (length(xs),length(ys)))
-#     diff_u = abs.(u_predict .- u_real)
-#     p1 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-#     p2 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict");
-#     p3 = plot(xs, ys, diff_u,linetype=:contourf,title = "error");
-#     plot(p1,p2,p3)
-# end
-# ps =[plot_(i) for i in 1:count_decomp]
 
 function compose_result(dx)
     u_predict_array = Float64[]
@@ -256,7 +225,7 @@ dx = 0.01
 u_predict, diff_u = compose_result(dx)
 
 inner_ = 18
-af = Flux.tanh
+af = Lux.tanh
 chain2 = Lux.Chain(Lux.Dense(2, inner_, af),
                    Lux.Dense(inner_, inner_, af),
                    Lux.Dense(inner_, inner_, af),
@@ -277,12 +246,12 @@ losses = map(1:count_decomp) do i
 end
 
 prob_ = NeuralPDE.neural_adapter(losses, init_params2, pde_system_map,
-                                 NeuralPDE.GridTraining([0.1 / count_decomp, 0.1]))
-res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 2000)
+                                 GridTraining([0.1 / count_decomp, 0.1]))
+res_ = solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 2000)
 @show res_.minimum
 prob_ = NeuralPDE.neural_adapter(losses, res_.minimizer, pde_system_map,
-                                 NeuralPDE.GridTraining(0.01))
-res_ = Optimization.solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 1000)
+                                 GridTraining(0.01))
+res_ = solve(prob_, OptimizationOptimJL.BFGS(); maxiters = 1000)
 @show res_.minimum
 
 phi_ = NeuralPDE.Phi(chain2)
@@ -296,10 +265,3 @@ diff_u_ = u_predict_ .- u_real
 
 @test u_predict≈u_real rtol=0.1
 @test u_predict_≈u_real rtol=0.1
-
-# p1 = plot(xs, ys, u_predict, linetype=:contourf,title = "predict 1");
-# p2 = plot(xs, ys, u_predict_,linetype=:contourf,title = "predict 2");
-# p3 = plot(xs, ys, u_real, linetype=:contourf,title = "analytic");
-# p4 = plot(xs, ys, diff_u,linetype=:contourf,title = "error 1");
-# p5 = plot(xs, ys, diff_u_,linetype=:contourf,title = "error 2");
-# plot(p1,p2,p3,p4,p5)
