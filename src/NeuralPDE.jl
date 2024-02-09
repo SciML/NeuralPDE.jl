@@ -16,30 +16,37 @@ using Integrals, Cubature
 using QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using SciMLBase
+using PDEBase
+using PDEBase: cardinalize_eqs!, get_depvars, get_indvars, differential_order
 using Statistics
 using ArrayInterface
 import Optim
 using DomainSets
 using Symbolics
-using Symbolics: wrap, unwrap, arguments, operation
+using Symbolics: wrap, unwrap, arguments, operation, symtype
 using SymbolicUtils
 using AdvancedHMC, LogDensityProblems, LinearAlgebra, Functors, MCMCChains
 using MonteCarloMeasurements
+using SymbolicUtils.Code
+using SymbolicUtils: Prewalk, Postwalk, Chain
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly, parameterless_type
 import UnPack: @unpack
+import RecursiveArrayTools
 import ChainRulesCore, Lux, ComponentArrays
-import ChainRulesCore: @non_differentiable
+import ChainRulesCore: @non_differentiable, @ignore_derivatives
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-abstract type AbstractPINN end
+abstract type AbstractPINN <: SciMLBase.AbstractDiscretization end
 
 abstract type AbstractTrainingStrategy end
+abstract type AbstractGridfreeStrategy <: AbstractTrainingStrategy end
 
 include("pinn_types.jl")
+include("eq_data.jl")
 include("symbolic_utilities.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
@@ -47,6 +54,7 @@ include("ode_solve.jl")
 # include("rode_solve.jl")
 include("dae_solve.jl")
 include("transform_inf_integral.jl")
+include("loss_function_generation.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
