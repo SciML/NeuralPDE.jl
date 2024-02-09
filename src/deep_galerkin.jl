@@ -1,6 +1,6 @@
 struct dgm_lstm_layer{F1, F2} <:Lux.AbstractExplicitLayer
-    activation1
-    activation2
+    activation1::Function
+    activation2::Function
     in_dims::Int
     out_dims::Int
     init_weight::F1
@@ -97,16 +97,36 @@ end
 `dgm(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1, activation2, out_activation= Lux.identity)`:
 returns the architecture defined in https://arxiv.org/abs/1708.07469
 
+```math
+
+\\begin{align}
+S^1 &= \\sigma_1(W^1 x + b^1); \\
+Z^l &= \\sigma_1(U^{z,l} x + W^{z,l} S^l + b^{z,l}); \\quad l = 1, \\ldots, L; \\
+G^l &= \\sigma_1(U^{g,l} x + W^{g,l} S_l + b^{g,l}); \\quad l = 1, \\ldots, L; \\
+R^l &= \\sigma_1(U^{r,l} x + W^{r,l} S^l + b^{r,l}); \\quad l = 1, \\ldots, L; \\
+H^l &= \\sigma_2(U^{h,l} x + W^{h,l}(S^l \\cdot R^l) + b^{h,l}); \\quad l = 1, \\ldots, L; \\
+S^{l+1} &= (1 - G^l) \\cdot H^l + Z^l \\cdot S^{l}; \\quad l = 1, \\ldots, L; \\
+f(t, x, \\theta) &= \\sigma_{out}(W S^{L+1} + b).
+\\end{align}
+```
+
 ### Arguments:
 
 `in_dims`: number of input dimensions= (spatial dimension+ 1)
+
 `out_dims`: number of output dimensions
+
 `modes`: Width of the LSTM type layer
+
 `L`: number of LSTM type layers
+
 `activation1`: activation fn used in LSTM type layers
+
 `activation2`: activation fn used for the output of LSTM type layers
+
 `out_activation`: activation fn used for the output of the network
 
+`kwargs`: additional arguments to be splatted into `PhysicsInformedNN`
 """
 function dgm(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1, activation2, out_activation)
     dgm(
@@ -121,15 +141,23 @@ end
     strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)`:
 returns a `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a `PDESystem` into an
     `OptimizationProblem` using the Deep Galerkin method.
+
 ### Arguments:
 
 `in_dims`: number of input dimensions= (spatial dimension+ 1)
+
 `out_dims`: number of output dimensions
+
 `modes`: Width of the LSTM type layer
+
 `L`: number of LSTM type layers
+
 `activation1`: activation fn used in LSTM type layers
+
 `activation2`: activation fn used for the output of LSTM type layers
+
 `out_activation`: activation fn used for the output of the network
+
 `kwargs`: additional arguments to be splatted into `PhysicsInformedNN`
 """
 function DeepGalerkin(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function, activation2::Function, out_activation::Function, strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)
