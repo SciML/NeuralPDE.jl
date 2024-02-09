@@ -17,6 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         group:
+          - QA
           - ODEBPINN
           - PDEBPINN
           - NNPDE1
