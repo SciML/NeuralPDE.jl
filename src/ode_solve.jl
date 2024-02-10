@@ -189,13 +189,13 @@ Simple L2 inner loss at a time `t` with parameters `θ` of the neural network.
 function inner_loss end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
-        p, param_estim) where {C, T, U <: Number}
+        p, param_estim::Bool) where {C, T, U <: Number}
     p_ = param_estim ? θ.p : p
     sum(abs2, ode_dfdx(phi, t, θ, autodiff) - f(phi(t, θ), p_, t))
 end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
-        p, param_estim) where {C, T, U <: Number}
+        p, param_estim::Bool) where {C, T, U <: Number}
     p_ = param_estim ? θ.p : p
     out = phi(t, θ)
     fs = reduce(hcat, [f(out[i], p_, t[i]) for i in axes(out, 2)])
@@ -204,13 +204,13 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
 end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
-        p, param_estim) where {C, T, U}
+        p, param_estim::Bool) where {C, T, U}
     p_ = param_estim ? θ.p : p
     sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(phi(t, θ), p_, t))
 end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
-        p, param_estim) where {C, T, U}
+        p, param_estim::Bool) where {C, T, U}
     p_ = param_estim ? θ.p : p
     out = Array(phi(t, θ))
     arrt = Array(t)
@@ -225,7 +225,7 @@ end
 Representation of the loss function, parametric on the training strategy `strategy`.
 """
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim)
+        batch, param_estim::Bool)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
 
     integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim)) for t in ts]
@@ -240,7 +240,7 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
     return loss
 end
 
-function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim)
+function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool)
     ts = tspan[1]:(strategy.dx):tspan[2]
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
@@ -255,7 +255,7 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
 end
 
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim)
+        batch, param_estim::Bool)
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
     function loss(θ, _)
@@ -272,7 +272,7 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
 end
 
 function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim)
+        batch, param_estim::Bool)
     autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT = tspan[1]
     maxT = tspan[2]
@@ -303,7 +303,7 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     return loss
 end
 
-function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim)
+function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim::Bool)
 
     # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
