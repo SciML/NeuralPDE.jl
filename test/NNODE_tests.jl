@@ -3,6 +3,7 @@ using Random, NeuralPDE
 using OrdinaryDiffEq, Statistics
 import Lux, OptimizationOptimisers, OptimizationOptimJL
 using Flux
+using LineSearches
 
 Random.seed!(100)
 
@@ -215,6 +216,35 @@ end
         sol1 = solve(prob, alg1, verbose = true, abstol = 1e-8, maxiters = 500)
         @test sol1.errors[:l2] < 0.5
     end
+end
+
+@testset "Parameter Estimation" begin
+    function lorenz(u, p, t)
+        return [p[1]*(u[2]-u[1]),
+                u[1]*(p[2]-u[3])-u[2],
+                u[1]*u[2]-p[3]*u[3]]
+    end
+    prob = ODEProblem(lorenz, [1.0, 0.0, 0.0], (0.0, 1.0), [1.0, 1.0, 1.0])
+    true_p = [2.0, 3.0, 2.0]
+    prob2 = remake(prob, p = true_p)
+    sol = solve(prob2, Tsit5(), saveat = 0.01)
+    t_ = sol.t
+    u_ = reduce(hcat, sol.u)
+    function additional_loss(phi, θ)
+        return sum(abs2, phi(t_, θ) .- u_)/100
+    end
+    n = 8
+    luxchain = Lux.Chain(
+                Lux.Dense(1, n, Lux.σ),
+                Lux.Dense(n, n, Lux.σ),
+                Lux.Dense(n, n, Lux.σ),
+                Lux.Dense(n, 3)
+            )
+    opt = OptimizationOptimJL.LBFGS(linesearch = BackTracking())
+    alg = NNODE(luxchain, opt, strategy = GridTraining(0.01), param_estim = true, additional_loss = additional_loss)
+    sol = solve(prob, alg, verbose = true, abstol = 1e-8, maxiters = 5000, saveat = t_)
+    @test sol.k.u.p≈true_p atol=1e-2
+    @test reduce(hcat, sol.u)≈u_ atol=1e-2
 end
 
 @testset "Translating from Flux" begin
