@@ -33,7 +33,6 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
 SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
@@ -94,9 +93,10 @@ LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 LuxCUDA = "d0bbae9a-e099-4d5b-a835-1c6931763bda"
 OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
+StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "Test", "CUDA", "SafeTestsets", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "LineSearches", "LuxCUDA", "Flux"]
+test = ["Aqua", "Test", "CUDA", "SafeTestsets", "OptimizationOptimJL", "Pkg", "OrdinaryDiffEq", "StochasticDiffEq", "LineSearches", "LuxCUDA", "Flux"]
