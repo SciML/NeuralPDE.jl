@@ -44,7 +44,7 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
-    # is vec as later each _set in pde_train_sets are coloumns as points transformed to vector of points (pde_train_sets must be rowwise)
+    # is vec as later each _set in pde_train_sets are columns as points transformed to vector of points (pde_train_sets must be rowwise)
     pde_loss_functions = if !(train_sets_pde isa Nothing)
 
         pde_train_sets = get_dataset_train_points(eqs, train_sets_pde, pinnrep)

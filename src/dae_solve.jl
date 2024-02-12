@@ -115,6 +115,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
 
     if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
         phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
+        init_params = ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params))
     else
         error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
     end
