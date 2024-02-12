@@ -25,7 +25,6 @@ using Symbolics: wrap, unwrap, arguments, operation
 using SymbolicUtils
 using AdvancedHMC, LogDensityProblems, LinearAlgebra, Functors, MCMCChains
 using MonteCarloMeasurements
-using DataInterpolations: LinearInterpolation
 import ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives
 import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
@@ -53,7 +52,7 @@ include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
-include("bayesian/collocated_estim.jl")
+include("collocated_estim.jl")
 
 export NNODE, TerminalPDEProblem, NNPDEHan, NNPDENS, NNRODE, NNDAE,
     KolmogorovPDEProblem, NNKolmogorov, NNStopping, ParamKolmogorovPDEProblem,
