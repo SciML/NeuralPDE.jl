@@ -63,28 +63,86 @@ mutable struct PDELogTargetDensity{
     end
 end
 
+# for bc case, [bc]/bc eqs must be passed along with dataset_bc[i]
+# and final loss for bc must be together in a vector(bcs has seperate type of dataset_bc)
+# eqs is vector of pde eqs and dataset here is dataset_pde
+# normally you get vector of losses
+function get_lossy(pinnrep, dataset, eqs)
+    depvars = pinnrep.depvars # order is same as dataset and interps
+    dict_depvar_input = pinnrep.dict_depvar_input
+
+    Dict_differentials0 = Dict()
+    exp = toexpr(eqs)
+    Symbolics.variable.(hcat(pinnrep.indvars, pinnrep.depvars))
+    for exp_i in exp
+        recur_expression(exp_i, Dict_differentials0)
+    end
+    # Dict_differentials is now filled with Differential operator => diff_i key-value pairs
+
+    Dict_differentials = Dict()
+    for (a, b) in Dict_differentials0
+        # println(eval(a.args[1]))
+        # Symbolics.operation(Symbolics.value(z))
+        println(a)
+        a = Symbolics.parse_expr_to_symbolic(a, NeuralPDE)
+        Dict_differentials[a] = b
+    end
+
+    # masking operation
+    println("Dict_differentials : ", Dict_differentials)
+    a = substitute.(eqs, Ref(Dict_differentials))
+    println("Masked Differential term : ", a)
+
+    to_subs, tobe_subs = get_symbols(dataset, depvars, eqs)
+    # for each row in dataset create u values for substituing in equation, n_equations=n_rows
+    eq_subs = [Dict(tobe_subs[depvar] => to_subs[depvar][i] for depvar in depvars)
+               for i in 1:size(dataset[1][:, 1])[1]]
+
+    b = []
+    for eq_sub in eq_subs
+        push!(b, [substitute(a_i, eq_sub) for a_i in a])
+    end
+
+    # reverse dict for re-substituing values of Differential(t)(u(t)) etc
+    rev_Dict_differentials = Dict(value => key for (key, value) in Dict_differentials)
+
+    c = []
+    for b_i in b
+        push!(c, substitute.(b_i, Ref(rev_Dict_differentials)))
+    end
+    println("After re Substituting depvars : ", c[1])
+    # c = hcat(c...)
+
+    # get losses
+    loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
+                       for (eq, pde_indvar, integration_indvar) in zip(c[i],
+        pinnrep.pde_indvars,
+        pinnrep.pde_integration_vars)] for i in eachindex(c)]
+
+    return loss_functions
+end
+
 # dataset_pde has normal matrix format 
 # dataset_bc has format of Vector{typeof(dataset_pde )} as each bc has different domain requirements
-function get_symbols(dict_depvar_input, dataset, depvars)
-    # get datasets into splattable form
-    splat_form = [[dataset_i[:, i] for i in 1:size(dataset_i)[2]] for dataset_i in dataset]
-    # splat datasets onto Linear interpolations tables
-    interps = [LinearInterpolation(splat_i...) for splat_i in splat_form]
-    interps = Dict(depvars .=> interps)
+function get_symbols(dataset, depvars, eqs)
+    depvar_vals = [dataset_i[:, 1] for dataset_i in dataset]
+    # order of depvars
+    to_subs = Dict(depvars .=> depvar_vals)
 
-    Dict_symbol_interps = Dict(depvar => (interps[depvar], dict_depvar_input[depvar])
-                               for depvar in depvars)
+    asrt = Symbolics.get_variables.(eqs)
+    # want only symbols of depvars
+    temp = unique(reduce(vcat, asrt))
 
     tobe_subs = Dict()
-    for (a, b) in dict_depvar_input
-        tobe_subs[a] = eval(:($a($(b...))))
+    for a in depvars
+        for i in temp
+            expr = toexpr(i)
+            if (expr isa Expr) && (expr.args[1] == a)
+                tobe_subs[a] = i
+            end
+        end
     end
 
-    to_subs = Dict()
-    for (a, b) in Dict_symbol_interps
-        b1, b2 = b
-        to_subs[a] = eval(:($b1($(b2...))))
-    end
     return to_subs, tobe_subs
 end
 
@@ -98,7 +156,9 @@ function recur_expression(exp, Dict_differentials)
             # first symbol of differential term
             # Dict_differentials for masking differential terms
             # and resubstituting differentials in equations after putting in interpolations
-            Dict_differentials[eval(in_exp)] = Symbol("diff_$(length(Dict_differentials)+1)")
+            println("starting")
+            Dict_differentials[in_exp] = Symbolics.variable("diff_$(length(Dict_differentials)+1)")
+            println("ending")
             return
 
         else
@@ -107,71 +167,11 @@ function recur_expression(exp, Dict_differentials)
     end
 end
 
-# get datafree loss functions for new loss type
-# need to call merge_strategy_with_loss_function() variant after this
-function merge_dataset_with_loss_function(pinnrep::NeuralPDE.PINNRepresentation,
-        dataset,
-        datafree_pde_loss_function,
-        datafree_bc_loss_function)
-    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
-
-    eltypeθ = eltype(pinnrep.flat_init_params)
-
-    train_sets = [[dataset[i][:, 2] for i in eachindex(dataset)], [[0;;], [0;;], [0;;]]]
-
-    # the points in the domain and on the boundary
-    pde_train_sets, bcs_train_sets = train_sets
-    pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-        pde_train_sets)
-    bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-        bcs_train_sets)
-    pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ)
-                          for (_loss, _set) in zip(datafree_pde_loss_function,
-        pde_train_sets)]
-
-    bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ)
-                         for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
-
-    pde_loss_functions, bc_loss_functions
-end
-
-function get_loss_function(loss_function, train_set, eltypeθ; τ = nothing)
-    loss = (θ) -> mean(abs2, loss_function(train_set, θ))
-end
-
-# for bc case, [bc]/bc eqs must be passed along with dataset_bc[i]
-# and final loss for bc must be together in a vector(bcs has seperate type of dataset_bc)
-# eqs is vector of pde eqs and dataset here is dataset_pde
-# normally you get vector of losses
-function get_loss_2(pinnrep, dataset, eqs)
-    depvars = pinnrep.depvars # order is same as dataset and interps
-    dict_depvar_input = pinnrep.dict_depvar_input
-
-    to_subs, tobe_subs = get_symbols(dict_depvar_input, dataset, depvars)
-    interp_subs_dict = Dict(tobe_subs[depvar] => to_subs[depvar] for depvar in depvars)
-
-    Dict_differentials = Dict()
-    exp = toexpr(eqs)
-    void_value = [recur_expression(exp_i, Dict_differentials) for exp_i in exp]
-    # Dict_differentials is now filled with Differential operator => diff_i key-value pairs
-
-    # masking operation
-    a = substitute.(eqs, Ref(Dict_differentials))
-    b = substitute.(a, Ref(interp_subs_dict))
-    # reverse dict for re-substituing values of Differential(t)(u(t)) etc
-    rev_Dict_differentials = Dict(value => key for (key, value) in Dict_differentials)
-    eqs = substitute.(b, Ref(rev_Dict_differentials))
-    # get losses
-    loss_functions = [NeuralPDE.build_loss_function(pinnrep,
-        eqs[i],
-        pinnrep.pde_indvars[i]) for i in eachindex(eqs)]
-end
-
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
     # for parameter estimation neccesarry to use multioutput case
     return Tar.full_loglikelihood(setparameters(Tar, θ),
-               Tar.allstd) + priorlogpdf(Tar, θ) + Tar.L2_loss2(setparameters(Tar, θ),
-               Tar.allstd)
+               Tar.allstd) + priorlogpdf(Tar, θ) + L2LossData(Tar, θ) +
+           Tar.L2_loss2(setparameters(Tar, θ), Tar.allstd)
 end
 
 function setparameters(Tar::PDELogTargetDensity, θ)
@@ -218,7 +218,7 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
     # dataset of form Vector[matrix_x, matrix_y, matrix_z]
     # matrix_i is of form [i,indvar1,indvar2,..] (needed in case if heterogenous domains)
     # note that indvar1,indvar2.. cols can be different values for different depvar matrices
-    # order follows pinnrep.depvars orders of variables (order of declaration in @variables macro)
+    # dataset,phi order follows pinnrep.depvars orders of variables (order of declaration in @variables macro)
 
     # Phi is the trial solution for each NN in chain array
     # Creating logpdf( MvNormal(Phi(t,θ),std), dataset[i] )
@@ -255,7 +255,7 @@ function priorlogpdf(Tar::PDELogTargetDensity, θ)
 
         return (invlogpdf
                 +
-                logpdf(nnwparams, θ[1:(length(θ) - Tar.extraparams)])) 
+                logpdf(nnwparams, θ[1:(length(θ) - Tar.extraparams)]))
     end
     return logpdf(nnwparams, θ)
 end
@@ -403,28 +403,30 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     dataset_pde, dataset_bc = discretization.dataset
 
     eqs = pinnrep.eqs
-    yuh1 = get_loss_2(pinnrep, dataset_pde, eqs)
-    eqs = pinnrep.bcs
-    yuh2 = get_loss_2(pinnrep, dataset_bc, eqs)
+    yuh1 = get_lossy(pinnrep, dataset_pde, eqs)
+    # eqs = pinnrep.bcs
+    # yuh2 = get_lossy(pinnrep, dataset_pde, eqs)
 
-    pde_loss_functions, bc_loss_functions = merge_dataset_with_loss_function(pinnrep,
-        dataset,
-        yuh1,
-        yuh2)
+    pde_loss_functions = [merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
+        GridTraining(0.1),
+        yuh1[i],
+        nothing; train_sets_pde = [data_pde[i, :] for data_pde in dataset_pde],
+        train_sets_bc = nothing)[1]
+                          for i in eachindex(yuh1)]
 
     function L2_loss2(θ, allstd)
         stdpdes, stdbcs, stdextra = allstd
-        pde_loglikelihoods = [logpdf(Normal(0, stdpdes[i]), pde_loss_function(θ))
-                              for (i, pde_loss_function) in enumerate(pde_loss_functions)]
+        pde_loglikelihoods = [[logpdf(Normal(0, 0.8 * stdpdes[i]), pde_loss_function(θ))
+                               for (i, pde_loss_function) in enumerate(pde_loss_functions[i])]
+                              for i in eachindex(pde_loss_functions)]
 
-        bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
-                             for (j, bc_loss_function) in enumerate(bc_loss_functions)]
-        println("pde_loglikelihoods : ", pde_loglikelihoods)
-        println("bc_loglikelihoods : ", bc_loglikelihoods)
-        return sum(sum(pde_loglikelihoods) + sum(bc_loglikelihoods))
+        # bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
+        #                      for (j, bc_loss_function) in enumerate(bc_loss_functions)]
+        # println("bc_loglikelihoods : ", bc_loglikelihoods)
+        return sum(sum(pde_loglikelihoods))
+        # sum(sum(pde_loglikelihoods) + sum(bc_loglikelihoods))
     end
 
-    println(L2_loss2)
     # WIP split dataset to respective equations
     if ((dataset_bc isa Nothing) && (dataset_pde isa Nothing))
         dataset = nothing
@@ -501,7 +503,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         names,
         ninv,
         initial_nnθ,
-        full_weighted_loglikelihood, L2_loss2,
+        full_weighted_loglikelihood,
+        L2_loss2,
         Φ)
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
@@ -516,6 +519,9 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             ℓπ.allstd))
     @info("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, initial_θ))
     @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
+    @info("Current L2_LOSSY : ",
+        ℓπ.L2_loss2(setparameters(ℓπ, initial_θ),
+            ℓπ.allstd))
 
     # parallel sampling option
     if nchains != 1
@@ -574,6 +580,9 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         @info("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, samples[end]))
         @info("Current MSE against dataset Log-likelihood : ",
             L2LossData(ℓπ, samples[end]))
+        @info("Current L2_LOSSY : ",
+            ℓπ.L2_loss2(setparameters(ℓπ, samples[end]),
+                ℓπ.allstd))
 
         fullsolution = BPINNstats(mcmc_chain, samples, stats)
         ensemblecurves, estimnnparams, estimated_params, timepoints = inference(samples,

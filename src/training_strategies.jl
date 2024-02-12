@@ -14,6 +14,27 @@ struct GridTraining{T} <: AbstractTrainingStrategy
     dx::T
 end
 
+function get_dataset_train_points(eqs, train_sets, pinnrep)
+    dict_depvar_input = pinnrep.dict_depvar_input
+    depvars = pinnrep.depvars
+    dict_depvars = pinnrep.dict_depvars
+    dict_indvars = pinnrep.dict_indvars
+
+    symbols_input = [(i, dict_depvar_input[i]) for i in depvars]
+    eq_args = NeuralPDE.get_argument(eqs, dict_indvars, dict_depvars)
+    points = []
+    for eq_arg in eq_args
+        a = []
+        for i in eachindex(symbols_input)
+            if symbols_input[i][2] == eq_arg
+                push!(a, train_sets[i][:, 2:end]')
+            end
+        end
+        push!(points, vcat(a...))
+    end
+    return points
+end
+
 # include dataset points in pde_residual loglikelihood (BayesianPINN)
 function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
         strategy::GridTraining,
@@ -25,7 +46,10 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
 
     # is vec as later each _set in pde_train_sets are coloumns as points transformed to vector of points (pde_train_sets must be rowwise)
     pde_loss_functions = if !(train_sets_pde isa Nothing)
-        pde_train_sets = [train_set[:, 2:end] for train_set in train_sets_pde]
+
+        pde_train_sets = get_dataset_train_points(eqs, train_sets_pde, pinnrep)
+        println(" pde train set : ", pde_train_sets)
+        println("type pde  train set : ", size(pde_train_sets))
         pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
             pde_train_sets)
         [get_loss_function(_loss, _set, eltypeθ, strategy)
@@ -36,7 +60,10 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
     end
     
     bc_loss_functions = if !(train_sets_bc isa Nothing)
-        bcs_train_sets = [train_set[:, 2:end] for train_set in train_sets_bc]
+
+        bcs_train_sets = get_dataset_train_points(bcs, train_sets_bc, pinnrep)
+        println("bcs train set : ", bcs_train_sets)
+        println("type bcs train set : ", size(bcs_train_sets))
         bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
         bcs_train_sets)
         [get_loss_function(_loss, _set, eltypeθ, strategy)
@@ -71,7 +98,10 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
 
     bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
                          for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
-
+                            println("pde_train_sets : ",pde_train_sets)
+                            println("pde_train_sets : ",size(pde_train_sets))
+                            println("bc_train_sets : ",bcs_train_sets)
+                            println("bc_train_sets : ",size(bcs_train_sets))
     pde_loss_functions, bc_loss_functions
 end
 
