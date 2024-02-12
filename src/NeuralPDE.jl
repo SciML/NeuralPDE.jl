@@ -84,8 +84,8 @@ include("transform_inf_integral.jl")
 include("discretize.jl")
 
 include("neural_adapter.jl")
-include("bayesian/advancedHMC_MCMC.jl")
-include("bayesian/BPINN_ode.jl")
+include("advancedHMC_MCMC.jl")
+include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 
 include("dgm.jl")
