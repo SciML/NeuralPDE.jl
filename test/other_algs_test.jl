@@ -19,7 +19,7 @@ import Lux: tanh, identity
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
-    strategy = QuasiRandomTraining(4_000);
+    strategy = QuasiRandomTraining(4_000, minibatch= 500);
     discretization= DeepGalerkin(2, 1, 30, 3, tanh, tanh, identity, strategy);
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
@@ -34,7 +34,7 @@ import Lux: tanh, identity
         return false
     end
 
-    res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters = 250)
+    res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters = 500)
     phi = discretization.phi
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
@@ -44,5 +44,5 @@ import Lux: tanh, identity
                         (length(xs), length(ys)))
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
                     (length(xs), length(ys)))
-    @test u_predict≈u_real atol=2.0
+    @test u_predict≈u_real atol=0.1
 end
