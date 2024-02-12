@@ -11,6 +11,9 @@ function dev_subpkg(subpkg)
 end
 
 @time begin
+    if GROUP == "All" || GROUP == "QA"
+        @time @safetestset "Quality Assurance" begin include("qa.jl") end
+    end
     if GROUP == "All" || GROUP == "ODEBPINN"
         @time @safetestset "Bpinn ODE solver" begin include("BPINN_Tests.jl") end
     end
