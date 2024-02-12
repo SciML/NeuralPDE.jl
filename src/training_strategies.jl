@@ -14,6 +14,27 @@ corresponding to the grid spacing in each dimension.
     dx
 end
 
+function get_dataset_train_points(eqs, train_sets, pinnrep)
+    dict_depvar_input = pinnrep.dict_depvar_input
+    depvars = pinnrep.depvars
+    dict_depvars = pinnrep.dict_depvars
+    dict_indvars = pinnrep.dict_indvars
+
+    symbols_input = [(i, dict_depvar_input[i]) for i in depvars]
+    eq_args = NeuralPDE.get_argument(eqs, dict_indvars, dict_depvars)
+    points = []
+    for eq_arg in eq_args
+        a = []
+        for i in eachindex(symbols_input)
+            if symbols_input[i][2] == eq_arg
+                push!(a, train_sets[i][:, 2:end]')
+            end
+        end
+        push!(points, vcat(a...))
+    end
+    return points
+end
+
 # include dataset points in pde_residual loglikelihood (BayesianPINN)
 function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
         strategy::GridTraining, datafree_pde_loss_function,

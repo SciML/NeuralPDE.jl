@@ -56,7 +56,7 @@ function L2LossData(ltd::PDELogTargetDensity, θ)
     # dataset of form Vector[matrix_x, matrix_y, matrix_z]
     # matrix_i is of form [i,indvar1,indvar2,..] (needed in case if heterogenous domains)
     # note that indvar1,indvar2.. cols can be different values for different depvar matrices
-    # order follows pinnrep.depvars orders of variables (order of declaration in @variables macro)
+    # dataset,phi order follows pinnrep.depvars orders of variables (order of declaration in @variables macro)
 
     # Phi is the trial solution for each NN in chain array
     # Creating logpdf( MvNormal(Phi(t,θ),std), dataset[i] )
@@ -265,28 +265,30 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     dataset_pde, dataset_bc = discretization.dataset
 
     eqs = pinnrep.eqs
-    yuh1 = get_loss_2(pinnrep, dataset_pde, eqs)
-    eqs = pinnrep.bcs
-    yuh2 = get_loss_2(pinnrep, dataset_bc, eqs)
+    yuh1 = get_lossy(pinnrep, dataset_pde, eqs)
+    # eqs = pinnrep.bcs
+    # yuh2 = get_lossy(pinnrep, dataset_pde, eqs)
 
-    pde_loss_functions, bc_loss_functions = merge_dataset_with_loss_function(pinnrep,
-        dataset,
-        yuh1,
-        yuh2)
+    pde_loss_functions = [merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
+        GridTraining(0.1),
+        yuh1[i],
+        nothing; train_sets_pde = [data_pde[i, :] for data_pde in dataset_pde],
+        train_sets_bc = nothing)[1]
+                          for i in eachindex(yuh1)]
 
     function L2_loss2(θ, allstd)
         stdpdes, stdbcs, stdextra = allstd
-        pde_loglikelihoods = [logpdf(Normal(0, stdpdes[i]), pde_loss_function(θ))
-                              for (i, pde_loss_function) in enumerate(pde_loss_functions)]
+        pde_loglikelihoods = [[logpdf(Normal(0, 0.8 * stdpdes[i]), pde_loss_function(θ))
+                               for (i, pde_loss_function) in enumerate(pde_loss_functions[i])]
+                              for i in eachindex(pde_loss_functions)]
 
-        bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
-                             for (j, bc_loss_function) in enumerate(bc_loss_functions)]
-        println("pde_loglikelihoods : ", pde_loglikelihoods)
-        println("bc_loglikelihoods : ", bc_loglikelihoods)
-        return sum(sum(pde_loglikelihoods) + sum(bc_loglikelihoods))
+        # bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
+        #                      for (j, bc_loss_function) in enumerate(bc_loss_functions)]
+        # println("bc_loglikelihoods : ", bc_loglikelihoods)
+        return sum(sum(pde_loglikelihoods))
+        # sum(sum(pde_loglikelihoods) + sum(bc_loglikelihoods))
     end
 
-    println(L2_loss2)
     # WIP split dataset to respective equations
     if ((dataset_bc isa Nothing) && (dataset_pde isa Nothing))
         dataset = nothing
