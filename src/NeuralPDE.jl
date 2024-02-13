@@ -23,7 +23,7 @@ using ArrayInterface
 import Optim
 using DomainSets
 using Symbolics
-using Symbolics: wrap, unwrap, arguments, operation, symtype
+using Symbolics: wrap, unwrap, arguments, operation, symtype, @arrayop
 using SymbolicUtils
 using AdvancedHMC, LogDensityProblems, LinearAlgebra, Functors, MCMCChains
 using MonteCarloMeasurements

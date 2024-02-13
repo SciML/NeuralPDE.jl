@@ -522,6 +522,8 @@ function numeric_derivative(phi, x, εs, order, θ)
 
 	ε = adapt(_type, ε)
 	x = adapt(_type, x)
+    ε = @arrayop (i,) ε[i] for i in 1:length(ε)
+    x = @arrayop (i,) x[i] for i in 1:length(x)
 
 	# any(x->x!=εs[1],εs)
 	# εs is the epsilon for each order, if they are all the same then we use a fancy formula
