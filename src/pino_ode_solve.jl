@@ -1,3 +1,32 @@
+"""
+   PINOODE(chain,
+    OptimizationOptimisers.Adam(0.1),
+    training_mapping
+    init_params = nothing;
+    kwargs...)
+
+## Positional Arguments
+
+* `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.AbstractExplicitLayer`.
+* `opt`: The optimizer to train the neural network.
+* `training_mapping`: TODO
+* `init_params`: The initial parameter of the neural network. By default, this is `nothing`
+  which thus uses the random initialization provided by the neural network library.
+
+## Keyword Arguments
+* `minibatch`: TODO
+
+## Examples
+
+TODO
+```julia
+
+```
+
+
+## References
+Zongyi Li "Physics-Informed Neural Operator for Learning Partial Differential Equations"
+"""
 struct PINOODE{C, O, T, P, K} <: DiffEqBase.AbstractODEAlgorithm
     chain::C
     opt::O
@@ -19,6 +48,7 @@ end
 
 """
     PINOPhi(chain::Lux.AbstractExplicitLayer, t, st)
+    TODO
 """
 mutable struct PINOPhi{C, S}
     chain::C
@@ -41,7 +71,6 @@ end
 function (f::PINOPhi{C})(t::Number, θ) where {C <: Lux.AbstractExplicitLayer}
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
-    # f.u0 .+ (t .- f.t0) .* y
     y
 end
 
@@ -49,7 +78,6 @@ function (f::PINOPhi{C})(t::AbstractArray, θ) where {C <: Lux.AbstractExplicitL
     # Batch via data as row vectors
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
-    # f.u0 .+ (t' .- f.t0) .* y
     y
 end
 

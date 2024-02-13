@@ -32,6 +32,11 @@ end
         @time @safetestset "NNDAE" begin include("NNDAE_tests.jl") end
     end
 
+    if GROUP == "All" || GROUP == "ODEPINO"
+        @time @safetestset "pino ode" begin include("PINO_ode_tests.jl")
+        end
+    end
+
     if GROUP == "All" || GROUP == "NNPDE2"
         @time @safetestset "Additional Loss" begin include("additional_loss_tests.jl") end
         @time @safetestset "Direction Function Approximation" begin include("direct_function_tests.jl") end
