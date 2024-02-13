@@ -476,6 +476,7 @@ function (f::Phi{<:Lux.AbstractExplicitLayer})(x::Number, θ)
 end
 
 function (f::Phi{<:Lux.AbstractExplicitLayer})(x::AbstractArray, θ)
+    @show x, typeof(x)
 	y, st = f.f(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
 	ChainRulesCore.@ignore_derivatives f.st = st
 	y
@@ -486,27 +487,14 @@ function (f::Phi{<:Optimisers.Restructure})(x, θ)
 end
 
 # the method to calculate the derivative
-function numeric_derivative(phi, x, εs, order, θ)
+function numeric_derivative(phi, x, ε, order, θ)
 	_type = parameterless_type(ComponentArrays.getdata(θ))
 
-	ε = εs[order]
-	_epsilon = inv(first(ε[ε.!=zero(ε)]))
-
+	_epsilon = inv(first(ε[ε.!=zero(eltype(ε))]))
 	ε = adapt(_type, ε)
 	x = adapt(_type, x)
-    ε = @arrayop (i,) ε[i] for i in 1:length(ε)
-    x = @arrayop (i,) x[i] for i in 1:length(x)
 
-	# any(x->x!=εs[1],εs)
-	# εs is the epsilon for each order, if they are all the same then we use a fancy formula
-	# if order 1, this is trivially true
-
-	if order > 4 || any(x -> x != εs[1], εs)
-		return (numeric_derivative(phi, x .+ ε, @view(εs[1:(end-1)]), order - 1, θ)
-				.-
-				numeric_derivative(phi, x .- ε, @view(εs[1:(end-1)]), order - 1, θ)) .*
-			   _epsilon ./ 2
-	elseif order == 4
+	if order == 4
 		return (phi(x .+ 2 .* ε, θ) .- 4 .* phi(x .+ ε, θ)
 				.+
 				6 .* phi(x, θ)
@@ -524,8 +512,8 @@ function numeric_derivative(phi, x, εs, order, θ)
 		error("This shouldn't happen! Got an order of $(order).")
 	end
 end
-# Hacky workaround for metaprogramming with symbolics
-@register_symbolic(numeric_derivative(phi, x, εs, order, θ))
+
+#@register_symbolic(numeric_derivative(phi, x, ε, order, θ))
 
 function ufunc(u, phi, v)
 	if symtype(phi) isa AbstractArray
@@ -550,18 +538,18 @@ https://github.com/SciML/NeuralPDE.jl/pull/627/files
 
 
 
-function reducevcat(vector::Vector, eltypeθ, switch)
+function reducevcat(vector::Vector, eltypeθ)
 	isnothing(vector) && return [[nothing]]
 	if all(x -> x isa Number, vector)
 		return vector
 	else
 		z = findfirst(x -> !(x isa Number), vector)
-		return rvcat(vector, vector[z], eltypeθ, switch)
+		return rvcat(vector, vector[z], eltypeθ)
 	end
 end
 
-function rvcat(example, sym, eltypeθ, switch)
-	return map(example) do x
+function rvcat(example, sym, eltypeθ)
+	out = map(example) do x
 		if x isa Number
 			out = convert(eltypeθ, x)
 			out
@@ -570,6 +558,9 @@ function rvcat(example, sym, eltypeθ, switch)
 			out
 		end
 	end
+    #out = @arrayop (i,) out[i] i in 1:length(out)
+
+    return out
 end
 
-@register_symbolic(rvcat(vector, example, eltypeθ, switch))
+#@register_symbolic(rvcat(vector, example, eltypeθ, switch))

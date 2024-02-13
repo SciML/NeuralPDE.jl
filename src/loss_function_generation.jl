@@ -67,6 +67,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
     full_loss_func = (cord, θ, phi, p) -> begin
         coords = [[nothing]]
         @ignore_derivatives coords = get_coords(cord)
+        @show coords
         loss_function(coords, θ, phi, get_ps(θ))
     end
     return full_loss_func
@@ -110,12 +111,12 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
     end
 
     dummyvars = unwrap.(dummyvars)
-    deriv_rules, swch = generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap, multioutput)
+    deriv_rules = generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative, varmap, multioutput)
 
     ch = Prewalk(Chain(deriv_rules))
 
     expr = ch(term)
-    expr = swch(expr)
+    #expr = swch(expr)
 
     sym_coords = DestructuredArgs(ivs)
     ps = DestructuredArgs(varmap.ps)
@@ -139,9 +140,8 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
     # Orthodox derivatives
     n(w) = length(arguments(w))
     rs = reduce(vcat, [reduce(vcat, [[@rule $((Differential(x)^d)(w)) =>
-                                          derivative(ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ, switch),
-                                                     [get_ε(n(w),
-                                                           j, eltypeθ, i) for i in 1:d],
+                                          derivative(ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ),
+                                                     get_ε(n(w),j, eltypeθ, d),
                                                      d, θ)
             for d in differential_order(term, x)]
            for (j, x) in enumerate(varmap.args[operation(w)])], init = [])
@@ -153,10 +153,10 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
                 if isequal(x, y)
                     [(_) -> nothing]
                 else
-                    ε1 = [get_ε(n(w), j, eltypeθ, i) for i in 1:2]
-                    ε2 = [get_ε(n(w), k, eltypeθ, i) for i in 1:2]
+                    ε1 = get_ε(n(w), j, eltypeθ, 1)
+                    ε2 = get_ε(n(w), k, eltypeθ, 1) 
                     [@rule $((Differential(x))((Differential(y))(w))) =>
-                        derivative((coord_, θ_) -> derivative(ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ, switch),
+                        derivative((coord_, θ_) -> derivative(ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ),
                                                              ε2, 1, θ_),
                                    reducevcat(arguments(w), eltypeθ, switch), ε1, 1, θ)]
                 end
@@ -164,12 +164,10 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
         end 
     end
     vr = mapreduce(vcat, dvs, init = []) do w
-        @rule w => ufunc(w, phi, varmap)(reducevcat(arguments(w), eltypeθ, switch), θ)
+        @rule w => ufunc(w, phi, varmap)(reducevcat(arguments(w), eltypeθ), θ)
     end
 
-    sr = @rule switch => 1
-    swch = Postwalk(Chain(sr))
-    return [mx; rs; vr], swch
+    return [mx; rs; vr]
 end
 
 function generate_integral_rules(eq, eqdata, dummyvars)
