@@ -17,42 +17,6 @@ function PINOODE(chain,
     PINOODE(chain, opt, training_mapping, init_params, minibatch, kwargs)
 end
 
-# mutable struct Phi{C, S}
-#     f::C
-#     st::S
-#     function Phi(chain::Lux.AbstractExplicitLayer)
-#         st = Lux.initialstates(Random.default_rng(), chain)
-#         new{typeof(chain), typeof(st)}(chain, st)
-#     end
-# end
-
-# function (f::Phi{<:Lux.AbstractExplicitLayer})(x::Number, θ)
-#     y, st = f.f(adapt(parameterless_type(ComponentArrays.getdata(θ)), [x]), θ, f.st)
-
-#     ChainRulesCore.@ignore_derivatives f.st = st
-#     y
-# end
-
-# function (f::Phi{<:Lux.AbstractExplicitLayer})(x::AbstractArray, θ)
-#     y, st = f.f(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
-#     ChainRulesCore.@ignore_derivatives f.st = st
-#     y
-# end
-
-# function (f::Phi{<:Optimisers.Restructure})(x, θ)
-#     f.f(θ)(adapt(parameterless_type(θ), x))
-# end
-
-# function (f::PINOPhi{C})(t, θ) where {C <: Optimisers.Restructure}
-#     f.f(θ)(t)
-# end
-# Zygote.gradient(θ -> sum(abs2, data_loss(phi, tspan, θ, training_mapping)), init_params)
-
-# function inner_loss(phi::PINOPhi{C}, tspan, θ, training_mapping::Tuple) where {C}
-#     loss = data_loss(phi, tspan, θ, training_mapping ) #+ physics_loss()
-#     loss
-# end
-
 """
     PINOPhi(chain::Lux.AbstractExplicitLayer, t, st)
 """
@@ -89,20 +53,40 @@ function (f::PINOPhi{C})(t::AbstractArray, θ) where {C <: Lux.AbstractExplicitL
     y
 end
 
-function inner_data_loss(phi::PINOPhi{C}, θ, in_, out_) where {C}
-    phi(in_, θ) - out_
+function dfdx(phi::PINOPhi, t::AbstractArray, θ)
+    ε = [sqrt(eps(eltype(t))), zero(eltype(t))]
+    (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
 end
 
-function data_loss(phi::PINOPhi{C}, tspan, θ, training_mapping) where {C}
+function inner_physics_loss(phi::PINOPhi{C}, f, θ, in_) where {C}
+    out_ = phi(in_, θ)
+    dudt = dfdx(phi, in_, θ)
+    ts = in_[[1], :]
+    ps = in_[[2], :]
+    fs = f.(out_, ps, ts)
+    dudt - fs
+end
+
+function physics_loss(phi::PINOPhi{C}, f, θ, training_mapping::Tuple{Vector, Vector}) where {C}
+    input_set, _ = training_mapping
+    data_set_size = size(input_set)[1] * size(input_set[1])[2]
+    loss = reduce(vcat,
+        [inner_physics_loss(phi, f, θ, in_) for in_ in input_set])
+    sum(abs2, loss) / data_set_size
+end
+
+function data_loss(phi::PINOPhi{C}, θ, training_mapping::Tuple{Vector, Vector}) where {C}
     input_set, output_set = training_mapping
     data_set_size = size(input_set)[1] * size(input_set[1])[2]
-    loss = reduce(vcat,[inner_data_loss(phi, θ, in_, out_) for (in_, out_) in zip(input_set, output_set)])
-    loss / data_set_size
+    inner_data_loss(phi::PINOPhi{C}, θ, in_, out_) where {C}  = phi(in_, θ) - out_
+    loss = reduce(vcat,
+        [inner_data_loss(phi, θ, in_, out_) for (in_, out_) in zip(input_set, output_set)])
+    sum(abs2,loss) / data_set_size
 end
 
-function generate_loss(phi::PINOPhi{C}, tspan, training_mapping::Tuple) where {C}
+function generate_loss(phi::PINOPhi{C}, f, training_mapping::Tuple{Vector, Vector}) where {C}
     function loss(θ, _)
-        sum(abs2, data_loss(phi, tspan, θ, training_mapping))
+        data_loss(phi, θ, training_mapping) + physics_loss(phi, f, θ, training_mapping)
     end
     return loss
 end
@@ -156,7 +140,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     #     alg.batch
     # end
 
-    inner_f = generate_loss(phi, tspan, training_mapping)
+    inner_f = generate_loss(phi, f, training_mapping)
 
     # Creates OptimizationFunction Object from total_loss
     total_loss(θ, _) = inner_f(θ, phi)
