@@ -168,7 +168,7 @@ function generate_derivative_rules(term, eqdata, eltypeθ, dummyvars, derivative
     end
 
     sr = @rule switch => 1
-    swch = Postwalk(sr)
+    swch = Postwalk(Chain(sr))
     return [mx; rs; vr], swch
 end
 

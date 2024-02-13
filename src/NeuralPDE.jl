@@ -34,7 +34,6 @@ import DomainSets: Domain, ClosedInterval
 import ModelingToolkit: Interval, infimum, supremum #,Ball
 import SciMLBase: @add_kwonly, parameterless_type
 import UnPack: @unpack
-import RecursiveArrayTools
 import ChainRulesCore, Lux, ComponentArrays
 import ChainRulesCore: @non_differentiable, @ignore_derivatives
 

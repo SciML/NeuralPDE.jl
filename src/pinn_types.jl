@@ -350,23 +350,7 @@ mutable struct PINNRepresentation
     """
     The dependent variables of the system
     """
-    depvars::Any
-    """
-    The independent variables of the system
-    """
-    indvars::Any
-    """
-    A dictionary form of the independent variables. Define the structure ???
-    """
-    dict_indvars::Any
-    """
-    A dictionary form of the dependent variables. Define the structure ???
-    """
-    dict_depvars::Any
-    """
-    ???
-    """
-    dict_depvar_input::Any
+    varmap::Any
     """
     The logger as provided by the user
     """
@@ -411,19 +395,7 @@ mutable struct PINNRepresentation
     """
     ???
     """
-    pde_indvars::Any
-    """
-    ???
-    """
-    bc_indvars::Any
-    """
-    ???
-    """
-    pde_integration_vars::Any
-    """
-    ???
-    """
-    bc_integration_vars::Any
+    eqdata::Any
     """
     ???
     """
