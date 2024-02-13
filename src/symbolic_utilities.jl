@@ -18,11 +18,15 @@ julia> _dot_(e)
 """
 dottable_(x) = Broadcast.dottable(x)
 dottable_(x::Function) = true
+dottable_(x::typeof(numeric_derivative)) = false
+dottable_(x::Phi) = false
+
 
 _dot_(x) = x
 function _dot_(x::Expr)
     dotargs = Base.mapany(_dot_, x.args)
-    if x.head === :call && dottable_(x.args[1])
+    nodot = [:phi, Symbol("NeuralPDE.numeric_derivative"), NeuralPDE.rvcat]
+    if x.head === :call && dottable_(x.args[1]) && all(s -> x.args[1] != s, nodot)
         Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
     elseif x.head === :comparison
         Expr(:comparison,
@@ -34,7 +38,9 @@ function _dot_(x::Expr)
         Expr(:let, undot(dotargs[1]), dotargs[2])
     elseif x.head === :for # don't add dots to for x=... assignments
         Expr(:for, undot(dotargs[1]), dotargs[2])
-    elseif (x.head === :(=) || x.head === :function || x.head === :macro) &&
+    elseif x.head === :(=) # don't add dots to x=... assignments
+        Expr(:(=), dotargs[1], dotargs[2])
+    elseif (x.head === :function || x.head === :macro) &&
            Meta.isexpr(x.args[1], :call) # function or macro definition
         Expr(x.head, x.args[1], dotargs[2])
     elseif x.head === :(<:) || x.head === :(>:)
@@ -49,7 +55,6 @@ function _dot_(x::Expr)
         end
     end
 end
-
 """
 Create dictionary: variable => unique number for variable
 
@@ -114,167 +119,6 @@ where
 - order - order of derivative.
 - θ - weights in neural network.
 """
-function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = false,
-                               dict_transformation_vars = nothing,
-                               transformation_vars = nothing)
-    @unpack indvars, depvars, dict_indvars, dict_depvars,
-    dict_depvar_input, multioutput, strategy, phi,
-    derivative, integral, flat_init_params, init_params = pinnrep
-    eltypeθ = eltype(flat_init_params)
-
-    _args = ex.args
-    for (i, e) in enumerate(_args)
-        if !(e isa Expr)
-            if e in keys(dict_depvars)
-                depvar = _args[1]
-                num_depvar = dict_depvars[depvar]
-                indvars = _args[2:end]
-                var_ = is_integral ? :(u) : :($(Expr(:$, :u)))
-                ex.args = if !multioutput
-                    [var_, Symbol(:cord, num_depvar), :($θ), :phi]
-                else
-                    [
-                        var_,
-                        Symbol(:cord, num_depvar),
-                        Symbol(:($θ), num_depvar),
-                        Symbol(:phi, num_depvar),
-                    ]
-                end
-                break
-            elseif e isa ModelingToolkit.Differential
-                derivative_variables = Symbol[]
-                order = 0
-                while (_args[1] isa ModelingToolkit.Differential)
-                    order += 1
-                    push!(derivative_variables, toexpr(_args[1].x))
-                    _args = _args[2].args
-                end
-                depvar = _args[1]
-                num_depvar = dict_depvars[depvar]
-                indvars = _args[2:end]
-                dict_interior_indvars = Dict([indvar .=> j
-                                              for (j, indvar) in enumerate(dict_depvar_input[depvar])])
-                dim_l = length(dict_interior_indvars)
-
-                var_ = is_integral ? :(derivative) : :($(Expr(:$, :derivative)))
-                εs = [get_ε(dim_l, d, eltypeθ, order) for d in 1:dim_l]
-                undv = [dict_interior_indvars[d_p] for d_p in derivative_variables]
-                εs_dnv = [εs[d] for d in undv]
-
-                ex.args = if !multioutput
-                    [var_, :phi, :u, Symbol(:cord, num_depvar), εs_dnv, order, :($θ)]
-                else
-                    [
-                        var_,
-                        Symbol(:phi, num_depvar),
-                        :u,
-                        Symbol(:cord, num_depvar),
-                        εs_dnv,
-                        order,
-                        Symbol(:($θ), num_depvar),
-                    ]
-                end
-                break
-            elseif e isa Symbolics.Integral
-                if _args[1].domain.variables isa Tuple
-                    integrating_variable_ = collect(_args[1].domain.variables)
-                    integrating_variable = toexpr.(integrating_variable_)
-                    integrating_var_id = [dict_indvars[i] for i in integrating_variable]
-                else
-                    integrating_variable = toexpr(_args[1].domain.variables)
-                    integrating_var_id = [dict_indvars[integrating_variable]]
-                end
-
-                integrating_depvars = []
-                integrand_expr = _args[2]
-                for d in depvars
-                    d_ex = find_thing_in_expr(integrand_expr, d)
-                    if !isempty(d_ex)
-                        push!(integrating_depvars, d_ex[1].args[1])
-                    end
-                end
-
-                lb, ub = get_limits(_args[1].domain.domain)
-                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(lb,
-                                                                                                         ub,
-                                                                                                         _args[2],
-                                                                                                         integrating_depvars,
-                                                                                                         dict_depvar_input,
-                                                                                                         dict_depvars,
-                                                                                                         integrating_variable,
-                                                                                                         eltypeθ)
-
-                num_depvar = map(int_depvar -> dict_depvars[int_depvar],
-                                 integrating_depvars)
-                integrand_ = transform_expression(pinnrep, _args[2];
-                                                  is_integral = false,
-                                                  dict_transformation_vars = dict_transformation_vars,
-                                                  transformation_vars = transformation_vars)
-                integrand__ = _dot_(integrand_)
-
-                integrand = build_symbolic_loss_function(pinnrep, nothing;
-                                                         integrand = integrand__,
-                                                         integrating_depvars = integrating_depvars,
-                                                         eq_params = SciMLBase.NullParameters(),
-                                                         dict_transformation_vars = dict_transformation_vars,
-                                                         transformation_vars = transformation_vars,
-                                                         param_estim = false,
-                                                         default_p = nothing)
-                # integrand = repr(integrand)
-                lb = toexpr.(lb)
-                ub = toexpr.(ub)
-                ub_ = []
-                lb_ = []
-                for l in lb
-                    if l isa Number
-                        push!(lb_, l)
-                    else
-                        l_expr = NeuralPDE.build_symbolic_loss_function(pinnrep, nothing;
-                                                                        integrand = _dot_(l),
-                                                                        integrating_depvars = integrating_depvars,
-                                                                        param_estim = false,
-                                                                        default_p = nothing)
-                        l_f = @RuntimeGeneratedFunction(l_expr)
-                        push!(lb_, l_f)
-                    end
-                end
-                for u_ in ub
-                    if u_ isa Number
-                        push!(ub_, u_)
-                    else
-                        u_expr = NeuralPDE.build_symbolic_loss_function(pinnrep, nothing;
-                                                                        integrand = _dot_(u_),
-                                                                        integrating_depvars = integrating_depvars,
-                                                                        param_estim = false,
-                                                                        default_p = nothing)
-                        u_f = @RuntimeGeneratedFunction(u_expr)
-                        push!(ub_, u_f)
-                    end
-                end
-
-                integrand_func = @RuntimeGeneratedFunction(integrand)
-                ex.args = [
-                    :($(Expr(:$, :integral))),
-                    :u,
-                    Symbol(:cord, num_depvar[1]),
-                    :phi,
-                    integrating_var_id,
-                    integrand_func,
-                    lb_,
-                    ub_,
-                    :($θ),
-                ]
-                break
-            end
-        else
-            ex.args[i] = _transform_expression(pinnrep, ex.args[i];
-                                               is_integral = is_integral,
-                                               dict_transformation_vars = dict_transformation_vars,
-                                               transformation_vars = transformation_vars)
-        end
-    end
-    return ex
-end
 
 """
 Parse ModelingToolkit equation form to the inner representation.
@@ -342,79 +186,9 @@ function pair(eq, depvars, dict_depvars, dict_depvar_input)
     Dict(filter(p -> p !== nothing, pair_))
 end
 
-function get_vars(indvars_, depvars_)
-    indvars = ModelingToolkit.getname.(indvars_)
-    depvars = Symbol[]
-    dict_depvar_input = Dict{Symbol, Vector{Symbol}}()
-    for d in depvars_
-        if unwrap(d) isa SymbolicUtils.BasicSymbolic
-            dname = ModelingToolkit.getname(d)
-            push!(depvars, dname)
-            push!(dict_depvar_input,
-                  dname => [nameof(unwrap(argument))
-                            for argument in arguments(unwrap(d))])
-        else
-            dname = ModelingToolkit.getname(d)
-            push!(depvars, dname)
-            push!(dict_depvar_input, dname => indvars) # default to all inputs if not given
-        end
-    end
-
-    dict_indvars = get_dict_vars(indvars)
-    dict_depvars = get_dict_vars(depvars)
-    return depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input
-end
-
-function get_integration_variables(eqs, _indvars::Array, _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    get_integration_variables(eqs, dict_indvars, dict_depvars)
-end
-
-function get_integration_variables(eqs, dict_indvars, dict_depvars)
-    exprs = toexpr.(eqs)
-    vars = map(exprs) do expr
-        _vars = Symbol.(filter(indvar -> length(find_thing_in_expr(expr, indvar)) > 0,
-                               sort(collect(keys(dict_indvars)))))
-    end
-end
-
-"""
-    get_variables(eqs,_indvars,_depvars)
-
-Returns all variables that are used in each equations or boundary condition.
-"""
-function get_variables end
-
-function get_variables(eqs, _indvars::Array, _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    return get_variables(eqs, dict_indvars, dict_depvars)
-end
-
-function get_variables(eqs, dict_indvars, dict_depvars)
-    bc_args = get_argument(eqs, dict_indvars, dict_depvars)
-    return map(barg -> filter(x -> x isa Symbol, barg), bc_args)
-end
-
-function get_number(eqs, dict_indvars, dict_depvars)
-    bc_args = get_argument(eqs, dict_indvars, dict_depvars)
-    return map(barg -> filter(x -> x isa Number, barg), bc_args)
-end
-
-function find_thing_in_expr(ex::Expr, thing; ans = [])
-    if thing in ex.args
-        push!(ans, ex)
-    end
-    for e in ex.args
-        if e isa Expr
-            if thing in e.args
-                push!(ans, e)
-            end
-            find_thing_in_expr(e, thing; ans = ans)
-        end
-    end
-    return collect(Set(ans))
+function get_integration_variables(eqs, v::VariableMap)
+    ivs = all_ivs(v)
+    return map(eq -> get_indvars(eq, ivs), eqs)
 end
 
 """
@@ -424,34 +198,45 @@ Returns all arguments that are used in each equations or boundary condition.
 """
 function get_argument end
 
-# Get arguments from boundary condition functions
-function get_argument(eqs, _indvars::Array, _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-                                                                               _depvars)
-    get_argument(eqs, dict_indvars, dict_depvars)
-end
-function get_argument(eqs, dict_indvars, dict_depvars)
-    exprs = toexpr.(eqs)
-    vars = map(exprs) do expr
-        _vars = map(depvar -> find_thing_in_expr(expr, depvar), collect(keys(dict_depvars)))
+function get_argument(eqs, v::VariableMap)
+    vars = map(eqs) do eq
+        _vars = map(depvar -> get_depvars(eq, [depvar]), v.depvar_ops)
         f_vars = filter(x -> !isempty(x), _vars)
-        map(x -> first(x), f_vars)
+        map(first, f_vars)
     end
     args_ = map(vars) do _vars
-        ind_args_ = map(var -> var.args[2:end], _vars)
-        syms = Set{Symbol}()
-        filter(vcat(ind_args_...)) do ind_arg
-            if ind_arg isa Symbol
-                if ind_arg ∈ syms
+        seen = []
+        filter(reduce(vcat, arguments.(_vars), init = [])) do x
+            if x isa Number
+                true
+            else
+                if any(isequal(x), seen)
                     false
                 else
-                    push!(syms, ind_arg)
+                    push!(seen, x)
                     true
                 end
-            else
-                true
             end
         end
     end
     return args_ # TODO for all arguments
 end
+
+"""
+``julia
+get_variables(eqs,_indvars,_depvars)
+```
+
+Returns all variables that are used in each equations or boundary condition.
+"""
+function get_variables(eqs, v::VariableMap)
+    args = get_argument(eqs, v)
+    return map(arg -> filter(x -> !(x isa Number), arg), args)
+end
+
+function get_number(eqs, v::VariableMap)
+    args = get_argument(eqs, v)
+    return map(arg -> filter(x -> x isa Number, arg), args)
+end
+
+sym_op(u) = Symbol(operation(u))
