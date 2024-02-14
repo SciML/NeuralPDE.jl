@@ -251,8 +251,8 @@ end
 
     cb_ = function (p, l)
         println("loss: ", l)
-        println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-        println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+        println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+        println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
         return false
     end
 
@@ -352,7 +352,7 @@ end
 
     cb_ = function (p, l)
         println("loss: ", l)
-        println("losses: ", map(l -> l(p), loss_functions))
+        println("losses: ", map(l -> l(p.u), loss_functions))
         return false
     end
 
