@@ -67,53 +67,36 @@ end
 # and final loss for bc must be together in a vector(bcs has seperate type of dataset_bc)
 # eqs is vector of pde eqs and dataset here is dataset_pde
 # normally you get vector of losses
-function get_lossy(pinnrep, dataset, eqs)
+function get_lossy(pinnrep, dataset, Dict_differentials)
+    eqs = pinnrep.eqs
     depvars = pinnrep.depvars # order is same as dataset and interps
-    dict_depvar_input = pinnrep.dict_depvar_input
 
-    Dict_differentials0 = Dict()
-    exp = toexpr(eqs)
-    Symbolics.variable.(hcat(pinnrep.indvars, pinnrep.depvars))
-    for exp_i in exp
-        recur_expression(exp_i, Dict_differentials0)
-    end
-    # Dict_differentials is now filled with Differential operator => diff_i key-value pairs
-
-    Dict_differentials = Dict()
-    for (a, b) in Dict_differentials0
-        # println(eval(a.args[1]))
-        # Symbolics.operation(Symbolics.value(z))
-        println(a)
-        a = Symbolics.parse_expr_to_symbolic(a, NeuralPDE)
-        Dict_differentials[a] = b
-    end
-
+    # Dict_differentials is filled with Differential operator => diff_i key-value pairs
     # masking operation
-    println("Dict_differentials : ", Dict_differentials)
-    a = substitute.(eqs, Ref(Dict_differentials))
-    println("Masked Differential term : ", a)
+    eqs_new = substitute.(eqs, Ref(Dict_differentials))
 
     to_subs, tobe_subs = get_symbols(dataset, depvars, eqs)
     # for each row in dataset create u values for substituing in equation, n_equations=n_rows
     eq_subs = [Dict(tobe_subs[depvar] => to_subs[depvar][i] for depvar in depvars)
                for i in 1:size(dataset[1][:, 1])[1]]
 
+    # for each point(eq_sub dictionary) substiute in all equations(eqs_new - masked equations)
     b = []
     for eq_sub in eq_subs
-        push!(b, [substitute(a_i, eq_sub) for a_i in a])
+        push!(b, [substitute(eq, eq_sub) for eq in eqs_new])
     end
+    # now we have vector of equation vectors
 
     # reverse dict for re-substituing values of Differential(t)(u(t)) etc
     rev_Dict_differentials = Dict(value => key for (key, value) in Dict_differentials)
 
+    # for each vector in vecvtor of equation vectorbroadcast resubstituing OG mask values
     c = []
     for b_i in b
         push!(c, substitute.(b_i, Ref(rev_Dict_differentials)))
     end
-    println("After re Substituting depvars : ", c[1])
-    # c = hcat(c...)
 
-    # get losses
+    # get losses, zip each equation with args for each build_loss call per equation vector
     loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
                        for (eq, pde_indvar, integration_indvar) in zip(c[i],
         pinnrep.pde_indvars,
@@ -144,27 +127,6 @@ function get_symbols(dataset, depvars, eqs)
     end
 
     return to_subs, tobe_subs
-end
-
-function recur_expression(exp, Dict_differentials)
-    for in_exp in exp.args
-        if !(in_exp isa Expr)
-            # skip +,== symbols, characters etc
-            continue
-
-        elseif in_exp.args[1] isa ModelingToolkit.Differential
-            # first symbol of differential term
-            # Dict_differentials for masking differential terms
-            # and resubstituting differentials in equations after putting in interpolations
-            println("starting")
-            Dict_differentials[in_exp] = Symbolics.variable("diff_$(length(Dict_differentials)+1)")
-            println("ending")
-            return
-
-        else
-            recur_expression(in_exp, Dict_differentials)
-        end
-    end
 end
 
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
@@ -398,31 +360,33 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
-        numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
+        numensemble = floor(Int, draw_samples / 3), Dict_differentials = Dict(),
+        progress = false, verbose = false)
     pinnrep = symbolic_discretize(pde_system, discretization)
     dataset_pde, dataset_bc = discretization.dataset
 
-    eqs = pinnrep.eqs
-    yuh1 = get_lossy(pinnrep, dataset_pde, eqs)
+    yuh1 = get_lossy(pinnrep, dataset_pde, Dict_differentials)
     # eqs = pinnrep.bcs
     # yuh2 = get_lossy(pinnrep, dataset_pde, eqs)
 
+    # this is a vector of tuple{vector,nothing}
     pde_loss_functions = [merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
         GridTraining(0.1),
         yuh1[i],
         nothing; train_sets_pde = [data_pde[i, :] for data_pde in dataset_pde],
-        train_sets_bc = nothing)[1]
+        train_sets_bc = nothing)
                           for i in eachindex(yuh1)]
 
     function L2_loss2(θ, allstd)
         stdpdes, stdbcs, stdextra = allstd
-        pde_loglikelihoods = [[logpdf(Normal(0, 0.8 * stdpdes[i]), pde_loss_function(θ))
-                               for (i, pde_loss_function) in enumerate(pde_loss_functions[i])]
+        # first vector of losses,from tuple -> pde losses, first[1] pde loss
+        pde_loglikelihoods = [[logpdf(Normal(0, stdpdes[j]), pde_loss_function(θ))
+                               for (j, pde_loss_function) in enumerate(pde_loss_functions[i][1])]
                               for i in eachindex(pde_loss_functions)]
 
         # bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
         #                      for (j, bc_loss_function) in enumerate(bc_loss_functions)]
-        # println("bc_loglikelihoods : ", bc_loglikelihoods)
+
         return sum(sum(pde_loglikelihoods))
         # sum(sum(pde_loglikelihoods) + sum(bc_loglikelihoods))
     end

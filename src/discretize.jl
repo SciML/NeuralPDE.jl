@@ -608,7 +608,9 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     function get_likelihood_estimate_function(discretization::BayesianPINN)
         dataset_pde, dataset_bc = discretization.dataset
-        
+        dataset_pde = dataset_pde isa Nothing ? dataset_pde : get_dataset_train_points(eqs, dataset_pde, pinnrep)
+        dataset_bc = dataset_bc isa Nothing ? dataset_bc : get_dataset_train_points(eqs, dataset_bc, pinnrep)
+
         # required as Physics loss also needed on the discrete dataset domain points
         # data points are discrete and so by default GridTraining loss applies
         # passing placeholder dx with GridTraining, it uses data points irl
@@ -616,7 +618,9 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             merge_strategy_with_loglikelihood_function(pinnrep,
                 GridTraining(0.1),
                 datafree_pde_loss_functions,
-                datafree_bc_loss_functions, train_sets_pde = dataset_pde, train_sets_bc = dataset_bc)
+                datafree_bc_loss_functions,
+                train_sets_pde = dataset_pde,
+                train_sets_bc = dataset_bc)
         else
             (nothing, nothing)
         end
