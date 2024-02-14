@@ -93,12 +93,12 @@ function (l::dgm)(x::AbstractVecOrMat{T}, ps, st::NamedTuple) where T
     return y, st_new;
 
 end 
+
 """
 `dgm(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1, activation2, out_activation= Lux.identity)`:
 returns the architecture defined for Deep Galerkin method
 
 ```math
-
 \\begin{align}
 S^1 &= \\sigma_1(W^1 x + b^1); \\
 Z^l &= \\sigma_1(U^{z,l} x + W^{z,l} S^l + b^{z,l}); \\quad l = 1, \\ldots, L; \\
@@ -109,9 +109,7 @@ S^{l+1} &= (1 - G^l) \\cdot H^l + Z^l \\cdot S^{l}; \\quad l = 1, \\ldots, L; \\
 f(t, x, \\theta) &= \\sigma_{out}(W S^{L+1} + b).
 \\end{align}
 ```
-
-### Arguments:
-
+## Positional Arguments:
 `in_dims`: number of input dimensions= (spatial dimension+ 1)
 
 `out_dims`: number of output dimensions
@@ -128,14 +126,11 @@ f(t, x, \\theta) &= \\sigma_{out}(W S^{L+1} + b).
 
 `kwargs`: additional arguments to be splatted into `PhysicsInformedNN`
 
-### Examples
-
+## Examples
 ```julia
 discretization= DeepGalerkin(2, 1, 30, 3, tanh, tanh, identity, QuasiRandomTraining(4_000));
 ```
-
-### References
-
+## References
 Sirignano, Justin and Spiliopoulos, Konstantinos, "DGM: A deep learning algorithm for solving partial differential equations",
 Journal of Computational Physics, Volume 375, 2018, Pages 1339-1364, doi: https://doi.org/10.1016/j.jcp.2018.08.029
 """
@@ -150,11 +145,11 @@ end
 """
 `DeepGalerkin(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function, activation2::Function, out_activation::Function, 
     strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)`:
+
 returns a `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a `PDESystem` into an
     `OptimizationProblem` using the Deep Galerkin method.
 
-### Arguments:
-
+## Arguments:
 `in_dims`: number of input dimensions= (spatial dimension+ 1)
 
 `out_dims`: number of output dimensions

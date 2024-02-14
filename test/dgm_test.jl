@@ -28,13 +28,13 @@ import Lux: tanh, identity
     global iter = 0;
     callback = function (p, l)
         global iter += 1;
-        if iter%10 == 0
+        if iter%50 == 0
             println("$iter => $l")
         end
         return false
     end
 
-    res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters = 500)
+    res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters = 600)
     phi = discretization.phi
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]

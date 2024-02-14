@@ -51,7 +51,7 @@ include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
-include("deep_galerkin.jl")
+include("dgm.jl")
 
 export NNODE, NNDAE,
     PhysicsInformedNN, discretize,
