@@ -242,13 +242,12 @@ end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool)
     ts = tspan[1]:(strategy.dx):tspan[2]
-    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     function loss(θ, _)
         if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, param_estim))
+            inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
         else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+            sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
         end
     end
     return loss
@@ -256,16 +255,14 @@ end
 
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
         batch, param_estim::Bool)
-    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
     function loss(θ, _)
         ts = adapt(parameterless_type(θ),
             [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
-
         if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, param_estim))
+            inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
         else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+            sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
         end
     end
     return loss
@@ -292,25 +289,22 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
     end
 
     ts = data
-
     function loss(θ, _)
         if batch
-            sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, param_estim))
+            inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
         else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+            sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
         end
     end
     return loss
 end
 
 function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim::Bool)
-
-    # sum(abs2,inner_loss(t,θ) for t in ts) but Zygote generators are broken
     function loss(θ, _)
         if batch
-            sum(abs2, inner_loss(phi, f, autodiff, tstops, θ, p, param_estim))
+            inner_loss(phi, f, autodiff, tstops, θ, p, param_estim)
         else
-            sum(abs2, [inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in tstops])
+            sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in tstops])
         end
     end
     return loss
