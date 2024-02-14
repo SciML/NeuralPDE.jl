@@ -21,15 +21,22 @@ function get_dataset_train_points(eqs, train_sets, pinnrep)
     dict_indvars = pinnrep.dict_indvars
 
     symbols_input = [(i, dict_depvar_input[i]) for i in depvars]
+    # [(:u, [:t])]
     eq_args = NeuralPDE.get_argument(eqs, dict_indvars, dict_depvars)
+    # [[:t]]
+
     points = []
     for eq_arg in eq_args
         a = []
+        # for each (depvar,[indvar1..]) if indvari==indvar (eq_arg)
         for i in eachindex(symbols_input)
             if symbols_input[i][2] == eq_arg
+                # include domain points of that depvar
+                # each loss equation take domain matrix [points..;points..]
                 push!(a, train_sets[i][:, 2:end]')
             end
         end
+        # vcat as new row for next equation
         push!(points, vcat(a...))
     end
     return points
@@ -41,21 +48,31 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
         datafree_bc_loss_function; train_sets_pde = nothing, train_sets_bc = nothing)
     eltypeθ = recursive_eltype(pinnrep.flat_init_params)
     adaptor = EltypeAdaptor{eltypeθ}()
+        strategy::GridTraining,
+        datafree_pde_loss_function,
+        datafree_bc_loss_function; train_sets_pde = nothing, train_sets_bc=nothing)
+    @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep
 
-    # is vec as later each _set in pde_train_sets are columns as points transformed to
-    # vector of points (pde_train_sets must be rowwise)
-    pde_loss_functions = if train_sets_pde !== nothing
-        pde_train_sets = [train_set[:, 2:end] for train_set in train_sets_pde] |> adaptor
-        [get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
-         for (_loss, _set) in zip(datafree_pde_loss_function, pde_train_sets)]
+    eltypeθ = eltype(pinnrep.flat_init_params)
+
+    # is vec as later each _set in pde_train_sets are columns as points transformed to vector of points (pde_train_sets must be rowwise)
+    pde_loss_functions = if !(train_sets_pde isa Nothing)
+        pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+            train_sets_pde)
+
+        [get_loss_function(_loss, _set, eltypeθ, strategy)
+                              for (_loss, _set) in zip(datafree_pde_loss_function,
+            pde_train_sets)]
     else
         nothing
     end
+    
+    bc_loss_functions = if !(train_sets_bc isa Nothing)
+        bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+            train_sets_bc)
 
-    bc_loss_functions = if train_sets_bc !== nothing
-        bcs_train_sets = [train_set[:, 2:end] for train_set in train_sets_bc] |> adaptor
-        [get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
-         for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
+        [get_loss_function(_loss, _set, eltypeθ, strategy)
+                         for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
     else
         nothing
     end
@@ -73,15 +90,19 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
         dict_indvars, dict_depvars)
 
     # the points in the domain and on the boundary
-    pde_train_sets, bcs_train_sets = train_sets |> adaptor
-    pde_loss_functions = [get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
-                          for (_loss, _set) in zip(
-        datafree_pde_loss_function, pde_train_sets)]
+    pde_train_sets, bcs_train_sets = train_sets
+    pde_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+                            pde_train_sets)
+    bcs_train_sets = adapt.(parameterless_type(ComponentArrays.getdata(flat_init_params)),
+                            bcs_train_sets)
 
-    bc_loss_functions = [get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
-                         for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
-
-    return pde_loss_functions, bc_loss_functions
+    pde_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
+                          for (_loss, _set) in zip(datafree_pde_loss_function,
+                                                   pde_train_sets)]
+    bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
+                         for (_loss, _set) in zip(datafree_bc_loss_function,
+                                                   bcs_train_sets)]
+    pde_loss_functions, bc_loss_functions
 end
 
 function get_loss_function(
