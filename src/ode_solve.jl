@@ -433,7 +433,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
                 return L2_loss + tstops_loss
             end
             total_original_loss = L2_loss * num_original_points
-            total_tstops_loss = tstops_loss * num_original_points
+            total_tstops_loss = tstops_loss * num_tstops_points
             total_points = num_original_points + num_tstops_points
             L2_loss = (total_original_loss + total_tstops_loss) / total_points
         end
