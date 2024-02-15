@@ -132,9 +132,12 @@ end
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
     # for parameter estimation neccesarry to use multioutput case
     if Tar.L2_loss2 isa Nothing
-        return Tar.full_loglikelihood(setparameters(Tar, θ),Tar.allstd) + priorlogpdf(Tar, θ) + L2LossData(Tar, θ)
+        return Tar.full_loglikelihood(setparameters(Tar, θ), Tar.allstd) +
+               priorlogpdf(Tar, θ) + L2LossData(Tar, θ)
     else
-        return Tar.full_loglikelihood(setparameters(Tar, θ), Tar.allstd) + priorlogpdf(Tar, θ) + L2LossData(Tar, θ) + Tar.L2_loss2(setparameters(Tar, θ), Tar.allstd)
+        return Tar.full_loglikelihood(setparameters(Tar, θ), Tar.allstd) +
+               priorlogpdf(Tar, θ) + L2LossData(Tar, θ) +
+               Tar.L2_loss2(setparameters(Tar, θ), Tar.allstd)
     end
 end
 
@@ -489,9 +492,11 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             ℓπ.allstd))
     @info("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, initial_θ))
     @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
-    @info("Current L2_LOSSY : ",
-        ℓπ.L2_loss2(setparameters(ℓπ, initial_θ),
-            ℓπ.allstd))
+    if !(newloss isa Nothing)
+        @info("Current L2_LOSSY : ",
+            ℓπ.L2_loss2(setparameters(ℓπ, initial_θ),
+                ℓπ.allstd))
+    end
 
     # parallel sampling option
     if nchains != 1
@@ -550,9 +555,11 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         @info("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, samples[end]))
         @info("Current MSE against dataset Log-likelihood : ",
             L2LossData(ℓπ, samples[end]))
-        @info("Current L2_LOSSY : ",
-            ℓπ.L2_loss2(setparameters(ℓπ, samples[end]),
-                ℓπ.allstd))
+        if !(newloss isa Nothing)
+            @info("Current L2_LOSSY : ",
+                ℓπ.L2_loss2(setparameters(ℓπ, samples[end]),
+                    ℓπ.allstd))
+        end
 
         fullsolution = BPINNstats(mcmc_chain, samples, stats)
         ensemblecurves, estimnnparams, estimated_params, timepoints = inference(samples,
