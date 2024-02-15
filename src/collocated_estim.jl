@@ -175,7 +175,7 @@ function calculate_derivatives(dataset)
     # # interp = BSplineApprox(u, t, 4, 10, :Uniform, :Uniform)
     # interp = CubicSpline(u, t)
     # interp1 = CubicSpline(u1, t)
-    # # derrivatives interpolation
+    # # derivatives interpolation
     # dx = t[2] - t[1]
     # time = collect(t[1]:dx:t[end])
     # smoothu = [interp(i) for i in time]

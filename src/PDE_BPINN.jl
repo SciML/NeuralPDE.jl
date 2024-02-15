@@ -260,38 +260,42 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
-        numensemble = floor(Int, draw_samples / 3), Dict_differentials = Dict(),
+        numensemble = floor(Int, draw_samples / 3), Dict_differentials = nothing,
         progress = false, verbose = false)
     pinnrep = symbolic_discretize(pde_system, discretization)
     dataset_pde, dataset_bc = discretization.dataset
 
-    yuh1 = get_lossy(pinnrep, dataset_pde, Dict_differentials)
-    # eqs = pinnrep.bcs
-    # yuh2 = get_lossy(pinnrep, dataset_pde, eqs)
+    newloss = if Dict_differentials isa Nothing
+        nothing
+    else
+        yuh1 = get_lossy(pinnrep, dataset_pde, Dict_differentials)
+        # eqs = pinnrep.bcs
+        # yuh2 = get_lossy(pinnrep, dataset_pde, eqs)
 
-    # this is a vector of tuple{vector,nothing}
-    pde_loss_functions = [merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
-        GridTraining(0.1),
-        yuh1[i],
-        nothing; train_sets_pde = [data_pde[i, :] for data_pde in dataset_pde],
-        train_sets_bc = nothing)
-                          for i in eachindex(yuh1)]
+        # this is a vector of tuple{vector,nothing}
+        pde_loss_functions = [merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
+            GridTraining(0.1),
+            yuh1[i],
+            nothing; train_sets_pde = [data_pde[i, :] for data_pde in dataset_pde],
+            train_sets_bc = nothing)
+                              for i in eachindex(yuh1)]
 
-    function L2_loss2(θ, allstd)
-        stdpdes, stdbcs, stdextra = allstd
-        # first vector of losses,from tuple -> pde losses, first[1] pde loss
-        pde_loglikelihoods = [[logpdf(Normal(0, stdpdes[j]), pde_loss_function(θ))
-                               for (j, pde_loss_function) in enumerate(pde_loss_functions[i][1])]
-                              for i in eachindex(pde_loss_functions)]
+        function L2_loss2(θ, allstd)
+            stdpdes, stdbcs, stdextra = allstd
+            # first vector of losses,from tuple -> pde losses, first[1] pde loss
+            pde_loglikelihoods = [[logpdf(Normal(0, stdpdes[j]), pde_loss_function(θ))
+                                   for (j, pde_loss_function) in enumerate(pde_loss_functions[i][1])]
+                                  for i in eachindex(pde_loss_functions)]
 
-        # bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
-        #                      for (j, bc_loss_function) in enumerate(bc_loss_functions)]
+            # bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
+            #                      for (j, bc_loss_function) in enumerate(bc_loss_functions)]
 
-        return sum(sum(pde_loglikelihoods))
-        # sum(sum(pde_loglikelihoods) + sum(bc_loglikelihoods))
+            return sum(sum(pde_loglikelihoods))
+            # sum(sum(pde_loglikelihoods) + sum(bc_loglikelihoods))
+        end
     end
 
-    # WIP split dataset to respective equations
+    # [WIP] add overall functionality for BC dataset points
     if ((dataset_bc isa Nothing) && (dataset_pde isa Nothing))
         dataset = nothing
     elseif dataset_bc isa Nothing
