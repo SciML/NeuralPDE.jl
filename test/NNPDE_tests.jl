@@ -173,8 +173,8 @@ function test_2d_poisson_equation(chain_, strategy_)
         u(x, 0) ~ 0.0, u(x, 1) ~ -sin(pi * x) * sin(pi * 1)]
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
-
-    discretization = PhysicsInformedNN(chain_, strategy_)
+    ps = Lux.setup(Random.default_rng(), chain_)[1]
+    discretization = PhysicsInformedNN(chain_, strategy_; init_params = ps)
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
     res = solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 500, cb = callback)
