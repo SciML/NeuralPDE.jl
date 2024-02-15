@@ -86,10 +86,19 @@ end
 vector_to_parameters(ps_new::AbstractVector, ps::AbstractVector) = ps_new
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
+    # if Tar.estim_collocate
+    #     return physloglikelihood(Tar, θ) / length(Tar.dataset[1]) + priorweights(Tar, θ) +
+    #            L2LossData(Tar, θ) / length(Tar.dataset[1]) +
+    #            L2loss2(Tar, θ) / length(Tar.dataset[1])
+    # else
+    #     return physloglikelihood(Tar, θ) / length(Tar.dataset[1]) + priorweights(Tar, θ) +
+    #            L2LossData(Tar, θ) / length(Tar.dataset[1])
+    # end
     if Tar.estim_collocate
-        return physloglikelihood(Tar, θ)/length(Tar.dataset[1]) + priorweights(Tar, θ) + L2LossData(Tar, θ)/length(Tar.dataset[1]) + L2loss2(Tar, θ)/length(Tar.dataset[1])
+        return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ) +
+               L2loss2(Tar, θ)
     else
-        return physloglikelihood(Tar, θ)/length(Tar.dataset[1]) + priorweights(Tar, θ) + L2LossData(Tar, θ)/length(Tar.dataset[1])
+        return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ)
     end
 end
 
@@ -446,7 +455,6 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     MCMCkwargs = (n_leapfrog = 30,),
     progress = false, verbose = false,
     estim_collocate = false)
-
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
@@ -570,9 +578,9 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         @info("Current Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
         @info("Current MSE against dataset Log-likelihood : ",
             L2LossData(ℓπ, samples[end]))
-            
+
         # return a chain(basic chain),samples and stats
-        matrix_samples = reshape(hcat(samples...), (length(samples[1]), length(samples), 1)) 
+        matrix_samples = reshape(hcat(samples...), (length(samples[1]), length(samples), 1))
         mcmc_chain = MCMCChains.Chains(matrix_samples)
         return mcmc_chain, samples, stats
     end
