@@ -539,7 +539,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
         end
 
         function full_loss_function(θ, allstd::Vector{Vector{Float64}})
-            stdpdes, stdbcs, stdextra = allstd
+            stdpdes, stdbcs, stdextra, stdpdesnew = allstd
             # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
             pde_loglikelihoods = [logpdf(Normal(0, stdpdes[i]), pde_loss_function(θ))
                                   for (i, pde_loss_function) in enumerate(pde_loss_functions)]

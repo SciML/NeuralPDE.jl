@@ -255,8 +255,10 @@ end
     releases.
 """
 function ahmc_bayesian_pinn_pde(pde_system, discretization;
-        draw_samples = 1000, bcstd = [0.01], l2std = [0.05], phystd = [0.05],
-        priorsNNw = (0.0, 2.0), param = [], nchains = 1, Kernel = HMC(0.1, 30),
+        draw_samples = 1000,
+        bcstd = [0.01], l2std = [0.05],
+        phystd = [0.05], phystdnew = [0.05], priorsNNw = (0.0, 2.0),
+        param = [], nchains = 1, Kernel = HMC(0.1, 30),
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
@@ -272,18 +274,24 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         # eqs = pinnrep.bcs
         # yuh2 = get_lossy(pinnrep, dataset_pde, eqs)
 
+        # consider all dataset domain points and for each row new set of equation loss function
         # this is a vector of tuple{vector,nothing}
         pde_loss_functions = [merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
             GridTraining(0.1),
             yuh1[i],
-            nothing; train_sets_pde = [data_pde[i, :] for data_pde in dataset_pde],
+            nothing;
+            # pass transformation of each dataset row-corresponds to each point, for each depvar dataset point merged equation vector
+            train_sets_pde = get_dataset_train_points(pde_system.eqs,
+                [Array(data[i, :]') for data in dataset_pde],
+                pinnrep),
             train_sets_bc = nothing)
                               for i in eachindex(yuh1)]
 
         function L2_loss2(θ, allstd)
-            stdpdes, stdbcs, stdextra = allstd
+            stdpdesnew = allstd[4]
+
             # first vector of losses,from tuple -> pde losses, first[1] pde loss
-            pde_loglikelihoods = [[logpdf(Normal(0, stdpdes[j]), pde_loss_function(θ))
+            pde_loglikelihoods = [[logpdf(Normal(0, stdpdesnew[j]), pde_loss_function(θ))
                                    for (j, pde_loss_function) in enumerate(pde_loss_functions[i][1])]
                                   for i in eachindex(pde_loss_functions)]
 
@@ -357,10 +365,18 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # vector in case of N-dimensional domains
     strategy = discretization.strategy
 
-    # dimensions would be total no of params,initial_nnθ for Lux namedTuples
-    ℓπ = PDELogTargetDensity(
-        nparameters, strategy, dataset, priors, [phystd, bcstd, l2std],
-        names, ninv, initial_nnθ, full_weighted_loglikelihood, Φ)
+    # dimensions would be total no of params,initial_nnθ for Lux namedTuples 
+    ℓπ = PDELogTargetDensity(nparameters,
+        strategy,
+        dataset,
+        priors,
+        [phystd, bcstd, l2std, phystdnew],
+        names,
+        ninv,
+        initial_nnθ,
+        full_weighted_loglikelihood,
+        newloss,
+        Φ)
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
