@@ -1,5 +1,5 @@
 using Test
-using OrdinaryDiffEq,OptimizationOptimisers
+using OrdinaryDiffEq, OptimizationOptimisers
 using Flux, Lux
 using Statistics, Random
 using NeuralOperators
@@ -9,20 +9,19 @@ using NeuralPDE
     linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     linear = (u, p, t) -> cos(p * t)
     tspan = (0.0, 2.0)
-    u0 = 0.0
-
+    u0 = 2.0
     #generate data set
     t0, t_end = tspan
     instances_size = 100
     range_ = range(t0, stop = t_end, length = instances_size)
     ts = reshape(collect(range_), 1, instances_size)
     batch_size = 50
-    as = [i for i in range(0.1, stop = pi/2, length = batch_size)]
-
+    as = [i for i in range(0.1, stop = pi / 2, length = batch_size)]
+    # p = ps TODO
     patamaters_set = []
     for a_i in as
         a_arr = fill(a_i, instances_size)'
-        t_and_p = Float32.(reshape(reduce(vcat, [ts, a_arr]), 2, instances_size,1))
+        t_and_p = Float32.(reshape(reduce(vcat, [ts, a_arr]), 2, instances_size, 1))
         push!(patamaters_set, t_and_p)
     end
 
@@ -39,34 +38,30 @@ using NeuralPDE
     * input data: mesh of 't' paired with set of parameters 'a':
     * output data: set of corresponding parameter 'a' solutions u(t){a}
      """
-    training_mapping = (patamaters_set, u_output_)
 
-    #TODO u0 -> [u0,a]?
+    train_set = NeuralPDE.TRAINSET(patamaters_set, u_output_)
+
     prob = ODEProblem(linear, u0, tspan)
     chain = Lux.Chain(Lux.Dense(2, 20, Lux.σ), Lux.Dense(20, 20, Lux.σ), Lux.Dense(20, 1))
     opt = OptimizationOptimisers.Adam(0.03)
 
-    alg = NeuralPDE.PINOODE(chain, opt, training_mapping)
+    alg = NeuralPDE.PINOODE(chain, opt, train_set)
 
     res, phi = solve(prob,
         alg, verbose = true,
-        maxiters = 1000, abstol = 1.0f-10)
+        maxiters = 2000, abstol = 1.0f-10)
 
-    predict = reduce(vcat, [phi(patamaters_set[i], res.u) for i in 1:batch_size])
-    grpound = reduce(vcat, [u_output_[i] for i in 1:batch_size])
-    @test grpound≈predict atol=3
-
-    # i = 10
-    # plot(predict[:, i])
-    # plot!(grpound[:, i])
+    predict = reduce(vcat, [phi(train_set.input_data[i], res.u) for i in 1:batch_size])
+    ground = reduce(vcat, [train_set.output_data[i] for i in 1:batch_size])
+    @test ground≈predict atol=0.5
 end
 
 @testset "Example 2" begin
     linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     linear = (u, p, t) -> cos(p * t)
     tspan = (0.0, 2.0)
-    # u0 = 0.0
-    p = 1.0
+    p = pi
+    u0 = 2
     #generate data set
     t0, t_end = tspan
     instances_size = 100
@@ -74,10 +69,11 @@ end
     ts = reshape(collect(range_), 1, instances_size)
     batch_size = 50
     u0s = [i for i in range(0.0, stop = pi / 2, length = batch_size)]
-
     initial_condition_set = []
+    u0_arr = []
     for u0_i in u0s
-        u0_i_arr = fill(u0_i, instances_size)'
+        u0_i_arr = reshape(fill(u0_i, instances_size)', 1, instances_size, 1)
+        push!(u0_arr, u0_i_arr)
         t_and_u0 = reshape(reduce(vcat, [ts, u0_i_arr]), 2, instances_size, 1)
         push!(initial_condition_set, t_and_u0)
     end
@@ -95,23 +91,38 @@ end
       * input data: mesh of 't' paired with set of initial conditions 'a':
       * output data: set of corresponding parameter 'a' solutions u(t){a}
        """
-    training_mapping = (initial_condition_set, u_output_)
-
-    u0 = 0
+    train_set = NeuralPDE.TRAINSET(initial_condition_set, u_output_; u0 = true)
     prob = ODEProblem(linear, u0, tspan, p)
-    chain = Lux.Chain(Lux.Dense(2, 10, Lux.σ), Lux.Dense(10, 10, Lux.σ), Lux.Dense(10, 1))
+    chain = Lux.Chain(Lux.Dense(2, 20, Lux.σ), Lux.Dense(20, 20, Lux.σ), Lux.Dense(20, 1))
     opt = OptimizationOptimisers.Adam(0.03)
-    alg = NeuralPDE.PINOODE(chain, opt, training_mapping)
-
+    alg = NeuralPDE.PINOODE(chain, opt, train_set)
     res, phi = solve(prob,
         alg, verbose = true,
         maxiters = 2000, abstol = 1.0f-10)
 
-    predict = reduce(hcat, [phi(patamaters_set[i], res.u)' for i in 1:batch_size])
-    grpound = reduce(hcat, [u_output_[i]' for i in 1:batch_size])
-    @test grpound≈predict atol=3
+    predict = reduce(vcat, [phi(train_set.input_data[i], res.u) for i in 1:batch_size])
+    ground = reduce(vcat, [train_set.output_data[i] for i in 1:batch_size])
+    @test ground≈predict atol=1
+end
 
-    # i = 2
-    # plot(predict[:, i])
-    # plot!(grpound[:, i])
+@testset "lotka volterra" begin
+    function lotka_volterra(u, p, t)
+        # Model parameters.
+        α, β, γ, δ = p
+        # Current state.
+        x, y = u
+
+        # Evaluate differential equations.
+        dx = (α - β * y) * x # prey
+        dy = (δ * x - γ) * y # predator
+
+        return [dx, dy]
+    end
+    u0 = [1.0, 1.0]
+    p = [1.5, 1.0, 3.0, 1.0]
+    tspan = (0.0, 4.0)
+    prob = ODEProblem(lotka_volterra, u0, tspan, p)
+
+    dt = 0.01
+    solution = solve(prob, Tsit5(); saveat = dt)
 end
