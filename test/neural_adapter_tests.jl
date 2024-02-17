@@ -42,7 +42,8 @@ end
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = NeuralPDE.discretize(pde_system, discretization)
-    @time res = solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
+    println("Poisson equation, strategy: $(nameof(typeof(quadrature_strategy)))")
+    @time res = solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
     phi = discretization.phi
 
     inner_ = 8
@@ -65,17 +66,17 @@ end
     quasirandom_strategy = QuasiRandomTraining(1000, minibatch = 200, resampling = true)
 
     strategies1 = [grid_strategy, quadrature_strategy]
-    @time reses_1 = map(strategies1) do strategy_
+    reses_1 = map(strategies1) do strategy_
         println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
         prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
-        res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
+        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
     end
 
     strategies2 = [stochastic_strategy, quasirandom_strategy]
-    @time reses_2 = map(strategies2) do strategy_
+    reses_2 = map(strategies2) do strategy_
         println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
         prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
-        res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
+        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
     end
 
     reses_ = [reses_1; reses_2]
@@ -175,7 +176,7 @@ end
         strategy = GridTraining([0.1 / count_decomp, 0.1])
         discretization = PhysicsInformedNN(chains[i], strategy;  init_params = init_params[i])
         prob = discretize(pde_system_, discretization)
-        res_ = Optimization.solve(prob, OptimizationOptimisers.Adam(5e-3), maxiters = 10000)
+        @time res_ = Optimization.solve(prob, OptimizationOptimisers.Adam(5e-3), maxiters = 10000)
         @show res_.minimum
         phi = discretization.phi
         push!(reses, res_)
@@ -234,11 +235,11 @@ end
 
     prob_ = NeuralPDE.neural_adapter(losses, init_params2, pde_system_map,
                                     GridTraining([0.1 / count_decomp, 0.1]))
-    res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000, callback)
+    @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
     @show res_.minimum
     prob_ = NeuralPDE.neural_adapter(losses, res_.minimizer, pde_system_map,
                                     GridTraining(0.01))
-    res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000, callback)
+    @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
     @show res_.minimum
 
     phi_ = NeuralPDE.Phi(chain2)
