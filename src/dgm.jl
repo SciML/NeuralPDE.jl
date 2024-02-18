@@ -125,14 +125,6 @@ f(t, x, \\theta) &= \\sigma_{out}(W S^{L+1} + b).
 `out_activation`: activation fn used for the output of the network
 
 `kwargs`: additional arguments to be splatted into `PhysicsInformedNN`
-
-## Examples
-```julia
-discretization= DeepGalerkin(2, 1, 30, 3, tanh, tanh, identity, QuasiRandomTraining(4_000));
-```
-## References
-Sirignano, Justin and Spiliopoulos, Konstantinos, "DGM: A deep learning algorithm for solving partial differential equations",
-Journal of Computational Physics, Volume 375, 2018, Pages 1339-1364, doi: https://doi.org/10.1016/j.jcp.2018.08.029
 """
 function dgm(in_dims::Int, out_dims::Int, modes::Int, layers::Int, activation1, activation2, out_activation)
     dgm(
@@ -165,6 +157,14 @@ returns a `discretize` algorithm for the ModelingToolkit PDESystem interface, wh
 `out_activation`: activation fn used for the output of the network
 
 `kwargs`: additional arguments to be splatted into `PhysicsInformedNN`
+
+## Examples
+```julia
+discretization= DeepGalerkin(2, 1, 30, 3, tanh, tanh, identity, QuasiRandomTraining(4_000));
+```
+## References
+Sirignano, Justin and Spiliopoulos, Konstantinos, "DGM: A deep learning algorithm for solving partial differential equations",
+Journal of Computational Physics, Volume 375, 2018, Pages 1339-1364, doi: https://doi.org/10.1016/j.jcp.2018.08.029
 """
 function DeepGalerkin(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function, activation2::Function, out_activation::Function, strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)
     PhysicsInformedNN(
