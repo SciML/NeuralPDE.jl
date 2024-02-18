@@ -69,7 +69,11 @@ end
     reses_1 = map(strategies1) do strategy_
         println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
         prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
-        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
+        if strategy_ isa QuadratureTraining
+            @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
+        else
+            @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
+        end
     end
 
     strategies2 = [stochastic_strategy, quasirandom_strategy]
