@@ -47,7 +47,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 2000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); callback = callback, maxiters = 2000)
 phi = discretization.phi
 ```
 
@@ -67,5 +67,3 @@ x_plot = collect(xs)
 plot(x_plot, u_real, title = "real")
 plot!(x_plot, u_predict, title = "predict")
 ```
-
-![hodeplot](https://user-images.githubusercontent.com/12683885/90276340-69bc3e00-de6c-11ea-89a7-7d291123a38b.png)

@@ -108,13 +108,13 @@ aprox_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[9:en
 
 callback = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-    println("der_losses: ", map(l_ -> l_(p), aprox_derivative_loss_functions))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
+    println("der_losses: ", map(l_ -> l_(p.u), aprox_derivative_loss_functions))
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 2000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); callback = callback, maxiters = 2000)
 prob = remake(prob, u0 = res.u)
 res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 10000)
 

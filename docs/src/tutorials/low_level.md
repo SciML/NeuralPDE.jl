@@ -53,8 +53,8 @@ bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bc_loss_functions))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bc_loss_functions))
     return false
 end
 

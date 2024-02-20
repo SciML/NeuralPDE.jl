@@ -99,9 +99,9 @@ global iteration = 0
 callback = function (p, l)
     if iteration % 10 == 0
         println("loss: ", l)
-        println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-        println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-        println("der_losses: ", map(l_ -> l_(p), aprox_derivative_loss_functions))
+        println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+        println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
+        println("der_losses: ", map(l_ -> l_(p.u), aprox_derivative_loss_functions))
     end
     global iteration += 1
     return false

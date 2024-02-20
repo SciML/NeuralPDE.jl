@@ -79,8 +79,8 @@ bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
     return false
 end
 
@@ -138,8 +138,8 @@ bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bc_loss_functions))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bc_loss_functions))
     return false
 end
 
@@ -182,12 +182,6 @@ for i in 1:3
     savefig("sol_u$i")
 end
 ```
-
-![sol_uq1](https://user-images.githubusercontent.com/12683885/122979254-03634e80-d3a0-11eb-985b-d3bae2dddfde.png)
-
-![sol_uq2](https://user-images.githubusercontent.com/12683885/122979278-09592f80-d3a0-11eb-8fee-de3652f138d8.png)
-
-![sol_uq3](https://user-images.githubusercontent.com/12683885/122979288-0e1de380-d3a0-11eb-9005-bfb501959b83.png)
 
 Notice here that the solution is represented in the `OptimizationSolution` with `u` as
 the parameters for the trained neural network. But, for the case where the neural network

@@ -16,8 +16,8 @@ Let's solve a simple DAE system:
 ```@example dae
 using NeuralPDE 
 using Random, Flux
-using OrdinaryDiffEq, Optimisers, Statistics
-import Lux, OptimizationOptimisers, OptimizationOptimJL
+using OrdinaryDiffEq, Statistics
+import Lux, OptimizationOptimisers
 
 example = (du, u, p, t) -> [cos(2pi * t) - du[1], u[2] + cos(2pi * t) - du[2]]
 u₀ = [1.0, -1.0]

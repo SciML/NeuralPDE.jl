@@ -81,8 +81,6 @@ p3 = plot(ts, xs, diff_u, linetype = :contourf, title = "error");
 plot(p1, p2, p3)
 ```
 
-![waveplot](https://user-images.githubusercontent.com/12683885/101984293-74a7a380-3c91-11eb-8e78-72a50d88e3f8.png)
-
 ## 1D Damped Wave Equation with Dirichlet boundary conditions
 
 Now let's solve the 1-dimensional wave equation with damping.
@@ -159,8 +157,8 @@ bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
     return false
 end
 
