@@ -79,16 +79,12 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:6] # 1:number of @variables
 
-strategy = QuadratureTraining()
+strategy = GridTraining(0.01)
 discretization = PhysicsInformedNN(chain, strategy)
 
 vars = [u(x, y), w(x, y), Dxu(x, y), Dyu(x, y), Dxw(x, y), Dyw(x, y)]
 @named pdesystem = PDESystem(eqs_, bcs__, domains, [x, y], vars)
 prob = NeuralPDE.discretize(pdesystem, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
-
-strategy = NeuralPDE.QuadratureTraining()
-discretization = PhysicsInformedNN(chain, strategy)
 sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
@@ -107,7 +103,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 5000)
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
 
 phi = discretization.phi
 
@@ -125,9 +121,5 @@ for i in 1:2
     p2 = plot(xs, ys, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(xs, ys, diff_u[i], linetype = :contourf, title = "error")
     plot(p1, p2, p3)
-    savefig("non_linear_elliptic_sol_u$i")
 end
 ```
-
-![non_linear_elliptic_sol_u1](https://user-images.githubusercontent.com/26853713/125745550-0b667c10-b09a-4659-a543-4f7a7e025d6c.png)
-![non_linear_elliptic_sol_u2](https://user-images.githubusercontent.com/26853713/125745571-45a04739-7838-40ce-b979-43b88d149028.png)

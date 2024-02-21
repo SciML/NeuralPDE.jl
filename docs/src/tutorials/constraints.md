@@ -63,7 +63,7 @@ function norm_loss_function(phi, θ, p)
 end
 
 discretization = PhysicsInformedNN(chain,
-                                   QuadratureTraining(),
+                                   GridTraining(0.01),
                                    additional_loss = norm_loss_function)
 
 @named pdesystem = PDESystem(eq, bcs, domains, [x], [p(x)])
@@ -86,7 +86,7 @@ end
 
 res = Optimization.solve(prob, LBFGS(), callback = cb_, maxiters = 400)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, BFGS(), callback = cb_, maxiters = 2000)
+res = Optimization.solve(prob, BFGS(), callback = cb_, maxiters = 500)
 ```
 
 And some analysis:
@@ -103,5 +103,3 @@ u_predict = [first(phi(x, res.u)) for x in xs]
 plot(xs, u_real, label = "analytic")
 plot!(xs, u_predict, label = "predict")
 ```
-
-![fp](https://user-images.githubusercontent.com/12683885/129405830-3d00c24e-adf1-443b-aa36-6af0e5305821.png)
