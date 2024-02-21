@@ -81,20 +81,15 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
                for i in 1:size(dataset[1][:, 1])[1]]
 
     # for each point(eq_sub dictionary) substiute in all equations(eqs_new - masked equations)
-    b = []
-    for eq_sub in eq_subs
-        push!(b, [substitute(eq, eq_sub) for eq in eqs_new])
-    end
+    b = [[substitute(eq, eq_sub) for eq in eqs_new] for eq_sub in eq_subs]
+
     # now we have vector of equation vectors
 
     # reverse dict for re-substituting values of Differential(t)(u(t)) etc
     rev_Dict_differentials = Dict(value => key for (key, value) in Dict_differentials)
 
     # for each vector in vector of equation vectorbroadcast resubstituing OG mask values
-    c = []
-    for b_i in b
-        push!(c, substitute.(b_i, Ref(rev_Dict_differentials)))
-    end
+    c = [substitute.(b_i, Ref(rev_Dict_differentials)) for b_i in b]
 
     # get losses, zip each equation with args for each build_loss call per equation vector
     loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
@@ -506,7 +501,6 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
     # parallel sampling option
     if nchains != 1
-
         # Cache to store the chains
         bpinnsols = Vector{Any}(undef, nchains)
 
