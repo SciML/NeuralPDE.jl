@@ -395,7 +395,6 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
     # parallel sampling option
     if nchains != 1
-
         # Cache to store the chains
         bpinnsols = Vector{Any}(undef, nchains)
 

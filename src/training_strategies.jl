@@ -25,20 +25,10 @@ function get_dataset_train_points(eqs, train_sets, pinnrep)
     eq_args = NeuralPDE.get_argument(eqs, dict_indvars, dict_depvars)
     # [[:t]]
 
-    points = []
-    for eq_arg in eq_args
-        a = []
-        # for each (depvar,[indvar1..]) if indvari==indvar (eq_arg)
-        for i in eachindex(symbols_input)
-            if symbols_input[i][2] == eq_arg
-                # include domain points of that depvar
-                # each loss equation take domain matrix [points..;points..]
-                push!(a, train_sets[i][:, 2:end]')
-            end
-        end
-        # vcat as new row for next equation
-        push!(points, vcat(a...))
-    end
+    points = [vcat([train_sets[i][:, 2:end]'
+                    for i in eachindex(symbols_input) if symbols_input[i][2] == eq_arg]...)
+              for eq_arg in eq_args]
+
     return points
 end
 
