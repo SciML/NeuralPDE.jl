@@ -4,7 +4,7 @@ using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions
 import ModelingToolkit: Interval, infimum, supremum
 import Lux: tanh, identity
 
-@testset begin "Poisson's Equation"
+@testset "Poisson's equation" begin
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -47,7 +47,7 @@ import Lux: tanh, identity
     @test u_predict≈u_real atol=0.1
 end
 
-@testset begin "Black-Scholes PDE: European Call Option"
+@testset "Black-Scholes PDE: European Call Option" begin
     K  = 50.0;
     T  = 1.0;
     r  = 0.05;
