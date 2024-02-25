@@ -57,9 +57,9 @@ using ComponentArrays
     phi = discretization.phi
     cb_ = function (p, l)
         println("loss: ", l)
-        println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-        println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-        println("additional_loss: ", norm_loss_function(phi, p, nothing))
+        println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+        println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
+        println("additional_loss: ", norm_loss_function(phi, p.u, nothing))
         return false
     end
     res = solve(prob, OptimizationOptimJL.LBFGS(), maxiters = 400, callback = cb_)
@@ -82,9 +82,9 @@ using ComponentArrays
     phi = discretization.phi
     cb_ = function (p, l)
         println("loss: ", l)
-        println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-        println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-        println("additional_loss: ", norm_loss_function(phi, p, nothing))
+        println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+        println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
+        println("additional_loss: ", norm_loss_function(phi, p.u, nothing))
         return false
     end
     res = solve(prob, OptimizationOptimJL.LBFGS(), maxiters = 400, callback = cb_)
