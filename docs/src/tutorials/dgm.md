@@ -12,7 +12,7 @@ u(x, 0) = u(x, 1) = 0 \quad & \textsf{for all } 0 < x < 1 \, , \\
 
 We obtain the solution of this equation with the given boundary conditions using Deep Galerkin Method:
 
-```@example poisson
+```@example dgm_poisson
 using NeuralPDE
 using ModelingToolkit, Optimization, OptimizationOptimisers
 import Lux: tanh, identity
@@ -53,7 +53,7 @@ phi = discretization.phi
 
 We now plot the predicted solution of the PDE and compare it with the analytical solution to plot the relative error.
 
-```@example wave
+```@example dgm_poisson
 using Plots
 
 xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
@@ -72,4 +72,3 @@ p2 = plot(xs, ys, u_predict, linetype = :contourf, title = "predict");
 p3 = plot(xs, ys, diff_u, linetype = :contourf, title = "error");
 plot(p1, p2, p3)
 ```
-![dgm_poisson](https://github.com/SciML/NeuralPDE.jl/assets/87991961/e725f6b9-83c3-458b-ac10-e45109d0bcf8)
