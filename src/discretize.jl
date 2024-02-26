@@ -504,29 +504,30 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                                                                  bc_indvars,
                                                                                  bc_integration_vars)]
 
-    pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
-                                                                              strategy,
-                                                                              datafree_pde_loss_functions,
-                                                                              datafree_bc_loss_functions)
-    # setup for all adaptive losses
-    num_pde_losses = length(pde_loss_functions)
-    num_bc_losses = length(bc_loss_functions)
-    # assume one single additional loss function if there is one. this means that the user needs to lump all their functions into a single one,
-    num_additional_loss = additional_loss isa Nothing ? 0 : 1
-
-    adaloss_T = eltype(adaloss.pde_loss_weights)
-
-    # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
-    adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .* adaloss.pde_loss_weights
-    adaloss.bc_loss_weights = ones(adaloss_T, num_bc_losses) .* adaloss.bc_loss_weights
-    adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
-                                      adaloss.additional_loss_weights
-
-    reweight_losses_func = generate_adaptive_loss_function(pinnrep, adaloss,
-                                                           pde_loss_functions,
-                                                           bc_loss_functions)
-
     function get_likelihood_estimate_function(discretization::PhysicsInformedNN)
+        pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
+            strategy,
+            datafree_pde_loss_functions,
+            datafree_bc_loss_functions)
+        # setup for all adaptive losses
+        num_pde_losses = length(pde_loss_functions)
+        num_bc_losses = length(bc_loss_functions)
+        # assume one single additional loss function if there is one. this means that the user needs to lump all their functions into a single one,
+        num_additional_loss = additional_loss isa Nothing ? 0 : 1
+
+        adaloss_T = eltype(adaloss.pde_loss_weights)
+
+        # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
+        adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .*
+                                   adaloss.pde_loss_weights
+        adaloss.bc_loss_weights = ones(adaloss_T, num_bc_losses) .* adaloss.bc_loss_weights
+        adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
+                                          adaloss.additional_loss_weights
+
+        reweight_losses_func = generate_adaptive_loss_function(pinnrep, adaloss,
+            pde_loss_functions,
+            bc_loss_functions)
+
         function full_loss_function(θ, p)
             # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
             pde_losses = [pde_loss_function(θ) for pde_loss_function in pde_loss_functions]
@@ -603,46 +604,66 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             return full_weighted_loss
         end
 
-        return full_loss_function
+        return bc_loss_functions, pde_loss_functions, full_loss_function
     end
 
     function get_likelihood_estimate_function(discretization::BayesianPINN)
+        # Because seperate reweighting code section needed and loglikelihood is pointwise independant
+        pde_loss_functions, bc_loss_functions = merge_strategy_with_loglikelihood_function(
+            pinnrep,
+            strategy,
+            datafree_pde_loss_functions,
+            datafree_bc_loss_functions)
+
+        # setup for all adaptive losses
+        num_pde_losses = length(pde_loss_functions)
+        num_bc_losses = length(bc_loss_functions)
+        # assume one single additional loss function if there is one. this means that the user needs to lump all their functions into a single one,
+        num_additional_loss = additional_loss isa Nothing ? 0 : 1
+
+        adaloss_T = eltype(adaloss.pde_loss_weights)
+
+        # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
+        adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .*
+                                   adaloss.pde_loss_weights
+        adaloss.bc_loss_weights = ones(adaloss_T, num_bc_losses) .* adaloss.bc_loss_weights
+        adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
+                                          adaloss.additional_loss_weights
+
+        reweight_losses_func = generate_adaptive_loss_function(pinnrep, adaloss,
+            pde_loss_functions,
+            bc_loss_functions)
+
         dataset_pde, dataset_bc = discretization.dataset
         dataset_pde = dataset_pde isa Nothing ? dataset_pde : get_dataset_train_points(eqs, dataset_pde, pinnrep)
         dataset_bc = dataset_bc isa Nothing ? dataset_bc : get_dataset_train_points(eqs, dataset_bc, pinnrep)
 
         # required as Physics loss also needed on the discrete dataset domain points
         # data points are discrete and so by default GridTraining loss applies
-        # passing placeholder dx with GridTraining, it uses data points irl
-        datapde_loss_functions, databc_loss_functions = if (!(dataset_bc isa Nothing)||!(dataset_pde isa Nothing))
-            merge_strategy_with_loglikelihood_function(pinnrep,
+        # passing placeholder dx with GridTraining, it uses dataset points irl
+        datapde_loss_functions, databc_loss_functions = merge_strategy_with_loglikelihood_function(
+                pinnrep,
                 GridTraining(0.1),
                 datafree_pde_loss_functions,
                 datafree_bc_loss_functions,
                 train_sets_pde = dataset_pde,
                 train_sets_bc = dataset_bc)
-        else
-            (nothing, nothing)
-        end
 
         function full_loss_function(θ, allstd::Vector{Vector{Float64}})
             stdpdes, stdbcs, stdextra, stdpdesnew = allstd
             # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
-            pde_loglikelihoods = [logpdf(Normal(0, stdpdes[i]), pde_loss_function(θ))
-                                for (i, pde_loss_function) in enumerate(pde_loss_functions)]
-
-            bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
-                                for (j, bc_loss_function) in enumerate(bc_loss_functions)]
-
+            # pde_loglikelihoods = sum([logpdf(MvNormal(pde_loss_function(θ)[1, :], LinearAlgebra.Diagonal(abs2.(stdpdes[i] .* ones(pde_loss_length[i])))), zeros(pde_loss_length[i])) for (i, pde_loss_function) in enumerate(pde_loss_functions)])
+            pde_loglikelihoods = sum([pde_loss_function(θ, stdpdes[i]) for (i, pde_loss_function) in enumerate(pde_loss_functions)])
+            # bc_loglikelihoods = sum([logpdf(MvNormal(bc_loss_function(θ)[1, :], LinearAlgebra.Diagonal(abs2.(stdbcs[j] .* ones(bc_loss_length[j])))), zeros(bc_loss_length[j])) for (j, bc_loss_function) in enumerate(bc_loss_functions)])
+            bc_loglikelihoods = sum([bc_loss_function(θ, stdbcs[j]) for (j, bc_loss_function) in enumerate(bc_loss_functions)])
             if !(datapde_loss_functions isa Nothing)
-                pde_loglikelihoods += [logpdf(Normal(0, stdpdes[j]), pde_loss_function(θ))
-                                    for (j, pde_loss_function) in enumerate(datapde_loss_functions)]
-
+                pde_loglikelihoods += sum([datapde_loss_function(θ, stdpdes[i]) for (i, datapde_loss_function) in enumerate(datapde_loss_functions)])
+                # sum([logpdf(MvNormal(datapde_loss_function(θ)[1, :], LinearAlgebra.Diagonal(abs2.(stdpdes[i] .* ones(datapde_length[i])))), zeros(datapde_length[i])) for (i, datapde_loss_function) in enumerate(datapde_loss_functions)])
             end
 
             if !(databc_loss_functions isa Nothing)
-                bc_loglikelihoods += [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ)) 
-                                    for (j, bc_loss_function) in enumerate(databc_loss_functions)]
+                bc_loglikelihoods += sum([databc_loss_function(θ, stdbcs[j]) for (j, databc_loss_function) in enumerate(databc_loss_functions)])
+                # sum([logpdf(MvNormal(databc_loss_function(θ)[1, :], LinearAlgebra.Diagonal(abs2.(stdbcs[j] .* ones(databc_length[j])))), zeros(databc_length[j])) for (j, databc_loss_function) in enumerate(databc_loss_functions)])
             end
 
             # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
@@ -688,12 +709,13 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
             return full_weighted_loglikelihood
         end
 
-        return full_loss_function
+        return bc_loss_functions, pde_loss_functions, full_loss_function
     end
 
-    full_loss_function = get_likelihood_estimate_function(discretization)
+    bc_loss_functions, pde_loss_functions, full_loss_function = get_likelihood_estimate_function(discretization)
+
     pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
-                                                full_loss_function, additional_loss, 
+                                                full_loss_function, additional_loss,
                                                 datafree_pde_loss_functions,
                                                 datafree_bc_loss_functions)
 

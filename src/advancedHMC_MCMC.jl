@@ -261,7 +261,7 @@ function innerdiff(Tar::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, 
 
     vals = nnsol .- physsol
 
-    # N dimensional vector if N outputs for NN(each row has logpdf of i[i] where u is vector of dependant variables)
+    # N dimensional vector if N outputs for NN(each row has logpdf of u[i] where u is vector of dependant variables)
     return [logpdf(MvNormal(vals[i, :],
             LinearAlgebra.Diagonal(abs2.(Tar.phystd[i] .*
                                          ones(length(vals[i, :]))))),

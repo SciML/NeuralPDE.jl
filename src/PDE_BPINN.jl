@@ -3,8 +3,9 @@ mutable struct PDELogTargetDensity{
     D <: Union{Nothing, Vector{<:Matrix{<:Real}}},
     P <: Vector{<:Distribution},
     I,
-    F, FF,
-    PH,
+    F,
+    FF,
+    PH
 }
     dim::Int64
     strategy::ST
@@ -26,8 +27,9 @@ mutable struct PDELogTargetDensity{
             typeof(dataset),
             typeof(priors),
             typeof(init_params),
-            typeof(full_loglikelihood), typeof(L2_loss2),
-            typeof(Φ),
+            typeof(full_loglikelihood),
+            typeof(L2_loss2),
+            typeof(Φ)
         }(dim,
             strategy,
             dataset,
@@ -36,7 +38,8 @@ mutable struct PDELogTargetDensity{
             names,
             extraparams,
             init_params,
-            full_loglikelihood, L2_loss2,
+            full_loglikelihood,
+            L2_loss2,
             Φ)
     end
     function PDELogTargetDensity(dim, strategy, dataset,
@@ -48,8 +51,9 @@ mutable struct PDELogTargetDensity{
             typeof(dataset),
             typeof(priors),
             typeof(init_params),
-            typeof(full_loglikelihood), typeof(L2_loss2),
-            typeof(Φ),
+            typeof(full_loglikelihood),
+            typeof(L2_loss2),
+            typeof(Φ)
         }(dim,
             strategy,
             dataset,
@@ -58,7 +62,8 @@ mutable struct PDELogTargetDensity{
             names,
             extraparams,
             init_params,
-            full_loglikelihood, L2_loss2,
+            full_loglikelihood,
+            L2_loss2,
             Φ)
     end
 end
@@ -374,7 +379,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
         # consider all dataset domain points and for each row new set of equation loss function
         # this is a vector of tuple{vector,nothing}
-        pde_loss_functions = [merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
+        pde_loss_functions = [merge_strategy_with_loglikelihood_function(
+            pinnrep::PINNRepresentation,
             GridTraining(0.1),
             yuh1[i],
             nothing;
@@ -453,7 +459,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # add init_params for NN params
     priors = [
         MvNormal(priorsNNw[1] * ones(nparameters),
-            LinearAlgebra.Diagonal(abs2.(priorsNNw[2] .* ones(nparameters)))),
+        LinearAlgebra.Diagonal(abs2.(priorsNNw[2] .* ones(nparameters))))
     ]
 
     # append Ode params to all paramvector - initial_θ
