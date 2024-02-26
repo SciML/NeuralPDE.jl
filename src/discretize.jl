@@ -445,13 +445,14 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     # assume one single additional loss function if there is one. this means that the user needs to lump all their functions into a single one,
     num_additional_loss = convert(Int, additional_loss !== nothing)
 
-    adaloss_T = eltype(adaloss.pde_loss_weights)
+        adaloss_T = eltype(adaloss.pde_loss_weights)
 
-    # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
-    adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .* adaloss.pde_loss_weights
-    adaloss.bc_loss_weights = ones(adaloss_T, num_bc_losses) .* adaloss.bc_loss_weights
-    adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
-                                      adaloss.additional_loss_weights
+        # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
+        adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .*
+                                   adaloss.pde_loss_weights
+        adaloss.bc_loss_weights = ones(adaloss_T, num_bc_losses) .* adaloss.bc_loss_weights
+        adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
+                                          adaloss.additional_loss_weights
 
     reweight_losses_func = generate_adaptive_loss_function(pinnrep, adaloss,
         pde_loss_functions, bc_loss_functions)
@@ -520,10 +521,36 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
             return full_weighted_loss
         end
 
-        return full_loss_function
+        return bc_loss_functions, pde_loss_functions, full_loss_function
     end
 
     function get_likelihood_estimate_function(discretization::BayesianPINN)
+        # Because seperate reweighting code section needed and loglikelihood is pointwise independant
+        pde_loss_functions, bc_loss_functions = merge_strategy_with_loglikelihood_function(
+            pinnrep,
+            strategy,
+            datafree_pde_loss_functions,
+            datafree_bc_loss_functions)
+
+        # setup for all adaptive losses
+        num_pde_losses = length(pde_loss_functions)
+        num_bc_losses = length(bc_loss_functions)
+        # assume one single additional loss function if there is one. this means that the user needs to lump all their functions into a single one,
+        num_additional_loss = additional_loss isa Nothing ? 0 : 1
+
+        adaloss_T = eltype(adaloss.pde_loss_weights)
+
+        # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
+        adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .*
+                                   adaloss.pde_loss_weights
+        adaloss.bc_loss_weights = ones(adaloss_T, num_bc_losses) .* adaloss.bc_loss_weights
+        adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
+                                          adaloss.additional_loss_weights
+
+        reweight_losses_func = generate_adaptive_loss_function(pinnrep, adaloss,
+            pde_loss_functions,
+            bc_loss_functions)
+
         dataset_pde, dataset_bc = discretization.dataset
 
         # required as Physics loss also needed on the discrete dataset domain points
@@ -592,10 +619,11 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
             return full_weighted_loglikelihood
         end
 
-        return full_loss_function
+        return bc_loss_functions, pde_loss_functions, full_loss_function
     end
 
-    full_loss_function = get_likelihood_estimate_function(discretization)
+    bc_loss_functions, pde_loss_functions, full_loss_function = get_likelihood_estimate_function(discretization)
+
     pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
         full_loss_function, additional_loss, datafree_pde_loss_functions,
         datafree_bc_loss_functions)

@@ -276,7 +276,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
         # consider all dataset domain points and for each row new set of equation loss function
         # this is a vector of tuple{vector,nothing}
-        pde_loss_functions = [merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
+        pde_loss_functions = [merge_strategy_with_loglikelihood_function(
+            pinnrep::PINNRepresentation,
             GridTraining(0.1),
             yuh1[i],
             nothing;
