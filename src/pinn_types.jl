@@ -507,10 +507,6 @@ function (f::Phi{<:Lux.AbstractExplicitLayer})(x::AbstractArray, θ)
     y
 end
 
-function (f::Phi{<:Optimisers.Restructure})(x, θ)
-    f.f(θ)(adapt(parameterless_type(θ), x))
-end
-
 function get_u()
     u = (cord, θ, phi) -> phi(cord, θ)
 end

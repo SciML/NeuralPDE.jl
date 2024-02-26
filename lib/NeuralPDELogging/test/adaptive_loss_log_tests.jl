@@ -3,7 +3,6 @@ using Test, NeuralPDE
 using Optimization, OptimizationOptimisers
 import ModelingToolkit: Interval, infimum, supremum
 using Random, Lux
-#using Plots
 @info "Starting Soon!"
 
 nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
@@ -70,7 +69,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
         if haslogger
             log_value(logger, "outer_error/loss", l, step = iteration[1])
             if iteration[1] % 30 == 0
-                u_predict = reshape([first(phi([x, y], p)) for x in xs for y in ys],
+                u_predict = reshape([first(phi([x, y], p.u)) for x in xs for y in ys],
                                     (length(xs), length(ys)))
                 diff_u = abs.(u_predict .- u_real)
                 total_diff = sum(diff_u)
