@@ -29,10 +29,6 @@ function get_dataset_train_points(eqs, train_sets, pinnrep)
 
     # train_sets follows order of depvars
     # take dataset indvar values if for equations depvar's indvar matches input symbol indvar
-    # points =  [vcat([train_sets[i][:, 2:end]'
-    #                 for i in eachindex(symbols_input) if symbols_input[i][2] == eq_arg]...)
-    #           for eq_arg in eq_args]
-
     points = []
     for eq_arg in eq_args
         eq_points = []
@@ -99,8 +95,13 @@ end
 
 function get_points_loss_functions(loss_function, train_set, eltypeθ, strategy::GridTraining;
         τ = nothing)
+        # loss_function length is number of all points loss is being evaluated upon
+        # train sets rows are for each indvar, cols are coordinates (row_1,row_2,..row_n) at which loss evaluated
     function loss(θ, std)
-        logpdf(MvNormal(loss_function(train_set, θ)[1, :], LinearAlgebra.Diagonal(abs2.(std .* ones(length(train_set))))), zeros(length(train_set)))
+        logpdf(
+            MvNormal(loss_function(train_set, θ)[1, :],
+                LinearAlgebra.Diagonal(abs2.(std .* ones(size(train_set)[2])))),
+            zeros(size(train_set)[2]))
     end
 end
 

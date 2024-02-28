@@ -6,6 +6,8 @@
 
     Random.seed!(100)
 
+@testset "Example 1: 1D Periodic System" begin
+    # Cos(pi*t) example
     @parameters t
     @variables u(..)
     Dt = Differential(t)
@@ -29,8 +31,8 @@
     u_real = [analytic_sol_func(0.0, t) for t in ts]
     u_predict = pmean(sol1.ensemblesol[1])
 
-    @test u_predict≈u_real atol=0.5
-    @test mean(u_predict .- u_real) < 0.1
+    @test u_predict≈u_real atol=0.05
+    @test mean(u_predict .- u_real) < 0.001
 end
 
 @testitem "BPINN PDE II: 1D ODE" tags=[:pdebpinn] begin
@@ -65,15 +67,19 @@ end
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
 
-    sol1 = ahmc_bayesian_pinn_pde(
-        pde_system, discretization; draw_samples = 500, bcstd = [0.1],
-        phystd = [0.05], priorsNNw = (0.0, 10.0), saveats = [1 / 100.0])
+    sol1 = ahmc_bayesian_pinn_pde(pde_system,
+        discretization;
+        draw_samples = 500,
+        bcstd = [0.1],
+        phystd = [0.05],
+        priorsNNw = (0.0, 10.0),
+        saveats = [1 / 100.0], progress=true)
 
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = sol1.timepoints[1]
     u_real = vec([analytic_sol_func(t) for t in ts])
     u_predict = pmean(sol1.ensemblesol[1])
-    @test u_predict≈u_real atol=0.8
+    @test u_predict≈u_real atol=0.5
 end
 
 @testitem "BPINN PDE III: 3rd Degree ODE" tags=[:pdebpinn] begin
@@ -170,16 +176,20 @@ end
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
-    sol = ahmc_bayesian_pinn_pde(pde_system, discretization; draw_samples = 200,
-        bcstd = [0.003, 0.003, 0.003, 0.003], phystd = [0.003],
-        priorsNNw = (0.0, 10.0), saveats = [1 / 100.0, 1 / 100.0])
+    sol1 = ahmc_bayesian_pinn_pde(pde_system,
+        discretization;
+        draw_samples = 200,
+        bcstd = [0.01, 0.01, 0.01, 0.01],
+        phystd = [0.005],
+        priorsNNw = (0.0, 2.0),
+        saveats = [1 / 100.0, 1 / 100.0])
 
     xs = sol.timepoints[1]
     analytic_sol_func(x, y) = (sinpi(x) * sinpi(y)) / (2pi^2)
 
     u_predict = pmean(sol.ensemblesol[1])
     u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
-    @test u_predict≈u_real rtol=0.5
+    @test u_predict≈u_real atol=0.8
 end
 
 @testitem "BPINN PDE: Translating from Flux" tags=[:pdebpinn] begin
@@ -219,7 +229,6 @@ end
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = sol.timepoints[1]
     u_real = vec([analytic_sol_func(t) for t in ts])
-    u_predict = pmean(sol.ensemblesol[1])
-
-    @test u_predict≈u_real atol=0.8
+    u_predict = pmean(sol1.ensemblesol[1])
+    @test u_predict≈u_real atol=0.1
 end

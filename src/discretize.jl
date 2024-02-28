@@ -525,7 +525,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     end
 
     function get_likelihood_estimate_function(discretization::BayesianPINN)
-        # Because seperate reweighting code section needed and loglikelihood is pointwise independant
+        # Because separate reweighting code section needed and loglikelihood is pointwise independent
         pde_loss_functions, bc_loss_functions = merge_strategy_with_loglikelihood_function(
             pinnrep,
             strategy,
@@ -578,7 +578,6 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
                 pde_loglikelihoods += [logpdf(Normal(0, stdpdes[j]), pde_loss_function(θ))
                                        for (j, pde_loss_function) in enumerate(datapde_loss_functions)]
             end
-
             if !(databc_loss_functions isa Nothing)
                 bc_loglikelihoods += [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
                                       for (j, bc_loss_function) in enumerate(databc_loss_functions)]

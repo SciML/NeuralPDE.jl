@@ -270,37 +270,39 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     newloss = if Dict_differentials isa Nothing
         nothing
     else
-        yuh1 = get_lossy(pinnrep, dataset_pde, Dict_differentials)
-        # eqs = pinnrep.bcs
-        # yuh2 = get_lossy(pinnrep, dataset_pde, eqs)
+        datafree_colloc_loss_functions = get_lossy(pinnrep, dataset_pde, Dict_differentials)
+        # equals number of indvar coords in dataset
+        # add case for if parameters present in bcs?
 
-        # consider all dataset domain points and for each row new set of equation loss function
-        # this is a vector of tuple{vector,nothing}
-        pde_loss_functions = [merge_strategy_with_loglikelihood_function(
-            pinnrep::PINNRepresentation,
+        train_sets_pde = get_dataset_train_points(pde_system.eqs,
+                dataset_pde,
+                pinnrep)
+        colloc_train_sets = [[hcat(train_sets_pde[i][:, j]...)' for i in eachindex(datafree_colloc_loss_functions[1])] for j in eachindex(datafree_colloc_loss_functions)]
+
+        # for each datafree_colloc_loss_function create loss_functions by passing dataset's indvar coords as train_sets_pde.
+        # placeholder strategy = GridTraining(0.1), datafree_bc_loss_function and train_sets_bc must be nothing
+        # order of indvar coords will be same as corresponding depvar coords values in dataset provided in get_lossy() call.
+        pde_loss_function_points = [merge_strategy_with_loglikelihood_function(
+            pinnrep,
             GridTraining(0.1),
-            yuh1[i],
+            datafree_colloc_loss_functions[i],
             nothing;
-            # pass transformation of each dataset row-corresponds to each point, for each depvar dataset point merged equation vector
-            train_sets_pde = get_dataset_train_points(pde_system.eqs,
-                [Array(data[i, :]') for data in dataset_pde],
-                pinnrep),
+            train_sets_pde = colloc_train_sets[i],
             train_sets_bc = nothing)
-                              for i in eachindex(yuh1)]
+                              for i in eachindex(datafree_colloc_loss_functions)]
 
         function L2_loss2(θ, allstd)
             stdpdesnew = allstd[4]
 
             # first vector of losses,from tuple -> pde losses, first[1] pde loss
-            pde_loglikelihoods = [[logpdf(Normal(0, stdpdesnew[j]), pde_loss_function(θ))
-                                   for (j, pde_loss_function) in enumerate(pde_loss_functions[i][1])]
-                                  for i in eachindex(pde_loss_functions)]
+            pde_loglikelihoods = [sum([pde_loss_function(θ, stdpdesnew[i])
+                                       for (i, pde_loss_function) in enumerate(pde_loss_functions[1])])
+                                  for pde_loss_functions in pde_loss_function_points]
 
-            # bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
+            # bc_loglikelihoods = [sum([bc_loss_function(θ, stdpdesnew[i]) for (i, bc_loss_function) in enumerate(pde_loss_function_points[1])]) for pde_loss_function_points in pde_loss_functions]
             #                      for (j, bc_loss_function) in enumerate(bc_loss_functions)]
 
-            return sum(sum(pde_loglikelihoods))
-            # sum(sum(pde_loglikelihoods) + sum(bc_loglikelihoods))
+            return sum(pde_loglikelihoods)
         end
     end
 
