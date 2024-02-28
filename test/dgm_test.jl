@@ -1,6 +1,6 @@
 using NeuralPDE
 
-using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions
+using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions, MethodOfLines, OrdinaryDiffEq
 import ModelingToolkit: Interval, infimum, supremum
 import Lux: tanh, identity
 
@@ -103,4 +103,58 @@ end
     u_real= [analytic_sol_func(t,x) for t in ts, x in xs]
     u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
     @test u_predict ≈ u_real rtol= 0.05
+end
+
+@testset "Burger's equation" begin
+    @parameters x t
+    @variables u(..)
+
+    Dt= Differential(t)
+    Dx= Differential(x)
+    Dxx= Dx^2
+    α = 0.05;
+    eq= Dt(u(t,x)) + u(t,x) * Dx(u(t,x)) - α * Dxx(u(t,x)) ~ 0 # Burger's equation
+
+    bcs= [
+        u(0.0, x) ~ - sin(π*x),
+        u(t, -1.0) ~ 0.0,
+        u(t, 1.0) ~ 0.0
+    ]
+
+    domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(-1.0, 1.0)]
+
+    # MethodOfLines
+    dx= 0.01
+    order = 2
+    discretization = MOLFiniteDifference([x => dx], t, saveat = 0.01)
+    @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t,x)])
+    prob = discretize(pde_system, discretization)
+    sol= solve(prob, Tsit5())
+    ts = sol[t]
+    xs = sol[x] 
+
+    u_MOL = sol[u(t,x)]
+
+    # NeuralPDE
+    strategy = QuasiRandomTraining(4_000, minibatch= 500);
+    discretization= DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy);
+    @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t,x)]);
+    prob = discretize(pde_system, discretization);
+    global iter = 0;
+    callback = function (p, l)
+        global iter += 1;
+        if iter%20 == 0
+            println("$iter => $l")
+        end
+        return false
+    end
+
+    res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters = 300);
+    phi = discretization.phi;
+
+    u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
+
+    using Test
+    @test u_predict ≈ u_MOL rtol= 0.025
+
 end
