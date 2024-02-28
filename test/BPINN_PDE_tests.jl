@@ -8,7 +8,7 @@ using Flux
 
 Random.seed!(100)
 
-@testset "Example 1: 2D Periodic System" begin
+@testset "Example 1: 1D Periodic System" begin
     # Cos(pi*t) example
     @parameters t
     @variables u(..)
@@ -35,8 +35,9 @@ Random.seed!(100)
     ts = vec(sol1.timepoints[1])
     u_real = [analytic_sol_func(0.0, t) for t in ts]
     u_predict = pmean(sol1.ensemblesol[1])
-    @test u_predict≈u_real atol=0.5
-    @test mean(u_predict .- u_real) < 0.1
+
+    @test u_predict≈u_real atol=0.05
+    @test mean(u_predict .- u_real) < 0.001
 end
 
 @testset "Example 2: 1D ODE" begin
@@ -67,13 +68,13 @@ end
         bcstd = [0.1],
         phystd = [0.05],
         priorsNNw = (0.0, 10.0),
-        saveats = [1 / 100.0])
+        saveats = [1 / 100.0], progress=true)
 
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = sol1.timepoints[1]
     u_real = vec([analytic_sol_func(t) for t in ts])
     u_predict = pmean(sol1.ensemblesol[1])
-    @test u_predict≈u_real atol=0.8
+    @test u_predict≈u_real atol=0.5
 end
 
 @testset "Example 3: 3rd Degree ODE" begin
@@ -156,9 +157,9 @@ end
     sol1 = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
         draw_samples = 200,
-        bcstd = [0.003, 0.003, 0.003, 0.003],
-        phystd = [0.003],
-        priorsNNw = (0.0, 10.0),
+        bcstd = [0.01, 0.01, 0.01, 0.01],
+        phystd = [0.005],
+        priorsNNw = (0.0, 2.0),
         saveats = [1 / 100.0, 1 / 100.0])
 
     xs = sol1.timepoints[1]
@@ -166,7 +167,7 @@ end
 
     u_predict = pmean(sol1.ensemblesol[1])
     u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
-    @test u_predict≈u_real atol=1.5
+    @test u_predict≈u_real atol=0.8
 end
 
 @testset "Translating from Flux" begin
@@ -204,5 +205,5 @@ end
     ts = sol1.timepoints[1]
     u_real = vec([analytic_sol_func(t) for t in ts])
     u_predict = pmean(sol1.ensemblesol[1])
-    @test u_predict≈u_real atol=0.8
+    @test u_predict≈u_real atol=0.1
 end

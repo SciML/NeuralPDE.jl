@@ -608,7 +608,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     end
 
     function get_likelihood_estimate_function(discretization::BayesianPINN)
-        # Because seperate reweighting code section needed and loglikelihood is pointwise independant
+        # Because separate reweighting code section needed and loglikelihood is pointwise independent
         pde_loss_functions, bc_loss_functions = merge_strategy_with_loglikelihood_function(
             pinnrep,
             strategy,
@@ -652,18 +652,19 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         function full_loss_function(θ, allstd::Vector{Vector{Float64}})
             stdpdes, stdbcs, stdextra, stdpdesnew = allstd
             # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
-            # pde_loglikelihoods = sum([logpdf(MvNormal(pde_loss_function(θ)[1, :], LinearAlgebra.Diagonal(abs2.(stdpdes[i] .* ones(pde_loss_length[i])))), zeros(pde_loss_length[i])) for (i, pde_loss_function) in enumerate(pde_loss_functions)])
-            pde_loglikelihoods = sum([pde_loss_function(θ, stdpdes[i]) for (i, pde_loss_function) in enumerate(pde_loss_functions)])
-            # bc_loglikelihoods = sum([logpdf(MvNormal(bc_loss_function(θ)[1, :], LinearAlgebra.Diagonal(abs2.(stdbcs[j] .* ones(bc_loss_length[j])))), zeros(bc_loss_length[j])) for (j, bc_loss_function) in enumerate(bc_loss_functions)])
-            bc_loglikelihoods = sum([bc_loss_function(θ, stdbcs[j]) for (j, bc_loss_function) in enumerate(bc_loss_functions)])
-            if !(datapde_loss_functions isa Nothing)
-                pde_loglikelihoods += sum([datapde_loss_function(θ, stdpdes[i]) for (i, datapde_loss_function) in enumerate(datapde_loss_functions)])
-                # sum([logpdf(MvNormal(datapde_loss_function(θ)[1, :], LinearAlgebra.Diagonal(abs2.(stdpdes[i] .* ones(datapde_length[i])))), zeros(datapde_length[i])) for (i, datapde_loss_function) in enumerate(datapde_loss_functions)])
-            end
 
+            pde_loglikelihoods = sum([pde_loss_function(θ, stdpdes[i])
+                                      for (i, pde_loss_function) in enumerate(pde_loss_functions)])
+            bc_loglikelihoods = sum([bc_loss_function(θ, stdbcs[j])
+                                     for (j, bc_loss_function) in enumerate(bc_loss_functions)])
+
+            if !(datapde_loss_functions isa Nothing)
+                pde_loglikelihoods += sum([datapde_loss_function(θ, stdpdes[i])
+                                           for (i, datapde_loss_function) in enumerate(datapde_loss_functions)])
+            end
             if !(databc_loss_functions isa Nothing)
-                bc_loglikelihoods += sum([databc_loss_function(θ, stdbcs[j]) for (j, databc_loss_function) in enumerate(databc_loss_functions)])
-                # sum([logpdf(MvNormal(databc_loss_function(θ)[1, :], LinearAlgebra.Diagonal(abs2.(stdbcs[j] .* ones(databc_length[j])))), zeros(databc_length[j])) for (j, databc_loss_function) in enumerate(databc_loss_functions)])
+                bc_loglikelihoods += sum([databc_loss_function(θ, stdbcs[j])
+                                          for (j, databc_loss_function) in enumerate(databc_loss_functions)])
             end
 
             # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized

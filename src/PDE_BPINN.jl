@@ -68,63 +68,66 @@ mutable struct PDELogTargetDensity{
     end
 end
 
-# for bc case, [bc]/bc eqs must be passed along with dataset_bc[i]
-# and final loss for bc must be together in a vector(bcs has separate type of dataset_bc)
-# eqs is vector of pde eqs and dataset here is dataset_pde
-# normally you get vector of losses
+# you get a vector of losses
 function get_lossy(pinnrep, dataset, Dict_differentials)
     eqs = pinnrep.eqs
-    depvars = pinnrep.depvars # order is same as dataset and interps
+    depvars = pinnrep.depvars #depvar order is same as dataset
 
     # Dict_differentials is filled with Differential operator => diff_i key-value pairs
     # masking operation
     eqs_new = substitute.(eqs, Ref(Dict_differentials))
 
     to_subs, tobe_subs = get_symbols(dataset, depvars, eqs)
-    # for each row in dataset create u values for substituting in equation, n_equations=n_rows
+
+    # for values of all depvars at corresponding indvar values in dataset, create dictionaries {Dict(x(t) => 1.0496435863173237, y(t) => 1.9227770685615337)}
+    # In each Dict, num form of depvar is key to its value at certain coords of indvars, n_dicts = n_rows_dataset(or n_indvar_coords_dataset)
     eq_subs = [Dict(tobe_subs[depvar] => to_subs[depvar][i] for depvar in depvars)
                for i in 1:size(dataset[1][:, 1])[1]]
 
-    # for each point(eq_sub dictionary) substiute in all equations(eqs_new - masked equations)
-    b = [[substitute(eq, eq_sub) for eq in eqs_new] for eq_sub in eq_subs]
-
-    # now we have vector of equation vectors
+    # for each dataset point(eq_sub dictionary), substitute in masked equations
+    # n_collocated_equations = n_rows_dataset(or n_indvar_coords_dataset)
+    masked_colloc_equations = [[substitute(eq, eq_sub) for eq in eqs_new]
+                            for eq_sub in eq_subs]
+    # now we have vector of dataset depvar's collocated equations
 
     # reverse dict for re-substituting values of Differential(t)(u(t)) etc
     rev_Dict_differentials = Dict(value => key for (key, value) in Dict_differentials)
 
-    # for each vector in vector of equation vectorbroadcast resubstituing OG mask values
-    c = [substitute.(b_i, Ref(rev_Dict_differentials)) for b_i in b]
+    # unmask Differential terms in masked_colloc_equations
+    colloc_equations = [substitute.(masked_colloc_equation, Ref(rev_Dict_differentials))
+                    for masked_colloc_equation in masked_colloc_equations]
 
-    # get losses, zip each equation with args for each build_loss call per equation vector
-    loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
-                       for (eq, pde_indvar, integration_indvar) in zip(c[i],
+    # nested vector of datafree_pde_loss_functions (as in discretize.jl)
+    # each sub vector has dataset's indvar coord's datafree_colloc_loss_function, n_subvectors = n_rows_dataset(or n_indvar_coords_dataset)
+    # zip each colloc equation with args for each build_loss call per equation vector
+    datafree_colloc_loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
+                       for (eq, pde_indvar, integration_indvar) in zip(colloc_equation,
         pinnrep.pde_indvars,
-        pinnrep.pde_integration_vars)] for i in eachindex(c)]
+        pinnrep.pde_integration_vars)] for colloc_equation in colloc_equations]
 
-    return loss_functions
+    return datafree_colloc_loss_functions
 end
 
-# dataset_pde has normal matrix format 
-# dataset_bc has format of Vector{typeof(dataset_pde )} as each bc has different domain requirements
 function get_symbols(dataset, depvars, eqs)
+    # take only values of depvars from dataset
     depvar_vals = [dataset_i[:, 1] for dataset_i in dataset]
-    # order of depvars
+    # order of pinnrep.depvars, depvar_vals, BayesianPINN.dataset must be same
     to_subs = Dict(depvars .=> depvar_vals)
 
-    asrt = Symbolics.get_variables.(eqs)
-    # want only symbols of depvars
-    temp = unique(reduce(vcat, asrt))
+    numform_vars = Symbolics.get_variables.(eqs)
+    Eq_vars = unique(reduce(vcat, numform_vars))
+    # got equation's depvar num format {x(t)} for use in substitute()
 
     tobe_subs = Dict()
     for a in depvars
-        for i in temp
+        for i in Eq_vars
             expr = toexpr(i)
             if (expr isa Expr) && (expr.args[1] == a)
                 tobe_subs[a] = i
             end
         end
     end
+    # depvar symbolic and num format got, tobe_subs : Dict{Any, Any}(:y => y(t), :x => x(t))
 
     return to_subs, tobe_subs
 end
@@ -373,37 +376,39 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     newloss = if Dict_differentials isa Nothing
         nothing
     else
-        yuh1 = get_lossy(pinnrep, dataset_pde, Dict_differentials)
-        # eqs = pinnrep.bcs
-        # yuh2 = get_lossy(pinnrep, dataset_pde, eqs)
+        datafree_colloc_loss_functions = get_lossy(pinnrep, dataset_pde, Dict_differentials)
+        # equals number of indvar coords in dataset
+        # add case for if parameters present in bcs?
 
-        # consider all dataset domain points and for each row new set of equation loss function
-        # this is a vector of tuple{vector,nothing}
-        pde_loss_functions = [merge_strategy_with_loglikelihood_function(
-            pinnrep::PINNRepresentation,
+        train_sets_pde = get_dataset_train_points(pde_system.eqs,
+                dataset_pde,
+                pinnrep)
+        colloc_train_sets = [[hcat(train_sets_pde[i][:, j]...)' for i in eachindex(datafree_colloc_loss_functions[1])] for j in eachindex(datafree_colloc_loss_functions)]
+
+        # for each datafree_colloc_loss_function create loss_functions by passing dataset's indvar coords as train_sets_pde.
+        # placeholder strategy = GridTraining(0.1), datafree_bc_loss_function and train_sets_bc must be nothing
+        # order of indvar coords will be same as corresponding depvar coords values in dataset provided in get_lossy() call.
+        pde_loss_function_points = [merge_strategy_with_loglikelihood_function(
+            pinnrep,
             GridTraining(0.1),
-            yuh1[i],
+            datafree_colloc_loss_functions[i],
             nothing;
-            # pass transformation of each dataset row-corresponds to each point, for each depvar dataset point merged equation vector
-            train_sets_pde = get_dataset_train_points(pde_system.eqs,
-                [Array(data[i, :]') for data in dataset_pde],
-                pinnrep),
+            train_sets_pde = colloc_train_sets[i],
             train_sets_bc = nothing)
-                              for i in eachindex(yuh1)]
+                              for i in eachindex(datafree_colloc_loss_functions)]
 
         function L2_loss2(θ, allstd)
             stdpdesnew = allstd[4]
 
             # first vector of losses,from tuple -> pde losses, first[1] pde loss
-            pde_loglikelihoods = [[logpdf(Normal(0, stdpdesnew[j]), pde_loss_function(θ))
-                                   for (j, pde_loss_function) in enumerate(pde_loss_functions[i][1])]
-                                  for i in eachindex(pde_loss_functions)]
+            pde_loglikelihoods = [sum([pde_loss_function(θ, stdpdesnew[i])
+                                       for (i, pde_loss_function) in enumerate(pde_loss_functions[1])])
+                                  for pde_loss_functions in pde_loss_function_points]
 
-            # bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
+            # bc_loglikelihoods = [sum([bc_loss_function(θ, stdpdesnew[i]) for (i, bc_loss_function) in enumerate(pde_loss_function_points[1])]) for pde_loss_function_points in pde_loss_functions]
             #                      for (j, bc_loss_function) in enumerate(bc_loss_functions)]
 
-            return sum(sum(pde_loglikelihoods))
-            # sum(sum(pde_loglikelihoods) + sum(bc_loglikelihoods))
+            return sum(pde_loglikelihoods)
         end
     end
 
@@ -436,9 +441,6 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
     # NN solutions for loglikelihood which is used for L2lossdata
     Φ = pinnrep.phi
-
-    # for new L2 loss
-    # discretization.additional_loss = 
 
     if nchains < 1
         throw(error("number of chains must be greater than or equal to 1"))
