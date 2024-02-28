@@ -26,15 +26,15 @@ TODO
 ## References
 Zongyi Li "Physics-Informed Neural Operator for Learning Partial Differential Equations"
 """
-
-struct TRAINSET{}
-    input_data::Any
-    output_data::Any
-    u0::Bool
+#TODO
+struct TRAINSET{} #T
+    input_data::Vector{ODEProblem}
+    output_data::Vector{Array}
+    isu0::Bool
 end
 
-function TRAINSET(input_data, output_data; u0 = false)
-    TRAINSET(input_data, output_data, u0)
+function TRAINSET(input_data, output_data; isu0 = false)
+    TRAINSET(input_data, output_data, isu0)
 end
 
 struct PINOODE{C, O, P, K} <: DiffEqBase.AbstractODEAlgorithm
@@ -60,19 +60,17 @@ end
     PINOPhi(chain::Lux.AbstractExplicitLayer, t, st)
     TODO
 """
-mutable struct PINOPhi{C, T, U, S}
+mutable struct PINOPhi{C, T, S}
     chain::C
     t0::T
-    u0::U
     st::S
-    function PINOPhi(chain::Lux.AbstractExplicitLayer, t0, u0, st)
-        new{typeof(chain), typeof(t0), typeof(u0), typeof(st)}(chain, t0, u0, st)
+    function PINOPhi(chain::Lux.AbstractExplicitLayer, t0, st)
+        new{typeof(chain), typeof(t0), typeof(st)}(chain, t0, st)
     end
 end
 
 function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer,
         t0,
-        u0,
         init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
     if init_params === nothing
@@ -80,7 +78,7 @@ function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer,
     else
         init_params = ComponentArrays.ComponentArray(init_params)
     end
-    PINOPhi(chain, t0, u0, st), init_params
+    PINOPhi(chain, t0, st), init_params
 end
 
 function (f::PINOPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractExplicitLayer, T, U}
@@ -103,63 +101,74 @@ function dfdx(phi::PINOPhi, t::AbstractArray, θ)
     (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
 end
 
-function inner_physics_loss(phi::PINOPhi{C, T, U}, f, θ, in_::AbstractArray) where {C, T, U}
-    ts = in_[[1], :, :] #TODO remove dependence on dimension
-    ps = in_[[2], :, :]
-    out_ = phi(in_, θ)
-    dudt = dfdx(phi, in_, θ)
-    fs = f.(out_, ps, ts)
-    dudt - fs
-end
-
 function inner_physics_loss(phi::PINOPhi{C, T, U},
-        f,
         θ,
-        in_::AbstractArray,
-        p::AbstractArray) where {C, T, U}
-    ts = in_[[1], :, :]
+        ts::AbstractArray,
+        prob::ODEProblem,
+        isu0::Bool) where {C, T, U}
+    u0 = prob.u0
+    p = prob.p
+    f = prob.f
+    if isu0 == true
+        in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2])])
+    else
+        in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2])])
+    end
     out_ = phi(in_, θ)
     dudt = dfdx(phi, in_, θ)
     fs = f.(out_, p, ts)
     dudt - fs
 end
 
-function physics_loss(phi::PINOPhi{C, T, U}, f, θ, train_set::TRAINSET, p) where {C, T, U}
-    input_set = train_set.input_data
-    data_set_size = size(input_set)[1] * size(input_set[1])[2]
-    if train_set.u0 == false
-        loss = reduce(vcat,
-            [inner_physics_loss(phi, f, θ, in_) for in_ in input_set])
-    else #train_set.u!==nothing
-        p = fill(p, 1, size(input_set[1])[2], 1)
-        loss = reduce(vcat,
-            [inner_physics_loss(phi, f, θ, in_, p) for in_ in input_set])
-    end
-    sum(abs2, loss) / data_set_size
+function physics_loss(phi::PINOPhi{C, T, U},
+        θ,
+        ts::AbstractArray,
+        train_set::TRAINSET ) where {C, T, U}
+    prob_set, output_data = train_set.input_data, train_set.output_data
+    norm = size(output_data)[1] * size(output_data[1])[2]
+    loss = reduce(vcat,
+        [inner_physics_loss(phi, θ, ts, prob, train_set.isu0) for prob in prob_set])
+    sum(abs2, loss) / norm
 end
 
 function inner_data_loss(phi::PINOPhi{C, T, U},
         θ,
-        in_::AbstractArray,
-        out_::AbstractArray) where {C, T, U}
+        ts::AbstractArray,
+        prob::ODEProblem,
+        out_::AbstractArray,
+        isu0::Bool) where {C, T, U}
+    u0 = prob.u0
+    p = prob.p
+    f = prob.f
+    if isu0 == true
+        in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2])])
+    else
+        in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2])])
+    end
     phi(in_, θ) - out_
 end
 
 function data_loss(phi::PINOPhi{C, T, U},
         θ,
-        train_set::TRAINSET) where {C, T, U}
-    input_set, output_set = train_set.input_data, train_set.output_data
-    data_set_size = size(input_set)[1] * size(input_set[1])[2]
+        ts::AbstractArray,
+        train_set::TRAINSET
+       ) where {C, T, U}
+    prob_set, output_data = train_set.input_data, train_set.output_data
+    norm = size(output_data)[1] * size(output_data[1])[2]
     loss = reduce(vcat,
-        [inner_data_loss(phi, θ, in_, out_) for (in_, out_) in zip(input_set, output_set)])
-    sum(abs2, loss) / data_set_size
+        [inner_data_loss(phi, θ, ts, prob, out_, train_set.isu0)
+         for (prob, out_) in zip(prob_set, output_data)])
+    sum(abs2, loss) / norm
 end
 
-function generate_loss(phi::PINOPhi{C, T, U},
-        f,
-        train_set::TRAINSET, p) where {C, T, U}
+function generate_loss(phi::PINOPhi{C, T, U}, train_set::TRAINSET, tspan) where {C, T, U}
+    t0 = tspan[1]
+    t_end = tspan[2]
+    instances_size = size(train_set.output_data[1])[2]
+    range_ = range(t0, stop = t_end, length = instances_size)
+    ts = reshape(collect(range_), 1, instances_size)
     function loss(θ, _)
-        data_loss(phi, θ, train_set) + physics_loss(phi, f, θ, train_set, p)
+        data_loss(phi, θ, ts, train_set) + physics_loss(phi, θ, ts, train_set)
     end
     return loss
 end
@@ -175,9 +184,9 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         maxiters = nothing)
     tspan = prob.tspan
     t0 = tspan[1]
-    f = prob.f
-    p = prob.p
-    u0 = prob.u0
+    # f = prob.f
+    # p = prob.p
+    # u0 = prob.u0
     # param_estim = alg.param_estim
 
     chain = alg.chain
@@ -191,7 +200,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
 
-    phi, init_params = generate_pino_phi_θ(chain, t0, u0, init_params)
+    phi, init_params = generate_pino_phi_θ(chain, t0, init_params)
 
     init_params = ComponentArrays.ComponentArray(init_params)
 
@@ -199,7 +208,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        phi(first(train_set.input_data), init_params) #TODO first(train_set.input_data)
+        phi(rand(chain.layers.layer_1.in_dims, 10), init_params) #TODO input data
     catch err
         if isa(err, DimensionMismatch)
             throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
@@ -208,11 +217,10 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         end
     end
 
-
-    inner_f = generate_loss(phi, f, train_set, p)
-
-    # Creates OptimizationFunction Object from total_loss
-    total_loss(θ, _) = inner_f(θ, phi)
+    # dt
+    total_loss = generate_loss(phi, train_set, tspan)
+    # total_loss_(init_params, nothing)
+    # Zygote.gradient(p -> total_loss_(p, nothing), init_params)
 
     # Optimization Algo for Training Strategies
     opt_algo = Optimization.AutoZygote()
