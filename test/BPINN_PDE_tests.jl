@@ -68,7 +68,7 @@ end
         bcstd = [0.1],
         phystd = [0.05],
         priorsNNw = (0.0, 10.0),
-        saveats = [1 / 100.0], progress=true)
+        saveats = [1 / 100.0])
 
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = sol1.timepoints[1]
