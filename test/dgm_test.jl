@@ -1,4 +1,4 @@
-using NeuralPDE
+using NeuralPDE, Test
 
 using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions, MethodOfLines, OrdinaryDiffEq
 import ModelingToolkit: Interval, infimum, supremum
@@ -34,7 +34,7 @@ import Lux: tanh, identity
         return false
     end
 
-    res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters = 600)
+    res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 600)
     phi = discretization.phi
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
@@ -84,9 +84,9 @@ end
         return false
     end
 
-    res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters = 300)
+    res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 300)
     prob = remake(prob, u0 = res.minimizer)
-    res = Optimization.solve(prob, ADAM(0.001); callback = callback, maxiters = 300)
+    res = Optimization.solve(prob, Adam(0.001); callback = callback, maxiters = 300)
     phi = discretization.phi
 
     function analytical_soln(t, x, K, σ, T)
@@ -149,12 +149,11 @@ end
         return false
     end
 
-    res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters = 300);
+    res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 300);
     phi = discretization.phi;
 
     u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
 
-    using Test
     @test u_predict ≈ u_MOL rtol= 0.025
 
 end
