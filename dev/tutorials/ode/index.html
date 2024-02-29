@@ -19,27 +19,27 @@ Interpolation: Trained neural network interpolation
 t: 0.0:0.01:1.0
 u: 101-element Vector{Float64}:
   0.0
-  0.008922623740127412
-  0.01782956804083587
-  0.02670232940384453
-  0.03552104355856773
-  0.04426446375074329
-  0.05290995019052346
-  0.061433472663500986
-  0.06980962842594227
-  0.0780116775930575
+  0.008922623780187287
+  0.01782956815957051
+  0.026702329638245165
+  0.03552104394416481
+  0.04426446432180044
+  0.05290995098026217
+  0.06143347370435503
+  0.06980962974983906
+  0.0780116792317238
   ⋮
- -0.07641332650850921
- -0.06833403265344645
- -0.059900483691773324
- -0.051121188639669975
- -0.04200447933960277
- -0.032558506541681555
- -0.0227912376046893
- -0.01271045559207302
- -0.0023237595605622996</code></pre><p>Now lets compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the ODE.</p><pre><code class="language-julia hljs">using OrdinaryDiffEq, Plots
+ -0.07641336403423533
+ -0.06833407184769424
+ -0.059900524550614315
+ -0.05112123116239935
+ -0.04200452352879416
+ -0.03255855240322181
+ -0.022791285147799073
+ -0.01271050482930745
+ -0.0023238105078005056</code></pre><p>Now lets compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the ODE.</p><pre><code class="language-julia hljs">using OrdinaryDiffEq, Plots
 
 ground_truth = solve(prob, Tsit5(), saveat = 0.01)
 
 plot(ground_truth, label = &quot;ground truth&quot;)
-plot!(sol.t, sol.u, label = &quot;pred&quot;)</code></pre><img src="ab8afabc.svg" alt="Example block output"/><p>And that&#39;s it: the neural network solution was computed by training the neural network and returned in the standard DifferentialEquations.jl <code>ODESolution</code> format. For more information on handling the solution, consult <a href="https://docs.sciml.ai/DiffEqDocs/stable/basics/solution/">here</a>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a><a class="docs-footer-nextpage" href="../Lotka_Volterra_BPINNs/">Bayesian PINNs for Coupled ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Sunday 18 February 2024 18:47">Sunday 18 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(sol.t, sol.u, label = &quot;pred&quot;)</code></pre><img src="4cf71ba8.svg" alt="Example block output"/><p>And that&#39;s it: the neural network solution was computed by training the neural network and returned in the standard DifferentialEquations.jl <code>ODESolution</code> format. For more information on handling the solution, consult <a href="https://docs.sciml.ai/DiffEqDocs/stable/basics/solution/">here</a>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a><a class="docs-footer-nextpage" href="../Lotka_Volterra_BPINNs/">Bayesian PINNs for Coupled ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 29 February 2024 12:07">Thursday 29 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
