@@ -22,17 +22,21 @@
     # non adaptive case
     discretization = BayesianPINN([chainl], GridTraining([0.01]))
 
-    sol1 = ahmc_bayesian_pinn_pde(
-        pde_system, discretization; draw_samples = 1500, bcstd = [0.02],
-        phystd = [0.01], priorsNNw = (0.0, 1.0), saveats = [1 / 50.0])
+    sol1 = ahmc_bayesian_pinn_pde(pde_system,
+        discretization;
+        draw_samples = 2000,
+        bcstd = [0.02],
+        phystd = [0.01],
+        priorsNNw = (0.0, 10.0),
+        saveats = [1 / 50.0])
 
     analytic_sol_func(u0, t) = u0 + sinpi(2t) / (2pi)
     ts = vec(sol1.timepoints[1])
     u_real = [analytic_sol_func(0.0, t) for t in ts]
     u_predict = pmean(sol1.ensemblesol[1])
 
-    @test u_predict≈u_real atol=0.08
-    @test mean(u_predict .- u_real) < 0.001
+    @test u_predict≈u_real atol=0.05
+    @test mean(u_predict .- u_real) < 1e-5
 end
 
 @testitem "BPINN PDE II: 1D ODE" tags=[:pdebpinn] begin
@@ -229,7 +233,7 @@ end
         bcstd = [0.1],
         phystd = [0.05],
         priorsNNw = (0.0, 10.0),
-        saveats = [1 / 100.0],progress=true)
+        saveats = [1 / 100.0])
 
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = sol.timepoints[1]
