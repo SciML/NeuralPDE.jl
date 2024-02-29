@@ -1,5 +1,5 @@
 using Test, NeuralPDE
-using Optimization, OptimizationOptimJL
+using Optimization
 import ModelingToolkit: Interval, infimum, supremum
 import Lux, OptimizationOptimisers
 using Statistics
@@ -8,12 +8,19 @@ using ComponentArrays
 using Random
 Random.seed!(100)
 
+global iter = 0
+
 callback = function (p, l)
-    println("Current loss is: $l")
+    global iter
+    iter += 1
+    if iter % 100 == 0
+        println("Current loss at iteration $iter is: $l")
+    end
     return false
 end
 
-@testset "Example, 2D Poisson equation with Neural adapter" begin
+# @testset "Example, 2D Poisson equation with Neural adapter" begin
+begin
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -43,7 +50,7 @@ end
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = NeuralPDE.discretize(pde_system, discretization)
     println("Poisson equation, strategy: $(nameof(typeof(quadrature_strategy)))")
-    @time res = solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
+    @time res = solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
     phi = discretization.phi
 
     inner_ = 8
@@ -56,6 +63,7 @@ end
     init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
 
     function loss(cord, θ)
+        global st
         ch2, st = chain2(cord, θ, st)
         ch2 .- phi(cord, res.minimizer)
     end
@@ -69,18 +77,16 @@ end
     reses_1 = map(strategies1) do strategy_
         println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
         prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
-        if strategy_ isa QuadratureTraining
-            @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
-        else
-            @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
-        end
+        global iter = 0
+        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
     end
 
     strategies2 = [stochastic_strategy, quasirandom_strategy]
     reses_2 = map(strategies2) do strategy_
         println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
         prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
-        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
+        global iter = 0
+        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
     end
 
     reses_ = [reses_1; reses_2]
