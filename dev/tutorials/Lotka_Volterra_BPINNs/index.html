@@ -80,7 +80,7 @@ dataset = [x, y, time]
 # Plotting the data which will be used
 plot(time, x, label = &quot;noisy x&quot;)
 plot!(time, y, label = &quot;noisy y&quot;)
-plot!(solution, labels = [&quot;x&quot; &quot;y&quot;])</code></pre><img src="ad67394e.svg" alt="Example block output"/><p>Lets define a PINN.</p><pre><code class="language-julia hljs"># Neural Networks must have 2 outputs as u -&gt; [dx,dy] in function lotka_volterra()
+plot!(solution, labels = [&quot;x&quot; &quot;y&quot;])</code></pre><img src="f9fc0365.svg" alt="Example block output"/><p>Lets define a PINN.</p><pre><code class="language-julia hljs"># Neural Networks must have 2 outputs as u -&gt; [dx,dy] in function lotka_volterra()
 chain = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh),
     Lux.Dense(6, 2))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Chain(
     layer_1 = Dense(1 =&gt; 6, tanh_fast),  <span class="sgr90"># 12 parameters</span>
@@ -100,24 +100,24 @@ chain = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh),
         Normal(0, 2)], progress = false)
 
 sol_pestim = solve(prob, alg; saveat = dt)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">┌ Info: </span></span>Current Physics Log-likelihood :
-<span class="sgr36"><span class="sgr1">└ </span></span>  physloglikelihood(ℓπ, initial_θ) = -24044.899341785487
+<span class="sgr36"><span class="sgr1">└ </span></span>  physloglikelihood(ℓπ, initial_θ) = -306021.4036965113
 <span class="sgr36"><span class="sgr1">┌ Info: </span></span>Current Prior Log-likelihood :
-<span class="sgr36"><span class="sgr1">└ </span></span>  priorweights(ℓπ, initial_θ) = -144.47720281403673
+<span class="sgr36"><span class="sgr1">└ </span></span>  priorweights(ℓπ, initial_θ) = -144.50819316232642
 <span class="sgr36"><span class="sgr1">┌ Info: </span></span>Current MSE against dataset Log-likelihood :
-<span class="sgr36"><span class="sgr1">└ </span></span>  L2LossData(ℓπ, initial_θ) = -269763.08191639406
+<span class="sgr36"><span class="sgr1">└ </span></span>  L2LossData(ℓπ, initial_θ) = -265696.2653608176
 <span class="sgr36"><span class="sgr1">[ Info: </span></span>Sampling Complete.
 <span class="sgr36"><span class="sgr1">┌ Info: </span></span>Current Physics Log-likelihood :
-<span class="sgr36"><span class="sgr1">└ </span></span>  physloglikelihood(ℓπ, samples[end]) = 1163.613452976169
+<span class="sgr36"><span class="sgr1">└ </span></span>  physloglikelihood(ℓπ, samples[end]) = 1276.241874520842
 <span class="sgr36"><span class="sgr1">┌ Info: </span></span>Current Prior Log-likelihood :
-<span class="sgr36"><span class="sgr1">└ </span></span>  priorweights(ℓπ, samples[end]) = -147.82084318432632
+<span class="sgr36"><span class="sgr1">└ </span></span>  priorweights(ℓπ, samples[end]) = -147.45346519282134
 <span class="sgr36"><span class="sgr1">┌ Info: </span></span>Current MSE against dataset Log-likelihood :
-<span class="sgr36"><span class="sgr1">└ </span></span>  L2LossData(ℓπ, samples[end]) = -22716.093665922304</code></pre><p>The solution for the ODE is returned as a nested vector <code>sol_flux_pestim.ensemblesol</code>. Here, [<span>$x$</span> , <span>$y$</span>] would be returned.</p><pre><code class="language-julia hljs"># plotting solution for x,y for chain
+<span class="sgr36"><span class="sgr1">└ </span></span>  L2LossData(ℓπ, samples[end]) = -22773.39376841058</code></pre><p>The solution for the ODE is returned as a nested vector <code>sol_flux_pestim.ensemblesol</code>. Here, [<span>$x$</span> , <span>$y$</span>] would be returned.</p><pre><code class="language-julia hljs"># plotting solution for x,y for chain
 plot(time, sol_pestim.ensemblesol[1], label = &quot;estimated x&quot;)
 plot!(time, sol_pestim.ensemblesol[2], label = &quot;estimated y&quot;)
 
 # comparing it with the original solution
-plot!(solution, labels = [&quot;true x&quot; &quot;true y&quot;])</code></pre><img src="1abbfd9f.svg" alt="Example block output"/><p>We can see the estimated ODE parameters by -</p><pre><code class="language-julia hljs">sol_pestim.estimated_de_params</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">4-element Vector{MonteCarloMeasurements.Particles{Float64, 334}}:
- 1.57 ± 0.007
- 1.07 ± 0.0044
- 2.96 ± 0.016
- 0.977 ± 0.005</code></pre><p>We can see it is close to the true values of the parameters.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ode/">« Introduction to NeuralPDE for ODEs</a><a class="docs-footer-nextpage" href="../dae/">PINNs DAEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 29 February 2024 12:07">Thursday 29 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(solution, labels = [&quot;true x&quot; &quot;true y&quot;])</code></pre><img src="6b488730.svg" alt="Example block output"/><p>We can see the estimated ODE parameters by -</p><pre><code class="language-julia hljs">sol_pestim.estimated_de_params</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">4-element Vector{MonteCarloMeasurements.Particles{Float64, 334}}:
+ 1.53 ± 0.0065
+ 1.01 ± 0.0044
+ 2.88 ± 0.018
+ 0.971 ± 0.0054</code></pre><p>We can see it is close to the true values of the parameters.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ode/">« Introduction to NeuralPDE for ODEs</a><a class="docs-footer-nextpage" href="../dae/">PINNs DAEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 29 February 2024 12:18">Thursday 29 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
