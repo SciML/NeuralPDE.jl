@@ -97,7 +97,7 @@ function (f::PINOPhi{C, T, U})(t::AbstractArray,
 end
 
 function dfdx(phi::PINOPhi, t::AbstractArray, θ)
-    ε = [sqrt(eps(eltype(t))), zero(eltype(t))]
+    ε = [sqrt(eps(eltype(t))), zeros(eltype(t), phi.chain.layers.layer_1.in_dims - 1)...]
     (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
 end
 
@@ -112,11 +112,24 @@ function inner_physics_loss(phi::PINOPhi{C, T, U},
     if isu0 == true
         in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2])])
     else
-        in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2])])
+        if p isa Number
+            in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2])])
+        elseif p isa Vector
+            in_ = reduce(vcat, [ts, reduce(hcat, fill(p, 1, size(ts)[2]))])
+        else
+            error("p should be a number or a vector")
+        end
     end
     out_ = phi(in_, θ)
     dudt = dfdx(phi, in_, θ)
-    fs = f.(out_, p, ts)
+    if p isa Number
+        fs = f.(out_, p, ts)
+    elseif p isa Vector
+        fs = reduce(hcat, [f(out_[:, i], p, ts[i]) for i in 1:size(out_, 2)])
+    else
+        error("p should be a number or a vector")
+    end
+
     dudt - fs
 end
 
@@ -143,7 +156,13 @@ function inner_data_loss(phi::PINOPhi{C, T, U},
     if isu0 == true
         in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2])])
     else
-        in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2])])
+        if p isa Number
+            in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2])])
+        elseif p isa Vector
+            in_ = reduce(vcat, [ts, reduce(hcat, fill(p, 1, size(ts)[2]))])
+        else
+            error("p should be a number or a vector")
+        end
     end
     phi(in_, θ) - out_
 end
@@ -217,10 +236,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         end
     end
 
-    # dt
     total_loss = generate_loss(phi, train_set, tspan)
-    # total_loss_(init_params, nothing)
-    # Zygote.gradient(p -> total_loss_(p, nothing), init_params)
 
     # Optimization Algo for Training Strategies
     opt_algo = Optimization.AutoZygote()

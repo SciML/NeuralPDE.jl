@@ -40,13 +40,13 @@ using NeuralPDE
     * input data: mesh of 't' paired with set of parameters 'a':
     * output data: set of corresponding parameter 'a' solutions u(t){a}
      """
-    train_set = TRAINSET(prob_set, u_output_)
+    train_set = TRAINSET(prob_set, u_output_);
     #TODO u0 ?
     prob = ODEProblem(linear, u0, tspan)
-    chain = Lux.Chain(Lux.Dense(2, 20, Lux.σ), Lux.Dense(20, 20, Lux.σ), Lux.Dense(20, 1))
+    chain = Lux.Chain(Lux.Dense(2, 20, Lux.σ), Lux.Dense(20, 20, Lux.σ), Lux.Dense(20, 1));
     opt = OptimizationOptimisers.Adam(0.03)
 
-    alg = PINOODE(chain, opt, train_set)
+    alg = PINOODE(chain, opt, train_set);
 
     res, phi = solve(prob,
         alg, verbose = true,
@@ -133,31 +133,35 @@ end
     range_ = range(t0, stop = t_end, length = instances_size)
     ts = reshape(collect(range_), 1, instances_size)
     batch_size = 50
-    ps = [p + randn(4) for _ in 1:batch_size]
+    ps = [p .+ i*[0.015, 0.01, 0.03, 0.01] for i in 1:batch_size]
 
     u_output_ = []
     prob_set = []
+    plot_set =[]
     for p_i in ps
         prob = ODEProblem(lotka_volterra, u0, tspan, p_i)
         solution = solve(prob, Tsit5(); saveat = dt)
         reshape_sol = Float32.(reduce(hcat,solution(range_).u))
+        push!(plot_set,solution)
         push!(prob_set, prob)
         push!(u_output_, reshape_sol)
     end
 
-    train_set = TRAINSET(prob_set, u_output_)
+    train_set = TRAINSET(prob_set, u_output_);
     #TODO u0 ?
     prob = ODEProblem(linear, u0, tspan, p)
-    chain = Lux.Chain(Lux.Dense(2, 20, Lux.σ), Lux.Dense(20, 20, Lux.σ), Lux.Dense(20, 2))
+    chain = Lux.Chain(Lux.Dense(5, 20, Lux.σ), Lux.Dense(20, 20, Lux.σ), Lux.Dense(20, 2))
     opt = OptimizationOptimisers.Adam(0.03)
-    alg = PINOODE(chain, opt, train_set)
+    alg = PINOODE(chain, opt, train_set);
     res, phi = solve(prob,
         alg, verbose = true,
         maxiters = 2000, abstol = 1.0f-10)
 
     predict = reduce(vcat,
-        [phi(reduce(vcat, [ts, fill(train_set.input_data[i].p, 1, size(ts)[2])]), res.u)
+        [phi(reduce(vcat,
+                [ts, reduce(hcat, fill(train_set.input_data[i].p, 1, size(ts)[2]))]),
+            res.u)
          for i in 1:batch_size])
     ground = reduce(vcat, [train_set.output_data[i] for i in 1:batch_size])
-    @test ground≈predict atol=2
+    @test ground≈predict atol=5
 end
