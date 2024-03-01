@@ -31,6 +31,7 @@ using SciMLBase: @add_kwonly, parameterless_type
 using UnPack: @unpack
 import ChainRulesCore, Lux, ComponentArrays
 using ChainRulesCore: @non_differentiable
+using NeuralOperators
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 

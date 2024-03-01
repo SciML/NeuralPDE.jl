@@ -53,6 +53,7 @@ function PINOODE(chain,
         minibatch = 0,
         kwargs...)
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+    #TODO transform convert complex numbers to zero
     PINOODE(chain, opt, train_set, init_params, minibatch, kwargs)
 end
 
@@ -92,12 +93,12 @@ function (f::PINOPhi{C, T, U})(t::AbstractArray,
     # Batch via data as row vectors
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
-    # f.u0 .+ (t[[1], :, :] .- f.t0) .* y
     y
 end
 
 function dfdx(phi::PINOPhi, t::AbstractArray, θ)
-    ε = [sqrt(eps(eltype(t))), zeros(eltype(t), phi.chain.layers.layer_1.in_dims - 1)...]
+    ε = [sqrt(eps(eltype(t))), zero(eltype(t))]
+    # ε = [sqrt(eps(eltype(t))), zeros(eltype(t), phi.chain.layers.layer_1.in_dims - 1)...]
     (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
 end
 
@@ -110,35 +111,38 @@ function inner_physics_loss(phi::PINOPhi{C, T, U},
     p = prob.p
     f = prob.f
     if isu0 == true
-        in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2])])
+        in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2], 1)])
+        #TODO for all case p and u0
+        # u0 isa Vector
+        # in_ = reduce(vcat, [ts, reduce(hcat, fill(u0, 1, size(ts)[2], 1))])
     else
         if p isa Number
-            in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2])])
+            in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2], 1)])
         elseif p isa Vector
-            in_ = reduce(vcat, [ts, reduce(hcat, fill(p, 1, size(ts)[2]))])
+            #TODO nno for Vector
+            inner = reduce(vcat, [ts, reduce(hcat, fill(p, 1, size(ts)[2], 1))])
+            in_ = reshape(inner, size(inner)..., 1)
         else
             error("p should be a number or a vector")
         end
     end
     out_ = phi(in_, θ)
-    dudt = dfdx(phi, in_, θ)
     if p isa Number
-        fs = f.(out_, p, ts)
+        fs = f.f.(out_, p, ts)
     elseif p isa Vector
-        fs = reduce(hcat, [f(out_[:, i], p, ts[i]) for i in 1:size(out_, 2)])
+        fs = reduce(hcat, [f.f(out_[:, i], p, ts[i]) for i in 1:size(out_, 2)])
     else
         error("p should be a number or a vector")
     end
-
-    dudt - fs
+    NeuralOperators.l₂loss(dfdx(phi, in_, θ), fs)
 end
 
 function physics_loss(phi::PINOPhi{C, T, U},
         θ,
         ts::AbstractArray,
-        train_set::TRAINSET ) where {C, T, U}
+        train_set::TRAINSET) where {C, T, U}
     prob_set, output_data = train_set.input_data, train_set.output_data
-    norm = size(output_data)[1] * size(output_data[1])[2]
+    norm = size(output_data)[1] * size(output_data[1])[2] * size(output_data[1])[1]
     loss = reduce(vcat,
         [inner_physics_loss(phi, θ, ts, prob, train_set.isu0) for prob in prob_set])
     sum(abs2, loss) / norm
@@ -154,26 +158,29 @@ function inner_data_loss(phi::PINOPhi{C, T, U},
     p = prob.p
     f = prob.f
     if isu0 == true
-        in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2])])
+        in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2], 1)])
+        #TODO for all case p and u0
+        # u0 isa Vector
+        # in_ = reduce(vcat, [ts, reduce(hcat, fill(u0, 1, size(ts)[2], 1))])
     else
         if p isa Number
             in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2])])
         elseif p isa Vector
-            in_ = reduce(vcat, [ts, reduce(hcat, fill(p, 1, size(ts)[2]))])
+            inner = reduce(vcat, [ts, reduce(hcat, fill(p, 1, size(ts)[2], 1))])
+            in_ = reshape(inner, size(inner)..., 1)
         else
             error("p should be a number or a vector")
         end
     end
-    phi(in_, θ) - out_
+    NeuralOperators.l₂loss(phi(in_, θ), out_)
 end
 
 function data_loss(phi::PINOPhi{C, T, U},
         θ,
         ts::AbstractArray,
-        train_set::TRAINSET
-       ) where {C, T, U}
+        train_set::TRAINSET) where {C, T, U}
     prob_set, output_data = train_set.input_data, train_set.output_data
-    norm = size(output_data)[1] * size(output_data[1])[2]
+    norm = size(output_data)[1] * size(output_data[1])[2] * size(output_data[1])[1]
     loss = reduce(vcat,
         [inner_data_loss(phi, θ, ts, prob, out_, train_set.isu0)
          for (prob, out_) in zip(prob_set, output_data)])
@@ -227,7 +234,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        phi(rand(chain.layers.layer_1.in_dims, 10), init_params) #TODO input data
+        # phi(rand(5, 100, 1), init_params) #TODO input data
     catch err
         if isa(err, DimensionMismatch)
             throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
