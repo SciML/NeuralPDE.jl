@@ -130,7 +130,6 @@ end
 function get_loss_function(loss_function, bound, eltypeθ, strategy::StochasticTraining;
                            τ = nothing)
     points = strategy.points
-
     loss = (θ) -> begin
         sets = generate_random_points(points, bound, eltypeθ)
         sets_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
