@@ -8,19 +8,12 @@ using ComponentArrays
 using Random
 Random.seed!(100)
 
-global iter = 0
-
 callback = function (p, l)
-    global iter
-    iter += 1
-    if iter % 100 == 0
-        println("Current loss at iteration $iter is: $l")
-    end
+    println("Current loss is: $l")
     return false
 end
 
-# @testset "Example, 2D Poisson equation with Neural adapter" begin
-begin
+@testset "Example, 2D Poisson equation with Neural adapter" begin
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -50,7 +43,7 @@ begin
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = NeuralPDE.discretize(pde_system, discretization)
     println("Poisson equation, strategy: $(nameof(typeof(quadrature_strategy)))")
-    @time res = solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
+    @time res = solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
     phi = discretization.phi
 
     inner_ = 8
@@ -63,9 +56,8 @@ begin
     init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
 
     function loss(cord, θ)
-        global st
         ch2, st = chain2(cord, θ, st)
-        ch2 .- phi(cord, res.minimizer)
+        ch2 .- phi(cord, res.u)
     end
 
     grid_strategy = GridTraining(0.05)
@@ -77,16 +69,14 @@ begin
     reses_1 = map(strategies1) do strategy_
         println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
         prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
-        global iter = 0
-        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
+        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
     end
 
     strategies2 = [stochastic_strategy, quasirandom_strategy]
     reses_2 = map(strategies2) do strategy_
         println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
         prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
-        global iter = 0
-        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
+        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
     end
 
     reses_ = [reses_1; reses_2]
@@ -97,11 +87,11 @@ begin
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
-    u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
+    u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
                         (length(xs), length(ys)))
 
     u_predicts = map(zip(phis, reses_)) do (phi_, res_)
-        reshape([first(phi_([x, y], res_.minimizer)) for x in xs for y in ys],
+        reshape([first(phi_([x, y], res_.u)) for x in xs for y in ys],
                 (length(xs), length(ys)))
     end
 
@@ -174,11 +164,9 @@ end
     for i in 1:count_decomp
         println("decomposition $i")
         domains_ = domains_map[i]
-        phi_in(cord) = phis[i - 1](cord, reses[i - 1].minimizer)
-        # phi_bound(x,y) = if (x isa Matrix)  phi_in(vcat(x, fill(y,size(x)))) else  phi_in(vcat(fill(x,size(y)),y)) end
+        phi_in(cord) = phis[i - 1](cord, reses[i - 1].u)
         phi_bound(x, y) = phi_in(vcat(x, y))
         @register_symbolic phi_bound(x, y)
-        global phi_bound
         Base.Broadcast.broadcasted(::typeof(phi_bound), x, y) = phi_bound(x, y)
         bcs_ = create_bcs(domains_[1].domain, phi_bound)
         @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
@@ -187,7 +175,7 @@ end
         discretization = PhysicsInformedNN(chains[i], strategy;  init_params = init_params[i])
         prob = discretize(pde_system_, discretization)
         @time res_ = Optimization.solve(prob, OptimizationOptimisers.Adam(5e-3), maxiters = 10000)
-        @show res_.minimum
+        @show res_.objective
         phi = discretization.phi
         push!(reses, res_)
         push!(phis, phi)
@@ -208,7 +196,7 @@ end
         end
         for x_ in xs
             i = index_of_interval(x_)
-            u_predict_sub = [first(phis[i]([x_, y], reses[i].minimizer)) for y in ys]
+            u_predict_sub = [first(phis[i]([x_, y], reses[i].u)) for y in ys]
             u_real_sub = [analytic_sol_func(x_, y) for y in ys]
             diff_u_sub = u_predict_sub .- u_real_sub
             append!(u_predict_array, u_predict_sub)
@@ -245,15 +233,15 @@ end
     prob_ = NeuralPDE.neural_adapter(losses, init_params2, pde_system_map,
                                     GridTraining([0.1 / count_decomp, 0.1]))
     @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
-    @show res_.minimum
-    prob_ = NeuralPDE.neural_adapter(losses, res_.minimizer, pde_system_map,
+    @show res_.objective
+    prob_ = NeuralPDE.neural_adapter(losses, res_.u, pde_system_map,
                                     GridTraining(0.01))
     @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
-    @show res_.minimum
+    @show res_.objective
 
     phi_ = NeuralPDE.Phi(chain2)
     xs, ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
-    u_predict_ = reshape([first(phi_([x, y], res_.minimizer)) for x in xs for y in ys],
+    u_predict_ = reshape([first(phi_([x, y], res_.u)) for x in xs for y in ys],
                         (length(xs), length(ys)))
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
                     (length(xs), length(ys)))

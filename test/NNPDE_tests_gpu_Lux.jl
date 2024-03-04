@@ -52,7 +52,7 @@ const gpud = gpu_device()
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = [infimum(d.domain):(dt / 10):supremum(d.domain) for d in domains][1]
     u_real = [analytic_sol_func(t) for t in ts]
-    u_predict = [first(Array(phi([t], res.minimizer))) for t in ts]
+    u_predict = [first(Array(phi([t], res.u))) for t in ts]
     @test u_predict≈u_real atol=0.2
 end
 
@@ -86,12 +86,12 @@ end
     discretization = PhysicsInformedNN(chain, strategy; init_params = ps)
     prob = discretize(pdesys, discretization)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 1000)
     phi = discretization.phi
     u_exact = (t, x) -> exp.(-t) * cos.(x)
     ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-    u_predict = reshape([first(Array(phi([t, x], res.minimizer))) for t in ts for x in xs],
+    u_predict = reshape([first(Array(phi([t, x], res.u))) for t in ts for x in xs],
                         (length(ts), length(xs)))
     u_real = reshape([u_exact(t, x) for t in ts for x in xs], (length(ts), length(xs)))
     diff_u = abs.(u_predict .- u_real)
@@ -130,12 +130,12 @@ end
     discretization = PhysicsInformedNN(chain, strategy; init_params = ps)
     prob = discretize(pdesys, discretization)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 2000)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000)
     phi = discretization.phi
     u_exact = (t, x) -> exp(-t) * cos(x)
     ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-    u_predict = reshape([first(Array(phi([t, x], res.minimizer))) for t in ts for x in xs],
+    u_predict = reshape([first(Array(phi([t, x], res.u))) for t in ts for x in xs],
                         (length(ts), length(xs)))
     u_real = reshape([u_exact(t, x) for t in ts for x in xs], (length(ts), length(xs)))
     diff_u = abs.(u_predict .- u_real)
@@ -184,12 +184,12 @@ end
     @named pde_system = PDESystem(eq, bcs, domains, [t, x, y], [u(t, x, y)])
     prob = discretize(pde_system, discretization)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2500)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 2500)
     phi = discretization.phi
     ts, xs, ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
     u_real = [analytic_sol_func(t, x, y) for t in ts for x in xs for y in ys]
-    u_predict = [first(Array(phi([t, x, y], res.minimizer))) for t in ts for x in xs
+    u_predict = [first(Array(phi([t, x, y], res.u))) for t in ts for x in xs
                 for y in ys]
 
     @test u_predict≈u_real rtol=0.2
