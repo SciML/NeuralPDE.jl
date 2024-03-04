@@ -25,7 +25,6 @@ jobs:
           - AdaptiveLoss
           - Logging
           - Forward
-          - NeuralAdapter
         version:
           - "1"
     steps:
