@@ -1,74 +1,112 @@
-## 2D Poisson's equation
+## Solving PDEs using Deep Galerkin Method
 
-Let's solve the following 2-dimensional Poisson's equation:
+### Overview 
+
+Deep Galerkin Method is a meshless deep learning algorithm to solve high dimensional PDEs. The algorithm does so by approximating the solution of a PDE with a neural network. The loss function of the network is defined in the similar spirit as PINNs, composed of PDE loss and boundary condition loss.
+
+In the following example, we demonstrate computing the loss function using Quasi-Random Sampling, a sampling technique that uses quasi-Monte Carlo sampling to generate low discrepancy random sequences in high dimensional spaces.
+
+### Algorithm
+The authors of DGM suggest a network composed of LSTM-type layers that works well for most of the parabolic and quasi-parabolic PDEs.
 
 ```math
 \begin{align*}
-∂^2_x u(x, y) + ∂^2_y u(x, y) = -sin (\pi x) sin (\pi y) \quad & \textsf{for all } 0 < x, y < 1 \, , \\
-u(0, y) = u(1, y) = 0 \quad & \textsf{for all } 0 < y < 1 \, , \\
-u(x, 0) = u(x, 1) = 0 \quad & \textsf{for all } 0 < x < 1 \, , \\
+S^1 &= \sigma_1(W^1 \vec{x} + b^1); \\
+Z^l &= \sigma_1(U^{z,l} \vec{x} + W^{z,l} S^l + b^{z,l}); \quad l = 1, \ldots, L; \\
+G^l &= \sigma_1(U^{g,l} \vec{x} + W^{g,l} S_l + b^{g,l}); \quad l = 1, \ldots, L; \\
+R^l &= \sigma_1(U^{r,l} \vec{x} + W^{r,l} S^l + b^{r,l}); \quad l = 1, \ldots, L; \\
+H^l &= \sigma_2(U^{h,l} \vec{x} + W^{h,l}(S^l \cdot R^l) + b^{h,l}); \quad l = 1, \ldots, L; \\
+S^{l+1} &= (1 - G^l) \cdot H^l + Z^l \cdot S^{l}; \quad l = 1, \ldots, L; \\
+f(t, x; \theta) &= \sigma_{out}(W S^{L+1} + b).
 \end{align*}
 ```
 
-We obtain the solution of this equation with the given boundary conditions using Deep Galerkin Method:
+where $\vec{x}$ is the concatenated vector of $(t, x)$ and $L$ is the number of LSTM type layers in the network.
 
-```@example dgm_poisson
+### Example
+
+Let's try to solve the following Burger's equation using Deep Galerkin Method for $\alpha = 0.05$ and compare our solution with the finite difference method:
+
+$$
+\partial_t u(t, x) + u(t, x) \partial_x u(t, x) - \alpha \partial_{xx} u(t, x) = 0 
+$$
+
+defined over
+$$ t \in [0, 1], x \in [-1, 1] $$
+
+with boundary conditions
+```math
+\begin{align*}
+u(t, x) & = - sin(πx), \\
+u(t, -1) & = 0, \\
+u(t, 1) & = 0
+\end{align*}
+```
+
+### Copy- Pasteable code
+```julia
 using NeuralPDE
 using ModelingToolkit, Optimization, OptimizationOptimisers
 import Lux: tanh, identity
+using Distributions
 import ModelingToolkit: Interval, infimum, supremum
+using MethodOfLines, OrdinaryDiffEq
 
-@parameters x y
+@parameters x t
 @variables u(..)
-Dxx = Differential(x)^2
-Dyy = Differential(y)^2
 
-# 2D PDE
-eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
+Dt= Differential(t)
+Dx= Differential(x)
+Dxx= Dx^2
+α = 0.05;
+# Burger's equation
+eq= Dt(u(t,x)) + u(t,x) * Dx(u(t,x)) - α * Dxx(u(t,x)) ~ 0 
 
-# Initial and boundary conditions
-bcs = [u(0, y) ~ 0.0, u(1, y) ~ -sin(pi * 1) * sin(pi * y),
-    u(x, 0) ~ 0.0, u(x, 1) ~ -sin(pi * x) * sin(pi * 1)]
-# Space and time domains
-domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
+# boundary conditions
+bcs= [
+    u(0.0, x) ~ - sin(π*x),
+    u(t, -1.0) ~ 0.0,
+    u(t, 1.0) ~ 0.0
+]
 
-strategy = QuasiRandomTraining(4_000, minibatch= 500);
-discretization= DeepGalerkin(2, 1, 30, 3, tanh, tanh, identity, strategy);
+domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(-1.0, 1.0)]
 
-@named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
+# MethodOfLines, for FD solution
+dx= 0.01
+order = 2
+discretization = MOLFiniteDifference([x => dx], t, saveat = 0.01)
+@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t,x)])
 prob = discretize(pde_system, discretization)
+sol= solve(prob, Tsit5())
+ts = sol[t]
+xs = sol[x] 
 
+u_MOL = sol[u(t,x)]
+
+# NeuralPDE, using Deep Galerkin Method
+strategy = QuasiRandomTraining(4_000, minibatch= 500);
+discretization= DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy);
+@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t,x)]);
+prob = discretize(pde_system, discretization);
 global iter = 0;
 callback = function (p, l)
     global iter += 1;
-    if iter%50 == 0
+    if iter%20 == 0
         println("$iter => $l")
     end
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 600)
-phi = discretization.phi
-```
+res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 300);
+phi = discretization.phi;
 
-We now plot the predicted solution of the PDE and compare it with the analytical solution to plot the relative error.
+u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
 
-```@example dgm_poisson
-using Plots
-
-xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
-
-u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
-                    (length(xs), length(ys)))
-u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-                (length(xs), length(ys)))
-
-diff_u = abs.(u_predict .- u_real)
+diff_u = abs.(u_predict .- u_MOL);
 
 using Plots
-p1 = plot(xs, ys, u_real, linetype = :contourf, title = "analytic");
-p2 = plot(xs, ys, u_predict, linetype = :contourf, title = "predict");
-p3 = plot(xs, ys, diff_u, linetype = :contourf, title = "error");
+p1 = plot(tgrid, xgrid, u_MOL', linetype = :contourf, title = "FD");
+p2 = plot(tgrid, xgrid, u_predict', linetype = :contourf, title = "predict");
+p3 = plot(tgrid, xgrid, diff_u', linetype = :contourf, title = "error");
 plot(p1, p2, p3)
 ```
