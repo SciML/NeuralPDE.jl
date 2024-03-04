@@ -25,6 +25,8 @@ jobs:
           - AdaptiveLoss
           - Logging
           - Forward
+          - NeuralAdapter
+          - DGM
         version:
           - "1"
     steps:
