@@ -30,7 +30,7 @@ end
     phi = discretization.phi
     analytic_sol_func(t) = 1 / 2 * (exp(-t)) * (sin(2 * t))
     u_real = [analytic_sol_func(t) for t in ts]
-    u_predict = [first(phi([t], res.minimizer)) for t in ts]
+    u_predict = [first(phi([t], res.u)) for t in ts]
     @test Flux.mse(u_real, u_predict) < 0.01
 end
 
@@ -54,7 +54,7 @@ eq = Ix(u(x) * cos(x)) ~ (x^3) / 3
                             maxiters = 200)
     xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     phi = discretization.phi
-    u_predict = [first(phi([x], res.minimizer)) for x in xs]
+    u_predict = [first(phi([x], res.u)) for x in xs]
     u_real = [x^2 / cos(x) for x in xs]
     @test Flux.mse(u_real, u_predict) < 0.001
 end
@@ -78,7 +78,7 @@ end
     ys = 0.00:0.01:1.00
     phi = discretization.phi
     u_real = collect(1 - x^2 - y^2 for y in ys, x in xs);
-    u_predict = collect(Array(phi([x, y], res.minimizer))[1] for y in ys, x in xs);
+    u_predict = collect(Array(phi([x, y], res.u))[1] for y in ys, x in xs);
     @test Flux.mse(u_real, u_predict) < 0.001
 end
 
@@ -101,7 +101,7 @@ end
     ys = 0.00:0.01:1.00
     phi = discretization.phi
     u_real = collect(x + y^2 for y in ys, x in xs);
-    u_predict = collect(Array(phi([x, y], res.minimizer))[1] for y in ys, x in xs);
+    u_predict = collect(Array(phi([x, y], res.u))[1] for y in ys, x in xs);
     @test Flux.mse(u_real, u_predict) < 0.01
 end
 
@@ -144,7 +144,7 @@ end
     res = solve(prob, OptimizationOptimJL.BFGS(); callback = callback, maxiters = 200)
     xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     phi = discretization.phi
-    u_predict = [first(phi([x], res.minimizer)) for x in xs]
+    u_predict = [first(phi([x], res.u)) for x in xs]
     u_real = [1 / x^2 for x in xs]
     @test u_real≈u_predict rtol=10^-2
 end
@@ -163,7 +163,7 @@ end
     res = solve(prob, OptimizationOptimJL.BFGS(); callback = callback, maxiters = 300)
     xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     phi = discretization.phi
-    u_predict = [first(phi([x], res.minimizer)) for x in xs]
+    u_predict = [first(phi([x], res.u)) for x in xs]
     u_real = [1 / x^2 for x in xs]
     @test u_real≈u_predict rtol=10^-2
 end

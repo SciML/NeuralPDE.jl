@@ -232,7 +232,7 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
     @assert batch == 0 # not implemented
 
     function loss(θ, _)
-        intprob = IntegralProblem(integrand, tspan[1], tspan[2], θ)
+        intprob = IntegralProblem(integrand, (tspan[1], tspan[2]), θ)
         sol = solve(intprob, QuadGKJL(); abstol = strategy.abstol, reltol = strategy.reltol)
         sol.u
     end
