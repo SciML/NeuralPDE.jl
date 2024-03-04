@@ -176,7 +176,7 @@ function getlogpdf(strategy::QuadratureTraining, Tar::LogTargetDensity, f,
     function integrand(t::Number, θ)
         innerdiff(Tar, f, autodiff, [t], θ, ode_params)
     end
-    intprob = IntegralProblem(integrand, tspan[1], tspan[2], θ; nout = length(Tar.prob.u0))
+    intprob = IntegralProblem(integrand, (tspan[1], tspan[2]), θ; nout = length(Tar.prob.u0))
     sol = solve(intprob, QuadGKJL(); abstol = strategy.abstol, reltol = strategy.reltol)
     sum(sol.u)
 end
