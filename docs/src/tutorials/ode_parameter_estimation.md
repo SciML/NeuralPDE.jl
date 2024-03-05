@@ -10,6 +10,7 @@ We start by defining the problem:
 using NeuralPDE, OrdinaryDiffEq
 using Lux, Random
 using OptimizationOptimJL, LineSearches
+using Plots
 using Test # hide
 
 function lv(u, p, t)
