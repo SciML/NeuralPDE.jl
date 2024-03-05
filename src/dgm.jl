@@ -95,8 +95,9 @@ function (l::dgm)(x::AbstractVecOrMat{T}, ps, st::NamedTuple) where T
 end 
 
 """
-`dgm(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1, activation2, out_activation= Lux.identity)`:
-returns the architecture defined for Deep Galerkin method
+    dgm(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1, activation2, out_activation= Lux.identity)
+
+returns the architecture defined for Deep Galerkin method.
 
 ```math
 \\begin{align}
@@ -109,22 +110,17 @@ S^{l+1} &= (1 - G^l) \\cdot H^l + Z^l \\cdot S^{l}; \\quad l = 1, \\ldots, L; \\
 f(t, x, \\theta) &= \\sigma_{out}(W S^{L+1} + b).
 \\end{align}
 ```
+
 ## Positional Arguments:
-`in_dims`: number of input dimensions= (spatial dimension+ 1)
 
-`out_dims`: number of output dimensions
-
-`modes`: Width of the LSTM type layer (output of the first Dense layer)
-
-`layers`: number of LSTM type layers
-
-`activation1`: activation function used in LSTM type layers
-
-`activation2`: activation function used for the output of LSTM type layers
-
-`out_activation`: activation fn used for the output of the network
-
-`kwargs`: additional arguments to be splatted into `PhysicsInformedNN`
+- `in_dims`: number of input dimensions = (spatial dimension + 1).
+- `out_dims`: number of output dimensions.
+- `modes`: Width of the LSTM type layer (output of the first Dense layer).
+- `layers`: number of LSTM type layers.
+- `activation1`: activation function used in LSTM type layers.
+- `activation2`: activation function used for the output of LSTM type layers.
+- `out_activation`: activation fn used for the output of the network.
+- `kwargs`: additional arguments to be splatted into [`PhysicsInformedNN`](@ref).
 """
 function dgm(in_dims::Int, out_dims::Int, modes::Int, layers::Int, activation1, activation2, out_activation)
     dgm(
@@ -135,34 +131,29 @@ function dgm(in_dims::Int, out_dims::Int, modes::Int, layers::Int, activation1, 
 end
 
 """
-`DeepGalerkin(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function, activation2::Function, out_activation::Function, 
-    strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)`:
+    DeepGalerkin(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function, activation2::Function, out_activation::Function, 
+        strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)
 
-returns a `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a `PDESystem` into an
-    `OptimizationProblem` using the Deep Galerkin method.
+returns a `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a `PDESystem` into an `OptimizationProblem` using the Deep Galerkin method.
 
 ## Arguments:
-`in_dims`: number of input dimensions= (spatial dimension+ 1)
 
-`out_dims`: number of output dimensions
-
-`modes`: Width of the LSTM type layer
-
-`L`: number of LSTM type layers
-
-`activation1`: activation fn used in LSTM type layers
-
-`activation2`: activation fn used for the output of LSTM type layers
-
-`out_activation`: activation fn used for the output of the network
-
-`kwargs`: additional arguments to be splatted into `PhysicsInformedNN`
+- `in_dims`: number of input dimensions = (spatial dimension + 1).
+- `out_dims`: number of output dimensions.
+- `modes`: Width of the LSTM type layer.
+- `L`: number of LSTM type layers.
+- `activation1`: activation fn used in LSTM type layers.
+- `activation2`: activation fn used for the output of LSTM type layers.
+- `out_activation`: activation fn used for the output of the network.
+- `kwargs`: additional arguments to be splatted into [`PhysicsInformedNN`](@ref).
 
 ## Examples
+
 ```julia
-discretization= DeepGalerkin(2, 1, 30, 3, tanh, tanh, identity, QuasiRandomTraining(4_000));
+discretization = DeepGalerkin(2, 1, 30, 3, tanh, tanh, identity, QuasiRandomTraining(4_000))
 ```
 ## References
+
 Sirignano, Justin and Spiliopoulos, Konstantinos, "DGM: A deep learning algorithm for solving partial differential equations",
 Journal of Computational Physics, Volume 375, 2018, Pages 1339-1364, doi: https://doi.org/10.1016/j.jcp.2018.08.029
 """
