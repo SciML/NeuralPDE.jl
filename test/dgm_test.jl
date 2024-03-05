@@ -35,14 +35,14 @@ import Lux: tanh, identity
     end
 
     res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 500)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = Optimization.solve(prob, Adam(0.001); callback = callback, maxiters = 200)
     phi = discretization.phi
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
-    u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
+    u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
                         (length(xs), length(ys)))
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
                     (length(xs), length(ys)))
@@ -87,7 +87,7 @@ end
     end
 
     res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 300)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = Optimization.solve(prob, Adam(0.001); callback = callback, maxiters = 300)
     phi = discretization.phi
 
@@ -103,7 +103,7 @@ end
     xs =  collect(infimum(domains2[2].domain):1.0:supremum(domains2[2].domain))
     
     u_real= [analytic_sol_func(t,x) for t in ts, x in xs]
-    u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
+    u_predict= [first(phi([t, x], res.u)) for t in ts, x in xs]
     @test u_predict ≈ u_real rtol= 0.05
 end
 
@@ -154,7 +154,7 @@ end
     res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 300);
     phi = discretization.phi;
 
-    u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
+    u_predict= [first(phi([t, x], res.u)) for t in ts, x in xs]
 
     @test u_predict ≈ u_MOL rtol= 0.025
 
