@@ -5,7 +5,7 @@ using Statistics, Random
 using NeuralOperators
 using NeuralPDE
 
-@testset "Example 1" begin
+@testset "Example p" begin
     linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     linear = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 2.0f0)
@@ -18,7 +18,7 @@ using NeuralPDE
     batch_size = 50
     as = [Float32(i) for i in range(0.1, stop = pi / 2, length = batch_size)]
 
-    u_output_ = Array{Float32, 3}(undef, 1, instances_size, batch_size)
+    u_output_ = zeros(Float32, 1, instances_size, batch_size)
     prob_set = []
     for (i, a_i) in enumerate(as)
         prob = ODEProblem(ODEFunction(linear, analytic = linear_analytic), u0, tspan, a_i)
@@ -27,15 +27,6 @@ using NeuralPDE
         push!(prob_set, prob)
         u_output_[:, :, i] = reshape_sol
     end
-    # u_output_ = Array{Float32, 3}[]
-    # prob_set = []
-    # for a_i in as
-    #     prob = ODEProblem(ODEFunction(linear, analytic = linear_analytic), u0, tspan, a_i)
-    #     sol1 = solve(prob, Tsit5(); saveat = 0.0204)
-    #     reshape_sol = Float32.(reshape(sol1(range_).u', 1, instances_size, 1))
-    #     push!(prob_set, prob)
-    #     push!(u_output_, reshape_sol)
-    # end
 
     """
     Set of training data:
@@ -45,48 +36,46 @@ using NeuralPDE
     train_set = NeuralPDE.TRAINSET(prob_set, u_output_);
     #TODO u0 ?
     prob = ODEProblem(linear, u0, tspan, 0)
-    chain = Lux.Chain(Lux.Dense(2, 20, Lux.σ), Lux.Dense(20, 20, Lux.σ), Lux.Dense(20, 1))
+    chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ),
+                      Lux.Dense(16, 16, Lux.σ),
+                      Lux.Dense(16, 16, Lux.σ),
+                      Lux.Dense(16, 16, Lux.σ),
+                      Lux.Dense(16, 32, Lux.σ),
+                      Lux.Dense(32, 1))
     flat_no = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,),
         σ = gelu)
-    # flat_no(rand(2, 100, 1))
-    # Random.default_rng()
-    # luxm = Lux.transform(flat_no)
-    # θ, st = Lux.setup(Random.default_rng(), luxm)
-    # luxm(rand(Float32, 2, 40, 1), θ, st)[1]
-    # pk(c, θ) = luxm(rand(2, 40, 1), θ, st)[1]
-    # Zygote.gradient(θ -> sum(abs2, pk(rand(2, 100, 1), θ)), θ)
-    # NeuralOperators.l₂loss(pk(rand(2, 100, 1), θ), rand(1,100,1))
-
+    η₀ = 1.0f-2
     opt = OptimizationOptimisers.Adam(0.03)
-    alg = NeuralPDE.PINOODE(chain, opt, train_set)
+    alg = NeuralPDE.PINOODE(flat_no, opt, train_set)
 
     res, phi = solve(prob,
         alg, verbose = true,
-        maxiters = 400, abstol = 1.0f-10)
+        maxiters = 500)
 
-    predict = reduce(vcat,
-        [phi(
-             reshape(reduce(vcat, [ts, fill(train_set.input_data[i].p, 1, size(ts)[2])]),
-                 2, instances_size, 1),
-             res.u)
-         for i in 1:batch_size])
-    ground = reduce(vcat, [train_set.output_data[i] for i in 1:batch_size])
+    input_data_set_2 = Array{Float32, 3}(undef, 2, instances_size, batch_size)
+    for (i, prob) in enumerate(prob_set)
+        in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2], 1)])
+        input_data_set_2[:, :, i] = in_
+    end
+    predict_2 = phi(input_data_set_2, res.u)
+    predict = phi(input_data_set, res.u)
+    ground = output_data
+
     @test ground≈predict atol=1
 end
-
 
 function plot_()
     # Animate
     anim = @animate for (i) in 1:batch_size
-        plot(predict[i, :], label = "Predicted")
-        plot!(ground[i, :], label = "Ground truth")
+        plot(predict[1, :, i], label = "Predicted")
+        plot!(ground[1, :,i], label = "Ground truth")
     end
     gif(anim, "pino.gif", fps = 10)
 end
 
 plot_()
 
-"Example 2" begin
+"Example u0" begin
     linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     linear = (u, p, t) -> cos(p * t)
     tspan = (0.0, 2.0)
@@ -106,6 +95,16 @@ plot_()
         sol = reshape([prob.f.analytic(u0_i, p, t) for t in ts], 1, instances_size, 1)
         push!(u_output_, sol)
         push!(prob_set, prob)
+    end
+
+    u_output_ = zeros(Float32, 1, instances_size, batch_size)
+    prob_set = []
+    for (i, u0_i) in enumerate(u0s)
+        prob = ODEProblem(ODEFunction(linear, analytic = linear_analytic), u0_i, tspan, p)
+        sol1 = solve(prob, Tsit5(); saveat = 0.0204)
+        reshape_sol = Float32.(reshape(sol1(range_).u', 1, instances_size, 1))
+        push!(prob_set, prob)
+        u_output_[:, :, i] = reshape_sol
     end
 
     """
