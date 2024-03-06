@@ -47,7 +47,7 @@ u(t, 1) & = 0
 ```
 
 ### Copy- Pasteable code
-```@example
+```@example dgm
 using NeuralPDE
 using ModelingToolkit, Optimization, OptimizationOptimisers
 import Lux: tanh, identity
