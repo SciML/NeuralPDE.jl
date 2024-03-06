@@ -7,11 +7,11 @@ R^l &amp;= \sigma_1(U^{r,l} \vec{x} + W^{r,l} S^l + b^{r,l}); \quad l = 1, \ldot
 H^l &amp;= \sigma_2(U^{h,l} \vec{x} + W^{h,l}(S^l \cdot R^l) + b^{h,l}); \quad l = 1, \ldots, L; \\
 S^{l+1} &amp;= (1 - G^l) \cdot H^l + Z^l \cdot S^{l}; \quad l = 1, \ldots, L; \\
 f(t, x; \theta) &amp;= \sigma_{out}(W S^{L+1} + b).
-\end{align*}\]</p><p>where <span>$\vec{x}$</span> is the concatenated vector of <span>$(t, x)$</span> and <span>$L$</span> is the number of LSTM type layers in the network.</p><h3 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h3><p>Let&#39;s try to solve the following Burger&#39;s equation using Deep Galerkin Method for <span>$\alpha = 0.05$</span> and compare our solution with the finite difference method:</p><p>$</p><p>\partial<em>t u(t, x) + u(t, x) \partial</em>x u(t, x) - \alpha \partial_{xx} u(t, x) = 0  $</p><p>defined over $ t \in [0, 1], x \in [-1, 1] $</p><p>with boundary conditions</p><p class="math-container">\[\begin{align*}
+\end{align*}\]</p><p>where <span>$\vec{x}$</span> is the concatenated vector of <span>$(t, x)$</span> and <span>$L$</span> is the number of LSTM type layers in the network.</p><h3 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h3><p>Let&#39;s try to solve the following Burger&#39;s equation using Deep Galerkin Method for <span>$\alpha = 0.05$</span> and compare our solution with the finite difference method:</p><p>$</p><p>\partial<em>t u(t, x) + u(t, x) \partial</em>x u(t, x) - \alpha \partial_{xx} u(t, x) = 0  $</p><p>defined over</p><p>$</p><p>t \in [0, 1], x \in [-1, 1]  $</p><p>with boundary conditions</p><p class="math-container">\[\begin{align*}
 u(t, x) &amp; = - sin(πx), \\
 u(t, -1) &amp; = 0, \\
 u(t, 1) &amp; = 0
-\end{align*}\]</p><h3 id="Copy-Pasteable-code"><a class="docs-heading-anchor" href="#Copy-Pasteable-code">Copy- Pasteable code</a><a id="Copy-Pasteable-code-1"></a><a class="docs-heading-anchor-permalink" href="#Copy-Pasteable-code" title="Permalink"></a></h3><pre><code class="language-julia hljs">using NeuralPDE
+\end{align*}\]</p><h3 id="Copy-Pasteable-code"><a class="docs-heading-anchor" href="#Copy-Pasteable-code">Copy- Pasteable code</a><a id="Copy-Pasteable-code-1"></a><a class="docs-heading-anchor-permalink" href="#Copy-Pasteable-code" title="Permalink"></a></h3><pre><code class="language- hljs">using NeuralPDE
 using ModelingToolkit, Optimization, OptimizationOptimisers
 import Lux: tanh, identity
 using Distributions
@@ -21,15 +21,15 @@ using MethodOfLines, OrdinaryDiffEq
 @parameters x t
 @variables u(..)
 
-Dt= Differential(t)
-Dx= Differential(x)
-Dxx= Dx^2
-α = 0.05;
+Dt = Differential(t)
+Dx = Differential(x)
+Dxx = Dx^2
+α = 0.05
 # Burger&#39;s equation
-eq= Dt(u(t,x)) + u(t,x) * Dx(u(t,x)) - α * Dxx(u(t,x)) ~ 0 
+eq = Dt(u(t,x)) + u(t,x) * Dx(u(t,x)) - α * Dxx(u(t,x)) ~ 0 
 
 # boundary conditions
-bcs= [
+bcs = [
     u(0.0, x) ~ - sin(π*x),
     u(t, -1.0) ~ 0.0,
     u(t, 1.0) ~ 0.0
@@ -38,7 +38,7 @@ bcs= [
 domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(-1.0, 1.0)]
 
 # MethodOfLines, for FD solution
-dx= 0.01
+dx = 0.01
 order = 2
 discretization = MOLFiniteDifference([x =&gt; dx], t, saveat = 0.01)
 @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t,x)])
@@ -50,28 +50,30 @@ xs = sol[x]
 u_MOL = sol[u(t,x)]
 
 # NeuralPDE, using Deep Galerkin Method
-strategy = QuasiRandomTraining(4_000, minibatch= 500);
-discretization= DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy);
-@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t,x)]);
-prob = discretize(pde_system, discretization);
-global iter = 0;
+strategy = QuasiRandomTraining(256, minibatch= 32)
+discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
+@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t,x)])
+prob = discretize(pde_system, discretization)
+global iter = 0
 callback = function (p, l)
-    global iter += 1;
+    global iter += 1
     if iter%20 == 0
         println(&quot;$iter =&gt; $l&quot;)
     end
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 300);
-phi = discretization.phi;
+res = Optimization.solve(prob, Adam(0.1); callback = callback, maxiters = 100)
+prob = remake(prob, u0 = res.u)
+res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 500)
+phi = discretization.phi
 
 u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
 
-diff_u = abs.(u_predict .- u_MOL);
+diff_u = abs.(u_predict .- u_MOL)
 
 using Plots
 p1 = plot(tgrid, xgrid, u_MOL&#39;, linetype = :contourf, title = &quot;FD&quot;);
 p2 = plot(tgrid, xgrid, u_predict&#39;, linetype = :contourf, title = &quot;predict&quot;);
 p3 = plot(tgrid, xgrid, diff_u&#39;, linetype = :contourf, title = &quot;error&quot;);
-plot(p1, p2, p3)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ode_parameter_estimation/">« Parameter Estimation with PINNs for ODEs</a><a class="docs-footer-nextpage" href="../pdesystem/">Introduction to NeuralPDE for PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Tuesday 5 March 2024 12:18">Tuesday 5 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(p1, p2, p3)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ode_parameter_estimation/">« Parameter Estimation with PINNs for ODEs</a><a class="docs-footer-nextpage" href="../pdesystem/">Introduction to NeuralPDE for PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Wednesday 6 March 2024 13:51">Wednesday 6 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
