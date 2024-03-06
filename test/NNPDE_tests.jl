@@ -40,15 +40,15 @@ function test_ode(strategy_)
     prob = discretize(pde_system, discretization)
 
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 1000)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 500)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 500)
     phi = discretization.phi
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     u_real = [analytic_sol_func(t) for t in ts]
-    u_predict = [first(phi(t, res.minimizer)) for t in ts]
+    u_predict = [first(phi(t, res.u)) for t in ts]
     @test u_predict≈u_real atol=0.1
 end
 
@@ -173,8 +173,8 @@ function test_2d_poisson_equation(chain_, strategy_)
         u(x, 0) ~ 0.0, u(x, 1) ~ -sin(pi * x) * sin(pi * 1)]
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
-
-    discretization = PhysicsInformedNN(chain_, strategy_)
+    ps = Lux.setup(Random.default_rng(), chain_)[1]
+    discretization = PhysicsInformedNN(chain_, strategy_; init_params = ps)
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
     res = solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 500, cb = callback)
@@ -183,7 +183,7 @@ function test_2d_poisson_equation(chain_, strategy_)
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
-    u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
+    u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
                         (length(xs), length(ys)))
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
                      (length(xs), length(ys)))
@@ -251,8 +251,8 @@ end
 
     cb_ = function (p, l)
         println("loss: ", l)
-        println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-        println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+        println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+        println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
         return false
     end
 
@@ -352,7 +352,7 @@ end
 
     cb_ = function (p, l)
         println("loss: ", l)
-        println("losses: ", map(l -> l(p), loss_functions))
+        println("losses: ", map(l -> l(p.u), loss_functions))
         return false
     end
 
@@ -431,14 +431,14 @@ end
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
     prob = discretize(pde_system, discretization)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 1000)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 500)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 500)
     phi = discretization.phi
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     u_real = [analytic_sol_func(t) for t in ts]
-    u_predict = [first(phi(t, res.minimizer)) for t in ts]
+    u_predict = [first(phi(t, res.u)) for t in ts]
     @test u_predict≈u_real atol=0.1
 end

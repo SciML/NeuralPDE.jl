@@ -130,7 +130,6 @@ end
 function get_loss_function(loss_function, bound, eltypeθ, strategy::StochasticTraining;
                            τ = nothing)
     points = strategy.points
-
     loss = (θ) -> begin
         sets = generate_random_points(points, bound, eltypeθ)
         sets_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
@@ -316,7 +315,7 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::Quadrature
             sum(abs2, view(loss_(x, θ), 1, :), dims = 2) #./ size_x
         end
         integral_function = BatchIntegralFunction(integrand, max_batch = strategy.batch)
-        prob = IntegralProblem(integral_function, lb, ub, θ)
+        prob = IntegralProblem(integral_function, (lb, ub), θ)
         solve(prob,
               strategy.quadrature_alg,
               reltol = strategy.reltol,

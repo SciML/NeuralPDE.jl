@@ -43,7 +43,7 @@ using ComponentArrays
         function inner_f(x, θ)
             dx * phi(x, θ) .- 1
         end
-        prob1 = IntegralProblem(inner_f, lb, ub, θ)
+        prob1 = IntegralProblem(inner_f, (lb, ub), θ)
         norm2 = solve(prob1, HCubatureJL(), reltol = 1e-8, abstol = 1e-8, maxiters = 10)
         abs(norm2[1])
     end
@@ -57,13 +57,13 @@ using ComponentArrays
     phi = discretization.phi
     cb_ = function (p, l)
         println("loss: ", l)
-        println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-        println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-        println("additional_loss: ", norm_loss_function(phi, p, nothing))
+        println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+        println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
+        println("additional_loss: ", norm_loss_function(phi, p.u, nothing))
         return false
     end
     res = solve(prob, OptimizationOptimJL.LBFGS(), maxiters = 400, callback = cb_)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = solve(prob, OptimizationOptimJL.BFGS(), maxiters = 2000, callback = cb_)
     C = 142.88418699042
     analytic_sol_func(x) = C * exp((1 / (2 * _σ^2)) * (2 * α * x^2 - β * x^4))
@@ -82,13 +82,13 @@ using ComponentArrays
     phi = discretization.phi
     cb_ = function (p, l)
         println("loss: ", l)
-        println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-        println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-        println("additional_loss: ", norm_loss_function(phi, p, nothing))
+        println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+        println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
+        println("additional_loss: ", norm_loss_function(phi, p.u, nothing))
         return false
     end
     res = solve(prob, OptimizationOptimJL.LBFGS(), maxiters = 400, callback = cb_)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = solve(prob, OptimizationOptimJL.BFGS(), maxiters = 2000, callback = cb_)
     C = 142.88418699042
     analytic_sol_func(x) = C * exp((1 / (2 * _σ^2)) * (2 * α * x^2 - β * x^4))
@@ -170,7 +170,7 @@ end
                                             Float64[])
 
     res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 6000)
-    p_ = res.minimizer[(end - 2):end]
+    p_ = res.u[(end - 2):end]
     @test sum(abs2, p_[1] - 10.00) < 0.1
     @test sum(abs2, p_[2] - 28.00) < 0.1
     @test sum(abs2, p_[3] - (8 / 3)) < 0.1
@@ -189,7 +189,7 @@ end
     sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
     sym_prob.loss_functions.full_loss_function(sym_prob.flat_init_params, nothing)
     res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 6000)
-    p_ = res.minimizer[(end - 2):end]
+    p_ = res.u[(end - 2):end]
     @test sum(abs2, p_[1] - 10.00) < 0.1
     @test sum(abs2, p_[2] - 28.00) < 0.1
     @test sum(abs2, p_[3] - (8 / 3)) < 0.1
@@ -225,7 +225,7 @@ end
     phi(xs, flat_init_params)
     additional_loss_(phi, flat_init_params, nothing)
     res = solve(prob, OptimizationOptimisers.Adam(0.01), maxiters = 500)
-    prob = remake(prob, u0 = res.minimizer)
+    prob = remake(prob, u0 = res.u)
     res = solve(prob, OptimizationOptimJL.BFGS(), maxiters = 500)
     @test phi(xs, res.u)≈aproxf_(xs) rtol=0.01
 end

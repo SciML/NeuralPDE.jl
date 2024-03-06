@@ -69,4 +69,8 @@ end
     if !is_APPVEYOR && GROUP == "GPU"
         @safetestset "NNPDE_gpu_Lux" begin include("NNPDE_tests_gpu_Lux.jl") end
     end
+
+    if GROUP == "All" || GROUP == "DGM"
+        @time @safetestset "Deep Galerkin solver" begin include("dgm_test.jl") end
+    end
 end

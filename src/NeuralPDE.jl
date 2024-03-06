@@ -9,7 +9,7 @@ using Reexport, Statistics
 @reexport using ModelingToolkit
 
 using Zygote, ForwardDiff, Random, Distributions
-using Adapt, DiffEqNoiseProcess, StochasticDiffEq
+using Adapt, DiffEqNoiseProcess
 using Optimization
 using OptimizationOptimisers
 using Integrals, Cubature
@@ -53,6 +53,7 @@ include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
+include("dgm.jl")
 
 export NNODE, NNDAE, PINOODE
     PhysicsInformedNN, discretize,
@@ -64,6 +65,7 @@ export NNODE, NNDAE, PINOODE
     AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
     MiniMaxAdaptiveLoss, LogOptions,
     ahmc_bayesian_pinn_ode, BNNODE, ahmc_bayesian_pinn_pde, vector_to_parameters,
-    BPINNsolution, BayesianPINN
+    BPINNsolution, BayesianPINN,
+    DeepGalerkin
 
 end # module
