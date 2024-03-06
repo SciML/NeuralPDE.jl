@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Linear parabolic system of PDEs · NeuralPDE.jl</title><meta name="title" content="Linear parabolic system of PDEs · NeuralPDE.jl"/><meta property="og:title" content="Linear parabolic system of PDEs · NeuralPDE.jl"/><meta property="twitter:title" content="Linear parabolic system of PDEs · NeuralPDE.jl"/><meta name="description" content="Documentation for NeuralPDE.jl."/><meta property="og:description" content="Documentation for NeuralPDE.jl."/><meta property="twitter:description" content="Documentation for NeuralPDE.jl."/><meta property="og:url" content="https://docs.sciml.ai/NeuralPDE/stable/examples/linear_parabolic/"/><meta property="twitter:url" content="https://docs.sciml.ai/NeuralPDE/stable/examples/linear_parabolic/"/><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/examples/linear_parabolic/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/ode/">Introduction to NeuralPDE for ODEs</a></li><li><a class="tocitem" href="../../tutorials/Lotka_Volterra_BPINNs/">Bayesian PINNs for Coupled ODEs</a></li><li><a class="tocitem" href="../../tutorials/dae/">PINNs DAEs</a></li><li><a class="tocitem" href="../../tutorials/ode_parameter_estimation/">Parameter Estimation with PINNs for ODEs</a></li><li><a class="tocitem" href="../../tutorials/dgm/">Deep Galerkin Method</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../../tutorials/low_level_2/">Bayesian PINNs for PDEs</a></li><li><a class="tocitem" href="../../tutorials/gpu/">Using GPUs</a></li><li><a class="tocitem" href="../../tutorials/systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../../tutorials/constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../../tutorials/low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../../tutorials/param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../../tutorials/integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../../tutorials/neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../../tutorials/derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li class="is-active"><a class="tocitem" href>Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="../nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/dae/">Differential Algebraic Equation Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/bpinns/"><code>BayesianPINN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Extended Examples</a></li><li class="is-active"><a href>Linear parabolic system of PDEs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Linear parabolic system of PDEs</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/examples/linear_parabolic.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Linear-parabolic-system-of-PDEs"><a class="docs-heading-anchor" href="#Linear-parabolic-system-of-PDEs">Linear parabolic system of PDEs</a><a id="Linear-parabolic-system-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Linear-parabolic-system-of-PDEs" title="Permalink"></a></h1><p>We can use NeuralPDE to solve the linear parabolic system of PDEs:</p><p class="math-container">\[\begin{aligned}
+\frac{\partial u}{\partial t} &amp;= a * \frac{\partial^2 u}{\partial x^2} + b_1 u + c_1 w \\
+\frac{\partial w}{\partial t} &amp;= a * \frac{\partial^2 w}{\partial x^2} + b_2 u + c_2 w \\
+\end{aligned}\]</p><p>with initial and boundary conditions:</p><p class="math-container">\[\begin{aligned}
+u(0, x) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot cos(\frac{x}{a}) \\
+w(0, x) = 0 \\
+u(t, 0) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} \\ w(t, 0) = \frac{e^{\lambda_1}-e^{\lambda_2}}{\lambda_1 - \lambda_2} \\
+u(t, 1) = \frac{b_1 - \lambda_2}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_1t} \cdot cos(\frac{x}{a}) -  \frac{b_1 - \lambda_1}{b_2 (\lambda_1 - \lambda_2)} \cdot e^{\lambda_2t} * cos(\frac{x}{a}) \\
+w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\lambda_1 - \lambda_2}
+\end{aligned}\]</p><p>with a physics-informed neural network.</p><pre><code class="language- hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using Plots
+import ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u(..), w(..)
+Dxx = Differential(x)^2
+Dt = Differential(t)
+
+# Constants
+a = 1
+b1 = 4
+b2 = 2
+c1 = 3
+c2 = 1
+λ1 = (b1 + c2 + sqrt((b1 + c2)^2 + 4 * (b1 * c2 - b2 * c1))) / 2
+λ2 = (b1 + c2 - sqrt((b1 + c2)^2 + 4 * (b1 * c2 - b2 * c1))) / 2
+
+# Analytic solution
+θ(t, x) = exp(-t) * cos(x / a)
+function u_analytic(t, x)
+    (b1 - λ2) / (b2 * (λ1 - λ2)) * exp(λ1 * t) * θ(t, x) -
+    (b1 - λ1) / (b2 * (λ1 - λ2)) * exp(λ2 * t) * θ(t, x)
+end
+w_analytic(t, x) = 1 / (λ1 - λ2) * (exp(λ1 * t) * θ(t, x) - exp(λ2 * t) * θ(t, x))
+
+# Second-order constant-coefficient linear parabolic system
+eqs = [Dt(u(x, t)) ~ a * Dxx(u(x, t)) + b1 * u(x, t) + c1 * w(x, t),
+    Dt(w(x, t)) ~ a * Dxx(w(x, t)) + b2 * u(x, t) + c2 * w(x, t)]
+
+# Boundary conditions
+bcs = [u(0, x) ~ u_analytic(0, x),
+    w(0, x) ~ w_analytic(0, x),
+    u(t, 0) ~ u_analytic(t, 0),
+    w(t, 0) ~ w_analytic(t, 0),
+    u(t, 1) ~ u_analytic(t, 1),
+    w(t, 1) ~ w_analytic(t, 1)]
+
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0),
+    t ∈ Interval(0.0, 1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:2]
+
+strategy = QuadratureTraining()
+discretization = PhysicsInformedNN(chain, strategy)
+
+@named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u(t, x), w(t, x)])
+prob = discretize(pdesystem, discretization)
+sym_prob = symbolic_discretize(pdesystem, discretization)
+
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
+
+global iteration = 0
+callback = function (p, l)
+    if iteration % 10 == 0
+        println(&quot;loss: &quot;, l)
+        println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p), pde_inner_loss_functions))
+        println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p), bcs_inner_loss_functions))
+    end
+    global iteration += 1
+    return false
+end
+
+res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 5000)
+
+phi = discretization.phi
+
+# Analysis
+ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+depvars = [:u, :w]
+minimizers_ = [res.u.depvar[depvars[i]] for i in 1:length(chain)]
+
+analytic_sol_func(t, x) = [u_analytic(t, x), w_analytic(t, x)]
+u_real = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:2]
+u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:2]
+diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+for i in 1:2
+    p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = &quot;u$i, analytic&quot;)
+    p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = &quot;predict&quot;)
+    p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = &quot;error&quot;)
+    plot(p1, p2, p3)
+    savefig(&quot;sol_u$i&quot;)
+end</code></pre><p><img src="https://user-images.githubusercontent.com/26853713/125745625-49c73760-0522-4ed4-9bdd-bcc567c9ace3.png" alt="linear_parabolic_sol_u1"/> <img src="https://user-images.githubusercontent.com/26853713/125745637-b12e1d06-e27b-46fe-89f3-076d415fcd7e.png" alt="linear_parabolic_sol_u2"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../heterogeneous/">« PDEs with Dependent Variables on Heterogeneous Domains</a><a class="docs-footer-nextpage" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Wednesday 6 March 2024 15:57">Wednesday 6 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

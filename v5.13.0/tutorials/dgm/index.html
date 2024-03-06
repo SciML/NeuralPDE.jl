@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Deep Galerkin Method · NeuralPDE.jl</title><meta name="title" content="Deep Galerkin Method · NeuralPDE.jl"/><meta property="og:title" content="Deep Galerkin Method · NeuralPDE.jl"/><meta property="twitter:title" content="Deep Galerkin Method · NeuralPDE.jl"/><meta name="description" content="Documentation for NeuralPDE.jl."/><meta property="og:description" content="Documentation for NeuralPDE.jl."/><meta property="twitter:description" content="Documentation for NeuralPDE.jl."/><meta property="og:url" content="https://docs.sciml.ai/NeuralPDE/stable/tutorials/dgm/"/><meta property="twitter:url" content="https://docs.sciml.ai/NeuralPDE/stable/tutorials/dgm/"/><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/tutorials/dgm/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../ode/">Introduction to NeuralPDE for ODEs</a></li><li><a class="tocitem" href="../Lotka_Volterra_BPINNs/">Bayesian PINNs for Coupled ODEs</a></li><li><a class="tocitem" href="../dae/">PINNs DAEs</a></li><li><a class="tocitem" href="../ode_parameter_estimation/">Parameter Estimation with PINNs for ODEs</a></li><li class="is-active"><a class="tocitem" href>Deep Galerkin Method</a><ul class="internal"><li><a class="tocitem" href="#Solving-PDEs-using-Deep-Galerkin-Method"><span>Solving PDEs using Deep Galerkin Method</span></a></li></ul></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../low_level_2/">Bayesian PINNs for PDEs</a></li><li><a class="tocitem" href="../gpu/">Using GPUs</a></li><li><a class="tocitem" href="../systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../../examples/wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../../examples/3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../../examples/ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../../examples/heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../../examples/linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/dae/">Differential Algebraic Equation Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/bpinns/"><code>BayesianPINN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">ODE PINN Tutorials</a></li><li class="is-active"><a href>Deep Galerkin Method</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Deep Galerkin Method</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/tutorials/dgm.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h2 id="Solving-PDEs-using-Deep-Galerkin-Method"><a class="docs-heading-anchor" href="#Solving-PDEs-using-Deep-Galerkin-Method">Solving PDEs using Deep Galerkin Method</a><a id="Solving-PDEs-using-Deep-Galerkin-Method-1"></a><a class="docs-heading-anchor-permalink" href="#Solving-PDEs-using-Deep-Galerkin-Method" title="Permalink"></a></h2><h3 id="Overview"><a class="docs-heading-anchor" href="#Overview">Overview</a><a id="Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Overview" title="Permalink"></a></h3><p>Deep Galerkin Method is a meshless deep learning algorithm to solve high dimensional PDEs. The algorithm does so by approximating the solution of a PDE with a neural network. The loss function of the network is defined in the similar spirit as PINNs, composed of PDE loss and boundary condition loss.</p><p>In the following example, we demonstrate computing the loss function using Quasi-Random Sampling, a sampling technique that uses quasi-Monte Carlo sampling to generate low discrepancy random sequences in high dimensional spaces.</p><h3 id="Algorithm"><a class="docs-heading-anchor" href="#Algorithm">Algorithm</a><a id="Algorithm-1"></a><a class="docs-heading-anchor-permalink" href="#Algorithm" title="Permalink"></a></h3><p>The authors of DGM suggest a network composed of LSTM-type layers that works well for most of the parabolic and quasi-parabolic PDEs.</p><p class="math-container">\[\begin{align*}
+S^1 &amp;= \sigma_1(W^1 \vec{x} + b^1); \\
+Z^l &amp;= \sigma_1(U^{z,l} \vec{x} + W^{z,l} S^l + b^{z,l}); \quad l = 1, \ldots, L; \\
+G^l &amp;= \sigma_1(U^{g,l} \vec{x} + W^{g,l} S_l + b^{g,l}); \quad l = 1, \ldots, L; \\
+R^l &amp;= \sigma_1(U^{r,l} \vec{x} + W^{r,l} S^l + b^{r,l}); \quad l = 1, \ldots, L; \\
+H^l &amp;= \sigma_2(U^{h,l} \vec{x} + W^{h,l}(S^l \cdot R^l) + b^{h,l}); \quad l = 1, \ldots, L; \\
+S^{l+1} &amp;= (1 - G^l) \cdot H^l + Z^l \cdot S^{l}; \quad l = 1, \ldots, L; \\
+f(t, x; \theta) &amp;= \sigma_{out}(W S^{L+1} + b).
+\end{align*}\]</p><p>where <span>$\vec{x}$</span> is the concatenated vector of <span>$(t, x)$</span> and <span>$L$</span> is the number of LSTM type layers in the network.</p><h3 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h3><p>Let&#39;s try to solve the following Burger&#39;s equation using Deep Galerkin Method for <span>$\alpha = 0.05$</span> and compare our solution with the finite difference method:</p><p>$</p><p>\partial<em>t u(t, x) + u(t, x) \partial</em>x u(t, x) - \alpha \partial_{xx} u(t, x) = 0  $</p><p>defined over</p><p>$</p><p>t \in [0, 1], x \in [-1, 1]  $</p><p>with boundary conditions</p><p class="math-container">\[\begin{align*}
+u(t, x) &amp; = - sin(πx), \\
+u(t, -1) &amp; = 0, \\
+u(t, 1) &amp; = 0
+\end{align*}\]</p><h3 id="Copy-Pasteable-code"><a class="docs-heading-anchor" href="#Copy-Pasteable-code">Copy- Pasteable code</a><a id="Copy-Pasteable-code-1"></a><a class="docs-heading-anchor-permalink" href="#Copy-Pasteable-code" title="Permalink"></a></h3><pre><code class="language- hljs">using NeuralPDE
+using ModelingToolkit, Optimization, OptimizationOptimisers
+import Lux: tanh, identity
+using Distributions
+import ModelingToolkit: Interval, infimum, supremum
+using MethodOfLines, OrdinaryDiffEq
+
+@parameters x t
+@variables u(..)
+
+Dt = Differential(t)
+Dx = Differential(x)
+Dxx = Dx^2
+α = 0.05
+# Burger&#39;s equation
+eq = Dt(u(t,x)) + u(t,x) * Dx(u(t,x)) - α * Dxx(u(t,x)) ~ 0 
+
+# boundary conditions
+bcs = [
+    u(0.0, x) ~ - sin(π*x),
+    u(t, -1.0) ~ 0.0,
+    u(t, 1.0) ~ 0.0
+]
+
+domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(-1.0, 1.0)]
+
+# MethodOfLines, for FD solution
+dx = 0.01
+order = 2
+discretization = MOLFiniteDifference([x =&gt; dx], t, saveat = 0.01)
+@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t,x)])
+prob = discretize(pde_system, discretization)
+sol= solve(prob, Tsit5())
+ts = sol[t]
+xs = sol[x] 
+
+u_MOL = sol[u(t,x)]
+
+# NeuralPDE, using Deep Galerkin Method
+strategy = QuasiRandomTraining(256, minibatch= 32)
+discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
+@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t,x)])
+prob = discretize(pde_system, discretization)
+global iter = 0
+callback = function (p, l)
+    global iter += 1
+    if iter%20 == 0
+        println(&quot;$iter =&gt; $l&quot;)
+    end
+    return false
+end
+
+res = Optimization.solve(prob, Adam(0.1); callback = callback, maxiters = 100)
+prob = remake(prob, u0 = res.u)
+res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 500)
+phi = discretization.phi
+
+u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
+
+diff_u = abs.(u_predict .- u_MOL)
+
+using Plots
+p1 = plot(tgrid, xgrid, u_MOL&#39;, linetype = :contourf, title = &quot;FD&quot;);
+p2 = plot(tgrid, xgrid, u_predict&#39;, linetype = :contourf, title = &quot;predict&quot;);
+p3 = plot(tgrid, xgrid, diff_u&#39;, linetype = :contourf, title = &quot;error&quot;);
+plot(p1, p2, p3)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ode_parameter_estimation/">« Parameter Estimation with PINNs for ODEs</a><a class="docs-footer-nextpage" href="../pdesystem/">Introduction to NeuralPDE for PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Wednesday 6 March 2024 15:57">Wednesday 6 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
