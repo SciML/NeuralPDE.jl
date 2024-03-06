@@ -32,7 +32,10 @@ $$
 $$
 
 defined over
-$$ t \in [0, 1], x \in [-1, 1] $$
+
+$$ 
+t \in [0, 1], x \in [-1, 1] 
+$$
 
 with boundary conditions
 ```math
@@ -84,8 +87,8 @@ xs = sol[x]
 u_MOL = sol[u(t,x)]
 
 # NeuralPDE, using Deep Galerkin Method
-strategy = QuasiRandomTraining(4_000, minibatch= 500);
-discretization= DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy);
+strategy = QuasiRandomTraining(256, minibatch= 32);
+    discretization= DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy);
 @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t,x)]);
 prob = discretize(pde_system, discretization);
 global iter = 0;
@@ -97,7 +100,9 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 300);
+res = Optimization.solve(prob, Adam(0.1); callback = callback, maxiters = 100)
+prob = remake(prob, u0 = res.u)
+res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 500)
 phi = discretization.phi;
 
 u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
