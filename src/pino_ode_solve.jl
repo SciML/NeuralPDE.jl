@@ -40,6 +40,7 @@ struct PINOODE{C, O, P, K} <: DiffEqBase.AbstractODEAlgorithm
     opt::O
     train_set::TRAINSET
     init_params::P
+    #TODO remove minibatch for a while
     minibatch::Int
     kwargs::K
 end
@@ -50,6 +51,7 @@ function PINOODE(chain,
         init_params = nothing;
         minibatch = 0,
         kwargs...)
+    #TODO fnn trasform
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     PINOODE(chain, opt, train_set, init_params, minibatch, kwargs)
 end
@@ -100,8 +102,8 @@ function dfdx_rand_matrix(phi::PINOPhi, t::AbstractArray, θ)
 end
 
 function dfdx(phi::PINOPhi, t::AbstractArray, θ)
-    ε = [sqrt(eps(eltype(t))), zero(eltype(t))]
-    # ε = [sqrt(eps(eltype(t))), zeros(eltype(t), phi.chain.layers.layer_1.in_dims - 1)...]
+    # ε = [sqrt(eps(eltype(t))), zero(eltype(t))]
+    ε = [sqrt(eps(eltype(t))), zeros(eltype(t), size(t)[1] - 1)...]
     (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
 end
 
@@ -112,19 +114,31 @@ function physics_loss(phi::PINOPhi{C, T, U},
         input_data_set) where {C, T, U}
     prob_set, output_data = train_set.input_data, train_set.output_data #TODO
     f = prob_set[1].f #TODO one f for all
+    p = prob_set[1].p
     out_ = phi(input_data_set, θ)
-    if train_set.isu0 === false
-        ps = [prob.p for prob in prob_set] #TODO do it within generator for data
+    if train_set.isu0 == true
+        p = prob_set[1].p
+        fs = f.f.(out_, p, ts)
     else
-        error("WIP")
+        ps = [prob.p for prob in prob_set]
+        if p isa Number
+            fs = cat(
+                [f.f.(out_[:, :, [i]], p, ts) for (i, p) in enumerate(ps)]..., dims = 3)
+        else
+            #TODO generalize
+            fs = cat(
+                [reduce(
+                     hcat, [f.f(out_[:, j, [i]], p, ts) for j in axes(out_[:, :, [i]], 2)])
+                 for (i, p) in enumerate(ps)]...,
+                dims = 3)
+        end
     end
-    fs = cat([f.f.(out_[:, :, [i]], p, ts) for (i, p) in enumerate(ps)]..., dims = 3)
     NeuralOperators.l₂loss(dfdx(phi, input_data_set, θ), fs)
 end
 
 function data_loss(phi::PINOPhi{C, T, U},
         θ,
-        ts::AbstractArray,
+        ts::AbstractArray, #remove unessasry
         train_set::TRAINSET,
         input_data_set) where {C, T, U}
     prob_set, output_data = train_set.input_data, train_set.output_data
@@ -134,7 +148,7 @@ end
 function generate_data(ts, prob_set, isu0)
     batch_size = size(prob_set)[1]
     instances_size = size(ts)[2]
-    dims = 2
+    dims = isu0 ? length(prob_set[1].u0) + 1 : length(prob_set[1].p) + 1
     input_data_set = Array{Float32, 3}(undef, dims, instances_size, batch_size)
     for (i, prob) in enumerate(prob_set)
         u0 = prob.u0
@@ -161,17 +175,10 @@ function generate_data(ts, prob_set, isu0)
     input_data_set
 end
 
-function generate_loss(phi::PINOPhi{C, T, U}, train_set::TRAINSET, tspan) where {C, T, U}
-    t0 = tspan[1]
-    t_end = tspan[2]
-    instances_size = size(train_set.output_data)[2]
-    range_ = range(t0, stop = t_end, length = instances_size)
-    ts = reshape(collect(range_), 1, instances_size)
-
-    prob_set, output_data = train_set.input_data, train_set.output_data #TODO  one format data
-    input_data_set = generate_data(ts, prob_set, train_set.isu0)
+function generate_loss(
+        phi::PINOPhi{C, T, U}, train_set::TRAINSET, input_data_set, ts) where {C, T, U}
     function loss(θ, _)
-        data_loss(phi, θ, ts, train_set, input_data_set) +
+        data_loss(phi, θ, ts, train_set, input_data_set) + #TODO train_set + input_data_set
         physics_loss(phi, θ, ts, train_set, input_data_set)
     end
     return loss
@@ -204,7 +211,23 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
 
-    phi, init_params = generate_pino_phi_θ(chain, t0, u0, init_params)
+    #TODO format data
+    t0 = tspan[1]
+    t_end = tspan[2]
+    instances_size = size(train_set.output_data)[2]
+    range_ = range(t0, stop = t_end, length = instances_size)
+    ts = reshape(collect(range_), 1, instances_size)
+    prob_set, output_data = train_set.input_data, train_set.output_data
+    isu0 = train_set.isu0
+    input_data_set = generate_data(ts, prob_set, isu0)
+
+    if isu0
+        u0 = input_data_set[[2], :, :]
+        phi, init_params = generate_pino_phi_θ(chain, t0, u0, init_params)
+    else
+        u0 = prob.u0
+        phi, init_params = generate_pino_phi_θ(chain, t0, u0, init_params)
+    end
 
     init_params = ComponentArrays.ComponentArray(init_params)
 
@@ -212,7 +235,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        # phi(rand(5, 100, 1), init_params) #TODO input data
+        phi(input_data_set, init_params)
     catch err
         if isa(err, DimensionMismatch)
             throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
@@ -221,7 +244,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         end
     end
 
-    total_loss = generate_loss(phi, train_set, tspan)
+    total_loss = generate_loss(phi, train_set, input_data_set, ts)
 
     # Optimization Algo for Training Strategies
     opt_algo = Optimization.AutoZygote()
