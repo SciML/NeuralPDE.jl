@@ -35,8 +35,8 @@ with physics-informed neural networks.
 ## Solution
 
 ```@example system
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
-import ModelingToolkit: Interval, infimum, supremum
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 @variables u1(..), u2(..), u3(..)
@@ -67,7 +67,7 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:3]
 
-strategy = QuadratureTraining()
+strategy = QuadratureTraining(; batch = 200, abstol = 1e-6, reltol = 1e-6)
 discretization = PhysicsInformedNN(chain, strategy)
 
 @named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u1(t, x), u2(t, x), u3(t, x)])
@@ -84,8 +84,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 5000)
-
+res = solve(prob, LBFGS(linesearch = BackTracking()); callback = callback, maxiters = 1000)
 phi = discretization.phi
 ```
 
@@ -96,7 +95,7 @@ interface. Here is an example using the components from `symbolic_discretize` to
 reproduce the `discretize` optimization:
 
 ```@example system
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -152,8 +151,7 @@ end
 f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
 prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-                         maxiters = 5000)
+res = Optimization.solve(prob, OptimizationOptimJL.LBFGS(linesearch = BackTracking()); callback = callback, maxiters = 1000)
 ```
 
 ## Solution Representation
@@ -179,7 +177,6 @@ for i in 1:3
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
     plot(p1, p2, p3)
-    savefig("sol_u$i")
 end
 ```
 
@@ -194,25 +191,16 @@ Subsetting the array also works, but is inelegant.
 
 (If `param_estim == true`, then `res.u.p` are the fit parameters)
 
-If Flux.jl is used, then subsetting the array is required. This looks like:
-
-```julia
-init_params = [Flux.destructure(c)[1] for c in chain]
-acum = [0; accumulate(+, length.(init_params))]
-sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
-minimizers_ = [res.minimizer[s] for s in sep]
-```
-
 #### Note: Solving Matrices of PDEs
 
 Also, in addition to vector systems, we can use the matrix form of PDEs:
 
-```@example
+```julia
 using ModelingToolkit, NeuralPDE
 @parameters x y
-@variables u[1:2, 1:2](..)
-@derivatives Dxx'' ~ x
-@derivatives Dyy'' ~ y
+@variables (u(..))[1:2, 1:2]
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
 
 # Initial and boundary conditions
 bcs = [u[1](x, 0) ~ x, u[2](x, 0) ~ 2, u[3](x, 0) ~ 3, u[4](x, 0) ~ 4]

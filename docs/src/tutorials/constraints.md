@@ -23,7 +23,7 @@ with Physics-Informed Neural Networks.
 ```@example fokkerplank
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using Integrals, Cubature
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 # the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x
 @variables p(..)
@@ -63,7 +63,7 @@ function norm_loss_function(phi, θ, p)
 end
 
 discretization = PhysicsInformedNN(chain,
-                                   GridTraining(0.01),
+                                   QuadratureTraining(),
                                    additional_loss = norm_loss_function)
 
 @named pdesystem = PDESystem(eq, bcs, domains, [x], [p(x)])
@@ -84,9 +84,7 @@ cb_ = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, LBFGS(), callback = cb_, maxiters = 400)
-prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, BFGS(), callback = cb_, maxiters = 500)
+res = Optimization.solve(prob, BFGS(), callback = cb_, maxiters = 600)
 ```
 
 And some analysis:

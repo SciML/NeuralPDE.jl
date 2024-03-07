@@ -15,14 +15,14 @@ Let's solve a simple DAE system:
 
 ```@example dae
 using NeuralPDE 
-using Random, Flux
+using Random
 using OrdinaryDiffEq, Statistics
 import Lux, OptimizationOptimisers
 
 example = (du, u, p, t) -> [cos(2pi * t) - du[1], u[2] + cos(2pi * t) - du[2]]
 u₀ = [1.0, -1.0]
 du₀ = [0.0, 0.0]
-tspan = (0.0f0, 1.0f0)
+tspan = (0.0, 1.0)
 ```
 
 Differential_vars is a logical array which declares which variables are the differential (non-algebraic) vars
@@ -33,13 +33,10 @@ differential_vars = [true, false]
 
 ```@example dae
 prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars)
-chain = Flux.Chain(Dense(1, 15, cos), Dense(15, 15, sin), Dense(15, 2))
+chain = Lux.Chain(Lux.Dense(1, 15, cos), Lux.Dense(15, 15, sin), Lux.Dense(15, 2))
 opt = OptimizationOptimisers.Adam(0.1)
 alg = NNDAE(chain, opt; autodiff = false)
-
-sol = solve(prob,
-    alg, verbose = false, dt = 1 / 100.0f0,
-    maxiters = 3000, abstol = 1.0f-10)
+sol = solve(prob, alg, verbose = true, dt = 1 / 100.0, maxiters = 3000, abstol = 1e-10)
 ```
 
 Now lets compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the DAE.
@@ -50,8 +47,7 @@ function example1(du, u, p, t)
     du[2] = u[2] + cos(2pi * t)
     nothing
 end
-M = [1.0 0
-    0 0]
+M = [1.0 0.0; 0.0 0.0]
 f = ODEFunction(example1, mass_matrix = M)
 prob_mm = ODEProblem(f, u₀, tspan)
 ground_sol = solve(prob_mm, Rodas5(), reltol = 1e-8, abstol = 1e-8)
