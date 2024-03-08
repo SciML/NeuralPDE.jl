@@ -48,7 +48,7 @@ function PINOODE(chain,
         train_set,
         init_params = nothing;
         kwargs...)
-    #TODO fnn trasform
+    #TODO fnn transform
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     PINOODE(chain, opt, train_set, init_params, kwargs)
 end
