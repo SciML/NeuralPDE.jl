@@ -40,8 +40,6 @@ struct PINOODE{C, O, P, K} <: DiffEqBase.AbstractODEAlgorithm
     opt::O
     train_set::TRAINSET
     init_params::P
-    #TODO remove minibatch for a while
-    minibatch::Int
     kwargs::K
 end
 
@@ -49,11 +47,10 @@ function PINOODE(chain,
         opt,
         train_set,
         init_params = nothing;
-        minibatch = 0,
         kwargs...)
     #TODO fnn trasform
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
-    PINOODE(chain, opt, train_set, init_params, minibatch, kwargs)
+    PINOODE(chain, opt, train_set, init_params, kwargs)
 end
 
 """
@@ -88,7 +85,8 @@ function (f::PINOPhi{C, T, U})(t::AbstractArray,
     # Batch via data as row vectors
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
-    f.u0 .+ (t[[1], :, :] .- f.t0) .* y
+    ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), t[[1], :, :])
+    f.u0 .+ (ts .- f.t0) .* y
 end
 
 function dfdx_rand_matrix(phi::PINOPhi, t::AbstractArray, θ)
@@ -116,6 +114,7 @@ function physics_loss(phi::PINOPhi{C, T, U},
     f = prob_set[1].f #TODO one f for all
     p = prob_set[1].p
     out_ = phi(input_data_set, θ)
+    ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), ts)
     if train_set.isu0 == true
         p = prob_set[1].p
         fs = f.f.(out_, p, ts)
@@ -133,6 +132,7 @@ function physics_loss(phi::PINOPhi{C, T, U},
                 dims = 3)
         end
     end
+    # fs = adapt(parameterless_type(ComponentArrays.getdata(θ)), fs)
     NeuralOperators.l₂loss(dfdx(phi, input_data_set, θ), fs)
 end
 
@@ -142,6 +142,7 @@ function data_loss(phi::PINOPhi{C, T, U},
         train_set::TRAINSET,
         input_data_set) where {C, T, U}
     prob_set, output_data = train_set.input_data, train_set.output_data
+    output_data = adapt(parameterless_type(ComponentArrays.getdata(θ)), output_data)
     NeuralOperators.l₂loss(phi(input_data_set, θ), output_data)
 end
 
@@ -222,7 +223,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     input_data_set = generate_data(ts, prob_set, isu0)
 
     if isu0
-        u0 = input_data_set[[2], :, :]
+        u0 = input_data_set[2:end, :, :]
         phi, init_params = generate_pino_phi_θ(chain, t0, u0, init_params)
     else
         u0 = prob.u0
@@ -238,7 +239,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         phi(input_data_set, init_params)
     catch err
         if isa(err, DimensionMismatch)
-            throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
+            throw(DimensionMismatch("Dimensions of the initial u0 and chain should match")) #TODO change message
         else
             throw(err)
         end

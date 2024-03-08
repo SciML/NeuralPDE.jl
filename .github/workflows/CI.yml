@@ -27,6 +27,7 @@ jobs:
           - Forward
           - NeuralAdapter
           - DGM
+          - ODEPINO
         version:
           - "1"
     steps:

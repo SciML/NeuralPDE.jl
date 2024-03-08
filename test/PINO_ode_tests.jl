@@ -151,7 +151,7 @@ end
         σ = gelu)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(flat_no, opt, train_set);
-    res, phi = solve(prob, alg, verbose = true, maxiters = 300)
+    res, phi = solve(prob, alg, verbose = true, maxiters = 200)
 
     input_data_set = Array{Float32, 3}(undef, 5, instances_size, batch_size)
     for (i, prob) in enumerate(prob_set)
@@ -165,17 +165,3 @@ end
 
     @test ground≈predict atol=5
 end
-
-using Plots
-function plot_()
-    # Animate
-    anim = @animate for (i) in 1:batch_size
-        plot(predict[1, :, i], label = "Predicted")
-        plot!(predict[2, :, i], label = "Predicted")
-        plot!(ground[1, :, i], label = "Ground truth")
-        plot!(ground[2, :, i], label = "Ground truth")
-    end
-    gif(anim, "pino.gif", fps = 10)
-end
-
-plot_()

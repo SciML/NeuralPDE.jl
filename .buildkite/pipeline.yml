@@ -25,6 +25,7 @@ steps:
           - "NNODE"
           - "NeuralAdapter"
           - "IntegroDiff"
+          - "PINO_GPU"
     env:
       BUILDKITE_PLUGIN_JULIA_VERSION: "{{matrix.version}}"
       GROUP: "{{matrix.group}}"
