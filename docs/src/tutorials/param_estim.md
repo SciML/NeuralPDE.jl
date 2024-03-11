@@ -16,7 +16,7 @@ We start by defining the problem,
 
 ```@example param_estim
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, OrdinaryDiffEq,
-      Plots
+      Plots, LineSearches
 using ModelingToolkit: Interval, infimum, supremum
 @parameters t, σ_, β, ρ
 @variables x(..), y(..), z(..)
@@ -94,7 +94,7 @@ Then finally defining and optimizing using the `PhysicsInformedNN` interface.
 
 ```@example param_estim
 discretization = NeuralPDE.PhysicsInformedNN([chain1, chain2, chain3],
-                                             NeuralPDE.QuadratureTraining(), param_estim = true,
+                                             NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200), param_estim = true,
                                              additional_loss = additional_loss)
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β],
                               defaults = Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
@@ -103,7 +103,7 @@ callback = function (p, l)
     println("Current loss is: $l")
     return false
 end
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 1000)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); callback = callback, maxiters = 1000)
 p_ = res.u[(end - 2):end] # p_ = [9.93, 28.002, 2.667]
 ```
 
