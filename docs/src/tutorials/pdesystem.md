@@ -66,7 +66,7 @@ end
 
 # Optimizer
 opt = OptimizationOptimJL.LBFGS(linesearch = BackTracking())
-res = solve(prob, opt, callback = callback, maxiters = 2000)
+res = solve(prob, opt, callback = callback, maxiters = 1000)
 phi = discretization.phi
 
 dx = 0.05

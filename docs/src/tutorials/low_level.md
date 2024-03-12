@@ -13,7 +13,7 @@ u(t, -1) = u(t, 1) = 0 \, ,
 with Physics-Informed Neural Networks. Here is an example of using the low-level API:
 
 ```@example low_level
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
 using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -37,7 +37,7 @@ domains = [t ∈ Interval(0.0, 1.0),
 
 # Neural network
 chain = Lux.Chain(Dense(2, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))
-strategy = NeuralPDE.QuadratureTraining()
+strategy = NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200)
 
 indvars = [t, x]
 depvars = [u(t, x)]
@@ -67,8 +67,7 @@ end
 f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
 prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-                         maxiters = 2000)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); callback = callback, maxiters = 3000)
 ```
 
 And some analysis:
