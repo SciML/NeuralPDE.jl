@@ -24,9 +24,9 @@ w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\l
 with a physics-informed neural network.
 
 ```@example
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers, OptimizationOptimJL, LineSearches
 using Plots
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..), w(..)
@@ -71,7 +71,7 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:2]
 
-strategy = GridTraining(0.01)
+strategy = StochasticTraining(500)
 discretization = PhysicsInformedNN(chain, strategy)
 
 @named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u(t, x), w(t, x)])
@@ -92,7 +92,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); callback = callback, maxiters = 500)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); callback = callback, maxiters = 10000)
 
 phi = discretization.phi
 

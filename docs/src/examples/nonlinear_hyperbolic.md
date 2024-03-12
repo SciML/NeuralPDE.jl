@@ -33,7 +33,7 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and
 We solve this with Neural:
 
 ```@example
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots, LineSearches
 using SpecialFunctions
 using Plots
 import ModelingToolkit: Interval, infimum, supremum
@@ -99,7 +99,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 1000)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); callback = callback, maxiters = 200)
 
 phi = discretization.phi
 
@@ -117,9 +117,5 @@ for i in 1:2
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
     plot(p1, p2, p3)
-    savefig("nonlinear_hyperbolic_sol_u$i")
 end
 ```
-
-![nonlinear_hyperbolic_sol_u1](https://user-images.githubusercontent.com/26853713/126457614-d19e7a4d-f9e3-4e78-b8ae-1e58114a744e.png)
-![nonlinear_hyperbolic_sol_u2](https://user-images.githubusercontent.com/26853713/126457617-ee26c587-a97f-4a2e-b6b7-b326b1f117af.png)
