@@ -84,7 +84,7 @@ cb_ = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(), callback = cb_, maxiters = 600)
+res = Optimization.solve(prob, BFGS(), maxiters = 600)
 ```
 
 And some analysis:

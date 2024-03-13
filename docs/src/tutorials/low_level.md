@@ -67,7 +67,7 @@ end
 f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
 prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); callback = callback, maxiters = 3000)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 3000)
 ```
 
 And some analysis:

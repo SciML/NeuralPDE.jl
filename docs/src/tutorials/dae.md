@@ -17,7 +17,7 @@ Let's solve a simple DAE system:
 using NeuralPDE 
 using Random
 using OrdinaryDiffEq, Statistics
-import Lux, OptimizationOptimisers
+using Lux, OptimizationOptimisers
 
 example = (du, u, p, t) -> [cos(2pi * t) - du[1], u[2] + cos(2pi * t) - du[2]]
 u₀ = [1.0, -1.0]

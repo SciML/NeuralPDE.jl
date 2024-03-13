@@ -66,7 +66,7 @@ end
 
 # Optimizer
 opt = OptimizationOptimJL.LBFGS(linesearch = BackTracking())
-res = solve(prob, opt, callback = callback, maxiters = 1000)
+res = solve(prob, opt, maxiters = 1000)
 phi = discretization.phi
 
 dx = 0.05
@@ -145,7 +145,8 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, opt, callback = callback, maxiters = 1000)
+# We can pass the callback function in the solve. Not doing here as the output would be very long.
+res = Optimization.solve(prob, opt, maxiters = 1000)
 phi = discretization.phi
 ```
 

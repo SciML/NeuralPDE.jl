@@ -17,7 +17,7 @@ Further, the solution of this equation with the given boundary conditions is pre
 
 ```@example wave
 using NeuralPDE, Lux, Optimization, OptimizationOptimJL
-import ModelingToolkit: Interval
+using ModelingToolkit: Interval
 
 @parameters t, x
 @variables u(..)
@@ -99,7 +99,7 @@ with grid discretization `dx = 0.05` and physics-informed neural networks. Here,
 ```@example wave2
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using Plots, Printf
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..) Dxu(..) Dtu(..) O1(..) O2(..)
@@ -162,9 +162,9 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 2000)
+res = Optimization.solve(prob, BFGS(); maxiters = 2000)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 2000)
+res = Optimization.solve(prob, BFGS(); maxiters = 2000)
 
 phi = discretization.phi[1]
 
@@ -212,11 +212,3 @@ p2 = plot(ts, xs, u_predict, linetype = :contourf, title = "predict");
 p3 = plot(ts, xs, diff_u, linetype = :contourf, title = "error");
 plot(p1, p2, p3)
 ```
-
-We can see the results here:
-
-![Damped_wave_sol_adaptive_u](https://user-images.githubusercontent.com/12683885/149665332-d4daf7d0-682e-4933-a2b4-34f403881afb.png)
-
-Plotted as a line, one can see the analytical solution and the prediction here:
-
-![1Dwave_damped_adaptive](https://user-images.githubusercontent.com/12683885/149665327-69d04c01-2240-45ea-981e-a7b9412a3b58.gif)

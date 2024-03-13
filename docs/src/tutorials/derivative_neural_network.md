@@ -111,9 +111,9 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); callback = callback, maxiters = 2000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); callback = callback, maxiters = 200)
+res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200)
 
 phi = discretization.phi
 ```
@@ -142,12 +142,40 @@ end
 u_real = [[analytic_sol_func_all(t, x)[i] for t in ts for x in xs] for i in 1:7]
 u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:7]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:7]
-
+ps = []
 titles = ["u1", "u2", "u3", "Dtu1", "Dtu2", "Dxu1", "Dxu2"]
 for i in 1:7
     p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = "$(titles[i]), analytic")
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
-    plot(p1, p2, p3)
+    push!(ps, plot(p1, p2, p3))
 end
+```
+
+```@example derivativenn
+ps[1]
+```
+
+```@example derivativenn
+ps[2]
+```
+
+```@example derivativenn
+ps[3]
+```
+
+```@example derivativenn
+ps[4]
+```
+
+```@example derivativenn
+ps[5]
+```
+
+```@example derivativenn
+ps[6]
+```
+
+```@example derivativenn
+ps[7]
 ```

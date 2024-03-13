@@ -100,9 +100,9 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.1); callback = callback, maxiters = 100)
+res = Optimization.solve(prob, Adam(0.1); maxiters = 100)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 500)
+res = Optimization.solve(prob, Adam(0.01); maxiters = 500)
 phi = discretization.phi
 
 u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]

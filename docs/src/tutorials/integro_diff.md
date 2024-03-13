@@ -67,7 +67,7 @@ callback = function (p, l)
     println("Current loss is: $l")
     return false
 end
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
+res = Optimization.solve(prob, BFGS(); maxiters = 100)
 ```
 
 Plotting the final solution and analytical solution

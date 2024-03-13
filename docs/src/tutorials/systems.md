@@ -84,7 +84,7 @@ callback = function (p, l)
     return false
 end
 
-res = solve(prob, LBFGS(linesearch = BackTracking()); callback = callback, maxiters = 1000)
+res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 1000)
 phi = discretization.phi
 ```
 
@@ -151,7 +151,7 @@ end
 f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
 prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = Optimization.solve(prob, OptimizationOptimJL.LBFGS(linesearch = BackTracking()); callback = callback, maxiters = 1000)
+res = Optimization.solve(prob, OptimizationOptimJL.LBFGS(linesearch = BackTracking()); maxiters = 1000)
 ```
 
 ## Solution Representation
@@ -172,12 +172,25 @@ end
 u_real = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:3]
 u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:3]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:3]
+ps = []
 for i in 1:3
     p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = "u$i, analytic")
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
-    plot(p1, p2, p3)
+    push!(ps, plot(p1, p2, p3))
 end
+```
+
+```@example system
+ps[1]
+```
+
+```@example system
+ps[2]
+```
+
+```@example system
+ps[3]
 ```
 
 Notice here that the solution is represented in the `OptimizationSolution` with `u` as

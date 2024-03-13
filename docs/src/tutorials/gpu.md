@@ -104,7 +104,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); callback = callback, maxiters = 2500)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 2500)
 ```
 
 We then use the `remake` function to rebuild the PDE problem to start a new optimization at the optimized parameters, and continue with a lower learning rate:

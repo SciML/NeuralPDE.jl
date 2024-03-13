@@ -26,10 +26,10 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k).
 
 This is done using a derivative neural network approximation.
 
-```@example
+```@example nonlinear_elliptic
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots
 using Plots
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters x, y
 Dx = Differential(x)
@@ -103,7 +103,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
+res = Optimization.solve(prob, BFGS(); maxiters = 100)
 
 phi = discretization.phi
 
@@ -116,10 +116,19 @@ analytic_sol_func(x, y) = [u_analytic(x, y), w_analytic(x, y)]
 u_real = [[analytic_sol_func(x, y)[i] for x in xs for y in ys] for i in 1:2]
 u_predict = [[phi[i]([x, y], minimizers_[i])[1] for x in xs for y in ys] for i in 1:2]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+ps = []
 for i in 1:2
     p1 = plot(xs, ys, u_real[i], linetype = :contourf, title = "u$i, analytic")
     p2 = plot(xs, ys, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(xs, ys, diff_u[i], linetype = :contourf, title = "error")
-    plot(p1, p2, p3)
+    push!(ps, plot(p1, p2, p3))
 end
+```
+
+```@example nonlinear_elliptic
+ps[1]
+```
+
+```@example nonlinear_elliptic
+ps[2]
 ```
