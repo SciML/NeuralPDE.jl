@@ -248,3 +248,110 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
         nothing
     end
 end
+
+"""
+    NeuralTangentKernelLoss(reweight_every;
+                            pde_loss_weights = 1.0,
+                            bc_loss_weights = 1.0,
+                            additional_loss_weights = 1.0)
+
+A way of adaptively reweighting the components of the loss function using the formulation
+from Neural Tangent Kernel of the network
+
+## Positional Arguments
+
+* `reweight_every`: how often to reweight the BC loss functions, measured in iterations.
+  Reweighting is somewhat expensive since it involves evaluating the gradient of each
+  component loss function. When set to 0, this implies estimating the weights at the first
+  iteration only,
+
+## References
+
+When and why PINNs fail to train: A neural tangent kernel perspective
+Sifan Wang, Xinling Yu, Paris Perdikaris
+https://arxiv.org/pdf/2007.14527
+
+With code reference:
+https://github.com/PredictiveIntelligenceLab/PINNsNTK
+"""
+mutable struct NeuralTangentKernelLoss{T <: Real} <: AbstractAdaptiveLoss
+    reweight_every::Int64
+    pde_loss_weights::Vector{T}
+    bc_loss_weights::Vector{T}
+    additional_loss_weights::Vector{T}
+    SciMLBase.@add_kwonly function NeuralTangentKernelLoss{T}(reweight_every;
+                                                                pde_loss_weights = 1.0,
+                                                                bc_loss_weights = 1.0,
+                                                                additional_loss_weights = 1.0) where {
+                                                                                                    T <:
+                                                                                                    Real
+                                                                                                    }
+        new(convert(Int64, reweight_every),
+            NeuralPDE.vectorify(pde_loss_weights, T), NeuralPDE.vectorify(bc_loss_weights, T),
+            NeuralPDE.vectorify(additional_loss_weights, T))
+    end
+end
+# default to Float64
+SciMLBase.@add_kwonly function NeuralTangentKernelLoss(reweight_every;
+                                                         pde_loss_weights = 1.0,
+                                                         bc_loss_weights = 1.0,
+                                                         additional_loss_weights = 1.0)
+    NeuralTangentKernelLoss{Float64}(reweight_every;
+                                       pde_loss_weights = pde_loss_weights,
+                                       bc_loss_weights = bc_loss_weights,
+                                       additional_loss_weights = additional_loss_weights)
+end
+
+function NeuralPDE.generate_adaptive_loss_function(pinnrep::NeuralPDE.PINNRepresentation,
+                                         adaloss::NeuralTangentKernelLoss,
+                                         pde_loss_functions, bc_loss_functions)
+    iteration = pinnrep.iteration
+    
+    adaloss_T = eltype(adaloss.pde_loss_weights)
+
+    function run_neural_tangent_kernel_adaptive_loss(θ, pde_losses, bc_losses)
+
+        if  adaloss.reweight_every == 0 && iteration[1] == 2 # when NTK remains constant throughout
+            print("CONSTANT NTK \n")
+            Kuus = [(Zygote.gradient(bc_loss_function, θ))[1] for bc_loss_function in bc_loss_functions]
+            Krrs = [(Zygote.gradient(pde_loss_function, θ))[1] for pde_loss_function in pde_loss_functions]
+
+            TrKuu = [sum(Kuu.^2) for Kuu in Kuus]
+            TrKrr = [sum(Krr.^2) for Krr in Krrs]
+
+            TrK = sum(TrKuu) + sum(TrKrr)
+            nonzero_divisor_eps = adaloss_T isa Float64 ? Float64(1e-11) : convert(adaloss_T, 1e-7)
+
+            adaloss.bc_loss_weights = TrK./(TrKuu .+ nonzero_divisor_eps)
+            adaloss.pde_loss_weights = TrK./(TrKrr .+ nonzero_divisor_eps)
+
+            NeuralPDE.logvector(pinnrep.logger, adaloss.pde_loss_weights,
+                      "adaptive_loss/pde_loss_weights", iteration[1])
+            NeuralPDE.logvector(pinnrep.logger, adaloss.bc_loss_weights,
+                      "adaptive_loss/bc_loss_weights",
+                      iteration[1])
+        
+        elseif adaloss.reweight_every != 0 && iteration[1] % adaloss.reweight_every == 0
+
+            Kuus = [(Zygote.gradient(bc_loss_function, θ))[1] for bc_loss_function in bc_loss_functions]
+            Krrs = [(Zygote.gradient(pde_loss_function, θ))[1] for pde_loss_function in pde_loss_functions]
+
+            TrKuu = [sum(Kuu.^2) for Kuu in Kuus]
+            TrKrr = [sum(Krr.^2) for Krr in Krrs]
+
+            TrK = sum(TrKuu) + sum(TrKrr)
+            nonzero_divisor_eps = adaloss_T isa Float64 ? Float64(1e-11) : convert(adaloss_T, 1e-7)
+
+            adaloss.bc_loss_weights = TrK./(TrKuu .+ nonzero_divisor_eps)
+            adaloss.pde_loss_weights = TrK./(TrKrr .+ nonzero_divisor_eps)
+
+            NeuralPDE.logvector(pinnrep.logger, adaloss.pde_loss_weights,
+                      "adaptive_loss/pde_loss_weights", iteration[1])
+            NeuralPDE.logvector(pinnrep.logger, adaloss.bc_loss_weights,
+                      "adaptive_loss/bc_loss_weights",
+                      iteration[1])
+
+        end
+        nothing
+    end
+end
