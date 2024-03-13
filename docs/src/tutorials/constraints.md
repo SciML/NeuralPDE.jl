@@ -21,7 +21,7 @@ p(-2.2) = p(2.2) = 0
 with Physics-Informed Neural Networks.
 
 ```@example fokkerplank
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
 using Integrals, Cubature
 using ModelingToolkit: Interval, infimum, supremum
 # the example is taken from this article https://arxiv.org/abs/1910.10503
@@ -84,7 +84,7 @@ cb_ = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(), maxiters = 600)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()), callback = cb_, maxiters = 600)
 ```
 
 And some analysis:
