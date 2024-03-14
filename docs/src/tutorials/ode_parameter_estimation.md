@@ -10,6 +10,7 @@ We start by defining the problem:
 using NeuralPDE, OrdinaryDiffEq
 using Lux, Random
 using OptimizationOptimJL, LineSearches
+using Plots
 using Test # hide
 
 function lv(u, p, t)
@@ -40,7 +41,7 @@ Now, lets define a neural network for the PINN using [Lux.jl](https://lux.csail.
 ```@example param_estim_lv
 rng = Random.default_rng()
 Random.seed!(rng, 0)
-n = 12
+n = 15
 chain = Lux.Chain(
             Lux.Dense(1, n, Lux.σ),
             Lux.Dense(n, n, Lux.σ),
@@ -62,7 +63,7 @@ Next we define the optimizer and [`NNODE`](@ref) which is then plugged into the 
 
 ```@example param_estim_lv
 opt = LBFGS(linesearch = BackTracking())
-alg = NNODE(chain, opt, ps; strategy = GridTraining(0.01), param_estim = true, additional_loss = additional_loss)
+alg = NNODE(chain, opt, ps; strategy = WeightedIntervalTraining([0.7, 0.2, 0.1], 500), param_estim = true, additional_loss = additional_loss)
 ```
 
 Now we have all the pieces to solve the optimization problem.
