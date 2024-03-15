@@ -1184,9 +1184,9 @@ version = "3.0.0+1"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Requires", "Unicode"]
-git-tree-sha1 = "ddab4d40513bce53c8e3157825e245224f74fae7"
+git-tree-sha1 = "7c6650580b4c3169d9905858160db895bff6d2e2"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "6.6.0"
+version = "6.6.1"
 weakdeps = ["BFloat16s"]
 
     [deps.LLVM.extensions]
@@ -1777,7 +1777,7 @@ version = "1.2.0"
 
 [[deps.NeuralPDE]]
 deps = ["Adapt", "AdvancedHMC", "ArrayInterface", "ChainRulesCore", "ComponentArrays", "Cubature", "DiffEqBase", "DiffEqNoiseProcess", "Distributions", "DocStringExtensions", "DomainSets", "ForwardDiff", "Functors", "Integrals", "LinearAlgebra", "LogDensityProblems", "Lux", "MCMCChains", "ModelingToolkit", "MonteCarloMeasurements", "Optim", "Optimization", "OptimizationOptimisers", "QuasiMonteCarlo", "Random", "Reexport", "RuntimeGeneratedFunctions", "SciMLBase", "Statistics", "SymbolicUtils", "Symbolics", "UnPack", "Zygote"]
-path = "/var/lib/buildkite-agent/builds/gpuci-12/julialang/neuralpde-dot-jl"
+path = "/var/lib/buildkite-agent/builds/gpuci-9/julialang/neuralpde-dot-jl"
 uuid = "315f7962-48a3-4962-8226-d0f33b1235f0"
 version = "5.14.0"
 
