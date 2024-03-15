@@ -11,10 +11,10 @@ w(t,0) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
 w(t,1) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
 \end{aligned}\]</p><p>where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and y0 are the Bessel functions, and ξ(t, x) is:</p><p class="math-container">\[\begin{aligned}
 \frac{\sqrt[]{f(k)}}{\sqrt[]{\frac{a}{x^n}}}\sqrt[]{\frac{a}{x^n}(t+1)^2 - (x+1)^2}
-\end{aligned}\]</p><p>We solve this with Neural:</p><pre><code class="language- hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots
+\end{aligned}\]</p><p>We solve this with Neural:</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots, LineSearches
 using SpecialFunctions
 using Plots
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..), w(..)
@@ -72,12 +72,12 @@ bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
     println(&quot;loss: &quot;, l)
-    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p), pde_inner_loss_functions))
-    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p), bcs_inner_loss_functions))
+    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p.u), pde_inner_loss_functions))
+    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p.u), bcs_inner_loss_functions))
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 1000)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 200)
 
 phi = discretization.phi
 
@@ -90,10 +90,10 @@ analytic_sol_func(t, x) = [u_analytic(t, x), w_analytic(t, x)]
 u_real = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:2]
 u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:2]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+ps = []
 for i in 1:2
     p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = &quot;u$i, analytic&quot;)
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = &quot;predict&quot;)
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = &quot;error&quot;)
-    plot(p1, p2, p3)
-    savefig(&quot;nonlinear_hyperbolic_sol_u$i&quot;)
-end</code></pre><p><img src="https://user-images.githubusercontent.com/26853713/126457614-d19e7a4d-f9e3-4e78-b8ae-1e58114a744e.png" alt="nonlinear_hyperbolic_sol_u1"/> <img src="https://user-images.githubusercontent.com/26853713/126457617-ee26c587-a97f-4a2e-b6b7-b326b1f117af.png" alt="nonlinear_hyperbolic_sol_u2"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nonlinear_elliptic/">« Nonlinear elliptic system of PDEs</a><a class="docs-footer-nextpage" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Wednesday 6 March 2024 15:28">Wednesday 6 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+    push!(ps, plot(p1, p2, p3))
+end</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="a0904ef1.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="e8cff6d0.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nonlinear_elliptic/">« Nonlinear elliptic system of PDEs</a><a class="docs-footer-nextpage" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Friday 15 March 2024 00:46">Friday 15 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

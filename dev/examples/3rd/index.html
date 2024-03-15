@@ -5,7 +5,7 @@ u(0) &amp;= 0 \, ,\\
 u(1) &amp;= \cos(\pi) \, ,\\
 ∂_x u(0) &amp;= 1 \, ,\\
 x &amp;\in [0, 1] \, ,
-\end{align*}\]</p><p>We will use physics-informed neural networks.</p><pre><code class="language- hljs">using NeuralPDE, Lux, ModelingToolkit
+\end{align*}\]</p><p>We will use physics-informed neural networks.</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit
 using Optimization, OptimizationOptimJL, OptimizationOptimisers
 import ModelingToolkit: Interval, infimum, supremum
 
@@ -37,8 +37,8 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 2000)
-phi = discretization.phi</code></pre><p>We can plot the predicted solution of the ODE and its analytical solution.</p><pre><code class="language- hljs">using Plots
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000)
+phi = discretization.phi</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NeuralPDE.Phi{Lux.Chain{@NamedTuple{layer_1::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_2::Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}, Nothing}, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}}}(Chain(), (layer_1 = NamedTuple(), layer_2 = NamedTuple()))</code></pre><p>We can plot the predicted solution of the ODE and its analytical solution.</p><pre><code class="language-julia hljs">using Plots
 
 analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)
 
@@ -49,4 +49,4 @@ u_predict = [first(phi(x, res.u)) for x in xs]
 
 x_plot = collect(xs)
 plot(x_plot, u_real, title = &quot;real&quot;)
-plot!(x_plot, u_predict, title = &quot;predict&quot;)</code></pre><p><img src="https://user-images.githubusercontent.com/12683885/90276340-69bc3e00-de6c-11ea-89a7-7d291123a38b.png" alt="hodeplot"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../wave/">« 1D Wave Equation with Dirichlet boundary conditions</a><a class="docs-footer-nextpage" href="../ks/">Kuramoto–Sivashinsky equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Wednesday 6 March 2024 15:28">Wednesday 6 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(x_plot, u_predict, title = &quot;predict&quot;)</code></pre><img src="746b820f.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../wave/">« 1D Wave Equation with Dirichlet boundary conditions</a><a class="docs-footer-nextpage" href="../ks/">Kuramoto–Sivashinsky equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Friday 15 March 2024 00:46">Friday 15 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
