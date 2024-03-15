@@ -45,5 +45,5 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
+res = Optimization.solve(prob, BFGS(); maxiters = 100)
 ```
