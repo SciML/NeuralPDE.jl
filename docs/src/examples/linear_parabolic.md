@@ -23,10 +23,10 @@ w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\l
 
 with a physics-informed neural network.
 
-```@example
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+```@example linear_parabolic
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers, OptimizationOptimJL, LineSearches
 using Plots
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..), w(..)
@@ -71,7 +71,7 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:2]
 
-strategy = QuadratureTraining()
+strategy = StochasticTraining(500)
 discretization = PhysicsInformedNN(chain, strategy)
 
 @named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u(t, x), w(t, x)])
@@ -85,14 +85,14 @@ global iteration = 0
 callback = function (p, l)
     if iteration % 10 == 0
         println("loss: ", l)
-        println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-        println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+        println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+        println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
     end
     global iteration += 1
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 5000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 10000)
 
 phi = discretization.phi
 
@@ -105,14 +105,19 @@ analytic_sol_func(t, x) = [u_analytic(t, x), w_analytic(t, x)]
 u_real = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:2]
 u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:2]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+ps = []
 for i in 1:2
     p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = "u$i, analytic")
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
-    plot(p1, p2, p3)
-    savefig("sol_u$i")
+    push!(ps, plot(p1, p2, p3))
 end
 ```
 
-![linear_parabolic_sol_u1](https://user-images.githubusercontent.com/26853713/125745625-49c73760-0522-4ed4-9bdd-bcc567c9ace3.png)
-![linear_parabolic_sol_u2](https://user-images.githubusercontent.com/26853713/125745637-b12e1d06-e27b-46fe-89f3-076d415fcd7e.png)
+```@example linear_parabolic
+ps[1]
+```
+
+```@example linear_parabolic
+ps[2]
+```
