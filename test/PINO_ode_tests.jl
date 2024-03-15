@@ -33,28 +33,21 @@ using NeuralPDE
     * input data: set of parameters 'a':
     * output data: set of solutions u(t){a} corresponding parameter 'a'
      """
-train_set = TRAINSET(prob_set, u_output_);
+    train_set = TRAINSET(prob_set, u_output_);
     #TODO u0 ?
     prob = ODEProblem(linear, u0, tspan, 0)
     chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ),
-    Lux.Dense(16, 16, Lux.σ),
-    Lux.Dense(16, 16, Lux.σ),
-    Lux.Dense(16, 16, Lux.σ),
-    Lux.Dense(16, 32, Lux.σ),
-    Lux.Dense(32, 1))
-    flat_no = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,),
-        σ = gelu)
-    η₀ = 1.0f-2
+        Lux.Dense(16, 16, Lux.σ),
+        Lux.Dense(16, 16, Lux.σ),
+        Lux.Dense(16, 16, Lux.σ),
+        Lux.Dense(16, 32, Lux.σ),
+        Lux.Dense(32, 1))
+    # flat_no = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,),
+    #     σ = gelu)
     opt = OptimizationOptimisers.Adam(0.03)
-    alg = PINOODE(flat_no, opt, train_set)
-    res, phi = solve(prob, alg, verbose = true, maxiters = 200)
-
-    input_data_set = Array{Float32, 3}(undef, 2, instances_size, batch_size)
-    for (i, prob) in enumerate(prob_set)
-        in_ = reduce(vcat, [ts, fill(prob.p, 1, size(ts)[2], 1)])
-        input_data_set[:, :, i] = in_
-    end
-    predict = phi(input_data_set, res.u)
+    alg = PINOODE(chain, opt, train_set; is_data_loss = true, is_physics_loss = true)
+    pino_solution = solve(prob, alg, verbose = false, maxiters = 1000)
+    predict = pino_solution.predict
     ground = u_output_
     @test ground≈predict atol=1
 end
@@ -91,21 +84,11 @@ begin
     train_set = TRAINSET(prob_set, u_output_; isu0 = true)
     #TODO u0 ?
     prob = ODEProblem(linear, 0.0f0, tspan, p)
-    # chain = Lux.Chain(Lux.Dense(2, 20, Lux.σ), Lux.Dense(20, 20, Lux.σ), Lux.Dense(20, 1))
-    fno = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,),
-        σ = gelu)
+    fno = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,), σ = gelu)
     opt = OptimizationOptimisers.Adam(0.001)
     alg = PINOODE(fno, opt, train_set)
-    res, phi = solve(prob,
-        alg, verbose = true,
-        maxiters = 200)
-
-    input_data_set = Array{Float32, 3}(undef, 2, instances_size, batch_size)
-    for (i, prob) in enumerate(prob_set)
-        in_ = reduce(vcat, [ts, fill(prob.u0, 1, size(ts)[2], 1)])
-        input_data_set[:, :, i] = in_
-    end
-    predict = phi(input_data_set, res.u)
+    pino_solution = solve(prob, alg, verbose = true, maxiters = 200)
+    predict = pino_solution.predict
     ground = u_output_
     @test ground≈predict atol=1.0
 end
@@ -143,25 +126,15 @@ end
         u_output_[:, :, i] = reshape_sol
     end
 
-    train_set = TRAINSET(prob_set, u_output_);
+    train_set = NeuralPDE.TRAINSET(prob_set, u_output_);
     #TODO u0 ?
-    prob = ODEProblem(lotka_volterra_matrix, u0, tspan, p)
-    chain = Lux.Chain(Lux.Dense(5, 20, Lux.σ), Lux.Dense(20, 20, Lux.σ), Lux.Dense(20, 2))
+    prob = ODEProblem(lotka_volterra, u0, tspan, p)
     flat_no = FourierNeuralOperator(ch = (5, 16, 16, 16, 16, 16, 32, 2), modes = (16,),
         σ = gelu)
     opt = OptimizationOptimisers.Adam(0.01)
-    alg = PINOODE(flat_no, opt, train_set);
-    res, phi = solve(prob, alg, verbose = true, maxiters = 200)
-
-    input_data_set = Array{Float32, 3}(undef, 5, instances_size, batch_size)
-    for (i, prob) in enumerate(prob_set)
-        inner = reduce(vcat, [ts, reduce(hcat, fill(prob.p, 1, size(ts)[2], 1))])
-        in_ = reshape(inner, size(inner)..., 1)
-        input_data_set[:, :, i] = in_
-    end
-
-    predict = phi(input_data_set, res.u)
+    alg = NeuralPDE.PINOODE(flat_no, opt, train_set, is_data_loss = true, is_physics_loss = false)
+    pino_solution = solve(prob, alg, verbose = true, maxiters = 500)
+    predict = pino_solution.predict
     ground = u_output_
-
     @test ground≈predict atol=5
 end

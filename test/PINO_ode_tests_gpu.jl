@@ -57,14 +57,8 @@ const gpud = gpu_device()
 
     opt = OptimizationOptimisers.Adam(0.03)
     alg = NeuralPDE.PINOODE(flat_no, opt, train_set, ps)
-    res, phi = solve(prob, alg, verbose = true, maxiters = 200)
-
-    input_data_set = Array{Float32, 3}(undef, 2, instances_size, batch_size)
-    for (i, prob) in enumerate(prob_set)
-        in_ = reduce(vcat, [ts, fill(prob.p, 1, size(ts)[2], 1)])
-        input_data_set[:, :, i] = in_
-    end
-    predict = phi(input_data_set, res.u) |> cpu
+    pino_solution = solve(prob, alg, verbose = true, maxiters = 200)
+    predict = pino_solution.predict |> cpu
     ground = u_output_
     @test ground≈predict atol=1
 end
