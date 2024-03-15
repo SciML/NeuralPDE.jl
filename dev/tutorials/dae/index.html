@@ -18,25 +18,25 @@ Interpolation: 1st order linear
 t: 0.0:0.01:1.0
 u: 101-element Vector{Vector{Float64}}:
  [1.0, -1.0]
- [1.0113977860478576, -0.985100197765325]
- [1.02245089241989, -0.9680684939534946]
- [1.0331467198580266, -0.948856399966107]
- [1.0434728025288118, -0.9274230686413448]
- [1.053416819680432, -0.9037359591710098]
- [1.0629666088687804, -0.8777714815020551]
- [1.0721101811100338, -0.8495156138497184]
- [1.080835738321553, -0.8189644868304116]
- [1.0891316934108375, -0.7861249276642502]
+ [1.0102483835361062, -0.9856729734108063]
+ [1.0203678128435887, -0.9694535828630155]
+ [1.0303326496934633, -0.951274688971337]
+ [1.0401167384239787, -0.9310741995573651]
+ [1.0496935092780522, -0.9087958826209851]
+ [1.0590360898010969, -0.8843901980124823]
+ [1.068117423888038, -0.8578151409247506]
+ [1.0769103979736245, -0.8290370896006956]
+ [1.0853879737652323, -0.7980316489651376]
  ⋮
- [0.9245365508575589, -0.8702334548668196]
- [0.9334887894813849, -0.901010673416713]
- [0.9426503375194853, -0.9288750102006055]
- [0.9519808501496473, -0.9537910181694844]
- [0.961439874724821, -0.9757358409235285]
- [0.9709870740495876, -0.9946988424260598]
- [0.9805824433935418, -1.0106811852296078]
- [0.9901865197909575, -1.0236953628277932]
- [0.999760582288747, -1.0337646917811516]</code></pre><p>Now lets compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the DAE.</p><pre><code class="language-julia hljs">function example1(du, u, p, t)
+ [0.9230439518571564, -0.8454946710283093]
+ [0.9319695348199756, -0.8777215650506907]
+ [0.9411676900226613, -0.9084213832060004]
+ [0.9506003561445564, -0.9377076238912867]
+ [0.9602278971412761, -0.9657019492382942]
+ [0.9700091983507153, -0.9925323655336221]
+ [0.9799017709867395, -1.0183313973405772]
+ [0.9898618650516576, -1.0432342761386642]
+ [0.9998445905979852, -1.0673771633927123]</code></pre><p>Now lets compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the DAE.</p><pre><code class="language-julia hljs">function example1(du, u, p, t)
     du[1] = cos(2pi * t)
     du[2] = u[2] + cos(2pi * t)
     nothing
@@ -67,4 +67,4 @@ u: 9-element Vector{Vector{Float64}}:
  [0.840243700070124, -0.5288572439414794]
  [0.9753246558272949, -1.0]</code></pre><pre><code class="language-julia hljs">using Plots
 plot(ground_sol, tspan = tspan, layout = (2, 1), label = &quot;ground truth&quot;)
-plot!(sol, tspan = tspan, layout = (2, 1), label = &quot;dae with pinns&quot;)</code></pre><img src="df301fc1.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Lotka_Volterra_BPINNs/">« Bayesian PINNs for Coupled ODEs</a><a class="docs-footer-nextpage" href="../ode_parameter_estimation/">Parameter Estimation with PINNs for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Friday 15 March 2024 00:46">Friday 15 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(sol, tspan = tspan, layout = (2, 1), label = &quot;dae with pinns&quot;)</code></pre><img src="6f10b901.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Lotka_Volterra_BPINNs/">« Bayesian PINNs for Coupled ODEs</a><a class="docs-footer-nextpage" href="../ode_parameter_estimation/">Parameter Estimation with PINNs for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Friday 15 March 2024 02:39">Friday 15 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
