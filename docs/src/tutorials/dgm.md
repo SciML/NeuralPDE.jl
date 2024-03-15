@@ -28,15 +28,15 @@ where $\vec{x}$ is the concatenated vector of $(t, x)$ and $L$ is the number of 
 
 Let's try to solve the following Burger's equation using Deep Galerkin Method for $\alpha = 0.05$ and compare our solution with the finite difference method:
 
-$$
+```math
 \partial_t u(t, x) + u(t, x) \partial_x u(t, x) - \alpha \partial_{xx} u(t, x) = 0 
-$$
+```
 
 defined over
 
-$$ 
+```math
 t \in [0, 1], x \in [-1, 1] 
-$$
+```
 
 with boundary conditions
 ```math
