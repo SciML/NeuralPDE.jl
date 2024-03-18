@@ -94,8 +94,9 @@ function (f::PINOPhi{C, T, U})(t::AbstractArray,
     # Batch via data as row vectors
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
-    ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), t[[1], :, :])
-    f.u0 .+ (ts .- f.t0) .* y
+    ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), t[1:size(y)[1], :, :])
+    f_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), f.u0)
+    f_ .+ (ts .- f.t0) .* y
 end
 
 function dfdx_rand_matrix(phi::PINOPhi, t::AbstractArray, θ)
