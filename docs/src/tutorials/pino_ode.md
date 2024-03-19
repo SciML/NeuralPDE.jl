@@ -59,6 +59,7 @@ ground = u_output_
 Now let's compare the predictions from the learned operator with the ground truth solution which is obtained early by numerically solving the parametric ODE. Where 'i' is the index of the parameter 'a' in the dataset.
 
 ```@example pino
+i=1
 plot(predict[1, :, i], label = "Predicted")
 plot!(ground[1, :, i], label = "Ground truth")
 ```

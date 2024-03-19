@@ -45,7 +45,7 @@ using NeuralPDE
     #     σ = gelu)
     opt = OptimizationOptimisers.Adam(0.03)
     alg = PINOODE(chain, opt, train_set; is_data_loss = true, is_physics_loss = true)
-    pino_solution = solve(prob, alg, verbose = false, maxiters = 1000)
+    pino_solution = solve(prob, alg, verbose = false, maxiters = 2000)
     predict = pino_solution.predict
     ground = u_output_
     @test ground≈predict atol=1
