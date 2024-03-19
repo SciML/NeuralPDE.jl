@@ -1,3 +1,13 @@
+struct TRAINSET{}
+    input_data::Vector{ODEProblem}
+    output_data::Array
+    isu0::Bool
+end
+
+function TRAINSET(input_data, output_data; isu0 = false)
+    TRAINSET(input_data, output_data, isu0)
+end
+
 """
    PINOODE(chain,
     OptimizationOptimisers.Adam(0.1),
@@ -47,16 +57,6 @@ function PINOODE(chain,
     #TODO fnn transform
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     PINOODE(chain, opt, train_set, is_data_loss, is_physics_loss, init_params, kwargs)
-end
-
-struct TRAINSET{}
-    input_data::Vector{ODEProblem}
-    output_data::Array
-    isu0::Bool
-end
-
-function TRAINSET(input_data, output_data; isu0 = false)
-    TRAINSET(input_data, output_data, isu0)
 end
 
 mutable struct PINOPhi{C, T, U, S}
