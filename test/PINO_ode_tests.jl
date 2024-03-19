@@ -81,7 +81,7 @@ begin
       * output data: set of solutions u(t){u0} corresponding initial conditions 'u0'.
     """
     train_set = TRAINSET(prob_set, u_output_; isu0 = true)
-    #TODO we argument u0 but dont actualy use u0 because we use only set of u0 for generate train set from prob_set
+    #TODO we argument u0 but dont actually use u0 because we use only set of u0 for generate train set from prob_set
     prob = ODEProblem(linear, 0.0f0, tspan, p)
     fno = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,), σ = gelu)
     opt = OptimizationOptimisers.Adam(0.001)
