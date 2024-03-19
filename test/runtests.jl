@@ -70,7 +70,7 @@ end
         @safetestset "NNPDE_gpu_Lux" begin include("NNPDE_tests_gpu_Lux.jl") end
     end
     if !is_APPVEYOR && GROUP == "PINO_GPU"
-        @safetestset "PINo ode gpu" begin include("PINO_ode_tests_gpu.jl.jl")
+        @safetestset "PINO ode gpu" begin include("PINO_ode_tests_gpu.jl")
         end
     end
 
