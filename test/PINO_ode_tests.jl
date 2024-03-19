@@ -51,8 +51,7 @@ using NeuralPDE
     @test ground≈predict atol=1
 end
 
-"Example u0"
-begin
+@testset "Example u0" begin
     linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     linear = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 2.0f0)
