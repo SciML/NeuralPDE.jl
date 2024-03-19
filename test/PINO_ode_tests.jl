@@ -30,11 +30,10 @@ using NeuralPDE
 
     """
     Set of training data:
-    * input data: set of parameters 'a':
-    * output data: set of solutions u(t){a} corresponding parameter 'a'
+    * input data: set of parameters 'a'
+    * output data: set of solutions u(t){a} corresponding parameter 'a'.
      """
     train_set = TRAINSET(prob_set, u_output_);
-    #TODO u0 ?
     prob = ODEProblem(linear, u0, tspan, 0)
     chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ),
         Lux.Dense(16, 16, Lux.σ),
@@ -78,11 +77,11 @@ begin
 
     """
       Set of training data:
-      * input data: set of initial conditions 'u0':
-      * output data: set of solutions u(t){u0} corresponding initial conditions 'u0'
+      * input data: set of initial conditions 'u0'
+      * output data: set of solutions u(t){u0} corresponding initial conditions 'u0'.
     """
     train_set = TRAINSET(prob_set, u_output_; isu0 = true)
-    #TODO u0 ?
+    #TODO we argument u0 but dont actualy use u0 because we use only set of u0 for generate train set from prob_set
     prob = ODEProblem(linear, 0.0f0, tspan, p)
     fno = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,), σ = gelu)
     opt = OptimizationOptimisers.Adam(0.001)

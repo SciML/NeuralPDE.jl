@@ -37,12 +37,11 @@ const gpud = gpu_device()
 
     """
     Set of training data:
-    * input data: set of parameters 'a':
-    * output data: set of solutions u(t){a} corresponding parameter 'a'
+    * input data: set of parameters 'a',
+    * output data: set of solutions u(t){a} corresponding parameter 'a'.
     """
     train_set = TRAINSET(prob_set, u_output_)
 
-    #TODO u0 ?
     prob = ODEProblem(linear, u0, tspan, 0)
     inner = 50
     chain = Lux.Chain(Lux.Dense(2, inner, Lux.σ),
@@ -94,7 +93,6 @@ end
     end
 
     train_set = TRAINSET(prob_set, u_output_)
-    #TODO u0 ?
     prob = ODEProblem(lotka_volterra, u0, tspan, p)
     flat_no = FourierNeuralOperator(ch = (5, 64, 64, 64, 64, 64, 128, 2), modes = (16,),
         σ = gelu)

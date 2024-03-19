@@ -1,40 +1,32 @@
 """
    PINOODE(chain,
     OptimizationOptimisers.Adam(0.1),
-    train_set
-    init_params = nothing;
+    train_set,
+    is_data_loss =true,
+    is_physics_loss =true,
+    init_params,
     kwargs...)
 
-## Positional Arguments
+The method is that combine training data and physics constraints
+to learn the solution operator of a given family of parametric Ordinary Differential Equations (ODE).
 
-* `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.AbstractExplicitLayer`.
+## Positional Arguments
+* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`.
+          `Flux.Chain` will be converted to `Lux` using `Lux.transform`.
 * `opt`: The optimizer to train the neural network.
-* `train_set`:
-* `init_params`: The initial parameter of the neural network. By default, this is `nothing`
-  which thus uses the random initialization provided by the neural network library.
+* `train_set`: Contains 'input data' - sr of parameters 'a' and output data - set of solutions
+ u(t){a} corresponding initial conditions 'u0'.
 
 ## Keyword Arguments
-* `minibatch`:
-
-## Examples
-
-```julia
-
-```
+* `is_data_loss` Includes or off a loss function for training on the data set.
+* `is_physics_loss`: Includes or off loss function training on physics-informed approach.
+* `init_params`: The initial parameter of the neural network. By default, this is `nothing`
+  which thus uses the random initialization provided by the neural network library.
+* `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## References
 Zongyi Li "Physics-Informed Neural Operator for Learning Partial Differential Equations"
 """
-struct TRAINSET{}
-    input_data::Vector{ODEProblem}
-    output_data::Array
-    isu0::Bool
-end
-
-function TRAINSET(input_data, output_data; isu0 = false)
-    TRAINSET(input_data, output_data, isu0)
-end
-
 struct PINOODE{C, O, P, K} <: DiffEqBase.AbstractODEAlgorithm
     chain::C
     opt::O
@@ -57,10 +49,16 @@ function PINOODE(chain,
     PINOODE(chain, opt, train_set, is_data_loss, is_physics_loss, init_params, kwargs)
 end
 
-"""
-    PINOPhi(chain::Lux.AbstractExplicitLayer, t0,u0, st)
-    TODO
-"""
+struct TRAINSET{}
+    input_data::Vector{ODEProblem}
+    output_data::Array
+    isu0::Bool
+end
+
+function TRAINSET(input_data, output_data; isu0 = false)
+    TRAINSET(input_data, output_data, isu0)
+end
+
 mutable struct PINOPhi{C, T, U, S}
     chain::C
     t0::T
@@ -91,7 +89,6 @@ end
 
 function (f::PINOPhi{C, T, U})(t::AbstractArray,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U}
-    # Batch via data as row vectors
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), t[1:size(y)[1], :, :])
@@ -119,9 +116,8 @@ function physics_loss(phi::PINOPhi{C, T, U},
         ts::AbstractArray,
         train_set::TRAINSET,
         input_data_set) where {C, T, U}
-    prob_set, output_data = train_set.input_data, train_set.output_data #TODO
-    f = prob_set[1].f #TODO one f for all
-    p = prob_set[1].p
+    prob_set, _ = train_set.input_data, train_set.output_data
+    f = prob_set[1].f
     out_ = phi(input_data_set, θ)
     ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), ts)
     if train_set.isu0 == true
@@ -132,12 +128,14 @@ function physics_loss(phi::PINOPhi{C, T, U},
         if p isa Number
             fs = cat(
                 [f.f.(out_[:, :, [i]], p, ts) for (i, p) in enumerate(ps)]..., dims = 3)
-        else
+        elseif p isa Vector
             fs = cat(
                 [reduce(
                      hcat, [f.f(out_[:, j, [i]], p, ts) for j in axes(out_[:, :, [i]], 2)])
                  for (i, p) in enumerate(ps)]...,
                 dims = 3)
+        else
+            error("p should be a number or a vector")
         end
     end
     NeuralOperators.l₂loss(dfdx(phi, input_data_set, θ), fs)
@@ -145,10 +143,9 @@ end
 
 function data_loss(phi::PINOPhi{C, T, U},
         θ,
-        ts::AbstractArray, #TODO remove unessasry
         train_set::TRAINSET,
         input_data_set) where {C, T, U}
-    prob_set, output_data = train_set.input_data, train_set.output_data
+    _, output_data = train_set.input_data, train_set.output_data
     output_data = adapt(parameterless_type(ComponentArrays.getdata(θ)), output_data)
     NeuralOperators.l₂loss(phi(input_data_set, θ), output_data)
 end
@@ -164,8 +161,6 @@ function generate_data(ts, prob_set, isu0)
         f = prob.f
         if isu0 == true
             in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2], 1)])
-            #TODO for all case p and u0
-            # in_ = reduce(vcat, [ts, reduce(hcat, fill(u0, 1, size(ts)[2], 1))])
         else
             if p isa Number
                 in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2], 1)])
@@ -187,11 +182,11 @@ function generate_loss(
         C, T, U}
     function loss(θ, _)
         if is_data_loss
-            data_loss(phi, θ, ts, train_set, input_data_set)
+            data_loss(phi, θ, train_set, input_data_set)
         elseif is_physics_loss
             physics_loss(phi, θ, ts, train_set, input_data_set)
         elseif is_data_loss && is_physics_loss
-            data_loss(phi, θ, ts, train_set, input_data_set) +
+            data_loss(phi, θ, train_set, input_data_set) +
             physics_loss(phi, θ, ts, train_set, input_data_set)
         else
             error("data loss or physics loss should be true")
@@ -211,9 +206,9 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         maxiters = nothing)
     tspan = prob.tspan
     t0 = tspan[1]
+    u0 = prob.u0
     # f = prob.f
     # p = prob.p
-    u0 = prob.u0
     # param_estim = alg.param_estim
 
     chain = alg.chain
@@ -234,7 +229,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     instances_size = size(train_set.output_data)[2]
     range_ = range(t0, stop = t_end, length = instances_size)
     ts = reshape(collect(range_), 1, instances_size)
-    prob_set, output_data = train_set.input_data, train_set.output_data
+    prob_set, _ = train_set.input_data, train_set.output_data
     isu0 = train_set.isu0
     input_data_set = generate_data(ts, prob_set, isu0)
 
@@ -255,13 +250,14 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         phi(input_data_set, init_params)
     catch err
         if isa(err, DimensionMismatch)
-            throw(DimensionMismatch("Dimensions of the initial u0 and chain should match")) #TODO change message
+            throw(DimensionMismatch("Dimensions of input data and chain should match"))
         else
             throw(err)
         end
     end
 
-    total_loss = generate_loss(phi, train_set, input_data_set, ts, is_data_loss, is_physics_loss)
+    total_loss = generate_loss(
+        phi, train_set, input_data_set, ts, is_data_loss, is_physics_loss)
 
     # Optimization Algo for Training Strategies
     opt_algo = Optimization.AutoZygote()
