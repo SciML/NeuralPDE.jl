@@ -85,7 +85,7 @@ end
     fno = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,), σ = gelu)
     opt = OptimizationOptimisers.Adam(0.001)
     alg = PINOODE(fno, opt, train_set)
-    pino_solution = solve(prob, alg, verbose = true, maxiters = 200)
+    pino_solution = solve(prob, alg, verbose = false, maxiters = 200)
     predict = pino_solution.predict
     ground = u_output_
     @test ground≈predict atol=1.0

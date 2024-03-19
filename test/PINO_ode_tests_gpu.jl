@@ -53,7 +53,7 @@ const gpud = gpu_device()
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud
     opt = OptimizationOptimisers.Adam(0.03)
     alg = PINOODE(chain, opt, train_set; init_params = ps)
-    pino_solution = solve(prob, alg, verbose = false, maxiters = 1000)
+    pino_solution = solve(prob, alg, verbose = false, maxiters = 2000)
     predict = pino_solution.predict |> cpu
     ground = u_output_ |> cpu
     @test ground≈predict atol=1
@@ -75,6 +75,7 @@ end
     p = Float32[1.5, 1.0, 3.0, 1.0]
     tspan = (0.0f0, 4.0f0)
     dt = 0.01f0
+    t0, t_end = tspan
 
     instances_size = 100
     range_ = range(t0, stop = t_end, length = instances_size)
