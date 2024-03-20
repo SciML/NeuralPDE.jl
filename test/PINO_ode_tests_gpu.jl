@@ -99,12 +99,12 @@ end
     #     σ = gelu)
     # flat_no = Lux.transform(flat_no)
     inner = 50
-    chain = Lux.Chain(Lux.Dense(2, inner, Lux.σ),
+    chain = Lux.Chain(Lux.Dense(5, inner, Lux.σ),
         Lux.Dense(inner, inner, Lux.σ),
         Lux.Dense(inner, inner, Lux.σ),
         Lux.Dense(inner, inner, Lux.σ),
         Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, 1))
+        Lux.Dense(inner, 2))
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud
 
     opt = OptimizationOptimisers.Adam(0.001)
