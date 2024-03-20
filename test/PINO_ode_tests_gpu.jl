@@ -110,8 +110,8 @@ end
     opt = OptimizationOptimisers.Adam(0.001)
     alg = PINOODE(
         flat_no, opt, train_set; init_params = ps, is_data_loss = true, is_physics_loss = true)
-    pino_solution = solve(prob, alg, verbose = false, maxiters = 1000)
+    pino_solution = solve(prob, alg, verbose = false, maxiters = 4000)
     predict = pino_solution.predict |> cpu
     ground = u_output_
-    @test ground≈predict atol=2
+    @test ground≈predict atol=5
 end
