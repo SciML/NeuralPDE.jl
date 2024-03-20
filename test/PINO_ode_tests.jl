@@ -33,7 +33,7 @@ using NeuralPDE
     * input data: set of parameters 'a'
     * output data: set of solutions u(t){a} corresponding parameter 'a'.
      """
-    train_set = NeuralPDE.TRAINSET(prob_set, u_output_);
+    train_set = TRAINSET(prob_set, u_output_);
     prob = ODEProblem(linear, u0, tspan, 0)
     chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ),
         Lux.Dense(16, 16, Lux.σ),
@@ -44,7 +44,7 @@ using NeuralPDE
     # flat_no = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,),
     #     σ = gelu)
     opt = OptimizationOptimisers.Adam(0.03)
-    alg = NeuralPDE.PINOODE(
+    alg = PINOODE(
         chain, opt, train_set; is_data_loss = true, is_physics_loss = true)
     pino_solution = solve(prob, alg, verbose = false, maxiters = 2000)
     predict = pino_solution.predict
@@ -80,7 +80,7 @@ end
       * input data: set of initial conditions 'u0'
       * output data: set of solutions u(t){u0} corresponding initial conditions 'u0'.
     """
-    train_set = NeuralPDE.TRAINSET(prob_set, u_output_; isu0 = true)
+    train_set = TRAINSET(prob_set, u_output_; isu0 = true)
     #TODO we argument u0 but dont actually use u0 because we use only set of u0 for generate train set from prob_set
     prob = ODEProblem(linear, 0.0f0, tspan, p)
     # fno = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,), σ = gelu)
@@ -91,7 +91,7 @@ end
         Lux.Dense(16, 32, Lux.σ),
         Lux.Dense(32, 1))
     opt = OptimizationOptimisers.Adam(0.001)
-    alg = NeuralPDE.PINOODE(chain, opt, train_set)
+    alg = PINOODE(chain, opt, train_set)
     pino_solution = solve(prob, alg, verbose = false, maxiters = 2000)
     predict = pino_solution.predict
     ground = u_output_
