@@ -2,7 +2,7 @@ using Test
 using OrdinaryDiffEq
 using Lux
 using ComponentArrays
-using NeuralOperators
+#using NeuralOperators
 using OptimizationOptimisers
 using Random
 using LuxCUDA
@@ -95,10 +95,17 @@ end
 
     train_set = TRAINSET(prob_set, u_output_)
     prob = ODEProblem(lotka_volterra, u0, tspan, p)
-    flat_no = FourierNeuralOperator(ch = (5, 64, 64, 64, 64, 64, 128, 2), modes = (16,),
-        σ = gelu)
-    flat_no = Lux.transform(flat_no)
-    ps = Lux.setup(Random.default_rng(), flat_no)[1] |> ComponentArray |> gpud
+    # flat_no = FourierNeuralOperator(ch = (5, 64, 64, 64, 64, 64, 128, 2), modes = (16,),
+    #     σ = gelu)
+    # flat_no = Lux.transform(flat_no)
+    inner = 50
+    chain = Lux.Chain(Lux.Dense(2, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, 1))
+    ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud
 
     opt = OptimizationOptimisers.Adam(0.001)
     alg = PINOODE(

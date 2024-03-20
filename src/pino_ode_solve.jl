@@ -111,6 +111,13 @@ function dfdx(phi::PINOPhi, t::AbstractArray, θ)
     (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
 end
 
+function l₂loss(𝐲̂, 𝐲)
+    feature_dims = 2:(ndims(𝐲) - 1)
+    loss = sum(.√(sum(abs2, 𝐲̂ - 𝐲, dims = feature_dims)))
+    y_norm = sum(.√(sum(abs2, 𝐲, dims = feature_dims)))
+    return loss / y_norm
+end
+
 function physics_loss(phi::PINOPhi{C, T, U},
         θ,
         ts::AbstractArray,
@@ -138,7 +145,7 @@ function physics_loss(phi::PINOPhi{C, T, U},
             error("p should be a number or a vector")
         end
     end
-    NeuralOperators.l₂loss(dfdx(phi, input_data_set, θ), fs)
+    l₂loss(dfdx(phi, input_data_set, θ), fs)
 end
 
 function data_loss(phi::PINOPhi{C, T, U},
@@ -147,7 +154,7 @@ function data_loss(phi::PINOPhi{C, T, U},
         input_data_set) where {C, T, U}
     _, output_data = train_set.input_data, train_set.output_data
     output_data = adapt(parameterless_type(ComponentArrays.getdata(θ)), output_data)
-    NeuralOperators.l₂loss(phi(input_data_set, θ), output_data)
+    l₂loss(phi(input_data_set, θ), output_data)
 end
 
 function generate_data(ts, prob_set, isu0)

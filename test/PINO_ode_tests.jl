@@ -2,7 +2,7 @@ using Test
 using OrdinaryDiffEq, OptimizationOptimisers
 using Lux
 using Statistics, Random
-using NeuralOperators
+#using NeuralOperators
 using NeuralPDE
 
 @testset "Example p" begin
@@ -82,9 +82,15 @@ end
     train_set = TRAINSET(prob_set, u_output_; isu0 = true)
     #TODO we argument u0 but dont actually use u0 because we use only set of u0 for generate train set from prob_set
     prob = ODEProblem(linear, 0.0f0, tspan, p)
-    fno = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,), σ = gelu)
+    # fno = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,), σ = gelu)
+    chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ),
+        Lux.Dense(16, 16, Lux.σ),
+        Lux.Dense(16, 16, Lux.σ),
+        Lux.Dense(16, 16, Lux.σ),
+        Lux.Dense(16, 32, Lux.σ),
+        Lux.Dense(32, 1))
     opt = OptimizationOptimisers.Adam(0.001)
-    alg = PINOODE(fno, opt, train_set)
+    alg = PINOODE(chain, opt, train_set)
     pino_solution = solve(prob, alg, verbose = false, maxiters = 200)
     predict = pino_solution.predict
     ground = u_output_
