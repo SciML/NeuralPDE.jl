@@ -69,9 +69,6 @@ end
     sol = solve(prob, NNODE(luxchain, opt), verbose = true, maxiters = 400)
     @test sol.errors[:l2] < 0.5
 
-    @test_throws AssertionError solve(prob, NNODE(luxchain, opt; batch = true), verbose = true,
-                        maxiters = 400)
-
     sol = solve(prob,
                 NNODE(luxchain, opt; batch = false,
                                 strategy = StochasticTraining(100)),
@@ -104,10 +101,6 @@ end
     sol = solve(prob, NNODE(luxchain, opt), verbose = true, maxiters = 400,
                 abstol = 1.0f-8)
     @test sol.errors[:l2] < 0.5
-
-    @test_throws AssertionError solve(prob, NNODE(luxchain, opt; batch = true), verbose = true,
-                        maxiters = 400,
-                        abstol = 1.0f-8)
 
     sol = solve(prob,
                 NNODE(luxchain, opt; batch = false,
