@@ -52,7 +52,8 @@ const gpud = gpu_device()
         Lux.Dense(inner, 1))
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud
     opt = OptimizationOptimisers.Adam(0.03)
-    alg = PINOODE(chain, opt, train_set; init_params = ps)
+    pino_phase = OperatorLearning()
+    alg = PINOODE(chain, opt, train_set, pino_phase; init_params = ps)
     pino_solution = solve(prob, alg, verbose = false, maxiters = 2000)
     predict = pino_solution.predict |> cpu
     ground = u_output_ |> cpu
@@ -108,8 +109,9 @@ end
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud
 
     opt = OptimizationOptimisers.Adam(0.001)
+    pino_phase = OperatorLearning()
     alg = PINOODE(
-        chain, opt, train_set; init_params = ps, is_data_loss = true, is_physics_loss = true)
+        chain, opt, train_set, pino_phase; init_params = ps)
     pino_solution = solve(prob, alg, verbose = false, maxiters = 4000)
     predict = pino_solution.predict |> cpu
     ground = u_output_

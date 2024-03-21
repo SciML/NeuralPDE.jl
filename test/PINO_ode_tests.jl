@@ -2,7 +2,7 @@ using Test
 using OrdinaryDiffEq, OptimizationOptimisers
 using Lux
 using Statistics, Random
-#using NeuralOperators
+# using NeuralOperators
 using NeuralPDE
 
 @testset "Example p" begin
@@ -33,8 +33,9 @@ using NeuralPDE
     * input data: set of parameters 'a'
     * output data: set of solutions u(t){a} corresponding parameter 'a'.
      """
-    train_set = TRAINSET(prob_set, u_output_);
-    prob = ODEProblem(linear, u0, tspan, 0)
+    train_set = TRAINSET(prob_set, u_output_)
+    p = pi / 2
+    prob = ODEProblem(linear, u0, tspan, p)
     chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ),
         Lux.Dense(16, 16, Lux.σ),
         Lux.Dense(16, 16, Lux.σ),
@@ -44,13 +45,27 @@ using NeuralPDE
     # flat_no = FourierNeuralOperator(ch = (2, 16, 16, 16, 16, 16, 32, 1), modes = (16,),
     #     σ = gelu)
     opt = OptimizationOptimisers.Adam(0.03)
-    alg = PINOODE(
-        chain, opt, train_set; is_data_loss = true, is_physics_loss = true)
+    # pino_phase = OperatorLearning(train_set, is_data_loss = true, is_physics_loss = true)
+    pino_phase = OperatorLearning(
+        is_data_loss = true, is_physics_loss = true)
+    alg = PINOODE(chain, opt, train_set, pino_phase)
+    # pino_solution = learn()
     pino_solution = solve(prob, alg, verbose = false, maxiters = 2000)
     predict = pino_solution.predict
     ground = u_output_
     @test ground≈predict atol=1
+
+    pino_phase = EquationSolving(pino_solution)
+    alg = PINOODE(chain, opt, train_set, pino_phase)
+    pino_solution = solve(prob, alg, verbose = true, maxiters = 2000)
+
+    find(as, a) = findfirst(x -> isapprox(x.p, a.p), as)
+    index = find(prob_set, prob)
+    predict = pino_solution.predict
+    ground = u_output_[:,:, [index]]
+    @test ground≈predict atol=0.1
 end
+
 
 @testset "Example u0" begin
     linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
@@ -91,7 +106,8 @@ end
         Lux.Dense(16, 32, Lux.σ),
         Lux.Dense(32, 1))
     opt = OptimizationOptimisers.Adam(0.001)
-    alg = PINOODE(chain, opt, train_set)
+    pino_phase = OperatorLearning()
+    alg = PINOODE(chain, opt, train_set, pino_phase)
     pino_solution = solve(prob, alg, verbose = false, maxiters = 2000)
     predict = pino_solution.predict
     ground = u_output_

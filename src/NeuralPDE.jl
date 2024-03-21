@@ -57,7 +57,7 @@ include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 include("dgm.jl")
 
-export NNODE, NNDAE, PINOODE, TRAINSET
+export NNODE, NNDAE, PINOODE, TRAINSET, EquationSolving, OperatorLearning
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
        WeightedIntervalTraining,

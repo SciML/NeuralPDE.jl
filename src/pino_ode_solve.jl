@@ -8,6 +8,35 @@ function TRAINSET(input_data, output_data; isu0 = false)
     TRAINSET(input_data, output_data, isu0)
 end
 
+mutable struct PINOPhi{C, T, U, S}
+    chain::C
+    t0::T
+    u0::U
+    st::S
+    function PINOPhi(chain::Lux.AbstractExplicitLayer, t0, u0, st)
+        new{typeof(chain), typeof(t0), typeof(u0), typeof(st)}(chain, t0, u0, st)
+    end
+end
+
+struct PINOsolution{}
+    predict::Array
+    res::SciMLBase.OptimizationSolution
+    phi::PINOPhi
+    input_data_set::Array
+end
+
+abstract type PINOPhases end
+struct OperatorLearning <: PINOPhases
+    is_data_loss::Bool
+    is_physics_loss::Bool
+end
+function OperatorLearning(; is_data_loss = true, is_physics_loss = true)
+    OperatorLearning(is_data_loss, is_physics_loss)
+end
+struct EquationSolving <: PINOPhases
+    pino_solution::PINOsolution
+end
+
 """
    PINOODE(chain,
     OptimizationOptimisers.Adam(0.1),
@@ -15,6 +44,7 @@ end
     is_data_loss =true,
     is_physics_loss =true,
     init_params,
+    #TODO update docstring
     kwargs...)
 
 The method is that combine training data and physics constraints
@@ -41,37 +71,20 @@ struct PINOODE{C, O, P, K} <: DiffEqBase.AbstractODEAlgorithm
     chain::C
     opt::O
     train_set::TRAINSET
-    is_data_loss::Bool
-    is_physics_loss::Bool
+    pino_phase::PINOPhases
     init_params::P
     kwargs::K
 end
 
 function PINOODE(chain,
         opt,
-        train_set;
-        is_data_loss = true,
-        is_physics_loss = true,
+        train_set,
+        pino_phase;
         init_params = nothing,
         kwargs...)
-    #TODO fnn transform
+    #TODO fnn transform check
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
-    PINOODE(chain, opt, train_set, is_data_loss, is_physics_loss, init_params, kwargs)
-end
-
-mutable struct PINOPhi{C, T, U, S}
-    chain::C
-    t0::T
-    u0::U
-    st::S
-    function PINOPhi(chain::Lux.AbstractExplicitLayer, t0, u0, st)
-        new{typeof(chain), typeof(t0), typeof(u0), typeof(st)}(chain, t0, u0, st)
-    end
-end
-struct PINOsolution{}
-    predict::Array
-    res::SciMLBase.OptimizationSolution
-    phi::PINOPhi
+    PINOODE(chain, opt, train_set, pino_phase, init_params, kwargs)
 end
 
 function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer,
@@ -125,10 +138,10 @@ function physics_loss(phi::PINOPhi{C, T, U},
         input_data_set) where {C, T, U}
     prob_set, _ = train_set.input_data, train_set.output_data
     f = prob_set[1].f
+    p = prob_set[1].p
     out_ = phi(input_data_set, θ)
     ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), ts)
     if train_set.isu0 == true
-        p = prob_set[1].p
         fs = f.f.(out_, p, ts)
     else
         ps = [prob.p for prob in prob_set]
@@ -157,7 +170,7 @@ function data_loss(phi::PINOPhi{C, T, U},
     l₂loss(phi(input_data_set, θ), output_data)
 end
 
-function generate_data(ts, prob_set, isu0)
+function generate_data(ts, prob_set::Vector{ODEProblem}, isu0)
     batch_size = size(prob_set)[1]
     instances_size = size(ts)[2]
     dims = isu0 ? length(prob_set[1].u0) + 1 : length(prob_set[1].p) + 1
@@ -165,7 +178,7 @@ function generate_data(ts, prob_set, isu0)
     for (i, prob) in enumerate(prob_set)
         u0 = prob.u0
         p = prob.p
-        f = prob.f
+        # f = prob.f
         if isu0 == true
             in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2], 1)])
         else
@@ -185,8 +198,9 @@ end
 
 function generate_loss(
         phi::PINOPhi{C, T, U}, train_set::TRAINSET, input_data_set, ts,
-        is_data_loss, is_physics_loss) where {
+        pino_phase::OperatorLearning) where {
         C, T, U}
+    is_data_loss, is_physics_loss = pino_phase.is_data_loss, pino_phase.is_physics_loss
     function loss(θ, _)
         if is_data_loss
             data_loss(phi, θ, train_set, input_data_set)
@@ -202,6 +216,31 @@ function generate_loss(
     return loss
 end
 
+function finetune_loss(phi::PINOPhi{C, T, U},
+        θ,
+        train_set::TRAINSET,
+        input_data_set,
+        pino_phase::EquationSolving) where {C, T, U}
+    _, output_data = train_set.input_data, train_set.output_data
+    output_data = adapt(parameterless_type(ComponentArrays.getdata(θ)), output_data)
+    pino_solution = pino_phase.pino_solution
+    learned_operator = pino_solution.phi
+    predict = learned_operator(input_data_set, pino_solution.res.u)
+    l₂loss(phi(input_data_set, θ), predict)
+end
+
+function generate_loss(
+        phi::PINOPhi{C, T, U}, train_set::TRAINSET, input_data_set, ts,
+        pino_phase::EquationSolving) where {
+        C, T, U}
+    a = 1 / 100
+    function loss(θ, _)
+        physics_loss(phi, θ, ts, train_set, input_data_set) +
+        a * finetune_loss(phi, θ, train_set, input_data_set, pino_phase)
+    end
+    return loss
+end
+
 function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         alg::PINOODE,
         args...;
@@ -212,18 +251,16 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         saveat = nothing,
         maxiters = nothing)
     tspan = prob.tspan
-    t0 = tspan[1]
+    t0, t_end = tspan[1], tspan[2]
     u0 = prob.u0
+    p = prob.p
     # f = prob.f
-    # p = prob.p
     # param_estim = alg.param_estim
 
     chain = alg.chain
     opt = alg.opt
     init_params = alg.init_params
-    is_data_loss = alg.is_data_loss
-    is_physics_loss = alg.is_physics_loss
-
+    pino_phase = alg.pino_phase
     # mapping between functional space of some vararible 'a' of equation (for example initial
     # condition {u(t0 x)} or parameter p) and solution of equation u(t)
     train_set = alg.train_set
@@ -231,23 +268,26 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
 
-    t0 = tspan[1]
-    t_end = tspan[2]
     instances_size = size(train_set.output_data)[2]
     range_ = range(t0, stop = t_end, length = instances_size)
     ts = reshape(collect(range_), 1, instances_size)
-    prob_set, _ = train_set.input_data, train_set.output_data
+    prob_set, output_set = train_set.input_data, train_set.output_data
     isu0 = train_set.isu0
     input_data_set = generate_data(ts, prob_set, isu0)
+    # input_data_set =  if pino_phase == EquationSolving
+    #     generate_data(ts, [prob], isu0)
+    # elseif pino_phase == OperatorLearning
+    #     generate_data(ts, prob_set, isu0)
+    # else
+    #     error("pino_phase should be EquationSolving or OperatorLearning")
+    # end
 
-    if isu0
+    if isu0 #TODO remove the block
         u0 = input_data_set[2:end, :, :]
-        phi, init_params = generate_pino_phi_θ(chain, t0, u0, init_params)
     else
         u0 = prob.u0
-        phi, init_params = generate_pino_phi_θ(chain, t0, u0, init_params)
     end
-
+    phi, init_params = generate_pino_phi_θ(chain, t0, u0, init_params)
     init_params = ComponentArrays.ComponentArray(init_params)
 
     isinplace(prob) &&
@@ -263,8 +303,19 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         end
     end
 
-    total_loss = generate_loss(
-        phi, train_set, input_data_set, ts, is_data_loss, is_physics_loss)
+    if pino_phase isa EquationSolving
+        #TODO bad code rewrite,the parameter must uniquely match the index
+        #TODO doenst need TRAINSET for EquationSolving
+        find(as, a) = findfirst(x -> isapprox(x.p, a.p), as)
+        index = find(prob_set, prob)
+        input_data_set = input_data_set[:, :, [index]]
+        train_set = TRAINSET(prob_set[index:index], output_set[:, :, [index]], isu0)
+        total_loss = generate_loss(phi, train_set, input_data_set, ts, pino_phase)
+    elseif pino_phase isa OperatorLearning
+        total_loss = generate_loss(phi, train_set, input_data_set, ts, pino_phase)
+    else
+        error("pino_phase should be EquationSolving or OperatorLearning")
+    end
 
     # Optimization Algo for Training Strategies
     opt_algo = Optimization.AutoZygote()
@@ -282,5 +333,5 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
     predict = phi(input_data_set, res.u)
-    PINOsolution(predict, res, phi)
+    PINOsolution(predict, res, phi, input_data_set)
 end
