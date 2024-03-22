@@ -113,7 +113,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
         targetacceptancerate = 0.8),
     Integratorkwargs = (Integrator = Leapfrog,),
     autodiff = false, progress = false, verbose = false)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
         phystd, dataset, physdt, MCMCkwargs,

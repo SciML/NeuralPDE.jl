@@ -15,7 +15,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 ## Positional Arguments
 
 * `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`. 
-          `Flux.Chain` will be converted to `Lux` using `Lux.transform`.
+          `Flux.Chain` will be converted to `Lux` using `adapt(FromFluxAdaptor(false, false), chain)`.
 * `opt`: The optimizer to train the neural network.
 * `init_params`: The initial parameter of the neural network. By default, this is `nothing` 
                  which thus uses the random initialization provided by the neural network library.
@@ -90,7 +90,7 @@ end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
                autodiff = false, batch = false, param_estim = false, additional_loss = nothing, kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
     NNODE(chain, opt, init_params, autodiff, batch, strategy, param_estim, additional_loss, kwargs)
 end
 
