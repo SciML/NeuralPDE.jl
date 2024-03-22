@@ -243,9 +243,9 @@ end
                 Lux.Dense(n, n, Lux.σ),
                 Lux.Dense(n, 3)
             )
-    opt = OptimizationOptimJL.LBFGS(linesearch = BackTracking())
+    opt = OptimizationOptimJL.BFGS(linesearch = BackTracking())
     alg = NNODE(luxchain, opt, strategy = GridTraining(0.01), param_estim = true, additional_loss = additional_loss)
-    sol = solve(prob, alg, verbose = false, abstol = 1e-8, maxiters = 5000, saveat = t_)
+    sol = solve(prob, alg, verbose = false, abstol = 1e-8, maxiters = 1000, saveat = t_)
     @test sol.k.u.p≈true_p atol=1e-2
     @test reduce(hcat, sol.u)≈u_ atol=1e-2
 end
