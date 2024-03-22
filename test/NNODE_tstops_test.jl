@@ -31,46 +31,55 @@ points = 3
 dx = 1.0
 
 @testset "GridTraining" begin
+    println("GridTraining")
     @testset "Without added points" begin
+        println("Without added points")
         # (difference between solutions should be high)
         alg = NNODE(chain, opt, autodiff = false, strategy = GridTraining(dx))
-        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
+        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters, saveat = saveat)
         @test abs(mean(sol) - mean(true_sol)) > threshold
     end
     @testset "With added points" begin
+        println("With added points")
         # (difference between solutions should be low)
         alg = NNODE(chain, opt, autodiff = false, strategy = GridTraining(dx))
-        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
+        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
         @test abs(mean(sol) - mean(true_sol)) < threshold
     end
 end
 
 @testset "WeightedIntervalTraining" begin
+    println("WeightedIntervalTraining")
     @testset "Without added points" begin
+        println("Without added points")
         # (difference between solutions should be high)
         alg = NNODE(chain, opt, autodiff = false, strategy = WeightedIntervalTraining(weights, points))
-        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
+        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters, saveat = saveat)
         @test abs(mean(sol) - mean(true_sol)) > threshold
     end
     @testset "With added points" begin
+        println("With added points")
         # (difference between solutions should be low)
         alg = NNODE(chain, opt, autodiff = false, strategy = WeightedIntervalTraining(weights, points))
-        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
+        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
         @test abs(mean(sol) - mean(true_sol)) < threshold
     end
 end
 
 @testset "StochasticTraining" begin
+    println("StochasticTraining")
     @testset "Without added points" begin
+        println("Without added points")
         # (difference between solutions should be high)
         alg = NNODE(chain, opt, autodiff = false, strategy = StochasticTraining(points))
-        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat)
+        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters, saveat = saveat)
         @test abs(mean(sol) - mean(true_sol)) > threshold
     end
     @testset "With added points" begin
+        println("With added points")
         # (difference between solutions should be low)
         alg = NNODE(chain, opt, autodiff = false, strategy = StochasticTraining(points))
-        sol = solve(prob_oop, alg, verbose=true, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
+        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
         @test abs(mean(sol) - mean(true_sol)) < threshold
     end
 end

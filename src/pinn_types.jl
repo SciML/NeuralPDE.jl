@@ -48,7 +48,7 @@ methodology.
 * `chain`: a vector of Lux/Flux chains with a d-dimensional input and a
            1-dimensional output corresponding to each of the dependent variables. Note that this
            specification respects the order of the dependent variables as specified in the PDESystem.
-           Flux chains will be converted to Lux internally using `Lux.transform`.
+           Flux chains will be converted to Lux internally using `adapt(FromFluxAdaptor(false, false), chain)`.
 * `strategy`: determines which training strategy will be used. See the Training Strategy
               documentation for more details.
 
@@ -107,7 +107,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
         if multioutput
             !all(i -> i isa Lux.AbstractExplicitLayer, chain) && (chain = Lux.transform.(chain))
         else
-            !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+            !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
         end
         if phi === nothing
             if multioutput
@@ -243,7 +243,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
         if multioutput
             !all(i -> i isa Lux.AbstractExplicitLayer, chain) && (chain = Lux.transform.(chain))
         else
-            !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+            !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
         end
         if phi === nothing
             if multioutput

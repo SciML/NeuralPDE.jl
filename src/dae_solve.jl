@@ -42,7 +42,7 @@ end
 
 function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
     NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
 end
 
