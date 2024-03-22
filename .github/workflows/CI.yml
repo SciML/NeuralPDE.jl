@@ -26,6 +26,7 @@ jobs:
           - Logging
           - Forward
           - DGM
+          - ODEPINO
         version:
           - "1"
     steps:
