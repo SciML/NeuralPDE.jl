@@ -448,8 +448,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     progress = false, verbose = false,
     estim_collocate = false)
 
-    !(chain isa Lux.AbstractExplicitLayer) &&
-        (chain = adapt(FromFluxAdaptor(false, false), chain))
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
         throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
