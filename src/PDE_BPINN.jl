@@ -394,7 +394,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             datafree_colloc_loss_functions[i],
             nothing;
             train_sets_pde = colloc_train_sets[i],
-            train_sets_bc = nothing)
+            train_sets_bc = nothing)[1]
                               for i in eachindex(datafree_colloc_loss_functions)]
 
         function L2_loss2(θ, allstd)
@@ -402,7 +402,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
             # first vector of losses,from tuple -> pde losses, first[1] pde loss
             pde_loglikelihoods = [sum([pde_loss_function(θ, stdpdesnew[i])
-                                       for (i, pde_loss_function) in enumerate(pde_loss_functions[1])])
+                                       for (i, pde_loss_function) in enumerate(pde_loss_functions)])
                                   for pde_loss_functions in pde_loss_function_points]
 
             # bc_loglikelihoods = [sum([bc_loss_function(θ, stdpdesnew[i]) for (i, bc_loss_function) in enumerate(pde_loss_function_points[1])]) for pde_loss_function_points in pde_loss_functions]

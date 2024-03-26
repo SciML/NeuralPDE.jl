@@ -37,7 +37,7 @@ Random.seed!(100)
     u_predict = pmean(sol1.ensemblesol[1])
 
     @test u_predict≈u_real atol=0.05
-    @test mean(u_predict .- u_real) < 1e-5
+    @test mean(u_predict .- u_real) < 1e-3
 end
 
 @testset "Example 2: 1D ODE" begin

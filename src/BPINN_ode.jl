@@ -100,6 +100,8 @@ struct BNNODE{C, K, IT <: NamedTuple,
     init_params::I
     Adaptorkwargs::A
     Integratorkwargs::IT
+    numensemble::Int64
+    estim_collocate::Bool
     autodiff::Bool
     progress::Bool
     verbose::Bool
@@ -112,6 +114,8 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
         Metric = DiagEuclideanMetric,
         targetacceptancerate = 0.8),
     Integratorkwargs = (Integrator = Leapfrog,),
+    numensemble = floor(Int, alg.draw_samples / 3),
+    estim_collocate = false,
     autodiff = false, progress = false, verbose = false)
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     BNNODE(chain, Kernel, strategy,
@@ -119,6 +123,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
         phystd, dataset, physdt, MCMCkwargs,
         nchains, init_params,
         Adaptorkwargs, Integratorkwargs,
+        numensemble, estim_collocate,
         autodiff, progress, verbose)
 end
 
@@ -177,13 +182,12 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
     reltol = 1.0f-3,
     verbose = false,
     saveat = 1 / 50.0,
-    maxiters = nothing,
-    numensemble = floor(Int, alg.draw_samples / 3),
-    estim_collocate = false)
+    maxiters = nothing)
+
     @unpack chain, l2std, phystd, param, priorsNNw, Kernel, strategy,
     draw_samples, dataset, init_params,
     nchains, physdt, Adaptorkwargs, Integratorkwargs,
-    MCMCkwargs, autodiff, progress, verbose = alg
+    MCMCkwargs, numensemble, estim_collocate, autodiff, progress, verbose = alg
 
     # ahmc_bayesian_pinn_ode needs param=[] for easier vcat operation for full vector of parameters
     param = param === nothing ? [] : param
