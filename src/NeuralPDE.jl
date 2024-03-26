@@ -89,6 +89,7 @@ include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 
 include("dgm.jl")
+include("collocated_estim.jl")
 
 export NNODE, NNDAE
 export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
