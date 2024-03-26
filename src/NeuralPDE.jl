@@ -65,6 +65,7 @@ export NNODE, NNDAE,
     AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
     MiniMaxAdaptiveLoss, LogOptions,
     ahmc_bayesian_pinn_ode, BNNODE, ahmc_bayesian_pinn_pde, vector_to_parameters,
-    BPINNsolution, BayesianPINN
+    BPINNsolution, BayesianPINN,
+    DeepGalerkin
 
 end # module

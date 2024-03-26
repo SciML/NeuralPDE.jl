@@ -1,15 +1,15 @@
-name: CI
+name: Downgrade
 on:
   pull_request:
     branches:
       - master
     paths-ignore:
-      - "docs/**"
+      - 'docs/**'
   push:
     branches:
       - master
     paths-ignore:
-      - "docs/**"
+      - 'docs/**'
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -43,6 +43,9 @@ jobs:
             ${{ runner.os }}-test-${{ env.cache-name }}-
             ${{ runner.os }}-test-
             ${{ runner.os }}-
+      - uses: julia-actions/julia-downgrade-compat@v1
+        with:
+          skip: LinearAlgebra, Pkg, Random, Test
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         env:

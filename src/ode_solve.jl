@@ -15,7 +15,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 ## Positional Arguments
 
 * `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`. 
-          `Flux.Chain` will be converted to `Lux` using `Lux.transform`.
+          `Flux.Chain` will be converted to `Lux` using `adapt(FromFluxAdaptor(false, false), chain)`.
 * `opt`: The optimizer to train the neural network.
 * `init_params`: The initial parameter of the neural network. By default, this is `nothing` 
                  which thus uses the random initialization provided by the neural network library.
@@ -27,11 +27,10 @@ of the physics-informed neural network which is used as a solver for a standard 
               the PDE operators. The reverse mode of the loss function is always
               automatic differentiation (via Zygote), this is only for the derivative
               in the loss function (the derivative with respect to time).
-* `batch`: The batch size to use for the internal quadrature. Defaults to `0`, which
-           means the application of the neural network is done at individual time points one
-           at a time. `batch>0` means the neural network is applied at a row vector of values
-           `t` simultaneously, i.e. it's the batch size for the neural network evaluations.
-           This requires a neural network compatible with batched data.
+* `batch`: The batch size for the loss computation. Defaults to `true`, means the neural network is applied at a row vector of values
+           `t` simultaneously, i.e. it's the batch size for the neural network evaluations. This requires a neural network compatible with batched data. 
+           `false` means which means the application of the neural network is done at individual time points one at a time. 
+           This is not applicable to `QuadratureTraining` where `batch` is passed in the `strategy` which is the number of points it can parallelly compute the integrand.
 * `param_estim`: Boolean to indicate whether parameters of the differential equations are learnt along with parameters of the neural network.
 * `strategy`: The training strategy used to choose the points for the evaluations.
               Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
@@ -88,8 +87,8 @@ struct NNODE{C, O, P, B, PE, K, AL <: Union{Nothing, Function},
 end
 function NNODE(chain, opt, init_params = nothing;
                strategy = nothing,
-               autodiff = false, batch = nothing, param_estim = false, additional_loss = nothing, kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+               autodiff = false, batch = true, param_estim = false, additional_loss = nothing, kwargs...)
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
     NNODE(chain, opt, init_params, autodiff, batch, strategy, param_estim, additional_loss, kwargs)
 end
 
@@ -111,11 +110,7 @@ end
 
 function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
-    if init_params === nothing
-        init_params = ComponentArrays.ComponentArray(θ)
-    else
-        init_params = ComponentArrays.ComponentArray(init_params)
-    end
+    isnothing(init_params) && (init_params = θ)
     ODEPhi(chain, t, u0, st), init_params
 end
 
@@ -182,7 +177,7 @@ function ode_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool)
 end
 
 """
-    inner_loss(phi, f, autodiff, t, θ, p)
+    inner_loss(phi, f, autodiff, t, θ, p, param_estim)
 
 Simple L2 inner loss at a time `t` with parameters `θ` of the neural network.
 """
@@ -220,7 +215,7 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
 end
 
 """
-    generate_loss(strategy, phi, f, autodiff, tspan, p, batch)
+    generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
 
 Representation of the loss function, parametric on the training strategy `strategy`.
 """
@@ -229,14 +224,13 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
 
     integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim)) for t in ts]
-    @assert batch == 0 # not implemented
 
     function loss(θ, _)
-        intprob = IntegralProblem(integrand, tspan[1], tspan[2], θ)
-        sol = solve(intprob, QuadGKJL(); abstol = strategy.abstol, reltol = strategy.reltol)
+        intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
+        intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
+        sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol, reltol = strategy.reltol, maxiters = strategy.maxiters)
         sol.u
     end
-
     return loss
 end
 
@@ -395,16 +389,7 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         alg.strategy
     end
 
-    batch = if alg.batch === nothing
-        if strategy isa QuadratureTraining
-            strategy.batch
-        else
-            true
-        end
-    else
-        alg.batch
-    end
-
+    batch = alg.batch
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
     additional_loss = alg.additional_loss
     (param_estim && isnothing(additional_loss)) && throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))

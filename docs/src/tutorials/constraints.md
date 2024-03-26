@@ -21,9 +21,9 @@ p(-2.2) = p(2.2) = 0
 with Physics-Informed Neural Networks.
 
 ```@example fokkerplank
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
 using Integrals, Cubature
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 # the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x
 @variables p(..)
@@ -78,15 +78,13 @@ aprox_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 cb_ = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-    println("additional_loss: ", norm_loss_function(phi, p, nothing))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
+    println("additional_loss: ", norm_loss_function(phi, p.u, nothing))
     return false
 end
 
-res = Optimization.solve(prob, LBFGS(), callback = cb_, maxiters = 400)
-prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, BFGS(), callback = cb_, maxiters = 2000)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()), callback = cb_, maxiters = 600)
 ```
 
 And some analysis:
@@ -103,5 +101,3 @@ u_predict = [first(phi(x, res.u)) for x in xs]
 plot(xs, u_real, label = "analytic")
 plot!(xs, u_predict, label = "predict")
 ```
-
-![fp](https://user-images.githubusercontent.com/12683885/129405830-3d00c24e-adf1-443b-aa36-6af0e5305821.png)
