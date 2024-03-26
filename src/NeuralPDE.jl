@@ -30,6 +30,7 @@ using DomainSets: Domain, ClosedInterval, AbstractInterval, leftendpoint, righte
 using SciMLBase: @add_kwonly, parameterless_type
 using UnPack: @unpack
 import ChainRulesCore, Lux, ComponentArrays
+using Lux: FromFluxAdaptor
 using ChainRulesCore: @non_differentiable
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
@@ -51,6 +52,7 @@ include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
+include("dgm.jl")
 include("collocated_estim.jl")
 
 export NNODE, NNDAE,

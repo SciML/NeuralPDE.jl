@@ -86,14 +86,6 @@ end
 vector_to_parameters(ps_new::AbstractVector, ps::AbstractVector) = ps_new
 
 function LogDensityProblems.logdensity(Tar::LogTargetDensity, θ)
-    # if Tar.estim_collocate
-    #     return physloglikelihood(Tar, θ) / length(Tar.dataset[1]) + priorweights(Tar, θ) +
-    #            L2LossData(Tar, θ) / length(Tar.dataset[1]) +
-    #            L2loss2(Tar, θ) / length(Tar.dataset[1])
-    # else
-    #     return physloglikelihood(Tar, θ) / length(Tar.dataset[1]) + priorweights(Tar, θ) +
-    #            L2LossData(Tar, θ) / length(Tar.dataset[1])
-    # end
     if Tar.estim_collocate
         return physloglikelihood(Tar, θ) + priorweights(Tar, θ) + L2LossData(Tar, θ) +
                L2loss2(Tar, θ)
@@ -455,7 +447,9 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     MCMCkwargs = (n_leapfrog = 30,),
     progress = false, verbose = false,
     estim_collocate = false)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+
+    !(chain isa Lux.AbstractExplicitLayer) &&
+        (chain = adapt(FromFluxAdaptor(false, false), chain))
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
         throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
@@ -464,7 +458,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     strategy = strategy == GridTraining ? strategy(physdt) : strategy
 
     if dataset != [nothing] &&
-       (length(dataset) < 2 || !(typeof(dataset) <: Vector{<:Vector{<:AbstractFloat}}))
+       (length(dataset) < 2 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
         throw(error("Invalid dataset. dataset would be timeseries (x̂,t) where type: Vector{Vector{AbstractFloat}"))
     end
 
@@ -475,7 +469,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     end
 
     if chain isa Lux.AbstractExplicitLayer
-        # Flux-vector, Lux-Named Tuple
+        # Lux-Named Tuple
         initial_nnθ, recon, st = generate_Tar(chain, init_params)
     else
         error("Only Lux.AbstractExplicitLayer Neural networks are supported")
@@ -553,7 +547,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
             MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
             Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
             samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
-                progress = progress, verbose = verbose, drop_warmup = true)
+                progress = progress, verbose = verbose)
 
             samplesc[i] = samples
             statsc[i] = stats
@@ -571,7 +565,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
         MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
         Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
         samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
-            adaptor; progress = progress, verbose = verbose, drop_warmup = true)
+            adaptor; progress = progress, verbose = verbose)
 
         @info("Sampling Complete.")
         @info("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, samples[end]))
