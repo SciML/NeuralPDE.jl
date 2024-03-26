@@ -53,6 +53,7 @@ include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 include("dgm.jl")
+include("collocated_estim.jl")
 
 export NNODE, NNDAE,
     PhysicsInformedNN, discretize,
