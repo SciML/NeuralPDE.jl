@@ -317,7 +317,7 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
                 ChainRulesCore.@ignore_derivatives @views(cord_[integrating_var_id]) .= x
                 return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)
             end
-            prob_ = IntegralProblem(integrand_, lb, ub, θ)
+            prob_ = IntegralProblem(integrand_, (lb, ub), θ)
             sol = solve(prob_, CubatureJLh(), reltol = 1e-3, abstol = 1e-3)[1]
 
             return sol

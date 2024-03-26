@@ -72,7 +72,7 @@ callback = function (p, l)
 end
 
 opt = OptimizationOptimJL.BFGS()
-res = Optimization.solve(prob, opt; callback = callback, maxiters = 2000)
+res = Optimization.solve(prob, opt; maxiters = 2000)
 phi = discretization.phi
 ```
 
@@ -93,5 +93,3 @@ p2 = plot(xs, u_real, title = "analytic")
 p3 = plot(xs, diff_u, title = "error")
 plot(p1, p2, p3)
 ```
-
-![plotks](https://user-images.githubusercontent.com/12683885/91025889-a6253200-e602-11ea-8f61-8e6e2488e025.png)

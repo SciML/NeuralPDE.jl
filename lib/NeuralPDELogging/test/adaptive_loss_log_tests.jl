@@ -88,7 +88,7 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
     res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.03); maxiters = maxiters,
                              callback = callback)
 
-    u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
+    u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
                         (length(xs), length(ys)))
     diff_u = abs.(u_predict .- u_real)
     total_diff = sum(diff_u)

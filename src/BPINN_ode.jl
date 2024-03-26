@@ -117,7 +117,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
     numensemble = floor(Int, alg.draw_samples / 3),
     estim_collocate = false,
     autodiff = false, progress = false, verbose = false)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
         phystd, dataset, physdt, MCMCkwargs,
@@ -128,18 +128,19 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
 end
 
 """
-Contains ahmc_bayesian_pinn_ode() function output:
-1> a MCMCChains.jl chain object for sampled parameters
-2> The set of all sampled parameters
-3> statistics like: 
-    > n_steps
-    > acceptance_rate
-    > log_density
-    > hamiltonian_energy
-    > hamiltonian_energy_error 
-    > numerical_error
-    > step_size
-    > nom_step_size
+Contains `ahmc_bayesian_pinn_ode()` function output:
+
+1. A MCMCChains.jl chain object for sampled parameters.
+2. The set of all sampled parameters.
+3. Statistics like:
+    - n_steps
+    - acceptance_rate
+    - log_density
+    - hamiltonian_energy
+    - hamiltonian_energy_error
+    - numerical_error
+    - step_size
+    - nom_step_size
 """
 struct BPINNstats{MC, S, ST}
     mcmc_chain::MC
@@ -148,10 +149,11 @@ struct BPINNstats{MC, S, ST}
 end
 
 """
-BPINN Solution contains the original solution from AdvancedHMC.jl sampling(BPINNstats contains fields related to that)
-> ensemblesol is the Probabilistic Estimate(MonteCarloMeasurements.jl Particles type) of Ensemble solution from All Neural Network's(made using all sampled parameters) output's.
-> estimated_nn_params - Probabilistic Estimate of NN params from sampled weights,biases
-> estimated_de_params - Probabilistic Estimate of DE params from sampled unknown DE parameters
+BPINN Solution contains the original solution from AdvancedHMC.jl sampling (BPINNstats contains fields related to that).
+
+1. `ensemblesol` is the Probabilistic Estimate (MonteCarloMeasurements.jl Particles type) of Ensemble solution from All Neural Network's (made using all sampled parameters) output's.
+2. `estimated_nn_params` - Probabilistic Estimate of NN params from sampled weights, biases.
+3. `estimated_de_params` - Probabilistic Estimate of DE params from sampled unknown DE parameters.
 """
 struct BPINNsolution{O <: BPINNstats, E, NP, OP, P}
     original::O

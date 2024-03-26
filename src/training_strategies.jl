@@ -183,7 +183,6 @@ end
 function get_loss_function(loss_function, bound, eltypeθ, strategy::StochasticTraining;
                            τ = nothing)
     points = strategy.points
-
     loss = (θ) -> begin
         sets = generate_random_points(points, bound, eltypeθ)
         sets_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), sets)
@@ -326,7 +325,7 @@ struct QuadratureTraining{Q <: SciMLBase.AbstractIntegralAlgorithm, T} <:
     batch::Int64
 end
 
-function QuadratureTraining(; quadrature_alg = CubatureJLh(), reltol = 1e-6, abstol = 1e-3,
+function QuadratureTraining(; quadrature_alg = CubatureJLh(), reltol = 1e-3, abstol = 1e-6,
                             maxiters = 1_000, batch = 100)
     QuadratureTraining(quadrature_alg, reltol, abstol, maxiters, batch)
 end
@@ -360,16 +359,12 @@ function get_loss_function(loss_function, lb, ub, eltypeθ, strategy::Quadrature
     end
     area = eltypeθ(prod(abs.(ub .- lb)))
     f_ = (lb, ub, loss_, θ) -> begin
-        # last_x = 1
         function integrand(x, θ)
-            # last_x = x
-            # mean(abs2,loss_(x,θ), dims=2)
-            # size_x = fill(size(x)[2],(1,1))
             x = adapt(parameterless_type(ComponentArrays.getdata(θ)), x)
             sum(abs2, view(loss_(x, θ), 1, :), dims = 2) #./ size_x
         end
         integral_function = BatchIntegralFunction(integrand, max_batch = strategy.batch)
-        prob = IntegralProblem(integral_function, lb, ub, θ)
+        prob = IntegralProblem(integral_function, (lb, ub), θ)
         solve(prob,
               strategy.quadrature_alg,
               reltol = strategy.reltol,

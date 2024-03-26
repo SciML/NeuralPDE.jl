@@ -28,11 +28,12 @@ function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strateg
                       for d in domains])
     args = get_argument(eqs, dict_indvars, dict_depvars)
 
-    bounds = map(args) do pd
+    bounds = first(map(args) do pd
         span = map(p -> get(dict_span, p, p), pd)
         map(s -> adapt(eltypeθ, s), span)
-    end
-    bounds
+    end)
+    bounds = [getindex.(bounds, 1), getindex.(bounds, 2)]
+    return bounds
 end
 
 function get_loss_function_(loss, init_params, pde_system, strategy::StochasticTraining)
@@ -46,8 +47,7 @@ function get_loss_function_(loss, init_params, pde_system, strategy::StochasticT
                                                             pde_system.depvars)
 
     eltypeθ = eltype(init_params)
-    bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)[1]
-
+    bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
     get_loss_function(loss, bound, eltypeθ, strategy)
 end
 
@@ -62,8 +62,7 @@ function get_loss_function_(loss, init_params, pde_system, strategy::QuasiRandom
                                                             pde_system.depvars)
 
     eltypeθ = eltype(init_params)
-    bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)[1]
-
+    bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
     get_loss_function(loss, bound, eltypeθ, strategy)
 end
 
