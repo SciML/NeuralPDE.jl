@@ -163,30 +163,3 @@ function calderivatives(prob, dataset)
 
     return gradients
 end
-
-function calculate_derivatives(dataset)
-
-    # u = dataset[1]
-    # u1 = dataset[2]
-    # t = dataset[end]
-    # # control points
-    # n = Int(floor(length(t) / 10))
-    # # spline for datasetvalues(solution) 
-    # # interp = BSplineApprox(u, t, 4, 10, :Uniform, :Uniform)
-    # interp = CubicSpline(u, t)
-    # interp1 = CubicSpline(u1, t)
-    # # derivatives interpolation
-    # dx = t[2] - t[1]
-    # time = collect(t[1]:dx:t[end])
-    # smoothu = [interp(i) for i in time]
-    # smoothu1 = [interp1(i) for i in time]
-    # # derivative of the spline (must match function derivative) 
-    # û = tvdiff(smoothu, 20, 0.5, dx = dx, ε = 1)
-    # û1 = tvdiff(smoothu1, 20, 0.5, dx = dx, ε = 1)
-    # # tvdiff(smoothu, 100, 0.035, dx = dx, ε = 1)
-    # # FDM
-    # # û1 = diff(u) / dx
-    # # dataset[1] and smoothu are almost equal(rounding errors)
-    # return [û, û1] 
-
-end
