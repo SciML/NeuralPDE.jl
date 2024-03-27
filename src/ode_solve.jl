@@ -326,6 +326,7 @@ function (f::NNODEInterpolation)(t::Vector, idxs, ::Type{Val{0}}, p, continuity)
 end
 
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
+SciMLBase.allowscomplex(::NNODE) = true
 
 function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         alg::NNODE,
