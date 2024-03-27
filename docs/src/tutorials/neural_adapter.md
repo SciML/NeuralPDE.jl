@@ -69,7 +69,7 @@ function loss(cord, θ)
     ch2 .- phi(cord, res.u)
 end
 
-strategy = NeuralPDE.QuadratureTraining(; reltol = 1e-6)
+strategy = NeuralPDE.QuadratureTraining(; reltol = 1e-6, abstol = 1e-3)
 
 prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy)
 res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
@@ -173,7 +173,7 @@ for i in 1:count_decomp
     bcs_ = create_bcs(domains_[1].domain, phi_bound)
     @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
     push!(pde_system_map, pde_system_)
-    strategy = NeuralPDE.QuadratureTraining(; reltol = 1e-6)
+    strategy = NeuralPDE.QuadratureTraining(; reltol = 1e-6, abstol = 1e-3)
 
     discretization = NeuralPDE.PhysicsInformedNN(chains[i], strategy;
                                                  init_params = init_params[i])
@@ -243,10 +243,10 @@ callback = function (p, l)
 end
 
 prob_ = NeuralPDE.neural_adapter(losses, init_params2, pde_system_map,
-                                 NeuralPDE.QuadratureTraining(; reltol = 1e-6))
+                                 NeuralPDE.QuadratureTraining(; reltol = 1e-6, abstol = 1e-3))
 res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
 prob_ = NeuralPDE.neural_adapter(losses, res_.u, pde_system_map,
-                                 NeuralPDE.QuadratureTraining(; reltol = 1e-6))
+                                 NeuralPDE.QuadratureTraining(; reltol = 1e-6, abstol = 1e-3))
 res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
 
 phi_ = PhysicsInformedNN(chain2, strategy; init_params = res_.u).phi
