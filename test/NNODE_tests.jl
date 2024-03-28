@@ -5,6 +5,7 @@ import Lux, OptimizationOptimisers, OptimizationOptimJL
 using Flux
 using LineSearches
 
+rng = Random.default_rng()
 Random.seed!(100)
 
 @testset "Scalar" begin
@@ -248,6 +249,45 @@ end
     sol = solve(prob, alg, verbose = false, abstol = 1e-8, maxiters = 1000, saveat = t_)
     @test sol.k.u.p≈true_p atol=1e-2
     @test reduce(hcat, sol.u)≈u_ atol=1e-2
+end
+
+@testset "Complex Numbers" begin
+    function bloch_equations(u, p, t)
+        Ω, Δ, Γ = p
+        γ = Γ / 2
+        ρ₁₁, ρ₂₂, ρ₁₂, ρ₂₁ = u
+        d̢ρ = [im * Ω * (ρ₁₂ - ρ₂₁) + Γ * ρ₂₂;
+                -im * Ω * (ρ₁₂ - ρ₂₁) - Γ * ρ₂₂;
+                -(γ + im * Δ) * ρ₁₂ - im * Ω * (ρ₂₂ - ρ₁₁);
+                conj(-(γ + im * Δ) * ρ₁₂ - im * Ω * (ρ₂₂ - ρ₁₁))]
+        return d̢ρ
+    end
+    
+    u0 = zeros(ComplexF64, 4)
+    u0[1] = 1
+    time_span = (0.0, 2.0)   
+    parameters = [2.0, 0.0, 1.0]
+    
+    problem = ODEProblem(bloch_equations, u0, time_span, parameters)
+    
+    chain = Lux.Chain(
+                Lux.Dense(1, 16, tanh; init_weight = (rng, a...) -> Lux.kaiming_normal(rng, ComplexF64, a...)) , 
+                Lux.Dense(16, 4; init_weight = (rng, a...) -> Lux.kaiming_normal(rng, ComplexF64, a...))
+            )
+    ps, st = Lux.setup(rng, chain)
+    
+    opt = OptimizationOptimisers.Adam(0.01)
+    ground_truth  = solve(problem, Tsit5(), saveat = 0.01)
+    strategies = [StochasticTraining(500), GridTraining(0.01), WeightedIntervalTraining([0.1, 0.4, 0.4, 0.1], 500)]
+
+    @testset "$(nameof(typeof(strategy)))" for strategy in strategies
+        alg = NNODE(chain, opt, ps; strategy)
+        sol = solve(problem, alg, verbose = false, maxiters = 5000, saveat = 0.01)
+        @test sol.u ≈ ground_truth.u rtol=1e-1
+    end
+
+    alg = NNODE(chain, opt, ps; strategy = QuadratureTraining())
+    @test_throws ErrorException solve(problem, alg, verbose = false, maxiters = 5000, saveat = 0.01)
 end
 
 @testset "Translating from Flux" begin
