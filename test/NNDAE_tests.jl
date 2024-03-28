@@ -62,3 +62,40 @@ end
 
     @test ground_sol(0:(1 / 100):(pi / 2))≈sol atol=0.4
 end
+
+@testset "WeightedIntervalTraining" begin
+        println("WeightedIntervalTraining")
+        function f(out, du, u, p, t)
+            out[1] = du[1] -u[2]
+            out[2] = u[1] + u[2]
+        end
+        p = []
+        u0 = [1.0/4.0, 1.0/4.0]
+        tspan = (0.0, 100000.0)
+        differential_vars = [true, false]
+        prob = DAEProblem(f, u0, tspan, differential_vars = differential_vars)
+        true_out_1(t) = exp(-t)/4.0
+        true_out_2(t) = -1.0 * exp(-t)/4.0
+        func = Lux.σ
+        N = 12
+        chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, func),
+                        Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
+        opt = OptimizationOptimisers.Adam(0.01)
+        weights = [0.7, 0.2, 0.1]
+        points = 200
+        alg = NNDAE(chain, opt,init_params = nothing;  autodiff = false,
+                            strategy = NeuralPDE.WeightedIntervalTraining(weights, points))
+        sol = solve(prob, alg, verbose = false, maxiters = 5000, saveat = 0.01)
+        #@test abs(mean(sol) - mean(true_sol)) < 0.2
+        """Sol would have 2 outputs: one for u[1] and the other for u[2] so just I need compute the total error for all t in tspan """
+        total_error = 0
+        for i in tspan:
+            total_error  = total_error + abs(sol(i) - [true_out_1(i) true_out_2(i)])
+        end
+        if total_error < 0.01:
+            print("It works!")
+        else:
+            print("Total error exceeds bound")
+        end
+    end
+
