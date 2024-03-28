@@ -82,7 +82,7 @@ Symbolics = "5"
 Test = "1"
 UnPack = "1"
 Zygote = "0.6"
-MethodOfLines = "0.10.7"
+MethodOfLines = "0.11"
 julia = "1.6"
 
 [extras]
