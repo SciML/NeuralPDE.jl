@@ -16,8 +16,8 @@ We start by defining the problem,
 
 ```@example param_estim
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, OrdinaryDiffEq,
-      Plots
-import ModelingToolkit: Interval, infimum, supremum
+      Plots, LineSearches
+using ModelingToolkit: Interval, infimum, supremum
 @parameters t, σ_, β, ρ
 @variables x(..), y(..), z(..)
 Dt = Differential(t)
@@ -90,30 +90,11 @@ function additional_loss(phi, θ, p)
 end
 ```
 
-#### Note about Flux
-
-If Flux neural network is used, then the subsetting must be computed manually as `θ`
-is simply a vector. This looks like:
-
-```julia
-init_params = [Flux.destructure(c)[1] for c in [chain1, chain2, chain3]]
-acum = [0; accumulate(+, length.(init_params))]
-sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
-(u_, t_) = data
-len = length(data[2])
-
-function additional_loss(phi, θ, p)
-    return sum(sum(abs2, phi[i](t_, θ[sep[i]]) .- u_[[i], :]) / len for i in 1:1:3)
-end
-```
-
-#### Back to our originally scheduled programming
-
 Then finally defining and optimizing using the `PhysicsInformedNN` interface.
 
 ```@example param_estim
 discretization = NeuralPDE.PhysicsInformedNN([chain1, chain2, chain3],
-                                             NeuralPDE.QuadratureTraining(), param_estim = true,
+                                             NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200), param_estim = true,
                                              additional_loss = additional_loss)
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β],
                               defaults = Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
@@ -122,7 +103,7 @@ callback = function (p, l)
     println("Current loss is: $l")
     return false
 end
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 5000)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 1000)
 p_ = res.u[(end - 2):end] # p_ = [9.93, 28.002, 2.667]
 ```
 
@@ -135,5 +116,3 @@ u_predict = [[discretization.phi[i]([t], minimizers[i])[1] for t in ts] for i in
 plot(sol)
 plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
 ```
-
-![Plot_Lorenz](https://user-images.githubusercontent.com/12683885/110944192-2ae05f00-834d-11eb-910b-f5c06d22ec8a.png)

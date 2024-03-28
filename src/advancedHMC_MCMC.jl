@@ -344,8 +344,8 @@ end
 
 !!! warn
 
-    Note that ahmc_bayesian_pinn_ode() only supports ODEs which are written in the out-of-place form, i.e.
-    `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place, then the ahmc_bayesian_pinn_ode()
+    Note that `ahmc_bayesian_pinn_ode()` only supports ODEs which are written in the out-of-place form, i.e.
+    `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place, then the `ahmc_bayesian_pinn_ode()`
     will exit with an error.
 
 ## Example
@@ -439,7 +439,7 @@ function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
     MCMCkwargs = (n_leapfrog = 30,),
     progress = false, verbose = false)
 
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
         throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))

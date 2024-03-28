@@ -7,6 +7,7 @@ Deep Galerkin Method is a meshless deep learning algorithm to solve high dimensi
 In the following example, we demonstrate computing the loss function using Quasi-Random Sampling, a sampling technique that uses quasi-Monte Carlo sampling to generate low discrepancy random sequences in high dimensional spaces.
 
 ### Algorithm
+
 The authors of DGM suggest a network composed of LSTM-type layers that works well for most of the parabolic and quasi-parabolic PDEs.
 
 ```math
@@ -27,15 +28,15 @@ where $\vec{x}$ is the concatenated vector of $(t, x)$ and $L$ is the number of 
 
 Let's try to solve the following Burger's equation using Deep Galerkin Method for $\alpha = 0.05$ and compare our solution with the finite difference method:
 
-$$
+```math
 \partial_t u(t, x) + u(t, x) \partial_x u(t, x) - \alpha \partial_{xx} u(t, x) = 0 
-$$
+```
 
 defined over
 
-$$ 
+```math
 t \in [0, 1], x \in [-1, 1] 
-$$
+```
 
 with boundary conditions
 ```math
@@ -47,13 +48,15 @@ u(t, 1) & = 0
 ```
 
 ### Copy- Pasteable code
+
 ```@example dgm
 using NeuralPDE
 using ModelingToolkit, Optimization, OptimizationOptimisers
-import Lux: tanh, identity
+using Lux: tanh, identity
 using Distributions
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 using MethodOfLines, OrdinaryDiffEq
+using Plots
 
 @parameters x t
 @variables u(..)
@@ -100,16 +103,17 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.1); callback = callback, maxiters = 100)
+res = Optimization.solve(prob, Adam(0.1); maxiters = 100)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 500)
+res = Optimization.solve(prob, Adam(0.01); maxiters = 500)
 phi = discretization.phi
 
 u_predict= [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
 
 diff_u = abs.(u_predict .- u_MOL)
+tgrid = 0.0:0.01:1.0
+xgrid = -1.0:0.01:1.0
 
-using Plots
 p1 = plot(tgrid, xgrid, u_MOL', linetype = :contourf, title = "FD");
 p2 = plot(tgrid, xgrid, u_predict', linetype = :contourf, title = "predict");
 p3 = plot(tgrid, xgrid, diff_u', linetype = :contourf, title = "error");
