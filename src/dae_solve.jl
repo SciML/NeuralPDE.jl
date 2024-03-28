@@ -73,15 +73,15 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
 end
 
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p, differential_vars::AbstractVector)
-integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars))
-integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars)) for t in ts] WHAT IS TS HERE?? - DO WE NEED THIS LINE
-function loss(θ, _)
-    intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
-    intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
-    sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol, reltol = strategy.reltol, maxiters = strategy.maxiters)
-    sol.u
-end
-return loss
+    integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars))
+    integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars)) for t in ts] WHAT IS TS HERE?? - DO WE NEED THIS LINE
+    function loss(θ, _)
+        intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
+        intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
+        sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol, reltol = strategy.reltol, maxiters = strategy.maxiters)
+        sol.u
+    end
+    return loss
 end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
