@@ -114,7 +114,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
         Metric = DiagEuclideanMetric,
         targetacceptancerate = 0.8),
     Integratorkwargs = (Integrator = Leapfrog,),
-    numensemble = floor(Int, alg.draw_samples / 3),
+    numensemble = floor(Int, draw_samples / 3),
     estim_collocate = false,
     autodiff = false, progress = false, verbose = false)
     !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
