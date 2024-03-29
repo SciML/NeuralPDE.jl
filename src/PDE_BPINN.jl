@@ -153,7 +153,7 @@ function setparameters(Tar::PDELogTargetDensity, θ)
     # which we use for mapping current ahmc sampled vector of parameters onto NNs
     i = 0
     Luxparams = [vector_to_parameters(ps_new[((i += length(ps[x])) - length(ps[x]) + 1):i],
-        ps[x]) for x in names]
+                     ps[x]) for x in names]
 
     a = ComponentArrays.ComponentArray(NamedTuple{Tar.names}(i for i in Luxparams))
 
@@ -197,7 +197,9 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
 
     if Tar.extraparams > 0
         for i in eachindex(Φ)
-            sumt += logpdf(MvNormal(Φ[i](dataset[i][:, 2:end]',
+            sumt += logpdf(
+                MvNormal(
+                    Φ[i](dataset[i][:, 2:end]',
                         vector_to_parameters(θ[1:(end - Tar.extraparams)],
                             init_params)[Tar.names[i]])[1,
                         :],
@@ -220,8 +222,10 @@ function priorlogpdf(Tar::PDELogTargetDensity, θ)
     nnwparams = allparams[1]
 
     if Tar.extraparams > 0
-        invlogpdf = sum(logpdf(invpriors[length(θ) - i + 1], θ[i])
-                        for i in (length(θ) - Tar.extraparams + 1):length(θ); init = 0.0)
+        invlogpdf = sum(
+            logpdf(invpriors[length(θ) - i + 1], θ[i])
+            for i in (length(θ) - Tar.extraparams + 1):length(θ);
+            init = 0.0)
 
         return (invlogpdf
                 +
@@ -246,7 +250,7 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
 
     span = [[ranges[indvar] for indvar in input] for input in inputs]
     timepoints = [hcat(vec(map(points -> collect(points),
-        Iterators.product(span[i]...)))...)
+                      Iterators.product(span[i]...)))...)
                   for i in eachindex(phi)]
 
     # order of range's domains must match chain's inputs and dep_vars
@@ -275,7 +279,7 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
 
     # convert to format directly usable by lux
     estimatedLuxparams = [vector_to_parameters(estimnnparams[Luxparams[i]],
-        initial_nnθ[names[i]]) for i in eachindex(phi)]
+                              initial_nnθ[names[i]]) for i in eachindex(phi)]
 
     # infer predictions(preds) each row - NN, each col - ith sample
     samplesn = reduce(hcat, samples)
@@ -283,8 +287,8 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
     for j in eachindex(phi)
         push!(preds,
             [phi[j](timepoints[j],
-                vector_to_parameters(samplesn[:, i][Luxparams[j]],
-                    initial_nnθ[names[j]])) for i in 1:numensemble])
+                 vector_to_parameters(samplesn[:, i][Luxparams[j]],
+                     initial_nnθ[names[j]])) for i in 1:numensemble])
     end
 
     # note here no of samples referse to numensemble and points is the no of points in each dep_vars discretization
@@ -529,7 +533,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             mcmc_chain = MCMCChains.Chains(matrix_samples')
 
             fullsolution = BPINNstats(mcmc_chain, samples, stats)
-            ensemblecurves, estimnnparams, estimated_params, timepoints = inference(samples,
+            ensemblecurves, estimnnparams, estimated_params, timepoints = inference(
+                samples,
                 pinnrep,
                 saveat,
                 numensemble,

@@ -1,4 +1,4 @@
-struct dgm_lstm_layer{F1, F2} <:Lux.AbstractExplicitLayer
+struct dgm_lstm_layer{F1, F2} <: Lux.AbstractExplicitLayer
     activation1::Function
     activation2::Function
     in_dims::Int
@@ -8,11 +8,12 @@ struct dgm_lstm_layer{F1, F2} <:Lux.AbstractExplicitLayer
 end
 
 function dgm_lstm_layer(in_dims::Int, out_dims::Int, activation1, activation2;
-    init_weight = Lux.glorot_uniform, init_bias = Lux.zeros32)
-    return dgm_lstm_layer{typeof(init_weight), typeof(init_bias)}(activation1, activation2, in_dims, out_dims, init_weight, init_bias);
+        init_weight = Lux.glorot_uniform, init_bias = Lux.zeros32)
+    return dgm_lstm_layer{typeof(init_weight), typeof(init_bias)}(
+        activation1, activation2, in_dims, out_dims, init_weight, init_bias)
 end
 
-import Lux:initialparameters, initialstates, parameterlength, statelength
+import Lux: initialparameters, initialstates, parameterlength, statelength
 
 function Lux.initialparameters(rng::AbstractRNG, l::dgm_lstm_layer)
     return (
@@ -24,75 +25,79 @@ function Lux.initialparameters(rng::AbstractRNG, l::dgm_lstm_layer)
         Wg = l.init_weight(rng, l.out_dims, l.out_dims),
         Wr = l.init_weight(rng, l.out_dims, l.out_dims),
         Wh = l.init_weight(rng, l.out_dims, l.out_dims),
-        bz = l.init_bias(rng, l.out_dims) ,
-        bg = l.init_bias(rng, l.out_dims) ,
-        br = l.init_bias(rng, l.out_dims) ,
-        bh = l.init_bias(rng, l.out_dims) 
+        bz = l.init_bias(rng, l.out_dims),
+        bg = l.init_bias(rng, l.out_dims),
+        br = l.init_bias(rng, l.out_dims),
+        bh = l.init_bias(rng, l.out_dims)
     )
 end
 
 Lux.initialstates(::AbstractRNG, ::dgm_lstm_layer) = NamedTuple()
-Lux.parameterlength(l::dgm_lstm_layer) = 4* (l.out_dims * l.in_dims + l.out_dims * l.out_dims + l.out_dims)
+function Lux.parameterlength(l::dgm_lstm_layer)
+    4 * (l.out_dims * l.in_dims + l.out_dims * l.out_dims + l.out_dims)
+end
 Lux.statelength(l::dgm_lstm_layer) = 0
 
-function (layer::dgm_lstm_layer)(S::AbstractVecOrMat{T}, x::AbstractVecOrMat{T}, ps, st::NamedTuple) where T
+function (layer::dgm_lstm_layer)(
+        S::AbstractVecOrMat{T}, x::AbstractVecOrMat{T}, ps, st::NamedTuple) where {T}
     @unpack Uz, Ug, Ur, Uh, Wz, Wg, Wr, Wh, bz, bg, br, bh = ps
-    Z = layer.activation1.(Uz*x+ Wz*S .+ bz);
-    G = layer.activation1.(Ug*x+ Wg*S .+ bg);
-    R = layer.activation1.(Ur*x+ Wr*S .+ br);
-    H = layer.activation2.(Uh*x+ Wh*(S.*R) .+ bh);
-    S_new = (1. .- G) .* H .+ Z .* S;
-    return S_new, st;
+    Z = layer.activation1.(Uz * x + Wz * S .+ bz)
+    G = layer.activation1.(Ug * x + Wg * S .+ bg)
+    R = layer.activation1.(Ur * x + Wr * S .+ br)
+    H = layer.activation2.(Uh * x + Wh * (S .* R) .+ bh)
+    S_new = (1.0 .- G) .* H .+ Z .* S
+    return S_new, st
 end
 
-struct dgm_lstm_block{L <:NamedTuple} <: Lux.AbstractExplicitContainerLayer{(:layers,)} 
+struct dgm_lstm_block{L <: NamedTuple} <: Lux.AbstractExplicitContainerLayer{(:layers,)}
     layers::L
 end
 
 function dgm_lstm_block(l...)
-    names = ntuple(i-> Symbol("dgm_lstm_$i"), length(l));
-    layers = NamedTuple{names}(l);
-    return dgm_lstm_block(layers);
+    names = ntuple(i -> Symbol("dgm_lstm_$i"), length(l))
+    layers = NamedTuple{names}(l)
+    return dgm_lstm_block(layers)
 end
 
 dgm_lstm_block(xs::AbstractVector) = dgm_lstm_block(xs...)
 
-@generated function apply_dgm_lstm_block(layers::NamedTuple{fields}, S::AbstractVecOrMat, x::AbstractVecOrMat, ps, st::NamedTuple) where fields
-    N = length(fields);
+@generated function apply_dgm_lstm_block(layers::NamedTuple{fields}, S::AbstractVecOrMat,
+        x::AbstractVecOrMat, ps, st::NamedTuple) where {fields}
+    N = length(fields)
     S_symbols = vcat([:S], [gensym() for _ in 1:N])
-    x_symbol = :x;
+    x_symbol = :x
     st_symbols = [gensym() for _ in 1:N]
     calls = [:(($(S_symbols[i + 1]), $(st_symbols[i])) = layers.$(fields[i])(
-        $(S_symbols[i]), $(x_symbol), ps.$(fields[i]), st.$(fields[i]))) for i in 1:N]
+                 $(S_symbols[i]), $(x_symbol), ps.$(fields[i]), st.$(fields[i])))
+             for i in 1:N]
     push!(calls, :(st = NamedTuple{$fields}((($(Tuple(st_symbols)...),)))))
     push!(calls, :(return $(S_symbols[N + 1]), st))
     return Expr(:block, calls...)
 end
 
-function (L::dgm_lstm_block)(S::AbstractVecOrMat{T}, x::AbstractVecOrMat{T}, ps, st::NamedTuple) where T
+function (L::dgm_lstm_block)(
+        S::AbstractVecOrMat{T}, x::AbstractVecOrMat{T}, ps, st::NamedTuple) where {T}
     return apply_dgm_lstm_block(L.layers, S, x, ps, st)
 end
 
 struct dgm{S, L, E} <: Lux.AbstractExplicitContainerLayer{(:d_start, :lstm, :d_end)}
     d_start::S
-    lstm:: L
-    d_end:: E
+    lstm::L
+    d_end::E
 end
 
-function (l::dgm)(x::AbstractVecOrMat{T}, ps, st::NamedTuple) where T
+function (l::dgm)(x::AbstractVecOrMat{T}, ps, st::NamedTuple) where {T}
+    S, st_start = l.d_start(x, ps.d_start, st.d_start)
+    S, st_lstm = l.lstm(S, x, ps.lstm, st.lstm)
+    y, st_end = l.d_end(S, ps.d_end, st.d_end)
 
-    S, st_start = l.d_start(x, ps.d_start, st.d_start);
-    S, st_lstm = l.lstm(S, x, ps.lstm, st.lstm);
-    y, st_end = l.d_end(S, ps.d_end, st.d_end);
-    
     st_new = (
-        d_start= st_start,
-        lstm= st_lstm,
-        d_end= st_end
+        d_start = st_start,
+        lstm = st_lstm,
+        d_end = st_end
     )
-    return y, st_new;
-
-end 
+    return y, st_new
+end
 
 """
     dgm(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1, activation2, out_activation= Lux.identity)
@@ -122,10 +127,12 @@ f(t, x, \\theta) &= \\sigma_{out}(W S^{L+1} + b).
 - `out_activation`: activation fn used for the output of the network.
 - `kwargs`: additional arguments to be splatted into [`PhysicsInformedNN`](@ref).
 """
-function dgm(in_dims::Int, out_dims::Int, modes::Int, layers::Int, activation1, activation2, out_activation)
+function dgm(in_dims::Int, out_dims::Int, modes::Int, layers::Int,
+        activation1, activation2, out_activation)
     dgm(
         Lux.Dense(in_dims, modes, activation1),
-        dgm_lstm_block([dgm_lstm_layer(in_dims, modes, activation1, activation2) for i in 1:layers]),
+        dgm_lstm_block([dgm_lstm_layer(in_dims, modes, activation1, activation2)
+                        for i in 1:layers]),
         Lux.Dense(modes, out_dims, out_activation)
     )
 end
@@ -157,7 +164,10 @@ discretization = DeepGalerkin(2, 1, 30, 3, tanh, tanh, identity, QuasiRandomTrai
 Sirignano, Justin and Spiliopoulos, Konstantinos, "DGM: A deep learning algorithm for solving partial differential equations",
 Journal of Computational Physics, Volume 375, 2018, Pages 1339-1364, doi: https://doi.org/10.1016/j.jcp.2018.08.029
 """
-function DeepGalerkin(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function, activation2::Function, out_activation::Function, strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)
+function DeepGalerkin(
+        in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function,
+        activation2::Function, out_activation::Function,
+        strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)
     PhysicsInformedNN(
         dgm(in_dims, out_dims, modes, L, activation1, activation2, out_activation),
         strategy; kwargs...

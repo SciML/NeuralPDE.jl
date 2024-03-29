@@ -72,7 +72,7 @@ Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neura
 ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.
 """
 struct NNODE{C, O, P, B, PE, K, AL <: Union{Nothing, Function},
-    S <: Union{Nothing, AbstractTrainingStrategy},
+    S <: Union{Nothing, AbstractTrainingStrategy}
 } <:
        NeuralPDEAlgorithm
     chain::C
@@ -86,10 +86,12 @@ struct NNODE{C, O, P, B, PE, K, AL <: Union{Nothing, Function},
     kwargs::K
 end
 function NNODE(chain, opt, init_params = nothing;
-               strategy = nothing,
-               autodiff = false, batch = true, param_estim = false, additional_loss = nothing, kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
-    NNODE(chain, opt, init_params, autodiff, batch, strategy, param_estim, additional_loss, kwargs)
+        strategy = nothing,
+        autodiff = false, batch = true, param_estim = false, additional_loss = nothing, kwargs...)
+    !(chain isa Lux.AbstractExplicitLayer) &&
+        (chain = adapt(FromFluxAdaptor(false, false), chain))
+    NNODE(chain, opt, init_params, autodiff, batch,
+        strategy, param_estim, additional_loss, kwargs)
 end
 
 """
@@ -116,7 +118,8 @@ end
 
 function (f::ODEPhi{C, T, U})(t::Number,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
+    y, st = f.chain(
+        adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 + (t - f.t0) * first(y)
 end
@@ -124,13 +127,15 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
     # Batch via data as row vectors
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
+    y, st = f.chain(
+        adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
 end
 
 function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractExplicitLayer, T, U}
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
+    y, st = f.chain(
+        adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t .- f.t0) .* y
 end
@@ -138,7 +143,8 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U}
     # Batch via data as row vectors
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
+    y, st = f.chain(
+        adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
 end
@@ -223,18 +229,22 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
         batch, param_estim::Bool)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
 
-    integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim)) for t in ts]
+    function integrand(ts, θ)
+        [abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim)) for t in ts]
+    end
 
     function loss(θ, _)
         intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
         intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
-        sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol, reltol = strategy.reltol, maxiters = strategy.maxiters)
+        sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol,
+            reltol = strategy.reltol, maxiters = strategy.maxiters)
         sol.u
     end
     return loss
 end
 
-function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool)
+function generate_loss(
+        strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool)
     ts = tspan[1]:(strategy.dx):tspan[2]
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     function loss(θ, _)
@@ -262,7 +272,8 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
     return loss
 end
 
-function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
+function generate_loss(
+        strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
         batch, param_estim::Bool)
     autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT = tspan[1]
@@ -326,6 +337,7 @@ function (f::NNODEInterpolation)(t::Vector, idxs, ::Type{Val{0}}, p, continuity)
 end
 
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
+SciMLBase.allowscomplex(::NNODE) = true
 
 function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         alg::NNODE,
@@ -355,16 +367,24 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     #train points generation
     init_params = alg.init_params
 
-    !(chain isa Lux.AbstractExplicitLayer) && error("Only Lux.AbstractExplicitLayer neural networks are supported")
+    !(chain isa Lux.AbstractExplicitLayer) &&
+        error("Only Lux.AbstractExplicitLayer neural networks are supported")
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
+    ((eltype(eltype(init_params).types[1]) <: Complex ||
+      eltype(eltype(init_params).types[2]) <: Complex) &&
+     alg.strategy isa QuadratureTraining) &&
+        error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
 
     init_params = if alg.param_estim
-        ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params), p = prob.p)
+        ComponentArrays.ComponentArray(;
+            depvar = ComponentArrays.ComponentArray(init_params), p = prob.p)
     else
-        ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params))
+        ComponentArrays.ComponentArray(;
+            depvar = ComponentArrays.ComponentArray(init_params))
     end
 
-    isinplace(prob) && throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
+    isinplace(prob) &&
+        throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
         phi(t0, init_params)
@@ -392,7 +412,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     batch = alg.batch
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
     additional_loss = alg.additional_loss
-    (param_estim && isnothing(additional_loss)) && throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
+    (param_estim && isnothing(additional_loss)) &&
+        throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
 
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
@@ -402,7 +423,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         end
         if !(tstops isa Nothing)
             num_tstops_points = length(tstops)
-            tstops_loss_func = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch, param_estim)
+            tstops_loss_func = evaluate_tstops_loss(
+                phi, f, autodiff, tstops, p, batch, param_estim)
             tstops_loss = tstops_loss_func(θ, phi)
             if strategy isa GridTraining
                 num_original_points = length(tspan[1]:(strategy.dx):tspan[2])

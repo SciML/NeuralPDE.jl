@@ -29,11 +29,12 @@ using ComponentArrays
     domains = pde_system.domain
     dx = strategy_.dx
     eltypeθ = eltype(sym_prob.flat_init_params)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = NeuralPDE.get_vars(pde_system.ivs,
-                                                                                         pde_system.dvs)
+    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = NeuralPDE.get_vars(
+        pde_system.ivs,
+        pde_system.dvs)
 
     train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
-                                        dict_indvars, dict_depvars)
+        dict_indvars, dict_depvars)
 
     pde_train_sets, bcs_train_sets = train_sets
     pde_train_sets = NeuralPDE.adapt(eltypeθ, pde_train_sets)[1]
@@ -47,8 +48,8 @@ end
 
 @testset "derivatives" begin
     chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ), Lux.Dense(16, 16, Lux.σ),
-                       Lux.Dense(16, 1))
-    init_params = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray .|> Float64 
+        Lux.Dense(16, 1))
+    init_params = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray .|> Float64
 
     eltypeθ = eltype(init_params)
     phi = NeuralPDE.Phi(chain)
@@ -99,7 +100,7 @@ end
     chain([1], init_params, st)
     strategy_ = GridTraining(0.1)
     discretization = PhysicsInformedNN(chain, strategy_;
-                                                 init_params = init_params)
+        init_params = init_params)
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
     sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
     prob = discretize(pde_system, discretization)
@@ -118,7 +119,7 @@ end
     chain([1], init_params, st)
 
     discretization = PhysicsInformedNN(chain, strategy_;
-                                        init_params = init_params)
+        init_params = init_params)
     @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
     sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
     prob = discretize(pde_system, discretization)

@@ -27,8 +27,8 @@ Random.seed!(110)
 
     hidden = 10
     chain = Lux.Chain(Lux.Dense(1, hidden, Lux.tanh),
-                    Lux.Dense(hidden, hidden, Lux.tanh),
-                    Lux.Dense(hidden, 1))
+        Lux.Dense(hidden, hidden, Lux.tanh),
+        Lux.Dense(hidden, 1))
 
     strategy = GridTraining(0.01)
     discretization = PhysicsInformedNN(chain, strategy)
@@ -53,9 +53,9 @@ end
 
     hidden = 20
     chain = Lux.Chain(Lux.Dense(1, hidden, Lux.sin),
-                    Lux.Dense(hidden, hidden, Lux.sin),
-                    Lux.Dense(hidden, hidden, Lux.sin),
-                    Lux.Dense(hidden, 1))
+        Lux.Dense(hidden, hidden, Lux.sin),
+        Lux.Dense(hidden, hidden, Lux.sin),
+        Lux.Dense(hidden, 1))
 
     strategy = GridTraining(0.01)
     discretization = PhysicsInformedNN(chain, strategy)
@@ -84,9 +84,9 @@ end
     domain = [x ∈ Interval(x0, x_end), y ∈ Interval(y0, y_end)]
     hidden = 25
     chain = Lux.Chain(Lux.Dense(2, hidden, Lux.tanh),
-                    Lux.Dense(hidden, hidden, Lux.tanh),
-                    Lux.Dense(hidden, hidden, Lux.tanh),
-                    Lux.Dense(hidden, 1))
+        Lux.Dense(hidden, hidden, Lux.tanh),
+        Lux.Dense(hidden, hidden, Lux.tanh),
+        Lux.Dense(hidden, 1))
 
     strategy = GridTraining(d)
     discretization = PhysicsInformedNN(chain, strategy)
@@ -103,7 +103,7 @@ end
     xs = collect(x0:0.1:x_end)
     ys = collect(y0:0.1:y_end)
     u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-                        (length(xs), length(ys)))
+        (length(xs), length(ys)))
     u_real = reshape([func(x, y) for x in xs for y in ys], (length(xs), length(ys)))
     diff_u = abs.(u_predict .- u_real)
     @test u_predict≈u_real rtol=0.05

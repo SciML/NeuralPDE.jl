@@ -7,9 +7,9 @@ end
 p = [1.5, 1.0, 3.0, 1.0]
 u0 = [1.0, 1.0]
 tspan = (0.0, 3.0)
-points1 = [rand() for i=1:280]
-points2 = [rand() + 1 for i=1:80]
-points3 = [rand() + 2 for i=1:40]
+points1 = [rand() for i in 1:280]
+points2 = [rand() + 1 for i in 1:80]
+points3 = [rand() + 2 for i in 1:40]
 addedPoints = vcat(points1, points2, points3)
 
 saveat = 0.01
@@ -20,7 +20,7 @@ true_sol = solve(prob_oop, Tsit5(), saveat = saveat)
 func = Lux.σ
 N = 12
 chain = Lux.Chain(Lux.Dense(1, N, func), Lux.Dense(N, N, func), Lux.Dense(N, N, func),
-                    Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
+    Lux.Dense(N, N, func), Lux.Dense(N, length(u0)))
 
 opt = OptimizationOptimisers.Adam(0.01)
 threshold = 0.2
@@ -43,7 +43,8 @@ dx = 1.0
         println("With added points")
         # (difference between solutions should be low)
         alg = NNODE(chain, opt, autodiff = false, strategy = GridTraining(dx))
-        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
+        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters,
+            saveat = saveat, tstops = addedPoints)
         @test abs(mean(sol) - mean(true_sol)) < threshold
     end
 end
@@ -53,15 +54,18 @@ end
     @testset "Without added points" begin
         println("Without added points")
         # (difference between solutions should be high)
-        alg = NNODE(chain, opt, autodiff = false, strategy = WeightedIntervalTraining(weights, points))
+        alg = NNODE(chain, opt, autodiff = false,
+            strategy = WeightedIntervalTraining(weights, points))
         sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters, saveat = saveat)
         @test abs(mean(sol) - mean(true_sol)) > threshold
     end
     @testset "With added points" begin
         println("With added points")
         # (difference between solutions should be low)
-        alg = NNODE(chain, opt, autodiff = false, strategy = WeightedIntervalTraining(weights, points))
-        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
+        alg = NNODE(chain, opt, autodiff = false,
+            strategy = WeightedIntervalTraining(weights, points))
+        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters,
+            saveat = saveat, tstops = addedPoints)
         @test abs(mean(sol) - mean(true_sol)) < threshold
     end
 end
@@ -79,7 +83,8 @@ end
         println("With added points")
         # (difference between solutions should be low)
         alg = NNODE(chain, opt, autodiff = false, strategy = StochasticTraining(points))
-        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters, saveat = saveat, tstops = addedPoints)
+        sol = solve(prob_oop, alg, verbose = false, maxiters = maxiters,
+            saveat = saveat, tstops = addedPoints)
         @test abs(mean(sol) - mean(true_sol)) < threshold
     end
 end

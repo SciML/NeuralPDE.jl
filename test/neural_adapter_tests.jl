@@ -29,16 +29,16 @@ end
     domains = [x ∈ Interval(0.0, 1.0),
         y ∈ Interval(0.0, 1.0)]
     quadrature_strategy = NeuralPDE.QuadratureTraining(reltol = 1e-3, abstol = 1e-6,
-                                                    maxiters = 50, batch = 100)
+        maxiters = 50, batch = 100)
     inner = 8
     af = Lux.tanh
     chain1 = Lux.Chain(Lux.Dense(2, inner, af),
-                Lux.Dense(inner, inner, af),
-                Lux.Dense(inner, 1))
-    init_params = Lux.setup(Random.default_rng(), chain1)[1] |> ComponentArray .|> Float64 
+        Lux.Dense(inner, inner, af),
+        Lux.Dense(inner, 1))
+    init_params = Lux.setup(Random.default_rng(), chain1)[1] |> ComponentArray .|> Float64
     discretization = NeuralPDE.PhysicsInformedNN(chain1,
-                                                quadrature_strategy;
-                                                init_params = init_params)
+        quadrature_strategy;
+        init_params = init_params)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = NeuralPDE.discretize(pde_system, discretization)
@@ -49,9 +49,9 @@ end
     inner_ = 8
     af = Lux.tanh
     chain2 = Lux.Chain(Lux.Dense(2, inner_, af),
-                    Lux.Dense(inner_, inner_, af),
-                    Lux.Dense(inner_, inner_, af),
-                    Lux.Dense(inner_, 1))
+        Lux.Dense(inner_, inner_, af),
+        Lux.Dense(inner_, inner_, af),
+        Lux.Dense(inner_, 1))
     initp, st = Lux.setup(Random.default_rng(), chain2)
     init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
 
@@ -61,7 +61,8 @@ end
     end
 
     grid_strategy = GridTraining(0.05)
-    quadrature_strategy = QuadratureTraining(reltol = 1e-3, abstol = 1e-6, maxiters = 50, batch = 100)
+    quadrature_strategy = QuadratureTraining(
+        reltol = 1e-3, abstol = 1e-6, maxiters = 50, batch = 100)
     stochastic_strategy = StochasticTraining(1000)
     quasirandom_strategy = QuasiRandomTraining(1000, minibatch = 200, resampling = true)
 
@@ -80,7 +81,8 @@ end
     end
 
     reses_ = [reses_1; reses_2]
-    discretizations = map(res_ -> PhysicsInformedNN(chain2, grid_strategy; init_params = res_.u), reses_)
+    discretizations = map(
+        res_ -> PhysicsInformedNN(chain2, grid_strategy; init_params = res_.u), reses_)
     probs = map(discret -> discretize(pde_system, discret), discretizations)
     phis = map(discret -> discret.phi, discretizations)
 
@@ -88,15 +90,15 @@ end
     analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
     u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-                        (length(xs), length(ys)))
+        (length(xs), length(ys)))
 
     u_predicts = map(zip(phis, reses_)) do (phi_, res_)
         reshape([first(phi_([x, y], res_.u)) for x in xs for y in ys],
-                (length(xs), length(ys)))
+            (length(xs), length(ys)))
     end
 
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-                    (length(xs), length(ys)))
+        (length(xs), length(ys)))
 
     @test u_predict≈u_real rtol=1e-1
     @test u_predicts[1]≈u_real rtol=1e-1
@@ -128,9 +130,11 @@ end
     af = Lux.tanh
     inner = 12
     chains = [Lux.Chain(Lux.Dense(2, inner, af), Lux.Dense(inner, inner, af),
-                        Lux.Dense(inner, 1)) for _ in 1:count_decomp]
-    init_params = map(c -> Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
-                                                                            c)[1])), chains)
+                  Lux.Dense(inner, 1)) for _ in 1:count_decomp]
+    init_params = map(
+        c -> Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+            c)[1])),
+        chains)
 
     xs_ = infimum(x_domain):(1 / count_decomp):supremum(x_domain)
     xs_domain = [(xs_[i], xs_[i + 1]) for i in 1:(length(xs_) - 1)]
@@ -172,9 +176,11 @@ end
         @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
         push!(pde_system_map, pde_system_)
         strategy = GridTraining([0.1 / count_decomp, 0.1])
-        discretization = PhysicsInformedNN(chains[i], strategy;  init_params = init_params[i])
+        discretization = PhysicsInformedNN(
+            chains[i], strategy; init_params = init_params[i])
         prob = discretize(pde_system_, discretization)
-        @time res_ = Optimization.solve(prob, OptimizationOptimisers.Adam(5e-3), maxiters = 10000)
+        @time res_ = Optimization.solve(
+            prob, OptimizationOptimisers.Adam(5e-3), maxiters = 10000)
         @show res_.objective
         phi = discretization.phi
         push!(reses, res_)
@@ -213,10 +219,10 @@ end
     inner_ = 18
     af = Lux.tanh
     chain2 = Lux.Chain(Lux.Dense(2, inner_, af),
-                    Lux.Dense(inner_, inner_, af),
-                    Lux.Dense(inner_, inner_, af),
-                    Lux.Dense(inner_, inner_, af),
-                    Lux.Dense(inner_, 1))
+        Lux.Dense(inner_, inner_, af),
+        Lux.Dense(inner_, inner_, af),
+        Lux.Dense(inner_, inner_, af),
+        Lux.Dense(inner_, 1))
 
     initp, st = Lux.setup(Random.default_rng(), chain2)
     init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
@@ -231,20 +237,20 @@ end
     end
 
     prob_ = NeuralPDE.neural_adapter(losses, init_params2, pde_system_map,
-                                    GridTraining([0.1 / count_decomp, 0.1]))
+        GridTraining([0.1 / count_decomp, 0.1]))
     @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
     @show res_.objective
     prob_ = NeuralPDE.neural_adapter(losses, res_.u, pde_system_map,
-                                    GridTraining(0.01))
+        GridTraining(0.01))
     @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
     @show res_.objective
 
     phi_ = NeuralPDE.Phi(chain2)
     xs, ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
     u_predict_ = reshape([first(phi_([x, y], res_.u)) for x in xs for y in ys],
-                        (length(xs), length(ys)))
+        (length(xs), length(ys)))
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-                    (length(xs), length(ys)))
+        (length(xs), length(ys)))
     diff_u_ = u_predict_ .- u_real
 
     @test u_predict≈u_real rtol=1e-1
