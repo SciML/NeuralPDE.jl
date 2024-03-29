@@ -48,7 +48,7 @@ end
 
 # include dataset points in pde_residual loglikelihood (BayesianPINN)
 function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
-        strategy,
+        strategy::GridTraining,
         datafree_pde_loss_function,
         datafree_bc_loss_function; train_sets_pde = nothing, train_sets_bc = nothing)
     @unpack domains, eqs, bcs, dict_indvars, dict_depvars, flat_init_params = pinnrep

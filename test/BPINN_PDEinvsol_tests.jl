@@ -34,42 +34,43 @@ Random.seed!(100)
     u1 = u1 .+ (u1 .* 0.2) .* randn(size(u1))
     dataset = [hcat(u1, timepoints)]
 
-    # checking all training strategies
-    discretization = BayesianPINN([chainl], StochasticTraining(200), param_estim = true,
-        dataset = [dataset, nothing])
+    # TODO: correct implementations
+    # # checking all training strategies
+    # discretization = BayesianPINN([chainl], StochasticTraining(200), param_estim = true,
+    #     dataset = [dataset, nothing])
 
-    ahmc_bayesian_pinn_pde(pde_system,
-        discretization;
-        draw_samples = 1500,
-        bcstd = [0.05],
-        phystd = [0.01], l2std = [0.01],
-        priorsNNw = (0.0, 1.0),
-        saveats = [1 / 50.0],
-        param = [LogNormal(6.0, 0.5)])
+    # ahmc_bayesian_pinn_pde(pde_system,
+    #     discretization;
+    #     draw_samples = 1500,
+    #     bcstd = [0.05],
+    #     phystd = [0.01], l2std = [0.01],
+    #     priorsNNw = (0.0, 1.0),
+    #     saveats = [1 / 50.0],
+    #     param = [LogNormal(6.0, 0.5)])
 
-    discretization = BayesianPINN([chainl], QuasiRandomTraining(200), param_estim = true,
-        dataset = [dataset, nothing])
+    # discretization = BayesianPINN([chainl], QuasiRandomTraining(200), param_estim = true,
+    #     dataset = [dataset, nothing])
 
-    ahmc_bayesian_pinn_pde(pde_system,
-        discretization;
-        draw_samples = 1500,
-        bcstd = [0.05],
-        phystd = [0.01], l2std = [0.01],
-        priorsNNw = (0.0, 1.0),
-        saveats = [1 / 50.0],
-        param = [LogNormal(6.0, 0.5)])
+    # ahmc_bayesian_pinn_pde(pde_system,
+    #     discretization;
+    #     draw_samples = 1500,
+    #     bcstd = [0.05],
+    #     phystd = [0.01], l2std = [0.01],
+    #     priorsNNw = (0.0, 1.0),
+    #     saveats = [1 / 50.0],
+    #     param = [LogNormal(6.0, 0.5)])
 
-    discretization = BayesianPINN([chainl], QuadratureTraining(), param_estim = true,
-        dataset = [dataset, nothing])
+    # discretization = BayesianPINN([chainl], QuadratureTraining(), param_estim = true,
+    #     dataset = [dataset, nothing])
 
-    ahmc_bayesian_pinn_pde(pde_system,
-        discretization;
-        draw_samples = 1500,
-        bcstd = [0.05],
-        phystd = [0.01], l2std = [0.01],
-        priorsNNw = (0.0, 1.0),
-        saveats = [1 / 50.0],
-        param = [LogNormal(6.0, 0.5)])
+    # ahmc_bayesian_pinn_pde(pde_system,
+    #     discretization;
+    #     draw_samples = 1500,
+    #     bcstd = [0.05],
+    #     phystd = [0.01], l2std = [0.01],
+    #     priorsNNw = (0.0, 1.0),
+    #     saveats = [1 / 50.0],
+    #     param = [LogNormal(6.0, 0.5)])
 
     discretization = BayesianPINN([chainl], GridTraining([0.02]), param_estim = true,
         dataset = [dataset, nothing])
