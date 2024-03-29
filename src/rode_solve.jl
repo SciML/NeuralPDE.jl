@@ -7,7 +7,7 @@ struct NNRODE{C, W, O, P, K} <: NeuralPDEAlgorithm
     kwargs::K
 end
 function NNRODE(chain, W, opt = Optim.BFGS(), init_params = nothing; autodiff = false,
-                kwargs...)
+        kwargs...)
     if init_params === nothing
         if chain isa Flux.Chain
             init_params, re = Flux.destructure(chain)
@@ -21,15 +21,15 @@ function NNRODE(chain, W, opt = Optim.BFGS(), init_params = nothing; autodiff = 
 end
 
 function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
-                          alg::NeuralPDEAlgorithm,
-                          args...;
-                          dt,
-                          timeseries_errors = true,
-                          save_everystep = true,
-                          adaptive = false,
-                          abstol = 1.0f-6,
-                          verbose = false,
-                          maxiters = 100)
+        alg::NeuralPDEAlgorithm,
+        args...;
+        dt,
+        timeseries_errors = true,
+        save_everystep = true,
+        adaptive = false,
+        abstol = 1.0f-6,
+        verbose = false,
+        maxiters = 100)
     DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
 
     u0 = prob.u0
@@ -53,7 +53,7 @@ function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
             phi = (t, W, θ) -> u0 +
                                (t - tspan[1]) *
                                first(chain(adapt(DiffEqBase.parameterless_type(θ), [t, W]),
-                                           θ))
+                θ))
         else
             phi = (t, W, θ) -> u0 +
                                (t - tspan[1]) *
@@ -111,6 +111,6 @@ function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
     sol = DiffEqBase.build_solution(prob, alg, ts, u, W = W, calculate_error = false)
     DiffEqBase.has_analytic(prob.f) &&
         DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
-                                              dense_errors = false)
+            dense_errors = false)
     sol
 end #solve

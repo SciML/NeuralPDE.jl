@@ -22,4 +22,3 @@ SciMLBase.symbolic_discretize(::PDESystem, ::NeuralPDE.AbstractPINN)
 NeuralPDE.BPINNstats
 NeuralPDE.BPINNsolution
 ```
-

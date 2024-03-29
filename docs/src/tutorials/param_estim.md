@@ -36,11 +36,11 @@ And the neural networks as,
 input_ = length(domains)
 n = 8
 chain1 = Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, n, Lux.σ),
-                   Dense(n, 1))
+    Dense(n, 1))
 chain2 = Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, n, Lux.σ),
-                   Dense(n, 1))
+    Dense(n, 1))
 chain3 = Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, n, Lux.σ),
-                   Dense(n, 1))
+    Dense(n, 1))
 ```
 
 We will add another loss term based on the data that we have to optimize the parameters.
@@ -94,10 +94,10 @@ Then finally defining and optimizing using the `PhysicsInformedNN` interface.
 
 ```@example param_estim
 discretization = NeuralPDE.PhysicsInformedNN([chain1, chain2, chain3],
-                                             NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200), param_estim = true,
-                                             additional_loss = additional_loss)
+    NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200), param_estim = true,
+    additional_loss = additional_loss)
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β],
-                              defaults = Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
+    defaults = Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system, discretization)
 callback = function (p, l)
     println("Current loss is: $l")
