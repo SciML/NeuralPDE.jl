@@ -53,8 +53,8 @@ Random.seed!(100)
     @test mean(abs.(physsol1 .- meanscurve)) < 0.005
 
     #--------------------- solve() call 
-    @test mean(abs.(x̂1 .- sol1lux.ensemblesol[1])) < 0.05
-    @test mean(abs.(physsol0_1 .- sol1lux.ensemblesol[1])) < 0.05
+    @test mean(abs.(x̂1 .- pmean(sol1lux.ensemblesol[1]))) < 0.025
+    @test mean(abs.(physsol0_1 .- pmean(sol1lux.ensemblesol[1]))) < 0.025
 end
 
 @testset "Example 2 - with parameter estimation" begin
@@ -122,7 +122,7 @@ end
     @test abs(p - mean([fhsamples[i][23] for i in 2000:length(fhsamples)])) < abs(0.35 * p)
 
     #-------------------------- solve() call  
-    @test mean(abs.(physsol1_1 .- sol2lux.ensemblesol[1])) < 8e-2
+    @test mean(abs.(physsol1_1 .- pmean(sol2lux.ensemblesol[1]))) < 8e-2
 
     # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
     @test abs(p - sol2lux.estimated_de_params[1]) < abs(0.15 * p)
@@ -211,7 +211,7 @@ end
 
     #-------------------------- solve() call 
     # (lux chain)
-    @test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 0.15
+    @test mean(abs.(physsol2 .- pmean(sol3lux_pestim.ensemblesol[1]))) < 0.15
     # estimated parameters(lux chain)
     param1 = sol3lux_pestim.estimated_de_params[1]
     @test abs(param1 - p) < abs(0.45 * p)

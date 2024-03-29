@@ -216,8 +216,7 @@ sol1 = ahmc_bayesian_pinn_pde(pde_system,
     priorsNNw = (0.0, 1.0),
     saveats = [1 / 50.0],
     param = [LogNormal(6.0, 0.5)],
-    Dict_differentials = Dict_differentials,
-    progress = true)
+    Dict_differentials = Dict_differentials)
 
 sol2 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
@@ -226,8 +225,7 @@ sol2 = ahmc_bayesian_pinn_pde(pde_system,
     phystd = [0.01], l2std = [0.01],
     priorsNNw = (0.0, 1.0),
     saveats = [1 / 50.0],
-    param = [LogNormal(6.0, 0.5)],
-    progress = true)
+    param = [LogNormal(6.0, 0.5)])
 
 param = 2 * π
 ts = vec(sol1.timepoints[1])
