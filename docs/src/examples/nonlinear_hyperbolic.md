@@ -33,7 +33,8 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and
 We solve this with Neural:
 
 ```@example nonlinear_hyperbolic
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots, LineSearches
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots,
+      LineSearches
 using SpecialFunctions
 using Plots
 using ModelingToolkit: Interval, infimum, supremum
@@ -120,7 +121,6 @@ for i in 1:2
     push!(ps, plot(p1, p2, p3))
 end
 ```
-
 
 ```@example nonlinear_hyperbolic
 ps[1]

@@ -60,7 +60,7 @@ chain = Lux.Chain(Lux.Dense(1, 15, Lux.σ), Lux.Dense(15, 1))
 
 strategy_ = QuadratureTraining()
 discretization = PhysicsInformedNN(chain,
-                                   strategy_)
+    strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [t], [i(t)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 callback = function (p, l)

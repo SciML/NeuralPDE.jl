@@ -42,23 +42,20 @@ end
 
 function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
+    !(chain isa Lux.AbstractExplicitLayer) &&
+        (chain = adapt(FromFluxAdaptor(false, false), chain))
     NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
 end
 
-function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_vars::AbstractVector)
+function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool,
+        differential_vars::AbstractVector)
     if autodiff
         autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
     else
         dphi = (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
         batch_size = size(t)[1]
-
         reduce(vcat,
-            [if dv == true
-                dphi[[i], :]
-            else
-                zeros(1, batch_size)
-            end
+            [dv ? dphi[[i], :] : zeros(1, batch_size)
              for (i, dv) in enumerate(differential_vars)])
     end
 end
@@ -115,7 +112,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
 
     if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
         phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
-        init_params = ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params))
+        init_params = ComponentArrays.ComponentArray(;
+            depvar = ComponentArrays.ComponentArray(init_params))
     else
         error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
     end
@@ -188,4 +186,4 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
             dense_errors = false)
     sol
-end #solve
+end
