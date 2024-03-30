@@ -11,9 +11,9 @@ function bloch_equations(u, p, t)
     γ = Γ / 2
     ρ₁₁, ρ₂₂, ρ₁₂, ρ₂₁ = u
     d̢ρ = [im * Ω * (ρ₁₂ - ρ₂₁) + Γ * ρ₂₂;
-            -im * Ω * (ρ₁₂ - ρ₂₁) - Γ * ρ₂₂;
-            -(γ + im * Δ) * ρ₁₂ - im * Ω * (ρ₂₂ - ρ₁₁);
-            conj(-(γ + im * Δ) * ρ₁₂ - im * Ω * (ρ₂₂ - ρ₁₁))]
+           -im * Ω * (ρ₁₂ - ρ₂₁) - Γ * ρ₂₂;
+           -(γ + im * Δ) * ρ₁₂ - im * Ω * (ρ₂₂ - ρ₁₁);
+           conj(-(γ + im * Δ) * ρ₁₂ - im * Ω * (ρ₂₂ - ρ₁₁))]
     return d̢ρ
 end
 
@@ -25,13 +25,15 @@ parameters = [2.0, 0.0, 1.0]
 problem = ODEProblem(bloch_equations, u0, time_span, parameters)
 
 chain = Lux.Chain(
-            Lux.Dense(1, 16, tanh; init_weight = (rng, a...) -&gt; Lux.kaiming_normal(rng, ComplexF64, a...)) ,
-            Lux.Dense(16, 4; init_weight = (rng, a...) -&gt; Lux.kaiming_normal(rng, ComplexF64, a...))
-        )
+    Lux.Dense(1, 16, tanh;
+        init_weight = (rng, a...) -&gt; Lux.kaiming_normal(rng, ComplexF64, a...)),
+    Lux.Dense(
+        16, 4; init_weight = (rng, a...) -&gt; Lux.kaiming_normal(rng, ComplexF64, a...))
+)
 ps, st = Lux.setup(rng, chain)
 
 opt = OptimizationOptimisers.Adam(0.01)
-ground_truth  = solve(problem, Tsit5(), saveat = 0.01)
+ground_truth = solve(problem, Tsit5(), saveat = 0.01)
 alg = NNODE(chain, opt, ps; strategy = StochasticTraining(500))
 sol = solve(problem, alg, verbose = false, maxiters = 5000, saveat = 0.01)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
 Interpolation: Trained neural network interpolation
@@ -57,11 +59,11 @@ u: 201-element Vector{Vector{ComplexF64}}:
  [0.5425840523727646 - 0.0012154656106773578im, 0.45913907750320615 + 0.00198689706153925im, 0.012009165870573983 + 0.22463714233332194im, 0.010543704660740309 - 0.22428733074292276im]
  [0.5379165932831795 - 0.0012187704329401194im, 0.4639399770414401 + 0.0019438062390769472im, 0.011659535348847862 + 0.22566403560917755im, 0.010867248296903775 - 0.2252174570310937im]
  [0.5331961045071595 - 0.0012360888507462683im, 0.46880911175216905 + 0.0019076223407996917im, 0.011273723128786425 + 0.22656804536108444im, 0.0112260188746999 - 0.2260148547915828im]</code></pre><p>Now, lets plot the predictions.</p><p><code>u1</code>:</p><pre><code class="language-julia hljs">plot(sol.t, real.(reduce(hcat, sol.u)[1, :]));
-plot!(ground_truth.t, real.(reduce(hcat, ground_truth.u)[1, :]))</code></pre><img src="5554f686.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(sol.t, imag.(reduce(hcat, sol.u)[1, :]));
-plot!(ground_truth.t, imag.(reduce(hcat, ground_truth.u)[1, :]))</code></pre><img src="4f7a2360.svg" alt="Example block output"/><p><code>u2</code>:</p><pre><code class="language-julia hljs">plot(sol.t, real.(reduce(hcat, sol.u)[2, :]));
-plot!(ground_truth.t, real.(reduce(hcat, ground_truth.u)[2, :]))</code></pre><img src="087193f1.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(sol.t, imag.(reduce(hcat, sol.u)[2, :]));
-plot!(ground_truth.t, imag.(reduce(hcat, ground_truth.u)[2, :]))</code></pre><img src="7227325c.svg" alt="Example block output"/><p><code>u3</code>:</p><pre><code class="language-julia hljs">plot(sol.t, real.(reduce(hcat, sol.u)[3, :]));
-plot!(ground_truth.t, real.(reduce(hcat, ground_truth.u)[3, :]))</code></pre><img src="3c3ebebd.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(sol.t, imag.(reduce(hcat, sol.u)[3, :]));
-plot!(ground_truth.t, imag.(reduce(hcat, ground_truth.u)[3, :]))</code></pre><img src="c1963f71.svg" alt="Example block output"/><p><code>u4</code>:</p><pre><code class="language-julia hljs">plot(sol.t, real.(reduce(hcat, sol.u)[4, :]));
-plot!(ground_truth.t, real.(reduce(hcat, ground_truth.u)[4, :]))</code></pre><img src="6cf7a207.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(sol.t, imag.(reduce(hcat, sol.u)[4, :]));
-plot!(ground_truth.t, imag.(reduce(hcat, ground_truth.u)[4, :]))</code></pre><img src="a5bf61a6.svg" alt="Example block output"/><p>We can see it is able to learn the real parts of <code>u1</code>, <code>u2</code> and imaginary parts of <code>u3</code>, <code>u4</code>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nonlinear_hyperbolic/">« Nonlinear hyperbolic system of PDEs</a><a class="docs-footer-nextpage" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Friday 29 March 2024 23:05">Friday 29 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(ground_truth.t, real.(reduce(hcat, ground_truth.u)[1, :]))</code></pre><img src="791ce2a2.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(sol.t, imag.(reduce(hcat, sol.u)[1, :]));
+plot!(ground_truth.t, imag.(reduce(hcat, ground_truth.u)[1, :]))</code></pre><img src="d6837b6f.svg" alt="Example block output"/><p><code>u2</code>:</p><pre><code class="language-julia hljs">plot(sol.t, real.(reduce(hcat, sol.u)[2, :]));
+plot!(ground_truth.t, real.(reduce(hcat, ground_truth.u)[2, :]))</code></pre><img src="383ec165.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(sol.t, imag.(reduce(hcat, sol.u)[2, :]));
+plot!(ground_truth.t, imag.(reduce(hcat, ground_truth.u)[2, :]))</code></pre><img src="7ef4fbe3.svg" alt="Example block output"/><p><code>u3</code>:</p><pre><code class="language-julia hljs">plot(sol.t, real.(reduce(hcat, sol.u)[3, :]));
+plot!(ground_truth.t, real.(reduce(hcat, ground_truth.u)[3, :]))</code></pre><img src="71cac073.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(sol.t, imag.(reduce(hcat, sol.u)[3, :]));
+plot!(ground_truth.t, imag.(reduce(hcat, ground_truth.u)[3, :]))</code></pre><img src="fd30e08b.svg" alt="Example block output"/><p><code>u4</code>:</p><pre><code class="language-julia hljs">plot(sol.t, real.(reduce(hcat, sol.u)[4, :]));
+plot!(ground_truth.t, real.(reduce(hcat, ground_truth.u)[4, :]))</code></pre><img src="cdd4bf26.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(sol.t, imag.(reduce(hcat, sol.u)[4, :]));
+plot!(ground_truth.t, imag.(reduce(hcat, ground_truth.u)[4, :]))</code></pre><img src="b5885446.svg" alt="Example block output"/><p>We can see it is able to learn the real parts of <code>u1</code>, <code>u2</code> and imaginary parts of <code>u3</code>, <code>u4</code>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nonlinear_hyperbolic/">« Nonlinear hyperbolic system of PDEs</a><a class="docs-footer-nextpage" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Saturday 30 March 2024 00:23">Saturday 30 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

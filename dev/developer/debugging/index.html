@@ -51,8 +51,8 @@ strategy = NeuralPDE.GridTraining(dx)
 integral = NeuralPDE.get_numeric_integral(strategy, indvars, multioutput, chain, derivative)
 
 _pde_loss_function = NeuralPDE.build_loss_function(eq, indvars, depvars, phi, derivative,
-                                                   integral, multioutput, init_params,
-                                                   strategy)</code></pre><pre><code class="nohighlight hljs">julia&gt; expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,multioutput,init_params,strategy)
+    integral, multioutput, init_params,
+    strategy)</code></pre><pre><code class="nohighlight hljs">julia&gt; expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,multioutput,init_params,strategy)
 
 :((cord, var&quot;##θ#529&quot;, phi, derivative, integral, u)-&gt;begin
           begin
@@ -68,9 +68,9 @@ julia&gt; bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
  [:t]
  [:x]
  [:x]</code></pre><pre><code class="language-julia hljs">_bc_loss_functions = [NeuralPDE.build_loss_function(bc, indvars, depvars,
-                                                    phi, derivative, integral, multioutput,
-                                                    init_params, strategy,
-                                                    bc_indvars = bc_indvar)
+                          phi, derivative, integral, multioutput,
+                          init_params, strategy,
+                          bc_indvars = bc_indvar)
                       for (bc, bc_indvar) in zip(bcs, bc_indvars)]</code></pre><pre><code class="nohighlight hljs">julia&gt; expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,dict_depvars_input,
                                                                         phi,derivative,integral,multioutput,init_params,strategy,
                                                                         bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
@@ -103,7 +103,7 @@ julia&gt; bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
               end
           end
       end)</code></pre><pre><code class="language-julia hljs">train_sets = NeuralPDE.generate_training_sets(domains, dx, [eq], bcs, eltypeθ, indvars,
-                                              depvars)
+    depvars)
 pde_train_set, bcs_train_set = train_sets</code></pre><pre><code class="nohighlight hljs">julia&gt; pde_train_set
 1-element Array{Array{Float32,2},1}:
  [0.1 0.2 … 0.8 0.9; 0.1 0.1 … 1.0 1.0]
@@ -114,8 +114,9 @@ julia&gt; bcs_train_set
  [0.0 0.0 … 0.0 0.0; 0.0 0.1 … 0.9 1.0]
  [1.0 1.0 … 1.0 1.0; 0.0 0.1 … 0.9 1.0]
  [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]
- [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]</code></pre><pre><code class="language-julia hljs">pde_bounds, bcs_bounds = NeuralPDE.get_bounds(domains, [eq], bcs, eltypeθ, indvars, depvars,
-                                              NeuralPDE.StochasticTraining(100))</code></pre><pre><code class="nohighlight hljs">julia&gt; pde_bounds
+ [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]</code></pre><pre><code class="language-julia hljs">pde_bounds, bcs_bounds = NeuralPDE.get_bounds(
+    domains, [eq], bcs, eltypeθ, indvars, depvars,
+    NeuralPDE.StochasticTraining(100))</code></pre><pre><code class="nohighlight hljs">julia&gt; pde_bounds
 1-element Vector{Vector{Any}}:
  [Float32[0.01, 0.99], Float32[0.01, 0.99]]
 
@@ -130,4 +131,4 @@ julia&gt; bcs_bounds
 prob = NeuralPDE.discretize(pde_system, discretization)
 
 expr_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-expr_pde_loss_function, expr_bc_loss_functions = expr_prob</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../manual/neural_adapters/">« Transfer Learning with neural_adapter</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Friday 29 March 2024 23:06">Friday 29 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+expr_pde_loss_function, expr_bc_loss_functions = expr_prob</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../manual/neural_adapters/">« Transfer Learning with neural_adapter</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Saturday 30 March 2024 00:23">Saturday 30 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

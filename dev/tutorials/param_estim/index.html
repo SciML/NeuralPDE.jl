@@ -18,11 +18,11 @@ domains = [t ∈ Interval(0.0, 1.0)]
 dt = 0.01</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.01</code></pre><p>And the neural networks as,</p><pre><code class="language-julia hljs">input_ = length(domains)
 n = 8
 chain1 = Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, n, Lux.σ),
-                   Dense(n, 1))
+    Dense(n, 1))
 chain2 = Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, n, Lux.σ),
-                   Dense(n, 1))
+    Dense(n, 1))
 chain3 = Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, n, Lux.σ),
-                   Dense(n, 1))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Chain(
+    Dense(n, 1))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Chain(
     layer_1 = Dense(1 =&gt; 8, sigmoid_fast),  <span class="sgr90"># 16 parameters</span>
     layer_2 = Dense(8 =&gt; 8, sigmoid_fast),  <span class="sgr90"># 72 parameters</span>
     layer_3 = Dense(8 =&gt; 8, sigmoid_fast),  <span class="sgr90"># 72 parameters</span>
@@ -52,10 +52,10 @@ len = length(data[2])</code></pre><pre class="documenter-example-output"><code c
 function additional_loss(phi, θ, p)
     return sum(sum(abs2, phi[i](t_, θ[depvars[i]]) .- u_[[i], :]) / len for i in 1:1:3)
 end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">additional_loss (generic function with 1 method)</code></pre><p>Then finally defining and optimizing using the <code>PhysicsInformedNN</code> interface.</p><pre><code class="language-julia hljs">discretization = NeuralPDE.PhysicsInformedNN([chain1, chain2, chain3],
-                                             NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200), param_estim = true,
-                                             additional_loss = additional_loss)
+    NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200), param_estim = true,
+    additional_loss = additional_loss)
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β],
-                              defaults = Dict([p .=&gt; 1.0 for p in [σ_, ρ, β]]))
+    defaults = Dict([p .=&gt; 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system, discretization)
 callback = function (p, l)
     println(&quot;Current loss is: $l&quot;)
@@ -69,4 +69,4 @@ p_ = res.u[(end - 2):end] # p_ = [9.93, 28.002, 2.667]</code></pre><pre class="d
 ts = [infimum(d.domain):(0.001):supremum(d.domain) for d in domains][1]
 u_predict = [[discretization.phi[i]([t], minimizers[i])[1] for t in ts] for i in 1:3]
 plot(sol)
-plot!(ts, u_predict, label = [&quot;x(t)&quot; &quot;y(t)&quot; &quot;z(t)&quot;])</code></pre><img src="c54823e5.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../low_level/">« The symbolic_discretize Interface</a><a class="docs-footer-nextpage" href="../integro_diff/">Solving Integro Differential Equations »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Friday 29 March 2024 23:06">Friday 29 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(ts, u_predict, label = [&quot;x(t)&quot; &quot;y(t)&quot; &quot;z(t)&quot;])</code></pre><img src="370e8151.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../low_level/">« The symbolic_discretize Interface</a><a class="docs-footer-nextpage" href="../integro_diff/">Solving Integro Differential Equations »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Saturday 30 March 2024 00:23">Saturday 30 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
