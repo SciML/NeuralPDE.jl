@@ -219,79 +219,87 @@ end
 
 Representation of the loss function, parametric on the training strategy `strategy`.
 """
-function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
+
+function generate_loss(strategy, phi, f, autodiff::Bool, tspan, p,
         batch, param_estim::Bool)
-    integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
 
-    integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim)) for t in ts]
-
-    function loss(θ, _)
-        intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
-        intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
-        sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol, reltol = strategy.reltol, maxiters = strategy.maxiters)
-        sol.u
-    end
-    return loss
-end
-
-function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool)
-    ts = tspan[1]:(strategy.dx):tspan[2]
-    autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
-    function loss(θ, _)
-        if batch
-            inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
-        else
-            sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+    if strategy isa QuadratureTraining
+        
+        integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
+        function integrand(ts, θ)
+            [abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim)) for t in ts]
         end
-    end
-    return loss
-end
-
-function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim::Bool)
-    autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
-    function loss(θ, _)
-        ts = adapt(parameterless_type(θ),
-            [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
-        if batch
-            inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
-        else
-            sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+            
+        function loss(θ, _)
+            intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
+            intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
+            sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol,
+                reltol = strategy.reltol, maxiters = strategy.maxiters)
+            sol.u
         end
-    end
-    return loss
-end
-
-function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim::Bool)
-    autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
-    minT = tspan[1]
-    maxT = tspan[2]
-
-    weights = strategy.weights ./ sum(strategy.weights)
-
-    N = length(weights)
-    points = strategy.points
-
-    difference = (maxT - minT) / N
-
-    data = Float64[]
-    for (index, item) in enumerate(weights)
-        temp_data = rand(1, trunc(Int, points * item)) .* difference .+ minT .+
-                    ((index - 1) * difference)
-        data = append!(data, temp_data)
-    end
-
-    ts = data
-    function loss(θ, _)
-        if batch
-            inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
-        else
-            sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+        return loss
+    
+    elseif strategy isa GridTraining
+        ts = tspan[1]:(strategy.dx):tspan[2]
+        autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
+        function loss(θ, _)
+            if batch
+                inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
+            else
+                sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+            end
         end
+        return loss
+
+    elseif strategy isa StochasticTraining
+        autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
+        function loss(θ, _)
+            ts = adapt(parameterless_type(θ),
+                [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
+            if batch
+                inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
+            else
+                sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+            end
+        end
+        return loss
+
+    elseif strategy isa WeightedIntervalTraining
+        
+        autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
+        minT = tspan[1]
+        maxT = tspan[2]
+        
+        weights = strategy.weights ./ sum(strategy.weights)
+        
+        N = length(weights)
+        points = strategy.points
+        
+        difference = (maxT - minT) / N
+        
+        data = Float64[]
+        for (index, item) in enumerate(weights)
+            temp_data = rand(1, trunc(Int, points * item)) .* difference .+ minT .+
+            ((index - 1) * difference)
+            data = append!(data, temp_data)
+        end
+            
+        ts = data
+        function loss(θ, _)
+            if batch
+                inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
+            else
+                sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+            end
+        end
+        return loss
+
+    else strategy isa QuasiRandomTraining
+        error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
     end
-    return loss
-end
+end  
+
+
 
 function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim::Bool)
     function loss(θ, _)
@@ -304,9 +312,6 @@ function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_es
     return loss
 end
 
-function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
-    error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
-end
 
 struct NNODEInterpolation{T <: ODEPhi, T2}
     phi::T
