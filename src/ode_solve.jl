@@ -71,7 +71,7 @@ is an accurate interpolation (up to the neural network training result). In addi
 Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks for solving
 ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.
 """
-struct NNODE{C, O, P, B, PE, K, AL <: Union{Nothing, Function},
+struct NNODE{C, O, P, B, PE, K, D, AL <: Union{Nothing, Function},
     S <: Union{Nothing, AbstractTrainingStrategy}
 } <:
        NeuralPDEAlgorithm
@@ -83,15 +83,17 @@ struct NNODE{C, O, P, B, PE, K, AL <: Union{Nothing, Function},
     strategy::S
     param_estim::PE
     additional_loss::AL
+    device::D
     kwargs::K
 end
 function NNODE(chain, opt, init_params = nothing;
         strategy = nothing,
-        autodiff = false, batch = true, param_estim = false, additional_loss = nothing, kwargs...)
+        autodiff = false, batch = true, param_estim = false,
+        additional_loss = nothing, device = nothing, kwargs...)
     !(chain isa Lux.AbstractExplicitLayer) &&
         (chain = adapt(FromFluxAdaptor(false, false), chain))
     NNODE(chain, opt, init_params, autodiff, batch,
-        strategy, param_estim, additional_loss, kwargs)
+        strategy, param_estim, additional_loss, device, kwargs)
 end
 
 """
@@ -370,14 +372,15 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
-    ((eltype(eltype(init_params).types[1]) <: Complex ||
-      eltype(eltype(init_params).types[2]) <: Complex) &&
-     alg.strategy isa QuadratureTraining) &&
-        error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
+    # ((eltype(eltype(init_params).types[1]) <: Complex ||
+    #   eltype(eltype(init_params).types[2]) <: Complex) &&
+    #  alg.strategy isa QuadratureTraining) &&
+    #     error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
 
     init_params = if alg.param_estim
         ComponentArrays.ComponentArray(;
-            depvar = ComponentArrays.ComponentArray(init_params), p = prob.p)
+            depvar = ComponentArrays.ComponentArray(init_params), p = prob.p) |>
+        alg.device .|> Float64
     else
         ComponentArrays.ComponentArray(;
             depvar = ComponentArrays.ComponentArray(init_params))
@@ -386,15 +389,15 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     isinplace(prob) &&
         throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
-    try
-        phi(t0, init_params)
-    catch err
-        if isa(err, DimensionMismatch)
-            throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
-        else
-            throw(err)
-        end
-    end
+    # try
+    #     phi(t0, init_params)
+    # catch err
+    #     if isa(err, DimensionMismatch)
+    #         throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
+    #     else
+    #         throw(err)
+    #     end
+    # end
 
     strategy = if alg.strategy === nothing
         if dt !== nothing
