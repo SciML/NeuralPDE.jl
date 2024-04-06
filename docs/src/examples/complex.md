@@ -1,6 +1,6 @@
 # Complex Equations with PINNs
 
-NeuralPDE supports training PINNs with complex differential equations. This example will demonstrate how to use it for [`NNODE`](@ref). Let us consider a system of [bloch equations](https://en.wikipedia.org/wiki/Bloch_equations). Note [`QuadratureTraining`](@ref) cannot be used with complex equations due to current limitations of computing quadratures.
+NeuralPDE supports training PINNs with complex differential equations. This example will demonstrate how to use it for [`NNODE`](@ref). Let us consider a system of [bloch equations](https://en.wikipedia.org/wiki/Bloch_equations) [^1]. Note [`QuadratureTraining`](@ref) cannot be used with complex equations due to current limitations of computing quadratures.
 
 As the input to this neural network is time which is real, we need to initialize the parameters of the neural network with complex values for it to output and train with complex values.
 
@@ -95,3 +95,5 @@ plot!(ground_truth.t, imag.(reduce(hcat, ground_truth.u)[4, :]))
 ```
 
 We can see it is able to learn the real parts of `u1`, `u2` and imaginary parts of `u3`, `u4`.
+
+[^1]: https://steck.us/alkalidata/

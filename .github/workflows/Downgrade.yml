@@ -26,6 +26,9 @@ jobs:
           - Logging
           - Forward
           - DGM
+          - NNODE
+          - NeuralAdapter
+          - IntegroDiff
         version:
           - "1"
     steps:
