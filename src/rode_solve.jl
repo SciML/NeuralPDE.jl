@@ -20,7 +20,7 @@ function NNRODE(chain, W, opt = Optim.BFGS(), init_params = nothing; autodiff = 
     NNRODE(chain, W, opt, init_params, autodiff, kwargs)
 end
 
-function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
+function SciMLBase.solve(prob::SciMLBase.AbstractRODEProblem,
         alg::NeuralPDEAlgorithm,
         args...;
         dt,
@@ -30,7 +30,7 @@ function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
         abstol = 1.0f-6,
         verbose = false,
         maxiters = 100)
-    DiffEqBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
+    SciMLBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
 
     u0 = prob.u0
     tspan = prob.tspan
@@ -52,12 +52,12 @@ function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
         if u0 isa Number
             phi = (t, W, θ) -> u0 +
                                (t - tspan[1]) *
-                               first(chain(adapt(DiffEqBase.parameterless_type(θ), [t, W]),
+                               first(chain(adapt(SciMLBase.parameterless_type(θ), [t, W]),
                 θ))
         else
             phi = (t, W, θ) -> u0 +
                                (t - tspan[1]) *
-                               chain(adapt(DiffEqBase.parameterless_type(θ), [t, W]), θ)
+                               chain(adapt(SciMLBase.parameterless_type(θ), [t, W]), θ)
         end
     else
         _, re = Flux.destructure(chain)
@@ -65,11 +65,11 @@ function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
         if u0 isa Number
             phi = (t, W, θ) -> u0 +
                                (t - t0) *
-                               first(re(θ)(adapt(DiffEqBase.parameterless_type(θ), [t, W])))
+                               first(re(θ)(adapt(SciMLBase.parameterless_type(θ), [t, W])))
         else
             phi = (t, W, θ) -> u0 +
                                (t - t0) *
-                               re(θ)(adapt(DiffEqBase.parameterless_type(θ), [t, W]))
+                               re(θ)(adapt(SciMLBase.parameterless_type(θ), [t, W]))
         end
     end
 
@@ -108,9 +108,9 @@ function DiffEqBase.solve(prob::DiffEqBase.AbstractRODEProblem,
         u = [(phi(ts[i], W.W[i], res.minimizer)) for i in 1:length(ts)]
     end
 
-    sol = DiffEqBase.build_solution(prob, alg, ts, u, W = W, calculate_error = false)
-    DiffEqBase.has_analytic(prob.f) &&
-        DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
+    sol = SciMLBase.build_solution(prob, alg, ts, u, W = W, calculate_error = false)
+    SciMLBase.has_analytic(prob.f) &&
+        SciMLBase.calculate_solution_errors!(sol; timeseries_errors = true,
             dense_errors = false)
     sol
 end #solve
