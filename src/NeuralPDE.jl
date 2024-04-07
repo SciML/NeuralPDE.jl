@@ -5,7 +5,7 @@ module NeuralPDE
 
 using DocStringExtensions
 using Reexport, Statistics
-@reexport using DiffEqBase
+@reexport using SciMLBase
 @reexport using ModelingToolkit
 
 using Zygote, ForwardDiff, Random, Distributions
@@ -16,7 +16,6 @@ using Integrals, Cubature
 using QuasiMonteCarlo: LatinHypercubeSample
 import QuasiMonteCarlo
 using RuntimeGeneratedFunctions
-using SciMLBase
 using Statistics
 using ArrayInterface
 import Optim

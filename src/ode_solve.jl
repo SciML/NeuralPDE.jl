@@ -1,4 +1,4 @@
-abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
+abstract type NeuralPDEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
 
 """
     NNODE(chain, opt, init_params = nothing; autodiff = false, batch = 0, additional_loss = nothing, kwargs...)
@@ -14,10 +14,10 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`. 
+* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`.
           `Flux.Chain` will be converted to `Lux` using `adapt(FromFluxAdaptor(false, false), chain)`.
 * `opt`: The optimizer to train the neural network.
-* `init_params`: The initial parameter of the neural network. By default, this is `nothing` 
+* `init_params`: The initial parameter of the neural network. By default, this is `nothing`
                  which thus uses the random initialization provided by the neural network library.
 
 ## Keyword Arguments
@@ -28,8 +28,8 @@ of the physics-informed neural network which is used as a solver for a standard 
               automatic differentiation (via Zygote), this is only for the derivative
               in the loss function (the derivative with respect to time).
 * `batch`: The batch size for the loss computation. Defaults to `true`, means the neural network is applied at a row vector of values
-           `t` simultaneously, i.e. it's the batch size for the neural network evaluations. This requires a neural network compatible with batched data. 
-           `false` means which means the application of the neural network is done at individual time points one at a time. 
+           `t` simultaneously, i.e. it's the batch size for the neural network evaluations. This requires a neural network compatible with batched data.
+           `false` means which means the application of the neural network is done at individual time points one at a time.
            This is not applicable to `QuadratureTraining` where `batch` is passed in the `strategy` which is the number of points it can parallelly compute the integrand.
 * `param_estim`: Boolean to indicate whether parameters of the differential equations are learnt along with parameters of the neural network.
 * `strategy`: The training strategy used to choose the points for the evaluations.
@@ -339,7 +339,7 @@ end
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::NNODE) = true
 
-function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
+function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         alg::NNODE,
         args...;
         dt = nothing,
@@ -479,13 +479,15 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         u = [phi(t, res.u) for t in ts]
     end
 
-    sol = DiffEqBase.build_solution(prob, alg, ts, u;
+    sol = SciMLBase.build_solution(prob, alg, ts, u;
         k = res, dense = true,
         interp = NNODEInterpolation(phi, res.u),
         calculate_error = false,
-        retcode = ReturnCode.Success)
-    DiffEqBase.has_analytic(prob.f) &&
-        DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
+        retcode = ReturnCode.Success,
+        original = res,
+        resid = res.objective)
+    SciMLBase.has_analytic(prob.f) &&
+        SciMLBase.calculate_solution_errors!(sol; timeseries_errors = true,
             dense_errors = false)
     sol
 end #solve

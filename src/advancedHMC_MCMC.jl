@@ -4,7 +4,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
     Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
 }
     dim::Int
-    prob::DiffEqBase.ODEProblem
+    prob::SciMLBase.ODEProblem
     chain::C
     st::S
     strategy::ST
@@ -336,12 +336,12 @@ end
 
 """
     ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining,
-                        dataset = [nothing],init_params = nothing, 
+                        dataset = [nothing],init_params = nothing,
                         draw_samples = 1000, physdt = 1 / 20.0f0,l2std = [0.05],
                         phystd = [0.05], priorsNNw = (0.0, 2.0),
                         param = [], nchains = 1, autodiff = false, Kernel = HMC,
                         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-                                         Metric = DiagEuclideanMetric, 
+                                         Metric = DiagEuclideanMetric,
                                          targetacceptancerate = 0.8),
                         Integratorkwargs = (Integrator = Leapfrog,),
                         MCMCkwargs = (n_leapfrog = 30,),
@@ -431,7 +431,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
 
 * AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
 """
-function ahmc_bayesian_pinn_ode(prob::DiffEqBase.ODEProblem, chain;
+function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         strategy = GridTraining, dataset = [nothing],
         init_params = nothing, draw_samples = 1000,
         physdt = 1 / 20.0, l2std = [0.05],
