@@ -100,9 +100,12 @@ end
     # Neural network
     chain = [
         Lux.Chain(Lux.Dense(1, 10, Lux.tanh), Lux.Dense(10, 10, Lux.tanh),
-            Lux.Dense(10, 1)), Lux.Chain(Lux.Dense(1, 10, Lux.tanh), Lux.Dense(10, 10, Lux.tanh),
-            Lux.Dense(10, 1)), Lux.Chain(Lux.Dense(1, 10, Lux.tanh), Lux.Dense(10, 10, Lux.tanh),
-            Lux.Dense(10, 1)), Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1)),
+            Lux.Dense(10, 1)), Lux.Chain(
+            Lux.Dense(1, 10, Lux.tanh), Lux.Dense(10, 10, Lux.tanh),
+            Lux.Dense(10, 1)),
+        Lux.Chain(Lux.Dense(1, 10, Lux.tanh), Lux.Dense(10, 10, Lux.tanh),
+            Lux.Dense(10, 1)),
+        Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1)),
         Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1))]
 
     discretization = BayesianPINN(chain, GridTraining(0.01))

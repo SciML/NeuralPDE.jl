@@ -5,7 +5,7 @@ module NeuralPDE
 
 using DocStringExtensions
 using Reexport, Statistics
-@reexport using DiffEqBase
+@reexport using SciMLBase
 @reexport using ModelingToolkit
 
 using Zygote, ForwardDiff, Random, Distributions
@@ -16,7 +16,6 @@ using Integrals, Cubature
 using QuasiMonteCarlo: LatinHypercubeSample
 import QuasiMonteCarlo
 using RuntimeGeneratedFunctions
-using SciMLBase
 using Statistics
 using ArrayInterface
 import Optim
@@ -32,6 +31,7 @@ using DomainSets: Domain, ClosedInterval, AbstractInterval, leftendpoint, righte
 using SciMLBase: @add_kwonly, parameterless_type
 using UnPack: @unpack
 import ChainRulesCore, Lux, ComponentArrays
+using Lux: FromFluxAdaptor
 using ChainRulesCore: @non_differentiable
 #using NeuralOperators
 
@@ -56,6 +56,7 @@ include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 include("dgm.jl")
+
 
 export NNODE, NNDAE, PINOODE, TRAINSET, EquationSolving, OperatorLearning
        PhysicsInformedNN, discretize,

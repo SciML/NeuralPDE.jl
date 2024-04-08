@@ -16,32 +16,6 @@ steps:
     # Don't run Buildkite if the commit message includes the text [skip tests]
     if: build.message !~ /\[skip tests\]/
 
-  - label: "{{matrix.group}} v{{matrix.version}}"
-    matrix:
-      setup:
-        version:
-          - "1"
-        group:
-          - "NNODE"
-          - "NeuralAdapter"
-          - "IntegroDiff"
-          - "PINO_GPU"
-    env:
-      BUILDKITE_PLUGIN_JULIA_VERSION: "{{matrix.version}}"
-      GROUP: "{{matrix.group}}"
-    plugins:
-      - JuliaCI/julia#v1
-      - JuliaCI/julia-test#v1:
-          coverage: false
-          julia_args: "--threads=auto"
-    agents:
-      os: "linux"
-      queue: "juliaecosystem"
-      arch: "x86_64"
-    timeout_in_minutes: 680
-    # Don't run Buildkite if the commit message includes the text [skip tests]
-    if: build.message !~ /\[skip tests\]/
-
   - label: "Documentation"
     plugins:
       - JuliaCI/julia#v1:

@@ -1,4 +1,4 @@
-abstract type NeuralPDEAlgorithm <: DiffEqBase.AbstractODEAlgorithm end
+abstract type NeuralPDEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
 
 """
     NNODE(chain, opt, init_params = nothing; autodiff = false, batch = 0, additional_loss = nothing, kwargs...)
@@ -14,10 +14,10 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`. 
-          `Flux.Chain` will be converted to `Lux` using `Lux.transform`.
+* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`.
+          `Flux.Chain` will be converted to `Lux` using `adapt(FromFluxAdaptor(false, false), chain)`.
 * `opt`: The optimizer to train the neural network.
-* `init_params`: The initial parameter of the neural network. By default, this is `nothing` 
+* `init_params`: The initial parameter of the neural network. By default, this is `nothing`
                  which thus uses the random initialization provided by the neural network library.
 
 ## Keyword Arguments
@@ -27,11 +27,10 @@ of the physics-informed neural network which is used as a solver for a standard 
               the PDE operators. The reverse mode of the loss function is always
               automatic differentiation (via Zygote), this is only for the derivative
               in the loss function (the derivative with respect to time).
-* `batch`: The batch size to use for the internal quadrature. Defaults to `0`, which
-           means the application of the neural network is done at individual time points one
-           at a time. `batch>0` means the neural network is applied at a row vector of values
-           `t` simultaneously, i.e. it's the batch size for the neural network evaluations.
-           This requires a neural network compatible with batched data.
+* `batch`: The batch size for the loss computation. Defaults to `true`, means the neural network is applied at a row vector of values
+           `t` simultaneously, i.e. it's the batch size for the neural network evaluations. This requires a neural network compatible with batched data.
+           `false` means which means the application of the neural network is done at individual time points one at a time.
+           This is not applicable to `QuadratureTraining` where `batch` is passed in the `strategy` which is the number of points it can parallelly compute the integrand.
 * `param_estim`: Boolean to indicate whether parameters of the differential equations are learnt along with parameters of the neural network.
 * `strategy`: The training strategy used to choose the points for the evaluations.
               Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
@@ -73,7 +72,7 @@ Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neura
 ordinary and partial differential equations." IEEE Transactions on Neural Networks 9, no. 5 (1998): 987-1000.
 """
 struct NNODE{C, O, P, B, PE, K, AL <: Union{Nothing, Function},
-    S <: Union{Nothing, AbstractTrainingStrategy},
+    S <: Union{Nothing, AbstractTrainingStrategy}
 } <:
        NeuralPDEAlgorithm
     chain::C
@@ -87,10 +86,12 @@ struct NNODE{C, O, P, B, PE, K, AL <: Union{Nothing, Function},
     kwargs::K
 end
 function NNODE(chain, opt, init_params = nothing;
-               strategy = nothing,
-               autodiff = false, batch = nothing, param_estim = false, additional_loss = nothing, kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
-    NNODE(chain, opt, init_params, autodiff, batch, strategy, param_estim, additional_loss, kwargs)
+        strategy = nothing,
+        autodiff = false, batch = true, param_estim = false, additional_loss = nothing, kwargs...)
+    !(chain isa Lux.AbstractExplicitLayer) &&
+        (chain = adapt(FromFluxAdaptor(false, false), chain))
+    NNODE(chain, opt, init_params, autodiff, batch,
+        strategy, param_estim, additional_loss, kwargs)
 end
 
 """
@@ -111,17 +112,14 @@ end
 
 function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
-    if init_params === nothing
-        init_params = ComponentArrays.ComponentArray(θ)
-    else
-        init_params = ComponentArrays.ComponentArray(init_params)
-    end
+    isnothing(init_params) && (init_params = θ)
     ODEPhi(chain, t, u0, st), init_params
 end
 
 function (f::ODEPhi{C, T, U})(t::Number,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
+    y, st = f.chain(
+        adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 + (t - f.t0) * first(y)
 end
@@ -129,13 +127,15 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
     # Batch via data as row vectors
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
+    y, st = f.chain(
+        adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
 end
 
 function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractExplicitLayer, T, U}
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
+    y, st = f.chain(
+        adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t .- f.t0) .* y
 end
@@ -143,7 +143,8 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U}
     # Batch via data as row vectors
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
+    y, st = f.chain(
+        adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
 end
@@ -182,7 +183,7 @@ function ode_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool)
 end
 
 """
-    inner_loss(phi, f, autodiff, t, θ, p)
+    inner_loss(phi, f, autodiff, t, θ, p, param_estim)
 
 Simple L2 inner loss at a time `t` with parameters `θ` of the neural network.
 """
@@ -220,7 +221,7 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
 end
 
 """
-    generate_loss(strategy, phi, f, autodiff, tspan, p, batch)
+    generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
 
 Representation of the loss function, parametric on the training strategy `strategy`.
 """
@@ -228,19 +229,22 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
         batch, param_estim::Bool)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
 
-    integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim)) for t in ts]
-    @assert batch == 0 # not implemented
-
-    function loss(θ, _)
-        intprob = IntegralProblem(integrand, (tspan[1], tspan[2]), θ)
-        sol = solve(intprob, QuadGKJL(); abstol = strategy.abstol, reltol = strategy.reltol)
-        sol.u
+    function integrand(ts, θ)
+        [abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim)) for t in ts]
     end
 
+    function loss(θ, _)
+        intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
+        intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
+        sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol,
+            reltol = strategy.reltol, maxiters = strategy.maxiters)
+        sol.u
+    end
     return loss
 end
 
-function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool)
+function generate_loss(
+        strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool)
     ts = tspan[1]:(strategy.dx):tspan[2]
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     function loss(θ, _)
@@ -268,7 +272,8 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
     return loss
 end
 
-function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
+function generate_loss(
+        strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
         batch, param_estim::Bool)
     autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT = tspan[1]
@@ -332,8 +337,9 @@ function (f::NNODEInterpolation)(t::Vector, idxs, ::Type{Val{0}}, p, continuity)
 end
 
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
+SciMLBase.allowscomplex(::NNODE) = true
 
-function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
+function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         alg::NNODE,
         args...;
         dt = nothing,
@@ -361,16 +367,24 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
     #train points generation
     init_params = alg.init_params
 
-    !(chain isa Lux.AbstractExplicitLayer) && error("Only Lux.AbstractExplicitLayer neural networks are supported")
+    !(chain isa Lux.AbstractExplicitLayer) &&
+        error("Only Lux.AbstractExplicitLayer neural networks are supported")
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
+    ((eltype(eltype(init_params).types[1]) <: Complex ||
+      eltype(eltype(init_params).types[2]) <: Complex) &&
+     alg.strategy isa QuadratureTraining) &&
+        error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
 
     init_params = if alg.param_estim
-        ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params), p = prob.p)
+        ComponentArrays.ComponentArray(;
+            depvar = ComponentArrays.ComponentArray(init_params), p = prob.p)
     else
-        ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params))
+        ComponentArrays.ComponentArray(;
+            depvar = ComponentArrays.ComponentArray(init_params))
     end
 
-    isinplace(prob) && throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
+    isinplace(prob) &&
+        throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
         phi(t0, init_params)
@@ -395,19 +409,11 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         alg.strategy
     end
 
-    batch = if alg.batch === nothing
-        if strategy isa QuadratureTraining
-            strategy.batch
-        else
-            true
-        end
-    else
-        alg.batch
-    end
-
+    batch = alg.batch
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
     additional_loss = alg.additional_loss
-    (param_estim && isnothing(additional_loss)) && throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
+    (param_estim && isnothing(additional_loss)) &&
+        throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
 
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
@@ -417,7 +423,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         end
         if !(tstops isa Nothing)
             num_tstops_points = length(tstops)
-            tstops_loss_func = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch, param_estim)
+            tstops_loss_func = evaluate_tstops_loss(
+                phi, f, autodiff, tstops, p, batch, param_estim)
             tstops_loss = tstops_loss_func(θ, phi)
             if strategy isa GridTraining
                 num_original_points = length(tspan[1]:(strategy.dx):tspan[2])
@@ -472,13 +479,15 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         u = [phi(t, res.u) for t in ts]
     end
 
-    sol = DiffEqBase.build_solution(prob, alg, ts, u;
+    sol = SciMLBase.build_solution(prob, alg, ts, u;
         k = res, dense = true,
         interp = NNODEInterpolation(phi, res.u),
         calculate_error = false,
-        retcode = ReturnCode.Success)
-    DiffEqBase.has_analytic(prob.f) &&
-        DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
+        retcode = ReturnCode.Success,
+        original = res,
+        resid = res.objective)
+    SciMLBase.has_analytic(prob.f) &&
+        SciMLBase.calculate_solution_errors!(sol; timeseries_errors = true,
             dense_errors = false)
     sol
 end #solve
