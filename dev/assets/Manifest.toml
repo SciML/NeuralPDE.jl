@@ -395,9 +395,9 @@ version = "0.15.11"
     Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [[deps.CompositeTypes]]
-git-tree-sha1 = "02d2316b7ffceff992f3096ae48c7829a8aa0638"
+git-tree-sha1 = "bce26c3dab336582805503bed209faab1c279768"
 uuid = "b152e2b5-7a66-4b01-a709-34e65c35f657"
-version = "0.1.3"
+version = "0.1.4"
 
 [[deps.CompositionsBase]]
 git-tree-sha1 = "802bb88cd69dfd1509f6670416bd4434015693ad"
@@ -1124,9 +1124,9 @@ version = "3.0.2+0"
 
 [[deps.JuliaFormatter]]
 deps = ["CSTParser", "CommonMark", "DataStructures", "Glob", "Pkg", "PrecompileTools", "Tokenize"]
-git-tree-sha1 = "e57262abcc8463dc8676b4bcc2ef07df40e4986a"
+git-tree-sha1 = "1c4880cb70a5c6c87ea36deccc3d7f9e7969c18c"
 uuid = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
-version = "1.0.55"
+version = "1.0.56"
 
 [[deps.JuliaNVTXCallbacks_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1272,9 +1272,9 @@ version = "1.2.2"
 
 [[deps.LazyArrays]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "MatrixFactorizations", "SparseArrays"]
-git-tree-sha1 = "af45931c321aafdb96a6e0b26e81124e1b390e4e"
+git-tree-sha1 = "30fc74040b7507231ba889e363fd1135f5067395"
 uuid = "5078a376-72f3-5289-bfd5-ec5146d43c02"
-version = "1.9.0"
+version = "1.9.1"
 weakdeps = ["StaticArrays"]
 
     [deps.LazyArrays.extensions]
@@ -1479,10 +1479,10 @@ weakdeps = ["ChainRulesCore", "ForwardDiff", "SpecialFunctions"]
     SpecialFunctionsExt = "SpecialFunctions"
 
 [[deps.Lux]]
-deps = ["ADTypes", "Adapt", "ArrayInterface", "ChainRulesCore", "ConcreteStructs", "ConstructionBase", "FastClosures", "Functors", "GPUArraysCore", "LinearAlgebra", "LuxCore", "LuxDeviceUtils", "LuxLib", "MacroTools", "Markdown", "PrecompileTools", "Random", "Reexport", "Setfield", "Statistics", "WeightInitializers"]
-git-tree-sha1 = "162bf398a6fe704ecab8c196f54e8048295eabfe"
+deps = ["ADTypes", "Adapt", "ArrayInterface", "ChainRulesCore", "ConcreteStructs", "ConstructionBase", "FastClosures", "Functors", "GPUArraysCore", "LinearAlgebra", "LuxCore", "LuxDeviceUtils", "LuxLib", "MacroTools", "Markdown", "PrecompileTools", "Preferences", "Random", "Reexport", "Setfield", "Statistics", "WeightInitializers"]
+git-tree-sha1 = "9962e0aed8f0b43ba6ebb4aa5d92ae65534f9ec2"
 uuid = "b2108857-7c20-44ae-9111-449ecde12c47"
-version = "0.5.32"
+version = "0.5.33"
 
     [deps.Lux.extensions]
     LuxChainRulesExt = "ChainRules"
@@ -1490,6 +1490,9 @@ version = "0.5.32"
     LuxComponentArraysReverseDiffExt = ["ComponentArrays", "ReverseDiff"]
     LuxFluxExt = "Flux"
     LuxLuxAMDGPUExt = "LuxAMDGPU"
+    LuxMLUtilsExt = "MLUtils"
+    LuxMPIExt = "MPI"
+    LuxMPINCCLExt = ["CUDA", "MPI", "NCCL"]
     LuxOptimisersExt = "Optimisers"
     LuxReverseDiffExt = "ReverseDiff"
     LuxSimpleChainsExt = "SimpleChains"
@@ -1497,10 +1500,14 @@ version = "0.5.32"
     LuxZygoteExt = "Zygote"
 
     [deps.Lux.weakdeps]
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
     ChainRules = "082447d4-558c-5d27-93f4-14fc19e9eca2"
     ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
     Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
     LuxAMDGPU = "83120cb1-ca15-4f04-bf3b-6967d2e6b60b"
+    MLUtils = "f1d291b0-491e-4a28-83b9-f70985020b54"
+    MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+    NCCL = "3fe64909-d7a1-4096-9b7d-7a0f12cf0f6b"
     Optimisers = "3bd65402-5787-11e9-1adc-39752487f4e2"
     ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
     SimpleChains = "de6bee2f-e2f4-4ec7-b6ed-219cc6f6e9e5"
@@ -1521,9 +1528,9 @@ version = "0.1.14"
 
 [[deps.LuxDeviceUtils]]
 deps = ["Adapt", "ChainRulesCore", "FastClosures", "Functors", "LuxCore", "PrecompileTools", "Preferences", "Random"]
-git-tree-sha1 = "526e6366f76da0d354705eeef633c9d80149c5b3"
+git-tree-sha1 = "bbcf12d598b8ef6d2b12e506b1d18125552c3b27"
 uuid = "34f89e08-e1d5-43b4-8944-0b49ac560553"
-version = "0.1.19"
+version = "0.1.20"
 
     [deps.LuxDeviceUtils.extensions]
     LuxDeviceUtilsAMDGPUExt = "AMDGPU"
@@ -1628,9 +1635,9 @@ version = "0.1.2"
 
 [[deps.MatrixFactorizations]]
 deps = ["ArrayLayouts", "LinearAlgebra", "Printf", "Random"]
-git-tree-sha1 = "78f6e33434939b0ac9ba1df81e6d005ee85a7396"
+git-tree-sha1 = "fd4530d3c921d85c2fefce7e75d34d7acfefca61"
 uuid = "a3b82374-2e81-5b9e-98ce-41277c0e4c87"
-version = "2.1.0"
+version = "2.1.1"
 
 [[deps.MaybeInplace]]
 deps = ["ArrayInterface", "LinearAlgebra", "MacroTools", "SparseArrays"]
@@ -1783,7 +1790,7 @@ version = "1.2.0"
 deps = ["Adapt", "AdvancedHMC", "ArrayInterface", "ChainRulesCore", "ComponentArrays", "Cubature", "DiffEqNoiseProcess", "Distributions", "DocStringExtensions", "DomainSets", "ForwardDiff", "Functors", "Integrals", "LinearAlgebra", "LogDensityProblems", "Lux", "MCMCChains", "ModelingToolkit", "MonteCarloMeasurements", "Optim", "Optimization", "OptimizationOptimisers", "QuasiMonteCarlo", "Random", "Reexport", "RuntimeGeneratedFunctions", "SciMLBase", "Statistics", "SymbolicUtils", "Symbolics", "UnPack", "Zygote"]
 path = "/var/lib/buildkite-agent/builds/gpuci-14/julialang/neuralpde-dot-jl"
 uuid = "315f7962-48a3-4962-8226-d0f33b1235f0"
-version = "5.15.0"
+version = "5.16.0"
 
 [[deps.NonlinearSolve]]
 deps = ["ADTypes", "ArrayInterface", "ConcreteStructs", "DiffEqBase", "FastBroadcast", "FastClosures", "FiniteDiff", "ForwardDiff", "LazyArrays", "LineSearches", "LinearAlgebra", "LinearSolve", "MaybeInplace", "PrecompileTools", "Preferences", "Printf", "RecursiveArrayTools", "Reexport", "SciMLBase", "SimpleNonlinearSolve", "SparseArrays", "SparseDiffTools", "StaticArraysCore", "TimerOutputs"]
