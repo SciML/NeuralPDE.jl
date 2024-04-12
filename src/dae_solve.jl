@@ -74,7 +74,10 @@ end
 
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p, differential_vars::AbstractVector)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars))
-    integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars)) for t in ts] #WHAT IS TS HERE?? - DO WE NEED THIS LINEfunction loss(θ, _)
+    function integrand(ts, θ)
+        integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars)) for t in ts] #WHAT IS TS HERE?? - DO WE NEED THIS LINEfunction loss(θ, _)
+    end
+    function loss(θ, _)
         intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
         intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
         sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol, reltol = strategy.reltol, maxiters = strategy.maxiters)
@@ -167,6 +170,12 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
     end
 
+    init_params = if alg.param_estim
+        ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params), p = prob.p)
+    else
+        ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params))
+    end
+
     if isinplace(prob)
         throw(error("The NNODE solver only supports out-of-place DAE definitions, i.e. du=f(u,p,t)."))
     end
@@ -181,21 +190,77 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         end
     end
 
-    strategy = if alg.strategy === nothing
+    #=strategy = if alg.strategy === nothing
         if dt !== nothing
             GridTraining(dt)
         else
             error("dt is not defined")
         end
+    end=#
+
+    strategy = if alg.strategy === nothing
+        if dt !== nothing
+            GridTraining(dt)
+        else
+            QuadratureTraining(; quadrature_alg = QuadGKJL(),
+                reltol = convert(eltype(u0), reltol),
+                abstol = convert(eltype(u0), abstol), maxiters = maxiters,
+                batch = 0)
+        end
+    else
+        alg.strategy
     end
 
+    batch = alg.batch
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, differential_vars)
+    additional_loss = alg.additional_loss
+    (param_estim && isnothing(additional_loss)) && throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
 
+    #=
     # Creates OptimizationFunction Object from total_loss
     total_loss(θ, _) = inner_f(θ, phi)
+    =#
+
+    # Creates OptimizationFunction Object from total_loss
+    function total_loss(θ, _)
+        L2_loss = inner_f(θ, phi)
+        if !(additional_loss isa Nothing)
+            L2_loss = L2_loss + additional_loss(phi, θ)
+        end
+        if !(tstops isa Nothing)
+            num_tstops_points = length(tstops)
+            tstops_loss_func = evaluate_tstops_loss(phi, f, autodiff, tstops, p, batch, param_estim)
+            tstops_loss = tstops_loss_func(θ, phi)
+            if strategy isa GridTraining
+                num_original_points = length(tspan[1]:(strategy.dx):tspan[2])
+            elseif strategy isa Union{WeightedIntervalTraining, StochasticTraining}
+                num_original_points = strategy.points
+            else
+                return L2_loss + tstops_loss
+            end
+            total_original_loss = L2_loss * num_original_points
+            total_tstops_loss = tstops_loss * num_tstops_points
+            total_points = num_original_points + num_tstops_points
+            L2_loss = (total_original_loss + total_tstops_loss) / total_points
+        end
+        return L2_loss
+    end
+
+    #=
 
     # Optimization Algo for Training Strategies
     opt_algo = Optimization.AutoZygote()
+    # Creates OptimizationFunction Object from total_loss
+    optf = OptimizationFunction(total_loss, opt_algo)
+
+    =#
+
+    # Choice of Optimization Algo for Training Strategies
+    opt_algo = if strategy isa QuadratureTraining
+        Optimization.AutoForwardDiff()
+    else
+        Optimization.AutoZygote()
+    end
     # Creates OptimizationFunction Object from total_loss
     optf = OptimizationFunction(total_loss, opt_algo)
 

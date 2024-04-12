@@ -68,8 +68,9 @@ end
     differential_vars = [false, true]
     u₀ = [1.0, -1.0]
     du₀ = [0.0, 0.0]
+    p = 0
     tspan = (0.0f0, pi / 2.0f0)
-    prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars) #Lack of parameter here??
+    prob = DAEProblem(example, du₀, u₀, tspan, p; differential_vars = differential_vars) #Lack of parameter here??
     chain = Lux.Chain(Lux.Dense(1, 15, Lux.σ), Lux.Dense(15, 2))
     opt = OptimizationOptimisers.Adam(0.1)
     weights = [0.7, 0.2, 0.1]
