@@ -4,7 +4,7 @@
     BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
                         priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
                         phystd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
-                        MCMCargs = (n_leapfrog=30), nchains = 1, init_params = nothing, 
+                        MCMCargs = (n_leapfrog=30), nchains = 1, init_params = nothing,
                         Adaptorkwargs = (Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8, Metric = DiagEuclideanMetric),
                         Integratorkwargs = (Integrator = Leapfrog,), autodiff = false,
                         progress = false, verbose = false)
@@ -64,7 +64,7 @@ sol_lux_pestim = solve(prob, alg)
 
 Note that the solution is evaluated at fixed time points according to the strategy chosen.
 ensemble solution is evaluated and given at steps of `saveat`.
-Dataset should only be provided when ODE parameter Estimation is being done.  
+Dataset should only be provided when ODE parameter Estimation is being done.
 The neural network is a fully continuous solution so `BPINNsolution`
 is an accurate interpolation (up to the neural network training result). In addition, the
 `BPINNstats` is returned as `sol.fullsolution` for further analysis.
@@ -175,7 +175,7 @@ struct BPINNsolution{O <: BPINNstats, E, NP, OP, P}
     end
 end
 
-function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
+function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
         alg::BNNODE,
         args...;
         dt = nothing,

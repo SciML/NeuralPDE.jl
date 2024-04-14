@@ -31,7 +31,7 @@ of the physics-informed neural network which is used as a solver for a standard 
               By default, `GridTraining` is used with `dt` if given.
 """
 struct NNDAE{C, O, P, K, S <: Union{Nothing, AbstractTrainingStrategy}
-} <: DiffEqBase.AbstractDAEAlgorithm
+} <: SciMLBase.AbstractDAEAlgorithm
     chain::C
     opt::O
     init_params::P
@@ -79,7 +79,7 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
     return loss
 end
 
-function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
+function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
         alg::NNDAE,
         args...;
         dt = nothing,
@@ -178,12 +178,14 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         u = [phi(t, res.u) for t in ts]
     end
 
-    sol = DiffEqBase.build_solution(prob, alg, ts, u;
+    sol = SciMLBase.build_solution(prob, alg, ts, u;
         k = res, dense = true,
         calculate_error = false,
-        retcode = ReturnCode.Success)
-    DiffEqBase.has_analytic(prob.f) &&
-        DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
+        retcode = ReturnCode.Success,
+        original = res,
+        resid = res.objective)
+    SciMLBase.has_analytic(prob.f) &&
+        SciMLBase.calculate_solution_errors!(sol; timeseries_errors = true,
             dense_errors = false)
     sol
 end

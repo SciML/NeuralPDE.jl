@@ -20,7 +20,7 @@ jobs:
           - {user: SciML, repo: PDESystemLibrary.jl, group: NeuralPDE}
     steps:
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
           arch: x64
