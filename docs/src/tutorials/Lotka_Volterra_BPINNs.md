@@ -66,7 +66,7 @@ plot!(time, y, label = "noisy y")
 plot!(solution, labels = ["x" "y"])
 ```
 
-Lets define a PINN.
+Let's define a PINN.
 
 ```@example bpinn
 # Neural Networks must have 2 outputs as u -> [dx,dy] in function lotka_volterra()
