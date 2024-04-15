@@ -160,7 +160,7 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
 * `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
 * `resampling`: if it's false - the full training set is generated in advance before training,
    and at each iteration, one subset is randomly selected out of the batch.
-   Ff it's true - the training set isn't generated beforehand, and one set of quasi-random
+   If it's true - the training set isn't generated beforehand, and one set of quasi-random
    points is generated directly at each iteration in runtime. In this case, `minibatch` has no effect,
 * `minibatch`: the number of subsets, if resampling == false.
 

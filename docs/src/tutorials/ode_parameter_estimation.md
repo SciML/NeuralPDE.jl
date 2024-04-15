@@ -26,7 +26,7 @@ u0 = [5.0, 5.0]
 prob = ODEProblem(lv, u0, tspan, [1.0, 1.0, 1.0, 1.0])
 ```
 
-As we want to estimate the parameters as well, lets get some data.
+As we want to estimate the parameters as well, let's get some data.
 
 ```@example param_estim_lv
 true_p = [1.5, 1.0, 3.0, 1.0]
@@ -36,7 +36,7 @@ t_ = sol_data.t
 u_ = reduce(hcat, sol_data.u)
 ```
 
-Now, lets define a neural network for the PINN using [Lux.jl](https://lux.csail.mit.edu/).
+Now, let's define a neural network for the PINN using [Lux.jl](https://lux.csail.mit.edu/).
 
 ```@example param_estim_lv
 rng = Random.default_rng()
@@ -81,7 +81,7 @@ plot(sol, labels = ["u1_pinn" "u2_pinn"])
 plot!(sol_data, labels = ["u1_data" "u2_data"])
 ```
 
-We can see it is a good fit! Now lets see if we have the parameters of the equation also estimated correctly or not.
+We can see it is a good fit! Now let's see if we have the parameters of the equation also estimated correctly or not.
 
 ```@example param_estim_lv
 sol.k.u.p

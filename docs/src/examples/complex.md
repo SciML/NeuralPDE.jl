@@ -44,7 +44,7 @@ alg = NNODE(chain, opt, ps; strategy = StochasticTraining(500))
 sol = solve(problem, alg, verbose = false, maxiters = 5000, saveat = 0.01)
 ```
 
-Now, lets plot the predictions.
+Now, let's plot the predictions.
 
 `u1`:
 
