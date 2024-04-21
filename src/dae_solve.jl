@@ -213,8 +213,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
 
     batch = alg.batch
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, differential_vars)
-    additional_loss = alg.additional_loss
-    (param_estim && isnothing(additional_loss)) && throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
 
     #=
     # Creates OptimizationFunction Object from total_loss
