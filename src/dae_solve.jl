@@ -63,8 +63,50 @@ function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_v
     end
 end
 
+function dfdx(phi::ODEPhi{C, T, U}, t::AbstractVector, θ, autodiff::Bool, 
+        differential_vars::AbstractVector) where {C,T,U <: AbstractVector}
+    if autodiff
+        autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
+    else
+        """
+        dphi = (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
+        batch_size = size(t)[1]
+
+        reduce(vcat,
+            [if dv == true
+                dphi[[i], :]
+            else
+                zeros(1, batch_size)
+            end
+             for (i, dv) in enumerate(differential_vars)])
+        """
+        0
+    end
+end
+
+function dfdx(phi::ODEPhi{C, T, U}, t::AbstractVector, θ, autodiff::Bool, 
+    differential_vars::AbstractVector) where {C,T,U <: Number}
+    if autodiff
+        autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
+    else
+        """
+        dphi = (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
+        batch_size = size(t)[1]
+
+        reduce(vcat,
+            [if dv == true
+                dphi[[i], :]
+            else
+                zeros(1, batch_size)
+            end
+            for (i, dv) in enumerate(differential_vars)])
+        """
+        0
+    end
+end
+
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
-        p, differential_vars::AbstractVector) where {C, T, U}
+        p, differential_vars::AbstractVector, param_estim) where {C, T, U}
     out = Array(phi(t, θ))
     dphi = Array(dfdx(phi, t, θ, autodiff, differential_vars))
     arrt = Array(t)
@@ -72,10 +114,10 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
     sum(abs2, loss) / length(t)
 end
 
-function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p, differential_vars::AbstractVector)
+function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p, differential_vars::AbstractVector, batch, param_estim::Bool)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars))
     function integrand(ts, θ)
-        integrand(ts, θ) = [abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars)) for t in ts] #WHAT IS TS HERE?? - DO WE NEED THIS LINEfunction loss(θ, _)
+        [abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars, param_estim)) for t in ts] 
     end
     function loss(θ, _)
         intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
@@ -87,27 +129,36 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
 end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
-        differential_vars::AbstractVector)
+        differential_vars::AbstractVector, batch, param_estim::Bool)
     ts = tspan[1]:(strategy.dx):tspan[2]
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     function loss(θ, _)
-        sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
+        if batch
+            inner_loss(phi,f, autodiff, ts, θ, p, differential_vars, param_estim)
+        else
+            sum([inner_loss(phi, f, autodiff, ts, θ, p, differential_vars,param_estim) for t in ts])
+        end
     end
     return loss
 end
 
-function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p, differential_vars::AbstractVector)
+function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p, differential_vars::AbstractVector, 
+        batch, param_estim::Bool)
     autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
     function loss(θ, _)
         ts = adapt(parameterless_type(θ),
             [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
-        sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
+        if batch 
+            inner_loss(phi, f, autodiff, ts, θ, p, differential_vars, param_estim)
+        else
+            sum([inner_loss(phi, f, autodiff, ts, θ, p, differential_vars, param_estim) for t in ts])
+        end
     end
     return loss
 end
 
 
-function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,differential_vars::AbstractVector)
+function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,differential_vars::AbstractVector,batch, param_estim)
     autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT = tspan[1]
     maxT = tspan[2]
@@ -127,7 +178,11 @@ function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Boo
 
     ts = data
     function loss(θ, _)
-        sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
+        if batch
+            inner_loss(phi, f, autodiff, ts, θ, p, differential_vars, param_estim)
+        else
+            sum([inner_loss(phi, f, autodiff, ts, θ, p, differential_vars, param_estim) for t in ts])
+        end
     end
     return loss
 end
@@ -144,7 +199,9 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         verbose = false,
         saveat = nothing,
         maxiters = nothing,
-        tstops = nothing)
+        tstops = nothing,
+        batch = true,
+        param_estim = false)
     u0 = prob.u0
     du0 = prob.du0
     tspan = prob.tspan
@@ -190,14 +247,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         end
     end
 
-    #=strategy = if alg.strategy === nothing
-        if dt !== nothing
-            GridTraining(dt)
-        else
-            error("dt is not defined")
-        end
-    end=#
-
     strategy = if alg.strategy === nothing
         if dt !== nothing
             GridTraining(dt)
@@ -212,12 +261,9 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
     end
 
     batch = alg.batch
-    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, differential_vars)
-
-    #=
-    # Creates OptimizationFunction Object from total_loss
-    total_loss(θ, _) = inner_f(θ, phi)
-    =#
+    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, differential_vars, batch, param_estim)
+    additional_loss = alg.additional_loss
+    (param_estim && isnothing(additional_loss)) && throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
 
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
@@ -243,15 +289,6 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         end
         return L2_loss
     end
-
-    #=
-
-    # Optimization Algo for Training Strategies
-    opt_algo = Optimization.AutoZygote()
-    # Creates OptimizationFunction Object from total_loss
-    optf = OptimizationFunction(total_loss, opt_algo)
-
-    =#
 
     # Choice of Optimization Algo for Training Strategies
     opt_algo = if strategy isa QuadratureTraining
