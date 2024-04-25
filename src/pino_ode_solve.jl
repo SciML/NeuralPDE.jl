@@ -1,78 +1,4 @@
 """
-TRAINSET(input_data, output_data; isu0 = false)
-## Positional Arguments
-* input_data: variables set 'a' of equation (for example initial condition {u(t0 x)} or parameter p
-* output_data: set of solutions u(t){a} corresponding parameter 'a'.
-"""
-struct TRAINSET{}
-    input_data::Vector{ODEProblem}
-    output_data::Array
-end
-
-mutable struct PINOPhi{C, T, U, S}
-    chain::C
-    t0::T
-    u0::U
-    st::S
-    function PINOPhi(chain::Lux.AbstractExplicitLayer, t0, u0, st)
-        new{typeof(chain), typeof(t0), typeof(u0), typeof(st)}(chain, t0, u0, st)
-    end
-end
-
-"""
-PINOsolution(predict, res, phi, input_data_set)
-## Positional Arguments
-* predict: The predicted solution.
-* res: The optimization solution.
-* phi: The solution operator.
-* input_data_set: The input data set.
-"""
-struct PINOsolution{}
-    predict::Array
-    res::SciMLBase.OptimizationSolution
-    phi::PINOPhi
-    input_data_set::Array
-end
-
-abstract type PINOPhases end
-
-"""
-OperatorLearning(train_set; is_data_loss = true, is_physics_loss = true)
-## Positional Arguments
-* train_set: Contains 'input data' - set of parameters 'a' and output data - set of solutions
-* u(t){a} corresponding initial conditions 'u0'.
-
-## Keyword Arguments
-* is_data_loss: Includes or off a loss function for training on the data set.
-* is_physics_loss: Includes or off loss function training on physics-informed approach.
-"""
-struct OperatorLearning <: PINOPhases
-    train_set::TRAINSET
-    is_data_loss::Bool
-    is_physics_loss::Bool
-end
-function OperatorLearning(train_set; is_data_loss = true, is_physics_loss = true)
-    OperatorLearning(train_set, is_data_loss, is_physics_loss)
-end
-
-"""
-EquationSolving(dt, pino_solution)
-## Positional Arguments
-* dt: The time step.
-* pino_solution: Contains the solution of the operator learning phase.
-"""
-struct EquationSolving <: PINOPhases
-    dt::Number
-    pino_solution::PINOsolution
-    is_finetune_loss::Bool
-    is_physics_loss::Bool
-end
-
-function EquationSolving(dt, pino_solution; is_finetune_loss = true, is_physics_loss = true)
-    EquationSolving(dt, pino_solution, is_finetune_loss, is_physics_loss)
-end
-
-"""
    PINOODE(chain,
     OptimizationOptimisers.Adam(0.1),
     pino_phase;
@@ -95,26 +21,38 @@ to learn the solution operator of a given family of parametric Ordinary Differen
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## References
-Zongyi Li "Physics-Informed Neural Operator for Learning Partial Differential Equations"
+* Sifan Wang "Learning the solution operator of parametric partial differential equations with physics-informed DeepOnets"
+* Zongyi Li "Physics-Informed Neural Operator for Learning Partial Differential Equations"
 """
-struct PINOODE{C, O, P, K} <: DiffEqBase.AbstractODEAlgorithm
+struct PINOODE{C, O, B, I, S, K} <: SciMLBase.AbstractODEAlgorithm
     chain::C
     opt::O
-    pino_phase::PINOPhases
-    init_params::P
+    bounds::B
+    init_params::I
     isu0::Bool
+    strategy::S
     kwargs::K
 end
 
 function PINOODE(chain,
         opt,
-        pino_phase;
+        bounds;
         init_params = nothing,
-        isu0 = false,
+        isu0 = false, #TODOD remove
+        strategy = nothing,
         kwargs...)
-    #TODO fnn transform check
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
-    PINOODE(chain, opt, pino_phase, init_params, isu0, kwargs)
+    PINOODE(chain, opt, bounds, init_params, isu0, strategy, kwargs)
+end
+
+mutable struct PINOPhi{C, T, U, S}
+    chain::C
+    t0::T
+    u0::U
+    st::S
+    function PINOPhi(chain::Lux.AbstractExplicitLayer, t0, u0, st)
+        new{typeof(chain), typeof(t0), typeof(u0), typeof(st)}(chain, t0, u0, st)
+    end
 end
 
 function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer,
@@ -130,159 +68,76 @@ function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer,
     PINOPhi(chain, t0, u0, st), init_params
 end
 
-function (f::PINOPhi{C, T, U})(t::AbstractArray,
-        θ) where {C <: Lux.AbstractExplicitLayer, T, U}
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t), θ, f.st)
+#TODO update
+# function (f::PINOPhi{C, T, U})(t::AbstractArray,
+#         θ) where {C <: Lux.AbstractExplicitLayer, T, U}
+#     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t), θ, f.st)
+#     ChainRulesCore.@ignore_derivatives f.st = st
+#     ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), t[1:size(y)[1], :, :])
+#     u_0 = adapt(parameterless_type(ComponentArrays.getdata(θ)), f.u0)
+#     u_0 .+ (ts .- f.t0) .* y
+# end
+
+#TODO C <: DeepONet
+function (f::PINOPhi{C, T, U})(x::NamedTuple, θ) where {C, T, U}
+    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
-    ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), t[1:size(y)[1], :, :])
-    f_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), f.u0)
-    f_ .+ (ts .- f.t0) .* y
+    a, t = x.branch, x.trunk
+    ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), t)
+    u0_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), f.u0)
+    u0_ .+ (ts .- f.t0) .* y
 end
 
-function dfdx_rand_matrix(phi::PINOPhi, t::AbstractArray, θ)
-    ε_ = sqrt(eps(eltype(t)))
-    d = Normal{eltype(t)}(0.0f0, ε_)
-    size_ = size(t) .- (1, 0, 0)
-    eps_ = ε_ .+ rand(d, size_) .* ε_
-    zeros_ = zeros(eltype(t), size_)
-    ε = cat(eps_, zeros_, dims = 1)
-    (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
+# function dfdx(phi::PINOPhi, t::AbstractArray, θ)
+#     ε = [sqrt(eps(eltype(t))), zeros(eltype(t), size(t)[1] - 1)...]
+#     (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
+# end
+
+#TODO C <: DeepONet
+function dfdx(phi::PINOPhi{C, T, U}, x::NamedTuple, θ) where {C, T, U}
+    t = x.trunk
+    ε = [sqrt(eps(eltype(t)))]
+    phi_trunk(x, θ) = phi.chain.trunk(x, θ.trunk, phi.st.trunk)[1]
+    du_trunk_ = (phi_trunk(t .+ ε, θ) .- phi_trunk(t, θ)) ./ sqrt(eps(eltype(t)))
+    u_branch = phi.chain.branch(x.branch, θ.branch, phi.st.branch)[1]
+    u_branch' .* du_trunk_
 end
 
-function dfdx(phi::PINOPhi, t::AbstractArray, θ)
-    ε = [sqrt(eps(eltype(t))), zeros(eltype(t), size(t)[1] - 1)...]
-    (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
-end
+# function l₂loss(𝐲̂, 𝐲)
+#     feature_dims = 2:(ndims(𝐲) - 1)
+#     loss = sum(.√(sum(abs2, 𝐲̂ - 𝐲, dims = feature_dims)))
+#     y_norm = sum(.√(sum(abs2, 𝐲, dims = feature_dims)))
+#     return loss / y_norm
+# end
 
-function l₂loss(𝐲̂, 𝐲)
-    feature_dims = 2:(ndims(𝐲) - 1)
-    loss = sum(.√(sum(abs2, 𝐲̂ - 𝐲, dims = feature_dims)))
-    y_norm = sum(.√(sum(abs2, 𝐲, dims = feature_dims)))
-    return loss / y_norm
-end
-
-function physics_loss(phi::PINOPhi{C, T, U},
-        prob::ODEProblem,
-        θ,
-        ts::AbstractArray,
-        prob_set::Array,
-        input_data_set,
-        isu0:: Bool) where {C, T, U}
+function physics_loss(phi::PINOPhi{C, T, U}, prob::ODEProblem, x, θ) where {C, T, U}
     f = prob.f
-    out_ = phi(input_data_set, θ)
-    ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), ts)
-    if isu0 == true
-        p = prob.p
-        fs = f.f.(out_, p, ts)
-    else
-        ps = [prob.p for prob in prob_set]
-        first_p = ps[1]
-        if first_p isa Number
-            fs = cat(
-                [f.f.(out_[:, :, [i]], p, ts) for (i, p) in enumerate(ps)]..., dims = 3)
-        elseif first_p isa Vector
-            fs = cat(
-                [reduce(
-                     hcat, [f.f(out_[:, j, [i]], p, ts) for j in axes(out_[:, :, [i]], 2)])
-                 for (i, p) in enumerate(ps)]...,
-                dims = 3)
-        else
-            error("p should be a number or a vector")
-        end
-    end
-    l₂loss(dfdx(phi, input_data_set, θ), fs)
+    ps , ts  = x.branch, x.trunk
+    norm = size(x.branch)[2] * size(x.trunk)[2]
+    sum(abs2, dfdx(phi, x, θ) - f.(phi(x, θ), ps, ts)) / norm
 end
 
-function data_loss(phi::PINOPhi{C, T, U},
-        θ,
-        output_data::Array,
-        input_data_set) where {C, T, U}
-    output_data = adapt(parameterless_type(ComponentArrays.getdata(θ)), output_data)
-    l₂loss(phi(input_data_set, θ), output_data)
+function get_trainset(bounds, tspan, strategy)
+    #TODO dt -> instances_size
+    instances_size = 100
+    p = range(bounds.p[1], stop = bounds.p[2], length = instances_size)
+    t = range(tspan[1], stop = tspan[2], length = instances_size)
+    x = (branch = collect(p)', trunk = collect(t)')
+    x
 end
 
-function generate_data(ts, prob_set, isu0)
-    batch_size = size(prob_set)[1]
-    instances_size = size(ts)[2]
-    dims = isu0 ? length(prob_set[1].u0) + 1 : length(prob_set[1].p) + 1
-    input_data_set = Array{Float32, 3}(undef, dims, instances_size, batch_size)
-    for (i, prob) in enumerate(prob_set)
-        u0 = prob.u0
-        p = prob.p
-        # f = prob.f
-        if isu0 == true
-            in_ = reduce(vcat, [ts, fill(u0, 1, size(ts)[2], 1)])
-        else
-            if p isa Number
-                in_ = reduce(vcat, [ts, fill(p, 1, size(ts)[2], 1)])
-            elseif p isa Vector
-                inner = reduce(vcat, [ts, reduce(hcat, fill(p, 1, size(ts)[2], 1))])
-                in_ = reshape(inner, size(inner)..., 1)
-            else
-                error("p should be a number or a vector")
-            end
-        end
-        input_data_set[:, :, i] = in_
-    end
-    input_data_set
-end
-
-function finetune_loss(phi::PINOPhi{C, T, U},
-        θ,
-        input_data_set,
-        pino_phase::EquationSolving) where {C, T, U}
-    pino_solution = pino_phase.pino_solution
-    learned_operator = pino_solution.phi
-    predict = learned_operator(input_data_set, pino_solution.res.u)
-    l₂loss(phi(input_data_set, θ), predict)
-end
-
-function generate_loss(
-        phi::PINOPhi{C, T, U}, prob::ODEProblem, prob_set::Array, input_data_set, ts,
-        pino_phase::EquationSolving, isu0::Bool) where {
-        C, T, U}
-    a = 1 / 100
-    is_finetune_loss, is_physics_loss = pino_phase.is_finetune_loss,
-    pino_phase.is_physics_loss
+#TODO GridTraining
+function generate_loss(strategy, prob::ODEProblem, phi, bounds, tspan)
+    x = get_trainset(bounds, tspan, strategy)
     function loss(θ, _)
-        if is_finetune_loss
-            finetune_loss(phi, θ, input_data_set, pino_phase)
-        elseif is_physics_loss
-            physics_loss(phi, prob, θ, ts, prob_set, input_data_set, isu0)
-        elseif is_finetune_loss && is_physics_loss
-            physics_loss(phi, prob, θ, ts, prob_set, input_data_set, isu0) +
-             a * finetune_loss(phi, θ, input_data_set, pino_phase)
-        else
-            error("finetune loss or physics loss should be true")
-        end
+        physics_loss(phi, prob, x, θ)
     end
-    return loss
 end
 
-function generate_loss(
-        phi::PINOPhi{C, T, U},prob::ODEProblem, train_set::TRAINSET, input_data_set, ts,
-        pino_phase::OperatorLearning, isu0::Bool) where {
-        C, T, U}
-    is_data_loss, is_physics_loss = pino_phase.is_data_loss, pino_phase.is_physics_loss
-    prob_set, output_data = train_set.input_data, train_set.output_data
-    function loss(θ, _)
-        if is_data_loss
-            data_loss(phi, θ, output_data, input_data_set)
-        elseif is_physics_loss
-            physics_loss(phi, prob, θ, ts, prob_set, input_data_set, isu0)
-        elseif is_data_loss && is_physics_loss
-            data_loss(phi, θ, output_data, input_data_set) +
-            physics_loss(phi, prob, θ, ts, prob_set, input_data_set, isu0)
-        else
-            error("data loss or physics loss should be true")
-        end
-    end
-    return loss
-end
-
-function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
+function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         alg::PINOODE,
         args...;
+        dt = nothing,
         abstol = 1.0f-6,
         reltol = 1.0f-3,
         verbose = false,
@@ -290,37 +145,15 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         maxiters = nothing)
     @unpack tspan, u0, p, f = prob
     t0, t_end = tspan[1], tspan[2]
-    @unpack chain, opt, pino_phase, init_params, isu0 = alg
+    @unpack chain, opt, bounds, init_params, isu0 = alg
 
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
 
-    if pino_phase isa EquationSolving
-        @unpack dt, pino_solution = pino_phase
-        range_ = collect(t0:dt:t_end)
-        ts = reshape(collect(range_), 1, size(range_)[1])
-        input_data_set = generate_data(ts, [prob], isu0)
-        if isu0
-            pino_solution.phi.u0 = input_data_set[2:end, :, :]
-        end
-    elseif pino_phase isa OperatorLearning
-        # mapping between functional space of some vararible 'a' of equation (for example initial
-        # condition {u(t0 x)} or parameter p) and solution of equation u(t)
-        train_set = pino_phase.train_set
-        instances_size = size(train_set.output_data)[2]
-        range_ = range(t0, stop = t_end, length = instances_size)
-        ts = reshape(collect(range_), 1, instances_size)
-        prob_set, _ = train_set.input_data, train_set.output_data
-        input_data_set = generate_data(ts, prob_set, isu0)
-    else
-        error("pino_phase should be EquationSolving or OperatorLearning")
+    if !any(in(keys(bounds)), (:u0, :p))
+        error("bounds should contain u0 or p only")
     end
 
-    if isu0
-        u0 = input_data_set[2:end, :, :]
-    else
-        u0 = prob.u0
-    end
     phi, init_params = generate_pino_phi_θ(chain, t0, u0, init_params)
     init_params = ComponentArrays.ComponentArray(init_params)
 
@@ -328,7 +161,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        phi(input_data_set, init_params)
+        x = (branch = rand(length(bounds), 10), trunk = rand(1, 10))
+        phi(x, init_params)
     catch err
         if isa(err, DimensionMismatch)
             throw(DimensionMismatch("Dimensions of input data and chain should match"))
@@ -337,13 +171,17 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
         end
     end
 
-    if pino_phase isa EquationSolving
-        prob_set = [prob]
-        total_loss = generate_loss(phi, prob, prob_set, input_data_set, ts, pino_phase,isu0)
-    elseif pino_phase isa OperatorLearning
-        total_loss = generate_loss(phi, prob, train_set, input_data_set, ts, pino_phase, isu0)
-    else
-        error("pino_phase should be EquationSolving or OperatorLearning")
+    strategy = nothing
+
+    inner_f = generate_loss(strategy, prob, phi, bounds, tspan)
+
+    function total_loss(θ, _)
+        inner_f(θ, nothing)
+        #TODO add loss
+        # L2_loss = inner_f(θ, nothing)
+        # if !(additional_loss isa Nothing)
+        #     L2_loss = L2_loss + additional_loss(phi, θ)
+        # end
     end
 
     # Optimization Algo for Training Strategies
@@ -361,6 +199,16 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractODEProblem,
 
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
-    predict = phi(input_data_set, res.u)
-    PINOsolution(predict, res, phi, input_data_set)
+    res, phi
+
+    #TODO build_solution
+    # if saveat isa Number
+    #     ts = tspan[1]:saveat:tspan[2]
+    # end
+
+    # if u0 isa Number
+    #     u = [first(phi(t, res.u)) for t in ts]
+    # end
+    # sol = SciMLBase.build_solution(prob, alg, ts, u;
+    # sol
 end

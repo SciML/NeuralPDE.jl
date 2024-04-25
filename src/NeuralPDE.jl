@@ -48,6 +48,7 @@ include("adaptive_losses.jl")
 include("ode_solve.jl")
 # include("rode_solve.jl")
 include("dae_solve.jl")
+include("neural_operators.jl")
 include("pino_ode_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
@@ -58,7 +59,7 @@ include("PDE_BPINN.jl")
 include("dgm.jl")
 
 
-export NNODE, NNDAE, PINOODE, TRAINSET, EquationSolving, OperatorLearning
+export NNODE, NNDAE, PINOODE, DeepONet
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
        WeightedIntervalTraining,
