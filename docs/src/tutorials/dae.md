@@ -37,7 +37,7 @@ alg = NNDAE(chain, opt; autodiff = false)
 sol = solve(prob, alg, verbose = true, dt = 1 / 100.0, maxiters = 3000, abstol = 1e-10)
 ```
 
-Now lets compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the DAE.
+Now let's compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the DAE.
 
 ```@example dae
 function example1(du, u, p, t)

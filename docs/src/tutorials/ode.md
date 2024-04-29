@@ -61,7 +61,7 @@ Once these pieces are together, we call `solve` just like with any other `ODEPro
 sol = solve(prob, alg, verbose = true, maxiters = 2000, saveat = 0.01)
 ```
 
-Now lets compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the ODE.
+Now let's compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the ODE.
 
 ```@example nnode1
 using OrdinaryDiffEq, Plots
