@@ -151,7 +151,8 @@ end
 f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
 prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = Optimization.solve(prob, OptimizationOptimJL.LBFGS(linesearch = BackTracking()); maxiters = 1000)
+res = Optimization.solve(
+    prob, OptimizationOptimJL.LBFGS(linesearch = BackTracking()); maxiters = 1000)
 ```
 
 ## Solution Representation

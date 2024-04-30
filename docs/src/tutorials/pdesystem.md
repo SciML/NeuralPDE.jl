@@ -53,7 +53,8 @@ dim = 2 # number of dimensions
 chain = Lux.Chain(Dense(dim, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))
 
 # Discretization
-discretization = PhysicsInformedNN(chain, QuadratureTraining(; batch = 200, abstol = 1e-6, reltol = 1e-6))
+discretization = PhysicsInformedNN(
+    chain, QuadratureTraining(; batch = 200, abstol = 1e-6, reltol = 1e-6))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 prob = discretize(pde_system, discretization)
@@ -74,9 +75,9 @@ xs, ys = [infimum(d.domain):(dx / 10):supremum(d.domain) for d in domains]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
 u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-                    (length(xs), length(ys)))
+    (length(xs), length(ys)))
 u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-                 (length(xs), length(ys)))
+    (length(xs), length(ys)))
 diff_u = abs.(u_predict .- u_real)
 
 p1 = plot(xs, ys, u_real, linetype = :contourf, title = "analytic");
@@ -122,7 +123,8 @@ Here, we build PhysicsInformedNN algorithm where `dx` is the step of discretizat
 `strategy` stores information for choosing a training strategy.
 
 ```@example poisson
-discretization = PhysicsInformedNN(chain, QuadratureTraining(; batch = 200, abstol = 1e-6, reltol = 1e-6))
+discretization = PhysicsInformedNN(
+    chain, QuadratureTraining(; batch = 200, abstol = 1e-6, reltol = 1e-6))
 ```
 
 As described in the API docs, we now need to define the `PDESystem` and create PINNs
@@ -158,9 +160,9 @@ xs, ys = [infimum(d.domain):(dx / 10):supremum(d.domain) for d in domains]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
 u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-                    (length(xs), length(ys)))
+    (length(xs), length(ys)))
 u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-                 (length(xs), length(ys)))
+    (length(xs), length(ys)))
 diff_u = abs.(u_predict .- u_real)
 
 p1 = plot(xs, ys, u_real, linetype = :contourf, title = "analytic");

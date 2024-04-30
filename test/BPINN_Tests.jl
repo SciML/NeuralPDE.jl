@@ -35,7 +35,8 @@ Random.seed!(100)
     chainlux = Lux.Chain(Lux.Dense(1, 7, tanh), Lux.Dense(7, 1))
     θinit, st = Lux.setup(Random.default_rng(), chainlux)
 
-    fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(prob, chainlux, draw_samples = 2500)
+    fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(
+        prob, chainlux, draw_samples = 2500)
 
     alg = BNNODE(chainlux, draw_samples = 2500)
     sol1lux = solve(prob, alg)
@@ -102,7 +103,7 @@ end
             3.0),
         param = [
             LogNormal(9,
-                0.5),
+            0.5)
         ])
 
     sol2lux = solve(prob, alg)
@@ -153,14 +154,16 @@ end
     chainlux12 = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
     θinit, st = Lux.setup(Random.default_rng(), chainlux12)
 
-    fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(prob, chainlux12,
+    fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(
+        prob, chainlux12,
         draw_samples = 1500,
         l2std = [0.03],
         phystd = [0.03],
         priorsNNw = (0.0,
             10.0))
 
-    fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(prob, chainlux12,
+    fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(
+        prob, chainlux12,
         dataset = dataset,
         draw_samples = 1500,
         l2std = [0.03],
@@ -169,7 +172,7 @@ end
             10.0),
         param = [
             Normal(-7,
-                4),
+            4)
         ])
 
     alg = BNNODE(chainlux12,
@@ -181,7 +184,7 @@ end
             10.0),
         param = [
             Normal(-7,
-                4),
+            4)
         ])
 
     sol3lux_pestim = solve(prob, alg)
@@ -239,7 +242,8 @@ end
     time1 = vec(collect(Float64, ta0))
     physsol0_1 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
     chainflux = Flux.Chain(Flux.Dense(1, 7, tanh), Flux.Dense(7, 1)) |> Flux.f64
-    fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(prob, chainflux, draw_samples = 2500)
+    fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(
+        prob, chainflux, draw_samples = 2500)
     alg = BNNODE(chainflux, draw_samples = 2500)
     @test alg.chain isa Lux.AbstractExplicitLayer
 end

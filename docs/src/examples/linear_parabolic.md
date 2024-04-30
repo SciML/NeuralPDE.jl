@@ -24,7 +24,8 @@ w(t, 1) = \frac{e^{\lambda_1} cos(\frac{x}{a})-e^{\lambda_2}cos(\frac{x}{a})}{\l
 with a physics-informed neural network.
 
 ```@example linear_parabolic
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers, OptimizationOptimJL, LineSearches
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers,
+      OptimizationOptimJL, LineSearches
 using Plots
 using ModelingToolkit: Interval, infimum, supremum
 
