@@ -32,6 +32,7 @@ pages = ["index.md",
         "manual/training_strategies.md",
         "manual/adaptive_losses.md",
         "manual/logging.md",
-        "manual/neural_adapters.md"],
+        "manual/neural_adapters.md",
+        "manual/pino_ode.md"],
     "Developer Documentation" => Any["developer/debugging.md"]
 ]

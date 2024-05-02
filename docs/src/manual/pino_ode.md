@@ -5,17 +5,7 @@ PINOODE
 ```
 
 ```@docs
-TRAINSET
+DeepONet
 ```
 
-```@docs
-PINOsolution
-```
 
-```@docs
-OperatorLearning
-```
-
-```@docs
-EquationSolving
-```

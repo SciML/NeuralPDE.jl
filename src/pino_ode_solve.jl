@@ -1,36 +1,42 @@
 """
-   PINOODE(chain,
+ PINOODE
+
+PINOODE(chain,
     OptimizationOptimisers.Adam(0.1),
-    pino_phase;
-    init_params,
+    bounds;
+    init_params = nothing,
+    strategy = nothing
     kwargs...)
 
-The method is that combine training data and physics constraints
-to learn the solution operator of a given family of parametric Ordinary Differential Equations (ODE).
+Algorithm for solving paramentric ordinary differential equations using a physics-informed
+neural operator, which is used as a solver for a parametrized `ODEProblem`.
 
 ## Positional Arguments
 * `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`.
           `Flux.Chain` will be converted to `Lux` using `Lux.transform`.
 * `opt`: The optimizer to train the neural network.
-* `pino_phase`: The phase of the PINN algorithm, either `OperatorLearning` or `EquationSolving`.
+* `bounds`: A dictionary containing the bounds for the parameters of the neural network
+in which will be train the prediction of parametric ODE.
 
 ## Keyword Arguments
 * `init_params`: The initial parameter of the neural network. By default, this is `nothing`
   which thus uses the random initialization provided by the neural network library.
-* isu0: If true, the input data set contains initial conditions 'u0'.
+* `strategy`: The strategy for training the neural network.
+* `additional_loss`: additional function to the main one. For example, add training on data.
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## References
 * Sifan Wang "Learning the solution operator of parametric partial differential equations with physics-informed DeepOnets"
 * Zongyi Li "Physics-Informed Neural Operator for Learning Partial Differential Equations"
 """
-struct PINOODE{C, O, B, I, S, K} <: SciMLBase.AbstractODEAlgorithm
+struct PINOODE{C, O, B, I, S <: Union{Nothing, AbstractTrainingStrategy}, AL <: Union{Nothing, Function},K} <:
+       SciMLBase.AbstractODEAlgorithm
     chain::C
     opt::O
     bounds::B
     init_params::I
-    isu0::Bool
     strategy::S
+    additional_loss::AL #TODO
     kwargs::K
 end
 
@@ -38,17 +44,26 @@ function PINOODE(chain,
         opt,
         bounds;
         init_params = nothing,
-        isu0 = false, #TODOD remove
         strategy = nothing,
+        additional_loss = nothing,
         kwargs...)
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
-    PINOODE(chain, opt, bounds, init_params, isu0, strategy, kwargs)
+    PINOODE(chain, opt, bounds, init_params, strategy, additional_loss, kwargs)
+end
+
+#TODO cool name for strategy
+struct SomeStrategy{} <: AbstractTrainingStrategy
+    branch_size::Int
+    trunk_size::Int
+end
+function SomeStrategy(; branch_size = 10, trunk_size=10)
+    SomeStrategy(branch_size, trunk_size)
 end
 
 mutable struct PINOPhi{C, T, U, S}
     chain::C
     t0::T
-    u0::U
+    u0::U#TODO remove u0, t0?
     st::S
     function PINOPhi(chain::Lux.AbstractExplicitLayer, t0, u0, st)
         new{typeof(chain), typeof(t0), typeof(u0), typeof(st)}(chain, t0, u0, st)
@@ -68,100 +83,99 @@ function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer,
     PINOPhi(chain, t0, u0, st), init_params
 end
 
-#TODO update
-# function (f::PINOPhi{C, T, U})(t::AbstractArray,
-#         θ) where {C <: Lux.AbstractExplicitLayer, T, U}
-#     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t), θ, f.st)
-#     ChainRulesCore.@ignore_derivatives f.st = st
-#     ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), t[1:size(y)[1], :, :])
-#     u_0 = adapt(parameterless_type(ComponentArrays.getdata(θ)), f.u0)
-#     u_0 .+ (ts .- f.t0) .* y
-# end
-
-#TODO C <: DeepONet
 function (f::PINOPhi{C, T, U})(x::NamedTuple, θ) where {C, T, U}
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
-    a, t = x.branch, x.trunk
-    ts = adapt(parameterless_type(ComponentArrays.getdata(θ)), t)
-    u0_ = adapt(parameterless_type(ComponentArrays.getdata(θ)), f.u0)
-    u0_ .+ (ts .- f.t0) .* y
+    y
 end
 
-# function dfdx(phi::PINOPhi, t::AbstractArray, θ)
-#     ε = [sqrt(eps(eltype(t))), zeros(eltype(t), size(t)[1] - 1)...]
-#     (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
-# end
-
-#TODO C <: DeepONet
-function dfdx(phi::PINOPhi{C, T, U}, x::NamedTuple, θ) where {C, T, U}
-    t = x.trunk
-    ε = [sqrt(eps(eltype(t)))]
-    phi_trunk(x, θ) = phi.chain.trunk(x, θ.trunk, phi.st.trunk)[1]
-    du_trunk_ = (phi_trunk(t .+ ε, θ) .- phi_trunk(t, θ)) ./ sqrt(eps(eltype(t)))
-    u_branch = phi.chain.branch(x.branch, θ.branch, phi.st.branch)[1]
-    u_branch' .* du_trunk_
+function dfdx(phi::PINOPhi{C, T, U}, x::NamedTuple, θ, branch_left) where {C, T, U}
+    x_trunk = x.trunk
+    x_left = (branch = branch_left, trunk = x_trunk .+ sqrt(eps(eltype(x_trunk))))
+    x_right = (branch = x.branch, trunk = x_trunk)
+    (phi(x_left, θ) .- phi(x_right, θ)) / sqrt(eps(eltype(x_trunk)))
 end
-
-# function l₂loss(𝐲̂, 𝐲)
-#     feature_dims = 2:(ndims(𝐲) - 1)
-#     loss = sum(.√(sum(abs2, 𝐲̂ - 𝐲, dims = feature_dims)))
-#     y_norm = sum(.√(sum(abs2, 𝐲, dims = feature_dims)))
-#     return loss / y_norm
-# end
 
 function physics_loss(phi::PINOPhi{C, T, U}, prob::ODEProblem, x, θ) where {C, T, U}
+    x_ , p = x
+    norm = prod(size(x_.branch))
+    branch_left = prob.f.(nothing, p, x_.trunk .+ sqrt(eps(eltype(x_.trunk))))
+    sum(abs2, vec(dfdx(phi, x_, θ, branch_left)) .- vec(x_.branch)) / norm
+end
+
+function operator_loss(phi::PINOPhi{C, T, U}, prob::ODEProblem, x, θ) where {C, T, U}
+    x_, u0_ = x
+    norm = prod(size(u0_))
+    sum(abs2, vec(phi(x_, θ)) .- vec(u0_)) / norm
+end
+
+#TODO inside loss couse call f(),return (p, t)
+function get_trainset(branch_size, trunk_size, bounds, tspan, prob)
+    p_ = range(bounds.p[1], stop = bounds.p[2], length = branch_size)
+    p = reshape(p_, 1, branch_size,1)
+    t_ = collect(range(tspan[1], stop = tspan[2], length = trunk_size))
+    t = reshape(t_, 1, 1, trunk_size)
     f = prob.f
-    ps , ts  = x.branch, x.trunk
-    norm = size(x.branch)[2] * size(x.trunk)[2]
-    sum(abs2, dfdx(phi, x, θ) - f.(phi(x, θ), ps, ts)) / norm
+    #TODO phi
+    f_ = f.(nothing, p, t)
+    x = (branch = f_, trunk = t)
+    x , p
 end
 
-function get_trainset(bounds, tspan, strategy)
-    #TODO dt -> instances_size
-    instances_size = 100
-    p = range(bounds.p[1], stop = bounds.p[2], length = instances_size)
-    t = range(tspan[1], stop = tspan[2], length = instances_size)
-    x = (branch = collect(p)', trunk = collect(t)')
-    x
+#TODO return (t0, u0)?
+function get_trainset_operator(branch_size, trunk_size, bounds, tspan, prob)
+    p_ = range(bounds.p[1], stop = bounds.p[2], length = branch_size)
+    p = reshape(p_, 1, branch_size, 1)
+    t_ = collect(range(tspan[1], stop = tspan[2], length = trunk_size))
+    t = reshape(t_, 1, 1, trunk_size)
+    f = prob.f
+    #TODO phi
+    f_ = f.(nothing, p, t[1])
+    x_ = (branch = f_, trunk = t)
+
+    t0 = x_.trunk[:, :, [1]]
+    # f_2 = f.(nothing, p, t0)
+    f_2 = f_[:, :, [1]]
+    x = (branch = f_2, trunk =t0)
+    u0_ = fill(prob.u0, size(f_2))
+    x, u0_
 end
 
-#TODO GridTraining
 function generate_loss(strategy, prob::ODEProblem, phi, bounds, tspan)
-    x = get_trainset(bounds, tspan, strategy)
+    branch_size, trunk_size = strategy.branch_size, strategy.trunk_size
+    #TODO move to loss
+    x = get_trainset(branch_size, trunk_size, bounds, tspan, prob)
+    x_op = get_trainset_operator(branch_size, trunk_size, bounds, tspan, prob)
     function loss(θ, _)
-        physics_loss(phi, prob, x, θ)
+        physics_loss(phi, prob, x, θ) + operator_loss(phi, prob, x_op, θ)
     end
 end
 
 function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         alg::PINOODE,
         args...;
-        dt = nothing,
-        abstol = 1.0f-6,
+        abstol = 1.0f-8,
         reltol = 1.0f-3,
         verbose = false,
         saveat = nothing,
         maxiters = nothing)
     @unpack tspan, u0, p, f = prob
-    t0, t_end = tspan[1], tspan[2]
-    @unpack chain, opt, bounds, init_params, isu0 = alg
+    @unpack chain, opt, bounds, init_params, strategy = alg
 
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
 
     if !any(in(keys(bounds)), (:u0, :p))
-        error("bounds should contain u0 or p only")
+        error("bounds should contain u0 and p only")
     end
 
-    phi, init_params = generate_pino_phi_θ(chain, t0, u0, init_params)
-    init_params = ComponentArrays.ComponentArray(init_params)
+    phi, init_params = generate_pino_phi_θ(chain, 0, u0, init_params)
 
     isinplace(prob) &&
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        x = (branch = rand(length(bounds), 10), trunk = rand(1, 10))
+        x = (branch = rand(1, 10,10), trunk = rand(1, 1, 10))
         phi(x, init_params)
     catch err
         if isa(err, DimensionMismatch)
@@ -171,13 +185,12 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         end
     end
 
-    strategy = nothing
-
     inner_f = generate_loss(strategy, prob, phi, bounds, tspan)
 
+    #TODO impl add loss
     function total_loss(θ, _)
         inner_f(θ, nothing)
-        #TODO add loss
+
         # L2_loss = inner_f(θ, nothing)
         # if !(additional_loss isa Nothing)
         #     L2_loss = L2_loss + additional_loss(phi, θ)
@@ -199,16 +212,19 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
 
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
-    res, phi
 
-    #TODO build_solution
-    # if saveat isa Number
-    #     ts = tspan[1]:saveat:tspan[2]
-    # end
+    branch_size, trunk_size = strategy.branch_size, strategy.trunk_size
+    x, p = get_trainset(branch_size, trunk_size, bounds, tspan, prob)
+    u = phi(x, res.u)
 
-    # if u0 isa Number
-    #     u = [first(phi(t, res.u)) for t in ts]
-    # end
-    # sol = SciMLBase.build_solution(prob, alg, ts, u;
-    # sol
+    sol = SciMLBase.build_solution(prob, alg, x, u;
+        k = res, dense = true,
+        calculate_error = false,
+        retcode = ReturnCode.Success,
+        original = res,
+        resid = res.objective)
+    SciMLBase.has_analytic(prob.f) &&
+        SciMLBase.calculate_solution_errors!(sol; timeseries_errors = true,
+            dense_errors = false)
+    sol
 end

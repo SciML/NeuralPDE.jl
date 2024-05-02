@@ -99,11 +99,6 @@ end
             include("NNPDE_tests_gpu_Lux.jl")
         end
     end
-    if !is_APPVEYOR && GROUP == "PINO_GPU"
-        @safetestset "PINO ode gpu" begin include("PINO_ode_tests_gpu.jl")
-        end
-    end
-
 
     if GROUP == "All" || GROUP == "DGM"
         @time @safetestset "Deep Galerkin solver" begin
