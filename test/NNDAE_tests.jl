@@ -85,7 +85,8 @@ end
     opt = OptimizationOptimisers.Adam(0.1)
     weights = [0.7, 0.2, 0.1]
     points = 200
-    alg = NeuralPDE.NNDAE(chain, OptimizationOptimisers.Adam(0.1), strategy = NeuralPDE.WeightedIntervalTraining(weights, points); autodiff = false)
+    alg = NeuralPDE.NNDAE(chain, OptimizationOptimisers.Adam(0.1),
+        strategy = NeuralPDE.WeightedIntervalTraining(weights, points); autodiff = false)
 
     sol = solve(prob,
         alg, verbose = false, dt = 1 / 100.0f0,
@@ -93,6 +94,3 @@ end
 
     @test ground_sol(0:(1 / 100):(pi / 2))≈sol atol=0.4
 end
-
-
-
