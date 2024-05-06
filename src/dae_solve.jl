@@ -79,6 +79,35 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
     return loss
 end
 
+function generate_loss(strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
+    differential_vars::AbstractVector)
+    autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
+    minT = tspan[1]
+    maxT = tspan[2]
+    
+    weights = strategy.weights ./ sum(strategy.weights)
+
+    N = length(weights)
+    points = strategy.points
+
+    difference = (maxT-minT)/N
+    
+    data = Float64[]
+    for (index, item) in enumerate(weights)
+        temp_data = rand(1, trunc(Int, points * item)) .* difference .+ minT .+
+                    ((index - 1) * difference)
+        data = append!(data, temp_data)
+    end
+
+    ts = data
+
+    function loss(θ, _)
+        sum(inner_loss(phi, f, autodiff, ts, θ, p,  differential_vars))
+    end
+    return loss
+end
+
+
 function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
         alg::NNDAE,
         args...;
@@ -138,6 +167,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
         else
             error("dt is not defined")
         end
+    else
+        alg.strategy
     end
 
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, differential_vars)
