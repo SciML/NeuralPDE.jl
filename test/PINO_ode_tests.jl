@@ -5,6 +5,7 @@ using Statistics, Random
 using NeuralPDE
 
 # dG(u(t,p),t) = u(t,p)
+# dG(u(t, p), t) = f(G,u(t, p))
 @testset "Example du = cos(p * t)" begin
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 1.0f0)
@@ -30,16 +31,54 @@ using NeuralPDE
     bounds = (p = [0.1f0, pi],)
 
     strategy  = NeuralPDE.SomeStrategy(branch_size = 50, trunk_size = 40)
+    #TODO
+    # branch_size = 50, trunk_size = 40
+    # strategy = NeuralPDE.GridStretagy([1 / branch_size, 1 / trunk_size])
 
     opt = OptimizationOptimisers.Adam(0.03)
     alg = NeuralPDE.PINOODE(deeponet, opt, bounds; strategy = strategy)
 
-    sol = solve(prob, alg, verbose = false, maxiters = 2000)
+    sol = solve(prob, alg, verbose = true, maxiters = 2000)
 
     ground_analytic = (u0, p, t) ->  u0 + sin(p * t) / (p)
     p_ = range(bounds.p[1], stop = bounds.p[2], length = strategy.branch_size)
-    p = reshape(p_, 1, branch_size, 1)
+    p = reshape(p_, 1, strategy.branch_size, 1)
     ground_solution = ground_analytic.(u0, p, sol.t.trunk)
+
+    @test ground_solution≈sol.u rtol=0.01
+end
+
+@testset "Example du = cos(p * t) + u" begin
+    eq(u, p, t) = cos(p * t) + u
+    tspan = (0.0f0, 1.0f0)
+    u0 = 1.0f0
+    prob = ODEProblem(eq, u0, tspan)
+    branch = Lux.Chain(
+        Lux.Dense(1, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10))
+    trunk = Lux.Chain(
+        Lux.Dense(1, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10, Lux.tanh_fast))
+
+    deeponet = NeuralPDE.DeepONet(branch, trunk)
+
+    bounds = (p = [0.1f0, 2],)
+
+    strategy  = NeuralPDE.SomeStrategy(branch_size = 50, trunk_size = 40)
+
+    opt = OptimizationOptimisers.Adam(0.01)
+    alg = NeuralPDE.PINOODE(deeponet, opt, bounds; strategy = strategy)
+
+    sol = solve(prob, alg, verbose = true, maxiters = 3000)
+
+    #if u0 == 1
+    ground_analytic_(u0, p, t) = (p * sin(p * t)  - cos(p * t) + (p^2+2)*exp(t) ) / (p^2 + 1)
+
+    p_ = range(bounds.p[1], stop = bounds.p[2], length = strategy.branch_size)
+    p = reshape(p_, 1, strategy.branch_size, 1)
+    ground_solution = ground_analytic_.(u0, p, sol.t.trunk)
 
     @test ground_solution≈sol.u rtol=0.01
 end
@@ -76,11 +115,8 @@ end
     sol = solve(prob, alg, verbose = false, maxiters = 2000)
     ground_analytic = (u0, p, t) -> u0 + p * t^3 / 3
     p_ = range(bounds.p[1], stop = bounds.p[2], length = strategy.branch_size)
-    p = reshape(p_, 1, branch_size, 1)
+    p = reshape(p_, 1, strategy.branch_size, 1)
     ground_solution = ground_analytic.(u0, p, sol.t.trunk)
 
     @test ground_solution≈sol.u rtol=0.01
 end
-
-# @testset "Example with data" begin
-# end

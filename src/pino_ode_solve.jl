@@ -51,12 +51,13 @@ function PINOODE(chain,
     PINOODE(chain, opt, bounds, init_params, strategy, additional_loss, kwargs)
 end
 
-#TODO cool name for strategy
+#TODO change to GridStrategy
 struct SomeStrategy{} <: AbstractTrainingStrategy
     branch_size::Int
     trunk_size::Int
 end
-function SomeStrategy(; branch_size = 10, trunk_size=10)
+
+function SomeStrategy(;branch_size = 10, trunk_size=10)
     SomeStrategy(branch_size, trunk_size)
 end
 
@@ -89,65 +90,65 @@ function (f::PINOPhi{C, T, U})(x::NamedTuple, θ) where {C, T, U}
     y
 end
 
-function dfdx(phi::PINOPhi{C, T, U}, x::NamedTuple, θ, branch_left) where {C, T, U}
-    x_trunk = x.trunk
-    x_left = (branch = branch_left, trunk = x_trunk .+ sqrt(eps(eltype(x_trunk))))
-    x_right = (branch = x.branch, trunk = x_trunk)
-    (phi(x_left, θ) .- phi(x_right, θ)) / sqrt(eps(eltype(x_trunk)))
+# function dfdx(phi::PINOPhi{C, T, U}, x::NamedTuple, θ, branch_left) where {C, T, U}
+#     x_trunk = x.trunk
+#     x_left = (branch = branch_left, trunk = x_trunk .+ sqrt(eps(eltype(x_trunk))))
+#     x_right = (branch = x.branch, trunk = x_trunk)
+#     (phi(x_left, θ) .- phi(x_right, θ)) / sqrt(eps(eltype(x_trunk)))
+# end
+
+#TODO C <: DeepONet
+function dfdx(phi::PINOPhi{C, T, U}, x::Tuple, θ, prob::ODEProblem) where {C, T, U}
+    p, t = x
+    f = prob.f
+    branch_left, branch_right = f.(0, p, t .+ sqrt(eps(eltype(p)))),  f.(0, p, t)
+    trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
+    x_left = (branch = branch_left, trunk = trunk_left)
+    x_right = (branch = branch_right, trunk = trunk_right)
+    (phi(x_left, θ) .- phi(x_right, θ)) / sqrt(eps(eltype(t)))
 end
 
 function physics_loss(phi::PINOPhi{C, T, U}, prob::ODEProblem, x, θ) where {C, T, U}
-    x_ , p = x
-    norm = prod(size(x_.branch))
-    branch_left = prob.f.(nothing, p, x_.trunk .+ sqrt(eps(eltype(x_.trunk))))
-    sum(abs2, vec(dfdx(phi, x_, θ, branch_left)) .- vec(x_.branch)) / norm
+    p, t = x
+    f = prob.f
+    #TODO If du = f(u,p,t), where f = g(p,t)*u so it will wrong, f(0, p, t) = g(p,t)*0 = 0
+    #work correct only with function like du = f(p,t) + g(u)
+    du = vec(dfdx(phi, x, θ, prob))
+
+    tuple = (branch = f.(0, p, t), trunk = t)
+    out = phi(tuple, θ)
+    f_ = vec(f.(out, p, t))
+    norm = prod(size(out))
+    sum(abs2, du .- f_) / norm
 end
 
 function operator_loss(phi::PINOPhi{C, T, U}, prob::ODEProblem, x, θ) where {C, T, U}
-    x_, u0_ = x
+    p, t = x
+    f = prob.f
+    t0 = t[:, :, [1]]
+    f_0 = f.(0, p, t0)
+    tuple = (branch = f_0, trunk = t0)
+    out = phi(tuple, θ)
+    u = vec(out)
+    u0_ = fill(prob.u0, size(out))
+    u0 = vec(u0_)
     norm = prod(size(u0_))
-    sum(abs2, vec(phi(x_, θ)) .- vec(u0_)) / norm
+    sum(abs2, u .- u0) / norm
 end
 
-#TODO inside loss couse call f(),return (p, t)
 function get_trainset(branch_size, trunk_size, bounds, tspan, prob)
     p_ = range(bounds.p[1], stop = bounds.p[2], length = branch_size)
     p = reshape(p_, 1, branch_size,1)
     t_ = collect(range(tspan[1], stop = tspan[2], length = trunk_size))
     t = reshape(t_, 1, 1, trunk_size)
-    f = prob.f
-    #TODO phi
-    f_ = f.(nothing, p, t)
-    x = (branch = f_, trunk = t)
-    x , p
-end
-
-#TODO return (t0, u0)?
-function get_trainset_operator(branch_size, trunk_size, bounds, tspan, prob)
-    p_ = range(bounds.p[1], stop = bounds.p[2], length = branch_size)
-    p = reshape(p_, 1, branch_size, 1)
-    t_ = collect(range(tspan[1], stop = tspan[2], length = trunk_size))
-    t = reshape(t_, 1, 1, trunk_size)
-    f = prob.f
-    #TODO phi
-    f_ = f.(nothing, p, t[1])
-    x_ = (branch = f_, trunk = t)
-
-    t0 = x_.trunk[:, :, [1]]
-    # f_2 = f.(nothing, p, t0)
-    f_2 = f_[:, :, [1]]
-    x = (branch = f_2, trunk =t0)
-    u0_ = fill(prob.u0, size(f_2))
-    x, u0_
+    (p,t)
 end
 
 function generate_loss(strategy, prob::ODEProblem, phi, bounds, tspan)
     branch_size, trunk_size = strategy.branch_size, strategy.trunk_size
-    #TODO move to loss
     x = get_trainset(branch_size, trunk_size, bounds, tspan, prob)
-    x_op = get_trainset_operator(branch_size, trunk_size, bounds, tspan, prob)
     function loss(θ, _)
-        physics_loss(phi, prob, x, θ) + operator_loss(phi, prob, x_op, θ)
+        physics_loss(phi, prob, x, θ) + operator_loss(phi, prob, x, θ)
     end
 end
 
@@ -159,14 +160,15 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         verbose = false,
         saveat = nothing,
         maxiters = nothing)
-    @unpack tspan, u0, p, f = prob
+    @unpack tspan, u0, f = prob
     @unpack chain, opt, bounds, init_params, strategy = alg
 
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
 
-    if !any(in(keys(bounds)), (:u0, :p))
-        error("bounds should contain u0 and p only")
+    #TODO support for u0
+    if !any(in(keys(bounds)), (:p,))
+        error("bounds should contain p only")
     end
 
     phi, init_params = generate_pino_phi_θ(chain, 0, u0, init_params)
@@ -214,7 +216,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     branch_size, trunk_size = strategy.branch_size, strategy.trunk_size
-    x, p = get_trainset(branch_size, trunk_size, bounds, tspan, prob)
+    p, t = get_trainset(branch_size, trunk_size, bounds, tspan, prob)
+    x = (branch = f.(0, p,t), trunk = t)
     u = phi(x, res.u)
 
     sol = SciMLBase.build_solution(prob, alg, x, u;

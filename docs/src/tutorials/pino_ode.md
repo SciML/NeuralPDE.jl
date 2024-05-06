@@ -16,7 +16,6 @@ tspan = (0.0f0, 1.0f0)
 u0 = 1.0f0
 prob = ODEProblem(equation,  u0, tspan)
 
-# initilize DeepONet operator
 branch = Lux.Chain(
     Lux.Dense(1, 10, Lux.tanh_fast),
     Lux.Dense(10, 10, Lux.tanh_fast),
@@ -29,13 +28,13 @@ trunk = Lux.Chain(
 deeponet = NeuralPDE.DeepONet(branch, trunk; linear = nothing)
 
 bounds = (p = [0.1f0, pi],)
-#TODO add truct
-strategy  = (branch_size = 50, trunk_size = 40)
-# strategy = (branch_size = 50, dt = 0.1)?
+
+strategy  = SomeStrategy(branch_size = 50, trunk_size = 40)
+
 opt = OptimizationOptimisers.Adam(0.03)
 alg = NeuralPDE.PINOODE(deeponet, opt, bounds; strategy = strategy)
 
-sol = solve(prob, alg, verbose = true, maxiters = 2000)
+sol = solve(prob, alg, verbose = false, maxiters = 2000)
 ```
 
 Now let's compare the prediction from the learned operator with the ground truth solution which is obtained by analytic solution the parametric ODE. Where 
