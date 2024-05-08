@@ -124,6 +124,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
         phystd, dataset, physdt, MCMCkwargs,
         nchains, init_params,
         Adaptorkwargs, Integratorkwargs,
+        numensemble, estim_collocate,
         autodiff, progress, verbose)
 end
 
@@ -227,6 +228,7 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
         θinit, st = Lux.setup(Random.default_rng(), chain)
         θ = [vector_to_parameters(samples[i][1:(end - ninv)], θinit)
              for i in 1:max(draw_samples - draw_samples ÷ 10, draw_samples - 1000)]
+
         luxar = [chain(t', θ[i], st)[1] for i in 1:numensemble]
         # only need for size
         θinit = collect(ComponentArrays.ComponentArray(θinit))
