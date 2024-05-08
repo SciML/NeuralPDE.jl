@@ -53,7 +53,6 @@ y, st = deeponet(x, θ, st)
 * Lu Lu, Pengzhan Jin, George Em Karniadakis "DeepONet: Learning nonlinear operators for identifying differential equations based on the universal approximation theorem of operators"
 * Sifan Wang "Learning the solution operator of parametric partial differential equations with physics-informed DeepOnets"
 """
-
 struct DeepONet{L <: Union{Nothing, Lux.AbstractExplicitLayer }} <: NeuralOperator
     branch::Lux.AbstractExplicitLayer
     trunk::Lux.AbstractExplicitLayer

@@ -4,7 +4,6 @@ using Lux
 using Statistics, Random
 using NeuralPDE
 
-# dG(u(t,p),t) = u(t,p)
 # dG(u(t, p), t) = f(G,u(t, p))
 @testset "Example du = cos(p * t)" begin
     equation = (u, p, t) -> cos(p * t)
