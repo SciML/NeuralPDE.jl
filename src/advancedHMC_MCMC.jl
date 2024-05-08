@@ -16,6 +16,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
     physdt::Float64
     extraparams::Int
     init_params::I
+    estim_collocate::Bool
 
     function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, strategy,
             dataset,
@@ -45,7 +46,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
     function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, strategy,
             dataset,
             priors, phystd, l2std, autodiff, physdt, extraparams,
-            init_params::NamedTuple)
+            init_params::NamedTuple, estim_collocate)
         new{
             typeof(chain),
             typeof(st),
@@ -61,7 +62,8 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
             autodiff,
             physdt,
             extraparams,
-            init_params)
+            init_params,
+            estim_collocate)
     end
 end
 
@@ -448,7 +450,8 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,),
         MCMCkwargs = (n_leapfrog = 30,),
-        progress = false, verbose = false, estim_collocate = false)
+        progress = false, verbose = false,
+        estim_collocate = false)
     !(chain isa Lux.AbstractExplicitLayer) &&
         (chain = adapt(FromFluxAdaptor(false, false), chain))
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
@@ -473,7 +476,7 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         # Lux-Named Tuple
         initial_nnθ, recon, st = generate_Tar(chain, init_params)
     else
-        error("Only Lux.AbstractExplicitLayer Neural Networks are supported")
+        error("Only Lux.AbstractExplicitLayer Neural networks are supported")
     end
 
     if nchains > Threads.nthreads()
