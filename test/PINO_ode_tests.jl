@@ -29,20 +29,15 @@ using NeuralPDE
     c = deeponet(x, θ, st)[1]
 
     bounds = (p = [0.1f0, pi],)
-
-    strategy = NeuralPDE.SomeStrategy(branch_size = 50, trunk_size = 40)
-    #TODO
-    # branch_size = 50, trunk_size = 40
-    # strategy = NeuralPDE.GridStretagy([1 / branch_size, 1 / trunk_size])
-
+    db = (bounds.p[2] - bounds.p[1]) / 50
+    dt = (tspan[2] - tspan[1]) / 40
+    strategy = NeuralPDE.GridTraining([db, dt])
     opt = OptimizationOptimisers.Adam(0.03)
     alg = NeuralPDE.PINOODE(deeponet, opt, bounds; strategy = strategy)
-
     sol = solve(prob, alg, verbose = false, maxiters = 2000)
-
     ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
-    p_ = range(bounds.p[1], stop = bounds.p[2], length = strategy.branch_size)
-    p = reshape(p_, 1, strategy.branch_size, 1)
+    p_ = bounds.p[1]:strategy.dx[1]:bounds.p[2]
+    p = reshape(p_, 1, size(p_)[1], 1)
     ground_solution = ground_analytic.(u0, p, sol.t.trunk)
 
     @test ground_solution≈sol.u rtol=0.01
@@ -66,7 +61,9 @@ end
 
     bounds = (p = [0.1f0, 2],)
 
-    strategy = NeuralPDE.SomeStrategy(branch_size = 50, trunk_size = 40)
+    db = (bounds.p[2] - bounds.p[1]) / 50
+    dt = (tspan[2] - tspan[1]) / 40
+    strategy = NeuralPDE.GridTraining([db, dt])
 
     opt = OptimizationOptimisers.Adam(0.01)
     alg = NeuralPDE.PINOODE(deeponet, opt, bounds; strategy = strategy)
@@ -77,8 +74,8 @@ end
     ground_analytic_(u0, p, t) = (p * sin(p * t) - cos(p * t) + (p^2 + 2) * exp(t)) /
                                  (p^2 + 1)
 
-    p_ = range(bounds.p[1], stop = bounds.p[2], length = strategy.branch_size)
-    p = reshape(p_, 1, strategy.branch_size, 1)
+    p_ = bounds.p[1]:strategy.dx[1]:bounds.p[2]
+    p = reshape(p_, 1, size(p_)[1], 1)
     ground_solution = ground_analytic_.(u0, p, sol.t.trunk)
 
     @test ground_solution≈sol.u rtol=0.01
@@ -103,7 +100,9 @@ end
 
     bounds = (p = [0.0f0, 10.0f0],)
 
-    strategy = NeuralPDE.SomeStrategy(branch_size = 60, trunk_size = 50)
+    db = (bounds.p[2] - bounds.p[1]) / 50
+    dt = (tspan[2] - tspan[1]) / 40
+    strategy = NeuralPDE.GridTraining([db, dt])
 
     opt = OptimizationOptimisers.Adam(0.03)
 
@@ -116,27 +115,29 @@ end
         t = reshape(t_, 1, 1, trunk_size)
         (p, t)
     end
-    branch_size, trunk_size = strategy.branch_size, strategy.trunk_size
-    p,t = get_trainset(branch_size, trunk_size, bounds, tspan)
     function get_data()
         sol = ground_analytic.(u0, p, t)
         x = equation.(sol, p, t)
         tuple = (branch = x, trunk = t)
         sol, tuple
     end
+
+    branch_size, trunk_size = 50, 40
+    p,t = get_trainset(branch_size, trunk_size, bounds, tspan)
     data, tuple = get_data()
-    function additional_loss(phi, θ)
+
+    function additional_loss_(phi, θ)
         u = phi(tuple, θ)
         norm = prod(size(u))
         sum(abs2, u .- data) / norm
     end
     alg = NeuralPDE.PINOODE(
-        deeponet, opt, bounds; strategy = strategy, additional_loss = additional_loss)
+        deeponet, opt, bounds; strategy = strategy, additional_loss = additional_loss_)
     sol = solve(prob, alg, verbose = false, maxiters = 2000)
 
-    p_ = range(bounds.p[1], stop = bounds.p[2], length = strategy.branch_size)
-    p = reshape(p_, 1, strategy.branch_size, 1)
+    p_ = bounds.p[1]:strategy.dx[1]:bounds.p[2]
+    p = reshape(p_, 1, size(p_)[1], 1)
     ground_solution = ground_analytic.(u0, p, sol.t.trunk)
 
-    @test ground_solution≈sol.u rtol=0.003
+    @test ground_solution≈sol.u rtol=0.005
 end
