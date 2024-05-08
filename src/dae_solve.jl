@@ -69,6 +69,11 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
     sum(abs2, loss) / length(t)
 end
 
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+    p, differential_vars::AbstractVector) where {C, T, U}
+    sum(abs2, dfdx(phi, t, θ, autodiff,differential_vars) .- f(phi(t, θ), p_, t))
+end
+
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
         differential_vars::AbstractVector)
     ts = tspan[1]:(strategy.dx):tspan[2]
@@ -104,6 +109,25 @@ function generate_loss(
 
     function loss(θ, _)
         sum(inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
+    end
+    return loss
+end
+
+
+function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
+    differential_vars::AbstractVector)
+    integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars))
+    
+    function integrand(ts, θ)
+        sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
+    end
+    
+    function loss(θ, _)
+        intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
+        intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
+        sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol,
+        reltol = strategy.reltol, maxiters = strategy.maxiters)
+        sol.u
     end
     return loss
 end
@@ -165,7 +189,10 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
         if dt !== nothing
             GridTraining(dt)
         else
-            error("dt is not defined")
+            QuadratureTraining(; quadrature_alg = QuadGKJL(),
+                reltol = convert(eltype(u0), reltol),
+                abstol = convert(eltype(u0), abstol), maxiters = maxiters,
+                batch = 0)
         end
     else
         alg.strategy
