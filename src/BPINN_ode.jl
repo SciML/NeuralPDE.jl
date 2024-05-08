@@ -100,6 +100,8 @@ struct BNNODE{C, K, IT <: NamedTuple,
     init_params::I
     Adaptorkwargs::A
     Integratorkwargs::IT
+    numensemble::Int64
+    estim_collocate::Bool
     autodiff::Bool
     progress::Bool
     verbose::Bool
@@ -112,6 +114,8 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
             Metric = DiagEuclideanMetric,
             targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,),
+        numensemble = floor(Int, draw_samples / 3),
+        estim_collocate = false,
         autodiff = false, progress = false, verbose = false)
     !(chain isa Lux.AbstractExplicitLayer) &&
         (chain = adapt(FromFluxAdaptor(false, false), chain))
@@ -186,7 +190,8 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
     @unpack chain, l2std, phystd, param, priorsNNw, Kernel, strategy,
     draw_samples, dataset, init_params,
     nchains, physdt, Adaptorkwargs, Integratorkwargs,
-    MCMCkwargs, autodiff, progress, verbose = alg
+    MCMCkwargs, numensemble, estim_collocate, autodiff, progress,
+    verbose = alg
 
     # ahmc_bayesian_pinn_ode needs param=[] for easier vcat operation for full vector of parameters
     param = param === nothing ? [] : param
@@ -211,7 +216,8 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
         Integratorkwargs = Integratorkwargs,
         MCMCkwargs = MCMCkwargs,
         progress = progress,
-        verbose = verbose)
+        verbose = verbose,
+        estim_collocate = estim_collocate)
 
     fullsolution = BPINNstats(mcmcchain, samples, statistics)
     ninv = length(param)
@@ -220,7 +226,7 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
     if chain isa Lux.AbstractExplicitLayer
         θinit, st = Lux.setup(Random.default_rng(), chain)
         θ = [vector_to_parameters(samples[i][1:(end - ninv)], θinit)
-             for i in (draw_samples - numensemble):draw_samples]
+             for i in 1:max(draw_samples - draw_samples ÷ 10, draw_samples - 1000)]
         luxar = [chain(t', θ[i], st)[1] for i in 1:numensemble]
         # only need for size
         θinit = collect(ComponentArrays.ComponentArray(θinit))
