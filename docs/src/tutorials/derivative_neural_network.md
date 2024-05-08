@@ -102,13 +102,13 @@ sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:7]
-aprox_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[9:end]
+approx_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[9:end]
 
 callback = function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
-    println("der_losses: ", map(l_ -> l_(p.u), aprox_derivative_loss_functions))
+    println("der_losses: ", map(l_ -> l_(p.u), approx_derivative_loss_functions))
     return false
 end
 
