@@ -44,8 +44,8 @@ Random.seed!(100)
     # testing points
     t = time
     # Mean of last 500 sampled parameter's curves[Ensemble predictions]
-    θ = [vector_to_parameters(fhsamples[i], θinit) for i in 2000:2500]
-    luxar = [chainlux(t', θ[i], st)[1] for i in 1:500]
+    θ = [vector_to_parameters(fhsamples[i], θinit) for i in 2000:length(fhsamples)]
+    luxar = [chainlux(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
@@ -54,8 +54,8 @@ Random.seed!(100)
     @test mean(abs.(physsol1 .- meanscurve)) < 0.005
 
     #--------------------- solve() call 
-    @test mean(abs.(x̂1 .- sol1lux.ensemblesol[1])) < 0.05
-    @test mean(abs.(physsol0_1 .- sol1lux.ensemblesol[1])) < 0.05
+    @test mean(abs.(x̂1 .- pmean(sol1lux.ensemblesol[1]))) < 0.025
+    @test mean(abs.(physsol0_1 .- pmean(sol1lux.ensemblesol[1]))) < 0.025
 end
 
 @testset "Example 2 - with parameter estimation" begin
@@ -111,8 +111,9 @@ end
     # testing points
     t = time
     # Mean of last 500 sampled parameter's curves(flux and lux chains)[Ensemble predictions]
-    θ = [vector_to_parameters(fhsamples[i][1:(end - 1)], θinit) for i in 2000:2500]
-    luxar = [chainlux1(t', θ[i], st)[1] for i in 1:500]
+    θ = [vector_to_parameters(fhsamples[i][1:(end - 1)], θinit)
+         for i in 2000:length(fhsamples)]
+    luxar = [chainlux1(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
@@ -120,10 +121,10 @@ end
     @test mean(abs.(physsol1 .- meanscurve)) < 0.15
 
     # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
-    @test abs(p - mean([fhsamples[i][23] for i in 2000:2500])) < abs(0.35 * p)
+    @test abs(p - mean([fhsamples[i][23] for i in 2000:length(fhsamples)])) < abs(0.35 * p)
 
     #-------------------------- solve() call  
-    @test mean(abs.(physsol1_1 .- sol2lux.ensemblesol[1])) < 8e-2
+    @test mean(abs.(physsol1_1 .- pmean(sol2lux.ensemblesol[1]))) < 8e-2
 
     # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
     @test abs(p - sol2lux.estimated_de_params[1]) < abs(0.15 * p)
@@ -193,13 +194,15 @@ end
     t = sol.t
     #------------------------------ ahmc_bayesian_pinn_ode() call
     # Mean of last 500 sampled parameter's curves(lux chains)[Ensemble predictions]
-    θ = [vector_to_parameters(fhsampleslux12[i], θinit) for i in 1000:1500]
-    luxar = [chainlux12(t', θ[i], st)[1] for i in 1:500]
+    θ = [vector_to_parameters(fhsampleslux12[i], θinit)
+         for i in 1000:length(fhsampleslux12)]
+    luxar = [chainlux12(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_1 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-    θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 1)], θinit) for i in 1000:1500]
-    luxar = [chainlux12(t', θ[i], st)[1] for i in 1:500]
+    θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 1)], θinit)
+         for i in 1000:length(fhsampleslux22)]
+    luxar = [chainlux12(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
@@ -209,12 +212,12 @@ end
     @test mean(abs.(physsol1 .- meanscurve2_2)) < 5e-2
 
     # estimated parameters(lux chain)
-    param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
+    param1 = mean(i[62] for i in fhsampleslux22[1000:length(fhsampleslux22)])
     @test abs(param1 - p) < abs(0.3 * p)
 
     #-------------------------- solve() call 
     # (lux chain)
-    @test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 0.15
+    @test mean(abs.(physsol2 .- pmean(sol3lux_pestim.ensemblesol[1]))) < 0.15
     # estimated parameters(lux chain)
     param1 = sol3lux_pestim.estimated_de_params[1]
     @test abs(param1 - p) < abs(0.45 * p)
