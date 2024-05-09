@@ -7,7 +7,7 @@ using ComponentArrays
 
 Random.seed!(100)
 
-@testset "Example 1: 2D Periodic System with parameter estimation" begin
+@testset "Example 1: 1D Periodic System with parameter estimation" begin
     # Cos(pi*t) periodic curve
     @parameters t, p
     @variables u(..)
