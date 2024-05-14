@@ -311,27 +311,7 @@ function NeuralPDE.generate_adaptive_loss_function(pinnrep::NeuralPDE.PINNRepres
 
     function run_neural_tangent_kernel_adaptive_loss(θ, pde_losses, bc_losses)
 
-        if  adaloss.reweight_every == 0 && iteration[1] == 2 # when NTK remains constant throughout
-            print("CONSTANT NTK \n")
-            Kuus = [(Zygote.gradient(bc_loss_function, θ))[1] for bc_loss_function in bc_loss_functions]
-            Krrs = [(Zygote.gradient(pde_loss_function, θ))[1] for pde_loss_function in pde_loss_functions]
-
-            TrKuu = [sum(Kuu.^2) for Kuu in Kuus]
-            TrKrr = [sum(Krr.^2) for Krr in Krrs]
-
-            TrK = sum(TrKuu) + sum(TrKrr)
-            nonzero_divisor_eps = adaloss_T isa Float64 ? Float64(1e-11) : convert(adaloss_T, 1e-7)
-
-            adaloss.bc_loss_weights = TrK./(TrKuu .+ nonzero_divisor_eps)
-            adaloss.pde_loss_weights = TrK./(TrKrr .+ nonzero_divisor_eps)
-
-            NeuralPDE.logvector(pinnrep.logger, adaloss.pde_loss_weights,
-                      "adaptive_loss/pde_loss_weights", iteration[1])
-            NeuralPDE.logvector(pinnrep.logger, adaloss.bc_loss_weights,
-                      "adaptive_loss/bc_loss_weights",
-                      iteration[1])
-        
-        elseif adaloss.reweight_every != 0 && iteration[1] % adaloss.reweight_every == 0
+        if iteration[1] % adaloss.reweight_every == 0
 
             Kuus = [(Zygote.gradient(bc_loss_function, θ))[1] for bc_loss_function in bc_loss_functions]
             Krrs = [(Zygote.gradient(pde_loss_function, θ))[1] for pde_loss_function in pde_loss_functions]
@@ -340,10 +320,10 @@ function NeuralPDE.generate_adaptive_loss_function(pinnrep::NeuralPDE.PINNRepres
             TrKrr = [sum(Krr.^2) for Krr in Krrs]
 
             TrK = sum(TrKuu) + sum(TrKrr)
-            nonzero_divisor_eps = adaloss_T isa Float64 ? Float64(1e-11) : convert(adaloss_T, 1e-7)
+            # nonzero_divisor_eps = adaloss_T isa Float64 ? Float64(1e-11) : convert(adaloss_T, 1e-7)
 
-            adaloss.bc_loss_weights = TrK./(TrKuu .+ nonzero_divisor_eps)
-            adaloss.pde_loss_weights = TrK./(TrKrr .+ nonzero_divisor_eps)
+            adaloss.bc_loss_weights = TrK./TrKuu
+            adaloss.pde_loss_weights = TrK./TrKrr 
 
             NeuralPDE.logvector(pinnrep.logger, adaloss.pde_loss_weights,
                       "adaptive_loss/pde_loss_weights", iteration[1])

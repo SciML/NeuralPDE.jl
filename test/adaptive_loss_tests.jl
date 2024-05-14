@@ -10,7 +10,10 @@ gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weight
                                                             bc_loss_weights = 1)
 adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights = 1,
                                               bc_loss_weights = 1)
-adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss, adaptive_loss]
+ntk_loss = NeuralPDE.NeuralTangentKernelLoss(10; pde_loss_weights = 1, bc_loss_weights = 1)
+
+adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss, adaptive_loss, ntk_loss]
+# adaptive_losses = [nonadaptive_loss, ntk_loss]
 maxiters = 4000
 seed = 60
 
@@ -80,8 +83,11 @@ error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_s
 @show error_results_no_logs[1][:total_diff_rel]
 @show error_results_no_logs[2][:total_diff_rel]
 @show error_results_no_logs[3][:total_diff_rel]
+@show error_results_no_logs[4][:total_diff_rel]
+
 # accuracy tests, these work for this specific seed but might not for others
 # note that this doesn't test that the adaptive losses are outperforming the nonadaptive loss, which is not guaranteed, and seed/arch/hyperparam/pde etc dependent
 @test error_results_no_logs[1][:total_diff_rel] < 0.4
 @test error_results_no_logs[2][:total_diff_rel] < 0.4
 @test error_results_no_logs[3][:total_diff_rel] < 0.4
+@test error_results_no_logs[4][:total_diff_rel] < 0.4
