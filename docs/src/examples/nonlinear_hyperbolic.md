@@ -32,11 +32,12 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and
 
 We solve this with Neural:
 
-```@example
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots
+```@example nonlinear_hyperbolic
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots,
+      LineSearches
 using SpecialFunctions
 using Plots
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..), w(..)
@@ -94,12 +95,12 @@ bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 1000)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 200)
 
 phi = discretization.phi
 
@@ -112,14 +113,19 @@ analytic_sol_func(t, x) = [u_analytic(t, x), w_analytic(t, x)]
 u_real = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:2]
 u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:2]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+ps = []
 for i in 1:2
     p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = "u$i, analytic")
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
-    plot(p1, p2, p3)
-    savefig("nonlinear_hyperbolic_sol_u$i")
+    push!(ps, plot(p1, p2, p3))
 end
 ```
 
-![nonlinear_hyperbolic_sol_u1](https://user-images.githubusercontent.com/26853713/126457614-d19e7a4d-f9e3-4e78-b8ae-1e58114a744e.png)
-![nonlinear_hyperbolic_sol_u2](https://user-images.githubusercontent.com/26853713/126457617-ee26c587-a97f-4a2e-b6b7-b326b1f117af.png)
+```@example nonlinear_hyperbolic
+ps[1]
+```
+
+```@example nonlinear_hyperbolic
+ps[2]
+```

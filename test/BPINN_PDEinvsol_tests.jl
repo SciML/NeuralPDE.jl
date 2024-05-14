@@ -35,8 +35,8 @@ Random.seed!(100)
     dataset = [hcat(u, timepoints)]
 
     # checking all training strategies
-    discretization = BayesianPINN([chainl], StochasticTraining(200), param_estim = true, 
-                                dataset = [dataset, nothing])
+    discretization = BayesianPINN([chainl], StochasticTraining(200), param_estim = true,
+        dataset = [dataset, nothing])
 
     ahmc_bayesian_pinn_pde(pde_system,
         discretization;
@@ -47,8 +47,8 @@ Random.seed!(100)
         saveats = [1 / 50.0],
         param = [LogNormal(6.0, 0.5)])
 
-    discretization = BayesianPINN([chainl], QuasiRandomTraining(200), param_estim = true, 
-                                dataset = [dataset, nothing])
+    discretization = BayesianPINN([chainl], QuasiRandomTraining(200), param_estim = true,
+        dataset = [dataset, nothing])
 
     ahmc_bayesian_pinn_pde(pde_system,
         discretization;
@@ -59,8 +59,8 @@ Random.seed!(100)
         saveats = [1 / 50.0],
         param = [LogNormal(6.0, 0.5)])
 
-    discretization = BayesianPINN([chainl], QuadratureTraining(), param_estim = true, 
-                                dataset = [dataset, nothing])
+    discretization = BayesianPINN([chainl], QuadratureTraining(), param_estim = true,
+        dataset = [dataset, nothing])
 
     ahmc_bayesian_pinn_pde(pde_system,
         discretization;
@@ -71,8 +71,8 @@ Random.seed!(100)
         saveats = [1 / 50.0],
         param = [LogNormal(6.0, 0.5)])
 
-    discretization = BayesianPINN([chainl], GridTraining([0.02]), param_estim = true, 
-                                dataset = [dataset, nothing])
+    discretization = BayesianPINN([chainl], GridTraining([0.02]), param_estim = true,
+        dataset = [dataset, nothing])
 
     sol1 = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
@@ -112,7 +112,7 @@ end
         Lux.Chain(Lux.Dense(input_, n, Lux.tanh), Lux.Dense(n, n, Lux.tanh),
             Lux.Dense(n, 1)),
         Lux.Chain(Lux.Dense(input_, n, Lux.tanh), Lux.Dense(n, n, Lux.tanh),
-            Lux.Dense(n, 1)),
+            Lux.Dense(n, 1))
     ]
 
     #Generate Data
@@ -132,8 +132,8 @@ end
     ts_ = hcat(sol(ts).t...)[1, :]
     dataset = [hcat(us[i, :], ts_) for i in 1:3]
 
-    discretization = BayesianPINN(chain, GridTraining([0.01]); param_estim = true, 
-                                dataset = [dataset, nothing])
+    discretization = BayesianPINN(chain, GridTraining([0.01]); param_estim = true,
+        dataset = [dataset, nothing])
 
     @named pde_system = PDESystem(eqs, bcs, domains,
         [t], [x(t), y(t), z(t)], [σ_], defaults = Dict([p => 1.0 for p in [σ_]]))

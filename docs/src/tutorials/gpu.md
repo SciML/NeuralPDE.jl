@@ -29,24 +29,28 @@ we must ensure that our initial parameters for the neural network are on the GPU
 is done, then the internal computations will all take place on the GPU. This is done by
 using the `gpu` function on the initial parameters, like:
 
-```julia
-using Lux, ComponentArrays
+```@example gpu
+using Lux, LuxCUDA, ComponentArrays, Random
+const gpud = gpu_device()
+inner = 25
 chain = Chain(Dense(3, inner, Lux.σ),
-              Dense(inner, inner, Lux.σ),
-              Dense(inner, inner, Lux.σ),
-              Dense(inner, inner, Lux.σ),
-              Dense(inner, 1))
+    Dense(inner, inner, Lux.σ),
+    Dense(inner, inner, Lux.σ),
+    Dense(inner, inner, Lux.σ),
+    Dense(inner, 1))
 ps = Lux.setup(Random.default_rng(), chain)[1]
-ps = ps |> ComponentArray |> gpu .|> Float64
+ps = ps |> ComponentArray |> gpud .|> Float64
 ```
 
 In total, this looks like:
 
-```julia
-using NeuralPDE, Lux, CUDA, Random, ComponentArrays
+```@example gpu
+using NeuralPDE, Lux, LuxCUDA, Random, ComponentArrays
 using Optimization
 using OptimizationOptimisers
 import ModelingToolkit: Interval
+using Plots
+using Printf
 
 @parameters t x y
 @variables u(..)
@@ -79,17 +83,17 @@ domains = [t ∈ Interval(t_min, t_max),
 # Neural network
 inner = 25
 chain = Chain(Dense(3, inner, Lux.σ),
-              Dense(inner, inner, Lux.σ),
-              Dense(inner, inner, Lux.σ),
-              Dense(inner, inner, Lux.σ),
-              Dense(inner, 1))
+    Dense(inner, inner, Lux.σ),
+    Dense(inner, inner, Lux.σ),
+    Dense(inner, inner, Lux.σ),
+    Dense(inner, 1))
 
-strategy = QuadratureTraining()
+strategy = QuasiRandomTraining(100)
 ps = Lux.setup(Random.default_rng(), chain)[1]
-ps = ps |> ComponentArray |> gpu .|> Float64
+ps = ps |> ComponentArray |> gpud .|> Float64
 discretization = PhysicsInformedNN(chain,
-                                   strategy,
-                                   init_params = ps)
+    strategy,
+    init_params = ps)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x, y], [u(t, x, y)])
 prob = discretize(pde_system, discretization)
@@ -100,36 +104,33 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 2500)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 2500)
 ```
 
-We then use the `remake` function to rebuild the PDE problem to start a new
-optimization at the optimized parameters, and continue with a lower learning rate:
+We then use the `remake` function to rebuild the PDE problem to start a new optimization at the optimized parameters, and continue with a lower learning rate:
 
-```julia
+```@example gpu
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, Adam(0.001); callback = callback, maxiters = 2500)
+res = Optimization.solve(
+    prob, OptimizationOptimisers.Adam(1e-3); callback = callback, maxiters = 2500)
 ```
 
 Finally, we inspect the solution:
 
-```julia
+```@example gpu
 phi = discretization.phi
 ts, xs, ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
 u_real = [analytic_sol_func(t, x, y) for t in ts for x in xs for y in ys]
-u_predict = [first(Array(phi(gpu([t, x, y]), res.u))) for t in ts for x in xs for y in ys]
-
-using Plots
-using Printf
+u_predict = [first(Array(phi([t, x, y], res.u))) for t in ts for x in xs for y in ys]
 
 function plot_(res)
     # Animate
     anim = @animate for (i, t) in enumerate(0:0.05:t_max)
         @info "Animating frame $i..."
         u_real = reshape([analytic_sol_func(t, x, y) for x in xs for y in ys],
-                         (length(xs), length(ys)))
-        u_predict = reshape([Array(phi(gpu([t, x, y]), res.u))[1] for x in xs for y in ys],
-                            length(xs), length(ys))
+            (length(xs), length(ys)))
+        u_predict = reshape([Array(phi([t, x, y], res.u))[1] for x in xs for y in ys],
+            length(xs), length(ys))
         u_error = abs.(u_predict .- u_real)
         title = @sprintf("predict, t = %.3f", t)
         p1 = plot(xs, ys, u_predict, st = :surface, label = "", title = title)
@@ -144,8 +145,6 @@ end
 
 plot_(res)
 ```
-
-![3pde](https://user-images.githubusercontent.com/12683885/129949743-9471d230-c14f-4105-945f-6bc52677d40e.gif)
 
 ## Performance benchmarks
 

@@ -14,7 +14,7 @@ Random.seed!(100)
     u₀ = [1.0, -1.0]
     du₀ = [0.0, 0.0]
     M = [1.0 0
-        0 0]
+         0 0]
     f = ODEFunction(example1, mass_matrix = M)
     tspan = (0.0f0, 1.0f0)
 
@@ -41,7 +41,7 @@ end
         nothing
     end
     M = [0.0 0
-        0 1]
+         0 1]
     u₀ = [0.0, 0.0]
     du₀ = [0.0, 0.0]
     tspan = (0.0f0, pi / 2.0f0)

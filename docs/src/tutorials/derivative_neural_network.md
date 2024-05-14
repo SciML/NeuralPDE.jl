@@ -53,9 +53,9 @@ using the second numeric derivative `Dt(Dtu1(t,x))`.
 
 ```@example derivativenn
 using NeuralPDE, Lux, ModelingToolkit
-using Optimization, OptimizationOptimisers, OptimizationOptimJL
+using Optimization, OptimizationOptimisers, OptimizationOptimJL, LineSearches
 using Plots
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 Dt = Differential(t)
@@ -71,8 +71,6 @@ bcs_ = [u1(0.0, x) ~ sin(pi * x),
     u2(0.0, x) ~ cos(pi * x),
     Dt(u1(0, x)) ~ -sin(pi * x),
     Dt(u2(0, x)) ~ -cos(pi * x),
-    #Dtu1(0,x) ~ -sin(pi*x),
-    # Dtu2(0,x) ~ -cos(pi*x),
     u1(t, 0.0) ~ 0.0,
     u2(t, 0.0) ~ exp(-t),
     u1(t, 1.0) ~ 0.0,
@@ -93,9 +91,9 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:7]
 
-training_strategy = NeuralPDE.QuadratureTraining()
-discretization = NeuralPDE.PhysicsInformedNN(chain,
-                                             training_strategy)
+training_strategy = NeuralPDE.QuadratureTraining(;
+    batch = 200, reltol = 1e-6, abstol = 1e-6)
+discretization = NeuralPDE.PhysicsInformedNN(chain, training_strategy)
 
 vars = [u1(t, x), u2(t, x), u3(t, x), Dxu1(t, x), Dtu1(t, x), Dxu2(t, x), Dtu2(t, x)]
 @named pdesystem = PDESystem(eqs_, bcs__, domains, [t, x], vars)
@@ -108,15 +106,15 @@ aprox_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[9:en
 
 callback = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-    println("der_losses: ", map(l_ -> l_(p), aprox_derivative_loss_functions))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
+    println("der_losses: ", map(l_ -> l_(p.u), aprox_derivative_loss_functions))
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 2000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 10000)
+res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200)
 
 phi = discretization.phi
 ```
@@ -136,6 +134,7 @@ Dxu1_real(t, x) = pi * exp(-t) * cos(pi * x)
 Dtu1_real(t, x) = -exp(-t) * sin(pi * x)
 Dxu2_real(t, x) = -pi * exp(-t) * sin(pi * x)
 Dtu2_real(t, x) = -exp(-t) * cos(pi * x)
+
 function analytic_sol_func_all(t, x)
     [u1_real(t, x), u2_real(t, x), u3_real(t, x),
         Dxu1_real(t, x), Dtu1_real(t, x), Dxu2_real(t, x), Dtu2_real(t, x)]
@@ -144,25 +143,40 @@ end
 u_real = [[analytic_sol_func_all(t, x)[i] for t in ts for x in xs] for i in 1:7]
 u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:7]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:7]
-
+ps = []
 titles = ["u1", "u2", "u3", "Dtu1", "Dtu2", "Dxu1", "Dxu2"]
 for i in 1:7
     p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = "$(titles[i]), analytic")
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
-    plot(p1, p2, p3)
-    savefig("3sol_ub$i")
+    push!(ps, plot(p1, p2, p3))
 end
 ```
 
-![aprNN_sol_u1](https://user-images.githubusercontent.com/12683885/122998551-de79d600-d3b5-11eb-8f5d-59d00178c2ab.png)
+```@example derivativenn
+ps[1]
+```
 
-![aprNN_sol_u2](https://user-images.githubusercontent.com/12683885/122998567-e3d72080-d3b5-11eb-9024-4072f4b66cda.png)
+```@example derivativenn
+ps[2]
+```
 
-![aprNN_sol_u3](https://user-images.githubusercontent.com/12683885/122998578-e6d21100-d3b5-11eb-96a5-f64e5593b35e.png)
+```@example derivativenn
+ps[3]
+```
 
-## Comparison of the second numerical derivative and numerical + neural network derivative
+```@example derivativenn
+ps[4]
+```
 
-![DDu1](https://user-images.githubusercontent.com/12683885/123113394-3280cb00-d447-11eb-88e3-a8541bbf089f.png)
+```@example derivativenn
+ps[5]
+```
 
-![DDu2](https://user-images.githubusercontent.com/12683885/123113413-36ace880-d447-11eb-8f6a-4c3caa86e359.png)
+```@example derivativenn
+ps[6]
+```
+
+```@example derivativenn
+ps[7]
+```

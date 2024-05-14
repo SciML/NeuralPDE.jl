@@ -26,10 +26,10 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k).
 
 This is done using a derivative neural network approximation.
 
-```@example
+```@example nonlinear_elliptic
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots
 using Plots
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters x, y
 Dx = Differential(x)
@@ -79,16 +79,12 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:6] # 1:number of @variables
 
-strategy = QuadratureTraining()
+strategy = GridTraining(0.01)
 discretization = PhysicsInformedNN(chain, strategy)
 
 vars = [u(x, y), w(x, y), Dxu(x, y), Dyu(x, y), Dxw(x, y), Dyw(x, y)]
 @named pdesystem = PDESystem(eqs_, bcs__, domains, [x, y], vars)
 prob = NeuralPDE.discretize(pdesystem, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
-
-strategy = NeuralPDE.QuadratureTraining()
-discretization = PhysicsInformedNN(chain, strategy)
 sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
@@ -99,15 +95,15 @@ global iteration = 0
 callback = function (p, l)
     if iteration % 10 == 0
         println("loss: ", l)
-        println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-        println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
-        println("der_losses: ", map(l_ -> l_(p), aprox_derivative_loss_functions))
+        println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+        println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
+        println("der_losses: ", map(l_ -> l_(p.u), aprox_derivative_loss_functions))
     end
     global iteration += 1
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 5000)
+res = Optimization.solve(prob, BFGS(); maxiters = 100)
 
 phi = discretization.phi
 
@@ -120,14 +116,19 @@ analytic_sol_func(x, y) = [u_analytic(x, y), w_analytic(x, y)]
 u_real = [[analytic_sol_func(x, y)[i] for x in xs for y in ys] for i in 1:2]
 u_predict = [[phi[i]([x, y], minimizers_[i])[1] for x in xs for y in ys] for i in 1:2]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+ps = []
 for i in 1:2
     p1 = plot(xs, ys, u_real[i], linetype = :contourf, title = "u$i, analytic")
     p2 = plot(xs, ys, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(xs, ys, diff_u[i], linetype = :contourf, title = "error")
-    plot(p1, p2, p3)
-    savefig("non_linear_elliptic_sol_u$i")
+    push!(ps, plot(p1, p2, p3))
 end
 ```
 
-![non_linear_elliptic_sol_u1](https://user-images.githubusercontent.com/26853713/125745550-0b667c10-b09a-4659-a543-4f7a7e025d6c.png)
-![non_linear_elliptic_sol_u2](https://user-images.githubusercontent.com/26853713/125745571-45a04739-7838-40ce-b979-43b88d149028.png)
+```@example nonlinear_elliptic
+ps[1]
+```
+
+```@example nonlinear_elliptic
+ps[2]
+```

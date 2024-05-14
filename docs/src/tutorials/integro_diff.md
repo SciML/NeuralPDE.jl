@@ -45,8 +45,9 @@ u(0) = 0
 ```
 
 ```@example integro
-using NeuralPDE, Flux, ModelingToolkit, Optimization, OptimizationOptimJL, DomainSets
-import ModelingToolkit: Interval, infimum, supremum
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, DomainSets
+using ModelingToolkit: Interval, infimum, supremum
+using Plots
 
 @parameters t
 @variables i(..)
@@ -55,18 +56,18 @@ Ii = Integral(t in DomainSets.ClosedInterval(0, t))
 eq = Di(i(t)) + 2 * i(t) + 5 * Ii(i(t)) ~ 1
 bcs = [i(0.0) ~ 0.0]
 domains = [t ∈ Interval(0.0, 2.0)]
-chain = Chain(Dense(1, 15, Flux.σ), Dense(15, 1)) |> f64
+chain = Lux.Chain(Lux.Dense(1, 15, Lux.σ), Lux.Dense(15, 1))
 
 strategy_ = QuadratureTraining()
 discretization = PhysicsInformedNN(chain,
-                                   strategy_)
+    strategy_)
 @named pde_system = PDESystem(eq, bcs, domains, [t], [i(t)])
 prob = NeuralPDE.discretize(pde_system, discretization)
 callback = function (p, l)
     println("Current loss is: $l")
     return false
 end
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 100)
+res = Optimization.solve(prob, BFGS(); maxiters = 100)
 ```
 
 Plotting the final solution and analytical solution
@@ -78,9 +79,6 @@ u_predict = [first(phi([t], res.u)) for t in ts]
 
 analytic_sol_func(t) = 1 / 2 * (exp(-t)) * (sin(2 * t))
 u_real = [analytic_sol_func(t) for t in ts]
-using Plots
 plot(ts, u_real, label = "Analytical Solution")
 plot!(ts, u_predict, label = "PINN Solution")
 ```
-
-![IDE](https://user-images.githubusercontent.com/12683885/129749371-18b44bbc-18c8-49c5-bf30-0cd97ecdd977.png)

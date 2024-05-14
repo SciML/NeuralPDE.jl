@@ -35,8 +35,8 @@ with physics-informed neural networks.
 ## Solution
 
 ```@example system
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
-import ModelingToolkit: Interval, infimum, supremum
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 @variables u1(..), u2(..), u3(..)
@@ -67,7 +67,7 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:3]
 
-strategy = QuadratureTraining()
+strategy = QuadratureTraining(; batch = 200, abstol = 1e-6, reltol = 1e-6)
 discretization = PhysicsInformedNN(chain, strategy)
 
 @named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u1(t, x), u2(t, x), u3(t, x)])
@@ -79,13 +79,12 @@ bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 5000)
-
+res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 1000)
 phi = discretization.phi
 ```
 
@@ -96,7 +95,7 @@ interface. Here is an example using the components from `symbolic_discretize` to
 reproduce the `discretize` optimization:
 
 ```@example system
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
 import ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -138,8 +137,8 @@ bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bc_loss_functions))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bc_loss_functions))
     return false
 end
 
@@ -152,8 +151,8 @@ end
 f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
 prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = Optimization.solve(prob, OptimizationOptimJL.BFGS(); callback = callback,
-                         maxiters = 5000)
+res = Optimization.solve(
+    prob, OptimizationOptimJL.LBFGS(linesearch = BackTracking()); maxiters = 1000)
 ```
 
 ## Solution Representation
@@ -174,20 +173,26 @@ end
 u_real = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:3]
 u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:3]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:3]
+ps = []
 for i in 1:3
     p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = "u$i, analytic")
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
-    plot(p1, p2, p3)
-    savefig("sol_u$i")
+    push!(ps, plot(p1, p2, p3))
 end
 ```
 
-![sol_uq1](https://user-images.githubusercontent.com/12683885/122979254-03634e80-d3a0-11eb-985b-d3bae2dddfde.png)
+```@example system
+ps[1]
+```
 
-![sol_uq2](https://user-images.githubusercontent.com/12683885/122979278-09592f80-d3a0-11eb-8fee-de3652f138d8.png)
+```@example system
+ps[2]
+```
 
-![sol_uq3](https://user-images.githubusercontent.com/12683885/122979288-0e1de380-d3a0-11eb-9005-bfb501959b83.png)
+```@example system
+ps[3]
+```
 
 Notice here that the solution is represented in the `OptimizationSolution` with `u` as
 the parameters for the trained neural network. But, for the case where the neural network
@@ -200,25 +205,16 @@ Subsetting the array also works, but is inelegant.
 
 (If `param_estim == true`, then `res.u.p` are the fit parameters)
 
-If Flux.jl is used, then subsetting the array is required. This looks like:
-
-```julia
-init_params = [Flux.destructure(c)[1] for c in chain]
-acum = [0; accumulate(+, length.(init_params))]
-sep = [(acum[i] + 1):acum[i + 1] for i in 1:(length(acum) - 1)]
-minimizers_ = [res.minimizer[s] for s in sep]
-```
-
 #### Note: Solving Matrices of PDEs
 
 Also, in addition to vector systems, we can use the matrix form of PDEs:
 
-```@example
+```julia
 using ModelingToolkit, NeuralPDE
 @parameters x y
-@variables u[1:2, 1:2](..)
-@derivatives Dxx'' ~ x
-@derivatives Dyy'' ~ y
+@variables (u(..))[1:2, 1:2]
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
 
 # Initial and boundary conditions
 bcs = [u[1](x, 0) ~ x, u[2](x, 0) ~ 2, u[3](x, 0) ~ 3, u[4](x, 0) ~ 4]

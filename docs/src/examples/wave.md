@@ -17,7 +17,7 @@ Further, the solution of this equation with the given boundary conditions is pre
 
 ```@example wave
 using NeuralPDE, Lux, Optimization, OptimizationOptimJL
-import ModelingToolkit: Interval
+using ModelingToolkit: Interval
 
 @parameters t, x
 @variables u(..)
@@ -70,9 +70,9 @@ function analytic_sol_func(t, x)
 end
 
 u_predict = reshape([first(phi([t, x], res.u)) for t in ts for x in xs],
-                    (length(ts), length(xs)))
+    (length(ts), length(xs)))
 u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs],
-                 (length(ts), length(xs)))
+    (length(ts), length(xs)))
 
 diff_u = abs.(u_predict .- u_real)
 p1 = plot(ts, xs, u_real, linetype = :contourf, title = "analytic");
@@ -80,8 +80,6 @@ p2 = plot(ts, xs, u_predict, linetype = :contourf, title = "predict");
 p3 = plot(ts, xs, diff_u, linetype = :contourf, title = "error");
 plot(p1, p2, p3)
 ```
-
-![waveplot](https://user-images.githubusercontent.com/12683885/101984293-74a7a380-3c91-11eb-8e78-72a50d88e3f8.png)
 
 ## 1D Damped Wave Equation with Dirichlet boundary conditions
 
@@ -101,7 +99,7 @@ with grid discretization `dx = 0.05` and physics-informed neural networks. Here,
 ```@example wave2
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using Plots, Printf
-import ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..) Dxu(..) Dtu(..) O1(..) O2(..)
@@ -123,7 +121,7 @@ eq = Dx(Dxu(t, x)) ~ 1 / v^2 * Dt(Dtu(t, x)) + b * Dtu(t, x)
 bcs_ = [u(t, 0) ~ 0.0,# for all t > 0
     u(t, L) ~ 0.0,# for all t > 0
     u(0, x) ~ x * (1.0 - x), # for all 0 < x < 1
-    Dtu(0, x) ~ 1 - 2x, # for all  0 < x < 1
+    Dtu(0, x) ~ 1 - 2x # for all  0 < x < 1
 ]
 
 ep = (cbrt(eps(eltype(Float64))))^2 / 6
@@ -141,16 +139,16 @@ domains = [t ∈ Interval(0.0, L),
 inn = 25
 innd = 4
 chain = [[Lux.Chain(Dense(2, inn, Lux.tanh),
-                    Dense(inn, inn, Lux.tanh),
-                    Dense(inn, inn, Lux.tanh),
-                    Dense(inn, 1)) for _ in 1:3]
+              Dense(inn, inn, Lux.tanh),
+              Dense(inn, inn, Lux.tanh),
+              Dense(inn, 1)) for _ in 1:3]
          [Lux.Chain(Dense(2, innd, Lux.tanh), Dense(innd, 1)) for _ in 1:2]]
 
 strategy = GridTraining(0.02)
 discretization = PhysicsInformedNN(chain, strategy;)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x],
-                              [u(t, x), Dxu(t, x), Dtu(t, x), O1(t, x), O2(t, x)])
+    [u(t, x), Dxu(t, x), Dtu(t, x), O1(t, x), O2(t, x)])
 prob = discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
@@ -159,14 +157,14 @@ bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
     println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p), bcs_inner_loss_functions))
+    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
+    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 2000)
+res = Optimization.solve(prob, BFGS(); maxiters = 2000)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, BFGS(); callback = callback, maxiters = 2000)
+res = Optimization.solve(prob, BFGS(); maxiters = 2000)
 
 phi = discretization.phi[1]
 
@@ -203,10 +201,11 @@ gif(anim, "1Dwave_damped_adaptive.gif", fps = 200)
 
 # Surface plot
 ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-u_predict = reshape([first(phi([t, x], res.u.depvar.u)) for
-                     t in ts for x in xs], (length(ts), length(xs)))
+u_predict = reshape(
+    [first(phi([t, x], res.u.depvar.u)) for
+     t in ts for x in xs], (length(ts), length(xs)))
 u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs],
-                 (length(ts), length(xs)))
+    (length(ts), length(xs)))
 
 diff_u = abs.(u_predict .- u_real)
 p1 = plot(ts, xs, u_real, linetype = :contourf, title = "analytic");
@@ -214,11 +213,3 @@ p2 = plot(ts, xs, u_predict, linetype = :contourf, title = "predict");
 p3 = plot(ts, xs, diff_u, linetype = :contourf, title = "error");
 plot(p1, p2, p3)
 ```
-
-We can see the results here:
-
-![Damped_wave_sol_adaptive_u](https://user-images.githubusercontent.com/12683885/149665332-d4daf7d0-682e-4933-a2b4-34f403881afb.png)
-
-Plotted as a line, one can see the analytical solution and the prediction here:
-
-![1Dwave_damped_adaptive](https://user-images.githubusercontent.com/12683885/149665327-69d04c01-2240-45ea-981e-a7b9412a3b58.gif)
