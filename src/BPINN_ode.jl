@@ -4,7 +4,7 @@
     BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
                         priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
                         phystd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
-                        MCMCargs = (n_leapfrog=30), nchains = 1, init_params = nothing, 
+                        MCMCargs = (n_leapfrog=30), nchains = 1, init_params = nothing,
                         Adaptorkwargs = (Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8, Metric = DiagEuclideanMetric),
                         Integratorkwargs = (Integrator = Leapfrog,), autodiff = false,
                         progress = false, verbose = false)
@@ -64,7 +64,7 @@ sol_lux_pestim = solve(prob, alg)
 
 Note that the solution is evaluated at fixed time points according to the strategy chosen.
 ensemble solution is evaluated and given at steps of `saveat`.
-Dataset should only be provided when ODE parameter Estimation is being done.  
+Dataset should only be provided when ODE parameter Estimation is being done.
 The neural network is a fully continuous solution so `BPINNsolution`
 is an accurate interpolation (up to the neural network training result). In addition, the
 `BPINNstats` is returned as `sol.fullsolution` for further analysis.
@@ -105,15 +105,16 @@ struct BNNODE{C, K, IT <: NamedTuple,
     verbose::Bool
 end
 function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
-    priorsNNw = (0.0, 2.0), param = nothing, l2std = [0.05], phystd = [0.05],
-    dataset = [nothing], physdt = 1 / 20.0, MCMCkwargs = (n_leapfrog = 30,), nchains = 1,
-    init_params = nothing,
-    Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-        Metric = DiagEuclideanMetric,
-        targetacceptancerate = 0.8),
-    Integratorkwargs = (Integrator = Leapfrog,),
-    autodiff = false, progress = false, verbose = false)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+        priorsNNw = (0.0, 2.0), param = nothing, l2std = [0.05], phystd = [0.05],
+        dataset = [nothing], physdt = 1 / 20.0, MCMCkwargs = (n_leapfrog = 30,), nchains = 1,
+        init_params = nothing,
+        Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+            Metric = DiagEuclideanMetric,
+            targetacceptancerate = 0.8),
+        Integratorkwargs = (Integrator = Leapfrog,),
+        autodiff = false, progress = false, verbose = false)
+    !(chain isa Lux.AbstractExplicitLayer) &&
+        (chain = adapt(FromFluxAdaptor(false, false), chain))
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
         phystd, dataset, physdt, MCMCkwargs,
@@ -163,24 +164,25 @@ struct BPINNsolution{O <: BPINNstats, E, NP, OP, P}
             estimated_de_params,
             timepoints)
         new{typeof(original), typeof(ensemblesol), typeof(estimated_nn_params),
-            typeof(estimated_de_params), typeof(timepoints)}(original, ensemblesol, estimated_nn_params,
+            typeof(estimated_de_params), typeof(timepoints)}(
+            original, ensemblesol, estimated_nn_params,
             estimated_de_params, timepoints)
     end
 end
 
-function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
-    alg::BNNODE,
-    args...;
-    dt = nothing,
-    timeseries_errors = true,
-    save_everystep = true,
-    adaptive = false,
-    abstol = 1.0f-6,
-    reltol = 1.0f-3,
-    verbose = false,
-    saveat = 1 / 50.0,
-    maxiters = nothing,
-    numensemble = floor(Int, alg.draw_samples / 3))
+function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
+        alg::BNNODE,
+        args...;
+        dt = nothing,
+        timeseries_errors = true,
+        save_everystep = true,
+        adaptive = false,
+        abstol = 1.0f-6,
+        reltol = 1.0f-3,
+        verbose = false,
+        saveat = 1 / 50.0,
+        maxiters = nothing,
+        numensemble = floor(Int, alg.draw_samples / 3))
     @unpack chain, l2std, phystd, param, priorsNNw, Kernel, strategy,
     draw_samples, dataset, init_params,
     nchains, physdt, Adaptorkwargs, Integratorkwargs,
@@ -257,7 +259,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.ODEProblem,
     end
 
     nnparams = length(θinit)
-    estimnnparams = [Particles(reduce(hcat, samples[(end - numensemble):end])[i, :]) for i in 1:nnparams]
+    estimnnparams = [Particles(reduce(hcat, samples[(end - numensemble):end])[i, :])
+                     for i in 1:nnparams]
 
     if ninv == 0
         estimated_params = [nothing]

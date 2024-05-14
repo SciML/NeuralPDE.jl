@@ -47,9 +47,9 @@ domains = [x ∈ Interval(x_0, x_end)]
 # Neural network
 inn = 18
 chain = Lux.Chain(Dense(1, inn, Lux.σ),
-                  Dense(inn, inn, Lux.σ),
-                  Dense(inn, inn, Lux.σ),
-                  Dense(inn, 1))
+    Dense(inn, inn, Lux.σ),
+    Dense(inn, inn, Lux.σ),
+    Dense(inn, 1))
 
 lb = [x_0]
 ub = [x_end]
@@ -63,8 +63,8 @@ function norm_loss_function(phi, θ, p)
 end
 
 discretization = PhysicsInformedNN(chain,
-                                   QuadratureTraining(),
-                                   additional_loss = norm_loss_function)
+    QuadratureTraining(),
+    additional_loss = norm_loss_function)
 
 @named pdesystem = PDESystem(eq, bcs, domains, [x], [p(x)])
 prob = discretize(pdesystem, discretization)
@@ -84,7 +84,8 @@ cb_ = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(linesearch = BackTracking()), callback = cb_, maxiters = 600)
+res = Optimization.solve(
+    prob, BFGS(linesearch = BackTracking()), callback = cb_, maxiters = 600)
 ```
 
 And some analysis:

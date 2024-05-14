@@ -91,7 +91,8 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:7]
 
-training_strategy = NeuralPDE.QuadratureTraining(; batch = 200, reltol = 1e-6, abstol = 1e-6)
+training_strategy = NeuralPDE.QuadratureTraining(;
+    batch = 200, reltol = 1e-6, abstol = 1e-6)
 discretization = NeuralPDE.PhysicsInformedNN(chain, training_strategy)
 
 vars = [u1(t, x), u2(t, x), u3(t, x), Dxu1(t, x), Dtu1(t, x), Dxu2(t, x), Dtu2(t, x)]
