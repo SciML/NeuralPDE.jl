@@ -47,6 +47,25 @@ function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff =
     NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
 end
 
+
+function dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
+    autodiff::Bool, differential_vars::AbstractVector) where {C, T, U <: Number}
+    if autodiff
+        ForwardDiff.derivative(t -> phi(t, θ), t)
+    else
+        (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
+    end
+end
+
+function dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
+    autodiff::Bool,differential_vars::AbstractVector) where {C, T, U <: AbstractVector}
+    if autodiff
+        ForwardDiff.jacobian(t -> phi(t, θ), t)
+    else
+        (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
+    end
+end
+
 function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool,
         differential_vars::AbstractVector)
     if autodiff
@@ -71,7 +90,7 @@ end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
     p, differential_vars::AbstractVector) where {C, T, U}
-    sum(abs2, dfdx(phi, t, θ, autodiff,differential_vars) .- f(phi(t, θ), p_, t))
+    sum(abs2, dfdx(phi, t, θ, autodiff,differential_vars) .- f(phi(t, θ), t))
 end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
@@ -119,8 +138,8 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars))
     
     function integrand(ts, θ)
-        sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
-    end
+        [sum(abs2, inner_loss(phi, f, autodiff, t, θ, p, differential_vars)) for t in ts]
+end
     
     function loss(θ, _)
         intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
