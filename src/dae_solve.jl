@@ -151,6 +151,17 @@ end
     return loss
 end
 
+function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
+    differential_vars::AbstractVector)
+    autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
+    function loss(θ, _)
+        ts = adapt(parameterless_type(θ),
+            [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
+        sum(inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
+    end
+    return loss
+end
+
 function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
         alg::NNDAE,
         args...;
