@@ -100,4 +100,10 @@ end
             include("dgm_test.jl")
         end
     end
+
+    if GROUP == "All" || GROUP == "Deep-Ritz"
+        @time @safetestset "Deep Ritz method" begin
+            include("deep_ritz_test.jl")
+        end
+    end
 end
