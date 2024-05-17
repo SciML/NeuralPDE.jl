@@ -15,30 +15,30 @@ ann = Chain(Dense(2, 10, tanh), Dense(10, 1))
 p, re = Flux.destructure(ann)
 z = re(Float64(p))</code></pre><p>While one may think this recreates the neural network to act in <code>Float64</code> precision, <a href="https://github.com/FluxML/Flux.jl/pull/2156">it does not</a> and instead its values will silently downgrade everything to <code>Float32</code>. This is only fixed by <code>Chain(Dense(2, 10, tanh), Dense(10, 1)) |&gt; f64</code>. Similar cases will <a href="https://github.com/FluxML/Optimisers.jl/issues/95">lead to dropped gradients with complex numbers</a>. This is not an issue with the automatic differentiation library commonly associated with Flux (Zygote.jl) but rather due to choices in the neural network library&#39;s decision for how to approach type handling and precision. Thus when using DiffEqFlux.jl with Flux, the user must be very careful to ensure that the precision of the arguments are correct, and anything that requires alternative types (like <code>TrackerAdjoint</code> tracked values, <code>ForwardDiffSensitivity</code> dual numbers, and TaylorDiff.jl differentiation) are suspect.</p><p>Lux.jl has none of these issues, is simpler to work with due to the parameters in its function calls being explicit rather than implicit global references, and achieves higher performance. It is built on the same foundations as Flux.jl, such as Zygote and NNLib, and thus it supports the same layers underneath and calls the same kernels. The better performance comes from not having the overhead of <code>restructure</code> required. Thus we highly recommend people use Lux instead and only use the Flux fallbacks for legacy code.</p><h2 id="Reproducibility"><a class="docs-heading-anchor" href="#Reproducibility">Reproducibility</a><a id="Reproducibility-1"></a><a class="docs-heading-anchor-permalink" href="#Reproducibility" title="Permalink"></a></h2><details><summary>The documentation of this SciML package was built using these direct dependencies,</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Status</span></span> `/var/lib/buildkite-agent/builds/gpuci-13/julialang/neuralpde-dot-jl/docs/Project.toml`
   <span class="sgr90">[0bf59076] </span>AdvancedHMC v0.6.1
-  <span class="sgr90">[b0b7db55] </span>ComponentArrays v0.15.11
+  <span class="sgr90">[b0b7db55] </span>ComponentArrays v0.15.12
   <span class="sgr90">[667455a9] </span>Cubature v1.5.1
-  <span class="sgr90">[2b5f629d] </span>DiffEqBase v6.149.1
+  <span class="sgr90">[2b5f629d] </span>DiffEqBase v6.150.0
   <span class="sgr90">[31c24e10] </span>Distributions v0.25.108
   <span class="sgr90">[e30172f5] </span>Documenter v1.4.1
 <span class="sgr33">⌅</span> <span class="sgr90">[5b8099bc] </span>DomainSets v0.6.7
   <span class="sgr90">[587475ba] </span>Flux v0.14.15
   <span class="sgr90">[de52edbc] </span>Integrals v4.4.1
   <span class="sgr90">[d3d80556] </span>LineSearches v7.2.0
-  <span class="sgr90">[b2108857] </span>Lux v0.5.42
+  <span class="sgr90">[b2108857] </span>Lux v0.5.49
   <span class="sgr90">[d0bbae9a] </span>LuxCUDA v0.3.2
   <span class="sgr90">[94925ecb] </span>MethodOfLines v0.11.0
-  <span class="sgr90">[961ee093] </span>ModelingToolkit v9.12.2
+  <span class="sgr90">[961ee093] </span>ModelingToolkit v9.13.0
   <span class="sgr90">[0987c9cc] </span>MonteCarloMeasurements v1.1.6
   <span class="sgr90">[315f7962] </span>NeuralPDE v5.16.0 `/var/lib/buildkite-agent/builds/gpuci-13/julialang/neuralpde-dot-jl`
-  <span class="sgr90">[7f7a1694] </span>Optimization v3.24.3
-  <span class="sgr90">[36348300] </span>OptimizationOptimJL v0.2.3
+  <span class="sgr90">[7f7a1694] </span>Optimization v3.25.0
+<span class="sgr33">⌅</span> <span class="sgr90">[36348300] </span>OptimizationOptimJL v0.2.3
   <span class="sgr90">[42dfb2eb] </span>OptimizationOptimisers v0.2.1
   <span class="sgr90">[500b13db] </span>OptimizationPolyalgorithms v0.2.0
-  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.75.0
+  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.76.0
   <span class="sgr90">[91a5bcdd] </span>Plots v1.40.4
   <span class="sgr90">[8a4e6c94] </span>QuasiMonteCarlo v0.3.3
   <span class="sgr90">[f2b01f46] </span>Roots v2.1.5
-  <span class="sgr90">[276daf66] </span>SpecialFunctions v2.3.1
+  <span class="sgr90">[276daf66] </span>SpecialFunctions v2.4.0
   <span class="sgr90">[37e2e46d] </span>LinearAlgebra
   <span class="sgr90">[9a3f8284] </span>Random
 <span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr33">⌅</span> have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated`</code></pre></details><details><summary>and using this machine and Julia version.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Julia Version 1.10.3
@@ -57,7 +57,7 @@ Environment:
   JULIA_DEPOT_PATH = /root/.cache/julia-buildkite-plugin/depots/f8da2e12-18ea-4414-879b-afc071467714
   LD_LIBRARY_PATH = /usr/local/nvidia/lib:/usr/local/nvidia/lib64
   JULIA_DEBUG = Documenter</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Status</span></span> `/var/lib/buildkite-agent/builds/gpuci-13/julialang/neuralpde-dot-jl/docs/Manifest.toml`
-<span class="sgr33">⌅</span> <span class="sgr90">[47edcb42] </span>ADTypes v0.2.7
+  <span class="sgr90">[47edcb42] </span>ADTypes v1.2.1
   <span class="sgr90">[a4c015fc] </span>ANSIColoredPrinters v0.0.1
   <span class="sgr90">[621f4979] </span>AbstractFFTs v1.5.0
   <span class="sgr90">[80f14c24] </span>AbstractMCMC v5.2.0
@@ -65,7 +65,7 @@ Environment:
   <span class="sgr90">[7d9f7c33] </span>Accessors v0.1.36
   <span class="sgr90">[79e6a3ab] </span>Adapt v4.0.4
   <span class="sgr90">[0bf59076] </span>AdvancedHMC v0.6.1
-  <span class="sgr90">[66dad0bd] </span>AliasTables v1.1.2
+  <span class="sgr90">[66dad0bd] </span>AliasTables v1.1.3
   <span class="sgr90">[dce04be8] </span>ArgCheck v2.3.0
   <span class="sgr90">[ec485272] </span>ArnoldiMethod v0.4.0
   <span class="sgr90">[4fba245c] </span>ArrayInterface v7.10.0
@@ -80,25 +80,26 @@ Environment:
   <span class="sgr90">[d1d4a3ce] </span>BitFlags v0.1.8
   <span class="sgr90">[62783981] </span>BitTwiddlingConvenienceFunctions v0.1.5
   <span class="sgr90">[fa961155] </span>CEnum v0.5.0
-  <span class="sgr90">[2a0fbf3d] </span>CPUSummary v0.2.4
+  <span class="sgr90">[2a0fbf3d] </span>CPUSummary v0.2.5
   <span class="sgr90">[00ebfdb7] </span>CSTParser v3.4.3
-  <span class="sgr90">[052768ef] </span>CUDA v5.3.3
+  <span class="sgr90">[052768ef] </span>CUDA v5.3.4
 <span class="sgr33">⌅</span> <span class="sgr90">[1af6417a] </span>CUDA_Runtime_Discovery v0.2.4
   <span class="sgr90">[49dc2e85] </span>Calculus v0.5.1
-  <span class="sgr90">[082447d4] </span>ChainRules v1.65.0
+  <span class="sgr90">[082447d4] </span>ChainRules v1.66.0
   <span class="sgr90">[d360d2e6] </span>ChainRulesCore v1.23.0
+  <span class="sgr90">[ae650224] </span>ChunkSplitters v2.4.2
   <span class="sgr90">[fb6a15b2] </span>CloseOpenIntervals v0.1.12
   <span class="sgr90">[944b1d66] </span>CodecZlib v0.7.4
-  <span class="sgr90">[35d6a980] </span>ColorSchemes v3.24.0
+  <span class="sgr90">[35d6a980] </span>ColorSchemes v3.25.0
   <span class="sgr90">[3da002f7] </span>ColorTypes v0.11.5
   <span class="sgr90">[c3611d14] </span>ColorVectorSpace v0.10.0
-  <span class="sgr90">[5ae59095] </span>Colors v0.12.10
+  <span class="sgr90">[5ae59095] </span>Colors v0.12.11
   <span class="sgr90">[861a8166] </span>Combinatorics v1.0.2
   <span class="sgr90">[a80b9123] </span>CommonMark v0.8.12
   <span class="sgr90">[38540f10] </span>CommonSolve v0.2.4
   <span class="sgr90">[bbf7d656] </span>CommonSubexpressions v0.3.0
   <span class="sgr90">[34da2185] </span>Compat v4.15.0
-  <span class="sgr90">[b0b7db55] </span>ComponentArrays v0.15.11
+  <span class="sgr90">[b0b7db55] </span>ComponentArrays v0.15.12
   <span class="sgr90">[b152e2b5] </span>CompositeTypes v0.1.4
   <span class="sgr90">[a33af91c] </span>CompositionsBase v0.1.2
   <span class="sgr90">[2569d6c7] </span>ConcreteStructs v0.2.3
@@ -116,7 +117,7 @@ Environment:
   <span class="sgr90">[e2d170a0] </span>DataValueInterfaces v1.0.0
   <span class="sgr90">[244e2a9f] </span>DefineSingletons v0.1.2
   <span class="sgr90">[8bb1440f] </span>DelimitedFiles v1.9.1
-  <span class="sgr90">[2b5f629d] </span>DiffEqBase v6.149.1
+  <span class="sgr90">[2b5f629d] </span>DiffEqBase v6.150.0
   <span class="sgr90">[459566f4] </span>DiffEqCallbacks v3.6.2
   <span class="sgr90">[77a26b50] </span>DiffEqNoiseProcess v5.21.0
   <span class="sgr90">[163ba53b] </span>DiffResults v1.1.0
@@ -127,9 +128,9 @@ Environment:
 <span class="sgr33">⌅</span> <span class="sgr90">[5b8099bc] </span>DomainSets v0.6.7
   <span class="sgr90">[fa6b7ba4] </span>DualNumbers v0.6.8
   <span class="sgr90">[7c1d4256] </span>DynamicPolynomials v0.5.7
-  <span class="sgr90">[06fc5a27] </span>DynamicQuantities v0.13.2
+<span class="sgr33">⌅</span> <span class="sgr90">[06fc5a27] </span>DynamicQuantities v0.13.2
   <span class="sgr90">[4e289a0a] </span>EnumX v1.0.4
-<span class="sgr32">⌃</span> <span class="sgr90">[f151be2c] </span>EnzymeCore v0.6.6
+  <span class="sgr90">[f151be2c] </span>EnzymeCore v0.7.2
   <span class="sgr90">[460bff9d] </span>ExceptionUnwrapping v0.1.10
   <span class="sgr90">[d4d017d3] </span>ExponentialUtilities v1.26.1
   <span class="sgr90">[e2ba6199] </span>ExprTools v0.1.10
@@ -143,7 +144,7 @@ Environment:
   <span class="sgr90">[1a297f60] </span>FillArrays v1.11.0
   <span class="sgr90">[64ca27bc] </span>FindFirstFunctions v1.2.0
   <span class="sgr90">[6a86dc24] </span>FiniteDiff v2.23.1
-  <span class="sgr90">[53c48c17] </span>FixedPointNumbers v0.8.4
+  <span class="sgr90">[53c48c17] </span>FixedPointNumbers v0.8.5
   <span class="sgr90">[587475ba] </span>Flux v0.14.15
   <span class="sgr90">[1fa38f19] </span>Format v1.3.7
   <span class="sgr90">[f6369f11] </span>ForwardDiff v0.10.36
@@ -160,11 +161,11 @@ Environment:
   <span class="sgr90">[86223c79] </span>Graphs v1.11.0
   <span class="sgr90">[42e2da0e] </span>Grisu v1.0.2
   <span class="sgr90">[19dc6840] </span>HCubature v1.6.0
-  <span class="sgr90">[cd3eb016] </span>HTTP v1.10.6
+  <span class="sgr90">[cd3eb016] </span>HTTP v1.10.8
   <span class="sgr90">[3e5b6fbb] </span>HostCPUFeatures v0.1.16
   <span class="sgr90">[34004b35] </span>HypergeometricFunctions v0.3.23
   <span class="sgr90">[b5f81e59] </span>IOCapture v0.2.4
-  <span class="sgr90">[7869d1d1] </span>IRTools v0.4.13
+  <span class="sgr90">[7869d1d1] </span>IRTools v0.4.14
   <span class="sgr90">[615f187c] </span>IfElse v0.1.1
   <span class="sgr90">[d25df0c9] </span>Inflate v0.1.4
   <span class="sgr90">[22cec73e] </span>InitialValues v0.3.1
@@ -186,10 +187,11 @@ Environment:
   <span class="sgr90">[b14d175d] </span>JuliaVariables v0.2.4
   <span class="sgr90">[ccbc3e58] </span>JumpProcesses v9.11.1
   <span class="sgr90">[ef3ab10e] </span>KLU v0.6.0
-  <span class="sgr90">[63c18a36] </span>KernelAbstractions v0.9.18
+  <span class="sgr90">[63c18a36] </span>KernelAbstractions v0.9.19
   <span class="sgr90">[5ab0869b] </span>KernelDensity v0.6.9
   <span class="sgr90">[ba0b0d4f] </span>Krylov v0.9.6
-  <span class="sgr90">[929cbde3] </span>LLVM v6.6.3
+  <span class="sgr90">[5be7bae1] </span>LBFGSB v0.4.1
+<span class="sgr33">⌅</span> <span class="sgr90">[929cbde3] </span>LLVM v6.6.3
   <span class="sgr90">[8b046642] </span>LLVMLoopInfo v1.0.0
   <span class="sgr90">[b964fa9f] </span>LaTeXStrings v1.3.1
   <span class="sgr90">[2ee39098] </span>LabelledArrays v1.16.0
@@ -201,17 +203,17 @@ Environment:
   <span class="sgr90">[5078a376] </span>LazyArrays v1.10.0
   <span class="sgr90">[1d6d02ad] </span>LeftChildRightSiblingTrees v0.2.0
   <span class="sgr90">[d3d80556] </span>LineSearches v7.2.0
-  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v2.29.1
+  <span class="sgr90">[7ed4a6bd] </span>LinearSolve v2.30.0
   <span class="sgr90">[6fdf6af0] </span>LogDensityProblems v2.1.1
   <span class="sgr90">[996a588d] </span>LogDensityProblemsAD v1.9.0
   <span class="sgr90">[2ab3a3ac] </span>LogExpFunctions v0.3.27
   <span class="sgr90">[e6f89c97] </span>LoggingExtras v1.0.3
   <span class="sgr90">[bdcacae8] </span>LoopVectorization v0.12.170
-  <span class="sgr90">[b2108857] </span>Lux v0.5.42
+  <span class="sgr90">[b2108857] </span>Lux v0.5.49
   <span class="sgr90">[d0bbae9a] </span>LuxCUDA v0.3.2
-  <span class="sgr90">[bb33d45b] </span>LuxCore v0.1.14
+  <span class="sgr90">[bb33d45b] </span>LuxCore v0.1.15
   <span class="sgr90">[34f89e08] </span>LuxDeviceUtils v0.1.20
-  <span class="sgr90">[82251201] </span>LuxLib v0.3.20
+  <span class="sgr90">[82251201] </span>LuxLib v0.3.24
   <span class="sgr90">[c7f686f2] </span>MCMCChains v6.0.6
   <span class="sgr90">[be115224] </span>MCMCDiagnosticTools v0.3.10
   <span class="sgr90">[e80e1ace] </span>MLJModelInterface v1.9.6
@@ -227,32 +229,33 @@ Environment:
   <span class="sgr90">[94925ecb] </span>MethodOfLines v0.11.0
 <span class="sgr33">⌅</span> <span class="sgr90">[128add7d] </span>MicroCollections v0.1.4
   <span class="sgr90">[e1d29d7a] </span>Missings v1.2.0
-  <span class="sgr90">[961ee093] </span>ModelingToolkit v9.12.2
+  <span class="sgr90">[961ee093] </span>ModelingToolkit v9.13.0
   <span class="sgr90">[4886b29c] </span>MonteCarloIntegration v0.2.0
   <span class="sgr90">[0987c9cc] </span>MonteCarloMeasurements v1.1.6
   <span class="sgr90">[46d2c3a1] </span>MuladdMacro v0.2.4
-  <span class="sgr90">[102ac46a] </span>MultivariatePolynomials v0.5.4
+  <span class="sgr90">[102ac46a] </span>MultivariatePolynomials v0.5.5
   <span class="sgr90">[d8a4904e] </span>MutableArithmetics v1.4.4
   <span class="sgr90">[d41bc354] </span>NLSolversBase v7.8.3
-  <span class="sgr90">[872c559c] </span>NNlib v0.9.14
+  <span class="sgr90">[872c559c] </span>NNlib v0.9.16
   <span class="sgr90">[5da4648a] </span>NVTX v0.3.4
   <span class="sgr90">[77ba4419] </span>NaNMath v1.0.2
   <span class="sgr90">[71a1bf82] </span>NameResolution v0.1.5
   <span class="sgr90">[c020b1a1] </span>NaturalSort v1.0.0
   <span class="sgr90">[315f7962] </span>NeuralPDE v5.16.0 `/var/lib/buildkite-agent/builds/gpuci-13/julialang/neuralpde-dot-jl`
-  <span class="sgr90">[8913a72c] </span>NonlinearSolve v3.10.0
+  <span class="sgr90">[8913a72c] </span>NonlinearSolve v3.12.0
   <span class="sgr90">[6fe1bfb0] </span>OffsetArrays v1.14.0
+  <span class="sgr90">[67456a42] </span>OhMyThreads v0.5.2
   <span class="sgr90">[0b1bfda6] </span>OneHotArrays v0.2.5
   <span class="sgr90">[4d8831e6] </span>OpenSSL v1.4.3
   <span class="sgr90">[429524aa] </span>Optim v1.9.4
   <span class="sgr90">[3bd65402] </span>Optimisers v0.3.3
-  <span class="sgr90">[7f7a1694] </span>Optimization v3.24.3
-<span class="sgr33">⌅</span> <span class="sgr90">[bca83a33] </span>OptimizationBase v0.0.5
-  <span class="sgr90">[36348300] </span>OptimizationOptimJL v0.2.3
+  <span class="sgr90">[7f7a1694] </span>Optimization v3.25.0
+  <span class="sgr90">[bca83a33] </span>OptimizationBase v0.0.7
+<span class="sgr33">⌅</span> <span class="sgr90">[36348300] </span>OptimizationOptimJL v0.2.3
   <span class="sgr90">[42dfb2eb] </span>OptimizationOptimisers v0.2.1
   <span class="sgr90">[500b13db] </span>OptimizationPolyalgorithms v0.2.0
   <span class="sgr90">[bac558e1] </span>OrderedCollections v1.6.3
-  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.75.0
+  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.76.0
   <span class="sgr90">[a7812802] </span>PDEBase v0.1.10
   <span class="sgr90">[90014a1f] </span>PDMats v0.11.31
   <span class="sgr90">[65ce6f38] </span>PackageExtensionCompat v1.0.2
@@ -264,7 +267,7 @@ Environment:
   <span class="sgr90">[995b91a9] </span>PlotUtils v1.4.1
   <span class="sgr90">[91a5bcdd] </span>Plots v1.40.4
   <span class="sgr90">[e409e4f3] </span>PoissonRandom v0.4.4
-  <span class="sgr90">[f517fe37] </span>Polyester v0.7.13
+  <span class="sgr90">[f517fe37] </span>Polyester v0.7.14
   <span class="sgr90">[1d0040c9] </span>PolyesterWeave v0.2.1
   <span class="sgr90">[2dfb63ee] </span>PooledArrays v1.4.3
   <span class="sgr90">[85a6dd25] </span>PositiveFactorizations v0.2.4
@@ -276,6 +279,7 @@ Environment:
   <span class="sgr90">[27ebfcd6] </span>Primes v0.5.6
   <span class="sgr90">[33c8b6b6] </span>ProgressLogging v0.1.4
   <span class="sgr90">[92933f4c] </span>ProgressMeter v1.10.0
+  <span class="sgr90">[43287f4e] </span>PtrArrays v1.1.0
   <span class="sgr90">[1fd47b50] </span>QuadGK v2.9.4
   <span class="sgr90">[8a4e6c94] </span>QuasiMonteCarlo v0.3.3
   <span class="sgr90">[74087812] </span>Random123 v1.7.0
@@ -285,7 +289,7 @@ Environment:
   <span class="sgr90">[c1ae055f] </span>RealDot v0.1.0
   <span class="sgr90">[3cdcf5f2] </span>RecipesBase v1.3.4
   <span class="sgr90">[01d81517] </span>RecipesPipeline v0.6.12
-  <span class="sgr90">[731186ca] </span>RecursiveArrayTools v3.16.0
+  <span class="sgr90">[731186ca] </span>RecursiveArrayTools v3.19.0
   <span class="sgr90">[f2c3362d] </span>RecursiveFactorization v0.2.23
   <span class="sgr90">[189a3867] </span>Reexport v1.2.2
   <span class="sgr90">[2792f1a3] </span>RegistryInstances v0.1.0
@@ -297,12 +301,12 @@ Environment:
   <span class="sgr90">[7e49a35a] </span>RuntimeGeneratedFunctions v0.5.13
   <span class="sgr90">[94e857df] </span>SIMDTypes v0.1.0
   <span class="sgr90">[476501e8] </span>SLEEFPirates v0.6.42
-  <span class="sgr90">[0bca4576] </span>SciMLBase v2.36.1
+  <span class="sgr90">[0bca4576] </span>SciMLBase v2.38.0
   <span class="sgr90">[c0aeaf25] </span>SciMLOperators v0.3.8
-  <span class="sgr90">[53ae85a6] </span>SciMLStructures v1.1.0
+  <span class="sgr90">[53ae85a6] </span>SciMLStructures v1.2.0
   <span class="sgr90">[30f210dd] </span>ScientificTypesBase v3.0.0
   <span class="sgr90">[6c6a2e73] </span>Scratch v1.2.1
-  <span class="sgr90">[91c51154] </span>SentinelArrays v1.4.1
+  <span class="sgr90">[91c51154] </span>SentinelArrays v1.4.2
   <span class="sgr90">[efcf1570] </span>Setfield v1.1.1
   <span class="sgr90">[605ecd9f] </span>ShowCases v0.1.0
   <span class="sgr90">[992d4aef] </span>Showoff v1.0.3
@@ -312,14 +316,15 @@ Environment:
   <span class="sgr90">[ce78b400] </span>SimpleUnPack v1.1.0
   <span class="sgr90">[ed01d8cd] </span>Sobol v1.5.0
   <span class="sgr90">[a2af1166] </span>SortingAlgorithms v1.2.1
-<span class="sgr32">⌃</span> <span class="sgr90">[47a9eef4] </span>SparseDiffTools v2.18.0
+  <span class="sgr90">[47a9eef4] </span>SparseDiffTools v2.19.0
   <span class="sgr90">[dc90abb0] </span>SparseInverseSubset v0.1.2
   <span class="sgr90">[e56a9233] </span>Sparspak v0.3.9
-  <span class="sgr90">[276daf66] </span>SpecialFunctions v2.3.1
+  <span class="sgr90">[276daf66] </span>SpecialFunctions v2.4.0
   <span class="sgr90">[171d559e] </span>SplittablesBase v0.1.15
+  <span class="sgr90">[91464d47] </span>StableTasks v0.1.5
   <span class="sgr90">[aedffcd0] </span>Static v0.8.10
   <span class="sgr90">[0d7ed370] </span>StaticArrayInterface v1.5.0
-  <span class="sgr90">[90137ffa] </span>StaticArrays v1.9.3
+  <span class="sgr90">[90137ffa] </span>StaticArrays v1.9.4
   <span class="sgr90">[1e83bf80] </span>StaticArraysCore v1.4.2
   <span class="sgr90">[64bff920] </span>StatisticalTraits v3.2.0
   <span class="sgr90">[82ae8749] </span>StatsAPI v1.7.0
@@ -330,13 +335,15 @@ Environment:
   <span class="sgr90">[09ab397b] </span>StructArrays v0.6.18
   <span class="sgr90">[2efcf032] </span>SymbolicIndexingInterface v0.3.21
   <span class="sgr90">[19f23fe9] </span>SymbolicLimits v0.2.0
-  <span class="sgr90">[d1185830] </span>SymbolicUtils v1.5.1
+  <span class="sgr90">[d1185830] </span>SymbolicUtils v1.7.0
   <span class="sgr90">[0c5d862f] </span>Symbolics v5.28.0
   <span class="sgr90">[3783bdb8] </span>TableTraits v1.0.1
   <span class="sgr90">[bd369af6] </span>Tables v1.11.1
+  <span class="sgr90">[ed4db957] </span>TaskLocalValues v0.1.1
   <span class="sgr90">[62fd8b95] </span>TensorCore v0.1.1
 <span class="sgr33">⌅</span> <span class="sgr90">[8ea1fca8] </span>TermInterface v0.3.3
   <span class="sgr90">[5d786b92] </span>TerminalLoggers v0.1.7
+  <span class="sgr90">[1c621080] </span>TestItems v0.1.1
   <span class="sgr90">[8290d209] </span>ThreadingUtilities v0.5.2
   <span class="sgr90">[a759f4b9] </span>TimerOutputs v0.5.23
   <span class="sgr90">[0796e94c] </span>Tokenize v0.5.29
@@ -348,7 +355,7 @@ Environment:
   <span class="sgr90">[5c2747f8] </span>URIs v1.5.1
   <span class="sgr90">[3a884ed6] </span>UnPack v1.0.2
   <span class="sgr90">[1cfade01] </span>UnicodeFun v0.4.1
-  <span class="sgr90">[1986cc42] </span>Unitful v1.19.0
+  <span class="sgr90">[1986cc42] </span>Unitful v1.19.1
   <span class="sgr90">[45397f5d] </span>UnitfulLatexify v1.6.3
   <span class="sgr90">[a7c27f48] </span>Unityper v0.1.6
   <span class="sgr90">[013be700] </span>UnsafeAtomics v0.2.1
@@ -358,14 +365,14 @@ Environment:
   <span class="sgr90">[19fa3120] </span>VertexSafeGraphs v0.2.0
   <span class="sgr90">[d49dbf32] </span>WeightInitializers v0.1.7
 <span class="sgr33">⌅</span> <span class="sgr90">[efce3f68] </span>WoodburyMatrices v0.5.6
-  <span class="sgr90">[e88e6eb3] </span>Zygote v0.6.69
+  <span class="sgr90">[e88e6eb3] </span>Zygote v0.6.70
   <span class="sgr90">[700de1a5] </span>ZygoteRules v0.2.5
   <span class="sgr90">[02a925ec] </span>cuDNN v1.3.1
   <span class="sgr90">[6e34b625] </span>Bzip2_jll v1.0.8+1
   <span class="sgr90">[4ee394cb] </span>CUDA_Driver_jll v0.8.1+0
 <span class="sgr33">⌅</span> <span class="sgr90">[76a88914] </span>CUDA_Runtime_jll v0.12.1+0
   <span class="sgr90">[62b44479] </span>CUDNN_jll v9.0.0+1
-  <span class="sgr90">[83423d85] </span>Cairo_jll v1.18.0+1
+  <span class="sgr90">[83423d85] </span>Cairo_jll v1.18.0+2
   <span class="sgr90">[7bc98958] </span>Cubature_jll v1.0.5+0
   <span class="sgr90">[2702e6a9] </span>EpollShim_jll v0.0.20230411+0
   <span class="sgr90">[2e619515] </span>Expat_jll v2.6.2+0
@@ -378,33 +385,34 @@ Environment:
   <span class="sgr90">[d2c73de3] </span>GR_jll v0.73.5+0
   <span class="sgr90">[78b55507] </span>Gettext_jll v0.21.0+0
   <span class="sgr90">[f8c6e375] </span>Git_jll v2.44.0+2
-  <span class="sgr90">[7746bdde] </span>Glib_jll v2.80.0+0
+  <span class="sgr90">[7746bdde] </span>Glib_jll v2.80.2+0
   <span class="sgr90">[3b182d85] </span>Graphite2_jll v1.3.14+0
   <span class="sgr90">[2e76f6c2] </span>HarfBuzz_jll v2.8.1+1
   <span class="sgr90">[1d5cc7b8] </span>IntelOpenMP_jll v2024.1.0+0
-  <span class="sgr90">[aacddb02] </span>JpegTurbo_jll v3.0.2+0
+  <span class="sgr90">[aacddb02] </span>JpegTurbo_jll v3.0.3+0
   <span class="sgr90">[9c1d0b0a] </span>JuliaNVTXCallbacks_jll v0.2.1+0
   <span class="sgr90">[c1c5ebd0] </span>LAME_jll v3.100.2+0
 <span class="sgr33">⌅</span> <span class="sgr90">[88015f11] </span>LERC_jll v3.0.0+1
   <span class="sgr90">[dad2f222] </span>LLVMExtra_jll v0.0.29+0
   <span class="sgr90">[1d63c593] </span>LLVMOpenMP_jll v15.0.7+0
   <span class="sgr90">[dd4b983a] </span>LZO_jll v2.10.2+0
+  <span class="sgr90">[81d17ec3] </span>L_BFGS_B_jll v3.0.1+0
 <span class="sgr33">⌅</span> <span class="sgr90">[e9f186c6] </span>Libffi_jll v3.2.2+1
   <span class="sgr90">[d4300ac3] </span>Libgcrypt_jll v1.8.11+0
   <span class="sgr90">[7e76a0d4] </span>Libglvnd_jll v1.6.0+0
   <span class="sgr90">[7add5ba3] </span>Libgpg_error_jll v1.49.0+0
   <span class="sgr90">[94ce4f54] </span>Libiconv_jll v1.17.0+0
-  <span class="sgr90">[4b2f31a3] </span>Libmount_jll v2.40.0+0
+  <span class="sgr90">[4b2f31a3] </span>Libmount_jll v2.40.1+0
 <span class="sgr33">⌅</span> <span class="sgr90">[89763e89] </span>Libtiff_jll v4.5.1+1
-  <span class="sgr90">[38a345b3] </span>Libuuid_jll v2.40.0+0
+  <span class="sgr90">[38a345b3] </span>Libuuid_jll v2.40.1+0
   <span class="sgr90">[856f044c] </span>MKL_jll v2024.1.0+0
   <span class="sgr90">[e98f9f5b] </span>NVTX_jll v3.1.0+2
   <span class="sgr90">[e7412a2a] </span>Ogg_jll v1.3.5+1
   <span class="sgr90">[458c3c95] </span>OpenSSL_jll v3.0.13+1
   <span class="sgr90">[efe28fd5] </span>OpenSpecFun_jll v0.5.5+0
   <span class="sgr90">[91d4177d] </span>Opus_jll v1.3.2+0
-  <span class="sgr90">[30392449] </span>Pixman_jll v0.42.2+0
-  <span class="sgr90">[c0090381] </span>Qt6Base_jll v6.5.3+1
+  <span class="sgr90">[30392449] </span>Pixman_jll v0.43.4+0
+<span class="sgr33">⌅</span> <span class="sgr90">[c0090381] </span>Qt6Base_jll v6.5.3+1
   <span class="sgr90">[f50d1b31] </span>Rmath_jll v0.4.0+0
   <span class="sgr90">[a44049a8] </span>Vulkan_Loader_jll v1.3.243+0
   <span class="sgr90">[a2964d1f] </span>Wayland_jll v1.21.0+1
@@ -440,7 +448,7 @@ Environment:
   <span class="sgr90">[35ca27e7] </span>eudev_jll v3.2.9+0
 <span class="sgr33">⌅</span> <span class="sgr90">[214eeab7] </span>fzf_jll v0.43.0+0
   <span class="sgr90">[1a1c6b14] </span>gperf_jll v3.1.1+0
-  <span class="sgr90">[a4ae2306] </span>libaom_jll v3.4.0+0
+  <span class="sgr90">[a4ae2306] </span>libaom_jll v3.9.0+0
   <span class="sgr90">[0ac62f75] </span>libass_jll v0.15.1+0
   <span class="sgr90">[2db6ffa8] </span>libevdev_jll v1.11.0+0
   <span class="sgr90">[f638f0a6] </span>libfdk_aac_jll v2.0.2+0
@@ -500,4 +508,4 @@ Environment:
   <span class="sgr90">[8e850b90] </span>libblastrampoline_jll v5.8.0+1
   <span class="sgr90">[8e850ede] </span>nghttp2_jll v1.52.0+1
   <span class="sgr90">[3f19e933] </span>p7zip_jll v17.4.0+2
-<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available. Those with <span class="sgr32">⌃</span> may be upgradable, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.16.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.16.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Tuesday 7 May 2024 02:37">Tuesday 7 May 2024</span>. Using Julia version 1.10.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available. Those with <span class="sgr32">⌃</span> may be upgradable, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.16.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.16.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Friday 17 May 2024 22:04">Friday 17 May 2024</span>. Using Julia version 1.10.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
