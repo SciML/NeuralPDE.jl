@@ -88,9 +88,17 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
     sum(abs2, loss) / length(t)
 end
 
+#=
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
     p, differential_vars::AbstractVector) where {C, T, U}
     sum(abs2, dfdx(phi, t, θ, autodiff,differential_vars) .- f(phi(t, θ), t))
+end
+=#
+
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+    p, differential_vars::AbstractVector) where {C, T, U}
+    dphi = dfdx(phi, t, θ, autodiff,differential_vars)
+    sum(abs2, f(dphi, phi(t, θ), p, t))
 end
 
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
@@ -139,7 +147,7 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
     
     function integrand(ts, θ)
         [sum(abs2, inner_loss(phi, f, autodiff, t, θ, p, differential_vars)) for t in ts]
-end
+    end
     
     function loss(θ, _)
         intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)

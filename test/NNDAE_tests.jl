@@ -125,7 +125,6 @@ end
 end
 
 
-#=
 @testset "QuadratureTraining" begin
     function example2(du, u, p, t)
         du[1] = u[1] - t
@@ -149,6 +148,5 @@ end
     alg = NeuralPDE.NNDAE(chain, opt; autodiff = false)
     sol = solve(prob,alg, verbose = false, maxiters = 3000, abstol = 1.0f-10)
     print("Everything Works\n")
-    @test ground_sol(0:(1 / 100):(pi / 2))≈sol atol=0.4
+    @test ground_sol(0:(pi / 200):(pi / 2))≈sol atol=0.4
 end
-=#
