@@ -124,7 +124,6 @@ end
     @test ground_sol(0:(1 / 100):(pi / 2))≈sol atol=0.4
 end
 
-
 @testset "QuadratureTraining" begin
     function example2(du, u, p, t)
         du[1] = u[1] - t
@@ -146,6 +145,6 @@ end
     chain = Lux.Chain(Lux.Dense(1, 15, Lux.σ), Lux.Dense(15, 2))
     opt = OptimizationOptimisers.Adam(0.1)
     alg = NeuralPDE.NNDAE(chain, opt; autodiff = false)
-    sol = solve(prob,alg, verbose = false, maxiters = 3000, abstol = 1.0f-10)
+    sol = solve(prob,alg, verbose = false, maxiters = 10000, abstol = 1.0f-10)
     @test ground_sol(0:(pi / 200):(pi / 2))≈sol atol=0.4
 end
