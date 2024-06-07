@@ -144,7 +144,8 @@ end
     prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars)
     chain = Lux.Chain(Lux.Dense(1, 15, Lux.σ), Lux.Dense(15, 2))
     opt = OptimizationOptimisers.Adam(0.1)
-    alg = NeuralPDE.NNDAE(chain, opt; autodiff = false)
+    alg = NeuralPDE.NNDAE(chain,  OptimizationOptimisers.Adam(0.1); autodiff = false)
     sol = solve(prob,alg, verbose = false, maxiters = 10000, abstol = 1.0f-10)
     @test ground_sol(0:(pi / 200):(pi / 2))≈sol atol=0.4
 end
+
