@@ -307,6 +307,14 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
     end
 end
 
+
+"""
+PhysicsInformedNO
+"""
+struct PhysicsInformedNO{} <: AbstractPINN
+    #TODO
+end
+
 """
 `PINNRepresentation``
 
