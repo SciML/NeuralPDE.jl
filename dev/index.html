@@ -13,7 +13,7 @@ Pkg.add(&quot;NeuralPDE&quot;)</code></pre><h2 id="Contributing"><a class="docs-
 x = [0.8; 0.8]
 ann = Chain(Dense(2, 10, tanh), Dense(10, 1))
 p, re = Flux.destructure(ann)
-z = re(Float64(p))</code></pre><p>While one may think this recreates the neural network to act in <code>Float64</code> precision, <a href="https://github.com/FluxML/Flux.jl/pull/2156">it does not</a> and instead its values will silently downgrade everything to <code>Float32</code>. This is only fixed by <code>Chain(Dense(2, 10, tanh), Dense(10, 1)) |&gt; f64</code>. Similar cases will <a href="https://github.com/FluxML/Optimisers.jl/issues/95">lead to dropped gradients with complex numbers</a>. This is not an issue with the automatic differentiation library commonly associated with Flux (Zygote.jl) but rather due to choices in the neural network library&#39;s decision for how to approach type handling and precision. Thus when using DiffEqFlux.jl with Flux, the user must be very careful to ensure that the precision of the arguments are correct, and anything that requires alternative types (like <code>TrackerAdjoint</code> tracked values, <code>ForwardDiffSensitivity</code> dual numbers, and TaylorDiff.jl differentiation) are suspect.</p><p>Lux.jl has none of these issues, is simpler to work with due to the parameters in its function calls being explicit rather than implicit global references, and achieves higher performance. It is built on the same foundations as Flux.jl, such as Zygote and NNLib, and thus it supports the same layers underneath and calls the same kernels. The better performance comes from not having the overhead of <code>restructure</code> required. Thus we highly recommend people use Lux instead and only use the Flux fallbacks for legacy code.</p><h2 id="Reproducibility"><a class="docs-heading-anchor" href="#Reproducibility">Reproducibility</a><a id="Reproducibility-1"></a><a class="docs-heading-anchor-permalink" href="#Reproducibility" title="Permalink"></a></h2><details><summary>The documentation of this SciML package was built using these direct dependencies,</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Status</span></span> `/var/lib/buildkite-agent/builds/gpuci-8/julialang/neuralpde-dot-jl/docs/Project.toml`
+z = re(Float64(p))</code></pre><p>While one may think this recreates the neural network to act in <code>Float64</code> precision, <a href="https://github.com/FluxML/Flux.jl/pull/2156">it does not</a> and instead its values will silently downgrade everything to <code>Float32</code>. This is only fixed by <code>Chain(Dense(2, 10, tanh), Dense(10, 1)) |&gt; f64</code>. Similar cases will <a href="https://github.com/FluxML/Optimisers.jl/issues/95">lead to dropped gradients with complex numbers</a>. This is not an issue with the automatic differentiation library commonly associated with Flux (Zygote.jl) but rather due to choices in the neural network library&#39;s decision for how to approach type handling and precision. Thus when using DiffEqFlux.jl with Flux, the user must be very careful to ensure that the precision of the arguments are correct, and anything that requires alternative types (like <code>TrackerAdjoint</code> tracked values, <code>ForwardDiffSensitivity</code> dual numbers, and TaylorDiff.jl differentiation) are suspect.</p><p>Lux.jl has none of these issues, is simpler to work with due to the parameters in its function calls being explicit rather than implicit global references, and achieves higher performance. It is built on the same foundations as Flux.jl, such as Zygote and NNLib, and thus it supports the same layers underneath and calls the same kernels. The better performance comes from not having the overhead of <code>restructure</code> required. Thus we highly recommend people use Lux instead and only use the Flux fallbacks for legacy code.</p><h2 id="Reproducibility"><a class="docs-heading-anchor" href="#Reproducibility">Reproducibility</a><a id="Reproducibility-1"></a><a class="docs-heading-anchor-permalink" href="#Reproducibility" title="Permalink"></a></h2><details><summary>The documentation of this SciML package was built using these direct dependencies,</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Status</span></span> `/var/lib/buildkite-agent/builds/gpuci-4/julialang/neuralpde-dot-jl/docs/Project.toml`
   <span class="sgr90">[0bf59076] </span>AdvancedHMC v0.6.1
   <span class="sgr90">[b0b7db55] </span>ComponentArrays v0.15.13
   <span class="sgr90">[667455a9] </span>Cubature v1.5.1
@@ -29,12 +29,12 @@ z = re(Float64(p))</code></pre><p>While one may think this recreates the neural 
   <span class="sgr90">[94925ecb] </span>MethodOfLines v0.11.0
 <span class="sgr32">⌃</span> <span class="sgr90">[961ee093] </span>ModelingToolkit v9.15.0
   <span class="sgr90">[0987c9cc] </span>MonteCarloMeasurements v1.1.7
-  <span class="sgr90">[315f7962] </span>NeuralPDE v5.16.0 `/var/lib/buildkite-agent/builds/gpuci-8/julialang/neuralpde-dot-jl`
+  <span class="sgr90">[315f7962] </span>NeuralPDE v5.16.0 `/var/lib/buildkite-agent/builds/gpuci-4/julialang/neuralpde-dot-jl`
   <span class="sgr90">[7f7a1694] </span>Optimization v3.25.1
   <span class="sgr90">[36348300] </span>OptimizationOptimJL v0.3.2
   <span class="sgr90">[42dfb2eb] </span>OptimizationOptimisers v0.2.1
   <span class="sgr90">[500b13db] </span>OptimizationPolyalgorithms v0.2.1
-  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.81.1
+  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.82.0
   <span class="sgr90">[91a5bcdd] </span>Plots v1.40.4
   <span class="sgr90">[8a4e6c94] </span>QuasiMonteCarlo v0.3.3
   <span class="sgr90">[f2b01f46] </span>Roots v2.1.5
@@ -56,7 +56,7 @@ Environment:
   JULIA_CPU_THREADS = 2
   JULIA_DEPOT_PATH = /root/.cache/julia-buildkite-plugin/depots/f8da2e12-18ea-4414-879b-afc071467714
   LD_LIBRARY_PATH = /usr/local/nvidia/lib:/usr/local/nvidia/lib64
-  JULIA_DEBUG = Documenter</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Status</span></span> `/var/lib/buildkite-agent/builds/gpuci-8/julialang/neuralpde-dot-jl/docs/Manifest.toml`
+  JULIA_DEBUG = Documenter</code></pre></details><details><summary>A more complete overview of all dependencies and their versions is also provided.</summary><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Status</span></span> `/var/lib/buildkite-agent/builds/gpuci-4/julialang/neuralpde-dot-jl/docs/Manifest.toml`
   <span class="sgr90">[47edcb42] </span>ADTypes v1.3.0
   <span class="sgr90">[a4c015fc] </span>ANSIColoredPrinters v0.0.1
   <span class="sgr90">[621f4979] </span>AbstractFFTs v1.5.0
@@ -85,7 +85,7 @@ Environment:
   <span class="sgr90">[052768ef] </span>CUDA v5.4.2
   <span class="sgr90">[1af6417a] </span>CUDA_Runtime_Discovery v0.3.3
   <span class="sgr90">[49dc2e85] </span>Calculus v0.5.1
-  <span class="sgr90">[082447d4] </span>ChainRules v1.68.0
+  <span class="sgr90">[082447d4] </span>ChainRules v1.69.0
   <span class="sgr90">[d360d2e6] </span>ChainRulesCore v1.24.0
   <span class="sgr90">[ae650224] </span>ChunkSplitters v2.4.2
   <span class="sgr90">[fb6a15b2] </span>CloseOpenIntervals v0.1.12
@@ -122,7 +122,7 @@ Environment:
   <span class="sgr90">[77a26b50] </span>DiffEqNoiseProcess v5.21.0
   <span class="sgr90">[163ba53b] </span>DiffResults v1.1.0
   <span class="sgr90">[b552c78f] </span>DiffRules v1.15.1
-  <span class="sgr90">[a0c0ee7d] </span>DifferentiationInterface v0.5.4
+  <span class="sgr90">[a0c0ee7d] </span>DifferentiationInterface v0.5.5
   <span class="sgr90">[31c24e10] </span>Distributions v0.25.109
   <span class="sgr90">[ffbed154] </span>DocStringExtensions v0.9.3
   <span class="sgr90">[e30172f5] </span>Documenter v1.4.1
@@ -131,7 +131,7 @@ Environment:
   <span class="sgr90">[7c1d4256] </span>DynamicPolynomials v0.5.7
 <span class="sgr33">⌅</span> <span class="sgr90">[06fc5a27] </span>DynamicQuantities v0.13.2
   <span class="sgr90">[4e289a0a] </span>EnumX v1.0.4
-  <span class="sgr90">[f151be2c] </span>EnzymeCore v0.7.3
+  <span class="sgr90">[f151be2c] </span>EnzymeCore v0.7.4
   <span class="sgr90">[460bff9d] </span>ExceptionUnwrapping v0.1.10
   <span class="sgr90">[d4d017d3] </span>ExponentialUtilities v1.26.1
   <span class="sgr90">[e2ba6199] </span>ExprTools v0.1.10
@@ -213,7 +213,7 @@ Environment:
   <span class="sgr90">[b2108857] </span>Lux v0.5.53
   <span class="sgr90">[d0bbae9a] </span>LuxCUDA v0.3.2
   <span class="sgr90">[bb33d45b] </span>LuxCore v0.1.15
-  <span class="sgr90">[34f89e08] </span>LuxDeviceUtils v0.1.20
+  <span class="sgr90">[34f89e08] </span>LuxDeviceUtils v0.1.21
   <span class="sgr90">[82251201] </span>LuxLib v0.3.26
   <span class="sgr90">[c7f686f2] </span>MCMCChains v6.0.6
   <span class="sgr90">[be115224] </span>MCMCDiagnosticTools v0.3.10
@@ -241,7 +241,7 @@ Environment:
   <span class="sgr90">[77ba4419] </span>NaNMath v1.0.2
   <span class="sgr90">[71a1bf82] </span>NameResolution v0.1.5
   <span class="sgr90">[c020b1a1] </span>NaturalSort v1.0.0
-  <span class="sgr90">[315f7962] </span>NeuralPDE v5.16.0 `/var/lib/buildkite-agent/builds/gpuci-8/julialang/neuralpde-dot-jl`
+  <span class="sgr90">[315f7962] </span>NeuralPDE v5.16.0 `/var/lib/buildkite-agent/builds/gpuci-4/julialang/neuralpde-dot-jl`
   <span class="sgr90">[8913a72c] </span>NonlinearSolve v3.12.4
   <span class="sgr90">[6fe1bfb0] </span>OffsetArrays v1.14.0
   <span class="sgr90">[67456a42] </span>OhMyThreads v0.5.2
@@ -255,7 +255,7 @@ Environment:
   <span class="sgr90">[42dfb2eb] </span>OptimizationOptimisers v0.2.1
   <span class="sgr90">[500b13db] </span>OptimizationPolyalgorithms v0.2.1
   <span class="sgr90">[bac558e1] </span>OrderedCollections v1.6.3
-  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.81.1
+  <span class="sgr90">[1dea7af3] </span>OrdinaryDiffEq v6.82.0
 <span class="sgr32">⌃</span> <span class="sgr90">[a7812802] </span>PDEBase v0.1.10
   <span class="sgr90">[90014a1f] </span>PDMats v0.11.31
   <span class="sgr90">[65ce6f38] </span>PackageExtensionCompat v1.0.2
@@ -318,7 +318,7 @@ Environment:
   <span class="sgr90">[a2af1166] </span>SortingAlgorithms v1.2.1
   <span class="sgr90">[47a9eef4] </span>SparseDiffTools v2.19.0
   <span class="sgr90">[dc90abb0] </span>SparseInverseSubset v0.1.2
-  <span class="sgr90">[0a514795] </span>SparseMatrixColorings v0.3.2
+  <span class="sgr90">[0a514795] </span>SparseMatrixColorings v0.3.3
   <span class="sgr90">[e56a9233] </span>Sparspak v0.3.9
   <span class="sgr90">[276daf66] </span>SpecialFunctions v2.4.0
   <span class="sgr90">[171d559e] </span>SplittablesBase v0.1.15
@@ -409,7 +409,7 @@ Environment:
   <span class="sgr90">[856f044c] </span>MKL_jll v2024.1.0+0
   <span class="sgr90">[e98f9f5b] </span>NVTX_jll v3.1.0+2
   <span class="sgr90">[e7412a2a] </span>Ogg_jll v1.3.5+1
-  <span class="sgr90">[458c3c95] </span>OpenSSL_jll v3.0.13+1
+  <span class="sgr90">[458c3c95] </span>OpenSSL_jll v3.0.14+0
   <span class="sgr90">[efe28fd5] </span>OpenSpecFun_jll v0.5.5+0
   <span class="sgr90">[91d4177d] </span>Opus_jll v1.3.2+0
   <span class="sgr90">[30392449] </span>Pixman_jll v0.43.4+0
@@ -509,4 +509,4 @@ Environment:
   <span class="sgr90">[8e850b90] </span>libblastrampoline_jll v5.8.0+1
   <span class="sgr90">[8e850ede] </span>nghttp2_jll v1.52.0+1
   <span class="sgr90">[3f19e933] </span>p7zip_jll v17.4.0+2
-<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available. Those with <span class="sgr32">⌃</span> may be upgradable, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.16.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.16.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Friday 7 June 2024 23:33">Friday 7 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<span class="sgr36"><span class="sgr1">Info</span></span> Packages marked with <span class="sgr32">⌃</span> and <span class="sgr33">⌅</span> have new versions available. Those with <span class="sgr32">⌃</span> may be upgradable, but those with <span class="sgr33">⌅</span> are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`</code></pre></details><p>You can also download the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.16.0/assets/Manifest.toml">manifest</a> file and the <a href="https://github.com/SciML/NeuralPDE.jl/tree/gh-pages/v5.16.0/assets/Project.toml">project</a> file.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="tutorials/ode/">Introduction to NeuralPDE for ODEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Tuesday 11 June 2024 01:25">Tuesday 11 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
