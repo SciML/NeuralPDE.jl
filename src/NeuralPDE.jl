@@ -59,7 +59,7 @@ include("PDE_BPINN.jl")
 include("dgm.jl")
 
 
-export NNODE, NNDAE, PINOODE, DeepONet, SomeStrategy #TODO remove SomeStrategy
+export NNODE, NNDAE, PINOODE, DeepONet
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
        WeightedIntervalTraining,
