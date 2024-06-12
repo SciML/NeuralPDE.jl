@@ -51,7 +51,7 @@ function PINOODE(chain,
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     PINOODE(chain, opt, bounds, init_params, strategy, additional_loss, kwargs)
 end
-mutable struct PINOPhi{C, S}
+struct PINOPhi{C, S}
     chain::C
     st::S
     function PINOPhi(chain::Lux.AbstractExplicitLayer, st)
