@@ -102,7 +102,7 @@ function physics_loss(
     sum(abs2, du .- f_) / norm
 end
 
-function operator_loss(
+function inital_condition_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
     p, t = x
     f = prob.f
@@ -129,7 +129,7 @@ end
 function generate_loss(strategy::GridTraining, prob::ODEProblem, phi, bounds, tspan)
     x = get_trainset(strategy, bounds, tspan)
     function loss(θ, _)
-        operator_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
+        inital_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
 
