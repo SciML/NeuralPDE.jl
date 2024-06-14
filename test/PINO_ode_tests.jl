@@ -43,10 +43,10 @@ using NeuralPDE
 end
 
 @testset "Example du = cos(p * t) + u" begin
-    eq(u, p, t) = cos(p * t) + u
+    eq_(u, p, t) = cos(p * t) + u
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0f0
-    prob = ODEProblem(eq, u0, tspan)
+    prob = ODEProblem(eq_, u0, tspan)
     branch = Lux.Chain(
         Lux.Dense(1, 10, Lux.tanh_fast),
         Lux.Dense(10, 10, Lux.tanh_fast),
@@ -139,4 +139,87 @@ end
     ground_solution = ground_analytic.(u0, p, sol.t.trunk)
 
     @test ground_solution≈sol.u rtol=0.005
+end
+
+#u0
+@testset "Example du = cos(p * t)" begin
+    equation = (u, p, t) -> cos(p * t)
+    tspan = (0.0f0, 1.0f0)
+    u0 = 1.0f0
+    prob = ODEProblem(equation, u0, tspan)
+
+    branch = Lux.Chain(
+        Lux.Dense(1, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10))
+    trunk = Lux.Chain(
+        Lux.Dense(1, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10, Lux.tanh_fast))
+
+    deeponet = NeuralPDE.DeepONet(branch, trunk; linear = nothing)
+
+    bounds = (u0 = [0.5f0, 2.f0],)
+    db = (bounds.u0[2] - bounds.u0[1]) / 50
+    dt = (tspan[2] - tspan[1]) / 40
+    strategy = NeuralPDE.GridTraining([db, dt])
+    opt = OptimizationOptimisers.Adam(0.03)
+    alg = NeuralPDE.PINOODE(deeponet, opt, bounds; strategy = strategy)
+    sol = solve(prob, alg, verbose = true, maxiters = 2000)
+
+    ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
+    p_ = bounds.u0[1]:strategy.dx[1]:bounds.u0[2]
+    p = reshape(p_, 1, size(p_)[1], 1)
+    ground_solution = ground_analytic.(u0, p, sol.t.trunk)
+
+    @test ground_solution≈sol.u rtol=0.01
+end
+
+plot(sol.u[1, :, :], linetype = :contourf)
+plot(ground_solution[1, :, :], linetype = :contourf)
+
+function plot_()
+    # Animate
+    anim = @animate for (i) in 1:51
+        plot(ground_solution[1, i, :], label = "Ground")
+        # plot(equation_[1, i, :], label = "equation")
+        plot!(sol.u[1, i, :], label = "Predicted")
+    end
+    gif(anim, "pino.gif", fps = 15)
+end
+
+plot_()
+
+#vector outputs and multiple parameters
+@testset "Example du = cos(p * t)" begin
+    equation = (u, p, t) -> cos(p1 * t) + p2
+    tspan = (0.0f0, 1.0f0)
+    u0 = 1.0f0
+    prob = ODEProblem(equation, u0, tspan)
+
+    branch = Lux.Chain(
+        Lux.Dense(1, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10))
+    trunk = Lux.Chain(
+        Lux.Dense(1, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10, Lux.tanh_fast),
+        Lux.Dense(10, 10, Lux.tanh_fast))
+
+    deeponet = NeuralPDE.DeepONet(branch, trunk; linear = nothing)
+
+    bounds = (p1 = [0.1f0, pi], p2 = [0.1f0, 2.f0], u0 = [0.0f0, 2.0f0])
+    db = (bounds.u0[2] - bounds.u0[1]) / 50
+    dt = (tspan[2] - tspan[1]) / 40
+    strategy = NeuralPDE.GridTraining([db, dt])
+    opt = OptimizationOptimisers.Adam(0.03)
+    alg = NeuralPDE.PINOODE(deeponet, opt, bounds; strategy = strategy)
+    sol = solve(prob, alg, verbose = false, maxiters = 2000)
+    ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
+
+    p_ = bounds.p[1]:strategy.dx[1]:bounds.p[2]
+    p = reshape(p_, 1, size(p_)[1], 1)
+    ground_solution = ground_analytic.(u0, p, sol.t.trunk)
+
+    @test ground_solution≈sol.u rtol=0.01
 end

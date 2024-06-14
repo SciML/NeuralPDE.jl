@@ -103,7 +103,7 @@ function physics_loss(
 end
 
 function inital_condition_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
+        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ, bounds) where {C <: DeepONet, T}
     p, t = x
     f = prob.f
     t0 = t[:, :, [1]]
@@ -111,15 +111,23 @@ function inital_condition_loss(
     tuple = (branch = f_0, trunk = t0)
     out = phi(tuple, θ)
     u = vec(out)
-    u0_ = fill(prob.u0, size(out))
-    u0 = vec(u0_)
+    #TODO
+    if any(in(keys(bounds)), (:u0,))
+        u0_ = p
+        u0 = p
+    else
+        u0_ = fill(prob.u0, size(out))
+        u0 = vec(u0_)
+    end
     norm = prod(size(u0_))
     sum(abs2, u .- u0) / norm
 end
 
 function get_trainset(strategy::GridTraining, bounds, tspan)
     db, dt = strategy.dx
-    p_ = bounds.p[1]:db:bounds.p[2]
+    v  = values(bounds)[1]
+    #TODO for all v
+    p_ = v[1]:db:v[2]
     p = reshape(p_, 1, size(p_)[1], 1)
     t_ = collect(tspan[1]:dt:tspan[2])
     t = reshape(t_, 1, 1, size(t_)[1])
@@ -129,7 +137,7 @@ end
 function generate_loss(strategy::GridTraining, prob::ODEProblem, phi, bounds, tspan)
     x = get_trainset(strategy, bounds, tspan)
     function loss(θ, _)
-        inital_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
+        inital_condition_loss(phi, prob, x, θ, bounds) + physics_loss(phi, prob, x, θ)
     end
 end
 
