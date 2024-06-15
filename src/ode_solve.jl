@@ -100,7 +100,7 @@ end
 Internal struct, used for representing the ODE solution as a neural network in a form that respects boundary conditions, i.e.
 `phi(t) = u0 + t*NN(t)`.
 """
-mutable struct ODEPhi{C, T, U, S}
+struct ODEPhi{C, T, U, S}
     chain::C
     t0::T
     u0::U
