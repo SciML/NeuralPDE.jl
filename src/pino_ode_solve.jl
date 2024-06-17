@@ -80,7 +80,12 @@ end
 function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ, prob::ODEProblem) where {C <: DeepONet, T}
     p, t = x
     f = prob.f
-    branch_left, branch_right = f.(0, p, t .+ sqrt(eps(eltype(p)))), f.(0, p, t)
+    # if any(in(keys(bounds)), (:u0,))
+    #     branch_left, branch_right = f.(0, zeros(size(p)), t .+ sqrt(eps(eltype(p)))),
+    #     f.(0, zeros(size(p)), t)
+    # else
+        branch_left, branch_right = f.(0, p, t .+ sqrt(eps(eltype(p)))), f.(0, p, t)
+    # end
     trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
     x_left = (branch = branch_left, trunk = trunk_left)
     x_right = (branch = branch_right, trunk = trunk_right)
@@ -91,11 +96,19 @@ function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
     p, t = x
     f = prob.f
-    #TODO If du = f(u,p,t), where f = g(p,t)*u so it will wrong, f(0, p, t) = g(p,t)*0 = 0
-    #work correct only with function like du = f(p,t) + g(u)
+    # TODO If du = f(u,p,t), where f = g(p,t)*u so it will wrong, f(0, p, t) = g(p,t)*0 = 0
+    # work correct only with function like du = f(p,t) + g(u)
+    # tuple = (branch = p, trunk = t)
+    # out = phi(tuple, θ)
+    # f.(out, p, t) ?
     du = vec(dfdx(phi, x, θ, prob))
-
-    tuple = (branch = f.(0, p, t), trunk = t)
+    # if any(in(keys(bounds)), (:u0,))
+    #     f_ = f.(0, zeros(size(p)), t)
+    # else
+        f_ = f.(0, p, t)
+    # end
+    #TODO if DeepONet else error
+    tuple = (branch = f_, trunk = t)
     out = phi(tuple, θ)
     f_ = vec(f.(out, p, t))
     norm = prod(size(out))
@@ -103,23 +116,26 @@ function physics_loss(
 end
 
 function inital_condition_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ, bounds) where {C <: DeepONet, T}
+        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
     p, t = x
     f = prob.f
     t0 = t[:, :, [1]]
-    f_0 = f.(0, p, t0)
+    #TODO
+    # if any(in(keys(bounds)), (:u0,))
+    #     u0_ = collect(p)
+    #     u0 = vec(u0_)
+    #     #TODO  f_0 = f.(0, p, t0) and p call as u0
+    #     f_0 = f.(0, zeros(size(u0_)), t0)
+    # else
+        u0_ = fill(prob.u0, size(out))
+        u0 = vec(u0_)
+        f_0 = f.(0, p, t0)
+    # end
     tuple = (branch = f_0, trunk = t0)
     out = phi(tuple, θ)
     u = vec(out)
-    #TODO
-    if any(in(keys(bounds)), (:u0,))
-        u0_ = p
-        u0 = p
-    else
-        u0_ = fill(prob.u0, size(out))
-        u0 = vec(u0_)
-    end
-    norm = prod(size(u0_))
+
+    norm = prod(size(u0))
     sum(abs2, u .- u0) / norm
 end
 
@@ -137,7 +153,7 @@ end
 function generate_loss(strategy::GridTraining, prob::ODEProblem, phi, bounds, tspan)
     x = get_trainset(strategy, bounds, tspan)
     function loss(θ, _)
-        inital_condition_loss(phi, prob, x, θ, bounds) + physics_loss(phi, prob, x, θ)
+        inital_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
 
@@ -155,8 +171,10 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
 
-    #TODO implement for u0
-    if !any(in(keys(bounds)), (:p, :u0))
+    # if !any(in(keys(bounds)), (:p, :u0))
+    #     error("bounds should contain p only")
+    # end
+    if !any(in(keys(bounds)), (:p,))
         error("bounds should contain p only")
     end
     phi, init_params = generate_pino_phi_θ(chain, init_params)
