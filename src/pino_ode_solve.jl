@@ -80,17 +80,25 @@ end
 function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ, prob::ODEProblem) where {C <: DeepONet, T}
     p, t = x
     f = prob.f
-    # if any(in(keys(bounds)), (:u0,))
-    #     branch_left, branch_right = f.(0, zeros(size(p)), t .+ sqrt(eps(eltype(p)))),
-    #     f.(0, zeros(size(p)), t)
-    # else
-        branch_left, branch_right = f.(0, p, t .+ sqrt(eps(eltype(p)))), f.(0, p, t)
-    # end
+    branch_left, branch_right = f.(0, p, t .+ sqrt(eps(eltype(p)))), f.(0, p, t)
     trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
     x_left = (branch = branch_left, trunk = trunk_left)
     x_right = (branch = branch_right, trunk = trunk_right)
     (phi(x_left, θ) .- phi(x_right, θ)) / sqrt(eps(eltype(t)))
 end
+
+# function physics_loss(
+#         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
+#     p, t = x
+#     f = prob.f
+#     du = vec(dfdx(phi, x, θ, prob))
+#     f_ = f.(0, p, t)
+#     tuple = (branch = f_, trunk = t)
+#     out = phi(tuple, θ)
+#     f_ = vec(f.(out, p, t))
+#     norm = prod(size(out))
+#     sum(abs2, du .- f_) / norm
+# end
 
 function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
@@ -101,50 +109,69 @@ function physics_loss(
     # tuple = (branch = p, trunk = t)
     # out = phi(tuple, θ)
     # f.(out, p, t) ?
+    #TODO if DeepONet else err
     du = vec(dfdx(phi, x, θ, prob))
-    # if any(in(keys(bounds)), (:u0,))
-    #     f_ = f.(0, zeros(size(p)), t)
-    # else
-        f_ = f.(0, p, t)
-    # end
-    #TODO if DeepONet else error
-    tuple = (branch = f_, trunk = t)
+    fs_ = hcat([hcat([f(0, p[:, i, :], t[j]) for i in axes(p, 2)]) for j in axes(t, 3)]...)
+    fs = reshape(fs_, (1, size(fs_)...))
+    tuple = (branch = p, trunk = t)
     out = phi(tuple, θ)
-    f_ = vec(f.(out, p, t))
+
+    tuple = (branch = fs, trunk = t) #TODO -> tuple = (branch = p, trunk = t)
+    out = phi(tuple, θ)
+    # f_ = vec(f.(out, p, t))
     norm = prod(size(out))
     sum(abs2, du .- f_) / norm
 end
 
-function inital_condition_loss(
+# function initial_condition_loss(
+#         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
+#     p, t = x
+#     f = prob.f
+#     t0 = t[:, :, [1]]
+#     f_0 = f.(0, p, t0)
+#     tuple = (branch = f_0, trunk = t0)
+#     out = phi(tuple, θ)
+#     u = vec(out)
+#     u0_ = fill(prob.u0, size(out))
+#     u0 = vec(u0_)
+
+#     norm = prod(size(u0))
+#     sum(abs2, u .- u0) / norm
+# end
+
+function initial_condition_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
     p, t = x
     f = prob.f
-    t0 = t[:, :, [1]]
-    #TODO
-    # if any(in(keys(bounds)), (:u0,))
-    #     u0_ = collect(p)
-    #     u0 = vec(u0_)
-    #     #TODO  f_0 = f.(0, p, t0) and p call as u0
-    #     f_0 = f.(0, zeros(size(u0_)), t0)
-    # else
-        u0_ = fill(prob.u0, size(out))
-        u0 = vec(u0_)
-        f_0 = f.(0, p, t0)
-    # end
-    tuple = (branch = f_0, trunk = t0)
+    t0 = t[:, :, [5]]
+    fs_0 = hcat([f(0, p[:, i, :], t[j]) for i in axes(p, 2)]...)
+    fs0 = reshape(fs_0, (1, size(fs_0)...))
+    tuple = (branch = fs0, trunk = t0)
     out = phi(tuple, θ)
     u = vec(out)
+    u0_ = fill(prob.u0, size(out))
+    u0 = vec(u0_)
 
     norm = prod(size(u0))
     sum(abs2, u .- u0) / norm
 end
 
+# function get_trainset(strategy::GridTraining, bounds, tspan)
+#     db, dt = strategy.dx
+#     v  = values(bounds)[1]
+#     #TODO for all v
+#     p_ = v[1]:db:v[2]
+#     p = reshape(p_, 1, size(p_)[1], 1)
+#     t_ = collect(tspan[1]:dt:tspan[2])
+#     t = reshape(t_, 1, 1, size(t_)[1])
+#     (p, t)
+# end
+
 function get_trainset(strategy::GridTraining, bounds, tspan)
-    db, dt = strategy.dx
-    v  = values(bounds)[1]
-    #TODO for all v
-    p_ = v[1]:db:v[2]
-    p = reshape(p_, 1, size(p_)[1], 1)
+    dt = strategy.dx
+    size_of_p = 50
+    p_ = [range(start = b[1], length = size_of_p, stop = b[2]) for b in bounds]
+    p = vcat([collect(reshape(p_i, 1, size(p_i)[1], 1)) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
     t = reshape(t_, 1, 1, size(t_)[1])
     (p, t)
@@ -174,9 +201,10 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     # if !any(in(keys(bounds)), (:p, :u0))
     #     error("bounds should contain p only")
     # end
-    if !any(in(keys(bounds)), (:p,))
-        error("bounds should contain p only")
-    end
+    #TODO new p
+    # if !any(in(keys(bounds)), (:p,))
+    #     error("bounds should contain p only")
+    # end
     phi, init_params = generate_pino_phi_θ(chain, init_params)
 
     isinplace(prob) &&
@@ -194,7 +222,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     end
 
     if strategy isa GridTraining
-        if length(strategy.dx) !== 2
+        if length(strategy.dx) !== 2 #TODO ?
             throw(ArgumentError("The discretization should have two elements dx= [db,dt],
                                  steps for branch and trunk bounds"))
         end
