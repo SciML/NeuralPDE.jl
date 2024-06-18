@@ -32,7 +32,10 @@ using SciMLBase: @add_kwonly, parameterless_type
 using UnPack: @unpack
 import ChainRulesCore, Lux, ComponentArrays
 using Lux: FromFluxAdaptor
-using ChainRulesCore: @non_differentiable
+using ChainRulesCore: @ignore_derivatives
+using LuxDeviceUtils: LuxCUDADevice, LuxCPUDevice, cpu_device
+using LuxCUDA: CuArray, CUDABackend
+using KernelAbstractions: @kernel, @Const, @index
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
