@@ -1,5 +1,5 @@
 struct ParametricFunction{}
-    function_ ::Union{Nothing, Function}
+    function_::Union{Nothing, Function}
     bounds::Any
 end
 
@@ -83,12 +83,14 @@ function (f::PINOPhi{C, T})(x::NamedTuple, θ) where {C <: NeuralOperator, T}
 end
 
 function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ, prob::ODEProblem) where {C <: DeepONet, T}
+    # @unpack function_, bounds = parametric_function
+    # branch_left, branch_right = function_.(p, t), function_.(p, t .+ sqrt(eps(eltype(t))))
     pfs, p, t = x
-    # branch_left, branch_right = pfs, pfs
+    branch_left, branch_right = p, p
     trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
-    x_left = (branch = pfs, trunk = trunk_left)
-    x_right = (branch = pfs, trunk = trunk_right)
-    (phi(x_left, θ) .- phi(x_right, θ)) / sqrt(eps(eltype(t)))
+    x_left = (branch = branch_left, trunk = trunk_left)
+    x_right = (branch = branch_right, trunk = trunk_right)
+    (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
 end
 
 # function physics_loss(
@@ -122,24 +124,25 @@ function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
     pfs, p, t = x
     f = prob.f
-    du = vec(dfdx(phi, x, θ, prob))
-    tuple = (branch = pfs, trunk = t)
+    tuple = (branch = p, trunk = t)
     out = phi(tuple, θ)
-    # if size(p)[1] == 1
+    if size(p)[1] == 1
         fs = f.(out, p, t)
-        f_ = vec(fs)
-    # else
-    #     f_ = reduce(vcat,[reduce(vcat, [f(out[i], p[i], t[j]) for i in axes(p, 2)]) for j in axes(t, 3)])
-    # end
-    norm = prod(size(out))
-    sum(abs2, du .- f_) / norm
+        f_vec= vec(fs)
+    # out_ = vec(out)
+    else
+        f_vec = reduce(vcat,[[f(out[i], p[:, i, 1], t[j]) for i in axes(p, 2)] for j in axes(t, 3)])
+    end
+    du = vec(dfdx(phi, x, θ, prob))
+    norm = prod(size(du))
+    sum(abs2, du .- f_vec) / norm
 end
 
 function initial_condition_loss(phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
     pfs, p, t = x
     t0 = t[:, :, [1]]
-    pfs0 = pfs[:, :, [1]]
-    tuple = (branch = pfs0, trunk = t0)
+    # pfs0 = pfs[:, :, [1]]
+    tuple = (branch = p, trunk = t0)
     out = phi(tuple, θ)
     u = vec(out)
     u0 = vec(fill(prob.u0, size(out)))
@@ -210,7 +213,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        x = (branch = rand(1, 10, 10), trunk = rand(1, 1, 10))
+        in_dim = chain.branch.layers.layer_1.in_dims
+        x = (branch = rand(in_dim, 10, 10), trunk = rand(1, 1, 10))
         phi(x, init_params)
     catch err
         if isa(err, DimensionMismatch)
@@ -258,7 +262,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     pfs, p, t = get_trainset(strategy, parametric_function, tspan)
-    tuple = (branch = pfs, trunk = t)
+    tuple = (branch = p, trunk = t)
     u = phi(tuple, res.u)
 
     sol = SciMLBase.build_solution(prob, alg, tuple, u;
