@@ -8,7 +8,7 @@ In this section, we will define a parametric ODE and solve it using a PINO. The 
 
 ```@example pino
 using Test
-using OrdinaryDiffEq, OptimizationOptimisers
+using OptimizationOptimisers
 using Lux
 using Statistics, Random
 using NeuralPDE
@@ -27,14 +27,16 @@ trunk = Lux.Chain(
     Lux.Dense(1, 10, Lux.tanh_fast),
     Lux.Dense(10, 10, Lux.tanh_fast),
     Lux.Dense(10, 10, Lux.tanh_fast))
-deeponet = NeuralPDE.DeepONet(branch, trunk; linear = nothing)
+deeponet = DeepONet(branch, trunk; linear = nothing)
 
-bounds = (p = [0.1f0, pi],)
-db = (bounds.p[2] - bounds.p[1]) / 50
+bounds = [(0.1f0, pi)]
+number_of_parameters = 50
+db = (bounds.[1][2] - bounds.[1][1]) / 50
 dt = (tspan[2] - tspan[1]) / 40
-strategy = NeuralPDE.GridTraining([db, dt])
+strategy = GridTraining(dt)
+strategy = QuasiRandomTraining(points)
 opt = OptimizationOptimisers.Adam(0.03)
-alg = NeuralPDE.PINOODE(deeponet, opt, bounds; strategy = strategy)
+alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
 sol = solve(prob, alg, verbose = false, maxiters = 2000)
 predict = sol.u
 ```
@@ -46,7 +48,7 @@ Compare prediction with ground truth.
 using Plots
 # Compute the ground truth solution for each parameter
 ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
-p_ = bounds.p[1]:strategy.dx[1]:bounds.p[2]
+p_ = bounds[1][1]:strategy.dx:bounds[1][2]
 p = reshape(p_, 1, size(p_)[1], 1)
 ground_solution = ground_analytic.(u0, p, sol.t.trunk)
 

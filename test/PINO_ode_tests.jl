@@ -3,6 +3,16 @@ using OptimizationOptimisers
 using Lux
 using Statistics, Random
 using NeuralPDE
+using LuxNeuralOperators
+
+u = rand(1, 5)
+y = rand(1, 10, 5)
+don_ = LuxNeuralOperators.DeepONet(Chain(Dense(1 => 32), Dense(32 => 32), Dense(32 => 16)),
+    Chain(Dense(1 => 8), Dense(8 => 8), Dense(8 => 16)))
+ps, st = Lux.setup(Random.default_rng(), don_)
+
+don_((u, y), ps, st)
+@inferred don_((u, y), ps, st)
 
 # dG(u(t, p), t) = f(G,u(t, p))
 @testset "Example du = cos(p * t)" begin
@@ -31,6 +41,7 @@ using NeuralPDE
     number_of_parameters = 50
     dt = (tspan[2] - tspan[1]) / 40
     strategy = GridTraining(dt)
+    strategy = QuasiRandomTraining(points)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
     sol = solve(prob, alg, verbose = true, maxiters = 3000)

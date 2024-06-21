@@ -79,6 +79,7 @@ function (f::PINOPhi{C, T})(x::NamedTuple, θ) where {C <: NeuralOperator, T}
     y
 end
 
+#TODO migrate to LuxNeuralOperators.DeepONet
 function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
     p, t = x
     branch_left, branch_right = p, p
@@ -137,6 +138,14 @@ end
 function generate_loss(
         strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
     x = get_trainset(strategy, bounds, number_of_parameters, tspan)
+    function loss(θ, _)
+        initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
+    end
+end
+
+function generate_loss(
+        strategy::QuasiRandomTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
+    #TODO
     function loss(θ, _)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
