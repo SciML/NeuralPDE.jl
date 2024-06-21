@@ -1,8 +1,3 @@
-struct ParametricFunction{}
-    function_::Union{Nothing, Function}
-    bounds::Any
-end
-
 """
 	PINOODE(chain,
 	    OptimizationOptimisers.Adam(0.1),
@@ -35,12 +30,13 @@ in which will be train the prediction of parametric ODE.
 * Sifan Wang "Learning the solution operator of parametric partial differential equations with physics-informed DeepOnets"
 * Zongyi Li "Physics-Informed Neural Operator for Learning Partial Differential Equations"
 """
-struct PINOODE{C, O, I, S <: Union{Nothing, AbstractTrainingStrategy},
+struct PINOODE{C, O, B, I, S <: Union{Nothing, AbstractTrainingStrategy},
     AL <: Union{Nothing, Function}, K} <:
        SciMLBase.AbstractODEAlgorithm
     chain::C
     opt::O
-    parametric_function::ParametricFunction
+    bounds::B
+    number_of_parameters::Int
     init_params::I
     strategy::S
     additional_loss::AL
@@ -49,13 +45,14 @@ end
 
 function PINOODE(chain,
         opt,
-        parametric_function;
+        bounds,
+        number_of_parameters;
         init_params = nothing,
         strategy = nothing,
         additional_loss = nothing,
         kwargs...)
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
-    PINOODE(chain, opt, parametric_function, init_params, strategy, additional_loss, kwargs)
+    PINOODE(chain, opt, bounds,number_of_parameters, init_params, strategy, additional_loss, kwargs)
 end
 
 mutable struct PINOPhi{C, S}
@@ -82,10 +79,8 @@ function (f::PINOPhi{C, T})(x::NamedTuple, θ) where {C <: NeuralOperator, T}
     y
 end
 
-function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ, prob::ODEProblem) where {C <: DeepONet, T}
-    # @unpack function_, bounds = parametric_function
-    # branch_left, branch_right = function_.(p, t), function_.(p, t .+ sqrt(eps(eltype(t))))
-    pfs, p, t = x
+function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
+    p, t = x
     branch_left, branch_right = p, p
     trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
     x_left = (branch = branch_left, trunk = trunk_left)
@@ -93,53 +88,25 @@ function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ, prob::ODEProblem) where {C <: De
     (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
 end
 
-# function physics_loss(
-#         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
-#     p, t = x
-#     f = prob.f
-#     du = vec(dfdx(phi, x, θ, prob))
-#     f_ = f.(0, p, t)
-#     tuple = (branch = f_, trunk = t)
-#     out = phi(tuple, θ)
-#     f_ = vec(f.(out, p, t))
-#     norm = prod(size(out))
-#     sum(abs2, du .- f_) / norm
-# end
-# function initial_condition_loss(
-#         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
-#     p, t = x
-#     f = prob.f
-#     t0 = t[:, :, [1]]
-#     f_0 = f.(0, p, t0)
-#     tuple = (branch = f_0, trunk = t0)
-#     out = phi(tuple, θ)
-#     u = vec(out)
-#     u0_ = fill(prob.u0, size(out))
-#     u0 = vec(u0_)
-#     norm = prod(size(u0))
-#     sum(abs2, u .- u0) / norm
-# end
-
 function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
-    pfs, p, t = x
+    p, t = x
     f = prob.f
     tuple = (branch = p, trunk = t)
     out = phi(tuple, θ)
     if size(p)[1] == 1
         fs = f.(out, p, t)
         f_vec= vec(fs)
-    # out_ = vec(out)
     else
         f_vec = reduce(vcat,[[f(out[i], p[:, i, 1], t[j]) for i in axes(p, 2)] for j in axes(t, 3)])
     end
-    du = vec(dfdx(phi, x, θ, prob))
+    du = vec(dfdx(phi, x, θ))
     norm = prod(size(du))
     sum(abs2, du .- f_vec) / norm
 end
 
 function initial_condition_loss(phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
-    pfs, p, t = x
+    p, t = x
     t0 = t[:, :, [1]]
     # pfs0 = pfs[:, :, [1]]
     tuple = (branch = p, trunk = t0)
@@ -150,40 +117,26 @@ function initial_condition_loss(phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) whe
     sum(abs2, u .- u0) / norm
 end
 
-# function get_trainset(strategy::GridTraining, bounds, tspan)
-#     db, dt = strategy.dx
-#     v  = values(bounds)[1]
-#     #TODO for all v
-#     p_ = v[1]:db:v[2]
-#     p = reshape(p_, 1, size(p_)[1], 1)
-#     t_ = collect(tspan[1]:dt:tspan[2])
-#     t = reshape(t_, 1, 1, size(t_)[1])
-#     (p, t)
-# end
-
-function get_trainset(
-        strategy::GridTraining, parametric_function::ParametricFunction, tspan)
-    @unpack function_, bounds = parametric_function
+function get_trainset(strategy::GridTraining, bounds, number_of_parameters, tspan)
     dt = strategy.dx
-    #TODO
-    size_of_p = 50
-    if bounds isa Tuple
-        p_ = range(start = bounds[1], length = size_of_p, stop = bounds[2])
+    if size(bounds)[1] ==  1
+        bound = bounds[1]
+        p_ = range(start = bound[1], length = number_of_parameters, stop = bound[2])
         p = collect(reshape(p_, 1, size(p_)[1], 1))
     else
-        p_ = [range(start = b[1], length = size_of_p, stop = b[2]) for b in bounds]
+        p_ = [range(start = b[1], length = number_of_parameters, stop = b[2])
+              for b in bounds]
         p = vcat([collect(reshape(p_i, 1, size(p_i)[1], 1)) for p_i in p_]...)
     end
 
     t_ = collect(tspan[1]:dt:tspan[2])
     t = reshape(t_, 1, 1, size(t_)[1])
-    pfs = function_.(p,t)
-    (pfs, p, t)
+    (p, t)
 end
 
 function generate_loss(
-        strategy::GridTraining, prob::ODEProblem, phi, parametric_function::ParametricFunction, tspan)
-    x = get_trainset(strategy, parametric_function, tspan)
+        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
+    x = get_trainset(strategy, bounds, number_of_parameters, tspan)
     function loss(θ, _)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
@@ -198,7 +151,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         saveat = nothing,
         maxiters = nothing)
     @unpack tspan, u0, f = prob
-    @unpack chain, opt, parametric_function, init_params, strategy, additional_loss = alg
+    @unpack chain, opt, bounds, number_of_parameters, init_params, strategy, additional_loss=alg
 
     if !isa(chain, DeepONet)
         error("Only DeepONet neural networks are supported")
@@ -231,7 +184,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         throw(ArgumentError("Only GridTraining strategy is supported"))
     end
 
-    inner_f = generate_loss(strategy, prob, phi, parametric_function, tspan)
+    inner_f = generate_loss(strategy, prob, phi, bounds, number_of_parameters, tspan)
 
     function total_loss(θ, _)
         L2_loss = inner_f(θ, nothing)
@@ -240,10 +193,6 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         end
         L2_loss
     end
-
-    # TODO delete
-    # total_loss(θ, 0)
-    # Zygote.gradient(θ -> total_loss(θ, 0), θ)
 
     # Optimization Algo for Training Strategies
     opt_algo = Optimization.AutoZygote()
@@ -261,7 +210,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
-    pfs, p, t = get_trainset(strategy, parametric_function, tspan)
+    p, t = get_trainset(strategy, bounds, number_of_parameters, tspan)
     tuple = (branch = p, trunk = t)
     u = phi(tuple, res.u)
 
