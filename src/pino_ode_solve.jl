@@ -52,7 +52,8 @@ function PINOODE(chain,
         additional_loss = nothing,
         kwargs...)
     !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
-    PINOODE(chain, opt, bounds,number_of_parameters, init_params, strategy, additional_loss, kwargs)
+    PINOODE(chain, opt, bounds, number_of_parameters,
+        init_params, strategy, additional_loss, kwargs)
 end
 
 mutable struct PINOPhi{C, S}
@@ -73,45 +74,48 @@ function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer, init_params)
     PINOPhi(chain, st), init_params
 end
 
-function (f::PINOPhi{C, T})(x::NamedTuple, θ) where {C <: NeuralOperator, T}
+function (f::PINOPhi{C, T})(x, θ) where {C, T} #C <: NeuralOperator
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     y
 end
 
 #TODO migrate to LuxNeuralOperators.DeepONet
-function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
+function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C, T} #C <: DeepONet
     p, t = x
     branch_left, branch_right = p, p
     trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
-    x_left = (branch = branch_left, trunk = trunk_left)
-    x_right = (branch = branch_right, trunk = trunk_right)
+    x_left = (branch_left, trunk_left)
+    x_right = (branch_right, trunk_right)
     (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
 end
 
 function physics_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
+        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {C, T} #C <: DeepONet
     p, t = x
     f = prob.f
-    tuple = (branch = p, trunk = t)
-    out = phi(tuple, θ)
+    # x = (p, t)
+    out = phi(x, θ)
     if size(p)[1] == 1
-        fs = f.(out, p, t)
-        f_vec= vec(fs)
+        fs = f.(out, p, vec(t))
+        # fs = f.(0, p, vec(t))
+        f_vec = vec(fs)
     else
-        f_vec = reduce(vcat,[[f(out[i], p[:, i, 1], t[j]) for i in axes(p, 2)] for j in axes(t, 3)])
+        f_vec = reduce(
+            vcat, [[f(out[i], p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
     end
     du = vec(dfdx(phi, x, θ))
     norm = prod(size(du))
     sum(abs2, du .- f_vec) / norm
 end
 
-function initial_condition_loss(phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C <: DeepONet, T}
+function initial_condition_loss(
+        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C, T} #C <: DeepONet  #TODO migrate to LuxNeuralOperators.DeepONet
     p, t = x
-    t0 = t[:, :, [1]]
+    t0 = t[:, [1], :]
     # pfs0 = pfs[:, :, [1]]
-    tuple = (branch = p, trunk = t0)
-    out = phi(tuple, θ)
+    x0 = (p, t0)
+    out = phi(x0, θ)
     u = vec(out)
     u0 = vec(fill(prob.u0, size(out)))
     norm = prod(size(u0))
@@ -120,18 +124,18 @@ end
 
 function get_trainset(strategy::GridTraining, bounds, number_of_parameters, tspan)
     dt = strategy.dx
-    if size(bounds)[1] ==  1
+    if size(bounds)[1] == 1
         bound = bounds[1]
         p_ = range(start = bound[1], length = number_of_parameters, stop = bound[2])
-        p = collect(reshape(p_, 1, size(p_)[1], 1))
+        p = collect(reshape(p_, 1, size(p_)[1]))
     else
         p_ = [range(start = b[1], length = number_of_parameters, stop = b[2])
               for b in bounds]
-        p = vcat([collect(reshape(p_i, 1, size(p_i)[1], 1)) for p_i in p_]...)
+        p = vcat([collect(reshape(p_i, 1, size(p_i)[1])) for p_i in p_]...)
     end
 
     t_ = collect(tspan[1]:dt:tspan[2])
-    t = reshape(t_, 1, 1, size(t_)[1])
+    t = reshape(t_, 1, size(t_)[1], 1)
     (p, t)
 end
 
@@ -160,11 +164,12 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         saveat = nothing,
         maxiters = nothing)
     @unpack tspan, u0, f = prob
-    @unpack chain, opt, bounds, number_of_parameters, init_params, strategy, additional_loss=alg
+    @unpack chain, opt, bounds, number_of_parameters, init_params, strategy, additional_loss = alg
 
-    if !isa(chain, DeepONet)
-        error("Only DeepONet neural networks are supported")
-    end
+    #TODO migrate to LuxNeuralOperators.DeepONet
+    # if !isa(chain, DeepONet)
+    #     error("Only DeepONet neural networks are supported")
+    # end
 
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
@@ -175,8 +180,11 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        in_dim = chain.branch.layers.layer_1.in_dims
-        x = (branch = rand(in_dim, 10, 10), trunk = rand(1, 1, 10))
+        in_dim = chain.layers.branch.layers.layer_1.in_dims
+        # x = (branch = rand(in_dim, 10, 10), trunk = rand(1, 1, 10))
+        u = rand(in_dim, number_of_parameters)
+        v = rand(1, 10, 1)
+        x = (u, v)
         phi(x, init_params)
     catch err
         if isa(err, DimensionMismatch)
@@ -189,8 +197,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     if strategy === nothing
         dt = (tspan[2] - tspan[1]) / 50
         strategy = GridTraining(dt)
-    elseif !isa(strategy, GridTraining)
-        throw(ArgumentError("Only GridTraining strategy is supported"))
+    elseif !(strategy isa GridTraining || strategy isa QuasiRandomTraining)
+        throw(ArgumentError("Only GridTraining and QuasiRandomTraining strategy is supported"))
     end
 
     inner_f = generate_loss(strategy, prob, phi, bounds, number_of_parameters, tspan)
@@ -220,10 +228,10 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     p, t = get_trainset(strategy, bounds, number_of_parameters, tspan)
-    tuple = (branch = p, trunk = t)
-    u = phi(tuple, res.u)
+    x = (p, t)
+    u = phi(x, res.u)
 
-    sol = SciMLBase.build_solution(prob, alg, tuple, u;
+    sol = SciMLBase.build_solution(prob, alg, x, u;
         k = res, dense = true,
         calculate_error = false,
         retcode = ReturnCode.Success,

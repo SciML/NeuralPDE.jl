@@ -33,7 +33,7 @@ using UnPack: @unpack
 import ChainRulesCore, Lux, ComponentArrays
 using Lux: FromFluxAdaptor
 using ChainRulesCore: @non_differentiable
-# using LuxNeuralOperators
+using LuxNeuralOperators
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -48,7 +48,6 @@ include("adaptive_losses.jl")
 include("ode_solve.jl")
 # include("rode_solve.jl")
 include("dae_solve.jl")
-include("neural_operators.jl")
 include("pino_ode_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
