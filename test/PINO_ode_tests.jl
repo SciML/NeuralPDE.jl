@@ -31,26 +31,24 @@ using NeuralPDE
 
     bounds = [(pi, 2pi)]
     number_of_parameters = 50
-    dt = (tspan[2] - tspan[1]) / 40
-    strategy = GridTraining(dt)
-    # strategy = QuasiRandomTraining(50)
-    opt = OptimizationOptimisers.Adam(0.03)
+    # dt = (tspan[2] - tspan[1]) / 40
+    # strategy = GridTraining(dt)
+    strategy = StochasticTraining(40)
+    opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = true, maxiters = 3000)
-
+    sol = solve(prob, alg, verbose = true, maxiters = 5000)
     sol.original.objective
-    # TODO intrepretation output another mesh
-    # x = (branch = p, trunk = t)
-    # phi(sol.original.u)
-    # sol.
+    # TODO intrepretation output with few mesh
     ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
-    #TDOD another number_of_parameters
     p_ = range(start = bounds[1][1], length = number_of_parameters, stop = bounds[1][2])
     p = collect(reshape(p_, 1, size(p_)[1]))
-    ground_solution = ground_analytic.(u0, p, vec(sol.t[2]))
+    t_ = collect(tspan[1]:dt:tspan[2])
+    t = collect(reshape(t_, 1, size(t_)[1], 1))
+    ground_solution = ground_analytic.(u0, p, t_)
+    predict_sol = sol.interp.phi((p,t), sol.interp.θ)
 
-    @test ground_solution≈sol.u rtol=0.1
-    @test ground_solution≈sol.u rtol=0.01
+    @test ground_solution≈predict_sol rtol=0.1
+    @test ground_solution≈predict_sol rtol=0.01
 end
 
 @testset "Example du = cos(p * t) + u" begin
