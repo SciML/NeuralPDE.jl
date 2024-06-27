@@ -74,7 +74,7 @@ sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
-aprox_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions
+approx_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 cb_ = function (p, l)
     println("loss: ", l)
