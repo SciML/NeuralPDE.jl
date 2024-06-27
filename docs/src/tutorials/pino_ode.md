@@ -11,34 +11,32 @@ using Test
 using OptimizationOptimisers
 using Lux
 using Statistics, Random
+using LuxNeuralOperators
 using NeuralPDE
 
-equation = (u, p, t) -> cos(p * t)
+equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]
 tspan = (0.0f0, 1.0f0)
 u0 = 1.0f0
 prob = ODEProblem(equation, u0, tspan)
 
-# Define the architecture of the neural network that will be used as the PINO.
-branch = Lux.Chain(
-    Lux.Dense(1, 10, Lux.tanh_fast),
-    Lux.Dense(10, 10, Lux.tanh_fast),
-    Lux.Dense(10, 10))
-trunk = Lux.Chain(
-    Lux.Dense(1, 10, Lux.tanh_fast),
-    Lux.Dense(10, 10, Lux.tanh_fast),
-    Lux.Dense(10, 10, Lux.tanh_fast))
-deeponet = DeepONet(branch, trunk; linear = nothing)
+number_of_parameter = 3
+deeponet = LuxNeuralOperators.DeepONet(
+    Chain(
+        Dense(number_of_parameter => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
+    Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
+        Dense(10 => 10, Lux.tanh_fast)))
 
-bounds = [(0.1f0, pi)]
+u = rand(3, 50)
+v = rand(1, 40, 1)
+θ, st = Lux.setup(Random.default_rng(), deeponet)
+c = deeponet((u, v), θ, st)[1]
+
+bounds = [(1.0f0, pi), (1.0f0, 2.0f0), (2.0f0, 3.0f0)]
 number_of_parameters = 50
-db = (bounds.[1][2] - bounds.[1][1]) / 50
-dt = (tspan[2] - tspan[1]) / 40
-strategy = GridTraining(dt)
-strategy = QuasiRandomTraining(points)
+strategy = StochasticTraining(40)
 opt = OptimizationOptimisers.Adam(0.03)
 alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
-sol = solve(prob, alg, verbose = false, maxiters = 2000)
-predict = sol.u
+sol = solve(prob, alg, verbose = true, maxiters = 3000)
 ```
 
 Now let's compare the prediction from the learned operator with the ground truth solution which is obtained by analytic solution the parametric ODE. Where 
@@ -46,23 +44,52 @@ Compare prediction with ground truth.
 
 ```@example pino
 using Plots
+
+function get_trainset(bounds, tspan , number_of_parameters, dt)
+    p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
+    p = vcat([collect(reshape(p_i, 1, size(p_i,1))) for p_i in p_]...)
+    t_ = collect(tspan[1]:dt:tspan[2])
+    t = collect(reshape(t_, 1, size(t_, 1), 1))
+    (p,t)
+end
+
 # Compute the ground truth solution for each parameter
-ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
-p_ = bounds[1][1]:strategy.dx:bounds[1][2]
-p = reshape(p_, 1, size(p_)[1], 1)
-ground_solution = ground_analytic.(u0, p, sol.t.trunk)
+ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) + p[3]*t
+function ground_solution_f(p,t)
+    reduce(hcat,[[ground_solution(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+end
+
+(p,t) = get_trainset(bounds, tspan, 50, 0.025f0)
+ground_solution_ = ground_solution_f(p,t)
+predict = sol.interp((p,t))
+
+# Calculate the mean error and  the standard deviation of the errors
+errors = ground_solution_ - predict
+mean_error = mean(errors)
+std_error = std(errors)
+
+# generate the solution with new parameters for test the model
+p,t = get_trainset(bounds, tspan, 100,  0.01f0) 
+ground_solution_ = ground_solution_f(p,t)
+predict = sol.interp((p,t))
+
+errors = ground_solution_ - predict
+mean_error = mean(errors)
+std_error = std(errors)
 
 # Plot the predicted solution and the ground truth solution as a filled contour plot
-# sol.u[1, :, :], represents the predicted solution for each parameter value and time
-plot(predict[1, :, :], linetype = :contourf)
-plot!(ground_solution[1, :, :], linetype = :contourf)
+# predict, represents the predicted solution for each parameter value and time
+plot(predict, linetype = :contourf)
+plot!(ground_solution_, linetype = :contourf)
 ```
 
 ```@example pino
 # 'i' is the index of the parameter 'p' in the dataset 
-i = 20
+i = 5
 # 'predict' is the predicted solution from the PINO model
-plot(predict[1, i, :], label = "Predicted")
+plot(predict[:, i], label = "Predicted")
 # 'ground' is the ground truth solution
-plot!(ground_solution[1, i, :], label = "Ground truth")
+plot!(ground_solution_[:, i], label = "Ground truth")
 ```
+
+

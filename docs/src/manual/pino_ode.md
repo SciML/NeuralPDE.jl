@@ -3,9 +3,3 @@
 ```@docs
 PINOODE
 ```
-
-```@docs
-DeepONet
-```
-
-

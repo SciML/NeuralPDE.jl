@@ -154,41 +154,52 @@ end
 
 #vector outputs and multiple parameters
 @testset "Example du = cos(p * t)" begin
-    function equation1(u, p, t)
-        p1, p2 = p[1], p[2]
-        cos(p1 * t) + p2
-    end
-
-    equation = (u, p, t) -> p[1] * cos(p[2] * t)
+    equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0f0
     prob = ODEProblem(equation, u0, tspan)
 
+    number_of_parameter = 3
     deeponet = LuxNeuralOperators.DeepONet(
         Chain(
-            Dense(2 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
+            Dense(number_of_parameter => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
         Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
             Dense(10 => 10, Lux.tanh_fast)))
 
-    u = rand(2, 50, 1)
+    u = rand(3, 50)
     v = rand(1, 40, 1)
     θ, st = Lux.setup(Random.default_rng(), deeponet)
     c = deeponet((u, v), θ, st)[1]
 
-    bounds = [(0.1f0, pi), (1.0f0, 2.0f0)]
+    bounds = [(1.0f0, pi), (1.0f0, 2.0f0), (2.0f0, 3.0f0)]
     number_of_parameters = 50
-    dt = (tspan[2] - tspan[1]) / 40
-    strategy = GridTraining(dt)
+    strategy = StochasticTraining(40)
     opt = OptimizationOptimisers.Adam(0.03)
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
     sol = solve(prob, alg, verbose = true, maxiters = 3000)
 
-    ga = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t)
-    p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
-    p = vcat([collect(reshape(p_i, 1, size(p_i,1))) for p_i in p_]...)
-    t = sol.t[2]
-    ground_solution = reduce(hcat,
-        [[ga(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+    function get_trainset(bounds, tspan, number_of_parameters, dt)
+        p_ = [range(start = b[1], length = number_of_parameters, stop = b[2])
+              for b in bounds]
+        p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
+        t_ = collect(tspan[1]:dt:tspan[2])
+        t = collect(reshape(t_, 1, size(t_, 1), 1))
+        (p, t)
+    end
 
-    @test ground_solution≈sol.u rtol=0.01
+    ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) + p[3] * t
+    function ground_solution_f(p, t)
+        reduce(hcat,
+            [[ground_solution(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+    end
+
+    (p, t) = get_trainset(bounds, tspan, 50, 0.025f0)
+    ground_solution_ = ground_solution_f(p, t)
+    predict = sol.interp((p, t))
+    @test ground_solution_≈predict rtol=0.01
+
+    p, t = get_trainset(bounds, tspan, 100, 0.01f0)
+    ground_solution_ = ground_solution_f(p, t)
+    predict = sol.interp((p, t))
+    @test ground_solution_≈predict rtol=0.01
 end
