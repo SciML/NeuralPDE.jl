@@ -97,7 +97,7 @@ function physics_loss(
     p, t = x
     f = prob.f
     out = phi(x, θ)
-    if size(p)[1] == 1
+    if size(p,1) == 1
         fs = f.(out, p, vec(t))
         f_vec = vec(fs)
     else
@@ -124,18 +124,18 @@ end
 
 function get_trainset(strategy::GridTraining, bounds, number_of_parameters, tspan)
     dt = strategy.dx
-    if size(bounds)[1] == 1
+    if size(bounds,1) == 1
         bound = bounds[1]
         p_ = range(start = bound[1], length = number_of_parameters, stop = bound[2])
-        p = collect(reshape(p_, 1, size(p_)[1]))
+        p = collect(reshape(p_, 1, size(p_,1)))
     else
         p_ = [range(start = b[1], length = number_of_parameters, stop = b[2])
               for b in bounds]
-        p = vcat([collect(reshape(p_i, 1, size(p_i)[1])) for p_i in p_]...)
+        p = vcat([collect(reshape(p_i, 1, size(p_i,1))) for p_i in p_]...)
     end
 
     t_ = collect(tspan[1]:dt:tspan[2])
-    t = reshape(t_, 1, size(t_)[1], 1)
+    t = reshape(t_, 1, size(t_,1), 1)
     (p, t)
 end
 
@@ -148,7 +148,7 @@ function generate_loss(
 end
 
 function get_trainset(strategy::StochasticTraining, bounds, number_of_parameters, tspan)
-    if size(bounds)[1] == 1
+    if size(bounds,1) == 1
         bound = bounds[1]
         p = (bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
     else
@@ -173,8 +173,10 @@ struct PINOODEInterpolation{T <: PINOPhi, T2}
     θ::T2
 end
 
-#TODO
-# (f::NNODEInterpolation)(t, ...) = f.phi(t, f.θ)
+(f::PINOODEInterpolation)(x) = f.phi(x, f.θ)
+
+SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural network interpolation"
+SciMLBase.allowscomplex(::PINOODE) = true
 
 function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         alg::PINOODE,

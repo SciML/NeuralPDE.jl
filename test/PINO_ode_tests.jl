@@ -31,23 +31,30 @@ using NeuralPDE
 
     bounds = [(pi, 2pi)]
     number_of_parameters = 50
-    # dt = (tspan[2] - tspan[1]) / 40
-    # strategy = GridTraining(dt)
     strategy = StochasticTraining(40)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = true, maxiters = 5000)
-    sol.original.objective
-    # TODO intrepretation output with few mesh
-    ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
-    p_ = range(start = bounds[1][1], length = number_of_parameters, stop = bounds[1][2])
-    p = collect(reshape(p_, 1, size(p_)[1]))
-    t_ = collect(tspan[1]:dt:tspan[2])
-    t = collect(reshape(t_, 1, size(t_)[1], 1))
-    ground_solution = ground_analytic.(u0, p, t_)
-    predict_sol = sol.interp.phi((p,t), sol.interp.θ)
+    sol = solve(prob, alg, verbose = false, maxiters = 2000)
 
-    @test ground_solution≈predict_sol rtol=0.1
+    ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
+    function get_trainset(bounds, tspan , number_of_parameters, dt)
+        p_ = range(start = bounds[1][1], length = number_of_parameters, stop = bounds[1][2])
+        p = collect(reshape(p_, 1, size(p_, 1)))
+        t_ = collect(tspan[1]:dt:tspan[2])
+        t = collect(reshape(t_, 1, size(t_, 1), 1))
+        (p,t)
+    end
+    p,t = get_trainset(bounds, tspan, number_of_parameters, dt)
+
+    ground_solution = ground_analytic.(u0, p, vec(t))
+    predict_sol = sol.interp((p, t))
+
+    @test ground_solution≈predict_sol rtol=0.01
+
+    p, t = get_trainset(bounds, tspan, 100, 0.01)
+    ground_solution = ground_analytic.(u0, p, vec(t))
+    predict_sol = sol.interp((p, t))
+
     @test ground_solution≈predict_sol rtol=0.01
 end
 
@@ -76,7 +83,7 @@ end
                                  (p^2 + 1)
 
     p_ = range(start = bounds[1][1], length = number_of_parameters, stop = bounds[1][2])
-    p = collect(reshape(p_, 1, size(p_)[1]))
+    p = collect(reshape(p_, 1, size(p_,1)))
     ground_solution = ground_analytic_.(u0, p, vec(sol.t[2]))
 
     @test ground_solution≈sol.u rtol=0.01
@@ -163,7 +170,7 @@ end
         Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
             Dense(10 => 10, Lux.tanh_fast)))
 
-    u = rand(2, 50)
+    u = rand(2, 50, 1)
     v = rand(1, 40, 1)
     θ, st = Lux.setup(Random.default_rng(), deeponet)
     c = deeponet((u, v), θ, st)[1]
@@ -178,7 +185,7 @@ end
 
     ga = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t)
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
-    p = vcat([collect(reshape(p_i, 1, size(p_i)[1])) for p_i in p_]...)
+    p = vcat([collect(reshape(p_i, 1, size(p_i,1))) for p_i in p_]...)
     t = sol.t[2]
     ground_solution = reduce(hcat,
         [[ga(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
