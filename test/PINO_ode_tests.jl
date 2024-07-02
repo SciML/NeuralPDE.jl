@@ -3,7 +3,7 @@ using OptimizationOptimisers
 using Lux
 using Statistics, Random
 using LuxNeuralOperators
-# using NeuralPDE
+using NeuralPDE
 
 # dG(u(t, p), t) = f(G,u(t, p))
 @testset "Example du = cos(p * t)" begin
