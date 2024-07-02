@@ -1,4 +1,4 @@
-# Physics-Informed Neural operator for solve ODEs
+# Physics-Informed Neural Operator (PINO) for ODEs
 
 ```@docs
 PINOODE
