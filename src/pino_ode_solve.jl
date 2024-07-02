@@ -52,9 +52,7 @@ function PINOODE(chain,
         strategy = nothing,
         additional_loss = nothing,
         kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer ||
-      any(x -> isa(x, Lux.AbstractExplicitLayer), chain)) &&
-        (chain = Lux.transform(chain))
+    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
     PINOODE(chain, opt, bounds, number_of_parameters,
         init_params, strategy, additional_loss, kwargs)
 end
@@ -163,15 +161,7 @@ function get_trainset(strategy::StochasticTraining, bounds, number_of_parameters
 end
 
 function generate_loss(
-        strategy::StochasticTraining, prob::ODEProblem, phi::Vector, bounds, number_of_parameters, tspan)
-    function loss(θ, _)
-        x = get_trainset(strategy, bounds, number_of_parameters, tspan)
-        initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
-    end
-end
-
-function generate_loss(
-        strategy::StochasticTraining, prob::ODEProblem, phi::PINOPhi, bounds, number_of_parameters, tspan)
+        strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
     function loss(θ, _)
         x = get_trainset(strategy, bounds, number_of_parameters, tspan)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
@@ -185,7 +175,7 @@ end
 
 (f::PINOODEInterpolation)(x) = f.phi(x, f.θ)
 
-SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural operator interpolation"
+SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::PINOODE) = true
 
 function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
@@ -197,37 +187,26 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         saveat = nothing,
         maxiters = nothing)
     @unpack tspan, u0, f = prob
-    @unpack chain, opt, bounds, number_of_parameters, init_params_, strategy, additional_loss = alg
+    @unpack chain, opt, bounds, number_of_parameters, init_params, strategy, additional_loss = alg
 
-    if !isa(chain, CompactLuxLayer{:DeepONet,}) && !isa(chain, Vector) #!any(x -> isa(x, CompactLuxLayer{:DeepONet,}), chain)
+    if !isa(chain, CompactLuxLayer{:DeepONet,})
         error("Only DeepONet neural networks are supported with PINO ODE")
     end
 
-    # !(chain isa Lux.AbstractExplicitLayer) &&
-    #     error("Only Lux.AbstractExplicitLayer neural networks are supported")
-    if !isa(chain, Vector)
-        phi, init_params = generate_pino_phi_θ(chain[1], init_params_)
-    else
-        phi, init_params = [], []
-        for c in chain
-            p, ip = generate_pino_phi_θ(c, init_params_)
-            push!(phi, p)
-            push!(init_params, ip)
-        end
-    end
+    !(chain isa Lux.AbstractExplicitLayer) &&
+        error("Only Lux.AbstractExplicitLayer neural networks are supported")
+
+    phi, init_params = generate_pino_phi_θ(chain, init_params)
 
     isinplace(prob) &&
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        #TODO check for 'isa(chain,  Vector)'
-        if !isa(chain,  Vector)
-            in_dim = chain.layers.branch.layers.layer_1.in_dims
-            u = rand(in_dim, number_of_parameters)
-            v = rand(1, 10, 1)
-            x = (u, v)
-            phi(x, init_params)
-        end
+        in_dim = chain.layers.branch.layers.layer_1.in_dims
+        u = rand(in_dim, number_of_parameters)
+        v = rand(1, 10, 1)
+        x = (u, v)
+        phi(x, init_params)
     catch err
         if isa(err, DimensionMismatch)
             throw(DimensionMismatch("Dimensions of input data and chain should match"))
