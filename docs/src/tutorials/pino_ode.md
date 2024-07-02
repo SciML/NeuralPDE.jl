@@ -1,4 +1,4 @@
-# Physics Informed Neural Operator for ODEs Solvers
+# Physics Informed Neural Operator for ODEs
 
 This tutorial provides an example of how to use the Physics Informed Neural Operator (PINO) for solving a family of parametric ordinary differential equations (ODEs).
 
