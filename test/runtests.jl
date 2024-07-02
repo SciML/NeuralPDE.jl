@@ -48,6 +48,11 @@ end
         end
     end
 
+    if GROUP == "All" || GROUP == "PINOODE"
+        @time @safetestset "pino ode" begin include("PINO_ode_tests.jl")
+        end
+    end
+
     if GROUP == "All" || GROUP == "NNPDE2"
         @time @safetestset "Additional Loss" begin
             include("additional_loss_tests.jl")
