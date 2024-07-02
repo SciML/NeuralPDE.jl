@@ -63,7 +63,7 @@ end
 ground_solution_ = ground_solution_f(p,t)
 predict = sol.interp((p,t))
 
-# Calculate the mean error and  the standard deviation of the errors
+# Calculate the mean error and the standard deviation of the errors
 errors = ground_solution_ - predict
 mean_error = mean(errors)
 std_error = std(errors)
