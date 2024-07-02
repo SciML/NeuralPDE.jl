@@ -32,7 +32,7 @@ v = rand(1, 40, 1)
 c = deeponet((u, v), θ, st)[1]
 
 bounds = [(1.0f0, pi), (1.0f0, 2.0f0), (2.0f0, 3.0f0)]
-number_of_parameters = 50
+number_of_parameter_samples = 50
 strategy = StochasticTraining(40)
 opt = OptimizationOptimisers.Adam(0.03)
 alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
