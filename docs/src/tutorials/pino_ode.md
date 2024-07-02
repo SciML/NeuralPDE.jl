@@ -2,7 +2,7 @@
 
 This tutorial provides an example of how to use the Physics Informed Neural Operator (PINO) for solving a family of parametric ordinary differential equations (ODEs).
 
-## Operator Learning  for a family of parametric ODE.
+## Operator Learning for a family of parametric ODEs
 
 In this section, we will define a parametric ODE and solve it using a PINO. The PINO will be trained to learn the mapping from the parameters of the ODE to its solution.
 
