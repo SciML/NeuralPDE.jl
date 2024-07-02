@@ -59,3 +59,9 @@ jobs:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+      - name: Add Unregistered LuxNeuralOperators Package    
+        run: | 
+        julie -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/LuxDL/LuxNeuralOperators.jl"))';
+        'Pkg.instantiate()'
+    
+  
