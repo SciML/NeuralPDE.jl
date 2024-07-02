@@ -34,6 +34,8 @@ jobs:
           - "1"
     steps:
       - uses: actions/checkout@v4
+      - name: Add Unregistered Package
+          run: julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/LuxDL/LuxNeuralOperators.jl")); Pkg.instantiate()'
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
