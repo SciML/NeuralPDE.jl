@@ -58,7 +58,7 @@ include("PDE_BPINN.jl")
 include("dgm.jl")
 
 
-export NNODE, NNDAE, PINOODE, DeepONet
+export NNODE, NNDAE, PINOODE
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
        WeightedIntervalTraining,
