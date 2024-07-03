@@ -370,8 +370,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
-    ((eltype(eltype(init_params).types[1]) <: Complex ||
-      eltype(eltype(init_params).types[2]) <: Complex) &&
+    (recursive_eltype(init_params) <: Complex &&
      alg.strategy isa QuadratureTraining) &&
         error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
 
