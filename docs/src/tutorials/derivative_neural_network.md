@@ -91,7 +91,8 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:7]
 
-training_strategy = NeuralPDE.QuadratureTraining(; batch = 200, reltol = 1e-6, abstol = 1e-6)
+training_strategy = NeuralPDE.QuadratureTraining(;
+    batch = 200, reltol = 1e-6, abstol = 1e-6)
 discretization = NeuralPDE.PhysicsInformedNN(chain, training_strategy)
 
 vars = [u1(t, x), u2(t, x), u3(t, x), Dxu1(t, x), Dtu1(t, x), Dxu2(t, x), Dtu2(t, x)]
@@ -101,13 +102,13 @@ sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:7]
-aprox_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[9:end]
+approx_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[9:end]
 
 callback = function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
-    println("der_losses: ", map(l_ -> l_(p.u), aprox_derivative_loss_functions))
+    println("der_losses: ", map(l_ -> l_(p.u), approx_derivative_loss_functions))
     return false
 end
 

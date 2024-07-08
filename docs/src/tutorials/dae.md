@@ -5,16 +5,14 @@
     It is highly recommended you first read the [solving ordinary differential
     equations with DifferentialEquations.jl tutorial](https://docs.sciml.ai/DiffEqDocs/stable/tutorials/dae_example/) before reading this tutorial.
 
-
-This tutorial is an introduction to using physics-informed neural networks (PINNs) for solving differential algebraic equations (DAEs). 
-
+This tutorial is an introduction to using physics-informed neural networks (PINNs) for solving differential algebraic equations (DAEs).
 
 ## Solving an DAE with PINNs
 
 Let's solve a simple DAE system:
 
 ```@example dae
-using NeuralPDE 
+using NeuralPDE
 using Random
 using OrdinaryDiffEq, Statistics
 using Lux, OptimizationOptimisers
@@ -39,7 +37,7 @@ alg = NNDAE(chain, opt; autodiff = false)
 sol = solve(prob, alg, verbose = true, dt = 1 / 100.0, maxiters = 3000, abstol = 1e-10)
 ```
 
-Now lets compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the DAE.
+Now let's compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the DAE.
 
 ```@example dae
 function example1(du, u, p, t)

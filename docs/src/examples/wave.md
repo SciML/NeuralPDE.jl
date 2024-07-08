@@ -70,9 +70,9 @@ function analytic_sol_func(t, x)
 end
 
 u_predict = reshape([first(phi([t, x], res.u)) for t in ts for x in xs],
-                    (length(ts), length(xs)))
+    (length(ts), length(xs)))
 u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs],
-                 (length(ts), length(xs)))
+    (length(ts), length(xs)))
 
 diff_u = abs.(u_predict .- u_real)
 p1 = plot(ts, xs, u_real, linetype = :contourf, title = "analytic");
@@ -121,7 +121,7 @@ eq = Dx(Dxu(t, x)) ~ 1 / v^2 * Dt(Dtu(t, x)) + b * Dtu(t, x)
 bcs_ = [u(t, 0) ~ 0.0,# for all t > 0
     u(t, L) ~ 0.0,# for all t > 0
     u(0, x) ~ x * (1.0 - x), # for all 0 < x < 1
-    Dtu(0, x) ~ 1 - 2x, # for all  0 < x < 1
+    Dtu(0, x) ~ 1 - 2x # for all  0 < x < 1
 ]
 
 ep = (cbrt(eps(eltype(Float64))))^2 / 6
@@ -139,16 +139,16 @@ domains = [t ∈ Interval(0.0, L),
 inn = 25
 innd = 4
 chain = [[Lux.Chain(Dense(2, inn, Lux.tanh),
-                    Dense(inn, inn, Lux.tanh),
-                    Dense(inn, inn, Lux.tanh),
-                    Dense(inn, 1)) for _ in 1:3]
+              Dense(inn, inn, Lux.tanh),
+              Dense(inn, inn, Lux.tanh),
+              Dense(inn, 1)) for _ in 1:3]
          [Lux.Chain(Dense(2, innd, Lux.tanh), Dense(innd, 1)) for _ in 1:2]]
 
 strategy = GridTraining(0.02)
 discretization = PhysicsInformedNN(chain, strategy;)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x],
-                              [u(t, x), Dxu(t, x), Dtu(t, x), O1(t, x), O2(t, x)])
+    [u(t, x), Dxu(t, x), Dtu(t, x), O1(t, x), O2(t, x)])
 prob = discretize(pde_system, discretization)
 sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
@@ -201,10 +201,11 @@ gif(anim, "1Dwave_damped_adaptive.gif", fps = 200)
 
 # Surface plot
 ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-u_predict = reshape([first(phi([t, x], res.u.depvar.u)) for
-                     t in ts for x in xs], (length(ts), length(xs)))
+u_predict = reshape(
+    [first(phi([t, x], res.u.depvar.u)) for
+     t in ts for x in xs], (length(ts), length(xs)))
 u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs],
-                 (length(ts), length(xs)))
+    (length(ts), length(xs)))
 
 diff_u = abs.(u_predict .- u_real)
 p1 = plot(ts, xs, u_real, linetype = :contourf, title = "analytic");

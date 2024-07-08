@@ -31,7 +31,7 @@ of the physics-informed neural network which is used as a solver for a standard 
               By default, `GridTraining` is used with `dt` if given.
 """
 struct NNDAE{C, O, P, K, S <: Union{Nothing, AbstractTrainingStrategy}
-} <: DiffEqBase.AbstractDAEAlgorithm
+} <: SciMLBase.AbstractDAEAlgorithm
     chain::C
     opt::O
     init_params::P
@@ -42,23 +42,39 @@ end
 
 function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
+    !(chain isa Lux.AbstractExplicitLayer) &&
+        (chain = adapt(FromFluxAdaptor(false, false), chain))
     NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
 end
 
-function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool, differential_vars::AbstractVector)
+
+function dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
+    autodiff::Bool, differential_vars::AbstractVector) where {C, T, U <: Number}
+    if autodiff
+        ForwardDiff.derivative(t -> phi(t, θ), t)
+    else
+        (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
+    end
+end
+
+function dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
+    autodiff::Bool,differential_vars::AbstractVector) where {C, T, U <: AbstractVector}
+    if autodiff
+        ForwardDiff.jacobian(t -> phi(t, θ), t)
+    else
+        (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
+    end
+end
+
+function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool,
+        differential_vars::AbstractVector)
     if autodiff
         autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
     else
         dphi = (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
         batch_size = size(t)[1]
-
         reduce(vcat,
-            [if dv == true
-                dphi[[i], :]
-            else
-                zeros(1, batch_size)
-            end
+            [dv ? dphi[[i], :] : zeros(1, batch_size)
              for (i, dv) in enumerate(differential_vars)])
     end
 end
@@ -72,6 +88,19 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
     sum(abs2, loss) / length(t)
 end
 
+#=
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+    p, differential_vars::AbstractVector) where {C, T, U}
+    sum(abs2, dfdx(phi, t, θ, autodiff,differential_vars) .- f(phi(t, θ), t))
+end
+=#
+
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+    p, differential_vars::AbstractVector) where {C, T, U}
+    dphi = dfdx(phi, t, θ, autodiff,differential_vars)
+    sum(abs2, f(dphi, phi(t, θ), p, t))
+end
+
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
         differential_vars::AbstractVector)
     ts = tspan[1]:(strategy.dx):tspan[2]
@@ -82,17 +111,66 @@ function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
     return loss
 end
 
-function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p, differential_vars::AbstractVector)
-    autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
+function generate_loss(
+        strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
+        differential_vars::AbstractVector)
+    autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
+    minT = tspan[1]
+    maxT = tspan[2]
+
+    weights = strategy.weights ./ sum(strategy.weights)
+
+    N = length(weights)
+    points = strategy.points
+
+    difference = (maxT - minT) / N
+
+    data = Float64[]
+    for (index, item) in enumerate(weights)
+        temp_data = rand(1, trunc(Int, points * item)) .* difference .+ minT .+
+                    ((index - 1) * difference)
+        data = append!(data, temp_data)
+    end
+
+    ts = data
+
     function loss(θ, _)
-        ts = adapt(parameterless_type(θ),
-            [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
-        sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
+        sum(inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
     end
     return loss
 end
 
-function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
+
+function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
+    differential_vars::AbstractVector)
+    integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars))
+    
+    function integrand(ts, θ)
+        [sum(abs2, inner_loss(phi, f, autodiff, t, θ, p, differential_vars)) for t in ts]
+    end
+    
+    function loss(θ, _)
+        intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
+        intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
+        sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol,
+        reltol = strategy.reltol, maxiters = strategy.maxiters)
+        sol.u
+    end
+    return loss
+end
+
+function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
+    differential_vars::AbstractVector)
+    autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
+    function loss(θ, _)
+        ts = adapt(parameterless_type(θ),
+            [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
+        sum(inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
+    end
+    return loss
+end
+
+function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
         alg::NNDAE,
         args...;
         dt = nothing,
@@ -125,7 +203,8 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
 
     if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
         phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
-        init_params = ComponentArrays.ComponentArray(; depvar = ComponentArrays.ComponentArray(init_params))
+        init_params = ComponentArrays.ComponentArray(;
+            depvar = ComponentArrays.ComponentArray(init_params))
     else
         error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
     end
@@ -148,8 +227,13 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         if dt !== nothing
             GridTraining(dt)
         else
-            error("dt is not defined")
+            QuadratureTraining(; quadrature_alg = QuadGKJL(),
+                reltol = convert(eltype(u0), reltol),
+                abstol = convert(eltype(u0), abstol), maxiters = maxiters,
+                batch = 0)
         end
+    else
+        alg.strategy
     end
 
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, differential_vars)
@@ -190,12 +274,14 @@ function DiffEqBase.__solve(prob::DiffEqBase.AbstractDAEProblem,
         u = [phi(t, res.u) for t in ts]
     end
 
-    sol = DiffEqBase.build_solution(prob, alg, ts, u;
+    sol = SciMLBase.build_solution(prob, alg, ts, u;
         k = res, dense = true,
         calculate_error = false,
-        retcode = ReturnCode.Success)
-    DiffEqBase.has_analytic(prob.f) &&
-        DiffEqBase.calculate_solution_errors!(sol; timeseries_errors = true,
+        retcode = ReturnCode.Success,
+        original = res,
+        resid = res.objective)
+    SciMLBase.has_analytic(prob.f) &&
+        SciMLBase.calculate_solution_errors!(sol; timeseries_errors = true,
             dense_errors = false)
     sol
-end #solve
+end

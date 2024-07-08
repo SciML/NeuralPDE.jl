@@ -33,17 +33,17 @@ const gpud = gpu_device()
     # Neural network
     inner = 20
     chain = Lux.Chain(Lux.Dense(1, inner, Lux.σ),
-                Lux.Dense(inner, inner, Lux.σ),
-                Lux.Dense(inner, inner, Lux.σ),
-                Lux.Dense(inner, inner, Lux.σ),
-                Lux.Dense(inner, inner, Lux.σ),
-                Lux.Dense(inner, 1))
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, 1))
 
     strategy = GridTraining(dt)
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud
     discretization = PhysicsInformedNN(chain,
-                                    strategy;
-                                    init_params = ps)
+        strategy;
+        init_params = ps)
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u(θ)])
     prob = discretize(pde_system, discretization)
@@ -74,12 +74,12 @@ end
 
     inner = 30
     chain = Lux.Chain(Lux.Dense(2, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, 1))
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, 1))
 
     strategy = StochasticTraining(500)
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud .|> Float64
@@ -92,7 +92,7 @@ end
     u_exact = (t, x) -> exp.(-t) * cos.(x)
     ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     u_predict = reshape([first(Array(phi([t, x], res.u))) for t in ts for x in xs],
-                        (length(ts), length(xs)))
+        (length(ts), length(xs)))
     u_real = reshape([u_exact(t, x) for t in ts for x in xs], (length(ts), length(xs)))
     diff_u = abs.(u_predict .- u_real)
     @test u_predict≈u_real atol=1.0
@@ -120,12 +120,13 @@ end
 
     inner = 20
     chain = Lux.Chain(Lux.Dense(2, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, 1))
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, 1))
 
-    strategy = QuasiRandomTraining(500; sampling_alg = SobolSample(), resampling = false, minibatch = 30)
+    strategy = QuasiRandomTraining(
+        500; sampling_alg = SobolSample(), resampling = false, minibatch = 30)
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud .|> Float64
     discretization = PhysicsInformedNN(chain, strategy; init_params = ps)
     prob = discretize(pdesys, discretization)
@@ -136,7 +137,7 @@ end
     u_exact = (t, x) -> exp(-t) * cos(x)
     ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     u_predict = reshape([first(Array(phi([t, x], res.u))) for t in ts for x in xs],
-                        (length(ts), length(xs)))
+        (length(ts), length(xs)))
     u_real = reshape([u_exact(t, x) for t in ts for x in xs], (length(ts), length(xs)))
     diff_u = abs.(u_predict .- u_real)
     @test u_predict≈u_real atol=1.0
@@ -173,10 +174,10 @@ end
     # Neural network
     inner = 25
     chain = Lux.Chain(Lux.Dense(3, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, inner, Lux.σ),
-                    Lux.Dense(inner, 1))
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, inner, Lux.σ),
+        Lux.Dense(inner, 1))
 
     strategy = GridTraining(0.05)
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud .|> Float64
@@ -190,7 +191,7 @@ end
     ts, xs, ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
     u_real = [analytic_sol_func(t, x, y) for t in ts for x in xs for y in ys]
     u_predict = [first(Array(phi([t, x, y], res.u))) for t in ts for x in xs
-                for y in ys]
+                 for y in ys]
 
     @test u_predict≈u_real rtol=0.2
 end
