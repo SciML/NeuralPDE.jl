@@ -1,7 +1,7 @@
 """
 ???
 """
-struct LogOptions
+struct LogOptions 
     log_frequency::Int64
     # TODO: add in an option for saving plots in the log. this is currently not done because the type of plot is dependent on the PDESystem
     #       possible solution: pass in a plot function?

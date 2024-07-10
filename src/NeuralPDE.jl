@@ -1,7 +1,7 @@
 """
 $(DocStringExtensions.README)
 """
-module NeuralPDE
+module NeuralPDE 
 
 using DocStringExtensions
 using Reexport, Statistics
