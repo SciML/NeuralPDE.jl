@@ -100,4 +100,10 @@ end
             include("dgm_test.jl")
         end
     end
+
+    if GROUP == "All" || GROUP == "PIPN"
+        @time @safetestset "Physics Informed Point Network" begin
+            include("test_pipn.jl")
+        end
+    end
 end

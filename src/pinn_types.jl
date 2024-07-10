@@ -557,3 +557,100 @@ function numeric_derivative(phi, u, x, εs, order, θ)
         error("This shouldn't happen!")
     end
 end
+
+using Lux
+using Random
+using ComponentArrays
+
+struct PIPN{C1,C2,C3,F,ST,P,PE,AL,ADA,LOG,K} <: AbstractPINN
+    shared_mlp1::C1
+    shared_mlp2::C2
+    after_pool_mlp::C3
+    final_layer::F
+    strategy::ST
+    init_params::P
+    param_estim::PE
+    additional_loss::AL
+    adaptive_loss::ADA
+    logger::LOG
+    log_options::LogOptions
+    iteration::Vector{Int64}
+    self_increment::Bool
+    kwargs::K
+end
+
+function PIPN(chain, strategy = GridTraining(0.1);
+    init_params = nothing,
+    param_estim = false,
+    additional_loss = nothing,
+    adaptive_loss = nothing,
+    logger = nothing,
+    log_options = LogOptions(),
+    iteration = nothing,
+    kwargs...)
+
+input_dim = chain[1].in_dims[1]
+output_dim = chain[end].out_dims[1]
+
+shared_mlp1 = Lux.Chain(
+Lux.Dense(input_dim => 64, tanh),
+Lux.Dense(64 => 64, tanh)
+)
+
+shared_mlp2 = Lux.Chain(
+Lux.Dense(64 => 128, tanh),
+Lux.Dense(128 => 1024, tanh)
+)
+
+after_pool_mlp = Lux.Chain(
+Lux.Dense(2048 => 512, tanh),  # Changed from 1024 to 2048
+Lux.Dense(512 => 256, tanh),
+Lux.Dense(256 => 128, tanh)
+)
+
+final_layer = Lux.Dense(128 => output_dim)
+
+if iteration isa Vector{Int64}
+self_increment = false
+else
+iteration = [1]
+self_increment = true
+end
+
+PIPN(shared_mlp1, shared_mlp2, after_pool_mlp, final_layer, 
+strategy, init_params, param_estim, additional_loss, adaptive_loss,
+logger, log_options, iteration, self_increment, kwargs)
+end
+
+function (model::PIPN)(x, ps, st::NamedTuple)    
+    point_features, st1 = Lux.apply(model.shared_mlp1, x, ps.shared_mlp1, st.shared_mlp1)    
+    point_features, st2 = Lux.apply(model.shared_mlp2, point_features, ps.shared_mlp2, st.shared_mlp2)    
+    global_feature = aggregate_global_feature(point_features)    
+    global_feature_repeated = repeat(global_feature, 1, size(point_features, 2))    
+    combined_features = vcat(point_features, global_feature_repeated)    
+    combined_features, st3 = Lux.apply(model.after_pool_mlp, combined_features, ps.after_pool_mlp, st.after_pool_mlp)    
+    output, st4 = Lux.apply(model.final_layer, combined_features, ps.final_layer, st.final_layer)    
+    return output, (shared_mlp1=st1, shared_mlp2=st2, after_pool_mlp=st3, final_layer=st4)
+end
+
+function aggregate_global_feature(points)
+    return maximum(points, dims=2)
+end
+
+function init_pipn_params(model::PIPN)
+    rng = Random.default_rng()
+    ps1, st1 = Lux.setup(rng, model.shared_mlp1)
+    ps2, st2 = Lux.setup(rng, model.shared_mlp2)
+    ps3, st3 = Lux.setup(rng, model.after_pool_mlp)
+    ps4, st4 = Lux.setup(rng, model.final_layer)
+    ps = (shared_mlp1=ps1, shared_mlp2=ps2, after_pool_mlp=ps3, final_layer=ps4)
+    st = (shared_mlp1=st1, shared_mlp2=st2, after_pool_mlp=st3, final_layer=st4)
+    return ps, st
+end
+
+function vector_to_parameters(θ::AbstractVector, model::PIPN)
+    ps, _ = init_pipn_params(model)
+    flat_ps = ComponentArray(ps)
+    new_flat_ps = typeof(flat_ps)(θ)
+    return ComponentArray(new_flat_ps)
+end
