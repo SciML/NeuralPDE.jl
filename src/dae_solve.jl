@@ -47,6 +47,25 @@ function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff =
     NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
 end
 
+
+function dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
+    autodiff::Bool, differential_vars::AbstractVector) where {C, T, U <: Number}
+    if autodiff
+        ForwardDiff.derivative(t -> phi(t, θ), t)
+    else
+        (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
+    end
+end
+
+function dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
+    autodiff::Bool,differential_vars::AbstractVector) where {C, T, U <: AbstractVector}
+    if autodiff
+        ForwardDiff.jacobian(t -> phi(t, θ), t)
+    else
+        (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
+    end
+end
+
 function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool,
         differential_vars::AbstractVector)
     if autodiff
@@ -69,12 +88,84 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
     sum(abs2, loss) / length(t)
 end
 
+#=
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+    p, differential_vars::AbstractVector) where {C, T, U}
+    sum(abs2, dfdx(phi, t, θ, autodiff,differential_vars) .- f(phi(t, θ), t))
+end
+=#
+
+function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+    p, differential_vars::AbstractVector) where {C, T, U}
+    dphi = dfdx(phi, t, θ, autodiff,differential_vars)
+    sum(abs2, f(dphi, phi(t, θ), p, t))
+end
+
 function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
         differential_vars::AbstractVector)
     ts = tspan[1]:(strategy.dx):tspan[2]
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     function loss(θ, _)
         sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
+    end
+    return loss
+end
+
+function generate_loss(
+        strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
+        differential_vars::AbstractVector)
+    autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
+    minT = tspan[1]
+    maxT = tspan[2]
+
+    weights = strategy.weights ./ sum(strategy.weights)
+
+    N = length(weights)
+    points = strategy.points
+
+    difference = (maxT - minT) / N
+
+    data = Float64[]
+    for (index, item) in enumerate(weights)
+        temp_data = rand(1, trunc(Int, points * item)) .* difference .+ minT .+
+                    ((index - 1) * difference)
+        data = append!(data, temp_data)
+    end
+
+    ts = data
+
+    function loss(θ, _)
+        sum(inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
+    end
+    return loss
+end
+
+
+function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
+    differential_vars::AbstractVector)
+    integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, differential_vars))
+    
+    function integrand(ts, θ)
+        [sum(abs2, inner_loss(phi, f, autodiff, t, θ, p, differential_vars)) for t in ts]
+    end
+    
+    function loss(θ, _)
+        intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
+        intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
+        sol = solve(intprob, strategy.quadrature_alg; abstol = strategy.abstol,
+        reltol = strategy.reltol, maxiters = strategy.maxiters)
+        sol.u
+    end
+    return loss
+end
+
+function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
+    differential_vars::AbstractVector)
+    autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
+    function loss(θ, _)
+        ts = adapt(parameterless_type(θ),
+            [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
+        sum(inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
     end
     return loss
 end
@@ -136,8 +227,13 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
         if dt !== nothing
             GridTraining(dt)
         else
-            error("dt is not defined")
+            QuadratureTraining(; quadrature_alg = QuadGKJL(),
+                reltol = convert(eltype(u0), reltol),
+                abstol = convert(eltype(u0), abstol), maxiters = maxiters,
+                batch = 0)
         end
+    else
+        alg.strategy
     end
 
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, differential_vars)
@@ -189,3 +285,4 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
             dense_errors = false)
     sol
 end
+
