@@ -311,9 +311,92 @@ end
 """
 PhysicsInformedNO
 """
-struct PhysicsInformedNO{} <: AbstractPINN
-    #TODO
+struct PhysicsInformedNO{T, PS, P, PH, DER, AL, ADA, LOG, K} <: AbstractPINN
+    chain::Any
+    parameters::PS
+    strategy::T
+    init_params::P
+    phi::PH
+    derivative::DER
+    additional_loss::AL
+    adaptive_loss::ADA #?
+    logger::LOG #?
+    log_options::LogOptions #?
+    iteration::Vector{Int64} #?
+    self_increment::Bool#?
+    multioutput::Bool
+    kwargs::K
+
+    @add_kwonly function PhysicsInformedNN(chain,
+            strategy,
+            parameters;
+            init_params = nothing,
+            phi = nothing,
+            derivative = nothing,
+            additional_loss = nothing,
+            adaptive_loss = nothing,
+            logger = nothing,
+            log_options = LogOptions(),
+            iteration = nothing,
+            kwargs...)
+        multioutput = chain isa AbstractArray
+        if multioutput
+            !all(i -> i isa Lux.AbstractExplicitLayer, chain) &&
+                (chain = Lux.transform.(chain))
+        else
+            !(chain isa Lux.AbstractExplicitLayer) &&
+                (chain = adapt(FromFluxAdaptor(false, false), chain))
+        end
+        if phi === nothing
+            if multioutput
+                _phi = Phi.(chain)
+            else
+                _phi = Phi(chain)
+            end
+        else
+            if multioutput
+                all([phi.f[i] isa Lux.AbstractExplicitLayer for i in eachindex(phi.f)]) ||
+                    throw(ArgumentError("Only Lux Chains are supported"))
+            else
+                (phi.f isa Lux.AbstractExplicitLayer) ||
+                    throw(ArgumentError("Only Lux Chains are supported"))
+            end
+            _phi = phi
+        end
+
+        if derivative === nothing
+            _derivative = numeric_derivative
+        else
+            _derivative = derivative
+        end
+
+        if iteration isa Vector{Int64}
+            self_increment = false
+        else
+            iteration = [1]
+            self_increment = true
+        end
+
+        new{typeof(parameters), typeof(strategy), typeof(init_params),
+            typeof(_phi), typeof(_derivative),
+            typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(
+            chain,
+            parameters,
+            strategy,
+            init_params,
+            _phi,
+            _derivative,
+            additional_loss,
+            adaptive_loss,
+            logger,
+            log_options,
+            iteration,
+            self_increment,
+            multioutput,
+            kwargs)
+    end
 end
+
 
 """
 `PINNRepresentation``

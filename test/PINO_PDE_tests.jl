@@ -6,17 +6,18 @@ using ModelingToolkit
 import ModelingToolkit: Interval, infimum, supremum
 using DomainSets
 using NeuralPDE
+using LuxNeuralOperators
 
 
 ##example ODE
 @parameters t
 @variables u(..)
-# @parameters p #[bounds = (0.1f0, pi)]
+@parameters p #[bounds = (0.1f0, pi)]
 Dt = Differential(t)
 eq = [Dt(u(t)) ~ cos(t)]
 bc = [u(0) ~ 1.0f0]
 
-dom = [x ∈ Interval(0.0, 1.0)]
+dom = [t ∈ Interval(0.0, 1.0)]
 # neural_operator = SomeNeuralOperator(some_args)
 neural_operator = Lux.Chain(
     Lux.Dense(1, 10, Lux.tanh),
@@ -26,7 +27,7 @@ neural_operator = Lux.Chain(
 # pino = PhysicsInformedNO(neural_operator, sometrainig)
 pino = NeuralPDE.PhysicsInformedNN(neural_operator, NeuralPDE.GridTraining(0.1))
 
-@named pde_system = PDESystem(eq, bc, dom, [t], [u(t)])  #[p]; defaults = Dict([p => 1.0 for p in [p]]))
+@named pde_system = PDESystem(eq, bc, dom, [t], [u(t)],[p])  #[p]; defaults = Dict([p => 1.0 for p in [p]]))
 
 # hasbounds(pde_system.ps[1])
 # getbounds(pde_system.ps[1])
