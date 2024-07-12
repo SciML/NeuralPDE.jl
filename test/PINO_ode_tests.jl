@@ -2,7 +2,7 @@ using Test
 using OptimizationOptimisers
 using Lux
 using Statistics, Random
-using LuxNeuralOperators
+using NeuralOperators
 using NeuralPDE
 
 # dG(u(t, p), t) = f(G,u(t, p))
@@ -16,6 +16,9 @@ using NeuralPDE
             Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
         Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
             Dense(10 => 10, Lux.tanh_fast)))
+    #TODO test FNO
+            fno = FourierNeuralOperator(gelu; chs = (2, 64, 64, 128, 1), modes = (16,))
+
     u = rand(1, 50)
     v = rand(1, 40, 1)
     θ, st = Lux.setup(Random.default_rng(), deeponet)
