@@ -91,6 +91,14 @@ function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: CompactLuxLayer{:Dee
     (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
 end
 
+function dfdx(phi::PINOPhi{C, T}, x::Tuple,
+        θ) where {C <: CompactLuxLayer{:FourierNeuralOperator,}, T}
+    #TODO
+    x_right = (branch_right, trunk_right)
+    (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
+end
+
+
 function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
         C <: CompactLuxLayer{:DeepONet,}, T}
@@ -108,7 +116,7 @@ function physics_loss(
     norm = prod(size(du))
     sum(abs2, du .- f_vec) / norm
 end
-
+#TODO Lux.AbstractExplicitLayer
 function initial_condition_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
         C <: CompactLuxLayer{:DeepONet,}, T}
@@ -122,6 +130,7 @@ function initial_condition_loss(
     sum(abs2, u .- u0) / norm
 end
 
+#TODO for input FourierNeuralOperator
 function get_trainset(strategy::GridTraining, bounds, number_of_parameters, tspan)
     dt = strategy.dx
     if size(bounds,1) == 1
