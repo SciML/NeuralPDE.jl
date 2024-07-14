@@ -225,7 +225,6 @@ end
 
 Representation of the loss function, parametric on the training strategy `strategy`.
 """
-
 function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
         batch, param_estim::Bool)
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
@@ -306,7 +305,6 @@ function generate_loss(
 end
 
 
-
 function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim::Bool)
     function loss(θ, _)
         if batch
@@ -321,7 +319,6 @@ end
 function generate_loss(strategy::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional spaces only. Use StochasticTraining instead.")
 end
-
 
 struct NNODEInterpolation{T <: ODEPhi, T2}
     phi::T

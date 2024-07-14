@@ -88,13 +88,6 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
     sum(abs2, loss) / length(t)
 end
 
-#=
-function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
-    p, differential_vars::AbstractVector) where {C, T, U}
-    sum(abs2, dfdx(phi, t, θ, autodiff,differential_vars) .- f(phi(t, θ), t))
-end
-=#
-
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
     p, differential_vars::AbstractVector) where {C, T, U}
     dphi = dfdx(phi, t, θ, autodiff,differential_vars)
