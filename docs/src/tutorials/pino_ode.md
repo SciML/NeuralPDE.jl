@@ -4,7 +4,7 @@ This tutorial provides an example of how to use the Physics Informed Neural Oper
 
 ## Operator Learning for a family of parametric ODEs
 
-In this section, we will define a parametric ODE and solve it using a PINO. The PINO will be trained to learn the mapping from the parameters of the ODE to its solution.
+In this section, we will define a parametric ODE and then learn it with a PINO using [`PINOODE`](@ref). The PINO will be trained to learn the mapping from the parameters of the ODE to its solution.
 
 ```@example pino
 using Test # hide
