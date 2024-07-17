@@ -92,4 +92,3 @@ plot(predict[:, i], label = "Predicted")
 plot!(ground_solution_[:, i], label = "Ground truth")
 ```
 
-
