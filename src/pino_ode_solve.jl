@@ -1,6 +1,6 @@
 """
 	PINOODE(chain,
-	    OptimizationOptimisers.Adam(0.1),
+	    opt,
 	    bounds;
 	    init_params = nothing,
 	    strategy = nothing
