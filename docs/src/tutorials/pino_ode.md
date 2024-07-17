@@ -39,8 +39,7 @@ alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
 sol = solve(prob, alg, verbose = false, maxiters = 3000)
 ```
 
-Now let's compare the prediction from the learned operator with the ground truth solution which is obtained by analytic solution the parametric ODE. Where 
-Compare prediction with ground truth.
+Now let's compare the prediction from the learned operator with the ground truth solution which is obtained by analytic solution of the parametric ODE.
 
 ```@example pino
 using Plots
