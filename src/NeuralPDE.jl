@@ -19,8 +19,9 @@ using RuntimeGeneratedFunctions
 using Statistics
 using ArrayInterface
 import Optim
-using Symbolics: wrap, unwrap, arguments, operation
-using SymbolicUtils
+using Symbolics: wrap, unwrap, arguments, operation, symtype, @arrayop, Arr
+using SymbolicUtils.Code
+using SymbolicUtils: Prewalk, Postwalk, Chain
 using AdvancedHMC, LogDensityProblems, LinearAlgebra, Functors, MCMCChains
 using MonteCarloMeasurements: Particles
 using ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives, Interval,
@@ -32,7 +33,9 @@ using SciMLBase: @add_kwonly, parameterless_type
 using UnPack: @unpack
 import ChainRulesCore, Lux, ComponentArrays
 using Lux: FromFluxAdaptor, recursive_eltype
-using ChainRulesCore: @non_differentiable
+using ChainRulesCore: @non_differentiable, @ignore_derivatives
+using PDEBase: AbstractVarEqMapping, VariableMap, cardinalize_eqs!, get_depvars,
+               get_indvars, differential_order
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -41,6 +44,7 @@ abstract type AbstractPINN end
 abstract type AbstractTrainingStrategy end
 
 include("pinn_types.jl")
+include("eq_data.jl")
 include("symbolic_utilities.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
@@ -48,6 +52,7 @@ include("ode_solve.jl")
 # include("rode_solve.jl")
 include("dae_solve.jl")
 include("transform_inf_integral.jl")
+include("loss_function_generation.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
