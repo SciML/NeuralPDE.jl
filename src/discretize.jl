@@ -162,6 +162,10 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
     end
 end
 
+function lazyconvert(T, x::Symbolics.Arr)
+    Symbolics.array_term(convert, T, x, size = size(x))
+end
+
 """
     prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
 
@@ -215,7 +219,7 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
             end
             # chain_names = ntuple(i -> depvars(eqs[i].lhs, eqdata), length(chain))
             # @show chain_names
-            chain_names = Tuple(Symbol.(pdesys.dvs))
+            chain_names = Tuple(Symbol.(operation.(unwrap.(pdesys.dvs))))
             init_params = ComponentArrays.ComponentArray(NamedTuple{chain_names}(i
             for i in x))
         else
@@ -226,6 +230,37 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
     else
         init_params = init_params
     end
+
+    if phi isa AbstractVector
+        chain_params_symbols = map(chain_names) do chain_name
+            _params = getproperty(init_params, chain_name)
+            [
+                first(@parameters Symbol("pss_" * string(chain_name))[1:length(_params)]),
+                first(@parameters Symbol("T_" * string(chain_name))::typeof(typeof(_params))=typeof(_params) [tunable = false])
+            ]
+        end
+        outs = []
+        for i in eachindex(phi)
+            out = x -> stateless_apply(phi[i].f, x,
+                lazyconvert(chain_params_symbols[i][2], chain_params_symbols[i][1]))[1]
+            push!(outs, out)
+        end
+    else
+        chain_params_symbols = [
+            first(@parameters pss[1:length(init_params)]),
+            first(@parameters T::typeof(typeof(init_params))=typeof(init_params) [tunable = false])
+        ]
+        outs = []
+        for i in eachindex(pdesys.dvs)
+            out = x -> stateless_apply(
+                phi.f, x, lazyconvert(chain_params_symbols[2], chain_params_symbols[1]))[i]
+            push!(outs, out)
+        end
+    end
+
+    depvars_outs_map = Dict(
+        operation.(unwrap.(pdesys.dvs)) .=> outs
+    )
 
     flat_init_params = if init_params isa ComponentArrays.ComponentArray
         init_params
@@ -253,15 +288,15 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
             phi.st)
     end
 
-    if multioutput
-        # acum = [0; accumulate(+, map(length, init_params))]
-        phi = map(enumerate(pdesys.dvs)) do (i, dv)
-            (coord, expr_θ) -> phi[i](coord, expr_θ.depvar.$(dv))
-        end
-    else
-        # phimap = nothing
-        phi = (coord, expr_θ) -> phi(coord, expr_θ.depvar)
-    end
+    # if multioutput
+    #     # acum = [0; accumulate(+, map(length, init_params))]
+    #     phi = map(enumerate(pdesys.dvs)) do (i, dv)
+    #         (coord, expr_θ) -> phi[i](coord, expr_θ.depvar.$(dv))
+    #     end
+    # else
+    #     # phimap = nothing
+    #     phi = (coord, expr_θ) -> phi(coord, expr_θ.depvar)
+    # end
 
     eltypeθ = eltype(flat_init_params)
 
@@ -275,7 +310,7 @@ function SciMLBase.symbolic_discretize(pdesys::PDESystem,
     pinnrep = PINNRepresentation(eqs, bcs, domains, eq_params, defaults, default_p,
         param_estim, additional_loss, adaloss, varmap, logger,
         multioutput, iteration, init_params, flat_init_params, phi,
-        derivative,
+        derivative, depvars_outs_map,
         strategy, eqdata, nothing, nothing, nothing, nothing)
 
     #integral = get_numeric_integral(pinnrep)

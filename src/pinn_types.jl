@@ -396,6 +396,10 @@ mutable struct PINNRepresentation
     """
     derivative::Any
     """
+    Symbols of parameters of neural networks.
+    """
+    depvars_outs_map::Any
+    """
     The training strategy as provided by the user
     """
     strategy::AbstractTrainingStrategy

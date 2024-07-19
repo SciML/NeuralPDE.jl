@@ -61,9 +61,14 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eq;
     return full_loss_func
 end
 
+@register_array_symbolic (f::Phi{<:Lux.AbstractExplicitLayer})(
+    x::AbstractArray, ps::Union{NamedTuple, <:AbstractVector}) begin
+    size = LuxCore.outputsize(f.f, x, LuxCore._default_rng())
+    eltype = Real
+end
+
 function build_loss_function(pinnrep, eq)
     @unpack eq_params, param_estim, default_p, phi, multioutput, derivative, integral = pinnrep
-
     _loss_function = build_symbolic_loss_function(pinnrep, eq,
         eq_params = eq_params,
         param_estim = param_estim)
@@ -89,20 +94,21 @@ end
 function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = false,
         dict_transformation_vars = nothing,
         transformation_vars = nothing)
-    @unpack varmap, eqdata, derivative, integral, flat_init_params, multioutput = pinnrep
+    @unpack varmap, eqdata, derivative, integral, flat_init_params, phi, depvars_outs_map, = pinnrep
     eltypeθ = eltype(flat_init_params)
 
     ex_vars = get_depvars(term, varmap.depvar_ops)
 
-    if multioutput
-        dummyvars = @variables (phi(..))[1:length(varmap.ū)], θ_SYMBOL, switch
-    else
-        dummyvars = @variables phi(..), θ_SYMBOL, switch
-    end
+    # if multioutput
+    #     dummyvars = @variables switch
+    # else
+    #     dummyvars = @variables switch
+    # end
+    dummyvars = @variables switch
 
     dummyvars = unwrap.(dummyvars)
     deriv_rules = generate_derivative_rules(
-        term, eqdata, eltypeθ, dummyvars, derivative, varmap, multioutput)
+        term, eqdata, eltypeθ, dummyvars, derivative, varmap, depvars_outs_map)
     ch = Prewalk(Chain(deriv_rules))
 
     expr = ch(term)
@@ -111,7 +117,7 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
     sym_coords = DestructuredArgs(ivs)
     ps = DestructuredArgs(varmap.ps)
 
-    args = [sym_coords, θ_SYMBOL, phi, ps]
+    args = [sym_coords, ps]
 
     ex = Func(args, [], expr) |> toexpr |> _dot_
 
@@ -121,11 +127,11 @@ function parse_equation(pinnrep::PINNRepresentation, term, ivs; is_integral = fa
 end
 
 function generate_derivative_rules(
-        term, eqdata, eltypeθ, dummyvars, derivative, varmap, multioutput)
-    phi, θ, switch = dummyvars
-    if symtype(phi) isa AbstractArray
-        phi = collect(phi)
-    end
+        term, eqdata, eltypeθ, dummyvars, derivative, varmap, depvars_outs_map)
+    switch = dummyvars
+    # if symtype(phi) isa AbstractArray
+    #     phi = collect(phi)
+    # end
 
     dvs = get_depvars(term, varmap.depvar_ops)
 
@@ -134,7 +140,7 @@ function generate_derivative_rules(
     rs = reduce(vcat,
         [reduce(vcat,
              [[@rule $((Differential(x)^d)(w)) => derivative(
-                   ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ),
+                   depvars_outs_map[operation(w)], arguments(w),
                    get_ε(n(w), j, eltypeθ, d),
                    d, θ)
                for d in differential_order(term, x)]
@@ -154,16 +160,16 @@ function generate_derivative_rules(
                     ε2 = get_ε(n(w), k, eltypeθ, 1)
                     [@rule $((Differential(x))((Differential(y))(w))) => derivative(
                         (coord_, θ_) -> derivative(
-                            ufunc(w, phi, varmap), reducevcat(arguments(w), eltypeθ),
+                            depvars_outs_map[operation(w)], arguments(w),
                             ε2, 1, θ_),
-                        reducevcat(arguments(w), eltypeθ, switch), ε1, 1, θ)]
+                        arguments(w), ε1, 1, θ)]
                 end
             end
         end
     end
 
     vr = mapreduce(vcat, dvs, init = []) do w
-        @rule w => ufunc(w, phi, varmap)(reducevcat(arguments(w), eltypeθ), θ)
+        @rule w => depvars_outs_map[operation(w)](arguments(w))
     end
 
     return [mx; rs; vr]

@@ -36,6 +36,7 @@ using Lux: FromFluxAdaptor, recursive_eltype
 using ChainRulesCore: @non_differentiable, @ignore_derivatives
 using PDEBase: AbstractVarEqMapping, VariableMap, cardinalize_eqs!, get_depvars,
                get_indvars, differential_order
+using LuxCore: stateless_apply
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
