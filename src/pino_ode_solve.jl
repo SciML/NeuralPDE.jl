@@ -103,6 +103,9 @@ function physics_loss(
     f = prob.f
     out = phi(x, θ)
     if size(p,1) == 1
+        if size(out)[1] == 1
+            out = dropdims(out, dims = 1)
+        end
         fs = f.(out, p, vec(t))
         f_vec = vec(fs)
     else

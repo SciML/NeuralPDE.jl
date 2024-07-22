@@ -33,7 +33,7 @@ using UnPack: @unpack
 import ChainRulesCore, Lux, ComponentArrays
 using Lux: FromFluxAdaptor
 using ChainRulesCore: @non_differentiable
-using LuxNeuralOperators
+using NeuralOperators
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
