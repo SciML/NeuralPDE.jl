@@ -68,7 +68,7 @@ end
 function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
     init_params = isnothing(init_params) ? θ : init_params
-    init_params = ComponentArrays.ComponentArray(init_params)
+    init_params = chain.name == "FourierNeuralOperator" ? θ : ComponentArrays.ComponentArray(init_params)
     PINOPhi(chain, st), init_params
 end
 
@@ -95,10 +95,9 @@ function dfdx(phi::PINOPhi{C, T}, x::Tuple,
     (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
 end
 
-
 function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
-        C <: CompactLuxLayer{:DeepONet,}, T}
+        C, T} #C <: CompactLuxLayer{:DeepONet,}
     p, t = x
     f = prob.f
     out = phi(x, θ)
@@ -119,7 +118,7 @@ end
 #TODO Lux.AbstractExplicitLayer
 function initial_condition_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
-        C <: CompactLuxLayer{:DeepONet,}, T}
+        C, T} ##TODO for DeepOet and FNO C <: CompactLuxLayer{:DeepONet,}
     p, t = x
     t0 = reshape([prob.tspan[1]], (1, 1, 1)) # t[:, [1], :]
     x0 = (p, t0)
@@ -198,12 +197,12 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     @unpack tspan, u0, f = prob
     @unpack chain, opt, bounds, number_of_parameters, init_params, strategy, additional_loss = alg
 
-    if !isa(chain, CompactLuxLayer{:DeepONet,})
-        error("Only DeepONet neural networks are supported with PINO ODE")
-    end
-
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
+
+    if !(isa(chain, CompactLuxLayer{:DeepONet,}) || chain.name == "FourierNeuralOperator")
+        error("Only DeepONet and FourierNeuralOperator neural networks are supported with PINO ODE")
+    end
 
     phi, init_params = generate_pino_phi_θ(chain, init_params)
 
@@ -211,11 +210,18 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        in_dim = chain.layers.branch.layers.layer_1.in_dims
-        u = rand(in_dim, number_of_parameters)
-        v = rand(1, 10, 1)
-        x = (u, v)
-        phi(x, init_params)
+        if chain isa CompactLuxLayer{:DeepONet,} #TODO chain.name == "DeepONet"
+            in_dim = chain.layers.branch.layers.layer_1.in_dims
+            u = rand(in_dim, number_of_parameters)
+            v = rand(1, 10, 1)
+            x = (u, v)
+            phi(x, init_params)
+        end
+        if chain.name == "FourierNeuralOperator"
+            in_dim = chain.layers.lifting.in_dims
+            v = rand(in_dim, number_of_parameters, 40)
+            phi(v, θ)
+        end
     catch err
         if isa(err, DimensionMismatch)
             throw(DimensionMismatch("Dimensions of input data and chain should match"))

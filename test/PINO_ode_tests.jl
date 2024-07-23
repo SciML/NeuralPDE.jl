@@ -51,7 +51,7 @@ using NeuralOperators
     strategy = StochasticTraining(40)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = true, maxiters = 2000)
+    sol = solve(prob, alg, verbose = false, maxiters = 2000)
 
     ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     dt = 0.025f0
@@ -65,15 +65,28 @@ using NeuralOperators
     p,t = get_trainset(bounds, tspan, number_of_parameters, dt)
 
     ground_solution = ground_analytic.(u0, p, vec(t))
-    predict_sol = sol.interp((p, t))
+    predict_sol = dropdims(sol.interp((p, t)), dims=1)
 
     @test ground_solution≈predict_sol rtol=0.01
 
     p, t = get_trainset(bounds, tspan, 100, 0.01)
     ground_solution = ground_analytic.(u0, p, vec(t))
+    predict_sol = dropdims(sol.interp((p, t)), dims = 1)
+
+    @test ground_solution≈predict_sol rtol=0.01
+
+    fno = FourierNeuralOperator(gelu; chs = (2, 64, 64, 128, 1), modes = (16,))
+    v = rand(2, 40,50)
+    θ, st = Lux.setup(Random.default_rng(), fno)
+    c = fno(v, θ, st)[1]
+
+    alg = PINOODE(fno, opt, bounds, number_of_parameters; strategy = strategy)
+    sol = solve(prob, alg, verbose = true, maxiters = 2000)
+
     predict_sol = sol.interp((p, t))
 
     @test ground_solution≈predict_sol rtol=0.01
+
 end
 
 @testset "Example du = cos(p * t) + u" begin
