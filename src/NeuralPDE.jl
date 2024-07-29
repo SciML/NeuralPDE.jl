@@ -33,6 +33,7 @@ using UnPack: @unpack
 import ChainRulesCore, Lux, ComponentArrays
 using Lux: FromFluxAdaptor, recursive_eltype
 using ChainRulesCore: @non_differentiable
+using NeuralOperators
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -47,6 +48,7 @@ include("adaptive_losses.jl")
 include("ode_solve.jl")
 # include("rode_solve.jl")
 include("dae_solve.jl")
+include("pino_ode_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
@@ -55,7 +57,7 @@ include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 include("dgm.jl")
 
-export NNODE, NNDAE,
+export NNODE, NNDAE, PINOODE
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
        WeightedIntervalTraining,

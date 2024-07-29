@@ -26,6 +26,7 @@ jobs:
           - Logging
           - Forward
           - DGM
+          - PINOODE
           - NNODE
           - NeuralAdapter
           - IntegroDiff
