@@ -9,6 +9,7 @@ using Reexport, Statistics
 @reexport using ModelingToolkit
 
 using Zygote, ForwardDiff, Random, Distributions
+using ForwardDiff: Dual, Partials
 using Adapt, DiffEqNoiseProcess
 using Optimization
 using OptimizationOptimisers

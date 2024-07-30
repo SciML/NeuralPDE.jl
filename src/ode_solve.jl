@@ -156,10 +156,16 @@ Computes u' using either forward-mode automatic differentiation or numerical dif
 """
 function ode_dfdx end
 
+struct NeuralPDETag end
+
 function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
         autodiff::Bool) where {C, T, U <: Number}
     if autodiff
-        ForwardDiff.derivative(t -> phi(t, θ), t)
+        # ForwardDiff.derivative(t -> phi(t, θ), t)
+        T1 = typeof(ForwardDiff.Tag(NeuralPDETag(), typeof(t)))
+        tdual = Dual{T1, typeof(t), 1}(t, ForwardDiff.Partials((one(typeof(t)),)))
+        Main.tdual = tdual
+        first(ForwardDiff.partials(phi(tdual, θ)))
     else
         (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
     end
@@ -168,18 +174,26 @@ end
 function ode_dfdx(phi::ODEPhi{C, T, U}, t::Number, θ,
         autodiff::Bool) where {C, T, U <: AbstractVector}
     if autodiff
-        ForwardDiff.jacobian(t -> phi(t, θ), t)
+        # ForwardDiff.jacobian(t -> phi(t, θ), t)
+        T1 = typeof(ForwardDiff.Tag(NeuralPDETag(), typeof(t)))
+        tdual = Dual{T1, typeof(t), 1}(t, ForwardDiff.Partials((one(typeof(t)),)))
+        first.(ForwardDiff.partials.(phi(tdual, θ)))
     else
         (phi(t + sqrt(eps(typeof(t))), θ) - phi(t, θ)) / sqrt(eps(typeof(t)))
     end
 end
 
 function ode_dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool)
-    if autodiff
-        ForwardDiff.jacobian(t -> phi(t, θ), t)
+    @show t
+    v = if autodiff
+        # ForwardDiff.jacobian(t -> phi(t, θ), t)
+        T1 = typeof(ForwardDiff.Tag(NeuralPDETag(), eltype(t)))
+        tdual = Dual{T1, eltype(t), 1}.(t, (ForwardDiff.Partials((one(eltype(t)),)),))
+        first.(ForwardDiff.partials.(phi(tdual, θ)))
     else
         (phi(t .+ sqrt(eps(eltype(t))), θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
     end
+    return v
 end
 
 """
@@ -200,7 +214,9 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
     p_ = param_estim ? θ.p : p
     out = phi(t, θ)
     fs = reduce(hcat, [f(out[i], p_, t[i]) for i in axes(out, 2)])
+    @show fs
     dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
+    @show dxdtguess
     sum(abs2, dxdtguess .- fs) / length(t)
 end
 
@@ -246,7 +262,7 @@ end
 function generate_loss(
         strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool)
     ts = tspan[1]:(strategy.dx):tspan[2]
-    autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
+    # autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     function loss(θ, _)
         if batch
             inner_loss(phi, f, autodiff, ts, θ, p, param_estim)

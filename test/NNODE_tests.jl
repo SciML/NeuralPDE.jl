@@ -5,6 +5,24 @@ import Lux, OptimizationOptimisers, OptimizationOptimJL
 using Flux
 using LineSearches
 
+using ForwardDiff
+using ForwardDiff: Dual, Partials
+
+struct NeuralPDETag end
+
+t = 1.0:1.0:10.0 |> collect
+chain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
+ps, st = Lux.setup(rng, chain)
+phi = NeuralPDE.ODEPhi(
+    chain, 0.0, [1.0, 2.0], st
+)
+T = typeof(ForwardDiff.Tag(NeuralPDETag(), eltype(t)))
+V = eltype(t)
+tdual = Dual{T, V, 1}.(t, (ForwardDiff.Partials((one(V),)),))
+first.(ForwardDiff.partials.(phi(tdual, ps)))
+
+
+
 rng = Random.default_rng()
 Random.seed!(100)
 
@@ -18,8 +36,8 @@ Random.seed!(100)
     luxchain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
     opt = OptimizationOptimisers.Adam(0.1, (0.9, 0.95))
 
-    sol = solve(prob, NNODE(luxchain, opt), dt = 1 / 20.0f0, verbose = false,
-        abstol = 1.0f-10, maxiters = 200)
+    sol = solve(prob, NNODE(luxchain, opt; autodiff = true), dt = 1 / 20.0f0, verbose = true,
+        abstol = 1.0f-10, maxiters = 2)
 
     @test_throws ArgumentError solve(prob, NNODE(luxchain, opt; autodiff = true),
         dt = 1 / 20.0f0,
