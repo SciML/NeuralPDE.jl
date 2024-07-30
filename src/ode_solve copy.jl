@@ -97,14 +97,6 @@ function NNODE(chain, opt, init_params = nothing;
         strategy, param_estim, additional_loss, device, kwargs)
 end
 
-@kernel function custom_broadcast!(f, du, @Const(out), @Const(p), @Const(t))
-    i = @index(Global, Linear)
-    @views @inbounds x = f(out[:, i], p, t[i])
-    du[:, i] .= x
-end
-
-gpu_broadcast = custom_broadcast!(CUDABackend())
-
 function get_array_type(::LuxCUDADevice)
     CuArray
 end
@@ -143,18 +135,41 @@ function generate_phi_θ(
         ComponentArrays.ComponentArray(;
             depvar = init_params)
     end
-    u0_ = u0 isa Number ? u0 : array_type(u0)
-    ODEPhi(chain, t0, u0_, st, device), adapt(array_type, init_params)
+    ODEPhi(chain, t0, adapt(array_type, u0), st, device), adapt(array_type, init_params)
 end
+
+# function (f::ODEPhi{C, T, U})(t::Number,
+#         θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
+#     y, st = f.chain(
+#         adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
+#     ChainRulesCore.@ignore_derivatives f.st = st
+#     f.u0 + (t - f.t0) * first(y)
+# end
 
 function (f::ODEPhi{C, T, U})(
         t::AbstractVector, θ) where {C <: Lux.AbstractExplicitLayer, T, U}
     # Batch via data as row vectors
     y, st = f.chain(
         adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
-    @ignore_derivatives f.st = st
+    ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t .- f.t0)' .* y
 end
+
+function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractExplicitLayer, T, U}
+    y, st = f.chain(
+        adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
+    ChainRulesCore.@ignore_derivatives f.st = st
+    f.u0 .+ (t .- f.t0) .* y
+end
+
+# function (f::ODEPhi{C, T, U})(t::AbstractMatrix,
+#         θ) where {C <: Lux.AbstractExplicitLayer, T, U}
+#     # Batch via data as row vectors
+#     y, st = f.chain(
+#         adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t), θ.depvar, f.st)
+#     ChainRulesCore.@ignore_derivatives f.st = st
+#     f.u0 .+ (t .- f.t0) .* y
+# end
 
 """
     ode_dfdx(phi, t, θ, autodiff)
@@ -196,40 +211,53 @@ Simple L2 inner loss at a time `t` with parameters `θ` of the neural network.
 """
 function inner_loss end
 
+# function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
+#         p, param_estim::Bool) where {C, T, U <: Number}
+#     p_ = param_estim ? θ.p : p
+#     sum(abs2, ode_dfdx(phi, t, θ, autodiff) - f(phi(t, θ), p_, t))
+# end
+
+# function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
+#         p, param_estim::Bool) where {C, T, U <: Number}
+#     t = adapt(get_array_type(phi.device), reshape(t, 1, :))
+#     p_ = param_estim ? θ.p : p
+#     p_ = p_ isa SciMLBase.NullParameters ? [SciMLBase.NullParameters()] : p_
+#     p_ = adapt(get_array_type(phi.device), p_)
+#     out = phi(t, θ)
+#     # fs = reduce(hcat, f.(eachcol(out), eachcol(p_), eachcol(t)))
+#     fs = reduce(hcat, [f(out[i], p_, t[i]) for i in axes(out, 2)])
+#     dxdtguess = ode_dfdx(phi, t, θ, autodiff)
+#     sum(abs2, dxdtguess .- fs) / length(t)
+# end
+
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
         p, param_estim::Bool) where {C, T, U}
-    array_type = get_array_type(phi.device)
-    p = param_estim ? θ.p : p
-    p = p isa SciMLBase.NullParameters ? p : array_type(p)
-    t = array_type([t])
+    t = adapt(get_array_type(phi.device), t)
+    p_ = adapt(get_array_type(phi.device), (param_estim ? θ.p : p))
     dxdtguess = ode_dfdx(phi, t, θ, autodiff)
     out = phi(t, θ)
-    fs = rhs(phi.device, f, phi.u0, out, p, t)
+    fs = rhs(phi.device, f, out, p_, [t])
     sum(abs2, dxdtguess .- fs)
 end
 
 function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, θ,
         p, param_estim::Bool) where {C, T, U}
-    @ignore_derivatives begin
-        array_type = get_array_type(phi.device)
-        t = array_type(t)
-        p = param_estim ? θ.p : p
-        p = p isa SciMLBase.NullParameters ? p : array_type(p)
-    end
+    array_type = get_array_type(phi.device)
+    t = adapt(array_type, t)
+    p_ = adapt(array_type, (param_estim ? θ.p : p))
     out = phi(t, θ)
-    fs = rhs(phi.device, f, phi.u0, out, p, t)
+    fs = rhs(phi.device, f, out, p_, t)
     dxdtguess = ode_dfdx(phi, t, θ, autodiff)
     sum(abs2, dxdtguess .- fs) / length(t)
 end
 
-function rhs(::LuxCPUDevice, f, u0, out, p, t)
-    u0 isa Number ? reduce(hcat, [f(out[i], p, t[i]) for i in axes(out, 2)]) :
-    reduce(hcat, [f(out[:, i], p, t[i]) for i in axes(out, 2)])
+function rhs(::LuxCPUDevice, f, out, p, t)
+    reduce(hcat, [f(out[i], p, t[i]) for i in axes(out, 2)])
 end
 
-function rhs(::LuxCUDADevice, f, u0, out, p, t)
-    du = similar(out)
-    gpu_broadcast(f, du, out, p, t; workgroupsize = 64, ndrange = 100)
+function rhs(::LuxCUDADevice, f, out, p, t)
+    p_ = p isa SciMLBase.NullParameters ? [SciMLBase.NullParameters()] : reshape(p, 1, :)
+    reduce(hcat, f.(eachcol(out), eachcol(p_), eachcol(reshape(t, 1, :))))
 end
 
 """
@@ -335,10 +363,8 @@ struct NNODEInterpolation{T <: ODEPhi, T2}
     phi::T
     θ::T2
 end
-function (f::NNODEInterpolation)(t, idxs::Nothing, ::Type{Val{0}}, p, continuity)
-    vec(f.phi([t], f.θ))
-end
-(f::NNODEInterpolation)(t, idxs, ::Type{Val{0}}, p, continuity) = vec(f.phi([t], f.θ))[idxs]
+(f::NNODEInterpolation)(t, idxs::Nothing, ::Type{Val{0}}, p, continuity) = f.phi(t, f.θ)
+(f::NNODEInterpolation)(t, idxs, ::Type{Val{0}}, p, continuity) = f.phi(t, f.θ)[idxs]
 
 function (f::NNODEInterpolation)(t::Vector, idxs::Nothing, ::Type{Val{0}}, p, continuity)
     out = f.phi(t, f.θ)
@@ -381,16 +407,16 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     !(chain isa Lux.AbstractExplicitLayer) &&
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params, device, p, param_estim)
-
-    (eltype(init_params) <: Complex &&
-     alg.strategy isa QuadratureTraining) &&
-        error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
+    # ((eltype(eltype(init_params).types[1]) <: Complex ||
+    #   eltype(eltype(init_params).types[2]) <: Complex) &&
+    #  alg.strategy isa QuadratureTraining) &&
+    #     error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
 
     isinplace(prob) &&
         throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        phi(get_array_type(device)([t0]), init_params)
+        phi(t0, init_params)
     catch err
         if isa(err, DimensionMismatch)
             throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
@@ -448,7 +474,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     opt_algo = if strategy isa QuadratureTraining
         Optimization.AutoForwardDiff()
     else
-        Optimization.AutoEnzyme()
+        Optimization.AutoZygote()
     end
     # Creates OptimizationFunction Object from total_loss
     optf = OptimizationFunction(total_loss, opt_algo)
@@ -476,11 +502,10 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         ts = [tspan[1], tspan[2]]
     end
 
-    u = phi(ts, res.u)
     if u0 isa Number
-        u = vec(u)
+        u = [first(phi(t, res.u)) for t in ts]
     else
-        u = [u[:, i] for i in 1:size(u, 2)]
+        u = [phi(t, res.u) for t in ts]
     end
 
     sol = SciMLBase.build_solution(prob, alg, ts, u;
