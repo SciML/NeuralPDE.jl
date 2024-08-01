@@ -369,8 +369,16 @@ which is later optimized upon to give Solution or the Solution Distribution of t
 
 For more information, see `discretize` and `PINNRepresentation`.
 """
-function SciMLBase.symbolic_discretize(pde_system::PDESystem,
-        discretization::AbstractPINN)
+#TODO?
+function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::PhysicsInformedNO)
+
+end
+#TODO?
+function SciMLBase.symbolic_discretize(
+        pde_system::PDESystem, discretization::PhysicsInformedNN)
+end
+
+function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
     eqs = pde_system.eqs
     bcs = pde_system.bcs
     chain = discretization.chain
@@ -713,6 +721,14 @@ an `OptimizationProblem` for [Optimization.jl](https://docs.sciml.ai/Optimizatio
 solution is the solution to the PDE.
 """
 function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+    pinnrep = symbolic_discretize(pde_system, discretization)
+    f = OptimizationFunction(pinnrep.loss_functions.full_loss_function,
+        Optimization.AutoZygote())
+    Optimization.OptimizationProblem(f, pinnrep.flat_init_params)
+end
+
+#TODO?
+function SciMLBase.discretize(pde_system::PDESystem, discretization::AbstractPINN)
     pinnrep = symbolic_discretize(pde_system, discretization)
     f = OptimizationFunction(pinnrep.loss_functions.full_loss_function,
         Optimization.AutoZygote())
