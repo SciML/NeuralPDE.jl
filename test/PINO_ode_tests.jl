@@ -2,37 +2,41 @@ using Test
 using OptimizationOptimisers
 using Lux
 using Statistics, Random
-#TODO remove after register Lux.NeuralOperators
-# using Pkg
-# Pkg.add(PackageSpec(url = "https://github.com/LuxDL/NeuralOperators.jl.git"))
 using NeuralOperators
 # using NeuralPDE
-
-# dG(u(t, p), t) = f(G,u(t, p))
-
-#     #TODO test FNO
-# fno = FourierNeuralOperator(gelu; chs = (2, 64, 64, 128, 1), modes = (16,))
 
 @testset "Example du = cos(p * t)" begin
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0f0
     prob = ODEProblem(equation, u0, tspan)
-    # deeponet = NeuralOperators.DeepONet(
-    #     Chain(
-    #         Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
-    #     Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
-    #         Dense(10 => 10, Lux.tanh_fast)))
     deeponet = NeuralOperators.DeepONet(
         Chain(
             Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
         Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
-            Dense(10 => 10, Lux.tanh_fast)),
-        additional = Chain(Dense(10 => 10, Lux.tanh_fast), Dense(10 => 1)))
+            Dense(10 => 10, Lux.tanh_fast)))
+    #TODO deeponet fail with additional layer on gradient
+    # deeponet = NeuralOperators.DeepONet(
+    #     Chain(
+    #         Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
+    #     Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
+    #         Dense(10 => 10, Lux.tanh_fast)),
+    #     additional = Chain(Dense(10 => 10, Lux.tanh_fast), Dense(10 => 1)))
+
     u = rand(1, 50)
     v = rand(1, 40, 1)
     θ, st = Lux.setup(Random.default_rng(), deeponet)
     c = deeponet((u, v), θ, st)[1]
+    # left = (u, v)
+    # right = (u, v .+ 1.0)
+    # using Zygote
+    # Zygote.gradient((θ) -> sum(deeponet((u, v), θ, st)[1]), θ)
+
+    # deeponet((u .- 1.9, v), θ, st)[1] .- deeponet((u, v), θ, st)[1]
+    # Zygote.gradient((θ) -> sum(deeponet((u, v), θ, st)[1]), θ)
+    #TODO open issue  DeepONet with additional fail compiler
+    # Zygote.gradient(
+    #     (θ) -> sum(deeponet((u .- 1.9, v), θ, st)[1] .- deeponet((u, v), θ, st)[1]), θ)
 
     branch = deeponet.layers.branch
     θ, st = Lux.setup(Random.default_rng(), branch)
@@ -42,16 +46,13 @@ using NeuralOperators
     θ, st = Lux.setup(Random.default_rng(), trunk)
     t = trunk(v, θ, st)[1]
 
-    # additional = deeponet.layers.additional
-    # θ, st = Lux.setup(Random.default_rng(), additional)
-    # a = additional(rand(10,40,50), θ, st)[1]
-
     bounds = [(pi, 2pi)]
     number_of_parameters = 50
-    strategy = StochasticTraining(40)
+    # strategy = StochasticTraining(40)
+    strategy = GridTraining(0.025f0)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = false, maxiters = 2000)
+    sol = solve(prob, alg, verbose = true, maxiters = 2000)
 
     ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     dt = 0.025f0
@@ -65,7 +66,8 @@ using NeuralOperators
     p,t = get_trainset(bounds, tspan, number_of_parameters, dt)
 
     ground_solution = ground_analytic.(u0, p, vec(t))
-    predict_sol = dropdims(sol.interp((p, t)), dims=1)
+    # predict_sol = dropdims(sol.interp((p, t)), dims=1)
+    predict_sol = sol.interp((p, t))
 
     @test ground_solution≈predict_sol rtol=0.01
 
@@ -75,7 +77,11 @@ using NeuralOperators
 
     @test ground_solution≈predict_sol rtol=0.01
 
+    #TODO
+    #FourierNeuralOperator
     fno = FourierNeuralOperator(gelu; chs = (2, 64, 64, 128, 1), modes = (16,))
+
+    fno isa CompactLuxLayer{:FourierNeuralOperator,}
     v = rand(2, 40,50)
     θ, st = Lux.setup(Random.default_rng(), fno)
     c = fno(v, θ, st)[1]

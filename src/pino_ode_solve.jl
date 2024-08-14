@@ -68,14 +68,15 @@ end
 function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
     init_params = isnothing(init_params) ? θ : init_params
-    init_params = chain.name == "FourierNeuralOperator" ? θ : ComponentArrays.ComponentArray(init_params)
+    # init_params = chain.name == "FourierNeuralOperator" ? θ : ComponentArrays.ComponentArray(init_params)
+    init_params = ComponentArrays.ComponentArray(init_params)
     PINOPhi(chain, st), init_params
 end
 
 function (f::PINOPhi{C, T})(
         x, θ) where {C <: Lux.AbstractExplicitLayer, T}
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
-    ChainRulesCore.@ignore_derivatives f.st = st
+    # ChainRulesCore.@ignore_derivatives f.st = st
     y
 end
 
@@ -88,37 +89,60 @@ function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: CompactLuxLayer{:Dee
     (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
 end
 
-function dfdx(phi::PINOPhi{C, T}, x::Tuple,
-        θ) where {C <: CompactLuxLayer{:FourierNeuralOperator,}, T}
-    #TODO
-    x_right = (branch_right, trunk_right)
-    (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
-end
+# using Zygote
+# p, t = x
+# branch_left, branch_right = p, p
+# trunk_left, trunk_right = t .+ sqrt(eps(Float32)), t
+# x_left = (branch_left, trunk_left)
+# x_right = (branch_right, trunk_right)
+# du(θ) = (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(Float32))
+# #TODO error here phi(x_right, θ)) / sqrt(eps(Float32))
+
+
+# function dfdx(phi::PINOPhi{C, T}, x::Tuple,
+#         θ) where {C <: CompactLuxLayer{:FourierNeuralOperator,}, T}
+#     #TODO
+#     p, t = x
+#     branch_left, branch_right = p, p
+#     trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
+#     x_left = reduce(vcat,[branch_left,trunk_left])
+#     x_right = (branch_right, trunk_right)
+#     (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
+# end
 
 function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
-        C, T} #C <: CompactLuxLayer{:DeepONet,}
+        C <: CompactLuxLayer{:DeepONet,}, T}
     p, t = x
     f = prob.f
     out = phi(x, θ)
-    if size(p,1) == 1
+    # if size(p,1) == 1
+        #TODO
         if size(out)[1] == 1
             out = dropdims(out, dims = 1)
         end
+        # out = dropdims(out, dims = 1)
         fs = f.(out, p, vec(t))
         f_vec = vec(fs)
-    else
-        f_vec = reduce(
-            vcat, [[f(out[i], p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
-    end
+    # else
+    #     # f_vec = reduce(
+    #     #     vcat, [[f(out[i], p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+    #     f_vec = reduce(
+    #         vcat, [[f(out[i], p[i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+    # end
+
+    # norm = prod(size(out))
+    # out_vec = vec(out)
+    # sum(abs2, du .- f_vec) / norm
     du = vec(dfdx(phi, x, θ))
     norm = prod(size(du))
     sum(abs2, du .- f_vec) / norm
+
 end
 #TODO Lux.AbstractExplicitLayer
 function initial_condition_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
-        C, T} ##TODO for DeepOet and FNO C <: CompactLuxLayer{:DeepONet,}
+        C <: CompactLuxLayer{:DeepONet,}, T}
     p, t = x
     t0 = reshape([prob.tspan[1]], (1, 1, 1)) # t[:, [1], :]
     x0 = (p, t0)
@@ -147,14 +171,6 @@ function get_trainset(strategy::GridTraining, bounds, number_of_parameters, tspa
     (p, t)
 end
 
-function generate_loss(
-        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
-    x = get_trainset(strategy, bounds, number_of_parameters, tspan)
-    function loss(θ, _)
-        initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
-    end
-end
-
 function get_trainset(strategy::StochasticTraining, bounds, number_of_parameters, tspan)
     if size(bounds,1) == 1
         bound = bounds[1]
@@ -167,6 +183,19 @@ function get_trainset(strategy::StochasticTraining, bounds, number_of_parameters
     t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points,1) .+ tspan[1]
     (p, t)
 end
+
+function generate_loss(
+        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
+    x = get_trainset(strategy, bounds, number_of_parameters, tspan)
+    function loss(θ, _)
+        initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
+    end
+end
+
+# using Zygote
+# Zygote.gradient((θ) -> initial_condition_loss(phi, prob, x, θ), θ)
+# Zygote.gradient((θ) -> physics_loss(phi, prob, x, θ), θ) #TODO
+
 
 function generate_loss(
         strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
@@ -210,7 +239,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        if chain isa CompactLuxLayer{:DeepONet,} #TODO chain.name == "DeepONet"
+        if chain isa CompactLuxLayer{:DeepONet,}
             in_dim = chain.layers.branch.layers.layer_1.in_dims
             u = rand(in_dim, number_of_parameters)
             v = rand(1, 10, 1)
