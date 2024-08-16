@@ -15,29 +15,8 @@ using NeuralOperators
             Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
         Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
             Dense(10 => 10, Lux.tanh_fast)))
-    #TODO deeponet fail with additional layer on gradient
-    # deeponet = NeuralOperators.DeepONet(
-    #     Chain(
-    #         Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
-    #     Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
-    #         Dense(10 => 10, Lux.tanh_fast)),
-    #     additional = Chain(Dense(10 => 10, Lux.tanh_fast), Dense(10 => 1)))
-
     u = rand(1, 50)
     v = rand(1, 40, 1)
-    θ, st = Lux.setup(Random.default_rng(), deeponet)
-    c = deeponet((u, v), θ, st)[1]
-    # left = (u, v)
-    # right = (u, v .+ 1.0)
-    # using Zygote
-    # Zygote.gradient((θ) -> sum(deeponet((u, v), θ, st)[1]), θ)
-
-    # deeponet((u .- 1.9, v), θ, st)[1] .- deeponet((u, v), θ, st)[1]
-    # Zygote.gradient((θ) -> sum(deeponet((u, v), θ, st)[1]), θ)
-    #TODO open issue  DeepONet with additional fail compiler
-    # Zygote.gradient(
-    #     (θ) -> sum(deeponet((u .- 1.9, v), θ, st)[1] .- deeponet((u, v), θ, st)[1]), θ)
-
     branch = deeponet.layers.branch
     θ, st = Lux.setup(Random.default_rng(), branch)
     b = branch(u, θ, st)[1]
@@ -73,25 +52,32 @@ using NeuralOperators
 
     p, t = get_trainset(bounds, tspan, 100, 0.01)
     ground_solution = ground_analytic.(u0, p, vec(t))
-    predict_sol = dropdims(sol.interp((p, t)), dims = 1)
+    predict_sol = sol.interp((p, t))
+    # predict_sol = dropdims(sol.interp((p, t)), dims = 1)
 
     @test ground_solution≈predict_sol rtol=0.01
 
     #TODO
+    #ffnn
     #FourierNeuralOperator
     fno = FourierNeuralOperator(gelu; chs = (2, 64, 64, 128, 1), modes = (16,))
-
-    fno isa CompactLuxLayer{:FourierNeuralOperator,}
     v = rand(2, 40,50)
     θ, st = Lux.setup(Random.default_rng(), fno)
     c = fno(v, θ, st)[1]
+    ffnn = Lux.Chain(
+        Dense(2, 32, Lux.tanh_fast), Dense(32, 32, Lux.tanh_fast), Dense(32, 1))
+    θ, st = Lux.setup(Random.default_rng(), ffnn)
+    c = ffnn(v, θ, st)[1]
 
-    alg = PINOODE(fno, opt, bounds, number_of_parameters; strategy = strategy)
+    alg = PINOODE(ffnn, opt, bounds, number_of_parameters; strategy = strategy)
     sol = solve(prob, alg, verbose = true, maxiters = 2000)
 
     predict_sol = sol.interp((p, t))
 
     @test ground_solution≈predict_sol rtol=0.01
+
+    alg = PINOODE(fno, opt, bounds, number_of_parameters; strategy = strategy)
+    sol = solve(prob, alg, verbose = true, maxiters = 2000)
 
 end
 
@@ -247,13 +233,14 @@ end
     tspan = (0.0f0, 1.0f0)
     u0 = [1.0f0, 0.0f0]
     prob = ODEProblem(equation, u0, tspan)
-    deeponet = NeuralOperators.DeepONet(
-        Chain(
-            Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
-        Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
-            Dense(10 => 10, Lux.tanh_fast)),
-        additional = Chain(Dense(10 => 10, Lux.tanh_fast), Dense(10 => 2)))
-
+    # deeponet = NeuralOperators.DeepONet(
+    #     Chain(
+    #         Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
+    #     Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
+    #         Dense(10 => 10, Lux.tanh_fast)),
+    #     additional = Chain(Dense(10 => 10, Lux.tanh_fast), Dense(10 => 2)))
+    ffnn = Lux.Chain(Dense(2, 32, Lux.tanh_fast), Dense(32, 32, Lux.tanh_fast), Dense(32, 2))
+    fno = FourierNeuralOperator(gelu; chs = (2, 64, 64, 128, 1), modes = (16,))
     bounds = [(pi, 2pi), (pi/2, 3pi/2)]
     number_of_parameters = 50
     strategy = StochasticTraining(40)
