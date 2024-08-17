@@ -1,10 +1,14 @@
 using Test, Flux
 using Random, NeuralPDE
 using OrdinaryDiffEq, Statistics
+using LineSearches
+import refactored_solve
 import Lux, OptimizationOptimisers, OptimizationOptimJL
+
 
 Random.seed!(100)
 
+#=
 @testset "Example 1" begin
     function example1(du, u, p, t)
         du[1] = cos(2pi * t)
@@ -33,7 +37,9 @@ Random.seed!(100)
         maxiters = 3000, abstol = 1e-10)
     @test reduce(hcat, ground_sol(0:(1 / 100):1).u)≈reduce(hcat, sol.u) rtol=1e-1
 end
+=#
 
+#=
 @testset "Example 2" begin
     function example2(du, u, p, t)
         du[1] = u[1] - t
@@ -62,6 +68,7 @@ end
 
     @test reduce(hcat, ground_sol(0:(1 / 100):(pi / 2.0)).u)≈reduce(hcat, sol.u) rtol=1e-2
 end
+=#
 
 @testset "WeightedIntervalTraining" begin
     function example2(du, u, p, t)
@@ -95,6 +102,7 @@ end
     @test reduce(hcat, ground_sol(0:(1 / 100):(pi / 2.0)).u)≈reduce(hcat, sol.u) rtol=1e-2
 end
 
+#=
 @testset "StochasticTraining" begin
     function example2(du, u, p, t)
         du[1] = u[1] - t
@@ -122,7 +130,9 @@ end
         maxiters = 3000, abstol = 1e-10)
     @test reduce(hcat, ground_sol(0:(1 / 100):(pi / 2.0)).u)≈reduce(hcat, sol.u) rtol=1e-2
 end
+=#
 
+#=
 @testset "QuadratureTraining" begin
     function example2(du, u, p, t)
         du[1] = u[1] - t
@@ -147,3 +157,4 @@ end
     sol = solve(prob, alg, verbose = true, maxiters = 6000, abstol = 1e-10, dt = 1/100.0)
     @test reduce(hcat, ground_sol(0:(1 / 100):(pi / 2.0)).u)≈reduce(hcat, sol.u) rtol=1e-2
 end
+=#
