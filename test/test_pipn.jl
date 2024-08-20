@@ -12,6 +12,7 @@ import ModelingToolkit: Interval
     @testset "PIPN Construction" begin
         chain = Lux.Chain(Lux.Dense(2 => 16, tanh), Lux.Dense(16 => 1))
         pipn = PIPN(chain)
+        println("we have passed this point")
         @test pipn isa PIPN
         @test pipn.shared_mlp1 isa Lux.Chain
         @test pipn.shared_mlp2 isa Lux.Chain

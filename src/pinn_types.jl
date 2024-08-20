@@ -562,6 +562,69 @@ using Lux
 using Random
 using ComponentArrays
 
+
+"""
+    PIPN(chain,
+         strategy = GridTraining(0.1);
+         init_params = nothing,
+         param_estim = false,
+         additional_loss = nothing,
+         adaptive_loss = nothing,
+         logger = nothing,
+         log_options = LogOptions(),
+         iteration = nothing,
+         kwargs...)
+
+A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
+`PDESystem` into an `OptimizationProblem` using the Physics-Informed Point Net (PIPN) methodology,
+an extension of the Physics-Informed Neural Networks (PINN) approach.
+
+## Positional Arguments
+
+* `chain`: a Lux chain specifying the overall network architecture. The input and output dimensions
+           of this chain are used to determine the dimensions of the PIPN components.
+* `strategy`: determines which training strategy will be used. Defaults to `GridTraining(0.1)`.
+              See the Training Strategy documentation for more details.
+
+## Keyword Arguments
+
+* `init_params`: the initial parameters of the neural networks. If not provided, default
+                 initialization is used.
+* `param_estim`: whether the parameters of the differential equation should be included in
+                 the optimization. Defaults to `false`.
+* `additional_loss`: a function `additional_loss(phi, θ, p_)` where `phi` are the neural
+                     network trial solutions, `θ` are the weights of the neural network(s),
+                     and `p_` are the hyperparameters of the `OptimizationProblem`.
+* `adaptive_loss`: the choice for the adaptive loss function. See the adaptive loss documentation
+                   for more details. Defaults to no adaptivity.
+* `logger`: a logging mechanism for tracking the training process.
+* `log_options`: options for controlling the logging behavior.
+* `iteration`: used to control the iteration counter. If not provided, starts at 1 and
+               self-increments.
+* `kwargs`: Extra keyword arguments which are passed to the `OptimizationProblem` on `solve`.
+
+## Fields
+
+* `shared_mlp1`: First shared multilayer perceptron in the PIPN architecture.
+* `shared_mlp2`: Second shared multilayer perceptron in the PIPN architecture.
+* `after_pool_mlp`: Multilayer perceptron applied after the pooling operation.
+* `final_layer`: Final layer producing the output of the network.
+* `strategy`: The training strategy used.
+* `init_params`: Initial parameters of the neural networks.
+* `param_estim`: Boolean indicating whether parameter estimation is enabled.
+* `additional_loss`: Additional loss function, if specified.
+* `adaptive_loss`: Adaptive loss function, if specified.
+* `logger`: Logging mechanism for the training process.
+* `log_options`: Options for controlling logging behavior.
+* `iteration`: Vector containing the current iteration count.
+* `self_increment`: Boolean indicating whether the iteration count should self-increment.
+* `kwargs`: Additional keyword arguments passed to the optimization problem.
+
+The PIPN structure implements a Physics-Informed Point Net, which is designed to handle
+point cloud data in the context of physics-informed neural networks. It uses a series of
+shared MLPs, a global feature aggregation step, and additional processing to produce the final output.
+"""
+
 struct PIPN{C1,C2,C3,F,ST,P,PE,AL,ADA,LOG,K} <: AbstractPINN
     shared_mlp1::C1
     shared_mlp2::C2
@@ -591,6 +654,8 @@ function PIPN(chain, strategy = GridTraining(0.1);
 
 input_dim = chain[1].in_dims[1]
 output_dim = chain[end].out_dims[1]
+
+println("hi");
 
 shared_mlp1 = Lux.Chain(
 Lux.Dense(input_dim => 64, tanh),
