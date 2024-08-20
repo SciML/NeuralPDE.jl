@@ -17,13 +17,16 @@ using NeuralOperators
             Dense(10 => 10, Lux.tanh_fast)))
     u = rand(1, 50)
     v = rand(1, 40, 1)
-    branch = deeponet.layers.branch
+    branch = deeponet.branch
     θ, st = Lux.setup(Random.default_rng(), branch)
     b = branch(u, θ, st)[1]
 
-    trunk = deeponet.layers.trunk
+    trunk = deeponet.trunk
     θ, st = Lux.setup(Random.default_rng(), trunk)
     t = trunk(v, θ, st)[1]
+
+    θ, st = Lux.setup(Random.default_rng(), deeponet)
+    deeponet((u,v), θ, st)[1]
 
     bounds = [(pi, 2pi)]
     number_of_parameters = 50

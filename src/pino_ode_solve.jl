@@ -76,11 +76,11 @@ end
 function (f::PINOPhi{C, T})(
         x, θ) where {C <: Lux.AbstractExplicitLayer, T}
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
-    ChainRulesCore.@ignore_derivatives f.st = st
+    #ChainRulesCore.@ignore_derivatives f.st = st #TODO open issue f.st = st fail?
     y
 end
 
-function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: CompactLuxLayer{:DeepONet,}, T}
+function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
     p, t = x
     branch_left, branch_right = p, p
     trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
@@ -97,7 +97,7 @@ end
 
 function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
-        C <: CompactLuxLayer{:DeepONet,}, T}
+        C <: DeepONet, T}
     p, t = x
     f = prob.f
     out = phi(x, θ)
@@ -124,7 +124,8 @@ end
 
 #FourierNeuralOperator and Chain
 function physics_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x::Array, θ) where {C, T}
+        phi::PINOPhi{C, T}, prob::ODEProblem, x::Array, θ) where {
+        C <: Union{FourierNeuralOperator, Chain}, T}
     p, t = x[1:(end - 1), :, :], x[[end], :, :]
     f = prob.f
     out = phi(x, θ)
@@ -144,7 +145,7 @@ end
 
 function initial_condition_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
-        C <: CompactLuxLayer{:DeepONet,}, T}
+        C <: DeepONet, T}
     p, t = x
     t0 = reshape([prob.tspan[1]], (1, 1, 1)) # t[:, [1], :]
     x0 = (p, t0) #TODO one time in get_trainset ?
@@ -157,7 +158,8 @@ end
 
 #FourierNeuralOperator and Chain
 function initial_condition_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {C, T}
+        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
+        C <: Union{FourierNeuralOperator, Chain}, T}
     p, t = x[1:end-1,:,:], x[[end],:,:]
     t0 = fill(prob.tspan[1], size(p))
     x0 = reduce(vcat, (p, t0)) #TODO one time in get_trainset
@@ -170,7 +172,8 @@ function initial_condition_loss(
 end
 
 #TODO for input FourierNeuralOperator and Chain
-function get_trainset(strategy::GridTraining, bounds, number_of_parameters, tspan)
+function get_trainset(strategy::GridTraining, chain::Union{FourierNeuralOperator, Chain},
+        number_of_parameters, tspan)
     dt = strategy.dx
     p = collect([range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]...)
     # p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
@@ -192,8 +195,7 @@ function get_trainset(strategy::GridTraining, bounds, number_of_parameters, tspa
     x
 end
 
-function get_trainset(strategy::GridTraining, chain::CompactLuxLayer{:DeepONet,}, bounds,
-        number_of_parameters, tspan)
+function get_trainset(strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan)
     dt = strategy.dx
     # if size(bounds,1) == 1
     #     bound = bounds[1]
@@ -211,7 +213,7 @@ function get_trainset(strategy::GridTraining, chain::CompactLuxLayer{:DeepONet,}
 end
 
 function get_trainset(strategy::StochasticTraining,
-        chain::CompactLuxLayer{:DeepONet,}, bounds, number_of_parameters, tspan)
+        chain::DeepONet, bounds, number_of_parameters, tspan)
     # if size(bounds,1) == 1 #TODO reduce if ?
     #     bound = bounds[1]
     #     p = (bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
@@ -226,7 +228,7 @@ end
 
 function generate_loss(
         strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
-    x = get_trainset(strategy, bounds, number_of_parameters, tspan)
+    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
     function loss(θ, _)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
@@ -235,7 +237,7 @@ end
 function generate_loss(
         strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
     function loss(θ, _)
-        x = get_trainset(strategy, bounds, number_of_parameters, tspan)
+        x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
@@ -264,8 +266,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     if !(chain isa Lux.AbstractExplicitLayer)
         error("Only Lux.AbstractExplicitLayer neural networks are supported")
 
-        if !(isa(chain, CompactLuxLayer{:DeepONet,}) ||
-             chain.name == "FourierNeuralOperator") #TODO chain.name
+        if !(chain isa DeepONet || chain isa FourierNeuralOperator)
             error("Only DeepONet and FourierNeuralOperator neural networks are supported with PINO ODE")
         end
     end
@@ -276,13 +277,13 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
 
     try
-        if chain isa CompactLuxLayer{:DeepONet,}
-            in_dim = chain.layers.branch.layers.layer_1.in_dims
+        if chain isa DeepONet
+            in_dim = chain.branch.layers.layer_1.in_dims
             u = rand(in_dim, number_of_parameters)
             v = rand(1, 10, 1)
             x = (u, v)
             phi(x, init_params)
-        elseif chain.name == "FourierNeuralOperator"
+        elseif chain isa FourierNeuralOperator
             in_dim = chain.layers.lifting.in_dims
             v = rand(in_dim, number_of_parameters, 40)
             phi(v, θ)
@@ -332,10 +333,13 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
-    p, t = get_trainset(strategy, bounds, number_of_parameters, tspan)
-    x = (p, t)
-    u = phi(x, res.u)
-
+    p, t = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
+    if chain isa DeepONet
+        x = (p, t)
+        u = phi(x, res.u)
+    else
+        error("WIP")
+    end
     sol = SciMLBase.build_solution(prob, alg, x, u;
         k = res, dense = true,
         interp = PINOODEInterpolation(phi, res.u),
