@@ -92,7 +92,7 @@ end
 #FourierNeuralOperator and Chain
 function dfdx(phi::PINOPhi{C, T}, x::Array, θ) where {C, T}
     ε = [zeros(eltype(x), size(x)[1] - 1)..., sqrt(eps(eltype(x)))]
-    (phi(t .+ ε, θ) - phi(t, θ)) ./ sqrt(eps(eltype(t)))
+    (phi(x .+ ε, θ) - phi(x, θ)) ./ sqrt(eps(eltype(x)))
 end
 
 function physics_loss(
@@ -125,15 +125,14 @@ end
 #FourierNeuralOperator and Chain
 function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x::Array, θ) where {
-        C <: Union{FourierNeuralOperator, Chain}, T}
+        C <: Union{FourierNeuralOperator, Lux.Chain}, T}
     p, t = x[1:(end - 1), :, :], x[[end], :, :]
     f = prob.f
     out = phi(x, θ)
-    if size(out)[1] == 1
-        out = dropdims(out, dims = 1)
-    end
-
-    fs = f.(vec(out), vec(p), vec(t))
+    # if size(out)[1] == 1
+    #     out = dropdims(out, dims = 1)
+    # end
+    fs = f.(out, p, t)
     f_vec = vec(fs)
     # f_vec = reduce(
     #     vcat, [[f(out[i], p[i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
@@ -159,7 +158,7 @@ end
 #FourierNeuralOperator and Chain
 function initial_condition_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
-        C <: Union{FourierNeuralOperator, Chain}, T}
+        C <: Union{FourierNeuralOperator, Lux.Chain}, T}
     p, t = x[1:end-1,:,:], x[[end],:,:]
     t0 = fill(prob.tspan[1], size(p))
     x0 = reduce(vcat, (p, t0)) #TODO one time in get_trainset
@@ -172,7 +171,7 @@ function initial_condition_loss(
 end
 
 #TODO for input FourierNeuralOperator and Chain
-function get_trainset(strategy::GridTraining, chain::Union{FourierNeuralOperator, Chain},
+function get_trainset(strategy::GridTraining, chain::Union{FourierNeuralOperator, Lux.Chain}, bounds,
         number_of_parameters, tspan)
     dt = strategy.dx
     p = collect([range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]...)
@@ -333,13 +332,9 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
-    p, t = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
-    if chain isa DeepONet
-        x = (p, t)
-        u = phi(x, res.u)
-    else
-        error("WIP")
-    end
+    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
+    u = phi(x, res.u)
+
     sol = SciMLBase.build_solution(prob, alg, x, u;
         k = res, dense = true,
         interp = PINOODEInterpolation(phi, res.u),

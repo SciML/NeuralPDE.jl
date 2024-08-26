@@ -63,16 +63,44 @@ using NeuralOperators
     #TODO
     #ffnn
     #FourierNeuralOperator
-    fno = FourierNeuralOperator(gelu; chs = (2, 64, 64, 128, 1), modes = (16,))
-    v = rand(2, 40,50)
-    θ, st = Lux.setup(Random.default_rng(), fno)
-    c = fno(v, θ, st)[1]
+
     ffnn = Lux.Chain(
         Dense(2, 32, Lux.tanh_fast), Dense(32, 32, Lux.tanh_fast), Dense(32, 1))
     θ, st = Lux.setup(Random.default_rng(), ffnn)
     c = ffnn(v, θ, st)[1]
 
     alg = PINOODE(ffnn, opt, bounds, number_of_parameters; strategy = strategy)
+    sol = solve(prob, alg, verbose = true, maxiters = 200)
+
+    function get_trainset(
+            strategy::GridTraining, chain::Union{FourierNeuralOperator, Lux.Chain}, bounds,
+            number_of_parameters, tspan)
+        dt = strategy.dx
+        p = collect([range(start = b[1], length = number_of_parameters, stop = b[2])
+                     for b in bounds]...)
+        t = collect(tspan[1]:dt:tspan[2])
+        combinations = collect(Iterators.product(p, t))
+        N = size(p, 1)
+        M = size(t, 1)
+        x = zeros(2, N, M)
+
+        for i in 1:N
+            for j in 1:M
+                x[:, i, j] = [combinations[(i - 1) * M + j]...]
+            end
+        end
+        x
+    end
+    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
+    predict_sol = sol.interp(x)
+    @test ground_solution≈predict_sol rtol=0.01
+
+    fno = FourierNeuralOperator(gelu; chs = (2, 64, 64, 128, 1), modes = (16,))
+    v = rand(2, 40, 50)
+    θ, st = Lux.setup(Random.default_rng(), fno)
+    c = fno(v, θ, st)[1]
+
+    alg = PINOODE(fno, opt, bounds, number_of_parameters; strategy = strategy)
     sol = solve(prob, alg, verbose = true, maxiters = 2000)
 
     predict_sol = sol.interp((p, t))
