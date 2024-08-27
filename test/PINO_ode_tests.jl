@@ -59,57 +59,6 @@ using NeuralOperators
     # predict_sol = dropdims(sol.interp((p, t)), dims = 1)
 
     @test ground_solution≈predict_sol rtol=0.01
-
-    #TODO
-    #ffnn
-    #FourierNeuralOperator
-
-    ffnn = Lux.Chain(
-        Dense(2, 32, Lux.tanh_fast), Dense(32, 32, Lux.tanh_fast), Dense(32, 1))
-    θ, st = Lux.setup(Random.default_rng(), ffnn)
-    c = ffnn(v, θ, st)[1]
-
-    alg = PINOODE(ffnn, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = true, maxiters = 200)
-
-    function get_trainset(
-            strategy::GridTraining, chain::Union{FourierNeuralOperator, Lux.Chain}, bounds,
-            number_of_parameters, tspan)
-        dt = strategy.dx
-        p = collect([range(start = b[1], length = number_of_parameters, stop = b[2])
-                     for b in bounds]...)
-        t = collect(tspan[1]:dt:tspan[2])
-        combinations = collect(Iterators.product(p, t))
-        N = size(p, 1)
-        M = size(t, 1)
-        x = zeros(2, N, M)
-
-        for i in 1:N
-            for j in 1:M
-                x[:, i, j] = [combinations[(i - 1) * M + j]...]
-            end
-        end
-        x
-    end
-    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
-    predict_sol = sol.interp(x)
-    @test ground_solution≈predict_sol rtol=0.01
-
-    fno = FourierNeuralOperator(gelu; chs = (2, 64, 64, 128, 1), modes = (16,))
-    v = rand(2, 40, 50)
-    θ, st = Lux.setup(Random.default_rng(), fno)
-    c = fno(v, θ, st)[1]
-
-    alg = PINOODE(fno, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = true, maxiters = 2000)
-
-    predict_sol = sol.interp((p, t))
-
-    @test ground_solution≈predict_sol rtol=0.01
-
-    alg = PINOODE(fno, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = true, maxiters = 2000)
-
 end
 
 @testset "Example du = cos(p * t) + u" begin
@@ -117,7 +66,7 @@ end
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0f0
     prob = ODEProblem(eq_, u0, tspan)
-    deeponet = LuxNeuralOperators.DeepONet(
+    deeponet = NeuralOperators.DeepONet(
         Chain(
             Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
         Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
@@ -149,7 +98,7 @@ end
     u0 = 0.0f0
     prob = ODEProblem(equation, u0, tspan)
 
-    deeponet = LuxNeuralOperators.DeepONet(
+    deeponet = NeuralOperators.DeepONet(
         Chain(
             Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
         Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
@@ -214,7 +163,7 @@ end
     prob = ODEProblem(equation, u0, tspan)
 
     input_branch_size = 3
-    deeponet = LuxNeuralOperators.DeepONet(
+    deeponet = NeuralOperators.DeepONet(
         Chain(
             Dense(input_branch_size => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
         Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
@@ -258,7 +207,136 @@ end
     @test ground_solution_≈predict rtol=0.01
 end
 
-#vector output
+#TODO FourierNeuralOperator and Chain tests
+@testset "Example du = cos(p * t)" begin
+    equation = (u, p, t) -> cos(p * t)
+    tspan = (0.0f0, 1.0f0)
+    u0 = 1.0f0
+    prob = ODEProblem(equation, u0, tspan)
+##
+    ffnn = Lux.Chain(
+        Dense(2, 10, Lux.σ),
+        Dense(10, 10, Lux.σ),
+        Dense(10, 1))
+    θ, st = Lux.setup(Random.default_rng(), ffnn)
+    v = rand(Float32, 2, 40)
+    c = ffnn(v, θ, st)[1]
+    ff = (θ) -> ffnn(v, θ, st)[1] .- 1.0f0
+    using Zygote
+    Zygote.gradient((θ) -> sum(abs2, ff(θ)), θ)
+    init_params = ComponentArrays.ComponentArray(θ)
+    Zygote.gradient((θ) -> sum(abs2, ff(θ)), init_params)
+
+    function total_loss(θ, _)
+        sum(abs2, ff(θ))
+    end
+    init_params = ComponentArrays.ComponentArray(θ)
+    total_loss(init_params, 0)
+
+    x0 = rand(Float32, 2, 50, 40)
+
+    θ, st = Lux.setup(Random.default_rng(), chain)
+    init_params = ComponentArrays.ComponentArray(θ)
+    initial_condition_loss(phi, prob, x, θ)
+    initial_condition_loss(phi, prob, x, init_params)
+
+    using Zygote
+    Zygote.gradient((θ) -> sum(abs2, initial_condition_loss(phi, prob, x, θ)), θ)
+    Zygote.gradient((θ) -> sum(abs2, initial_condition_loss(phi, prob, x, init_params)), θ)
+
+    opt_algo = Optimization.AutoZygote()
+    optf = OptimizationFunction(total_loss, opt_algo)
+    callback = function (p, l)
+        @show l
+        false
+    end
+    maxiters = 3000
+
+    optprob = OptimizationProblem(optf, init_params)
+    res = solve(optprob, opt; callback, maxiters)
+##
+
+    bounds = [(pi, 2pi)]
+    number_of_parameters = 50
+    # strategy = StochasticTraining(40)
+    strategy = GridTraining(0.025f0)
+    opt = OptimizationOptimisers.Adam(0.01)
+    alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
+    sol = solve(prob, alg, verbose = true, maxiters = 2000)
+
+    ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
+    dt = 0.025f0
+
+    function get_trainset(
+            strategy::GridTraining, chain::Union{FourierNeuralOperator, Lux.Chain}, bounds,
+            number_of_parameters, tspan)
+        dt = strategy.dx
+        p = collect([range(start = b[1], length = number_of_parameters, stop = b[2])
+                     for b in bounds]...)
+        t = collect(tspan[1]:dt:tspan[2])
+        combinations = (collect(Iterators.product(p, t)))
+        N = size(p, 1)
+        M = size(t, 1)
+        x = zeros(2, N, M)
+        for i in 1:N
+            for j in 1:M
+                x[:, i, j] = [combinations[i, j]...]
+            end
+        end
+        x
+    end
+    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
+
+    ground_solution = ground_analytic.(u0, p, vec(t))
+    # predict_sol = dropdims(sol.interp((p, t)), dims=1)
+    predict_sol = sol.interp((p, t))
+
+    @test ground_solution≈predict_sol rtol=0.01
+
+    p, t = get_trainset(bounds, tspan, 100, 0.01)
+    ground_solution = ground_analytic.(u0, p, vec(t))
+    predict_sol = sol.interp((p, t))
+    # predict_sol = dropdims(sol.interp((p, t)), dims = 1)
+
+    @test ground_solution≈predict_sol rtol=0.01
+
+    #FourierNeuralOperator
+
+    fno = FourierNeuralOperator(gelu; chs = (2, 64, 64, 128, 1), modes = (16,))
+    θ, st = Lux.setup(Random.default_rng(), fno)
+    v = rand(rng, Float32, 2, 40, 50)
+    c = fno(v, θ, st)[1] .- 1.0f0
+    ff = (θ) -> abs.(fno(v, θ, st)[1] .- 1.0f0)
+    init_params = ComponentArrays.ComponentArray(θ)
+    function total_loss(θ)
+        sum(abs2, ff(θ))
+    end
+    total_loss(θ)
+    total_loss(init_params)
+
+    opt_algo = Optimization.AutoZygote()
+    optf = OptimizationFunction(total_loss, opt_algo)
+    callback = function (p, l)
+        @show l
+        false
+    end
+    maxiters = 1000
+
+    optprob = OptimizationProblem(optf, init_params)
+    res = solve(optprob, opt; callback, maxiters)
+
+    alg = PINOODE(fno, opt, bounds, number_of_parameters; strategy = strategy)
+    sol = solve(prob, alg, verbose = true, maxiters = 2000)
+
+    predict_sol = sol.interp((p, t))
+
+    @test ground_solution≈predict_sol rtol=0.01
+
+    alg = PINOODE(fno, opt, bounds, number_of_parameters; strategy = strategy)
+    sol = solve(prob, alg, verbose = true, maxiters = 2000)
+end
+
+#TODO vector output
 @testset "Example du = cos(p * t)" begin
     equation = (u, p, t) -> [cos(p[1] * t), sin(p[2]*t)]
     tspan = (0.0f0, 1.0f0)

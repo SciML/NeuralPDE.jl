@@ -68,7 +68,7 @@ end
 function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
     init_params = isnothing(init_params) ? θ : init_params
-    # init_params = chain.name == "FourierNeuralOperator" ? θ : ComponentArrays.ComponentArray(init_params)
+    # init_params = chain isa FourierNeuralOperator ? θ : ComponentArrays.ComponentArray(init_params)
     init_params = ComponentArrays.ComponentArray(init_params)
     PINOPhi(chain, st), init_params
 end
@@ -76,53 +76,18 @@ end
 function (f::PINOPhi{C, T})(
         x, θ) where {C <: Lux.AbstractExplicitLayer, T}
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
-    #ChainRulesCore.@ignore_derivatives f.st = st #TODO open issue f.st = st fail?
+    # ChainRulesCore.@ignore_derivatives f.st = st #TODO open issue f.st = st fail?
     y
 end
 
-function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
-    p, t = x
-    branch_left, branch_right = p, p
-    trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
-    x_left = (branch_left, trunk_left)
-    x_right = (branch_right, trunk_right)
-    (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
-end
-
-#FourierNeuralOperator and Chain
-function dfdx(phi::PINOPhi{C, T}, x::Array, θ) where {C, T}
+#TODO FourierNeuralOperator and Chain
+function dfdx(phi::PINOPhi{C, T}, x::Array,
+        θ) where {C <: Union{FourierNeuralOperator, Lux.Chain}, T}
     ε = [zeros(eltype(x), size(x)[1] - 1)..., sqrt(eps(eltype(x)))]
     (phi(x .+ ε, θ) - phi(x, θ)) ./ sqrt(eps(eltype(x)))
 end
 
-function physics_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
-        C <: DeepONet, T}
-    p, t = x
-    f = prob.f
-    out = phi(x, θ)
-    # if size(p,1) == 1
-        #TODO
-        if size(out)[1] == 1
-            out = dropdims(out, dims = 1)
-        end
-        # out = dropdims(out, dims = 1)
-        fs = f.(out, p, vec(t))
-        f_vec = vec(fs)
-    # else
-    #     # f_vec = reduce(
-    #     #     vcat, [[f(out[i], p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
-    #     f_vec = reduce(
-    #         vcat, [[f(out[i], p[i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
-    # end
-
-    du = vec(dfdx(phi, x, θ))
-    norm = prod(size(du))
-    sum(abs2, du .- f_vec) / norm
-
-end
-
-#FourierNeuralOperator and Chain
+#TODO FourierNeuralOperator and Chain
 function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x::Array, θ) where {
         C <: Union{FourierNeuralOperator, Lux.Chain}, T}
@@ -136,6 +101,78 @@ function physics_loss(
     f_vec = vec(fs)
     # f_vec = reduce(
     #     vcat, [[f(out[i], p[i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+    du = vec(dfdx(phi, x, θ))
+    norm = prod(size(du))
+    sum(abs2, du .- f_vec) / norm
+end
+
+#TODO FourierNeuralOperator and Chain
+function initial_condition_loss(
+        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
+        C <: Union{FourierNeuralOperator, Lux.Chain}, T}
+    p, t = x[1:end-1,:,:], x[[end],:,:]
+    t0 = fill(prob.tspan[1], size(p))
+    x0 = reduce(vcat, (p, t0))
+
+    out = phi(x0, θ)
+    u = vec(out)
+    u0 = vec(fill(prob.u0, size(out)))
+    norm = prod(size(u0))
+    sum(abs2, u .- u0) / norm
+end
+
+#TODO FourierNeuralOperator and Chain
+function get_trainset(strategy::GridTraining, chain::Union{FourierNeuralOperator, Lux.Chain}, bounds,
+        number_of_parameters, tspan)
+    # p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
+    # t = collect(range(start = tspan[1], length = 1/dt, stop = tspan[2]))
+    # t = reshape(t_, 1, size(t_, 1), 1)
+    # reduce(vcat, (p, t))
+    # hcat((map(points -> collect(points), Iterators.product(p,t)))...)
+    dt = strategy.dx
+    p = collect([range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]...)
+    t = collect(tspan[1]:dt:tspan[2])
+    combinations = (collect(Iterators.product(p, t)))
+    N = size(p, 1)
+    M = size(t, 1)
+    x = zeros(2, N, M)
+    for i in 1:N
+        for j in 1:M
+            x[:, i, j] = [combinations[i,j]...]
+        end
+    end
+    x
+end
+
+function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
+    p, t = x
+    branch_left, branch_right = p, p
+    trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
+    x_left = (branch_left, trunk_left)
+    x_right = (branch_right, trunk_right)
+    (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
+end
+
+function physics_loss(
+        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
+        C <: DeepONet, T}
+    p, t = x
+    f = prob.f
+    out = phi(x, θ)
+    # if size(p,1) == 1
+    #TODO
+    if size(out)[1] == 1
+        out = dropdims(out, dims = 1)
+    end
+    # out = dropdims(out, dims = 1)
+    fs = f.(out, p, vec(t))
+    f_vec = vec(fs)
+    # else
+    #     # f_vec = reduce(
+    #     #     vcat, [[f(out[i], p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+    #     f_vec = reduce(
+    #         vcat, [[f(out[i], p[i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+    # end
 
     du = vec(dfdx(phi, x, θ))
     norm = prod(size(du))
@@ -153,45 +190,6 @@ function initial_condition_loss(
     u0 = vec(fill(prob.u0, size(out)))
     norm = prod(size(u0))
     sum(abs2, u .- u0) / norm
-end
-
-#FourierNeuralOperator and Chain
-function initial_condition_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
-        C <: Union{FourierNeuralOperator, Lux.Chain}, T}
-    p, t = x[1:end-1,:,:], x[[end],:,:]
-    t0 = fill(prob.tspan[1], size(p))
-    x0 = reduce(vcat, (p, t0)) #TODO one time in get_trainset
-
-    out = phi(x0, θ)
-    u = vec(out)
-    u0 = vec(fill(prob.u0, size(out)))
-    norm = prod(size(u0))
-    sum(abs2, u .- u0) / norm
-end
-
-#TODO for input FourierNeuralOperator and Chain
-function get_trainset(strategy::GridTraining, chain::Union{FourierNeuralOperator, Lux.Chain}, bounds,
-        number_of_parameters, tspan)
-    dt = strategy.dx
-    p = collect([range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]...)
-    # p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
-    # t = collect(range(start = tspan[1], length = 1/dt, stop = tspan[2]))
-    t = collect(tspan[1]:dt:tspan[2])
-    # t = reshape(t_, 1, size(t_, 1), 1)
-    # reduce(vcat, (p, t))
-    # hcat((map(points -> collect(points), Iterators.product(p,t)))...)
-    combinations = collect(Iterators.product(p, t))
-    N = size(p, 1)
-    M = size(t, 1)
-    x = zeros(2, N, M)
-
-    for i in 1:N
-        for j in 1:M
-            x[:, i, j] = [combinations[(i - 1) * M + j]...]
-        end
-    end
-    x
 end
 
 function get_trainset(strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan)
@@ -283,7 +281,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
             x = (u, v)
             phi(x, init_params)
         elseif chain isa FourierNeuralOperator
-            in_dim = chain.layers.lifting.in_dims
+            in_dim = chain.lifting.in_dims
             v = rand(in_dim, number_of_parameters, 40)
             phi(v, θ)
         else #TODO identifier for simple Chain
