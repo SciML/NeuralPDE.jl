@@ -34,7 +34,7 @@ import ChainRulesCore, Lux, ComponentArrays
 using Lux: FromFluxAdaptor
 using ChainRulesCore: @non_differentiable
 using NeuralOperators
-
+import NeuralOperators: DeepONet
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 abstract type AbstractPINN end
