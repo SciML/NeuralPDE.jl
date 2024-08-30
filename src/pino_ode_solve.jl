@@ -57,7 +57,8 @@ function PINOODE(chain,
         init_params, strategy, additional_loss, kwargs)
 end
 
-mutable struct PINOPhi{C, S}
+#TODO imutable?
+struct PINOPhi{C, S}
     chain::C
     st::S
     function PINOPhi(chain::Lux.AbstractExplicitLayer, st)
@@ -75,7 +76,6 @@ end
 function (f::PINOPhi{C, T})(
         x, θ) where {C <: Lux.AbstractExplicitLayer, T}
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
-    f.st = st #?
     y
 end
 
@@ -89,25 +89,16 @@ function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
 end
 
 function physics_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
-        C <: DeepONet, T}
+        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {C <: DeepONet, T}
     p, t = x
     f = prob.f
     out = phi(x, θ)
-    # if size(p,1) == 1
-    # #TODO
-    # if size(out)[1] == 1
-    #     out = dropdims(out, dims = 1)
-    # end
-    # out = dropdims(out, dims = 1)
-    fs = f.(out, p, vec(t))
-    f_vec = vec(fs)
-    # else
-    #     # f_vec = reduce(
-    #     #     vcat, [[f(out[i], p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
-    #     f_vec = reduce(
-    #         vcat, [[f(out[i], p[i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
-    # end
+    if size(p, 1) == 1
+        f_vec = vec(f.(out, p, vec(t)))
+    else
+        f_vec = reduce(
+            vcat, [[f(out[i], p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+    end
     du = vec(dfdx(phi, x, θ))
     norm = prod(size(du))
     sum(abs2, du .- f_vec) / norm
@@ -126,29 +117,22 @@ function initial_condition_loss(
     sum(abs2, u .- u0) / norm
 end
 
-# if size(bounds,1) == 1
-#     bound = bounds[1]
-#     p_ = range(start = bound[1], length = number_of_parameters, stop = bound[2])
-#     p = collect(reshape(p_, 1, size(p_,1)))
-# else
-# end
-function get_trainset(strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan)
+function get_trainset(
+        strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan)
     dt = strategy.dx
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
-    p = vcat([collect(reshape(p_i, 1, size(p_i,1))) for p_i in p_]...)
+    p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
-    t = reshape(t_, 1, size(t_,1), 1)
+    t = reshape(t_, 1, size(t_, 1), 1)
     (p, t)
 end
 
-# if size(bounds,1) == 1 #TODO reduce if ?
-#     bound = bounds[1]
-#     p = (bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
-# else
-# end
-function get_trainset(strategy::StochasticTraining, chain::DeepONet, bounds, number_of_parameters, tspan)
-    p = reduce(vcat,[(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1] for bound in bounds])
-    t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points,1) .+ tspan[1]
+function get_trainset(
+        strategy::StochasticTraining, chain::DeepONet, bounds, number_of_parameters, tspan)
+    p = reduce(vcat,
+        [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
+         for bound in bounds])
+    t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points, 1) .+ tspan[1]
     (p, t)
 end
 
@@ -205,8 +189,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     try
         if chain isa DeepONet
             in_dim = chain.branch.layers.layer_1.in_dims
-            u = rand(in_dim, number_of_parameters)
-            v = rand(1, 10, 1)
+            u = rand(Float32, in_dim, number_of_parameters)
+            v = rand(Float32, 1, 10, 1)
             x = (u, v)
             phi(x, init_params)
         end
@@ -219,8 +203,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     end
 
     if strategy === nothing
-        dt = (tspan[2] - tspan[1]) / 50
-        strategy = GridTraining(dt)
+        strategy = StochasticTraining(100)
     elseif !(strategy isa GridTraining || strategy isa StochasticTraining)
         throw(ArgumentError("Only GridTraining and StochasticTraining strategy is supported"))
     end

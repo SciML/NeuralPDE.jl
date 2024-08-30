@@ -7,36 +7,38 @@ This tutorial provides an example of how to use the Physics Informed Neural Oper
 In this section, we will define a parametric ODE and then learn it with a PINO using [`PINOODE`](@ref). The PINO will be trained to learn the mapping from the parameters of the ODE to its solution.
 
 ```@example pino
-using Test # hide
+using Test
 using OptimizationOptimisers
 using Lux
 using Statistics, Random
-using LuxNeuralOperators
+using NeuralOperators
 using NeuralPDE
 
+# Define the parametric ODE equation
 equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]
-tspan = (0.0f0, 1.0f0)
-u0 = 1.0f0
+tspan = (0.0, 1.0)
+u0 = 1.0
 prob = ODEProblem(equation, u0, tspan)
 
+# Set the number of parameters for the ODE
 number_of_parameter = 3
-deeponet = LuxNeuralOperators.DeepONet(
+# Define the DeepONet architecture for the PINO
+deeponet = NeuralOperators.DeepONet(
     Chain(
         Dense(number_of_parameter => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
     Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
         Dense(10 => 10, Lux.tanh_fast)))
 
-u = rand(3, 50)
-v = rand(1, 40, 1)
-θ, st = Lux.setup(Random.default_rng(), deeponet)
-c = deeponet((u, v), θ, st)[1]
-
-bounds = [(1.0f0, pi), (1.0f0, 2.0f0), (2.0f0, 3.0f0)]
+# Define the bounds for the parameters
+bounds = [(1.0, pi), (1.0, 2.0), (2.0, 3.0)]
 number_of_parameter_samples = 50
-strategy = StochasticTraining(40)
+# Define the training strategy
+strategy = StochasticTraining(60)
+# Define the optimizer
 opt = OptimizationOptimisers.Adam(0.03)
 alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
-sol = solve(prob, alg, verbose = false, maxiters = 3000)
+# Solve the ODE problem using the PINOODE algorithm
+sol = solve(prob, alg, verbose = true, maxiters = 3000)
 ```
 
 Now let's compare the prediction from the learned operator with the ground truth solution which is obtained by analytic solution of the parametric ODE.
@@ -58,17 +60,22 @@ function ground_solution_f(p,t)
     reduce(hcat,[[ground_solution(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
 end
 
-(p,t) = get_trainset(bounds, tspan, 50, 0.025f0)
+# generate the solution with new parameters for test the model
+(p,t) = get_trainset(bounds, tspan, 50, 0.025)
+# compute the ground truth solution
 ground_solution_ = ground_solution_f(p,t)
+# predict the solution with the PINO model
 predict = sol.interp((p,t))
 
-# Calculate the mean error and the standard deviation of the errors
+# calculate the errors between the ground truth solution and the predicted solution
 errors = ground_solution_ - predict
+# calculate the mean error and the standard deviation of the errors
 mean_error = mean(errors)
+# calculate the standard deviation of the errors
 std_error = std(errors)
 
-# generate the solution with new parameters for test the model
-p,t = get_trainset(bounds, tspan, 100,  0.01f0) 
+
+p,t = get_trainset(bounds, tspan, 100,  0.01) 
 ground_solution_ = ground_solution_f(p,t)
 predict = sol.interp((p,t))
 
@@ -84,7 +91,7 @@ plot!(ground_solution_, linetype = :contourf)
 
 ```@example pino
 # 'i' is the index of the parameter 'p' in the dataset 
-i = 5
+i = 20
 # 'predict' is the predicted solution from the PINO model
 plot(predict[:, i], label = "Predicted")
 # 'ground' is the ground truth solution
