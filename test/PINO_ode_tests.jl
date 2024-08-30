@@ -3,7 +3,7 @@ using OptimizationOptimisers
 using Lux
 using Statistics, Random
 using NeuralOperators
-# using NeuralPDE
+using NeuralPDE
 
 function get_trainset(bounds, tspan, number_of_parameters, dt)
     p_ = range(start = bounds[1][1], length = number_of_parameters, stop = bounds[1][2])
