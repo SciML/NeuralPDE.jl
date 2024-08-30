@@ -96,6 +96,7 @@ end
     opt = OptimizationOptimisers.Adam(0.03)
     #generate data
     ground_analytic = (u0, p, t) -> u0 + p * t^3 / 3
+
     function get_data()
         sol = ground_analytic.(u0, p, vec(t))
         tuple_ = (p, t)
@@ -105,6 +106,7 @@ end
     v = rand(1, 40, 1)
     θ, st = Lux.setup(Random.default_rng(), deeponet)
     c = deeponet((u, v), θ, st)[1]
+    p, t = get_trainset(bounds, tspan, number_of_parameters, dt)
     data, tuple_ = get_data()
     function additional_loss_(phi, θ)
         u = phi(tuple_, θ)

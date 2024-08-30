@@ -57,7 +57,6 @@ function PINOODE(chain,
         init_params, strategy, additional_loss, kwargs)
 end
 
-#TODO imutable?
 struct PINOPhi{C, S}
     chain::C
     st::S
