@@ -31,7 +31,7 @@ using DomainSets: Domain, ClosedInterval, AbstractInterval, leftendpoint, righte
 using SciMLBase: @add_kwonly, parameterless_type
 using UnPack: @unpack
 import ChainRulesCore, Lux, ComponentArrays
-using Lux: FromFluxAdaptor
+using Lux: FromFluxAdaptor, recursive_eltype
 using ChainRulesCore: @non_differentiable
 using NeuralOperators
 import NeuralOperators: DeepONet
