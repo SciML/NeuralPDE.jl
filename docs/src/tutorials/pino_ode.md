@@ -65,7 +65,7 @@ end
 # compute the ground truth solution
 ground_solution_ = ground_solution_f(p,t)
 # predict the solution with the PINO model
-predict = sol.interp((p,t))
+predict = sol.interp((p, t))
 
 # calculate the errors between the ground truth solution and the predicted solution
 errors = ground_solution_ - predict
