@@ -75,10 +75,9 @@ mean_error = mean(errors)
 # calculate the standard deviation of the errors
 std_error = std(errors)
 
-
-p,t = get_trainset(bounds, tspan, 100,  0.01) 
-ground_solution_ = ground_solution_f(p,t)
-predict = sol.interp((p,t))
+p, t = get_trainset(bounds, tspan, 100, 0.01)
+ground_solution_ = ground_solution_f(p, t)
+predict = sol.interp((p, t))
 
 errors = ground_solution_ - predict
 mean_error = mean(errors)
