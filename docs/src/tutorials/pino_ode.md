@@ -61,7 +61,7 @@ function ground_solution_f(p,t)
 end
 
 # generate the solution with new parameters for test the model
-(p,t) = get_trainset(bounds, tspan, 50, 0.025)
+(p, t) = get_trainset(bounds, tspan, 50, 0.025)
 # compute the ground truth solution
 ground_solution_ = ground_solution_f(p, t)
 # predict the solution with the PINO model
