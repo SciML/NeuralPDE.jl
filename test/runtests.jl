@@ -49,7 +49,8 @@ end
     end
 
     if GROUP == "All" || GROUP == "PINOODE"
-        @time @safetestset "pino ode" begin include("PINO_ode_tests.jl")
+        @time @safetestset "pino ode" begin
+            include("PINO_ode_tests.jl")
         end
     end
 
