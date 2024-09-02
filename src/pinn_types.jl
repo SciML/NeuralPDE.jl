@@ -558,9 +558,6 @@ function numeric_derivative(phi, u, x, εs, order, θ)
     end
 end
 
-using Lux
-using Random
-using ComponentArrays
 
 
 """
