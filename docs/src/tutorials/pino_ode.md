@@ -55,9 +55,10 @@ function get_trainset(bounds, tspan, number_of_parameters, dt)
 end
 
 # Compute the ground truth solution for each parameter
-ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) + p[3]*t
-function ground_solution_f(p,t)
-    reduce(hcat,[[ground_solution(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) + p[3] * t
+function ground_solution_f(p, t)
+    reduce(hcat,
+        [[ground_solution(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
 end
 
 # generate the solution with new parameters for test the model
