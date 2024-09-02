@@ -48,7 +48,7 @@ using Plots
 
 function get_trainset(bounds, tspan, number_of_parameters, dt)
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
-    p = vcat([collect(reshape(p_i, 1, size(p_i,1))) for p_i in p_]...)
+    p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
     t = collect(reshape(t_, 1, size(t_, 1), 1))
     (p, t)
