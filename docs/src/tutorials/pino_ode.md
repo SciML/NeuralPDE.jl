@@ -51,7 +51,7 @@ function get_trainset(bounds, tspan , number_of_parameters, dt)
     p = vcat([collect(reshape(p_i, 1, size(p_i,1))) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
     t = collect(reshape(t_, 1, size(t_, 1), 1))
-    (p,t)
+    (p, t)
 end
 
 # Compute the ground truth solution for each parameter
