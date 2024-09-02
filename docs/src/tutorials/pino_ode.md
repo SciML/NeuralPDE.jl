@@ -97,4 +97,3 @@ plot(predict[:, i], label = "Predicted")
 # 'ground' is the ground truth solution
 plot!(ground_solution_[:, i], label = "Ground truth")
 ```
-
