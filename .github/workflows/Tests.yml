@@ -36,6 +36,7 @@ jobs:
           - "NNODE"
           - "NeuralAdapter"
           - "IntegroDiff"
+          - "PIPN"
     uses: "SciML/.github/.github/workflows/tests.yml@v1"
     with:
       group: "${{ matrix.group }}"
