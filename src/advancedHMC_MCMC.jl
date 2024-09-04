@@ -573,6 +573,9 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
     @info("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, initial_θ))
     @info("Current Prior Log-likelihood : ", priorweights(ℓπ, initial_θ))
     @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
+    if estim_collocate
+        @info("Current gradient loss against dataset Log-likelihood : ", L2loss2(ℓπ, initial_θ))
+    end
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
@@ -623,8 +626,10 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         @info("Sampling Complete.")
         @info("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, samples[end]))
         @info("Current Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
-        @info("Current MSE against dataset Log-likelihood : ",
-            L2LossData(ℓπ, samples[end]))
+        @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, samples[end]))
+        if estim_collocate
+            @info("Current gradient loss against dataset Log-likelihood : ", L2loss2(ℓπ, initial_θ))
+        end
 
         # return a chain(basic chain),samples and stats
         matrix_samples = reshape(hcat(samples...), (length(samples[1]), length(samples), 1))
