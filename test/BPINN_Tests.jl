@@ -387,7 +387,7 @@ end
             Normal(1, 2),
             Normal(2, 2),
             Normal(2, 2),
-            Normal(0, 2)], progress = true)
+            Normal(0, 2)])
 
     alg2 = BNNODE(chain;
         dataset = dataset,
@@ -399,7 +399,7 @@ end
             Normal(1, 2),
             Normal(2, 2),
             Normal(2, 2),
-            Normal(0, 2)], estim_collocate = true, progress = true)
+            Normal(0, 2)], estim_collocate = true)
 
     @time sol_pestim1 = solve(prob, alg1; saveat = dt)
     @time sol_pestim2 = solve(prob, alg2; saveat = dt)
