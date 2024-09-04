@@ -59,17 +59,7 @@ Random.seed!(100)
         saveats = [1 / 50.0],
         param = [LogNormal(6.0, 0.5)])
 
-    # discretization = BayesianPINN([chainl], QuadratureTraining(), param_estim = true,
-    #     dataset = [dataset, nothing])
-
-    # ahmc_bayesian_pinn_pde(pde_system,
-    #     discretization;
-    #     draw_samples = 1500,
-    #     bcstd = [0.05],
-    #     phystd = [0.01], l2std = [0.01],
-    #     priorsNNw = (0.0, 1.0),
-    #     saveats = [1 / 50.0],
-    #     param = [LogNormal(6.0, 0.5)])
+        # alternative to QuadratureTraining [WIP]
 
     discretization = BayesianPINN([chainl], GridTraining([0.02]), param_estim = true,
         dataset = [dataset, nothing])
