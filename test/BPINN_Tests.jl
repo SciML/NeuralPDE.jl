@@ -143,7 +143,7 @@ end
     time = sol.t
     x̂ = u .+ (u .* 0.2) .* randn(size(u))
     dataset = [x̂, time]
-    physsol1 = [linear_analytic(prob.u0, p, t[i]) for i in eachindex(time)]
+    physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
     # seperate set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
     time1 = vec(collect(Float64, range(tspan[1], tspan[2], length = 501)))
