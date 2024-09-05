@@ -20,7 +20,7 @@ in which will be train the prediction of parametric ODE.
 
 ## Keyword Arguments
 
-* `init_params`: The initial parameter of the neural network. By default, this is `nothing`,
+* `init_params`: The initial parameters of the neural network. By default, this is `nothing`,
                              which thus uses the random initialization provided by the neural network library.
 * `strategy`: The strategy for training the neural network.
 * `additional_loss`: additional function to the main one. For example, add training on data.
