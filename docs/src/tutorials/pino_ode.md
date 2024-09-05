@@ -7,7 +7,7 @@ This tutorial provides an example of how to use the Physics Informed Neural Oper
 In this section, we will define a parametric ODE and then learn it with a PINO using [`PINOODE`](@ref). The PINO will be trained to learn the mapping from the parameters of the ODE to its solution.
 
 ```@example pino
-using Test
+using Test # hide
 using OptimizationOptimisers
 using Lux
 using Statistics, Random
