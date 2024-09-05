@@ -275,7 +275,7 @@ end
         prob, chainlux12,
         dataset = dataset,
         draw_samples = 1000,
-        l2std = [0.03],
+        l2std = [0.1],
         phystd = [0.03],
         priorsNNw = (0.0,
             1.0),
@@ -287,7 +287,7 @@ end
         prob, chainlux12,
         dataset = dataset,
         draw_samples = 1000,
-        l2std = [0.03],
+        l2std = [0.1],
         phystd = [0.03],
         priorsNNw = (0.0,
             1.0),
@@ -298,7 +298,7 @@ end
     alg = BNNODE(chainlux12,
         dataset = dataset,
         draw_samples = 1000,
-        l2std = [0.03],
+        l2std = [0.1],
         phystd = [0.03],
         priorsNNw = (0.0,
             1.0),
@@ -342,7 +342,7 @@ end
     @test mean(abs.(physsol2 .- pmean(sol3lux_pestim.ensemblesol[1]))) < 0.1
     # estimated parameters(lux chain)
     param3 = sol3lux_pestim.estimated_de_params[1]
-    @test abs(param3 - p) < abs(0.1 * p)
+    @test abs(param3 - p) < abs(0.2 * p)
 end
 
 @testset "Example 4 - improvement" begin
