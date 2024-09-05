@@ -38,7 +38,7 @@ strategy = StochasticTraining(60)
 opt = OptimizationOptimisers.Adam(0.03)
 alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
 # Solve the ODE problem using the PINOODE algorithm
-sol = solve(prob, alg, verbose = true, maxiters = 3000)
+sol = solve(prob, alg, verbose = false, maxiters = 3000)
 ```
 
 Now let's compare the prediction from the learned operator with the ground truth solution which is obtained by analytic solution of the parametric ODE.
