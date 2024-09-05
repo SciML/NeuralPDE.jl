@@ -260,7 +260,7 @@ end
     sol = solve(prob, Tsit5(); saveat = 0.1)
     u = sol.u
     time = sol.t
-    x̂ = u .+ (0.15 .* randn(size(u)))
+    x̂ = u .+ (0.3 .* randn(size(u)))
     dataset = [x̂, time]
     physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
@@ -280,7 +280,7 @@ end
         priorsNNw = (0.0,
             10.0),
         param = [
-            Normal(-7, 4)
+            Normal(-7, 2)
         ])
 
     fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(
@@ -292,7 +292,7 @@ end
         priorsNNw = (0.0,
             10.0),
         param = [
-            Normal(-7, 4)
+            Normal(-7, 2)
         ], estim_collocate = true)
 
     alg = BNNODE(chainlux12,
@@ -303,7 +303,7 @@ end
         priorsNNw = (0.0,
             10.0),
         param = [
-            Normal(-7, 4)
+            Normal(-7, 2)
         ], estim_collocate = true)
 
     sol3lux_pestim = solve(prob, alg)
@@ -369,8 +369,8 @@ end
 
     times = solution.t
     u = hcat(solution.u...)
-    x = u[1, :] + (0.5 .* randn(length(u[1, :])))
-    y = u[2, :] + (0.5 .* randn(length(u[2, :])))
+    x = u[1, :] + (0.8 .* randn(length(u[1, :])))
+    y = u[2, :] + (0.8 .* randn(length(u[2, :])))
     dataset = [x, y, times]
 
     chain = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh),
