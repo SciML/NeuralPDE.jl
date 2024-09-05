@@ -14,8 +14,7 @@ neural operator, which is used as a solver for a parametrized `ODEProblem`.
 * `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`.
                  `Flux.Chain` will be converted to `Lux` using `adapt(FromFluxAdaptor(false, false), chain)`
 * `opt`: The optimizer to train the neural network.
-* `bounds`: A dictionary containing the bounds for the parameters of the neural network
-in which will be train the prediction of parametric ODE.
+* `bounds`: A dictionary containing the bounds for the parameters of the parametric ODE.
 * `number_of_parameters`: The number of points of train set in parameters boundaries.
 
 ## Keyword Arguments
