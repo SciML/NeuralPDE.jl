@@ -22,7 +22,7 @@ neural operator, which is used as a solver for a parametrized `ODEProblem`.
 * `init_params`: The initial parameters of the neural network. By default, this is `nothing`,
                              which thus uses the random initialization provided by the neural network library.
 * `strategy`: The strategy for training the neural network.
-* `additional_loss`: additional function to the main one. For example, add training on data.
+* `additional_loss`: additional loss function added to the default one. For example, add training on data.
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## References
