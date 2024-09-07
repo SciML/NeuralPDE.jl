@@ -14,7 +14,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`.
+* `chain`: A neural network architecture, defined as a `Lux.AbstractLuxLayer` or `Flux.Chain`.
           `Flux.Chain` will be converted to `Lux` using `adapt(FromFluxAdaptor(false, false), chain)`.
 * `opt`: The optimizer to train the neural network.
 * `init_params`: The initial parameter of the neural network. By default, this is `nothing`
@@ -88,14 +88,14 @@ end
 function NNODE(chain, opt, init_params = nothing;
         strategy = nothing,
         autodiff = false, batch = true, param_estim = false, additional_loss = nothing, kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer) &&
+    !(chain isa Lux.AbstractLuxLayer) &&
         (chain = adapt(FromFluxAdaptor(false, false), chain))
     NNODE(chain, opt, init_params, autodiff, batch,
         strategy, param_estim, additional_loss, kwargs)
 end
 
 """
-    ODEPhi(chain::Lux.AbstractExplicitLayer, t, u0, st)
+    ODEPhi(chain::Lux.AbstractLuxLayer, t, u0, st)
 
 Internal struct, used for representing the ODE solution as a neural network in a form that respects boundary conditions, i.e.
 `phi(t) = u0 + t*NN(t)`.
@@ -105,19 +105,19 @@ mutable struct ODEPhi{C, T, U, S}
     t0::T
     u0::U
     st::S
-    function ODEPhi(chain::Lux.AbstractExplicitLayer, t::Number, u0, st)
+    function ODEPhi(chain::Lux.AbstractLuxLayer, t::Number, u0, st)
         new{typeof(chain), typeof(t), typeof(u0), typeof(st)}(chain, t, u0, st)
     end
 end
 
-function generate_phi_θ(chain::Lux.AbstractExplicitLayer, t, u0, init_params)
+function generate_phi_θ(chain::Lux.AbstractLuxLayer, t, u0, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
     isnothing(init_params) && (init_params = θ)
     ODEPhi(chain, t, u0, st), init_params
 end
 
 function (f::ODEPhi{C, T, U})(t::Number,
-        θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
+        θ) where {C <: Lux.AbstractLuxLayer, T, U <: Number}
     y, st = f.chain(
         adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -125,7 +125,7 @@ function (f::ODEPhi{C, T, U})(t::Number,
 end
 
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
-        θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
+        θ) where {C <: Lux.AbstractLuxLayer, T, U <: Number}
     # Batch via data as row vectors
     y, st = f.chain(
         adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
@@ -133,7 +133,7 @@ function (f::ODEPhi{C, T, U})(t::AbstractVector,
     f.u0 .+ (t' .- f.t0) .* y
 end
 
-function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractExplicitLayer, T, U}
+function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractLuxLayer, T, U}
     y, st = f.chain(
         adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), [t]), θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -141,7 +141,7 @@ function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractExplicitLay
 end
 
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
-        θ) where {C <: Lux.AbstractExplicitLayer, T, U}
+        θ) where {C <: Lux.AbstractLuxLayer, T, U}
     # Batch via data as row vectors
     y, st = f.chain(
         adapt(parameterless_type(ComponentArrays.getdata(θ.depvar)), t'), θ.depvar, f.st)
@@ -367,8 +367,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     #train points generation
     init_params = alg.init_params
 
-    !(chain isa Lux.AbstractExplicitLayer) &&
-        error("Only Lux.AbstractExplicitLayer neural networks are supported")
+    !(chain isa Lux.AbstractLuxLayer) &&
+        error("Only Lux.AbstractLuxLayer neural networks are supported")
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
     (recursive_eltype(init_params) <: Complex &&
      alg.strategy isa QuadratureTraining) &&

@@ -20,7 +20,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer`.
+* `chain`: A neural network architecture, defined as a `Lux.AbstractLuxLayer`.
 * `Kernel`: Choice of MCMC Sampling Algorithm. Defaults to `AdvancedHMC.HMC`
 
 ## Keyword Arguments
@@ -113,7 +113,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
             targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,),
         autodiff = false, progress = false, verbose = false)
-    !(chain isa Lux.AbstractExplicitLayer) &&
+    !(chain isa Lux.AbstractLuxLayer) &&
         (chain = adapt(FromFluxAdaptor(false, false), chain))
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
@@ -217,7 +217,7 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
     ninv = length(param)
     t = collect(eltype(saveat), prob.tspan[1]:saveat:prob.tspan[2])
 
-    if chain isa Lux.AbstractExplicitLayer
+    if chain isa Lux.AbstractLuxLayer
         θinit, st = Lux.setup(Random.default_rng(), chain)
         θ = [vector_to_parameters(samples[i][1:(end - ninv)], θinit)
              for i in (draw_samples - numensemble):draw_samples]
@@ -225,7 +225,7 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
         # only need for size
         θinit = collect(ComponentArrays.ComponentArray(θinit))
     else
-        throw(error("Only Lux.AbstractExplicitLayer neural networks are supported"))
+        throw(error("Only Lux.AbstractLuxLayer neural networks are supported"))
     end
 
     # constructing ensemble predictions

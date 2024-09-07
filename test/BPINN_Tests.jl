@@ -53,7 +53,7 @@ Random.seed!(100)
     @test mean(abs.(x̂ .- meanscurve)) < 0.05
     @test mean(abs.(physsol1 .- meanscurve)) < 0.005
 
-    #--------------------- solve() call 
+    #--------------------- solve() call
     @test mean(abs.(x̂1 .- sol1lux.ensemblesol[1])) < 0.05
     @test mean(abs.(physsol0_1 .- sol1lux.ensemblesol[1])) < 0.05
 end
@@ -116,13 +116,13 @@ end
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-    # --------------------- ahmc_bayesian_pinn_ode() call  
+    # --------------------- ahmc_bayesian_pinn_ode() call
     @test mean(abs.(physsol1 .- meanscurve)) < 0.15
 
     # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
     @test abs(p - mean([fhsamples[i][23] for i in 2000:2500])) < abs(0.35 * p)
 
-    #-------------------------- solve() call  
+    #-------------------------- solve() call
     @test mean(abs.(physsol1_1 .- sol2lux.ensemblesol[1])) < 8e-2
 
     # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
@@ -212,7 +212,7 @@ end
     param1 = mean(i[62] for i in fhsampleslux22[1000:1500])
     @test abs(param1 - p) < abs(0.3 * p)
 
-    #-------------------------- solve() call 
+    #-------------------------- solve() call
     # (lux chain)
     @test mean(abs.(physsol2 .- sol3lux_pestim.ensemblesol[1])) < 0.15
     # estimated parameters(lux chain)
@@ -245,5 +245,5 @@ end
     fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(
         prob, chainflux, draw_samples = 2500)
     alg = BNNODE(chainflux, draw_samples = 2500)
-    @test alg.chain isa Lux.AbstractExplicitLayer
+    @test alg.chain isa Lux.AbstractLuxLayer
 end

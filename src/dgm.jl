@@ -1,4 +1,4 @@
-struct dgm_lstm_layer{F1, F2} <: Lux.AbstractExplicitLayer
+struct dgm_lstm_layer{F1, F2} <: Lux.AbstractLuxLayer
     activation1::Function
     activation2::Function
     in_dims::Int
@@ -49,7 +49,7 @@ function (layer::dgm_lstm_layer)(
     return S_new, st
 end
 
-struct dgm_lstm_block{L <: NamedTuple} <: Lux.AbstractExplicitContainerLayer{(:layers,)}
+struct dgm_lstm_block{L <: NamedTuple} <: Lux.AbstractLuxContainerLayer{(:layers,)}
     layers::L
 end
 
@@ -80,7 +80,7 @@ function (L::dgm_lstm_block)(
     return apply_dgm_lstm_block(L.layers, S, x, ps, st)
 end
 
-struct dgm{S, L, E} <: Lux.AbstractExplicitContainerLayer{(:d_start, :lstm, :d_end)}
+struct dgm{S, L, E} <: Lux.AbstractLuxContainerLayer{(:d_start, :lstm, :d_end)}
     d_start::S
     lstm::L
     d_end::E
@@ -138,7 +138,7 @@ function dgm(in_dims::Int, out_dims::Int, modes::Int, layers::Int,
 end
 
 """
-    DeepGalerkin(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function, activation2::Function, out_activation::Function, 
+    DeepGalerkin(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function, activation2::Function, out_activation::Function,
         strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)
 
 returns a `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a `PDESystem` into an `OptimizationProblem` using the Deep Galerkin method.

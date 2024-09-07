@@ -41,7 +41,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
             extraparams,
             init_params)
     end
-    function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, strategy,
+    function LogTargetDensity(dim, prob, chain::Lux.AbstractLuxLayer, st, strategy,
             dataset,
             priors, phystd, l2std, autodiff, physdt, extraparams,
             init_params::NamedTuple)
@@ -280,12 +280,12 @@ function priorweights(Tar::LogTargetDensity, θ)
     end
 end
 
-function generate_Tar(chain::Lux.AbstractExplicitLayer, init_params)
+function generate_Tar(chain::Lux.AbstractLuxLayer, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
     return init_params, chain, st
 end
 
-function generate_Tar(chain::Lux.AbstractExplicitLayer, init_params::Nothing)
+function generate_Tar(chain::Lux.AbstractLuxLayer, init_params::Nothing)
     θ, st = Lux.setup(Random.default_rng(), chain)
     return θ, chain, st
 end
@@ -294,7 +294,7 @@ end
 NN OUTPUT AT t,θ ~ phi(t,θ).
 """
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
-        θ) where {C <: Lux.AbstractExplicitLayer, S}
+        θ) where {C <: Lux.AbstractLuxLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -302,7 +302,7 @@ function (f::LogTargetDensity{C, S})(t::AbstractVector,
 end
 
 function (f::LogTargetDensity{C, S})(t::Number,
-        θ) where {C <: Lux.AbstractExplicitLayer, S}
+        θ) where {C <: Lux.AbstractLuxLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -443,7 +443,7 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         Integratorkwargs = (Integrator = Leapfrog,),
         MCMCkwargs = (n_leapfrog = 30,),
         progress = false, verbose = false)
-    !(chain isa Lux.AbstractExplicitLayer) &&
+    !(chain isa Lux.AbstractLuxLayer) &&
         (chain = adapt(FromFluxAdaptor(false, false), chain))
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
@@ -463,11 +463,11 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         throw(error("Dataset Required for Parameter Estimation."))
     end
 
-    if chain isa Lux.AbstractExplicitLayer
+    if chain isa Lux.AbstractLuxLayer
         # Lux-Named Tuple
         initial_nnθ, recon, st = generate_Tar(chain, init_params)
     else
-        error("Only Lux.AbstractExplicitLayer neural networks are supported")
+        error("Only Lux.AbstractLuxLayer neural networks are supported")
     end
 
     if nchains > Threads.nthreads()

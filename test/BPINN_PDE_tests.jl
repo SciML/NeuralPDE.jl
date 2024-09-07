@@ -191,7 +191,7 @@ end
     chain = Flux.Chain(Flux.Dense(1, 12, Flux.σ), Flux.Dense(12, 1))
 
     discretization = BayesianPINN([chain], GridTraining([0.01]))
-    @test discretization.chain[1] isa Lux.AbstractExplicitLayer
+    @test discretization.chain[1] isa Lux.AbstractLuxLayer
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
 
