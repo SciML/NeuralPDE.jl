@@ -2,7 +2,7 @@ using Test, Flux
 using Random, NeuralPDE
 using OrdinaryDiffEq, Statistics
 using LineSearches
-import refactored_solve
+using refactored_solve
 import Lux, OptimizationOptimisers, OptimizationOptimJL
 
 
@@ -95,7 +95,7 @@ end
     alg = NNDAE(chain, OptimizationOptimisers.Adam(0.1),
         strategy = WeightedIntervalTraining(weights, points); autodiff = false)
 
-    sol = solve(prob,
+    sol = refactored_solve(prob,
         alg, verbose = false, dt = 1 / 100.0,
         maxiters = 3000, abstol = 1e-10)
 

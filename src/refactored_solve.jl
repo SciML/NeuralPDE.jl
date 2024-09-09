@@ -232,7 +232,7 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::Number, θ,
     if param_estim isa Bool
         p_ = param_estim ? θ.p : p
         sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(phi(t, θ), p_, t))
-    else if differential_vars isa AbstractVector
+    elseif differential_vars isa AbstractVector
         dphi = dfdx(phi, t, θ, autodiff,differential_vars)
         sum(abs2, f(dphi, phi(t, θ), p, t))
     end
@@ -248,7 +248,7 @@ function inner_loss(phi::ODEPhi{C, T, U}, f, autodiff::Bool, t::AbstractVector, 
         fs = reduce(hcat, [f(out[:, i], p_, arrt[i]) for i in 1:size(out, 2)])
         dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
         sum(abs2, dxdtguess .- fs) / length(t)
-    else if differential_vars isa AbstractVector
+    elseif differential_vars isa AbstractVector
         out = Array(phi(t, θ))
         dphi = Array(dfdx(phi, t, θ, autodiff, differential_vars))
         arrt = Array(t)
@@ -271,7 +271,7 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
         function integrand(ts, θ)
             [abs2(inner_loss(phi, f, autodiff, t, θ, p; param_estim)) for t in ts]
         end
-    else if differential_vars isa AbstractVector
+    elseif differential_vars isa AbstractVector
         integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p; differential_vars))
     
         function integrand(ts, θ)
@@ -302,7 +302,7 @@ function generate_loss(
             end
         end
         return loss
-    else if differential_vars isa AbstractVector
+    elseif differential_vars isa AbstractVector
         function loss(θ, _)
             sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
         end
@@ -325,7 +325,7 @@ function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tsp
             end
         end
         return loss
-    else if differential_vars isa AbstractVector
+    elseif differential_vars isa AbstractVector
         function loss(θ, _)
             ts = adapt(parameterless_type(θ),
                 [(tspan[2] - tspan[1]) * rand() + tspan[1] for i in 1:(strategy.points)])
@@ -367,7 +367,7 @@ function generate_loss(
             end
         end
         return loss
-    else if differential_vars isa AbstractVector
+    elseif differential_vars isa AbstractVector
         function loss(θ, _)
             sum(inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
         end
