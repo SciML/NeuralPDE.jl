@@ -37,7 +37,7 @@ using ComponentArrays
         dict_indvars, dict_depvars)
 
     pde_train_sets, bcs_train_sets = train_sets
-    pde_train_sets = NeuralPDE.adapt(eltypeθ, pde_train_sets)[1]
+    pde_train_sets = adapt(Array{eltypeθ}, pde_train_sets)[1]
 
     train_data = pde_train_sets
     pde_loss_function = sym_prob.loss_functions.datafree_pde_loss_functions[1]
