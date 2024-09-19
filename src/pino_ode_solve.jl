@@ -11,7 +11,7 @@ neural operator, which is used as a solver for a parametrized `ODEProblem`.
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as a `Lux.AbstractExplicitLayer` or `Flux.Chain`.
+* `chain`: A neural network architecture, defined as a `Lux.AbstractLuxLayer` or `Flux.Chain`.
                  `Flux.Chain` will be converted to `Lux` using `adapt(FromFluxAdaptor(false, false), chain)`
 * `opt`: The optimizer to train the neural network.
 * `bounds`: A dictionary containing the bounds for the parameters of the parametric ODE.
@@ -51,7 +51,7 @@ function PINOODE(chain,
         strategy = nothing,
         additional_loss = nothing,
         kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer) && (chain = Lux.transform(chain))
+    !(chain isa Lux.AbstractLuxLayer) && (chain = Lux.transform(chain))
     PINOODE(chain, opt, bounds, number_of_parameters,
         init_params, strategy, additional_loss, kwargs)
 end
@@ -59,12 +59,12 @@ end
 struct PINOPhi{C, S}
     chain::C
     st::S
-    function PINOPhi(chain::Lux.AbstractExplicitLayer, st)
+    function PINOPhi(chain::Lux.AbstractLuxLayer, st)
         new{typeof(chain), typeof(st)}(chain, st)
     end
 end
 
-function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer, init_params)
+function generate_pino_phi_θ(chain::Lux.AbstractLuxLayer, init_params)
     θ, st = Lux.setup(Random.default_rng(), chain)
     init_params = isnothing(init_params) ? θ : init_params
     init_params = ComponentArrays.ComponentArray(init_params)
@@ -72,7 +72,7 @@ function generate_pino_phi_θ(chain::Lux.AbstractExplicitLayer, init_params)
 end
 
 function (f::PINOPhi{C, T})(
-        x, θ) where {C <: Lux.AbstractExplicitLayer, T}
+        x, θ) where {C <: Lux.AbstractLuxLayer, T}
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
     y
 end
@@ -171,8 +171,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     @unpack tspan, u0, f = prob
     @unpack chain, opt, bounds, number_of_parameters, init_params, strategy, additional_loss = alg
 
-    if !(chain isa Lux.AbstractExplicitLayer)
-        error("Only Lux.AbstractExplicitLayer neural networks are supported")
+    if !(chain isa Lux.AbstractLuxLayer)
+        error("Only Lux.AbstractLuxLayer neural networks are supported")
 
         if !(chain isa DeepONet) #|| chain isa FourierNeuralOperator)
             error("Only DeepONet and FourierNeuralOperator neural networks are supported with PINO ODE")
