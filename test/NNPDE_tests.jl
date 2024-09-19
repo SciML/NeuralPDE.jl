@@ -1,4 +1,4 @@
-using Test #NeuralPDE
+using NeuralPDE, Test
 using Optimization, OptimizationOptimJL, OptimizationOptimisers
 using Integrals, Cubature
 using QuasiMonteCarlo
@@ -38,16 +38,12 @@ function test_ode(strategy_)
     discretization = PhysicsInformedNN(chain, strategy_)
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
     prob = discretize(pde_system, discretization)
-    prob = symbolic_discretize(pde_system, discretization)
 
-    res = Optimization.solve(
-        prob, OptimizationOptimisers.Adam(0.1); callback = callback, maxiters = 1000)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.1); maxiters = 1000)
     prob = remake(prob, u0 = res.u)
-    res = Optimization.solve(
-        prob, OptimizationOptimisers.Adam(0.01); callback = callback, maxiters = 500)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 500)
     prob = remake(prob, u0 = res.u)
-    res = Optimization.solve(
-        prob, OptimizationOptimisers.Adam(0.001); callback = callback, maxiters = 500)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.001); maxiters = 500)
     phi = discretization.phi
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
