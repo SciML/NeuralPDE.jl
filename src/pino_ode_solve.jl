@@ -71,8 +71,11 @@ function generate_pino_phi_θ(chain::Lux.AbstractLuxLayer, init_params)
     PINOPhi(chain, st), init_params
 end
 
-function (f::PINOPhi{C, T})(
-        x, θ) where {C <: Lux.AbstractLuxLayer, T}
+function (f::PINOPhi{C, T})(x, θ) where {C <: Lux.AbstractLuxLayer, T}
+    # θ_ = ComponentArrays.getdata(θ)
+    # eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    # t_ = convert.(eltypeθ, adapt(typeθ, t'))
+    # y, st = f.chain(t_, θ, f.st)
     y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
     y
 end
@@ -84,6 +87,13 @@ function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
     x_left = (branch_left, trunk_left)
     x_right = (branch_right, trunk_right)
     (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
+end
+
+#TODO chain
+function dfdx(phi::PINOPhi{C, T}, x::Array,
+        θ) where {C <: Lux.Chain, T}
+    ε = [zeros(eltype(x), size(x)[1] - 1)..., sqrt(eps(eltype(x)))]
+    (phi(x .+ ε, θ) - phi(x, θ)) ./ sqrt(eps(eltype(x)))
 end
 
 function physics_loss(
@@ -102,12 +112,42 @@ function physics_loss(
     sum(abs2, du .- f_vec) / norm
 end
 
+function physics_loss(
+        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
+        C <: Lux.Chain, T}
+    p, t = x
+    x_ = reduce(vcat, (p, t))
+    f = prob.f
+    if size(p, 1) == 1
+        f_vec = f.(out, p, t)
+    else
+        #TODO
+        #  f_vec = reduce( vcat, [[f(out[i], p[i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+    end
+    du = dfdx(phi, x_, θ)
+    norm = prod(size(out))
+    sum(abs2, du .- f_vec) / norm
+end
+
 function initial_condition_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
         C <: DeepONet, T}
     p, t = x
     t0 = reshape([prob.tspan[1]], (1, 1, 1))
     x0 = (p, t0)
+    out = phi(x0, θ)
+    u = vec(out)
+    u0 = vec(fill(prob.u0, size(out)))
+    norm = prod(size(u0))
+    sum(abs2, u .- u0) / norm
+end
+
+function initial_condition_loss(
+        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
+        C <: Lux.Chain, T}
+    p, t = x
+    t0 = fill(prob.tspan[1], size(p))
+    x0 = reduce(vcat, (p, t0))
     out = phi(x0, θ)
     u = vec(out)
     u0 = vec(fill(prob.u0, size(out)))
@@ -131,6 +171,25 @@ function get_trainset(
         [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
          for bound in bounds])
     t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points, 1) .+ tspan[1]
+    (p, t)
+end
+
+function get_trainset(strategy::GridTraining, chain::Lux.Chain, bounds,
+        number_of_parameters, tspan)
+    dt = strategy.dx
+    p = collect([range(start = b[1], length = number_of_parameters, stop = b[2])
+                 for b in bounds]...)
+    t = collect(tspan[1]:dt:tspan[2])
+    combinations = (collect(Iterators.product(p, t)))
+    N = size(p, 1)
+    M = size(t, 1)
+    x = zeros(2, N, M)
+    for i in 1:N
+        for j in 1:M
+            x[:, i, j] = [combinations[i, j]...]
+        end
+    end
+    p, t = x[1:(end - 1), :, :], x[[end], :, :]
     (p, t)
 end
 
@@ -174,8 +233,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     if !(chain isa Lux.AbstractLuxLayer)
         error("Only Lux.AbstractLuxLayer neural networks are supported")
 
-        if !(chain isa DeepONet) #|| chain isa FourierNeuralOperator)
-            error("Only DeepONet and FourierNeuralOperator neural networks are supported with PINO ODE")
+        if !(chain isa DeepONet) || !(chain isa Chain)
+            error("Only DeepONet and Chain neural networks are supported with PINO ODE")
         end
     end
 
@@ -190,6 +249,11 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
             u = rand(Float32, in_dim, number_of_parameters)
             v = rand(Float32, 1, 10, 1)
             x = (u, v)
+            phi(x, init_params)
+        end
+        if chain isa Chain
+            in_dim = chain.layers.layer_1.in_dims
+            x = rand(Float32, in_dim, number_of_parameters)
             phi(x, init_params)
         end
     catch err
@@ -233,7 +297,11 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
     x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
-    u = phi(x, res.u)
+    if chain isa DeepONet
+        u = phi(x, res.u)
+    elseif chain isa Chain
+        u = phi(reduce(vcat, x), res.u)
+    end
 
     sol = SciMLBase.build_solution(prob, alg, x, u;
         k = res, dense = true,
