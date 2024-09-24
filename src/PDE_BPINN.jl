@@ -69,11 +69,6 @@ function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
     # + L2loss2(Tar, θ)
 end
 
-# function L2loss2(Tar::PDELogTargetDensity, θ)
-#     return Tar.full_loglikelihood(setparameters(Tar, θ),
-#         Tar.allstd)
-# end
-
 function setparameters(Tar::PDELogTargetDensity, θ)
     names = Tar.names
     ps_new = θ[1:(end - Tar.extraparams)]
