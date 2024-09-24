@@ -37,7 +37,8 @@ end
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0f0
     prob = ODEProblem(equation, u0, tspan)
-    chain = Chain(Dense(2 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 1))
+    chain = Chain(
+        Dense(2 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 1))
     x = rand(1, 50)
     θ, st = Lux.setup(Random.default_rng(), chain)
     b = chain(x, θ, st)[1]
