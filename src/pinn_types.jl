@@ -505,16 +505,18 @@ mutable struct Phi{C, S}
 end
 
 function (f::Phi{<:Lux.AbstractExplicitLayer})(x::Number, θ)
-    eltypeθ = parameterless_type(ComponentArrays.getdata(θ))
-    x_ = convert.(eltypeθ, adapt(eltypeθ, [x]))
+    θ_ = ComponentArrays.getdata(θ)
+    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    x_ = convert.(eltypeθ, adapt(typeθ, [x]))
     y, st = f.f(x_, θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     y
 end
 
 function (f::Phi{<:Lux.AbstractExplicitLayer})(x::AbstractArray, θ)
-    eltypeθ = parameterless_type(ComponentArrays.getdata(θ))
-    x_ = convert.(eltypeθ, adapt(eltypeθ, x))
+    θ_ = ComponentArrays.getdata(θ)
+    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    x_ = convert.(eltypeθ, adapt(typeθ, x))
     y, st = f.f(x_, θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     y
@@ -526,13 +528,14 @@ end
 
 # the method to calculate the derivative
 function numeric_derivative(phi, u, x, εs, order, θ)
-    _type = parameterless_type(ComponentArrays.getdata(θ))
+    θ_ = ComponentArrays.getdata(θ)
+    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
 
     ε = εs[order]
     _epsilon = inv(first(ε[ε .!= zero(ε)]))
 
-    ε = convert.(_type, adapt(_type, ε))
-    x = convert.(_type, adapt(_type, x))
+    ε = convert.(eltypeθ, adapt(typeθ, ε))
+    x = convert.(eltypeθ, adapt(typeθ, x))
 
     # any(x->x!=εs[1],εs)
     # εs is the epsilon for each order, if they are all the same then we use a fancy formula

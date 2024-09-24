@@ -118,8 +118,9 @@ end
 
 function (f::ODEPhi{C, T, U})(t::Number,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
-    eltypeθ = parameterless_type(ComponentArrays.getdata(θ.depvar))
-    t_ = convert.(eltypeθ, adapt(eltypeθ, [t]))
+    θ_  = ComponentArrays.getdata(θ.depvar)
+    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    t_ = convert.(eltypeθ, adapt(typeθ, [t]))
     y, st = f.chain(t_, θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 + (t - f.t0) * first(y)
@@ -128,16 +129,18 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U <: Number}
     # Batch via data as row vectors
-    eltypeθ = parameterless_type(ComponentArrays.getdata(θ.depvar))
-    t_ = convert.(eltypeθ, adapt(eltypeθ, t'))
+    θ_ = ComponentArrays.getdata(θ.depvar)
+    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    t_ = convert.(eltypeθ, adapt(typeθ, t'))
     y, st = f.chain(t_, θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
 end
 
 function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractExplicitLayer, T, U}
-    eltypeθ = parameterless_type(ComponentArrays.getdata(θ.depvar))
-    t_ = convert.(eltypeθ, adapt(eltypeθ, [t]))
+    θ_ = ComponentArrays.getdata(θ.depvar)
+    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    t_ = convert.(eltypeθ, adapt(typeθ, [t]))
     y, st = f.chain(t_, θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t .- f.t0) .* y
@@ -146,8 +149,9 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
         θ) where {C <: Lux.AbstractExplicitLayer, T, U}
     # Batch via data as row vectors
-    eltypeθ = parameterless_type(ComponentArrays.getdata(θ.depvar))
-    t_ = convert.(eltypeθ, adapt(eltypeθ, t'))
+    θ_ = ComponentArrays.getdata(θ.depvar)
+    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    t_ = convert.(eltypeθ, adapt(typeθ, t'))
     y, st = f.chain(t_, θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.u0 .+ (t' .- f.t0) .* y
