@@ -531,7 +531,7 @@ function numeric_derivative(phi, u, x, εs, order, θ)
     ε = εs[order]
     _epsilon = inv(first(ε[ε .!= zero(ε)]))
 
-    ε = convert.(_type, adapt(_type, ε_))
+    ε = convert.(_type, adapt(_type, ε))
     x = convert.(_type, adapt(_type, x))
 
     # any(x->x!=εs[1],εs)

@@ -110,12 +110,12 @@ end
         Lux.Chain(Lux.Dense(2, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
             Lux.Dense(12, 1))]
 
-    grid_strategy = NeuralPDE.GridTraining(0.1)
-    quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
+    grid_strategy = GridTraining(0.1)
+    quadrature_strategy = QuadratureTraining(quadrature_alg = CubatureJLh(),
         reltol = 1e-3, abstol = 1e-3,
         maxiters = 50, batch = 100)
 
-    discretization = NeuralPDE.PhysicsInformedNN(chain, grid_strategy)
+    discretization = PhysicsInformedNN(chain, quadrature_strategy)
 
     @named pde_system = PDESystem(eqs, bcs, domains, [x, y, z],
         [u(x, y, z), v(y, x), h(z), p(x, z)])
