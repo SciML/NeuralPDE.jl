@@ -109,7 +109,7 @@ function L2loss2(Tar::LogTargetDensity, θ)
     # parameter estimation chosen or not
     if Tar.extraparams > 0
         autodiff = Tar.autodiff
-        # Timepoints to enforce Physics 
+        # Timepoints to enforce Physics
         t = Tar.dataset[end]
         u1 = Tar.dataset[2]
         û = Tar.dataset[1]
@@ -122,22 +122,23 @@ function L2loss2(Tar::LogTargetDensity, θ)
 
         if length(Tar.prob.u0) == 1
             physsol = [f(û[i],
-                ode_params,
-                t[i])
+                           ode_params,
+                           t[i])
                        for i in 1:length(û[:, 1])]
         else
             physsol = [f([û[i], u1[i]],
-                ode_params,
-                t[i])
+                           ode_params,
+                           t[i])
                        for i in 1:length(û)]
         end
-        #form of NN output matrix output dim x n 
+        #form of NN output matrix output dim x n
         deri_physsol = reduce(hcat, physsol)
-   
+
         physlogprob = 0
         for i in 1:length(Tar.prob.u0)
-            # can add phystd[i] for u[i] 
-            physlogprob += logpdf(MvNormal(deri_physsol[i, :],
+            # can add phystd[i] for u[i]
+            physlogprob += logpdf(
+                MvNormal(deri_physsol[i, :],
                     LinearAlgebra.Diagonal(map(abs2,
                         (Tar.l2std[i] * 4.0) .*
                         ones(length(nnsol[i, :]))))),
@@ -353,7 +354,9 @@ NN OUTPUT AT t,θ ~ phi(t,θ).
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
         θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), t'), θ, f.st)
+    eltypeθ = parameterless_type(ComponentArrays.getdata(θ))
+    t_ = convert.(eltypeθ, adapt(eltypeθ, t'))
+    y, st = f.chain(t_, θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* y
 end
@@ -361,7 +364,9 @@ end
 function (f::LogTargetDensity{C, S})(t::Number,
         θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), [t]), θ, f.st)
+    eltypeθ = parameterless_type(ComponentArrays.getdata(θ))
+    t_ = convert.(eltypeθ, adapt(eltypeθ, [t]))
+    y, st = f.chain(t_, θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
     f.prob.u0 .+ (t .- f.prob.tspan[1]) .* y
 end
@@ -574,7 +579,8 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
     @info("Current Prior Log-likelihood : ", priorweights(ℓπ, initial_θ))
     @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
     if estim_collocate
-        @info("Current gradient loss against dataset Log-likelihood : ", L2loss2(ℓπ, initial_θ))
+        @info("Current gradient loss against dataset Log-likelihood : ",
+            L2loss2(ℓπ, initial_θ))
     end
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
@@ -628,7 +634,8 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         @info("Current Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
         @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, samples[end]))
         if estim_collocate
-            @info("Current gradient loss against dataset Log-likelihood : ", L2loss2(ℓπ, samples[end]))
+            @info("Current gradient loss against dataset Log-likelihood : ",
+                L2loss2(ℓπ, samples[end]))
         end
 
         # return a chain(basic chain),samples and stats
