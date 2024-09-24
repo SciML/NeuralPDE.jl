@@ -115,12 +115,12 @@ end
         reltol = 1e-3, abstol = 1e-3,
         maxiters = 50, batch = 100)
 
-    discretization = PhysicsInformedNN(chain, quadrature_strategy)
+    discretization = PhysicsInformedNN(chain, grid_strategy)
 
     @named pde_system = PDESystem(eqs, bcs, domains, [x, y, z],
         [u(x, y, z), v(y, x), h(z), p(x, z)])
 
-    prob = NeuralPDE.discretize(pde_system, discretization)
+    prob = discretize(pde_system, discretization)
 
     callback = function (p, l)
         println("Current loss is: $l")
