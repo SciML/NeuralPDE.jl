@@ -72,7 +72,7 @@ function generate_pino_phi_θ(chain::Lux.AbstractLuxLayer, init_params)
 end
 
 function (f::PINOPhi{C, T})(x, θ) where {C <: Lux.AbstractLuxLayer, T}
-    # θ_ = ComponentArrays.getdata(θ)
+    # θ_ = ComponentArrays.getdata(θ) #TODO eltype
     # eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
     # t_ = convert.(eltypeθ, adapt(typeθ, t'))
     # y, st = f.chain(t_, θ, f.st)
@@ -89,7 +89,6 @@ function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
     (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
 end
 
-#TODO chain
 function dfdx(phi::PINOPhi{C, T}, x::Array,
         θ) where {C <: Lux.Chain, T}
     ε = [zeros(eltype(x), size(x)[1] - 1)..., sqrt(eps(eltype(x)))]
@@ -118,11 +117,13 @@ function physics_loss(
     p, t = x
     x_ = reduce(vcat, (p, t))
     f = prob.f
+    out = phi(x_, θ)
     if size(p, 1) == 1
         f_vec = f.(out, p, t)
     else
-        #TODO
-        #  f_vec = reduce( vcat, [[f(out[i], p[i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+        f_vec = reduce(hcat,
+            [[f(out[1, i, j], p[:, i, j], t[1, i, j]) for j in axes(t, 3)]
+             for i in axes(p, 2)])
     end
     du = dfdx(phi, x_, θ)
     norm = prod(size(out))
@@ -146,7 +147,7 @@ function initial_condition_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
         C <: Lux.Chain, T}
     p, t = x
-    t0 = fill(prob.tspan[1], size(p))
+    t0 = fill(prob.tspan[1], size(t))
     x0 = reduce(vcat, (p, t0))
     out = phi(x0, θ)
     u = vec(out)
@@ -177,20 +178,21 @@ end
 function get_trainset(strategy::GridTraining, chain::Lux.Chain, bounds,
         number_of_parameters, tspan)
     dt = strategy.dx
-    p = collect([range(start = b[1], length = number_of_parameters, stop = b[2])
-                 for b in bounds]...)
+    p = [range(start = b[1], length = number_of_parameters, stop = b[2])
+         for b in bounds]
     t = collect(tspan[1]:dt:tspan[2])
-    combinations = (collect(Iterators.product(p, t)))
-    N = size(p, 1)
-    M = size(t, 1)
-    x = zeros(2, N, M)
+    combinations = collect(Iterators.product(p..., t))
+    N = number_of_parameters
+    M = length(t)
+    num_dims = ndims(combinations)
+    x = zeros(num_dims, N, M)
     for i in 1:N
         for j in 1:M
-            x[:, i, j] = [combinations[i, j]...]
+            x[:, i, j] = [combinations[(i - 1) * M + j]...]
         end
     end
-    p, t = x[1:(end - 1), :, :], x[[end], :, :]
-    (p, t)
+    p_, t_ = x[1:(end - 1), :, :], x[[end], :, :]
+    (p_, t_)
 end
 
 function generate_loss(
