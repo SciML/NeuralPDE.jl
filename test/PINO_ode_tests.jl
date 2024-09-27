@@ -285,7 +285,6 @@ end
     @test ground_solution_≈predict rtol=0.05
 end
 
-
 #TODO vector output TODO
 @testset "Example du = cos(p * t)" begin
     equation = (u, p, t) -> [cos(p[1] * t), sin(p[2] * t)]
