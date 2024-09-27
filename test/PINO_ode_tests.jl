@@ -232,7 +232,6 @@ end
     @test ground_solution_≈predict rtol=0.05
 end
 
-
 #multiple parameters DeepOnet
 @testset "Example du = cos(p * t)" begin
     equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]
