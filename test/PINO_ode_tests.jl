@@ -183,7 +183,7 @@ end
 
     input_branch_size = 3
     chain = Chain(
-        Dense(input_branch_size+1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 1))
+        Dense(input_branch_size + 1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 1))
 
     x = rand(4, 50)
     θ, st = Lux.setup(Random.default_rng(), chain)
