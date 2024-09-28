@@ -71,12 +71,17 @@ function generate_pino_phi_θ(chain::Lux.AbstractLuxLayer, init_params)
     PINOPhi(chain, st), init_params
 end
 
-function (f::PINOPhi{C, T})(x, θ) where {C <: Lux.AbstractLuxLayer, T}
-    # θ_ = ComponentArrays.getdata(θ) #TODO eltype
-    # eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
-    # t_ = convert.(eltypeθ, adapt(typeθ, t'))
-    # y, st = f.chain(t_, θ, f.st)
-    y, st = f.chain(adapt(parameterless_type(ComponentArrays.getdata(θ)), x), θ, f.st)
+function (f::PINOPhi{C, T})(x::Array, θ) where {C <: Lux.Chain, T}
+    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
+    x = convert.(eltypeθ, adapt(typeθ, x))
+    y, st = f.chain(x, θ, f.st)
+    y
+end
+
+function (f::PINOPhi{C, T})(x::Tuple, θ) where {C <: DeepONet, T}
+    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
+    x = (convert.(eltypeθ, adapt(typeθ, x[1])),convert.(eltypeθ, adapt(typeθ, x[2])))
+    y, st = f.chain(x, θ, f.st)
     y
 end
 
@@ -115,17 +120,17 @@ function physics_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
         C <: Lux.Chain, T}
     p, t = x
-    x_ = reduce(vcat, (p, t))
+    x_ = reduce(vcat, x)
     f = prob.f
     out = phi(x_, θ)
     if size(p, 1) == 1
-        f_vec = f.(out, p, t)
+        f_vec = vec(f.(out, p, t))
     else
-        f_vec = reduce(hcat,
+        f_vec = reduce(vcat,
             [[f(out[1, i, j], p[:, i, j], t[1, i, j]) for j in axes(t, 3)]
              for i in axes(p, 2)])
     end
-    du = dfdx(phi, x_, θ)
+    du = vec(dfdx(phi, x_, θ))
     norm = prod(size(out))
     sum(abs2, du .- f_vec) / norm
 end
@@ -157,56 +162,54 @@ function initial_condition_loss(
 end
 
 function get_trainset(
-        strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan)
+        strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan, eltypeθ)
     dt = strategy.dx
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
     p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
     t = reshape(t_, 1, size(t_, 1), 1)
+    p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
     (p, t)
 end
 
 function get_trainset(
-        strategy::StochasticTraining, chain::DeepONet, bounds, number_of_parameters, tspan)
+        strategy::StochasticTraining, chain::DeepONet, bounds, number_of_parameters, tspan, eltypeθ)
     p = reduce(vcat,
         [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
          for bound in bounds])
     t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points, 1) .+ tspan[1]
+    p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
     (p, t)
 end
 
-function get_trainset(strategy::GridTraining, chain::Lux.Chain, bounds,
-        number_of_parameters, tspan)
+function get_trainset(
+        strategy::GridTraining, chain::Lux.Chain, bounds, number_of_parameters, tspan, eltypeθ)
     dt = strategy.dx
-    p = [range(start = b[1], length = number_of_parameters, stop = b[2])
-         for b in bounds]
-    t = collect(tspan[1]:dt:tspan[2])
-    combinations = collect(Iterators.product(p..., t))
-    N = number_of_parameters
-    M = length(t)
-    num_dims = ndims(combinations)
-    x = zeros(num_dims, N, M)
-    for i in 1:N
-        for j in 1:M
-            x[:, i, j] = [combinations[(i - 1) * M + j]...]
-        end
-    end
-    p_, t_ = x[1:(end - 1), :, :], x[[end], :, :]
-    (p_, t_)
+    tspan_ = tspan[1]:dt:tspan[2]
+    pspan = [range(start = b[1], length = number_of_parameters, stop = b[2])
+             for b in bounds]
+    x_ = hcat(vec(map(
+        points -> collect(points), Iterators.product([pspan..., tspan_]...)))...)
+    # x = reshape(x_, size(bounds, 1) + 1, size.(pspan, 1)..., size(tspan_, 1))
+    x = reshape(x_, size(bounds, 1) + 1, prod(size.(pspan, 1)), size(tspan_, 1))
+    p, t = x[1:(end - 1), :, :], x[[end], :, :]
+    p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
+    (p, t)
 end
 
 function generate_loss(
-        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
-    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
+        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan, eltypeθ)
+    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan, eltypeθ)
     function loss(θ, _)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
+# Zygote.gradient(θ -> initial_condition_loss(phi, prob, x, θ), θ)
 
 function generate_loss(
-        strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
+        strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan, eltypeθ)
     function loss(θ, _)
-        x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
+        x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan, eltypeθ)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
@@ -241,6 +244,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     end
 
     phi, init_params = generate_pino_phi_θ(chain, init_params)
+    eltypeθ = eltype(init_params)
 
     isinplace(prob) &&
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
@@ -248,14 +252,14 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     try
         if chain isa DeepONet
             in_dim = chain.branch.layers.layer_1.in_dims
-            u = rand(Float32, in_dim, number_of_parameters)
-            v = rand(Float32, 1, 10, 1)
+            u = rand(eltypeθ, in_dim, number_of_parameters)
+            v = rand(eltypeθ, 1, 10, 1)
             x = (u, v)
             phi(x, init_params)
         end
         if chain isa Chain
             in_dim = chain.layers.layer_1.in_dims
-            x = rand(Float32, in_dim, number_of_parameters)
+            x = rand(eltypeθ, in_dim, number_of_parameters)
             phi(x, init_params)
         end
     catch err
@@ -272,7 +276,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         throw(ArgumentError("Only GridTraining and StochasticTraining strategy is supported"))
     end
 
-    inner_f = generate_loss(strategy, prob, phi, bounds, number_of_parameters, tspan)
+    inner_f = generate_loss(
+        strategy, prob, phi, bounds, number_of_parameters, tspan, eltypeθ)
 
     function total_loss(θ, _)
         L2_loss = inner_f(θ, nothing)
@@ -298,7 +303,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
-    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan)
+    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan, eltypeθ)
     if chain isa DeepONet
         u = phi(x, res.u)
     elseif chain isa Chain
