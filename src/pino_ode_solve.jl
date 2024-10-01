@@ -80,7 +80,7 @@ end
 
 function (f::PINOPhi{C, T})(x::Tuple, θ) where {C <: DeepONet, T}
     eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
-    x = (convert.(eltypeθ, adapt(typeθ, x[1])),convert.(eltypeθ, adapt(typeθ, x[2])))
+    x = (convert.(eltypeθ, adapt(typeθ, x[1])), convert.(eltypeθ, adapt(typeθ, x[2])))
     y, st = f.chain(x, θ, f.st)
     y
 end
@@ -173,16 +173,6 @@ function get_trainset(
 end
 
 function get_trainset(
-        strategy::StochasticTraining, chain::DeepONet, bounds, number_of_parameters, tspan, eltypeθ)
-    p = reduce(vcat,
-        [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
-         for bound in bounds])
-    t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points, 1) .+ tspan[1]
-    p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
-    (p, t)
-end
-
-function get_trainset(
         strategy::GridTraining, chain::Lux.Chain, bounds, number_of_parameters, tspan, eltypeθ)
     dt = strategy.dx
     tspan_ = tspan[1]:dt:tspan[2]
@@ -197,6 +187,30 @@ function get_trainset(
     (p, t)
 end
 
+# function get_trainset(
+#         strategy::StochasticTraining, chain::DeepONet, bounds, number_of_parameters, tspan, eltypeθ)
+#     p = reduce(vcat,
+#         [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
+#          for bound in bounds])
+#     t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points, 1) .+ tspan[1]
+#     p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
+#     (p, t)
+# end
+
+
+function get_trainset(
+        strategy::StochasticTraining, chain::Union{DeepONet, Lux.Chain},
+        bounds, number_of_parameters, tspan, eltypeθ)
+    number_of_parameters != strategy.points &&
+        throw(error("number_of_parameters should be the same strategy.points for StochasticTraining"))
+    p = reduce(vcat,
+        [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
+         for bound in bounds])
+    t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points, 1) .+ tspan[1]
+    p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
+    (p, t)
+end
+
 function generate_loss(
         strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan, eltypeθ)
     x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan, eltypeθ)
@@ -204,7 +218,6 @@ function generate_loss(
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
-# Zygote.gradient(θ -> initial_condition_loss(phi, prob, x, θ), θ)
 
 function generate_loss(
         strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan, eltypeθ)
