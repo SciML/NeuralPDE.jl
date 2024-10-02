@@ -17,7 +17,6 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
     extraparams::Int
     init_params::I
     estim_collocate::Bool
-    estim_collocate::Bool
 
     function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, strategy,
             dataset,

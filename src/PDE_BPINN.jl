@@ -471,7 +471,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # append Ode params to all paramvector - initial_θ
     if ninv > 0
         # shift ode params(initialise ode params by prior means)
-        # check if means or user speified is better
+        # check if means or user specified is better
         initial_θ = vcat(initial_θ, [Distributions.params(param[i])[1] for i in 1:ninv])
         priors = vcat(priors, param)
         nparameters += ninv

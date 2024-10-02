@@ -145,7 +145,7 @@ end
     dataset = [x̂, time]
     physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
-    # seperate set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
+    # separate set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
     time1 = vec(collect(Float64, range(tspan[1], tspan[2], length = 501)))
     physsol2 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
 
@@ -264,7 +264,7 @@ end
     dataset = [x̂, time]
     physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
-    # seperate set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
+    # separate set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
     time1 = vec(collect(Float64, range(tspan[1], tspan[2], length = 501)))
     physsol2 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
 

@@ -102,8 +102,6 @@ struct BNNODE{C, K, IT <: NamedTuple,
     Integratorkwargs::IT
     numensemble::Int64
     estim_collocate::Bool
-    numensemble::Int64
-    estim_collocate::Bool
     autodiff::Bool
     progress::Bool
     verbose::Bool
@@ -116,8 +114,6 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
             Metric = DiagEuclideanMetric,
             targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,),
-    numensemble = floor(Int, draw_samples / 3),
-    estim_collocate = false,
         numensemble = floor(Int, draw_samples / 3),
         estim_collocate = false,
         autodiff = false, progress = false, verbose = false)
@@ -195,7 +191,7 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
     @unpack chain, l2std, phystd, param, priorsNNw, Kernel, strategy,
     draw_samples, dataset, init_params,
     nchains, physdt, Adaptorkwargs, Integratorkwargs,
-    MCMCkwargs, numensemble, estim_collocate, numensemble, estim_collocate, autodiff, progress,
+    MCMCkwargs, numensemble, estim_collocate, autodiff, progress,
     verbose = alg
 
     # ahmc_bayesian_pinn_ode needs param=[] for easier vcat operation for full vector of parameters
