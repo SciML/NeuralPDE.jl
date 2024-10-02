@@ -105,12 +105,15 @@ function physics_loss(
     p, t = x
     f = prob.f
     out = phi(x, θ)
-    if size(p, 1) == 1
-        f_vec = vec(f.(out, p, vec(t)))
-    else
-        f_vec = reduce(
-            vcat, [[f(out[i], p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
-    end
+    f_vec = reduce(vcat,
+        [reduce(vcat, [f.(out[j, i], p[:, i], t[j]) for j in axes(t, 2)])
+         for i in axes(p, 2)])
+    # if size(p, 1) == 1
+    #     f_vec = vec(f.(out, p, vec(t)))
+    # else
+    # end
+    # f_vec = reduce(
+    #     vcat, [[f(out[i], p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
     du = vec(dfdx(phi, x, θ))
     norm = prod(size(du))
     sum(abs2, du .- f_vec) / norm
@@ -123,14 +126,14 @@ function physics_loss(
     x_ = reduce(vcat, x)
     f = prob.f
     out = phi(x_, θ)
-    if size(p, 1) == 1
-        f_vec = vec(f.(out, p, t))
+    if size(p, 1) == 1 && size(out, 1) == 1
+           f_vec = vec(f.(out, p, t))
     else
         f_vec = reduce(vcat,
-            [[f(out[1, i, j], p[:, i, j], t[1, i, j]) for j in axes(t, 3)]
+            [reduce(vcat, [f(out[:, i, j], p[1, i, j], t[1, i, j]) for j in axes(t, 3)])
              for i in axes(p, 2)])
     end
-    du = vec(dfdx(phi, x_, θ))
+    du = vec((dfdx(phi, x_, θ)))
     norm = prod(size(out))
     sum(abs2, du .- f_vec) / norm
 end
@@ -143,7 +146,7 @@ function initial_condition_loss(
     x0 = (p, t0)
     out = phi(x0, θ)
     u = vec(out)
-    u0 = vec(fill(prob.u0, size(out)))
+    u0 = vec(reduce(vcat, [fill(u0, size(t)) for u0 in prob.u0]))
     norm = prod(size(u0))
     sum(abs2, u .- u0) / norm
 end
@@ -156,7 +159,8 @@ function initial_condition_loss(
     x0 = reduce(vcat, (p, t0))
     out = phi(x0, θ)
     u = vec(out)
-    u0 = vec(fill(prob.u0, size(out)))
+    # u0 = vec(fill(prob.u0, size(out)))
+    u0 = vec(reduce(vcat, [fill(u0, size(t)) for u0 in prob.u0]))
     norm = prod(size(u0))
     sum(abs2, u .- u0) / norm
 end
@@ -180,28 +184,16 @@ function get_trainset(
              for b in bounds]
     x_ = hcat(vec(map(
         points -> collect(points), Iterators.product([pspan..., tspan_]...)))...)
-    # x = reshape(x_, size(bounds, 1) + 1, size.(pspan, 1)..., size(tspan_, 1))
     x = reshape(x_, size(bounds, 1) + 1, prod(size.(pspan, 1)), size(tspan_, 1))
     p, t = x[1:(end - 1), :, :], x[[end], :, :]
     p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
     (p, t)
 end
 
-# function get_trainset(
-#         strategy::StochasticTraining, chain::DeepONet, bounds, number_of_parameters, tspan, eltypeθ)
-#     p = reduce(vcat,
-#         [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
-#          for bound in bounds])
-#     t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points, 1) .+ tspan[1]
-#     p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
-#     (p, t)
-# end
-
-
 function get_trainset(
         strategy::StochasticTraining, chain::Union{DeepONet, Lux.Chain},
         bounds, number_of_parameters, tspan, eltypeθ)
-    number_of_parameters != strategy.points &&
+    (number_of_parameters != strategy.points && chain isa Lux.Chain) &&
         throw(error("number_of_parameters should be the same strategy.points for StochasticTraining"))
     p = reduce(vcat,
         [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
