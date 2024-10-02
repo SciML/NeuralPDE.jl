@@ -17,6 +17,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
     extraparams::Int
     init_params::I
     estim_collocate::Bool
+    estim_collocate::Bool
 
     function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, strategy,
             dataset,
@@ -98,6 +99,55 @@ LogDensityProblems.dimension(Tar::LogTargetDensity) = Tar.dim
 
 function LogDensityProblems.capabilities(::LogTargetDensity)
     LogDensityProblems.LogDensityOrder{1}()
+end
+
+"""
+suggested extra loss function for ODE solver case
+"""
+function L2loss2(Tar::LogTargetDensity, θ)
+    f = Tar.prob.f
+
+    # parameter estimation chosen or not
+    if Tar.extraparams > 0
+        autodiff = Tar.autodiff
+        # Timepoints to enforce Physics 
+        t = Tar.dataset[end]
+        u1 = Tar.dataset[2]
+        û = Tar.dataset[1]
+
+        nnsol = NNodederi(Tar, t, θ[1:(length(θ) - Tar.extraparams)], autodiff)
+
+        ode_params = Tar.extraparams == 1 ?
+                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)][1] :
+                     θ[((length(θ) - Tar.extraparams) + 1):length(θ)]
+
+        if length(Tar.prob.u0) == 1
+            physsol = [f(û[i],
+                ode_params,
+                t[i])
+                       for i in 1:length(û[:, 1])]
+        else
+            physsol = [f([û[i], u1[i]],
+                ode_params,
+                t[i])
+                       for i in 1:length(û)]
+        end
+        #form of NN output matrix output dim x n 
+        deri_physsol = reduce(hcat, physsol)
+   
+        physlogprob = 0
+        for i in 1:length(Tar.prob.u0)
+            # can add phystd[i] for u[i] 
+            physlogprob += logpdf(MvNormal(deri_physsol[i, :],
+                    LinearAlgebra.Diagonal(map(abs2,
+                        (Tar.l2std[i] * 4.0) .*
+                        ones(length(nnsol[i, :]))))),
+                nnsol[i, :])
+        end
+        return physlogprob
+    else
+        return 0
+    end
 end
 
 """
@@ -451,7 +501,7 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         Integratorkwargs = (Integrator = Leapfrog,),
         MCMCkwargs = (n_leapfrog = 30,),
         progress = false, verbose = false,
-    estim_collocate = false)
+        estim_collocate = false)
     !(chain isa Lux.AbstractExplicitLayer) &&
         (chain = adapt(FromFluxAdaptor(false, false), chain))
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
@@ -524,6 +574,9 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
     @info("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, initial_θ))
     @info("Current Prior Log-likelihood : ", priorweights(ℓπ, initial_θ))
     @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
+    if estim_collocate
+        @info("Current gradient loss against dataset Log-likelihood : ", L2loss2(ℓπ, initial_θ))
+    end
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
@@ -574,8 +627,10 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         @info("Sampling Complete.")
         @info("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, samples[end]))
         @info("Current Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
-        @info("Current MSE against dataset Log-likelihood : ",
-            L2LossData(ℓπ, samples[end]))
+        @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, samples[end]))
+        if estim_collocate
+            @info("Current gradient loss against dataset Log-likelihood : ", L2loss2(ℓπ, samples[end]))
+        end
 
         # return a chain(basic chain),samples and stats
         matrix_samples = reshape(hcat(samples...), (length(samples[1]), length(samples), 1))
