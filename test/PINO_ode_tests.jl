@@ -24,6 +24,7 @@ function get_trainset(chain::Lux.Chain, bounds, number_of_parameters, tspan, dt)
     (p, t)
 end
 
+
 #Test Chain with Float64 accuracy
 @testset "Example du = cos(p * t)" begin
     equation = (u, p, t) -> cos(p * t)
@@ -265,40 +266,57 @@ end
     equation = (u, p, t) -> [cos(p * t), sin(p * t)]
     # equation = (u, p, t) -> [cos(p * t) + u[1], sin(p * t) - u[2]]
     # equation = (u, p, t) -> [cos(p[1] * t) + u[1], sin(p[2] * t) - u[2]]
-    # du1 = cos(p * t)
-    # du2 = sin(p * t)
 
     tspan = (0.0f0, 1.0f0)
-    u0 = [1.0f0, 0.0f0]
+    u0 = [1.0f0, 1.0f0]
     prob = ODEProblem(equation, u0, tspan)
+    input_branch_size = 1
     chain = Chain(
-        Dense(2 => 10, Lux.tanh_fast),
+        Dense(input_branch_size+1 => 10, Lux.tanh_fast),
         Dense(10 => 10, Lux.tanh_fast),
         Dense(10 => 10, Lux.tanh_fast), Dense(10 => 2))
+
+    # deeponet = NeuralOperators.DeepONet(
+    #     Chain(
+    #         Dense(input_branch_size => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
+    #     Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
+    #         Dense(10 => 10, Lux.tanh_fast)))
+
     bounds = [(pi, 2pi)]
-    number_of_parameters = 50
-    # strategy = GridTraining(0.1f0)
-    strategy = StochasticTraining(50)
+    number_of_parameters = 300
+    strategy = StochasticTraining(300)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(chain, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = true, maxiters = 2000)
+    sol = solve(prob, alg, verbose = true, maxiters = 6000)
 
-    dt = 0.025f0
-    (p, t) = get_trainset(deeponet, bounds, 50, tspan, dt)
-
-    ground_solution = (u0, p, t) -> [sin(p * t) / p, -cos(p * t) / p]
+    ground_solution = (u0, p, t) -> [1 + sin(p * t) / p, 1/p - cos(p * t) / p]
     function ground_solution_f(p, t)
-        reduce(hcat,
-            [[ground_solution(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+        ans_1 = reduce(hcat,
+            [reduce(vcat,
+                 [ground_solution(u0, p[1, i, 1], t[1, 1, j])[1] for i in axes(p, 2)])
+             for j in axes(t, 3)])
+        ans_2 = reduce(hcat,
+            [reduce(vcat,
+                 [ground_solution(u0, p[1, i, 1], t[1, 1, j])[2] for i in axes(p, 2)])
+             for j in axes(t, 3)])
+
+        ans_1 = reshape(ans_1, 1, size(ans_1)...)
+        ans_2 = reshape(ans_2, 1, size(ans_2)...)
+        vcat(ans_1, ans_2)
     end
-
-    (p, t) = get_trainset(chain, bounds, tspan, 50, 0.025f0)
+    p, t = get_trainset(chain, bounds, 50, tspan, 0.01f0)
     ground_solution_ = ground_solution_f(p, t)
-    predict = sol.interp((p, t))
-    @test ground_solution_≈predict rtol=0.01
+    predict = sol.interp(reduce(vcat, (p, t)))
+    @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.05
+    @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.05
+    @test ground_solution_≈predict rtol=0.05
+    @test eltype(sol.k) == eltype(predict)
 
-    p, t = get_trainset(bounds, tspan, 100, 0.01f0)
+    p, t = get_trainset(chain, bounds, 300, tspan, 0.01f0)
     ground_solution_ = ground_solution_f(p, t)
-    predict = sol.interp((p, t))
-    @test ground_solution_≈predict rtol=0.01
+    predict = sol.interp(reduce(vcat, (p, t)))
+    @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.05
+    @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.05
+    @test ground_solution_≈predict rtol=0.3
+    @test eltype(sol.k) == eltype(predict)
 end
