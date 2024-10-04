@@ -24,12 +24,11 @@ function get_trainset(chain::Lux.Chain, bounds, number_of_parameters, tspan, dt)
     (p, t)
 end
 
-
 #Test Chain with Float64 accuracy
 @testset "Example du = cos(p * t)" begin
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 1.0f0)
-    u0 = 1.0f0
+    u0 = 1.0
     prob = ODEProblem(equation, u0, tspan)
     chain = Chain(
         Dense(2 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 1))
@@ -40,7 +39,6 @@ end
     bounds = [(pi, 2pi)]
     number_of_parameters = 300
     strategy = StochasticTraining(300)
-    # strategy = GridTraining(0.1f0)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(
         chain, opt, bounds, number_of_parameters; strategy = strategy, init_params = θ |>
@@ -63,7 +61,7 @@ end
 @testset "Example du = cos(p * t)" begin
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 1.0f0)
-    u0 = 1.0f0
+    u0 = 1.0
     prob = ODEProblem(equation, u0, tspan)
     deeponet = NeuralOperators.DeepONet(
         Chain(
@@ -193,11 +191,11 @@ end
     c = chain(x, θ, st)[1]
 
     bounds = [(1.0, pi), (1.0, 2.0), (2.0, 3.0)]
-    number_of_parameters = 50
+    number_of_parameters = 200
     strategy = StochasticTraining(200)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(chain, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = true, maxiters = 4000)
+    sol = solve(prob, alg, verbose = false, maxiters = 4000)
 
     ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) + p[3] * t
 
@@ -242,7 +240,7 @@ end
     strategy = StochasticTraining(20)
     opt = OptimizationOptimisers.Adam(0.03)
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = true, maxiters = 4000)
+    sol = solve(prob, alg, verbose = false, maxiters = 4000)
     ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) + p[3] * t
     function ground_solution_f(p, t)
         reduce(hcat,
@@ -261,35 +259,25 @@ end
     @test eltype(sol.k.u) == eltype(predict)
 end
 
-#TODO vector output
+#vector output
 @testset "Example du = [cos(p * t), sin(p * t)]" begin
     equation = (u, p, t) -> [cos(p * t), sin(p * t)]
-    # equation = (u, p, t) -> [cos(p * t) + u[1], sin(p * t) - u[2]]
-    # equation = (u, p, t) -> [cos(p[1] * t) + u[1], sin(p[2] * t) - u[2]]
-
     tspan = (0.0f0, 1.0f0)
-    u0 = [1.0f0, 1.0f0]
+    u0 = [1.0f0, 0.0f0]
     prob = ODEProblem(equation, u0, tspan)
     input_branch_size = 1
     chain = Chain(
-        Dense(input_branch_size+1 => 10, Lux.tanh_fast),
+        Dense(input_branch_size + 1 => 10, Lux.tanh_fast),
         Dense(10 => 10, Lux.tanh_fast),
         Dense(10 => 10, Lux.tanh_fast), Dense(10 => 2))
-
-    # deeponet = NeuralOperators.DeepONet(
-    #     Chain(
-    #         Dense(input_branch_size => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
-    #     Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
-    #         Dense(10 => 10, Lux.tanh_fast)))
-
     bounds = [(pi, 2pi)]
     number_of_parameters = 300
     strategy = StochasticTraining(300)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(chain, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = true, maxiters = 6000)
+    sol = solve(prob, alg, verbose = false, maxiters = 6000)
 
-    ground_solution = (u0, p, t) -> [1 + sin(p * t) / p, 1/p - cos(p * t) / p]
+    ground_solution = (u0, p, t) -> [1 + sin(p * t) / p, 1 / p - cos(p * t) / p]
     function ground_solution_f(p, t)
         ans_1 = reduce(hcat,
             [reduce(vcat,

@@ -105,16 +105,16 @@ function physics_loss(
     p, t = x
     f = prob.f
     out = phi(x, θ)
-    f_vec = reduce(vcat,
-        [reduce(vcat, [f.(out[j, i], p[:, i], t[j]) for j in axes(t, 2)])
-         for i in axes(p, 2)])
-    # if size(p, 1) == 1
-    #     f_vec = vec(f.(out, p, vec(t)))
-    # else
-    # end
-    # f_vec = reduce(
-    #     vcat, [[f(out[i], p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
-    du = vec(dfdx(phi, x, θ))
+    if size(p, 1) == 1
+        f_vec = reduce(hcat,
+            [reduce(vcat, [f(out[j, i], p[1, i], t[j]) for j in axes(t, 2)])
+             for i in axes(p, 2)])
+    else
+        f_vec = reduce(hcat,
+            [reduce(vcat, [f(out[j, i], p[:, i], t[j]) for j in axes(t, 2)])
+             for i in axes(p, 2)])
+    end
+    du = dfdx(phi, x, θ)
     norm = prod(size(du))
     sum(abs2, du .- f_vec) / norm
 end
@@ -127,13 +127,17 @@ function physics_loss(
     f = prob.f
     out = phi(x_, θ)
     if size(p, 1) == 1 && size(out, 1) == 1
-           f_vec = vec(f.(out, p, t))
-    else
+        f_vec = f.(out, p, t)
+    elseif size(p, 1) > 1
+        f_vec = reduce(hcat,
+            [reduce(vcat, [f(out[1, i, j], p[:, i, j], t[1, i, j]) for j in axes(t, 3)])
+             for i in axes(p, 2)])
+    elseif size(out, 1) > 1
         f_vec = reduce(hcat,
             [reduce(vcat, [f(out[:, i, j], p[1, i, j], t[1, i, j]) for j in axes(t, 3)])
              for i in axes(p, 2)])
     end
-    du = (dfdx(phi, x_, θ))
+    du = dfdx(phi, x_, θ)
     norm = prod(size(out))
     sum(abs2, du .- f_vec) / norm
 end
@@ -144,9 +148,9 @@ function initial_condition_loss(
     p, t = x
     t0 = reshape([prob.tspan[1]], (1, 1, 1))
     x0 = (p, t0)
-    out = phi(x0, θ)
-    u = vec(out)
-    u0 = vec(reduce(vcat, [fill(u0, size(t)) for u0 in prob.u0]))
+    u = phi(x0, θ)
+    u0 = size(prob.u0, 1) == 1 ? fill(prob.u0, size(u)) :
+         reduce(vcat, [fill(u0, size(u)) for u0 in prob.u0])
     norm = prod(size(u0))
     sum(abs2, u .- u0) / norm
 end
@@ -158,9 +162,8 @@ function initial_condition_loss(
     t0 = fill(prob.tspan[1], size(t))
     x0 = reduce(vcat, (p, t0))
     u = phi(x0, θ)
-    # u = vec(out)
-    # u0 = vec(fill(prob.u0, size(out)))
-    u0 = (reduce(vcat, [fill(u0, size(t)) for u0 in prob.u0]))
+    u0 = size(prob.u0, 1) == 1 ? fill(prob.u0, size(t)) :
+         reduce(vcat, [fill(u0, size(t)) for u0 in prob.u0])
     norm = prod(size(u0))
     sum(abs2, u .- u0) / norm
 end
