@@ -426,7 +426,7 @@ end
 
     chain = Flux.Chain(Flux.Dense(1, 12, Flux.σ), Flux.Dense(12, 1))
     discretization = PhysicsInformedNN(chain, QuadratureTraining())
-    @test discretization.chain isa Lux.AbstractExplicitLayer
+    @test discretization.chain isa Lux.AbstractLuxLayer
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
     prob = discretize(pde_system, discretization)
