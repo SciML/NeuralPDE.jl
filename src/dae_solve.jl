@@ -16,7 +16,7 @@ of the physics-informed neural network which is used as a solver for a standard 
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.AbstractExplicitLayer`.
+* `chain`: A neural network architecture, defined as either a `Flux.Chain` or a `Lux.AbstractLuxLayer`.
 * `opt`: The optimizer to train the neural network.
 * `init_params`: The initial parameter of the neural network. By default, this is `nothing`
   which thus uses the random initialization provided by the neural network library.
@@ -42,7 +42,7 @@ end
 
 function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         kwargs...)
-    !(chain isa Lux.AbstractExplicitLayer) &&
+    !(chain isa Lux.AbstractLuxLayer) &&
         (chain = adapt(FromFluxAdaptor(false, false), chain))
     NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
 end
@@ -110,12 +110,12 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
     # A logical array which declares which variables are the differential (non-algebraic) vars
     differential_vars = prob.differential_vars
 
-    if chain isa Lux.AbstractExplicitLayer || chain isa Flux.Chain
+    if chain isa Lux.AbstractLuxLayer || chain isa Flux.Chain
         phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
         init_params = ComponentArrays.ComponentArray(;
             depvar = ComponentArrays.ComponentArray(init_params))
     else
-        error("Only Lux.AbstractExplicitLayer and Flux.Chain neural networks are supported")
+        error("Only Lux.AbstractLuxLayer and Flux.Chain neural networks are supported")
     end
 
     if isinplace(prob)

@@ -105,10 +105,10 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             kwargs...)
         multioutput = chain isa AbstractArray
         if multioutput
-            !all(i -> i isa Lux.AbstractExplicitLayer, chain) &&
+            !all(i -> i isa Lux.AbstractLuxLayer, chain) &&
                 (chain = Lux.transform.(chain))
         else
-            !(chain isa Lux.AbstractExplicitLayer) &&
+            !(chain isa Lux.AbstractLuxLayer) &&
                 (chain = adapt(FromFluxAdaptor(false, false), chain))
         end
         if phi === nothing
@@ -119,10 +119,10 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             end
         else
             if multioutput
-                all([phi.f[i] isa Lux.AbstractExplicitLayer for i in eachindex(phi.f)]) ||
+                all([phi.f[i] isa Lux.AbstractLuxLayer for i in eachindex(phi.f)]) ||
                     throw(ArgumentError("Only Lux Chains are supported"))
             else
-                (phi.f isa Lux.AbstractExplicitLayer) ||
+                (phi.f isa Lux.AbstractLuxLayer) ||
                     throw(ArgumentError("Only Lux Chains are supported"))
             end
             _phi = phi
@@ -246,10 +246,10 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
             kwargs...)
         multioutput = chain isa AbstractArray
         if multioutput
-            !all(i -> i isa Lux.AbstractExplicitLayer, chain) &&
+            !all(i -> i isa Lux.AbstractLuxLayer, chain) &&
                 (chain = Lux.transform.(chain))
         else
-            !(chain isa Lux.AbstractExplicitLayer) &&
+            !(chain isa Lux.AbstractLuxLayer) &&
                 (chain = adapt(FromFluxAdaptor(false, false), chain))
         end
         if phi === nothing
@@ -260,10 +260,10 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
             end
         else
             if multioutput
-                all([phi.f[i] isa Lux.AbstractExplicitLayer for i in eachindex(phi.f)]) ||
+                all([phi.f[i] isa Lux.AbstractLuxLayer for i in eachindex(phi.f)]) ||
                     throw(ArgumentError("Only Lux Chains are supported"))
             else
-                (phi.f isa Lux.AbstractExplicitLayer) ||
+                (phi.f isa Lux.AbstractLuxLayer) ||
                     throw(ArgumentError("Only Lux Chains are supported"))
             end
             _phi = phi
@@ -493,18 +493,18 @@ value at domain points x
 Fields:
 
 - `f`: A representation of the chain function.
-- `st`: The state of the Lux.AbstractExplicitLayer. It should be updated on each call.
+- `st`: The state of the Lux.AbstractLuxLayer. It should be updated on each call.
 """
 mutable struct Phi{C, S}
     f::C
     st::S
-    function Phi(chain::Lux.AbstractExplicitLayer)
+    function Phi(chain::Lux.AbstractLuxLayer)
         st = Lux.initialstates(Random.default_rng(), chain)
         new{typeof(chain), typeof(st)}(chain, st)
     end
 end
 
-function (f::Phi{<:Lux.AbstractExplicitLayer})(x::Number, θ)
+function (f::Phi{<:Lux.AbstractLuxLayer})(x::Number, θ)
     eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
     x_ = convert.(eltypeθ, adapt(typeθ, [x]))
     y, st = f.f(x_, θ, f.st)
@@ -512,7 +512,7 @@ function (f::Phi{<:Lux.AbstractExplicitLayer})(x::Number, θ)
     y
 end
 
-function (f::Phi{<:Lux.AbstractExplicitLayer})(x::AbstractArray, θ)
+function (f::Phi{<:Lux.AbstractLuxLayer})(x::AbstractArray, θ)
     eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
     x_ = convert.(eltypeθ, adapt(typeθ, x))
     y, st = f.f(x_, θ, f.st)

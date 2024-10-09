@@ -310,7 +310,7 @@ end
     u_analytical(x) = (1 / (2pi)) .* sin.(2pi .* x)
     fluxchain = Flux.Chain(Flux.Dense(1, 5, Flux.σ), Flux.Dense(5, 1))
     alg1 = NNODE(fluxchain, opt)
-    @test alg1.chain isa Lux.AbstractExplicitLayer
+    @test alg1.chain isa Lux.AbstractLuxLayer
     sol1 = solve(prob, alg1, verbose = false, abstol = 1e-10, maxiters = 200)
     @test sol1.errors[:l2] < 0.5
 end

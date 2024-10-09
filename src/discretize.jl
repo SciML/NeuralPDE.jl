@@ -23,7 +23,7 @@ to
           end
       end)
 
-for Lux.AbstractExplicitLayer.
+for Lux.AbstractLuxLayer.
 """
 function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         eq_params = SciMLBase.NullParameters(),
@@ -441,12 +441,12 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     phi = discretization.phi
 
-    if (phi isa Vector && phi[1].f isa Lux.AbstractExplicitLayer)
+    if (phi isa Vector && phi[1].f isa Lux.AbstractLuxLayer)
         for ϕ in phi
             ϕ.st = adapt(parameterless_type(ComponentArrays.getdata(flat_init_params)),
                 ϕ.st)
         end
-    elseif (!(phi isa Vector) && phi.f isa Lux.AbstractExplicitLayer)
+    elseif (!(phi isa Vector) && phi.f isa Lux.AbstractLuxLayer)
         phi.st = adapt(parameterless_type(ComponentArrays.getdata(flat_init_params)),
             phi.st)
     end
