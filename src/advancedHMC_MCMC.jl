@@ -354,8 +354,7 @@ NN OUTPUT AT t,θ ~ phi(t,θ).
 function (f::LogTargetDensity{C, S})(t::AbstractVector,
         θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
-    θ_ = ComponentArrays.getdata(θ)
-    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
     t_ = convert.(eltypeθ, adapt(typeθ, t'))
     y, st = f.chain(t_, θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -365,8 +364,7 @@ end
 function (f::LogTargetDensity{C, S})(t::Number,
         θ) where {C <: Lux.AbstractExplicitLayer, S}
     θ = vector_to_parameters(θ, f.init_params)
-    θ_ = ComponentArrays.getdata(θ)
-    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
     t_ = convert.(eltypeθ, adapt(typeθ, [t]))
     y, st = f.chain(t_, θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st

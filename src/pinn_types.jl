@@ -505,8 +505,7 @@ mutable struct Phi{C, S}
 end
 
 function (f::Phi{<:Lux.AbstractExplicitLayer})(x::Number, θ)
-    θ_ = ComponentArrays.getdata(θ)
-    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
     x_ = convert.(eltypeθ, adapt(typeθ, [x]))
     y, st = f.f(x_, θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -514,8 +513,7 @@ function (f::Phi{<:Lux.AbstractExplicitLayer})(x::Number, θ)
 end
 
 function (f::Phi{<:Lux.AbstractExplicitLayer})(x::AbstractArray, θ)
-    θ_ = ComponentArrays.getdata(θ)
-    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
     x_ = convert.(eltypeθ, adapt(typeθ, x))
     y, st = f.f(x_, θ, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -528,8 +526,7 @@ end
 
 # the method to calculate the derivative
 function numeric_derivative(phi, u, x, εs, order, θ)
-    θ_ = ComponentArrays.getdata(θ)
-    eltypeθ, typeθ = eltype(θ_), parameterless_type(θ_)
+    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
 
     ε = εs[order]
     _epsilon = inv(first(ε[ε .!= zero(ε)]))
