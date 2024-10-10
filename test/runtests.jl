@@ -1,18 +1,5 @@
 using Pkg
 using SafeTestsets
-import NeuralPDE: NNODE, NNDAE, PINOODE
-                PhysicsInformedNN, discretize,
-                GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
-                WeightedIntervalTraining,
-                build_loss_function, get_loss_function,
-                generate_training_sets, get_variables, get_argument, get_bounds,
-                get_numeric_integral, symbolic_discretize,
-                AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
-                MiniMaxAdaptiveLoss, LogOptions,
-                ahmc_bayesian_pinn_ode, BNNODE, ahmc_bayesian_pinn_pde, vector_to_parameters,
-                BPINNsolution, BayesianPINN,
-                DeepGalerkin
-
 
 const GROUP = get(ENV, "GROUP", "All")
 
