@@ -118,7 +118,7 @@ end
 
 function (f::ODEPhi{C, T, U})(t::Number,
         θ) where {C <: Lux.AbstractLuxLayer, T, U <: Number}
-    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
+    eltypeθ, typeθ = eltype(θ.depvar), parameterless_type(ComponentArrays.getdata(θ.depvar))
     t_ = convert.(eltypeθ, adapt(typeθ, [t]))
     y, st = f.chain(t_, θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -128,7 +128,7 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
         θ) where {C <: Lux.AbstractLuxLayer, T, U <: Number}
     # Batch via data as row vectors
-    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
+    eltypeθ, typeθ = eltype(θ.depvar), parameterless_type(ComponentArrays.getdata(θ.depvar))
     t_ = convert.(eltypeθ, adapt(typeθ, t'))
     y, st = f.chain(t_, θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -136,7 +136,7 @@ function (f::ODEPhi{C, T, U})(t::AbstractVector,
 end
 
 function (f::ODEPhi{C, T, U})(t::Number, θ) where {C <: Lux.AbstractLuxLayer, T, U}
-    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
+    eltypeθ, typeθ = eltype(θ.depvar), parameterless_type(ComponentArrays.getdata(θ.depvar))
     t_ = convert.(eltypeθ, adapt(typeθ, [t]))
     y, st = f.chain(t_, θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st
@@ -146,7 +146,7 @@ end
 function (f::ODEPhi{C, T, U})(t::AbstractVector,
         θ) where {C <: Lux.AbstractLuxLayer, T, U}
     # Batch via data as row vectors
-    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
+    eltypeθ, typeθ = eltype(θ.depvar), parameterless_type(ComponentArrays.getdata(θ.depvar))
     t_ = convert.(eltypeθ, adapt(typeθ, t'))
     y, st = f.chain(t_, θ.depvar, f.st)
     ChainRulesCore.@ignore_derivatives f.st = st

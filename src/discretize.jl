@@ -216,9 +216,8 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
     dict_var_span_ = Dict([Symbol(d.variables) => bc for (d, bc) in zip(domains, bc_data)])
 
     bcs_train_sets = map(bound_args) do bt
-        span = map(b -> get(dict_var_span, b, b), bt)
-        _set = hcat(vec(map(points -> collect(points), Iterators.product(span...)))...)
-        x = convert.(eltypeθ, adapt(eltypeθ, _set))
+        _set = adapt(eltypeθ,
+            hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
     end
 
     pde_vars = get_variables(eqs, dict_indvars, dict_depvars)
@@ -230,8 +229,8 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
 
     pde_train_sets = map(pde_args) do bt
         span = map(b -> get(dict_var_span_, b, b), bt)
-        _set = hcat(vec(map(points -> collect(points), Iterators.product(span...)))...)
-        x = convert.(eltypeθ, adapt(eltypeθ, _set))
+        _set = adapt(eltypeθ,
+            hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
     end
     [pde_train_sets, bcs_train_sets]
 end
@@ -266,11 +265,11 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
 
     pde_lower_bounds = map(pde_args) do pd
         span = map(p -> get(dict_lower_bound, p, p), pd)
-        map(s -> convert(eltypeθ, adapt(eltypeθ, s)) + cbrt(eps(eltypeθ)), span)
+        map(s -> adapt(eltypeθ, s) + cbrt(eps(eltypeθ)), span)
     end
     pde_upper_bounds = map(pde_args) do pd
         span = map(p -> get(dict_upper_bound, p, p), pd)
-        map(s -> convert(eltypeθ, adapt(eltypeθ, s)) - cbrt(eps(eltypeθ)), span)
+        map(s -> adapt(eltypeθ, s) + cbrt(eps(eltypeθ)), span)
     end
     pde_bounds = [pde_lower_bounds, pde_upper_bounds]
 

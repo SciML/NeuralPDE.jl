@@ -5,8 +5,8 @@ function generate_training_sets(domains, dx, eqs, eltypeθ)
         dxs = fill(dx, length(domains))
     end
     spans = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, dxs)]
-    train_set = hcat(vec(map(points -> collect(points), Iterators.product(spans...)))...)
-    x = convert.(eltypeθ, adapt(eltypeθ, train_set))
+    _set = adapt(eltypeθ,
+        hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
 end
 
 function get_loss_function_(loss, init_params, pde_system, strategy::GridTraining)
@@ -30,7 +30,7 @@ function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strateg
 
     bounds = first(map(args) do pd
         span = map(p -> get(dict_span, p, p), pd)
-        map(s -> covert(eltypeθ, adapt(eltypeθ, s)), span)
+        map(s -> adapt(eltypeθ, s), span)
     end)
     bounds = [getindex.(bounds, 1), getindex.(bounds, 2)]
     return bounds
@@ -75,11 +75,11 @@ function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars,
 
     lower_bounds = map(args) do pd
         span = map(p -> get(dict_lower_bound, p, p), pd)
-        map(s -> convert(eltypeθ, adapt(eltypeθ, s)), span)
+        map(s -> adapt(eltypeθ, s), span)
     end
     upper_bounds = map(args) do pd
         span = map(p -> get(dict_upper_bound, p, p), pd)
-        map(s -> convert(eltypeθ, adapt(eltypeθ, s)), span)
+        map(s -> adapt(eltypeθ, s), span)
     end
     bound = lower_bounds, upper_bounds
 end

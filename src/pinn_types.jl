@@ -526,13 +526,13 @@ end
 
 # the method to calculate the derivative
 function numeric_derivative(phi, u, x, εs, order, θ)
-    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
+    _type = parameterless_type(ComponentArrays.getdata(θ))
 
     ε = εs[order]
     _epsilon = inv(first(ε[ε .!= zero(ε)]))
 
-    ε = convert.(eltypeθ, adapt(typeθ, ε))
-    x = convert.(eltypeθ, adapt(typeθ, x))
+    ε = adapt(_type, ε)
+    x = adapt(_type, x)
 
     # any(x->x!=εs[1],εs)
     # εs is the epsilon for each order, if they are all the same then we use a fancy formula
