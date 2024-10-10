@@ -7,7 +7,7 @@ This tutorial provides an example of how to use the Physics Informed Neural Oper
 In this section, we will define a parametric ODE and then learn it with a PINO using [`PINOODE`](@ref). The PINO will be trained to learn the mapping from the parameters of the ODE to its solution.
 
 ```@example pino
-using Test # hide
+using Test
 using OptimizationOptimisers
 using Lux
 using Statistics, Random
@@ -33,12 +33,12 @@ deeponet = NeuralOperators.DeepONet(
 bounds = [(1.0, pi), (1.0, 2.0), (2.0, 3.0)]
 number_of_parameter_samples = 50
 # Define the training strategy
-strategy = StochasticTraining(60)
+strategy = StochasticTraining(20)
 # Define the optimizer
 opt = OptimizationOptimisers.Adam(0.03)
 alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
 # Solve the ODE problem using the PINOODE algorithm
-sol = solve(prob, alg, verbose = false, maxiters = 3000)
+sol = solve(prob, alg, verbose = false, maxiters = 4000)
 ```
 
 Now let's compare the prediction from the learned operator with the ground truth solution which is obtained by analytic solution of the parametric ODE.
