@@ -34,6 +34,7 @@ import ChainRulesCore, Lux, ComponentArrays
 using Lux: FromFluxAdaptor, recursive_eltype
 using ChainRulesCore: @non_differentiable
 using NeuralOperators
+import Lux: Chain
 import NeuralOperators: DeepONet
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
