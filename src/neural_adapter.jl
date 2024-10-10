@@ -5,8 +5,8 @@ function generate_training_sets(domains, dx, eqs, eltypeθ)
         dxs = fill(dx, length(domains))
     end
     spans = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, dxs)]
-    _set = adapt(eltypeθ,
-        hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
+    train_set = adapt(eltypeθ,
+        hcat(vec(map(points -> collect(points), Iterators.product(spans...)))...))
 end
 
 function get_loss_function_(loss, init_params, pde_system, strategy::GridTraining)
