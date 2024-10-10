@@ -270,7 +270,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
     end
     pde_upper_bounds = map(pde_args) do pd
         span = map(p -> get(dict_upper_bound, p, p), pd)
-        map(s -> adapt(eltypeθ, s) + cbrt(eps(eltypeθ)), span)
+        map(s -> adapt(eltypeθ, s) - cbrt(eps(eltypeθ)), span)
     end
     pde_bounds = [pde_lower_bounds, pde_upper_bounds]
 

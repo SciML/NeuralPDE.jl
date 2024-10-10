@@ -115,7 +115,7 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
 
     # Phi is the trial solution for each NN in chain array
     # Creating logpdf( MvNormal(Phi(t,θ),std), dataset[i] )
-    # dataset[i][:, 2:end] -> indepvar cols of a particular depvar's dataset 
+    # dataset[i][:, 2:end] -> indepvar cols of a particular depvar's dataset
     # dataset[i][:, 1] -> depvar col of depvar's dataset
 
     if Tar.extraparams > 0
@@ -251,7 +251,7 @@ end
             Adaptorkwargs = (Adaptor = StanHMCAdaptor,
                 Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
             Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
-            numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)               
+            numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
 
 ## NOTES
 
@@ -329,7 +329,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     Φ = pinnrep.phi
 
     # for new L2 loss
-    # discretization.additional_loss = 
+    # discretization.additional_loss =
 
     if nchains < 1
         throw(error("number of chains must be greater than or equal to 1"))
@@ -356,7 +356,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # append Ode params to all paramvector - initial_θ
     if ninv > 0
         # shift ode params(initialise ode params by prior means)
-        # check if means or user speified is better
+        # check if means or user specified is better
         initial_θ = vcat(initial_θ, [Distributions.params(param[i])[1] for i in 1:ninv])
         priors = vcat(priors, param)
         nparameters += ninv
@@ -365,7 +365,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # vector in case of N-dimensional domains
     strategy = discretization.strategy
 
-    # dimensions would be total no of params,initial_nnθ for Lux namedTuples 
+    # dimensions would be total no of params,initial_nnθ for Lux namedTuples
     ℓπ = PDELogTargetDensity(nparameters,
         strategy,
         dataset,
