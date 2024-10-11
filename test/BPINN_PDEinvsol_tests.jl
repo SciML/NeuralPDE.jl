@@ -218,7 +218,7 @@ end
         [α],
         defaults = Dict([α => 2.0]))
 
-    # neccesarry for loss function contruction (involves Operator masking) 
+    # neccesarry for loss function construction (involves Operator masking) 
     eqs = pde_system.eqs
     Dict_differentials = Dict()
     exps = toexpr.(eqs)
