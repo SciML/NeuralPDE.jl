@@ -16,7 +16,7 @@ Random.seed!(100)
     eqs = Dt(u(t)) - cos(2 * π * t) ~ 0
     bcs = [u(0) ~ 0.0]
     domains = [t ∈ Interval(0.0, 2.0)]
-    chainl = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 1))
+    chainl = Lux.Chain(Lux.Dense(1, 5, tanh), Lux.Dense(5, 5, tanh), Lux.Dense(5, 1))
     initl, st = Lux.setup(Random.default_rng(), chainl)
     @named pde_system = PDESystem(eqs, bcs, domains, [t], [u(t)])
 
@@ -25,10 +25,10 @@ Random.seed!(100)
 
     sol1 = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
-        draw_samples = 2000,
-        bcstd = [0.02],
+        draw_samples = 250,
+        bcstd = [0.001],
         phystd = [0.01],
-        priorsNNw = (0.0, 10.0),
+        priorsNNw = (0.0, 1.0),
         saveats = [1 / 50.0])
 
     analytic_sol_func(u0, t) = u0 + sin(2 * π * t) / (2 * π)
@@ -36,8 +36,8 @@ Random.seed!(100)
     u_real = [analytic_sol_func(0.0, t) for t in ts]
     u_predict = pmean(sol1.ensemblesol[1])
 
-    @test u_predict≈u_real atol=0.05
-    @test mean(u_predict .- u_real) < 1e-3
+    @test u_predict≈u_real atol=0.02
+    @test mean(abs.(u_predict .- u_real)) < 1e-3
 end
 
 @testset "Example 2: 1D ODE" begin
@@ -159,10 +159,10 @@ end
 
     sol1 = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
-        draw_samples = 200,
-        bcstd = [0.01, 0.01, 0.01, 0.01],
-        phystd = [0.005],
-        priorsNNw = (0.0, 2.0),
+        draw_samples = 400,
+        bcstd = [0.05, 0.05, 0.05, 0.05],
+        phystd = [0.05],
+        priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0])
 
     xs = sol1.timepoints[1]
@@ -170,7 +170,9 @@ end
 
     u_predict = pmean(sol1.ensemblesol[1])
     u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
-    @test u_predict≈u_real atol=0.8
+
+    @test sum(abs2.(u_predict .- u_real)) < 0.1
+    @test u_predict≈u_real atol=0.1
 end
 
 @testset "Translating from Flux" begin

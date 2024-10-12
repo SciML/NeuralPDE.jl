@@ -243,8 +243,7 @@ end
         phystd = [0.2], l2std = [0.5], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0],
-        Dict_differentials = Dict_differentials,
-        progress = true)
+        Dict_differentials = Dict_differentials)
 
     sol_old = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
@@ -252,8 +251,7 @@ end
         bcstd = [0.1, 0.1, 0.1, 0.1, 0.1],
         phystd = [0.2], l2std = [0.5], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
-        saveats = [1 / 100.0, 1 / 100.0],
-        progress = true)
+        saveats = [1 / 100.0, 1 / 100.0])
 
     phi = discretization.phi[1]
     xs, ts = [infimum(d.domain):dx:supremum(d.domain)

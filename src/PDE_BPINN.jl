@@ -416,7 +416,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         end
     end
 
-    # [WIP] add overall functionality for BC dataset points
+    # [WIP] add overall functionality for BC dataset points (case of parametric BC)
     if ((dataset_bc isa Nothing) && (dataset_pde isa Nothing))
         dataset = nothing
     elseif dataset_bc isa Nothing
