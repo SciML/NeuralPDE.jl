@@ -1,4 +1,4 @@
-# # Testing Code
+# Testing Code
 using Test, MCMCChains
 using ForwardDiff, Distributions, OrdinaryDiffEq
 using OptimizationOptimisers, AdvancedHMC, Lux
