@@ -11,14 +11,14 @@ using Reexport, Statistics
 using Zygote, ForwardDiff, Random, Distributions
 using Adapt, DiffEqNoiseProcess
 using Optimization
-using OptimizationOptimisers
+using OptimizationOptimisers, OptimizationOptimJL
 using Integrals, Cubature
 using QuasiMonteCarlo: LatinHypercubeSample
 import QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using Statistics
 using ArrayInterface
-import Optim
+
 using Symbolics: wrap, unwrap, arguments, operation
 using SymbolicUtils
 using AdvancedHMC, LogDensityProblems, LinearAlgebra, Functors, MCMCChains
