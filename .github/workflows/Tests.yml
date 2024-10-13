@@ -23,6 +23,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        version:
+          - "1.10"
         group:
           - "QA"
           - "ODEBPINN"
@@ -40,4 +42,5 @@ jobs:
     with:
       group: "${{ matrix.group }}"
       coverage-directories: "src,lib/NeuralPDELogging/src"
+      julia-version: "${{ matrix.version }}"
     secrets: "inherit"

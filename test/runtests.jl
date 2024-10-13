@@ -1,14 +1,6 @@
 using Pkg
 using SafeTestsets
 
-# Run Lux in "safe-mode" with aggressive error checking
-using Preferences
-
-# TODO: `warn` is for debugging purposes. Change to `error` for best performance.
-Preferences.set_preferences!("Lux", "eltype_mismatch_handling" => "warn")
-Preferences.set_preferences!("LuxLib", "instability_check" => "warn")
-Preferences.set_preferences!("LuxCore", "instability_check" => "warn")
-
 const GROUP = get(ENV, "GROUP", "All")
 
 const is_APPVEYOR = Sys.iswindows() && haskey(ENV, "APPVEYOR")
