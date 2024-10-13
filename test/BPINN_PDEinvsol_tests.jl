@@ -59,7 +59,7 @@ Random.seed!(100)
         saveats = [1 / 50.0],
         param = [LogNormal(6.0, 0.5)])
 
-        # alternative to QuadratureTraining [WIP]
+    # alternative to QuadratureTraining [WIP]
 
     discretization = BayesianPINN([chainl], GridTraining([0.02]), param_estim = true,
         dataset = [dataset, nothing])
