@@ -16,12 +16,12 @@ end
     end
 
     if GROUP == "All" || GROUP == "ODEBPINN"
-        @time @safetestset "Bpinn ODE solver" include("BPINN_Tests.jl")
+        @time @safetestset "BPINN ODE solver" include("BPINN_Tests.jl")
     end
 
     if GROUP == "All" || GROUP == "PDEBPINN"
-        @time @safetestset "Bpinn PDE solver" include("BPINN_PDE_tests.jl")
-        @time @safetestset "Bpinn PDE invaddloss solver" include("BPINN_PDEinvsol_tests.jl")
+        @time @safetestset "BPINN PDE solver" include("BPINN_PDE_tests.jl")
+        @time @safetestset "BPINN PDE invaddloss solver" include("BPINN_PDEinvsol_tests.jl")
     end
 
     if GROUP == "All" || GROUP == "NNPDE1"

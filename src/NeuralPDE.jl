@@ -30,9 +30,16 @@ using DomainSets: Domain, ClosedInterval, AbstractInterval, leftendpoint, righte
                   ProductDomain
 using SciMLBase: @add_kwonly, parameterless_type
 using UnPack: @unpack
-import ChainRulesCore, Lux, ComponentArrays
-using Lux: FromFluxAdaptor, recursive_eltype
+import ChainRulesCore, ComponentArrays
+
 using ChainRulesCore: @non_differentiable
+using ConcreteStructs: @concrete
+using Lux: Lux, Chain, Dense, SkipConnection
+using Lux: FromFluxAdaptor, recursive_eltype
+using LuxCore: AbstractLuxLayer, AbstractLuxWrapperLayer, AbstractLuxContainerLayer
+using WeightInitializers: glorot_uniform, zeros32
+
+import LuxCore: initialparameters, initialstates, parameterlength, statelength
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 

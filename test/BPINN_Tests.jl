@@ -1,4 +1,3 @@
-# Testing Code
 using Test, MCMCChains
 using ForwardDiff, Distributions, OrdinaryDiffEq
 using OptimizationOptimisers, AdvancedHMC, Lux
@@ -203,10 +202,10 @@ end
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-    @test mean(abs.(sol.u .- meanscurve2_1)) < 1e-1
-    @test mean(abs.(physsol1 .- meanscurve2_1)) < 1e-1
-    @test mean(abs.(sol.u .- meanscurve2_2)) < 5e-2
-    @test mean(abs.(physsol1 .- meanscurve2_2)) < 5e-2
+    @test mean(abs, sol.u .- meanscurve2_1) < 1e-1
+    @test mean(abs, physsol1 .- meanscurve2_1) < 1e-1
+    @test mean(abs, sol.u .- meanscurve2_2) < 5e-2
+    @test mean(abs, physsol1 .- meanscurve2_2) < 5e-2
 
     # estimated parameters(lux chain)
     param1 = mean(i[62] for i in fhsampleslux22[1000:length(fhsampleslux22)])
@@ -214,7 +213,7 @@ end
 
     #-------------------------- solve() call
     # (lux chain)
-    @test mean(abs.(physsol2 .- pmean(sol3lux_pestim.ensemblesol[1]))) < 0.15
+    @test mean(abs, physsol2 .- pmean(sol3lux_pestim.ensemblesol[1])) < 0.15
     # estimated parameters(lux chain)
     param1 = sol3lux_pestim.estimated_de_params[1]
     @test abs(param1 - p) < abs(0.45 * p)
