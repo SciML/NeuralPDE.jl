@@ -13,8 +13,6 @@ using Adapt, DiffEqNoiseProcess
 using Optimization
 using OptimizationOptimisers, OptimizationOptimJL
 using Integrals, Cubature
-using QuasiMonteCarlo: LatinHypercubeSample
-import QuasiMonteCarlo
 using RuntimeGeneratedFunctions
 using Statistics
 using ArrayInterface
@@ -39,6 +37,7 @@ using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
 using LuxCore: AbstractLuxLayer, AbstractLuxWrapperLayer, AbstractLuxContainerLayer
 using Optimisers: Optimisers, Adam
+using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
 using WeightInitializers: glorot_uniform, zeros32
 
 import LuxCore: initialparameters, initialstates, parameterlength, statelength
@@ -55,11 +54,14 @@ include("pinn_types.jl")
 include("symbolic_utilities.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
+
 include("ode_solve.jl")
 # include("rode_solve.jl")
 include("dae_solve.jl")
+
 include("transform_inf_integral.jl")
 include("discretize.jl")
+
 include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
