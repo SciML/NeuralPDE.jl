@@ -30,12 +30,12 @@ using DomainSets: Domain, ClosedInterval, AbstractInterval, leftendpoint, righte
                   ProductDomain
 using SciMLBase: @add_kwonly, parameterless_type
 using UnPack: @unpack
-import ChainRulesCore, ComponentArrays
 
-using ChainRulesCore: @non_differentiable, @ignore_derivatives
+using ChainRulesCore: ChainRulesCore, @non_differentiable, @ignore_derivatives
+using ComponentArrays: ComponentArrays, ComponentArray, getdata, getaxes
 using ConcreteStructs: @concrete
 using Functors: fmap
-using Lux: Lux, Chain, Dense, SkipConnection
+using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
 using LuxCore: AbstractLuxLayer, AbstractLuxWrapperLayer, AbstractLuxContainerLayer
 using Optimisers: Optimisers, Adam

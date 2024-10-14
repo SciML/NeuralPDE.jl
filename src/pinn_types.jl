@@ -495,34 +495,20 @@ Fields:
 - `f`: A representation of the chain function.
 - `st`: The state of the Lux.AbstractLuxLayer. It should be updated on each call.
 """
-mutable struct Phi{C, S}
-    f::C
-    st::S
-    function Phi(chain::Lux.AbstractLuxLayer)
-        st = Lux.initialstates(Random.default_rng(), chain)
-        new{typeof(chain), typeof(st)}(chain, st)
-    end
+@concrete struct Phi
+    smodel <: StatefulLuxLayer
 end
 
-function (f::Phi{<:Lux.AbstractLuxLayer})(x::Number, θ)
-    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
-    x_ = convert.(eltypeθ, adapt(typeθ, [x]))
-    y, st = f.f(x_, θ, f.st)
-    ChainRulesCore.@ignore_derivatives f.st = st
-    y
+function Phi(layer::AbstractLuxLayer)
+    return Phi(StatefulLuxLayer{true}(
+        layer, nothing, initialstates(Random.default_rng(), layer)))
 end
 
-function (f::Phi{<:Lux.AbstractLuxLayer})(x::AbstractArray, θ)
-    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
-    x_ = convert.(eltypeθ, adapt(typeθ, x))
-    y, st = f.f(x_, θ, f.st)
-    ChainRulesCore.@ignore_derivatives f.st = st
-    y
-end
+(f::Phi)(x::Number, θ) = f([x], θ)
 
-function get_u()
-    u = (cord, θ, phi) -> phi(cord, θ)
-end
+(f::Phi)(x::AbstractArray, θ) = f.smodel(x, θ)
+
+get_u() = (cord, θ, phi) -> phi(cord, θ)
 
 # the method to calculate the derivative
 function numeric_derivative(phi, u, x, εs, order, θ)

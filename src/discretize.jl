@@ -369,8 +369,7 @@ which is later optimized upon to give Solution or the Solution Distribution of t
 
 For more information, see `discretize` and `PINNRepresentation`.
 """
-function SciMLBase.symbolic_discretize(pde_system::PDESystem,
-        discretization::AbstractPINN)
+function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
     eqs = pde_system.eqs
     bcs = pde_system.bcs
     chain = discretization.chain
@@ -425,31 +424,25 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
         ComponentArrays.ComponentArray(init_params)
     end
 
-    flat_init_params = if param_estim == false && multioutput
+    flat_init_params = if !param_estim && multioutput
         ComponentArrays.ComponentArray(; depvar = flat_init_params)
-    elseif param_estim == false && !multioutput
+    elseif !param_estim && !multioutput
         flat_init_params
     else
         ComponentArrays.ComponentArray(; depvar = flat_init_params, p = default_p)
     end
 
+    if length(flat_init_params) == 0 && !Base.isconcretetype(eltype(flat_init_params))
+        flat_init_params = ComponentArray(
+            convert(AbstractArray{Float64}, getdata(flat_init_params)),
+            getaxes(flat_init_params))
+    end
+
     eltypeθ = eltype(flat_init_params)
 
-    if adaloss === nothing
-        adaloss = NonAdaptiveLoss{eltypeθ}()
-    end
+    adaloss === nothing && (adaloss = NonAdaptiveLoss{eltypeθ}())
 
     phi = discretization.phi
-
-    if (phi isa Vector && phi[1].f isa Lux.AbstractLuxLayer)
-        for ϕ in phi
-            ϕ.st = adapt(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-                ϕ.st)
-        end
-    elseif (!(phi isa Vector) && phi.f isa Lux.AbstractLuxLayer)
-        phi.st = adapt(parameterless_type(ComponentArrays.getdata(flat_init_params)),
-            phi.st)
-    end
 
     derivative = discretization.derivative
     strategy = discretization.strategy
@@ -459,9 +452,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
     iteration = discretization.iteration
     self_increment = discretization.self_increment
 
-    if !(eqs isa Array)
-        eqs = [eqs]
-    end
+    eqs isa Array || (eqs = [eqs])
 
     pde_indvars = if strategy isa QuadratureTraining
         get_argument(eqs, dict_indvars, dict_depvars)
@@ -509,18 +500,16 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     datafree_bc_loss_functions = [build_loss_function(pinnrep, bc, bc_indvar)
                                   for (bc, bc_indvar, integration_indvar) in zip(bcs,
-        bc_indvars,
-        bc_integration_vars)]
+        bc_indvars, bc_integration_vars)]
 
     pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
-        strategy,
-        datafree_pde_loss_functions,
-        datafree_bc_loss_functions)
+        strategy, datafree_pde_loss_functions, datafree_bc_loss_functions)
+
     # setup for all adaptive losses
     num_pde_losses = length(pde_loss_functions)
     num_bc_losses = length(bc_loss_functions)
     # assume one single additional loss function if there is one. this means that the user needs to lump all their functions into a single one,
-    num_additional_loss = additional_loss isa Nothing ? 0 : 1
+    num_additional_loss = convert(Int, additional_loss !== nothing)
 
     adaloss_T = eltype(adaloss.pde_loss_weights)
 
@@ -531,8 +520,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
                                       adaloss.additional_loss_weights
 
     reweight_losses_func = generate_adaptive_loss_function(pinnrep, adaloss,
-        pde_loss_functions,
-        bc_loss_functions)
+        pde_loss_functions, bc_loss_functions)
 
     function get_likelihood_estimate_function(discretization::PhysicsInformedNN)
         function full_loss_function(θ, p)
@@ -698,8 +686,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem,
 
     full_loss_function = get_likelihood_estimate_function(discretization)
     pinnrep.loss_functions = PINNLossFunctions(bc_loss_functions, pde_loss_functions,
-        full_loss_function, additional_loss,
-        datafree_pde_loss_functions,
+        full_loss_function, additional_loss, datafree_pde_loss_functions,
         datafree_bc_loss_functions)
 
     return pinnrep

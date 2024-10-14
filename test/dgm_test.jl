@@ -1,7 +1,7 @@
 using NeuralPDE, Test
 
 using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions, MethodOfLines,
-      OrdinaryDiffEq
+      OrdinaryDiffEq, LinearAlgebra
 import ModelingToolkit: Interval, infimum, supremum
 
 @testset "Poisson's equation" begin
