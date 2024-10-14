@@ -453,11 +453,9 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     # Creates OptimizationFunction Object from total_loss
     optf = OptimizationFunction(total_loss, opt_algo)
 
-    iteration = 0
     callback = function (p, l)
-        iteration += 1
-        verbose && println("Current loss is: $l, Iteration: $iteration")
-        l < abstol
+        verbose && println("Current loss is: $l, Iteration: $(p.iter)")
+        return l < abstol
     end
 
     optprob = OptimizationProblem(optf, init_params)
