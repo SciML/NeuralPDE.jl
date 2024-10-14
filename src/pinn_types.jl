@@ -357,23 +357,7 @@ mutable struct PINNRepresentation
     """
     The dependent variables of the system
     """
-    depvars::Any
-    """
-    The independent variables of the system
-    """
-    indvars::Any
-    """
-    A dictionary form of the independent variables. Define the structure ???
-    """
-    dict_indvars::Any
-    """
-    A dictionary form of the dependent variables. Define the structure ???
-    """
-    dict_depvars::Any
-    """
-    ???
-    """
-    dict_depvar_input::Any
+    varmap::Any
     """
     The logger as provided by the user
     """
@@ -412,25 +396,17 @@ mutable struct PINNRepresentation
     """
     derivative::Any
     """
+    Symbols of parameters of neural networks.
+    """
+    depvars_outs_map::Any
+    """
     The training strategy as provided by the user
     """
     strategy::AbstractTrainingStrategy
     """
     ???
     """
-    pde_indvars::Any
-    """
-    ???
-    """
-    bc_indvars::Any
-    """
-    ???
-    """
-    pde_integration_vars::Any
-    """
-    ???
-    """
-    bc_integration_vars::Any
+    eqdata::Any
     """
     ???
     """
@@ -521,39 +497,76 @@ function get_u()
 end
 
 # the method to calculate the derivative
-function numeric_derivative(phi, u, x, εs, order, θ)
+function numeric_derivative(phi, x, ε, order, θ)
     _type = parameterless_type(ComponentArrays.getdata(θ))
 
-    ε = εs[order]
-    _epsilon = inv(first(ε[ε .!= zero(ε)]))
-
+    _epsilon = inv(first(ε[ε .!= zero(eltype(ε))]))
     ε = adapt(_type, ε)
     x = adapt(_type, x)
 
-    # any(x->x!=εs[1],εs)
-    # εs is the epsilon for each order, if they are all the same then we use a fancy formula
-    # if order 1, this is trivially true
-
-    if order > 4 || any(x -> x != εs[1], εs)
-        return (numeric_derivative(phi, u, x .+ ε, @view(εs[1:(end - 1)]), order - 1, θ)
-                .-
-                numeric_derivative(phi, u, x .- ε, @view(εs[1:(end - 1)]), order - 1, θ)) .*
-               _epsilon ./ 2
-    elseif order == 4
-        return (u(x .+ 2 .* ε, θ, phi) .- 4 .* u(x .+ ε, θ, phi)
+    if order == 4
+        return (phi(x .+ 2 .* ε, θ) .- 4 .* phi(x .+ ε, θ)
                 .+
-                6 .* u(x, θ, phi)
+                6 .* phi(x, θ)
                 .-
-                4 .* u(x .- ε, θ, phi) .+ u(x .- 2 .* ε, θ, phi)) .* _epsilon^4
+                4 .* phi(x .- ε, θ) .+ phi(x .- 2 .* ε, θ)) .* _epsilon^4
     elseif order == 3
-        return (u(x .+ 2 .* ε, θ, phi) .- 2 .* u(x .+ ε, θ, phi) .+ 2 .* u(x .- ε, θ, phi)
+        return (phi(x .+ 2 .* ε, θ) .- 2 .* phi(x .+ ε, θ) .+ 2 .* phi(x .- ε, θ)
                 -
-                u(x .- 2 .* ε, θ, phi)) .* _epsilon^3 ./ 2
+                phi(x .- 2 .* ε, θ)) .* _epsilon^3 ./ 2
     elseif order == 2
-        return (u(x .+ ε, θ, phi) .+ u(x .- ε, θ, phi) .- 2 .* u(x, θ, phi)) .* _epsilon^2
+        return (phi(x .+ ε, θ) .+ phi(x .- ε, θ) .- 2 .* phi(x, θ)) .* _epsilon^2
     elseif order == 1
-        return (u(x .+ ε, θ, phi) .- u(x .- ε, θ, phi)) .* _epsilon ./ 2
+        return (phi(x .+ ε, θ) .- phi(x .- ε, θ)) .* _epsilon ./ 2
     else
-        error("This shouldn't happen!")
+        error("This shouldn't happen! Got an order of $(order).")
     end
+end
+
+#@register_symbolic(numeric_derivative(phi, x, ε, order, θ))
+
+function ufunc(u, phi, v)
+    if symtype(phi) isa AbstractArray
+        return phi[findfirst(w -> isequal(operation(w), operation(u)), v.ū)]
+    else
+        return phi
+    end
+end
+
+#=
+_vcat(x::Number...) = vcat(x...)
+_vcat(x::AbstractArray{<:Number}...) = vcat(x...)
+function _vcat(x::Union{Number, AbstractArray{<:Number}}...)
+    example = first(Iterators.filter(e -> !(e isa Number), x))
+    dims = (1, size(example)[2:end]...)
+    x = map(el -> el isa Number ? (typeof(example))(fill(el, dims)) : el, x)
+    _vcat(x...)
+end
+_vcat(x...) = vcat(x...)
+https://github.com/SciML/NeuralPDE.jl/pull/627/files
+=#
+
+function reducevcat(vector::Vector, eltypeθ)
+    isnothing(vector) && return [[nothing]]
+    if all(x -> x isa Number, vector)
+        return vector
+    else
+        z = findfirst(x -> !(x isa Number), vector)
+        return rvcat(vector, vector[z], eltypeθ)
+    end
+end
+
+function rvcat(example, sym, eltypeθ)
+    out = map(example) do x
+        if x isa Number
+            out = convert(eltypeθ, x)
+            out
+        else
+            out = x
+            out
+        end
+    end
+    #out = @arrayop (i,) out[i] i in 1:length(out)
+
+    return out
 end
