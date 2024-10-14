@@ -1,19 +1,14 @@
-"""
-???
-"""
 struct LogOptions
-    log_frequency::Int64
+    log_frequency::Int
     # TODO: add in an option for saving plots in the log. this is currently not done because the type of plot is dependent on the PDESystem
     #       possible solution: pass in a plot function?
     #       this is somewhat important because we want to support plotting adaptive weights that depend on pde independent variables
     #       and not just one weight for each loss function, i.e. pde_loss_weights(i, t, x) and since this would be function-internal,
     #       we'd want the plot & log to happen internally as well
     #       plots of the learned function can happen in the outer callback, but we might want to offer that here too
-
-    SciMLBase.@add_kwonly function LogOptions(; log_frequency = 50)
-        new(convert(Int64, log_frequency))
-    end
 end
+
+LogOptions(; log_frequency = 50) = LogOptions(log_frequency)
 
 """This function is defined here as stubs to be overridden by the subpackage NeuralPDELogging if imported"""
 function logvector(logger, v::AbstractVector{R}, name::AbstractString,
@@ -91,7 +86,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
     multioutput::Bool
     kwargs::K
 
-    @add_kwonly function PhysicsInformedNN(chain,
+    function PhysicsInformedNN(chain,
             strategy;
             init_params = nothing,
             phi = nothing,
@@ -231,7 +226,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
     dataset::D
     kwargs::K
 
-    @add_kwonly function BayesianPINN(chain,
+    function BayesianPINN(chain,
             strategy;
             init_params = nothing,
             phi = nothing,

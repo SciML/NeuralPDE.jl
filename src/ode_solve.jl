@@ -117,9 +117,13 @@ function ODEPhi(model::AbstractLuxLayer, t0::Number, u0, st)
     return ODEPhi(u0, t0, StatefulLuxLayer{true}(model, nothing, st))
 end
 
+function generate_phi_θ(chain::AbstractLuxLayer, t, u0, ::Nothing)
+    θ, st = LuxCore.setup(Random.default_rng(), chain)
+    return ODEPhi(chain, t, u0, st), θ
+end
+
 function generate_phi_θ(chain::AbstractLuxLayer, t, u0, init_params)
-    θ, st = Lux.setup(Random.default_rng(), chain)
-    init_params === nothing && (init_params = θ)
+    st = LuxCore.initialstates(Random.default_rng(), chain)
     return ODEPhi(chain, t, u0, st), init_params
 end
 

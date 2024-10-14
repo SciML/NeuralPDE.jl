@@ -220,14 +220,14 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
     ninv = length(param)
     t = collect(eltype(saveat), prob.tspan[1]:saveat:prob.tspan[2])
 
-    if chain isa Lux.AbstractLuxLayer
-        θinit, st = Lux.setup(Random.default_rng(), chain)
+    if chain isa AbstractLuxLayer
+        θinit, st = LuxCore.setup(Random.default_rng(), chain)
         θ = [vector_to_parameters(samples[i][1:(end - ninv)], θinit)
              for i in 1:max(draw_samples - draw_samples ÷ 10, draw_samples - 1000)]
 
         luxar = [chain(t', θ[i], st)[1] for i in 1:numensemble]
         # only need for size
-        θinit = collect(ComponentArrays.ComponentArray(θinit))
+        θinit = collect(ComponentArray(θinit))
     else
         throw(error("Only Lux.AbstractLuxLayer neural networks are supported"))
     end

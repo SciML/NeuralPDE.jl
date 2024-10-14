@@ -43,7 +43,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
             init_params,
             estim_collocate)
     end
-    function LogTargetDensity(dim, prob, chain::Lux.AbstractLuxLayer, st, strategy,
+    function LogTargetDensity(dim, prob, chain::AbstractLuxLayer, st, strategy,
             dataset,
             priors, phystd, l2std, autodiff, physdt, extraparams,
             init_params::NamedTuple, estim_collocate)
@@ -73,7 +73,7 @@ the sampled parameters are of exotic type `Dual` due to ForwardDiff's autodiff t
 """
 function vector_to_parameters(ps_new::AbstractVector,
         ps::Union{NamedTuple, ComponentArrays.ComponentVector})
-    @assert length(ps_new) == Lux.parameterlength(ps)
+    @assert length(ps_new) == LuxCore.parameterlength(ps)
     i = 1
     function get_ps(x)
         z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
@@ -139,7 +139,7 @@ function L2loss2(Tar::LogTargetDensity, θ)
             # can add phystd[i] for u[i]
             physlogprob += logpdf(
                 MvNormal(deri_physsol[i, :],
-                    LinearAlgebra.Diagonal(map(abs2,
+                    Diagonal(map(abs2,
                         (Tar.l2std[i] * 4.0) .*
                         ones(length(nnsol[i, :]))))),
                 nnsol[i, :])
@@ -166,8 +166,8 @@ function L2LossData(Tar::LogTargetDensity, θ)
             # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
             L2logprob += logpdf(
                 MvNormal(nn[i, :],
-                    LinearAlgebra.Diagonal(abs2.(Tar.l2std[i] .*
-                                                 ones(length(Tar.dataset[i]))))),
+                    Diagonal(abs2.(Tar.l2std[i] .*
+                                   ones(length(Tar.dataset[i]))))),
                 Tar.dataset[i])
         end
         return L2logprob
@@ -308,8 +308,8 @@ function innerdiff(Tar::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, 
     # N dimensional vector if N outputs for NN(each row has logpdf of u[i] where u is vector of dependant variables)
     return [logpdf(
                 MvNormal(vals[i, :],
-                    LinearAlgebra.Diagonal(abs2.(Tar.phystd[i] .*
-                                                 ones(length(vals[i, :]))))),
+                    Diagonal(abs2.(Tar.phystd[i] .*
+                                   ones(length(vals[i, :]))))),
                 zeros(length(vals[i, :]))) for i in 1:length(Tar.prob.u0)]
 end
 
@@ -338,21 +338,19 @@ function priorweights(Tar::LogTargetDensity, θ)
     end
 end
 
-function generate_Tar(chain::Lux.AbstractLuxLayer, init_params)
-    θ, st = Lux.setup(Random.default_rng(), chain)
-    return init_params, chain, st
+function generate_Tar(chain::AbstractLuxLayer, init_params)
+    return init_params, chain, LuxCore.initialstates(Random.default_rng(), chain)
 end
 
-function generate_Tar(chain::Lux.AbstractLuxLayer, init_params::Nothing)
-    θ, st = Lux.setup(Random.default_rng(), chain)
+function generate_Tar(chain::AbstractLuxLayer, ::Nothing)
+    θ, st = LuxCore.setup(Random.default_rng(), chain)
     return θ, chain, st
 end
 
 """
 NN OUTPUT AT t,θ ~ phi(t,θ).
 """
-function (f::LogTargetDensity{C, S})(t::AbstractVector,
-        θ) where {C <: Lux.AbstractLuxLayer, S}
+function (f::LogTargetDensity{C, S})(t::AbstractVector, θ) where {C <: AbstractLuxLayer, S}
     eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
     θ = vector_to_parameters(θ, f.init_params)
     t_ = convert.(eltypeθ, adapt(typeθ, t'))
@@ -361,8 +359,7 @@ function (f::LogTargetDensity{C, S})(t::AbstractVector,
     f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* y
 end
 
-function (f::LogTargetDensity{C, S})(t::Number,
-        θ) where {C <: Lux.AbstractLuxLayer, S}
+function (f::LogTargetDensity{C, S})(t::Number, θ) where {C <: AbstractLuxLayer, S}
     eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
     θ = vector_to_parameters(θ, f.init_params)
     t_ = convert.(eltypeθ, adapt(typeθ, [t]))
@@ -506,8 +503,7 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         MCMCkwargs = (n_leapfrog = 30,),
         progress = false, verbose = false,
         estim_collocate = false)
-    !(chain isa Lux.AbstractLuxLayer) &&
-        (chain = adapt(FromFluxAdaptor(false, false), chain))
+    !(chain isa AbstractLuxLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
         throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
@@ -526,8 +522,7 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         throw(error("Dataset Required for Parameter Estimation."))
     end
 
-    if chain isa Lux.AbstractLuxLayer
-        # Lux-Named Tuple
+    if chain isa AbstractLuxLayer
         initial_nnθ, recon, st = generate_Tar(chain, init_params)
     else
         error("Only Lux.AbstractLuxLayer Neural networks are supported")
@@ -542,14 +537,14 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
     # eltype(physdt) cause needs Float64 for find_good_stepsize
     # Lux chain(using component array later as vector_to_parameter need namedtuple)
     initial_θ = collect(eltype(physdt),
-        vcat(ComponentArrays.ComponentArray(initial_nnθ)))
+        vcat(ComponentArray(initial_nnθ)))
 
     # adding ode parameter estimation
     nparameters = length(initial_θ)
     ninv = length(param)
     priors = [
         MvNormal(priorsNNw[1] * ones(nparameters),
-        LinearAlgebra.Diagonal(abs2.(priorsNNw[2] .* ones(nparameters))))
+        Diagonal(abs2.(priorsNNw[2] .* ones(nparameters))))
     ]
 
     # append Ode params to all paramvector

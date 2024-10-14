@@ -3,45 +3,54 @@ $(DocStringExtensions.README)
 """
 module NeuralPDE
 
-using DocStringExtensions
-using Reexport, Statistics
-@reexport using SciMLBase
-@reexport using ModelingToolkit
-
-using Zygote, ForwardDiff, Random, Distributions
-using Adapt, DiffEqNoiseProcess
-using Optimization
-using OptimizationOptimisers, OptimizationOptimJL
-using Integrals, Cubature
-using RuntimeGeneratedFunctions
-using Statistics
-using ArrayInterface
-
-using Symbolics: wrap, unwrap, arguments, operation
-using SymbolicUtils
-using AdvancedHMC, LogDensityProblems, LinearAlgebra, Functors, MCMCChains
-using MonteCarloMeasurements: Particles
-using ModelingToolkit: value, nameof, toexpr, build_expr, expand_derivatives, Interval,
-                       infimum, supremum
-import DomainSets
-using DomainSets: Domain, ClosedInterval, AbstractInterval, leftendpoint, rightendpoint,
-                  ProductDomain
-using SciMLBase: @add_kwonly, parameterless_type
-
-using ADTypes: AutoForwardDiff, AutoZygote
+using ADTypes: ADTypes, AutoForwardDiff, AutoZygote
+using Adapt: Adapt, adapt
+using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
+                   JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
+                   StepSizeAdaptor, TemperedLeapfrog, find_good_stepsize
+using ArrayInterface: ArrayInterface, parameterless_type
 using ChainRulesCore: ChainRulesCore, @non_differentiable, @ignore_derivatives
+using Cubature: Cubature
 using ComponentArrays: ComponentArrays, ComponentArray, getdata, getaxes
 using ConcreteStructs: @concrete
-using Functors: fmap
+using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
+using DiffEqNoiseProcess: DiffEqNoiseProcess
+using DocStringExtensions: DocStringExtensions, FIELDS
+using DomainSets: DomainSets, AbstractInterval, leftendpoint, rightendpoint, ProductDomain
+using ForwardDiff: ForwardDiff
+using Functors: Functors, fmap
+using Integrals: Integrals, CubatureJLh, QuadGKJL
+using LinearAlgebra: Diagonal
+using LogDensityProblems: LogDensityProblems
 using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
-using LuxCore: AbstractLuxLayer, AbstractLuxWrapperLayer, AbstractLuxContainerLayer
+using LuxCore: LuxCore, AbstractLuxLayer, AbstractLuxWrapperLayer
+using MCMCChains: MCMCChains, Chains, sample
+using ModelingToolkit: ModelingToolkit, Num, PDESystem, toexpr, expand_derivatives, infimum,
+                       supremum
+using MonteCarloMeasurements: Particles
 using Optimisers: Optimisers, Adam
+using Optimization: Optimization
+using OptimizationOptimisers: OptimizationOptimisers
+using OptimizationOptimJL: OptimizationOptimJL
+using Random: Random, AbstractRNG
 using RecursiveArrayTools: DiffEqArray
+using Reexport: @reexport
+using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
+using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem,
+                 OptimizationFunction, OptimizationProblem, ReturnCode, discretize,
+                 isinplace, solve, symbolic_discretize
+using Statistics: Statistics, mean
+using Symbolics: Symbolics, unwrap, arguments, operation, build_expr
+using SymbolicUtils: SymbolicUtils
+using SymbolicIndexingInterface: SymbolicIndexingInterface
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
 using WeightInitializers: glorot_uniform, zeros32
+using Zygote: Zygote
 
-import LuxCore: initialparameters, initialstates, parameterlength, statelength
+import LuxCore: initialparameters, initialstates, parameterlength
+
+@reexport using SciMLBase, ModelingToolkit
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 

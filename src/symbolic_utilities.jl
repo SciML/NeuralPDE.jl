@@ -227,7 +227,7 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                     if l isa Number
                         push!(lb_, l)
                     else
-                        l_expr = NeuralPDE.build_symbolic_loss_function(pinnrep, nothing;
+                        l_expr = build_symbolic_loss_function(pinnrep, nothing;
                             integrand = _dot_(l),
                             integrating_depvars = integrating_depvars,
                             param_estim = false,
@@ -240,7 +240,7 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                     if u_ isa Number
                         push!(ub_, u_)
                     else
-                        u_expr = NeuralPDE.build_symbolic_loss_function(pinnrep, nothing;
+                        u_expr = build_symbolic_loss_function(pinnrep, nothing;
                             integrand = _dot_(u_),
                             integrating_depvars = integrating_depvars,
                             param_estim = false,
@@ -341,18 +341,18 @@ function pair(eq, depvars, dict_depvars, dict_depvar_input)
 end
 
 function get_vars(indvars_, depvars_)
-    indvars = ModelingToolkit.getname.(indvars_)
+    indvars = SymbolicIndexingInterface.getname.(indvars_)
     depvars = Symbol[]
     dict_depvar_input = Dict{Symbol, Vector{Symbol}}()
     for d in depvars_
         if unwrap(d) isa SymbolicUtils.BasicSymbolic
-            dname = ModelingToolkit.getname(d)
+            dname = SymbolicIndexingInterface.getname(d)
             push!(depvars, dname)
             push!(dict_depvar_input,
                 dname => [nameof(unwrap(argument))
                           for argument in arguments(unwrap(d))])
         else
-            dname = ModelingToolkit.getname(d)
+            dname = SymbolicIndexingInterface.getname(d)
             push!(depvars, dname)
             push!(dict_depvar_input, dname => indvars) # default to all inputs if not given
         end

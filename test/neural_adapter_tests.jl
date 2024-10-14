@@ -53,7 +53,7 @@ end
         Lux.Dense(inner_, inner_, af),
         Lux.Dense(inner_, 1))
     initp, st = Lux.setup(Random.default_rng(), chain2)
-    init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
+    init_params2 = Float64.(ComponentArray(initp))
 
     function loss(cord, θ)
         ch2, st = chain2(cord, θ, st)
@@ -132,7 +132,7 @@ end
     chains = [Lux.Chain(Lux.Dense(2, inner, af), Lux.Dense(inner, inner, af),
                   Lux.Dense(inner, 1)) for _ in 1:count_decomp]
     init_params = map(
-        c -> Float64.(ComponentArrays.ComponentArray(Lux.setup(Random.default_rng(),
+        c -> Float64.(ComponentArray(Lux.setup(Random.default_rng(),
             c)[1])),
         chains)
 
@@ -225,7 +225,7 @@ end
         Lux.Dense(inner_, 1))
 
     initp, st = Lux.setup(Random.default_rng(), chain2)
-    init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
+    init_params2 = Float64.(ComponentArray(initp))
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 

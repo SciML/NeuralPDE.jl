@@ -80,15 +80,15 @@ function setparameters(Tar::PDELogTargetDensity, θ)
     Luxparams = [vector_to_parameters(ps_new[((i += length(ps[x])) - length(ps[x]) + 1):i],
                      ps[x]) for x in names]
 
-    a = ComponentArrays.ComponentArray(NamedTuple{Tar.names}(i for i in Luxparams))
+    a = ComponentArray(NamedTuple{Tar.names}(i for i in Luxparams))
 
     if Tar.extraparams > 0
         b = θ[(end - Tar.extraparams + 1):end]
-        return ComponentArrays.ComponentArray(;
+        return ComponentArray(;
             depvar = a,
             p = b)
     else
-        return ComponentArrays.ComponentArray(;
+        return ComponentArray(;
             depvar = a)
     end
 end
@@ -126,8 +126,8 @@ function L2LossData(Tar::PDELogTargetDensity, θ)
                         vector_to_parameters(θ[1:(end - Tar.extraparams)],
                             init_params)[Tar.names[i]])[1,
                         :],
-                    LinearAlgebra.Diagonal(abs2.(ones(size(dataset[i])[1]) .*
-                                                 L2stds[i]))),
+                    Diagonal(abs2.(ones(size(dataset[i])[1]) .*
+                                   L2stds[i]))),
                 dataset[i][:, 1])
         end
         return sumt
@@ -350,7 +350,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # add init_params for NN params
     priors = [
         MvNormal(priorsNNw[1] * ones(nparameters),
-        LinearAlgebra.Diagonal(abs2.(priorsNNw[2] .* ones(nparameters))))
+        Diagonal(abs2.(priorsNNw[2] .* ones(nparameters))))
     ]
 
     # append Ode params to all paramvector - initial_θ

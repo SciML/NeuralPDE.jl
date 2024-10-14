@@ -393,16 +393,16 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
         # This is done because Float64 is almost always better for these applications
         if chain isa AbstractArray
             x = map(chain) do x
-                _x = ComponentArrays.ComponentArray(Lux.initialparameters(
+                _x = ComponentArray(LuxCore.initialparameters(
                     Random.default_rng(),
                     x))
                 Float64.(_x) # No ComponentArray GPU support
             end
             names = ntuple(i -> depvars[i], length(chain))
-            init_params = ComponentArrays.ComponentArray(NamedTuple{names}(i
+            init_params = ComponentArray(NamedTuple{names}(i
             for i in x))
         else
-            init_params = Float64.(ComponentArrays.ComponentArray(Lux.initialparameters(
+            init_params = Float64.(ComponentArray(LuxCore.initialparameters(
                 Random.default_rng(),
                 chain)))
         end
@@ -410,22 +410,22 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
         init_params = init_params
     end
 
-    flat_init_params = if init_params isa ComponentArrays.ComponentArray
+    flat_init_params = if init_params isa ComponentArray
         init_params
     elseif multioutput
         @assert length(init_params) == length(depvars)
         names = ntuple(i -> depvars[i], length(init_params))
-        x = ComponentArrays.ComponentArray(NamedTuple{names}(i for i in init_params))
+        x = ComponentArray(NamedTuple{names}(i for i in init_params))
     else
-        ComponentArrays.ComponentArray(init_params)
+        ComponentArray(init_params)
     end
 
     flat_init_params = if !param_estim && multioutput
-        ComponentArrays.ComponentArray(; depvar = flat_init_params)
+        ComponentArray(; depvar = flat_init_params)
     elseif !param_estim && !multioutput
         flat_init_params
     else
-        ComponentArrays.ComponentArray(; depvar = flat_init_params, p = default_p)
+        ComponentArray(; depvar = flat_init_params, p = default_p)
     end
 
     if length(flat_init_params) == 0 && !Base.isconcretetype(eltype(flat_init_params))

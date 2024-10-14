@@ -112,8 +112,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
 
     if chain isa Lux.AbstractLuxLayer || chain isa Flux.Chain
         phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
-        init_params = ComponentArrays.ComponentArray(;
-            depvar = ComponentArrays.ComponentArray(init_params))
+        init_params = ComponentArray(;
+            depvar = ComponentArray(init_params))
     else
         error("Only Lux.AbstractLuxLayer and Flux.Chain neural networks are supported")
     end
