@@ -25,12 +25,8 @@ import ModelingToolkit: Interval, infimum, supremum
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
 
-    global iter = 0
     callback = function (p, l)
-        global iter += 1
-        if iter % 50 == 0
-            println("$iter => $l")
-        end
+        p.iter % 50 == 0 && println("$(p.iter) => $l")
         return false
     end
 
@@ -48,7 +44,8 @@ import ModelingToolkit: Interval, infimum, supremum
         (length(xs), length(ys)))
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
         (length(xs), length(ys)))
-    @test maximum(abs, u_predict - u_real) < 0.1
+
+    @test u_real≈u_predict atol=0.01 norm=Base.Fix2(norm, Inf)
 end
 
 @testset "Black-Scholes PDE: European Call Option" begin
@@ -79,16 +76,12 @@ end
     @named pde_system = PDESystem(eq, bcs, domains, [t, x], [g(t, x)])
     prob = discretize(pde_system, discretization)
 
-    global iter = 0
     callback = function (p, l)
-        global iter += 1
-        if iter % 50 == 0
-            println("$iter => $l")
-        end
+        p.iter % 50 == 0 && println("$(p.iter) => $l")
         return false
     end
 
-    res = Optimization.solve(prob, Adam(0.1); callback, maxiters = 500)
+    res = Optimization.solve(prob, Adam(0.1); callback, maxiters = 100)
     prob = remake(prob, u0 = res.u)
     res = Optimization.solve(prob, Adam(0.01); callback, maxiters = 500)
     phi = discretization.phi
@@ -106,7 +99,7 @@ end
 
     u_real = [analytic_sol_func(t, x) for t in ts, x in xs]
     u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
-    @test_broken u_predict≈u_real rtol=0.05
+    @test u_predict≈u_real rtol=0.05
 end
 
 @testset "Burger's equation" begin
@@ -144,12 +137,9 @@ end
     discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
     prob = discretize(pde_system, discretization)
-    global iter = 0
+
     callback = function (p, l)
-        global iter += 1
-        if iter % 20 == 0
-            println("$iter => $l")
-        end
+        p.iter % 50 == 0 && println("$(p.iter) => $l")
         return false
     end
 

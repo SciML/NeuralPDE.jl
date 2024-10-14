@@ -45,7 +45,7 @@ function (layer::DGMLSTMLayer)((S, x), ps, st::NamedTuple)
     return S_new, st
 end
 
-dgm_lstm_block_rearrange(mx, (S, x)) = (mx, x)
+dgm_lstm_block_rearrange(Sᵢ₊₁, (Sᵢ, x)) = Sᵢ₊₁, x
 
 function DGMLSTMBlock(layers...)
     blocks = AbstractLuxLayer[]
@@ -94,16 +94,18 @@ f(t, x, \\theta) &= \\sigma_{out}(W S^{L+1} + b).
 """
 function DGM(in_dims::Int, out_dims::Int, modes::Int, layers::Int,
         activation1, activation2, out_activation)
-    return DGM(Chain(SkipConnection(
-        Dense(in_dims => modes, activation1; init_bias = zeros32),
-        DGMLSTMBlock([DGMLSTMLayer(in_dims, modes, activation1, activation2)
-                      for _ in 1:layers]...),
-        Dense(modes => out_dims, out_activation; init_bias = zeros32))))
+    return DGM(Chain(
+        SkipConnection(
+            Dense(in_dims => modes, activation1),
+            DGMLSTMBlock([DGMLSTMLayer(in_dims, modes, activation1, activation2)
+                          for _ in 1:layers]...)),
+        Dense(modes => out_dims, out_activation)))
 end
 
 """
-    DeepGalerkin(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function, activation2::Function, out_activation::Function,
-        strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)
+    DeepGalerkin(in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function,
+        activation2::Function, out_activation::Function, strategy::AbstractTrainingStrategy;
+        kwargs...)
 
 returns a `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a `PDESystem` into an `OptimizationProblem` using the Deep Galerkin method.
 
