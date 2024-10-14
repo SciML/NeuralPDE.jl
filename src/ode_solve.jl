@@ -8,7 +8,7 @@ Algorithm for solving ordinary differential equations using a neural network. Th
 specialization of the physics-informed neural network which is used as a solver for a
 standard `ODEProblem`.
 
-!!! warn
+!!! warning
 
     Note that NNODE only supports ODEs which are written in the out-of-place form, i.e.
     `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place, then the NNODE
@@ -172,7 +172,7 @@ function inner_loss(phi::ODEPhi{<:Number}, f, autodiff::Bool, t::AbstractVector,
     p_ = param_estim ? θ.p : p
     out = phi(t, θ)
     fs = reduce(hcat, [f(out[i], p_, t[i]) for i in axes(out, 2)])
-    dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
+    dxdtguess = ode_dfdx(phi, t, θ, autodiff)
     return sum(abs2, fs .- dxdtguess) / length(t)
 end
 
@@ -184,10 +184,9 @@ end
 function inner_loss(
         phi::ODEPhi, f, autodiff::Bool, t::AbstractVector, θ, p, param_estim::Bool)
     p_ = param_estim ? θ.p : p
-    out = Array(phi(t, θ))
-    arrt = Array(t)
-    fs = reduce(hcat, [f(out[:, i], p_, arrt[i]) for i in 1:size(out, 2)])
-    dxdtguess = Array(ode_dfdx(phi, t, θ, autodiff))
+    out = phi(t, θ)
+    fs = reduce(hcat, [f(out[:, i], p_, tᵢ) for (i, tᵢ) in enumerate(t)])
+    dxdtguess = ode_dfdx(phi, t, θ, autodiff)
     return sum(abs2, fs .- dxdtguess) / length(t)
 end
 
@@ -373,9 +372,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         return L2_loss
     end
 
-    # Choice of Optimization Algo for Training Strategies
     opt_algo = ifelse(strategy isa QuadratureTraining, AutoForwardDiff(), AutoZygote())
-    # Creates OptimizationFunction Object from total_loss
     optf = OptimizationFunction(total_loss, opt_algo)
 
     callback = function (p, l)

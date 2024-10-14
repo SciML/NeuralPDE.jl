@@ -31,13 +31,13 @@ threshold = 0.2
     alg = NNODE(chain, opt; autodiff = false, strategy)
 
     @testset "Without added points" begin
-        sol = solve(prob_oop, alg; verbose = true, maxiters = 1000, saveat)
+        sol = solve(prob_oop, alg; verbose = false, maxiters = 1000, saveat)
         @test abs(mean(sol) - mean(true_sol)) > threshold
     end
 
     @testset "With added points" begin
         sol = solve(
-            prob_oop, alg; verbose = true, maxiters = 10000, saveat, tstops = addedPoints)
+            prob_oop, alg; verbose = false, maxiters = 10000, saveat, tstops = addedPoints)
         @test abs(mean(sol) - mean(true_sol)) < threshold
     end
 end

@@ -45,7 +45,7 @@ import ModelingToolkit: Interval, infimum, supremum
     u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
         (length(xs), length(ys)))
 
-    @test u_real≈u_predict atol=0.01 norm=Base.Fix2(norm, Inf)
+    @test u_real≈u_predict atol=0.1
 end
 
 @testset "Black-Scholes PDE: European Call Option" begin
