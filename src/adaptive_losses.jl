@@ -71,19 +71,20 @@ https://github.com/PredictiveIntelligenceLab/GradientPathologiesPINNs
     additional_loss_weights::Vector{T}
 end
 
-function GradientScaleAdaptiveLoss{T}(reweight_every;
+function GradientScaleAdaptiveLoss{T}(reweight_every::Int;
         weight_change_inertia = 0.9, pde_loss_weights = 1.0,
         bc_loss_weights = 1.0, additional_loss_weights = 1.0) where {T <: Real}
     return GradientScaleAdaptiveLoss{T}(reweight_every, weight_change_inertia,
         vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T),
-        additional_loss_weights)
+        vectorify(additional_loss_weights, T))
 end
 
-GradientScaleAdaptiveLoss(; kwargs...) = GradientScaleAdaptiveLoss{Float64}(; kwargs...)
+function GradientScaleAdaptiveLoss(args...; kwargs...)
+    return GradientScaleAdaptiveLoss{Float64}(args...; kwargs...)
+end
 
 function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
-        adaloss::GradientScaleAdaptiveLoss,
-        pde_loss_functions, bc_loss_functions)
+        adaloss::GradientScaleAdaptiveLoss, pde_loss_functions, bc_loss_functions)
     weight_change_inertia = adaloss.weight_change_inertia
     iteration = pinnrep.iteration
     adaloss_T = eltype(adaloss.pde_loss_weights)
@@ -157,24 +158,22 @@ https://arxiv.org/abs/2009.04544
     additional_loss_weights::Vector{T}
 end
 
-function MiniMaxAdaptiveLoss{T}(reweight_every;
-        pde_max_optimiser = OptimizationOptimisers.Adam(1e-4),
-        bc_max_optimiser = OptimizationOptimisers.Adam(0.5),
-        pde_loss_weights = 1.0, bc_loss_weights = 1.0,
+function MiniMaxAdaptiveLoss{T}(reweight_every::Int; pde_max_optimiser = Adam(1e-4),
+        bc_max_optimiser = Adam(0.5), pde_loss_weights = 1.0, bc_loss_weights = 1.0,
         additional_loss_weights = 1.0) where {T <: Real}
     return MiniMaxAdaptiveLoss{T}(reweight_every, pde_max_optimiser, bc_max_optimiser,
         vectorify(pde_loss_weights, T), vectorify(bc_loss_weights, T),
-        additional_loss_weights)
+        vectorify(additional_loss_weights, T))
 end
 
-MiniMaxAdaptiveLoss(; kwargs...) = MiniMaxAdaptiveLoss{Float64}(; kwargs...)
+MiniMaxAdaptiveLoss(args...; kwargs...) = MiniMaxAdaptiveLoss{Float64}(args...; kwargs...)
 
 function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
-        adaloss::MiniMaxAdaptiveLoss, pde_loss_functions, bc_loss_functions)
-    pde_max_optimiser = adaloss.pde_max_optimiser
-    pde_max_optimiser_setup = Optimisers.setup(pde_max_optimiser, adaloss.pde_loss_weights)
-    bc_max_optimiser = adaloss.bc_max_optimiser
-    bc_max_optimiser_setup = Optimisers.setup(bc_max_optimiser, adaloss.bc_loss_weights)
+        adaloss::MiniMaxAdaptiveLoss, _, __)
+    pde_max_optimiser_setup = Optimisers.setup(
+        adaloss.pde_max_optimiser, adaloss.pde_loss_weights)
+    bc_max_optimiser_setup = Optimisers.setup(
+        adaloss.bc_max_optimiser, adaloss.bc_loss_weights)
     iteration = pinnrep.iteration
 
     return (θ, pde_losses, bc_losses) -> begin

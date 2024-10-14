@@ -1,15 +1,10 @@
-using Optimization, OptimizationOptimisers
-using Test, NeuralPDE
+using Optimization, OptimizationOptimisers, Test, NeuralPDE, Random, DomainSets, Lux
 import ModelingToolkit: Interval, infimum, supremum
-using DomainSets
-using Random
-import Lux
 
-nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
-gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weights = 1e3,
+nonadaptive_loss = NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
+gradnormadaptive_loss = GradientScaleAdaptiveLoss(100, pde_loss_weights = 1e3,
     bc_loss_weights = 1)
-adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights = 1,
-    bc_loss_weights = 1)
+adaptive_loss = MiniMaxAdaptiveLoss(100; pde_loss_weights = 1, bc_loss_weights = 1)
 adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss, adaptive_loss]
 maxiters = 4000
 seed = 60
@@ -17,11 +12,11 @@ seed = 60
 ## 2D Poisson equation
 function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxiters = 4000)
     Random.seed!(seed)
-    hid = 40
-    chain_ = Lux.Chain(Lux.Dense(2, hid, Lux.σ), Lux.Dense(hid, hid, Lux.σ),
-        Lux.Dense(hid, 1))
-    strategy_ = NeuralPDE.StochasticTraining(256)
-    @info "adaptive reweighting test outdir:, maxiters: $(maxiters), 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) "
+    hid = 32
+    chain_ = Chain(Dense(2, hid, tanh), Dense(hid, hid, tanh), Dense(hid, 1))
+
+    strategy_ = StochasticTraining(256)
+
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -38,11 +33,8 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
         y ∈ Interval(0.0, 1.0)]
 
     iteration = [0]
-    discretization = PhysicsInformedNN(chain_,
-        strategy_;
-        adaptive_loss = adaptive_loss,
-        logger = nothing,
-        iteration = iteration)
+    discretization = PhysicsInformedNN(chain_, strategy_; adaptive_loss, logger = nothing,
+        iteration)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
@@ -59,30 +51,18 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
         end
         return false
     end
-    res = solve(
-        prob, OptimizationOptimisers.Adam(0.03); maxiters = maxiters, callback = callback)
+    res = solve(prob, OptimizationOptimisers.Adam(0.03); maxiters, callback)
     u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
         (length(xs), length(ys)))
-    diff_u = abs.(u_predict .- u_real)
-    total_diff = sum(diff_u)
-    total_u = sum(abs.(u_real))
+    total_diff = sum(abs, u_predict .- u_real)
+    total_u = sum(abs, u_real)
     total_diff_rel = total_diff / total_u
-    (error = total_diff, total_diff_rel = total_diff_rel)
+    return (; error = total_diff, total_diff_rel)
 end
 
-@info "testing that the adaptive loss methods roughly succeed"
-function test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters(adaptive_loss)
-    test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = seed, maxiters = maxiters)
-end
-error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters,
-    adaptive_losses)
+@testset "$(nameof(typeof(adaptive_loss)))" for adaptive_loss in adaptive_losses
+    error_results_no_logs = test_2d_poisson_equation_adaptive_loss(
+        adaptive_loss; seed, maxiters)
 
-# accuracy tests
-@show error_results_no_logs[1][:total_diff_rel]
-@show error_results_no_logs[2][:total_diff_rel]
-@show error_results_no_logs[3][:total_diff_rel]
-# accuracy tests, these work for this specific seed but might not for others
-# note that this doesn't test that the adaptive losses are outperforming the nonadaptive loss, which is not guaranteed, and seed/arch/hyperparam/pde etc dependent
-@test error_results_no_logs[1][:total_diff_rel] < 0.4
-@test error_results_no_logs[2][:total_diff_rel] < 0.4
-@test error_results_no_logs[3][:total_diff_rel] < 0.4
+    @test error_results_no_logs[:total_diff_rel] < 0.4
+end

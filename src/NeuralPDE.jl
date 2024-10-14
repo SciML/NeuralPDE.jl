@@ -32,12 +32,13 @@ using SciMLBase: @add_kwonly, parameterless_type
 using UnPack: @unpack
 import ChainRulesCore, ComponentArrays
 
-using ChainRulesCore: @non_differentiable
+using ChainRulesCore: @non_differentiable, @ignore_derivatives
 using ConcreteStructs: @concrete
+using Functors: fmap
 using Lux: Lux, Chain, Dense, SkipConnection
 using Lux: FromFluxAdaptor, recursive_eltype
 using LuxCore: AbstractLuxLayer, AbstractLuxWrapperLayer, AbstractLuxContainerLayer
-using Optimisers: Optimisers
+using Optimisers: Optimisers, Adam
 using WeightInitializers: glorot_uniform, zeros32
 
 import LuxCore: initialparameters, initialstates, parameterlength, statelength
@@ -47,6 +48,8 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 abstract type AbstractPINN end
 
 abstract type AbstractTrainingStrategy end
+
+include("eltype_matching.jl")
 
 include("pinn_types.jl")
 include("symbolic_utilities.jl")
@@ -61,6 +64,7 @@ include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
+
 include("dgm.jl")
 
 export NNODE, NNDAE,
