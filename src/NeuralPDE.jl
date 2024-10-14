@@ -37,6 +37,7 @@ using ConcreteStructs: @concrete
 using Lux: Lux, Chain, Dense, SkipConnection
 using Lux: FromFluxAdaptor, recursive_eltype
 using LuxCore: AbstractLuxLayer, AbstractLuxWrapperLayer, AbstractLuxContainerLayer
+using Optimisers: Optimisers
 using WeightInitializers: glorot_uniform, zeros32
 
 import LuxCore: initialparameters, initialstates, parameterlength, statelength
