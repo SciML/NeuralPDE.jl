@@ -65,7 +65,9 @@ end
     if GROUP == "All" || GROUP == "Logging"
         dev_subpkg("NeuralPDELogging")
         subpkg_path = joinpath(dirname(@__DIR__), "lib", "NeuralPDELogging")
-        Pkg.test(PackageSpec(name = "NeuralPDELogging", path = subpkg_path))
+        # XXX: problem in TensorBoardLogger that causes error if run with --depwarn=error
+        Pkg.test(PackageSpec(; name = "NeuralPDELogging", path = subpkg_path);
+            julia_args = ["--depwarn=yes"])
     end
 
     if !is_APPVEYOR && GROUP == "GPU"
