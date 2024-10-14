@@ -132,8 +132,8 @@ Journal of Computational Physics, Volume 375, 2018, Pages 1339-1364, doi: https:
 """
 function DeepGalerkin(
         in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function,
-        activation2::Function, out_activation::Function,
-        strategy::NeuralPDE.AbstractTrainingStrategy; kwargs...)
+        activation2::Function, out_activation::Function, strategy::AbstractTrainingStrategy;
+        kwargs...)
     return PhysicsInformedNN(
         DGM(in_dims, out_dims, modes, L, activation1, activation2, out_activation),
         strategy; kwargs...

@@ -34,10 +34,7 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         dict_transformation_vars = nothing,
         transformation_vars = nothing,
         integrating_depvars = pinnrep.depvars)
-    @unpack indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input,
-    phi, derivative, integral,
-    multioutput, init_params, strategy, eq_params,
-    param_estim, default_p = pinnrep
+    (; indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input, phi, derivative, integral, multioutput, init_params, strategy, eq_params, param_estim, default_p) = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
 
@@ -150,7 +147,7 @@ Returns the body of loss function, which is the executable Julia function, for t
 equation or boundary condition.
 """
 function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
-    @unpack eq_params, param_estim, default_p, phi, derivative, integral = pinnrep
+    (; eq_params, param_estim, default_p, phi, derivative, integral) = pinnrep
 
     bc_indvars = bc_indvars === nothing ? pinnrep.indvars : bc_indvars
 
@@ -312,8 +309,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
 end
 
 function get_numeric_integral(pinnrep::PINNRepresentation)
-    @unpack strategy, indvars, depvars, multioutput, derivative,
-    depvars, indvars, dict_indvars, dict_depvars = pinnrep
+    (; strategy, indvars, depvars, multioutput, derivative, depvars, indvars, dict_indvars, dict_depvars) = pinnrep
 
     integral = (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ; strategy = strategy, indvars = indvars, depvars = depvars, dict_indvars = dict_indvars, dict_depvars = dict_depvars) -> begin
         function integration_(cord, lb, ub, θ)

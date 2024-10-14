@@ -27,8 +27,8 @@ import DomainSets
 using DomainSets: Domain, ClosedInterval, AbstractInterval, leftendpoint, rightendpoint,
                   ProductDomain
 using SciMLBase: @add_kwonly, parameterless_type
-using UnPack: @unpack
 
+using ADTypes: AutoForwardDiff, AutoZygote
 using ChainRulesCore: ChainRulesCore, @non_differentiable, @ignore_derivatives
 using ComponentArrays: ComponentArrays, ComponentArray, getdata, getaxes
 using ConcreteStructs: @concrete
@@ -37,6 +37,7 @@ using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
 using LuxCore: AbstractLuxLayer, AbstractLuxWrapperLayer, AbstractLuxContainerLayer
 using Optimisers: Optimisers, Adam
+using RecursiveArrayTools: DiffEqArray
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
 using WeightInitializers: glorot_uniform, zeros32
 

@@ -1,30 +1,23 @@
-using Test
-using Random, NeuralPDE
-using OrdinaryDiffEq, Statistics
-import Lux, OptimizationOptimisers, OptimizationOptimJL
-using WeightInitializers
-using Flux
-using LineSearches
+using Test, Random, NeuralPDE, OrdinaryDiffEq, Statistics, Lux, OptimizationOptimisers,
+      OptimizationOptimJL, WeightInitializers, LineSearches
+import Flux
 
 rng = Random.default_rng()
 Random.seed!(100)
 
 @testset "Scalar" begin
-    # Run a solve on scalars
-    println("Scalar")
     linear = (u, p, t) -> cos(2pi * t)
     tspan = (0.0f0, 1.0f0)
     u0 = 0.0f0
     prob = ODEProblem(linear, u0, tspan)
-    luxchain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
+    luxchain = Chain(Dense(1, 5, σ), Dense(5, 1))
     opt = OptimizationOptimisers.Adam(0.1, (0.9, 0.95))
 
     sol = solve(prob, NNODE(luxchain, opt), dt = 1 / 20.0f0, verbose = false,
         abstol = 1.0f-10, maxiters = 200)
 
     @test_throws ArgumentError solve(prob, NNODE(luxchain, opt; autodiff = true),
-        dt = 1 / 20.0f0,
-        verbose = false, abstol = 1.0f-10, maxiters = 200)
+        dt = 1 / 20.0f0, verbose = false, abstol = 1.0f-10, maxiters = 200)
 
     sol = solve(prob, NNODE(luxchain, opt), verbose = false,
         abstol = 1.0f-6, maxiters = 200)
@@ -38,13 +31,11 @@ Random.seed!(100)
 end
 
 @testset "Vector" begin
-    # Run a solve on vectors
-    println("Vector")
     linear = (u, p, t) -> [cos(2pi * t)]
     tspan = (0.0f0, 1.0f0)
     u0 = [0.0f0]
     prob = ODEProblem(linear, u0, tspan)
-    luxchain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
+    luxchain = Chain(Dense(1, 5, σ), Dense(5, 1))
 
     opt = OptimizationOptimJL.BFGS()
     sol = solve(prob, NNODE(luxchain, opt), dt = 1 / 20.0f0, abstol = 1e-10,
@@ -63,27 +54,24 @@ end
 end
 
 @testset "Example 1" begin
-    println("Example 1")
     linear = (u, p, t) -> @. t^3 + 2 * t + (t^2) * ((1 + 3 * (t^2)) / (1 + t + (t^3))) -
                              u * (t + ((1 + 3 * (t^2)) / (1 + t + t^3)))
     linear_analytic = (u0, p, t) -> [exp(-(t^2) / 2) / (1 + t + t^3) + t^2]
     prob = ODEProblem(
         ODEFunction(linear, analytic = linear_analytic), [1.0f0], (0.0f0, 1.0f0))
-    luxchain = Lux.Chain(Lux.Dense(1, 128, Lux.σ), Lux.Dense(128, 1))
+    luxchain = Chain(Dense(1, 128, σ), Dense(128, 1))
     opt = OptimizationOptimisers.Adam(0.01)
 
     sol = solve(prob, NNODE(luxchain, opt), verbose = false, maxiters = 400)
     @test sol.errors[:l2] < 0.5
 
-    sol = solve(prob,
-        NNODE(luxchain, opt; batch = false,
-            strategy = StochasticTraining(100)),
+    sol = solve(
+        prob, NNODE(luxchain, opt; batch = false, strategy = StochasticTraining(100)),
         verbose = false, maxiters = 400)
     @test sol.errors[:l2] < 0.5
 
-    sol = solve(prob,
-        NNODE(luxchain, opt; batch = true,
-            strategy = StochasticTraining(100)),
+    sol = solve(
+        prob, NNODE(luxchain, opt; batch = true, strategy = StochasticTraining(100)),
         verbose = false, maxiters = 400)
     @test sol.errors[:l2] < 0.5
 
@@ -91,19 +79,17 @@ end
         maxiters = 400, dt = 1 / 5.0f0)
     @test sol.errors[:l2] < 0.5
 
-    sol = solve(prob, NNODE(luxchain, opt; batch = true), verbose = false,
-        maxiters = 400,
-        dt = 1 / 5.0f0)
+    sol = solve(prob, NNODE(luxchain, opt; batch = true),
+        verbose = false, maxiters = 400, dt = 1 / 5.0f0)
     @test sol.errors[:l2] < 0.5
 end
 
 @testset "Example 2" begin
-    println("Example 2")
     linear = (u, p, t) -> -u / 5 + exp(-t / 5) .* cos(t)
     linear_analytic = (u0, p, t) -> exp(-t / 5) * (u0 + sin(t))
     prob = ODEProblem(
         ODEFunction(linear, analytic = linear_analytic), 0.0f0, (0.0f0, 1.0f0))
-    luxchain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
+    luxchain = Chain(Dense(1, 5, σ), Dense(5, 1))
 
     opt = OptimizationOptimisers.Adam(0.1)
     sol = solve(prob, NNODE(luxchain, opt), verbose = false, maxiters = 400,
@@ -111,51 +97,42 @@ end
     @test sol.errors[:l2] < 0.5
 
     sol = solve(prob,
-        NNODE(luxchain, opt; batch = false,
-            strategy = StochasticTraining(100)),
-        verbose = false, maxiters = 400,
-        abstol = 1.0f-8)
+        NNODE(luxchain, opt; batch = false, strategy = StochasticTraining(100)),
+        verbose = false, maxiters = 400, abstol = 1.0f-8)
     @test sol.errors[:l2] < 0.5
 
     sol = solve(prob,
-        NNODE(luxchain, opt; batch = true,
-            strategy = StochasticTraining(100)),
-        verbose = false, maxiters = 400,
-        abstol = 1.0f-8)
+        NNODE(luxchain, opt; batch = true, strategy = StochasticTraining(100)),
+        verbose = false, maxiters = 400, abstol = 1.0f-8)
     @test sol.errors[:l2] < 0.5
 
     sol = solve(prob, NNODE(luxchain, opt; batch = false), verbose = false,
-        maxiters = 400,
-        abstol = 1.0f-8, dt = 1 / 5.0f0)
+        maxiters = 400, abstol = 1.0f-8, dt = 1 / 5.0f0)
     @test sol.errors[:l2] < 0.5
 
     sol = solve(prob, NNODE(luxchain, opt; batch = true), verbose = false,
-        maxiters = 400,
-        abstol = 1.0f-8, dt = 1 / 5.0f0)
+        maxiters = 400, abstol = 1.0f-8, dt = 1 / 5.0f0)
     @test sol.errors[:l2] < 0.5
 end
 
 @testset "Example 3" begin
-    println("Example 3")
     linear = (u, p, t) -> [cos(2pi * t), sin(2pi * t)]
     tspan = (0.0f0, 1.0f0)
     u0 = [0.0f0, -1.0f0 / 2pi]
     linear_analytic = (u0, p, t) -> [sin(2pi * t) / 2pi, -cos(2pi * t) / 2pi]
     odefunction = ODEFunction(linear, analytic = linear_analytic)
     prob = ODEProblem(odefunction, u0, tspan)
-    luxchain = Lux.Chain(Lux.Dense(1, 10, Lux.σ), Lux.Dense(10, 2))
+    luxchain = Chain(Dense(1, 10, σ), Dense(10, 2))
     opt = OptimizationOptimisers.Adam(0.1)
     alg = NNODE(luxchain, opt; autodiff = false)
 
-    sol = solve(prob,
-        alg, verbose = false, dt = 1 / 40.0f0,
-        maxiters = 2000, abstol = 1.0f-7)
+    sol = solve(
+        prob, alg, verbose = false, dt = 1 / 40.0f0, maxiters = 2000, abstol = 1.0f-7)
     @test sol.errors[:l2] < 0.5
 end
 
 @testset "Training Strategies" begin
     @testset "WeightedIntervalTraining" begin
-        println("WeightedIntervalTraining")
         function f(u, p, t)
             [p[1] * u[1] - p[2] * u[1] * u[2], -p[3] * u[2] + p[4] * u[1] * u[2]]
         end
@@ -164,21 +141,21 @@ end
         prob_oop = ODEProblem{false}(f, u0, (0.0, 3.0), p)
         true_sol = solve(prob_oop, Tsit5(), saveat = 0.01)
 
-        N = 32
-        chain = Lux.Chain(
-            Lux.Dense(1, N, tanh),
-            Lux.Dense(N, N, tanh),
-            Lux.Dense(N, N, tanh),
-            Lux.Dense(N, N, tanh),
-            Lux.Dense(N, length(u0))
+        N = 64
+        chain = Chain(
+            Dense(1, N, gelu),
+            Dense(N, N, gelu),
+            Dense(N, N, gelu),
+            Dense(N, N, gelu),
+            Dense(N, length(u0))
         )
-        opt = OptimizationOptimisers.Adam(0.1)
+        opt = OptimizationOptimisers.Adam(0.001)
         weights = [0.7, 0.2, 0.1]
         points = 200
         alg = NNODE(chain, opt, autodiff = false,
-            strategy = NeuralPDE.WeightedIntervalTraining(weights, points))
+            strategy = WeightedIntervalTraining(weights, points))
         sol = solve(prob_oop, alg; verbose = false, maxiters = 5000, saveat = 0.01)
-        @test_broken abs(mean(sol) - mean(true_sol)) < 0.2
+        @test abs(mean(sol) - mean(true_sol)) < 0.2
     end
 
     linear = (u, p, t) -> cos(2pi * t)
@@ -191,46 +168,40 @@ end
     u_analytical(x) = (1 / (2pi)) .* sin.(2pi .* x)
 
     @testset "GridTraining" begin
-        println("GridTraining")
-        luxchain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
+        luxchain = Chain(Dense(1, 5, σ), Dense(5, 1))
         (u_, t_) = (u_analytical(ts), ts)
         function additional_loss(phi, θ)
             return sum(sum(abs2, [phi(t, θ) for t in t_] .- u_)) / length(u_)
         end
-        alg1 = NNODE(luxchain, opt, strategy = GridTraining(0.01),
-            additional_loss = additional_loss)
-        sol1 = solve(prob, alg1, verbose = false, abstol = 1e-8, maxiters = 500)
+        alg1 = NNODE(luxchain, opt; strategy = GridTraining(0.01), additional_loss)
+        sol1 = solve(prob, alg1; verbose = false, abstol = 1e-8, maxiters = 500)
         @test sol1.errors[:l2] < 0.5
     end
 
     @testset "QuadratureTraining" begin
-        println("QuadratureTraining")
-        luxchain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
+        luxchain = Chain(Dense(1, 5, σ), Dense(5, 1))
         (u_, t_) = (u_analytical(ts), ts)
         function additional_loss(phi, θ)
             return sum(sum(abs2, [phi(t, θ) for t in t_] .- u_)) / length(u_)
         end
-        alg1 = NNODE(luxchain, opt, additional_loss = additional_loss)
-        sol1 = solve(prob, alg1, verbose = false, abstol = 1e-10, maxiters = 200)
+        alg1 = NNODE(luxchain, opt; additional_loss)
+        sol1 = solve(prob, alg1; verbose = false, abstol = 1e-10, maxiters = 200)
         @test sol1.errors[:l2] < 0.5
     end
 
     @testset "StochasticTraining" begin
-        println("StochasticTraining")
-        luxchain = Lux.Chain(Lux.Dense(1, 5, Lux.σ), Lux.Dense(5, 1))
+        luxchain = Chain(Dense(1, 5, σ), Dense(5, 1))
         (u_, t_) = (u_analytical(ts), ts)
         function additional_loss(phi, θ)
             return sum(sum(abs2, [phi(t, θ) for t in t_] .- u_)) / length(u_)
         end
-        alg1 = NNODE(luxchain, opt, strategy = StochasticTraining(1000),
-            additional_loss = additional_loss)
-        sol1 = solve(prob, alg1, verbose = false, abstol = 1e-8, maxiters = 500)
+        alg1 = NNODE(luxchain, opt; strategy = StochasticTraining(1000), additional_loss)
+        sol1 = solve(prob, alg1; verbose = false, abstol = 1e-8, maxiters = 500)
         @test sol1.errors[:l2] < 0.5
     end
 end
 
 @testset "Parameter Estimation" begin
-    println("Parameter Estimation")
     function lorenz(u, p, t)
         return [p[1] * (u[2] - u[1]),
             u[1] * (p[2] - u[3]) - u[2],
@@ -246,16 +217,16 @@ end
         return sum(abs2, phi(t_, θ) .- u_) / 100
     end
     n = 8
-    luxchain = Lux.Chain(
-        Lux.Dense(1, n, Lux.σ),
-        Lux.Dense(n, n, Lux.σ),
-        Lux.Dense(n, n, Lux.σ),
-        Lux.Dense(n, 3)
+    luxchain = Chain(
+        Dense(1, n, σ),
+        Dense(n, n, σ),
+        Dense(n, n, σ),
+        Dense(n, 3)
     )
     opt = OptimizationOptimJL.BFGS(linesearch = BackTracking())
-    alg = NNODE(luxchain, opt, strategy = GridTraining(0.01),
-        param_estim = true, additional_loss = additional_loss)
-    sol = solve(prob, alg, verbose = false, abstol = 1e-8, maxiters = 1000, saveat = t_)
+    alg = NNODE(luxchain, opt; strategy = GridTraining(0.01),
+        param_estim = true, additional_loss)
+    sol = solve(prob, alg; verbose = false, abstol = 1e-8, maxiters = 1000, saveat = t_)
     @test sol.k.u.p≈true_p atol=1e-2
     @test reduce(hcat, sol.u)≈u_ atol=1e-2
 end
@@ -279,11 +250,11 @@ end
 
     problem = ODEProblem(bloch_equations, u0, time_span, parameters)
 
-    chain = Lux.Chain(
-        Lux.Dense(1, 16, tanh;
-            init_weight = (rng, a...) -> Lux.kaiming_normal(rng, ComplexF64, a...)),
-        Lux.Dense(
-            16, 4; init_weight = (rng, a...) -> Lux.kaiming_normal(rng, ComplexF64, a...))
+    chain = Chain(
+        Dense(1, 16, tanh;
+            init_weight = (rng, a...) -> kaiming_normal(rng, ComplexF64, a...)),
+        Dense(
+            16, 4; init_weight = (rng, a...) -> kaiming_normal(rng, ComplexF64, a...))
     )
     ps, st = Lux.setup(rng, chain)
 
@@ -304,7 +275,6 @@ end
 end
 
 @testset "Translating from Flux" begin
-    println("Translating from Flux")
     linear = (u, p, t) -> cos(2pi * t)
     linear_analytic = (u, p, t) -> (1 / (2pi)) * sin(2pi * t)
     tspan = (0.0, 1.0)
@@ -315,7 +285,7 @@ end
     u_analytical(x) = (1 / (2pi)) .* sin.(2pi .* x)
     fluxchain = Flux.Chain(Flux.Dense(1, 5, Flux.σ), Flux.Dense(5, 1))
     alg1 = NNODE(fluxchain, opt)
-    @test alg1.chain isa Lux.AbstractLuxLayer
+    @test alg1.chain isa AbstractLuxLayer
     sol1 = solve(prob, alg1, verbose = false, abstol = 1e-10, maxiters = 200)
     @test sol1.errors[:l2] < 0.5
 end
