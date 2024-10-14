@@ -67,17 +67,22 @@ include("PDE_BPINN.jl")
 
 include("dgm.jl")
 
-export NNODE, NNDAE,
-       PhysicsInformedNN, discretize,
-       GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
-       WeightedIntervalTraining,
-       build_loss_function, get_loss_function,
+export NNODE, NNDAE
+export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
+export PhysicsInformedNN, discretize
+export BPINNsolution, BayesianPINN
+export DeepGalerkin
+
+export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
+       WeightedIntervalTraining
+
+export build_loss_function, get_loss_function,
        generate_training_sets, get_variables, get_argument, get_bounds,
-       get_numeric_integral, symbolic_discretize,
-       AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
-       MiniMaxAdaptiveLoss, LogOptions,
-       ahmc_bayesian_pinn_ode, BNNODE, ahmc_bayesian_pinn_pde, vector_to_parameters,
-       BPINNsolution, BayesianPINN,
-       DeepGalerkin
+       get_numeric_integral, symbolic_discretize, vector_to_parameters
+
+export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
+       MiniMaxAdaptiveLoss
+
+export LogOptions
 
 end # module
