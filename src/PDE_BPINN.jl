@@ -562,14 +562,14 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         mcmc_chain = MCMCChains.Chains(matrix_samples')
 
         @info("Sampling Complete.")
-        @info("Current Physics Log-likelihood : ",
+        @info("Final Physics Log-likelihood : ",
             ℓπ.full_loglikelihood(setparameters(ℓπ, samples[end]),
                 ℓπ.allstd))
-        @info("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, samples[end]))
-        @info("Current MSE against dataset Log-likelihood : ",
+        @info("Final Prior Log-likelihood : ", priorlogpdf(ℓπ, samples[end]))
+        @info("Final MSE against dataset Log-likelihood : ",
             L2LossData(ℓπ, samples[end]))
         if !(newloss isa Nothing)
-            @info("Current L2_LOSSY : ",
+            @info("Final L2_LOSSY : ",
                 ℓπ.L2_loss2(setparameters(ℓπ, samples[end]),
                     ℓπ.allstd))
         end

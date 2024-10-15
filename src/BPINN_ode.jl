@@ -93,6 +93,7 @@ struct BNNODE{C, K, IT <: NamedTuple,
     param::P
     l2std::Vector{Float64}
     phystd::Vector{Float64}
+    phynewstd::Vector{Float64}
     dataset::D
     physdt::Float64
     MCMCkwargs::H
@@ -107,7 +108,7 @@ struct BNNODE{C, K, IT <: NamedTuple,
     verbose::Bool
 end
 function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
-        priorsNNw = (0.0, 2.0), param = nothing, l2std = [0.05], phystd = [0.05],
+        priorsNNw = (0.0, 2.0), param = nothing, l2std = [0.05], phystd = [0.05], phynewstd = [0.05],
         dataset = [nothing], physdt = 1 / 20.0, MCMCkwargs = (n_leapfrog = 30,), nchains = 1,
         init_params = nothing,
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
@@ -121,7 +122,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
         (chain = adapt(FromFluxAdaptor(false, false), chain))
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
-        phystd, dataset, physdt, MCMCkwargs,
+        phystd, phynewstd, dataset, physdt, MCMCkwargs,
         nchains, init_params,
         Adaptorkwargs, Integratorkwargs,
         numensemble, estim_collocate,
@@ -186,9 +187,8 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
         reltol = 1.0f-3,
         verbose = false,
         saveat = 1 / 50.0,
-        maxiters = nothing,
-        numensemble = floor(Int, alg.draw_samples / 3))
-    @unpack chain, l2std, phystd, param, priorsNNw, Kernel, strategy,
+        maxiters = nothing,)
+    @unpack chain, l2std, phystd, phynewstd, param, priorsNNw, Kernel, strategy,
     draw_samples, dataset, init_params,
     nchains, physdt, Adaptorkwargs, Integratorkwargs,
     MCMCkwargs, numensemble, estim_collocate, autodiff, progress,
@@ -206,7 +206,8 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
         strategy = strategy, dataset = dataset,
         draw_samples = draw_samples,
         init_params = init_params,
-        physdt = physdt, l2std = l2std,
+        physdt = physdt, phynewstd = phynewstd,
+        l2std = l2std,
         phystd = phystd,
         priorsNNw = priorsNNw,
         param = param,
