@@ -11,6 +11,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
     dataset::D
     priors::P
     phystd::Vector{Float64}
+    phynewstd::Vector{Float64}
     l2std::Vector{Float64}
     autodiff::Bool
     physdt::Float64
@@ -20,7 +21,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
 
     function LogTargetDensity(dim, prob, chain::Optimisers.Restructure, st, strategy,
             dataset,
-            priors, phystd, l2std, autodiff, physdt, extraparams,
+            priors, phystd, phynewstd, l2std, autodiff, physdt, extraparams,
             init_params::AbstractVector, estim_collocate)
         new{
             typeof(chain),
@@ -36,6 +37,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
             dataset,
             priors,
             phystd,
+            phynewstd,
             l2std,
             autodiff,
             physdt,
@@ -45,7 +47,7 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
     end
     function LogTargetDensity(dim, prob, chain::Lux.AbstractExplicitLayer, st, strategy,
             dataset,
-            priors, phystd, l2std, autodiff, physdt, extraparams,
+            priors, phystd, phynewstd, l2std, autodiff, physdt, extraparams,
             init_params::NamedTuple, estim_collocate)
         new{
             typeof(chain),
@@ -58,7 +60,8 @@ mutable struct LogTargetDensity{C, S, ST <: AbstractTrainingStrategy, I,
             prob,
             chain, st, strategy,
             dataset, priors,
-            phystd, l2std,
+            phystd, phynewstd,
+             l2std,
             autodiff,
             physdt,
             extraparams,
@@ -136,10 +139,10 @@ function L2loss2(Tar::LogTargetDensity, θ)
    
         physlogprob = 0
         for i in 1:length(Tar.prob.u0)
-            # can add phystd[i] for u[i] 
+            # can add phystdnew[i] for u[i] 
             physlogprob += logpdf(MvNormal(deri_physsol[i, :],
                     LinearAlgebra.Diagonal(map(abs2,
-                        (Tar.l2std[i] * 4.0) .*
+                        (Tar.phynewstd[i]) .*
                         ones(length(nnsol[i, :]))))),
                 nnsol[i, :])
         end
@@ -162,7 +165,7 @@ function L2LossData(Tar::LogTargetDensity, θ)
 
         L2logprob = 0
         for i in 1:length(Tar.prob.u0)
-            # for u[i] ith vector must be added to dataset,nn[1,:] is the dx in lotka_volterra
+            # for u[i] ith vector must be added to dataset, nn[1,:] is the dx in lotka_volterra
             L2logprob += logpdf(
                 MvNormal(nn[i, :],
                     LinearAlgebra.Diagonal(abs2.(Tar.l2std[i] .*
@@ -395,7 +398,7 @@ end
     ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining,
                         dataset = [nothing],init_params = nothing,
                         draw_samples = 1000, physdt = 1 / 20.0f0,l2std = [0.05],
-                        phystd = [0.05], priorsNNw = (0.0, 2.0),
+                        phystd = [0.05], phynewstd = [0.05], priorsNNw = (0.0, 2.0),
                         param = [], nchains = 1, autodiff = false, Kernel = HMC,
                         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
                                          Metric = DiagEuclideanMetric,
@@ -466,6 +469,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
 * `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
 * `l2std`: standard deviation of BPINN prediction against L2 losses/Dataset
 * `phystd`: standard deviation of BPINN prediction against Chosen Underlying ODE System
+* `phynewstd`: standard deviation of new loss func term
 * `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of BPINN are Normal Distributions by default.
 * `param`: Vector of chosen ODE parameters Distributions in case of Inverse problems.
 * `autodiff`: Boolean Value for choice of Derivative Backend(default is numerical)
@@ -492,7 +496,7 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
         strategy = GridTraining, dataset = [nothing],
         init_params = nothing, draw_samples = 1000,
         physdt = 1 / 20.0, l2std = [0.05],
-        phystd = [0.05], priorsNNw = (0.0, 2.0),
+        phystd = [0.05], phynewstd = [0.05], priorsNNw = (0.0, 2.0),
         param = [], nchains = 1, autodiff = false,
         Kernel = HMC,
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
@@ -558,7 +562,7 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
     t0 = prob.tspan[1]
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
     ℓπ = LogTargetDensity(nparameters, prob, recon, st, strategy, dataset, priors,
-        phystd, l2std, autodiff, physdt, ninv, initial_nnθ, estim_collocate)
+        phystd, phynewstd, l2std, autodiff, physdt, ninv, initial_nnθ, estim_collocate)
 
     try
         ℓπ(t0, initial_θ[1:(nparameters - ninv)])
@@ -574,7 +578,8 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
     @info("Current Prior Log-likelihood : ", priorweights(ℓπ, initial_θ))
     @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
     if estim_collocate
-        @info("Current gradient loss against dataset Log-likelihood : ", L2loss2(ℓπ, initial_θ))
+        @info("Current gradient loss against dataset Log-likelihood : ",
+            L2loss2(ℓπ, initial_θ))
     end
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
@@ -624,11 +629,12 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
             adaptor; progress = progress, verbose = verbose)
 
         @info("Sampling Complete.")
-        @info("Current Physics Log-likelihood : ", physloglikelihood(ℓπ, samples[end]))
-        @info("Current Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
-        @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, samples[end]))
+        @info("Final Physics Log-likelihood : ", physloglikelihood(ℓπ, samples[end]))
+        @info("Final Prior Log-likelihood : ", priorweights(ℓπ, samples[end]))
+        @info("Final MSE against dataset Log-likelihood : ", L2LossData(ℓπ, samples[end]))
         if estim_collocate
-            @info("Current gradient loss against dataset Log-likelihood : ", L2loss2(ℓπ, samples[end]))
+            @info("Final gradient loss against dataset Log-likelihood : ",
+                L2loss2(ℓπ, samples[end]))
         end
 
         # return a chain(basic chain),samples and stats

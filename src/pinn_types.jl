@@ -247,7 +247,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
         multioutput = chain isa AbstractArray
         if multioutput
             !all(i -> i isa Lux.AbstractExplicitLayer, chain) &&
-                (chain = Lux.transform.(chain))
+                (chain = [adapt(FromFluxAdaptor(false, false), chain_i) for chain_i in chain])
         else
             !(chain isa Lux.AbstractExplicitLayer) &&
                 (chain = adapt(FromFluxAdaptor(false, false), chain))
