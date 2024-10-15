@@ -48,12 +48,14 @@ include("ode_solve.jl")
 # include("rode_solve.jl")
 include("dae_solve.jl")
 include("transform_inf_integral.jl")
+include("deep_ritz.jl")
 include("discretize.jl")
 include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 include("dgm.jl")
+
 
 export NNODE, NNDAE,
        PhysicsInformedNN, discretize,
@@ -66,6 +68,6 @@ export NNODE, NNDAE,
        MiniMaxAdaptiveLoss, LogOptions,
        ahmc_bayesian_pinn_ode, BNNODE, ahmc_bayesian_pinn_pde, vector_to_parameters,
        BPINNsolution, BayesianPINN,
-       DeepGalerkin
+       DeepGalerkin, DeepRitz
 
 end # module
