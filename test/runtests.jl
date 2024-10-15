@@ -51,12 +51,9 @@ end
         @time @safetestset "AdaptiveLoss" include("adaptive_loss_tests.jl")
     end
 
-    #=
-    # Fails because it uses sciml_train
     if GROUP == "All" || GROUP == "NNRODE"
-        @time @safetestset "NNRODE" begin include("NNRODE_tests.jl") end
+        @time @safetestset "NNRODE" include("NNRODE_tests.jl")
     end
-    =#
 
     if GROUP == "All" || GROUP == "Forward"
         @time @safetestset "Forward" include("forward_tests.jl")

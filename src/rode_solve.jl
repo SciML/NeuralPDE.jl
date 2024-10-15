@@ -99,7 +99,6 @@ function SciMLBase.__solve(
     total_loss(θ, _) = inner_f(θ, phi)
     optf = OptimizationFunction(total_loss, AutoZygote())
 
-
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
     callback = function (p, l)
         if verbose
