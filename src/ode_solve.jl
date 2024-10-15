@@ -304,6 +304,7 @@ function generate_loss(
     return loss
 end
 
+
 function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim::Bool)
     function loss(θ, _)
         if batch
@@ -490,3 +491,4 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
             dense_errors = false)
     sol
 end #solve
+
