@@ -23,14 +23,13 @@ end
         u(x, 0) ~ 0.0, u(x, 1) ~ -sin(pi * x) * sin(pi * 1)]
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
-    quadrature_strategy = NeuralPDE.QuadratureTraining(
+    quadrature_strategy = QuadratureTraining(
         reltol = 1e-3, abstol = 1e-6, maxiters = 50, batch = 100)
     inner = 8
     af = tanh
     chain1 = Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1))
-    init_params = Lux.setup(Random.default_rng(), chain1)[1] |> ComponentArray .|> Float64
-    discretization = NeuralPDE.PhysicsInformedNN(
-        chain1, quadrature_strategy; init_params = init_params)
+    init_params = Lux.setup(Random.default_rng(), chain1)[1] |> ComponentArray{Float64}
+    discretization = PhysicsInformedNN(chain1, quadrature_strategy; init_params)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = NeuralPDE.discretize(pde_system, discretization)
@@ -43,12 +42,9 @@ end
     chain2 = Chain(Dense(2, inner_, af), Dense(inner_, inner_, af),
         Dense(inner_, inner_, af), Dense(inner_, 1))
     initp, st = Lux.setup(Random.default_rng(), chain2)
-    init_params2 = Float64.(ComponentArray(initp))
+    init_params2 = ComponentArray{Float64}(initp)
 
-    function loss(cord, θ)
-        ch2, st = chain2(cord, θ, st)
-        ch2 .- phi(cord, res.u)
-    end
+    loss(cord, θ) = first(chain2(cord, θ, st)) .- phi(cord, res.u)
 
     grid_strategy = GridTraining(0.05)
     quadrature_strategy = QuadratureTraining(
@@ -56,39 +52,28 @@ end
     stochastic_strategy = StochasticTraining(1000)
     quasirandom_strategy = QuasiRandomTraining(1000, minibatch = 200, resampling = true)
 
-    strategies1 = [grid_strategy, quadrature_strategy]
-    reses_1 = map(strategies1) do strategy_
+    reses_ = map([grid_strategy, quadrature_strategy, stochastic_strategy,
+        quasirandom_strategy]) do strategy_
         println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
-        prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
+        prob_ = neural_adapter(loss, init_params2, pde_system, strategy_)
         @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
     end
 
-    strategies2 = [stochastic_strategy, quasirandom_strategy]
-    reses_2 = map(strategies2) do strategy_
-        println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
-        prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy_)
-        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
-    end
-
-    reses_ = [reses_1; reses_2]
     discretizations = map(
         res_ -> PhysicsInformedNN(chain2, grid_strategy; init_params = res_.u), reses_)
-    probs = map(discret -> discretize(pde_system, discret), discretizations)
+    probs = map(discret -> NeuralPDE.discretize(pde_system, discret), discretizations)
     phis = map(discret -> discret.phi, discretizations)
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
-    u_predict = reshape(
-        [first(phi([x, y], res.u)) for x in xs for y in ys], (length(xs), length(ys)))
+    u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
 
     u_predicts = map(zip(phis, reses_)) do (phi_, res_)
-        reshape(
-            [first(phi_([x, y], res_.u)) for x in xs for y in ys], (length(xs), length(ys)))
+        [first(phi_([x, y], res_.u)) for x in xs for y in ys]
     end
 
-    u_real = reshape(
-        [analytic_sol_func(x, y) for x in xs for y in ys], (length(xs), length(ys)))
+    u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
 
     @test u_predict≈u_real rtol=1e-1
     @test u_predicts[1]≈u_real rtol=1e-1
@@ -122,7 +107,7 @@ end
     chains = [Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1))
               for _ in 1:count_decomp]
     init_params = map(
-        c -> Float64.(ComponentArray(Lux.setup(Random.default_rng(), c)[1])), chains)
+        c -> ComponentArray{Float64}(Lux.setup(Random.default_rng(), c)[1]), chains)
 
     xs_ = infimum(x_domain):(1 / count_decomp):supremum(x_domain)
     xs_domain = [(xs_[i], xs_[i + 1]) for i in 1:(length(xs_) - 1)]
@@ -205,7 +190,7 @@ end
         Dense(inner_, inner_, af), Dense(inner_, inner_, af), Dense(inner_, 1))
 
     initp, st = Lux.setup(Random.default_rng(), chain2)
-    init_params2 = Float64.(ComponentArray(initp))
+    init_params2 = ComponentArray{Float64}(initp)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
@@ -216,11 +201,11 @@ end
         end
     end
 
-    prob_ = NeuralPDE.neural_adapter(
+    prob_ = neural_adapter(
         losses, init_params2, pde_system_map, GridTraining([0.1 / count_decomp, 0.1]))
     @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
     @show res_.objective
-    prob_ = NeuralPDE.neural_adapter(losses, res_.u, pde_system_map, GridTraining(0.01))
+    prob_ = neural_adapter(losses, res_.u, pde_system_map, GridTraining(0.01))
     @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
     @show res_.objective
 

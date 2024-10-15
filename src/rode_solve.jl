@@ -118,9 +118,9 @@ function SciMLBase.__solve(
     noiseproblem = NoiseProblem(Wg, tspan)
     W = solve(noiseproblem; dt)
     if u0 isa Number
-        u = [(phi(tᵢ, W.W[i], res.minimizer)) for (i, tᵢ) in enumerate(ts)]
+        u = [(phi(tᵢ, W.W[i], res.u)) for (i, tᵢ) in enumerate(ts)]
     else
-        u = [(phi(tᵢ, W.W[i], res.minimizer)) for (i, tᵢ) in enumerate(ts)]
+        u = [(phi(tᵢ, W.W[i], res.u)) for (i, tᵢ) in enumerate(ts)]
     end
 
     sol = SciMLBase.build_solution(prob, alg, ts, u, W = W, calculate_error = false)

@@ -8,7 +8,7 @@ using Adapt: Adapt
 using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
                    JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
                    StepSizeAdaptor, TemperedLeapfrog, find_good_stepsize
-using ArrayInterface: ArrayInterface, parameterless_type
+using ArrayInterface: ArrayInterface
 using ChainRulesCore: ChainRulesCore, @non_differentiable, @ignore_derivatives
 using Cubature: Cubature
 using ComponentArrays: ComponentArrays, ComponentArray, getdata, getaxes
@@ -83,6 +83,8 @@ export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
 export PhysicsInformedNN, discretize
 export BPINNsolution, BayesianPINN
 export DeepGalerkin
+
+export neural_adapter
 
 export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
        WeightedIntervalTraining
