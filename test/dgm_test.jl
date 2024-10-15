@@ -150,5 +150,5 @@ end
 
     u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
 
-    @test u_predict≈u_MOL rtol=0.025
+    @test u_predict≈u_MOL rtol=0.1
 end

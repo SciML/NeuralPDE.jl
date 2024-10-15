@@ -1,26 +1,8 @@
 function generate_training_sets(domains, dx, eqs, eltypeθ)
-    if dx isa Array
-        dxs = dx
-    else
-        dxs = fill(dx, length(domains))
-    end
+    dxs = dx isa Array ? dx : fill(dx, length(domains))
     spans = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, dxs)]
-    train_set = adapt(eltypeθ,
-        hcat(vec(map(points -> collect(points), Iterators.product(spans...)))...))
-end
-
-function get_loss_function_(loss, init_params, pde_system, strategy::GridTraining)
-    eqs = pde_system.eqs
-    if !(eqs isa Array)
-        eqs = [eqs]
-    end
-    domains = pde_system.domain
-    depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
-        pde_system.depvars)
-    eltypeθ = eltype(init_params)
-    dx = strategy.dx
-    train_set = generate_training_sets(domains, dx, eqs, eltypeθ)
-    get_loss_function(loss, train_set, eltypeθ, strategy)
+    return hcat(vec(map(points -> collect(points), Iterators.product(spans...)))...) |>
+           EltypeAdaptor{eltypeθ}()
 end
 
 function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
@@ -29,75 +11,60 @@ function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strateg
     args = get_argument(eqs, dict_indvars, dict_depvars)
 
     bounds = first(map(args) do pd
-        span = map(p -> get(dict_span, p, p), pd)
-        map(s -> adapt(eltypeθ, s), span)
+        return get.((dict_span,), pd, pd) |> EltypeAdaptor{eltypeθ}()
     end)
-    bounds = [getindex.(bounds, 1), getindex.(bounds, 2)]
-    return bounds
-end
-
-function get_loss_function_(loss, init_params, pde_system, strategy::StochasticTraining)
-    eqs = pde_system.eqs
-    if !(eqs isa Array)
-        eqs = [eqs]
-    end
-    domains = pde_system.domain
-
-    depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
-        pde_system.depvars)
-
-    eltypeθ = eltype(init_params)
-    bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
-    get_loss_function(loss, bound, eltypeθ, strategy)
-end
-
-function get_loss_function_(loss, init_params, pde_system, strategy::QuasiRandomTraining)
-    eqs = pde_system.eqs
-    if !(eqs isa Array)
-        eqs = [eqs]
-    end
-    domains = pde_system.domain
-
-    depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
-        pde_system.depvars)
-
-    eltypeθ = eltype(init_params)
-    bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
-    get_loss_function(loss, bound, eltypeθ, strategy)
+    return [getindex.(bounds, 1), getindex.(bounds, 2)]
 end
 
 function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars,
-        strategy::QuadratureTraining)
+        ::QuadratureTraining)
     dict_lower_bound = Dict([Symbol(d.variables) => infimum(d.domain) for d in domains])
     dict_upper_bound = Dict([Symbol(d.variables) => supremum(d.domain) for d in domains])
 
     args = get_argument(eqs, dict_indvars, dict_depvars)
 
     lower_bounds = map(args) do pd
-        span = map(p -> get(dict_lower_bound, p, p), pd)
-        map(s -> adapt(eltypeθ, s), span)
+        return get.((dict_lower_bound,), pd, pd) |> EltypeAdaptor{eltypeθ}()
     end
     upper_bounds = map(args) do pd
-        span = map(p -> get(dict_upper_bound, p, p), pd)
-        map(s -> adapt(eltypeθ, s), span)
+        return get.((dict_upper_bound,), pd, pd) |> EltypeAdaptor{eltypeθ}()
     end
-    bound = lower_bounds, upper_bounds
+    return lower_bounds, upper_bounds
 end
 
-function get_loss_function_(loss, init_params, pde_system, strategy::QuadratureTraining)
+function get_loss_function_neural_adapter(
+        loss, init_params, pde_system, strategy::GridTraining)
     eqs = pde_system.eqs
-    if !(eqs isa Array)
-        eqs = [eqs]
-    end
+    eqs isa Array || (eqs = [eqs])
+    eltypeθ = recursive_eltype(init_params)
+    train_set = generate_training_sets(pde_system.domain, strategy.dx, eqs, eltypeθ)
+    return get_loss_function(loss, train_set, eltypeθ, strategy)
+end
+
+function get_loss_function_neural_adapter(loss, init_params, pde_system,
+        strategy::Union{StochasticTraining, QuasiRandomTraining})
+    eqs = pde_system.eqs
+    eqs isa Array || (eqs = [eqs])
     domains = pde_system.domain
 
-    depvars, indvars, dict_indvars, dict_depvars = get_vars(pde_system.indvars,
-        pde_system.depvars)
+    _, _, dict_indvars, dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
 
-    eltypeθ = eltype(init_params)
+    eltypeθ = recursive_eltype(init_params)
     bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
-    lb, ub = bound
-    get_loss_function(loss, lb[1], ub[1], eltypeθ, strategy)
+    return get_loss_function(loss, bound, eltypeθ, strategy)
+end
+
+function get_loss_function_neural_adapter(
+        loss, init_params, pde_system, strategy::QuadratureTraining)
+    eqs = pde_system.eqs
+    eqs isa Array || (eqs = [eqs])
+    domains = pde_system.domain
+
+    _, _, dict_indvars, dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
+
+    eltypeθ = recursive_eltype(init_params)
+    bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
+    return get_loss_function(loss, bound[1][1], bound[2][1], eltypeθ, strategy)
 end
 
 """
@@ -115,24 +82,17 @@ Trains a neural network using the results from one already obtained prediction.
 function neural_adapter end
 
 function neural_adapter(loss, init_params, pde_system, strategy)
-    loss_function__ = get_loss_function_(loss, init_params, pde_system, strategy)
-
-    function loss_function_(θ, p)
-        loss_function__(θ)
-    end
-    f_ = OptimizationFunction(loss_function_, Optimization.AutoZygote())
-    prob = Optimization.OptimizationProblem(f_, init_params)
+    loss_function = get_loss_function_neural_adapter(
+        loss, init_params, pde_system, strategy)
+    return OptimizationProblem(
+        OptimizationFunction((θ, _) -> loss_function(θ), AutoZygote()), init_params)
 end
 
 function neural_adapter(losses::Array, init_params, pde_systems::Array, strategy)
-    loss_functions_ = map(zip(losses, pde_systems)) do (l, p)
-        get_loss_function_(l, init_params, p, strategy)
+    loss_functions = map(zip(losses, pde_systems)) do (l, p)
+        get_loss_function_neural_adapter(l, init_params, p, strategy)
     end
-    loss_function__ = θ -> sum(map(l -> l(θ), loss_functions_))
-    function loss_function_(θ, p)
-        loss_function__(θ)
-    end
-
-    f_ = OptimizationFunction(loss_function_, Optimization.AutoZygote())
-    prob = Optimization.OptimizationProblem(f_, init_params)
+    return OptimizationProblem(
+        OptimizationFunction((θ, _) -> sum(l -> l(θ), loss_functions), AutoZygote()),
+        init_params)
 end

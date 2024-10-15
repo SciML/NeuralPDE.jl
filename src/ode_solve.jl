@@ -18,7 +18,7 @@ standard `ODEProblem`.
 
 * `chain`: A neural network architecture, defined as a `Lux.AbstractLuxLayer` or
            `Flux.Chain`. `Flux.Chain` will be converted to `Lux` using
-           `adapt(FromFluxAdaptor(false, false), chain)`.
+           `adapt(FromFluxAdaptor(), chain)`.
 * `opt`: The optimizer to train the neural network.
 * `init_params`: The initial parameter of the neural network. By default, this is `nothing`
                  which thus uses the random initialization provided by the neural network
