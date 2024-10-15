@@ -103,7 +103,7 @@ struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
             !all(i -> i isa Lux.AbstractLuxLayer, chain) &&
                 (chain = Lux.transform.(chain))
         else
-            !(chain isa Lux.AbstractLuxLayer) &&
+            !(chain isa AbstractLuxLayer) &&
                 (chain = adapt(FromFluxAdaptor(false, false), chain))
         end
         if phi === nothing
@@ -244,7 +244,7 @@ struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
             !all(i -> i isa Lux.AbstractLuxLayer, chain) &&
                 (chain = Lux.transform.(chain))
         else
-            !(chain isa Lux.AbstractLuxLayer) &&
+            !(chain isa AbstractLuxLayer) &&
                 (chain = adapt(FromFluxAdaptor(false, false), chain))
         end
         if phi === nothing

@@ -506,20 +506,20 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
     !(chain isa AbstractLuxLayer) && (chain = adapt(FromFluxAdaptor(false, false), chain))
     # NN parameter prior mean and variance(PriorsNN must be a tuple)
     if isinplace(prob)
-        throw(error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
+        error("The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t).")
     end
 
     strategy = strategy == GridTraining ? strategy(physdt) : strategy
 
     if dataset != [nothing] &&
        (length(dataset) < 2 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
-        throw(error("Invalid dataset. dataset would be timeseries (x̂,t) where type: Vector{Vector{AbstractFloat}"))
+        error("Invalid dataset. dataset would be timeseries (x̂,t) where type: Vector{Vector{AbstractFloat}")
     end
 
     if dataset != [nothing] && param == []
         println("Dataset is only needed for Parameter Estimation + Forward Problem, not in only Forward Problem case.")
     elseif dataset == [nothing] && param != []
-        throw(error("Dataset Required for Parameter Estimation."))
+        error("Dataset Required for Parameter Estimation.")
     end
 
     if chain isa AbstractLuxLayer
@@ -529,9 +529,9 @@ function ahmc_bayesian_pinn_ode(prob::SciMLBase.ODEProblem, chain;
     end
 
     if nchains > Threads.nthreads()
-        throw(error("number of chains is greater than available threads"))
+        error("number of chains is greater than available threads")
     elseif nchains < 1
-        throw(error("number of chains must be greater than 1"))
+        error("number of chains must be greater than 1")
     end
 
     # eltype(physdt) cause needs Float64 for find_good_stepsize

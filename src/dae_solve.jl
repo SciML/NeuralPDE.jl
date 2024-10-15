@@ -39,7 +39,7 @@ end
 
 function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         kwargs...)
-    chain isa Lux.AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
+    chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
 end
 
@@ -62,14 +62,15 @@ function inner_loss(phi::ODEPhi, f, autodiff::Bool, t::AbstractVector,
     end / length(t)
 end
 
-function generate_loss(strategy::GridTraining, phi, f, autodiff::Bool, tspan, p,
+function generate_loss(strategy::GridTraining, phi::ODEPhi, f, autodiff::Bool, tspan, p,
         differential_vars::AbstractVector)
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     ts = tspan[1]:(strategy.dx):tspan[2]
     return (θ, _) -> sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
 end
 
-function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
+function SciMLBase.__solve(
+        prob::SciMLBase.AbstractDAEProblem,
         alg::NNDAE,
         args...;
         dt = nothing,
@@ -81,7 +82,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
         verbose = false,
         saveat = nothing,
         maxiters = nothing,
-        tstops = nothing)
+        tstops = nothing
+)
     (; u0, tspan, f, p, differential_vars) = prob
     t0 = tspan[1]
     (; chain, opt, autodiff, init_params) = alg
@@ -89,19 +91,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
     init_params = ComponentArray(; depvar = init_params)
 
-    if isinplace(prob)
-        throw(error("The NNODE solver only supports out-of-place DAE definitions, i.e. du=f(u,p,t)."))
-    end
-
-    try
-        phi(t0, init_params)
-    catch err
-        if isa(err, DimensionMismatch)
-            throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
-        else
-            throw(err)
-        end
-    end
+    @assert !isinplace(prob) "The NNODE solver only supports out-of-place DAE definitions, i.e. du=f(u,p,t)."
 
     strategy = if alg.strategy === nothing
         dt === nothing && error("`dt` is not defined")
@@ -121,7 +111,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractDAEProblem,
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
-    #solutions at timepoints
+    # solutions at timepoints
     if saveat isa Number
         ts = tspan[1]:saveat:tspan[2]
     elseif saveat isa AbstractArray

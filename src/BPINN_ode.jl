@@ -117,7 +117,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
         numensemble = floor(Int, draw_samples / 3),
         estim_collocate = false,
         autodiff = false, progress = false, verbose = false)
-    !(chain isa Lux.AbstractLuxLayer) &&
+    !(chain isa AbstractLuxLayer) &&
         (chain = adapt(FromFluxAdaptor(false, false), chain))
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
@@ -195,7 +195,7 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
     strategy = strategy === nothing ? GridTraining : strategy
 
     if draw_samples < 0
-        throw(error("Number of samples to be drawn has to be >=0."))
+        error("Number of samples to be drawn has to be >=0.")
     end
 
     mcmcchain, samples, statistics = ahmc_bayesian_pinn_ode(prob, chain,
@@ -229,7 +229,7 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem,
         # only need for size
         θinit = collect(ComponentArray(θinit))
     else
-        throw(error("Only Lux.AbstractLuxLayer neural networks are supported"))
+        error("Only Lux.AbstractLuxLayer neural networks are supported")
     end
 
     # constructing ensemble predictions

@@ -96,7 +96,7 @@ end
 
 function NNODE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         batch = true, param_estim = false, additional_loss = nothing, kwargs...)
-    chain isa Lux.AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
+    chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return NNODE(chain, opt, init_params, autodiff, batch,
         strategy, param_estim, additional_loss, kwargs)
 end
@@ -161,21 +161,6 @@ Simple L2 inner loss at a time `t` with parameters `θ` of the neural network.
 """
 function inner_loss end
 
-function inner_loss(phi::ODEPhi{<:Number}, f, autodiff::Bool, t::Number, θ,
-        p, param_estim::Bool)
-    p_ = param_estim ? θ.p : p
-    return sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(phi(t, θ), p_, t))
-end
-
-function inner_loss(phi::ODEPhi{<:Number}, f, autodiff::Bool, t::AbstractVector, θ,
-        p, param_estim::Bool)
-    p_ = param_estim ? θ.p : p
-    out = phi(t, θ)
-    fs = reduce(hcat, [f(out[i], p_, t[i]) for i in axes(out, 2)])
-    dxdtguess = ode_dfdx(phi, t, θ, autodiff)
-    return sum(abs2, fs .- dxdtguess) / length(t)
-end
-
 function inner_loss(phi::ODEPhi, f, autodiff::Bool, t::Number, θ, p, param_estim::Bool)
     p_ = param_estim ? θ.p : p
     return sum(abs2, ode_dfdx(phi, t, θ, autodiff) .- f(phi(t, θ), p_, t))
@@ -185,7 +170,11 @@ function inner_loss(
         phi::ODEPhi, f, autodiff::Bool, t::AbstractVector, θ, p, param_estim::Bool)
     p_ = param_estim ? θ.p : p
     out = phi(t, θ)
-    fs = reduce(hcat, [f(out[:, i], p_, tᵢ) for (i, tᵢ) in enumerate(t)])
+    fs = if phi.u0 isa Number
+        reduce(hcat, [f(out[i], p_, tᵢ) for (i, tᵢ) in enumerate(t)])
+    else
+        reduce(hcat, [f(out[:, i], p_, tᵢ) for (i, tᵢ) in enumerate(t)])
+    end
     dxdtguess = ode_dfdx(phi, t, θ, autodiff)
     return sum(abs2, fs .- dxdtguess) / length(t)
 end
@@ -288,7 +277,8 @@ end
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::NNODE) = true
 
-function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
+function SciMLBase.__solve(
+        prob::SciMLBase.AbstractODEProblem,
         alg::NNODE,
         args...;
         dt = nothing,
@@ -300,7 +290,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         verbose = false,
         saveat = nothing,
         maxiters = nothing,
-        tstops = nothing)
+        tstops = nothing
+)
     (; u0, tspan, f, p) = prob
     t0 = tspan[1]
     (; param_estim, chain, opt, autodiff, init_params, batch, additional_loss) = alg
@@ -316,18 +307,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         ComponentArray(; depvar = init_params)
     end
 
-    isinplace(prob) &&
-        throw(error("The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
-
-    try
-        phi(t0, init_params)
-    catch err
-        if isa(err, DimensionMismatch)
-            throw(DimensionMismatch("Dimensions of the initial u0 and chain should match"))
-        else
-            throw(err)
-        end
-    end
+    @assert !isinplace(prob) "The NNODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."
 
     strategy = if alg.strategy === nothing
         if dt !== nothing
@@ -402,13 +382,9 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         u = [phi(t, res.u) for t in ts]
     end
 
-    sol = SciMLBase.build_solution(prob, alg, ts, u;
-        k = res, dense = true,
-        interp = NNODEInterpolation(phi, res.u),
-        calculate_error = false,
-        retcode = ReturnCode.Success,
-        original = res,
-        resid = res.objective)
+    sol = SciMLBase.build_solution(prob, alg, ts, u; k = res, dense = true,
+        interp = NNODEInterpolation(phi, res.u), calculate_error = false,
+        retcode = ReturnCode.Success, original = res, resid = res.objective)
 
     SciMLBase.has_analytic(prob.f) &&
         SciMLBase.calculate_solution_errors!(

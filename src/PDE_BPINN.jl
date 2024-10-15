@@ -314,7 +314,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     elseif discretization.param_estim && dataset isa Nothing
         throw(UndefVarError(:dataset))
     elseif discretization.param_estim && length(l2std) != length(pinnrep.depvars)
-        throw(error("L2 stds length must match number of dependant variables"))
+        error("L2 stds length must match number of dependant variables")
     end
 
     # for physics loglikelihood
@@ -322,7 +322,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     chain = discretization.chain
 
     if length(pinnrep.domains) != length(saveats)
-        throw(error("Number of independent variables must match saveat inference discretization steps"))
+        error("Number of independent variables must match saveat inference discretization steps")
     end
 
     # NN solutions for loglikelihood which is used for L2lossdata
@@ -332,7 +332,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # discretization.additional_loss =
 
     if nchains < 1
-        throw(error("number of chains must be greater than or equal to 1"))
+        error("number of chains must be greater than or equal to 1")
     end
 
     # remove inv params take only NN params, AHMC uses Float64

@@ -244,7 +244,7 @@ end
     fh_mcmc_chain, fhsamples, fhstats = ahmc_bayesian_pinn_ode(
         prob, chainflux, draw_samples = 2500)
     alg = BNNODE(chainflux, draw_samples = 2500)
-    @test alg.chain isa Lux.AbstractLuxLayer
+    @test alg.chain isa AbstractLuxLayer
 end
 
 @testset "Example 3 but with the new objective" begin

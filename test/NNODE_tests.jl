@@ -42,8 +42,7 @@ end
         verbose = false, maxiters = 200)
 
     @test_throws ArgumentError solve(prob, NNODE(luxchain, opt; autodiff = true),
-        dt = 1 / 20.0f0,
-        abstol = 1e-10, verbose = false, maxiters = 200)
+        dt = 1 / 20.0f0, abstol = 1e-10, verbose = false, maxiters = 200)
 
     sol = solve(prob, NNODE(luxchain, opt), abstol = 1.0f-6,
         verbose = false, maxiters = 200)

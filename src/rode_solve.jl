@@ -1,27 +1,66 @@
-struct NNRODE{C, W, O, P, K} <: NeuralPDEAlgorithm
-    chain::C
-    W::W
-    opt::O
-    init_params::P
+@concrete struct NNRODE <: NeuralPDEAlgorithm
+    chain <: AbstractLuxLayer
+    W
+    opt
+    init_params
     autodiff::Bool
-    kwargs::K
-end
-function NNRODE(chain, W, opt = Optim.BFGS(), init_params = nothing; autodiff = false,
-        kwargs...)
-    if init_params === nothing
-        if chain isa Flux.Chain
-            init_params, re = Flux.destructure(chain)
-        else
-            error("Only Flux is support here right now")
-        end
-    else
-        init_params = init_params
-    end
-    NNRODE(chain, W, opt, init_params, autodiff, kwargs)
+    strategy <: Union{Nothing, AbstractTrainingStrategy}
+    kwargs
 end
 
-function SciMLBase.solve(prob::SciMLBase.AbstractRODEProblem,
-        alg::NeuralPDEAlgorithm,
+function NNRODE(chain, W, opt, init_params = nothing; strategy = nothing, autodiff = false,
+        kwargs...)
+    chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
+    return NNRODE(chain, W, opt, init_params, autodiff, strategy, kwargs)
+end
+
+@concrete struct RODEPhi
+    u0
+    t0
+    smodel <: StatefulLuxLayer
+end
+
+RODEPhi(phi::ODEPhi) = RODEPhi(phi.u0, phi.t0, phi.smodel)
+
+function (f::RODEPhi{<:Number})(t::Number, W, θ)
+    return f.u0 + (t - f.t0) * first(f.smodel([t, W], θ.depvar))
+end
+
+function (f::RODEPhi{<:Number})(t::AbstractVector, W, θ)
+    return f.u0 .+ (t' .- f.t0) .* f.smodel(vcat(t', W'), θ.depvar)
+end
+
+(f::RODEPhi)(t::Number, W, θ) = f.u0 .+ (t .- f.t0) .* f.smodel([t, W], θ.depvar)
+
+function (f::RODEPhi)(t::AbstractVector, W, θ)
+    return f.u0 .+ (t' .- f.t0) .* f.smodel(vcat(t', W'), θ.depvar)
+end
+
+function dfdx(phi::RODEPhi, t, θ, autodiff::Bool, W)
+    autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
+    ϵ = sqrt(eps(eltype(t)))
+    return (phi(t .+ ϵ, W, θ) .- phi(t, W, θ)) ./ ϵ
+end
+
+function inner_loss(phi::RODEPhi, f, t::Number, θ, autodiff::Bool, p, W)
+    return sum(abs2, dfdx(phi, t, θ, autodiff, W) .- f(phi(t, W, θ), p, t, W))
+end
+
+function inner_loss(phi::RODEPhi, f, t::AbstractVector, θ, autodiff::Bool, p, W)
+    out = phi(t, W, θ)
+    fs = reduce(hcat, [f(out[:, i], p, tᵢ, W[i]) for (i, tᵢ) in enumerate(t)])
+    return sum(abs2, dfdx(phi, t, θ, autodiff, W) .- fs)
+end
+
+function generate_loss(strategy::GridTraining, phi::RODEPhi, f, autodiff::Bool, tspan, p, W)
+    autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
+    ts = tspan[1]:(strategy.dx):tspan[2]
+    return (θ, _) -> sum(abs2, inner_loss(phi, f, ts, θ, autodiff, p, W))
+end
+
+function SciMLBase.__solve(
+        prob::SciMLBase.AbstractRODEProblem,
+        alg::NNRODE,
         args...;
         dt,
         timeseries_errors = true,
@@ -29,88 +68,57 @@ function SciMLBase.solve(prob::SciMLBase.AbstractRODEProblem,
         adaptive = false,
         abstol = 1.0f-6,
         verbose = false,
-        maxiters = 100)
-    SciMLBase.isinplace(prob) && error("Only out-of-place methods are allowed!")
+        maxiters = 100
+)
+    @assert !isinplace(prob) "The NNRODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t,W)."
 
-    u0 = prob.u0
-    tspan = prob.tspan
-    f = prob.f
-    p = prob.p
+    (; u0, tspan, f, p) = prob
     t0 = tspan[1]
-
-    #hidden layer
-    chain = alg.chain
-    opt = alg.opt
-    autodiff = alg.autodiff
+    (; chain, opt, autodiff, init_params) = alg
     Wg = alg.W
-    #train points generation
-    ts = tspan[1]:dt:tspan[2]
-    init_params = alg.init_params
 
-    if chain isa FastChain
-        #The phi trial solution
-        if u0 isa Number
-            phi = (t, W, θ) -> u0 +
-                               (t - tspan[1]) *
-                               first(chain(adapt(SciMLBase.parameterless_type(θ), [t, W]),
-                θ))
-        else
-            phi = (t, W, θ) -> u0 +
-                               (t - tspan[1]) *
-                               chain(adapt(SciMLBase.parameterless_type(θ), [t, W]), θ)
-        end
+    phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
+    phi = RODEPhi(phi)
+    init_params = ComponentArray(; depvar = init_params)
+
+    strategy = if alg.strategy === nothing
+        dt === nothing && error("`dt` is not defined")
+        GridTraining(dt)
+    end
+
+    ts = if strategy isa GridTraining
+        tspan[1]:(strategy.dx):tspan[2]
     else
-        _, re = Flux.destructure(chain)
-        #The phi trial solution
-        if u0 isa Number
-            phi = (t, W, θ) -> u0 +
-                               (t - t0) *
-                               first(re(θ)(adapt(SciMLBase.parameterless_type(θ), [t, W])))
-        else
-            phi = (t, W, θ) -> u0 +
-                               (t - t0) *
-                               re(θ)(adapt(SciMLBase.parameterless_type(θ), [t, W]))
-        end
+        error("Only GridTraining is supported for now.")
     end
 
-    if autodiff
-        # dfdx = (t,W,θ) -> ForwardDiff.derivative(t->phi(t,θ),t)
-    else
-        dfdx = (t, W, θ) -> (phi(t + sqrt(eps(t)), W, θ) - phi(t, W, θ)) / sqrt(eps(t))
-    end
-
-    function inner_loss(t, W, θ)
-        sum(abs, dfdx(t, W, θ) - f(phi(t, W, θ), p, t, W))
-    end
     Wprob = NoiseProblem(Wg, tspan)
-    Wsol = solve(Wprob; dt = dt)
-    W = NoiseGrid(ts, Wsol.W)
-    function loss(θ)
-        sum(abs2, inner_loss(ts[i], W.W[i], θ) for i in 1:length(ts)) # sum(abs2,phi(tspan[1],θ) - u0)
-    end
+    W = solve(Wprob; dt)
+
+    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, W.W)
+    total_loss(θ, _) = inner_f(θ, phi)
+    optf = OptimizationFunction(total_loss, AutoZygote())
 
     callback = function (p, l)
-        Wprob = NoiseProblem(Wg, tspan)
-        Wsol = solve(Wprob; dt = dt)
-        W = NoiseGrid(ts, Wsol.W)
-        verbose && println("Current loss is: $l")
-        l < abstol
+        verbose && println("Current loss is: $l, Iteration: $(p.iter)")
+        return l < abstol
     end
-    #res = DiffEqFlux.sciml_train(loss, init_params, opt; cb = callback, maxiters = maxiters,
-    #                             alg.kwargs...)
 
-    #solutions at timepoints
+    optprob = OptimizationProblem(optf, init_params)
+    res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
+
+    # solutions at timepoints
     noiseproblem = NoiseProblem(Wg, tspan)
-    W = solve(noiseproblem; dt = dt)
+    W = solve(noiseproblem; dt)
     if u0 isa Number
-        u = [(phi(ts[i], W.W[i], res.minimizer)) for i in 1:length(ts)]
+        u = [(phi(tᵢ, W.W[i], res.minimizer)) for (i, tᵢ) in enumerate(ts)]
     else
-        u = [(phi(ts[i], W.W[i], res.minimizer)) for i in 1:length(ts)]
+        u = [(phi(tᵢ, W.W[i], res.minimizer)) for (i, tᵢ) in enumerate(ts)]
     end
 
     sol = SciMLBase.build_solution(prob, alg, ts, u, W = W, calculate_error = false)
     SciMLBase.has_analytic(prob.f) &&
         SciMLBase.calculate_solution_errors!(sol; timeseries_errors = true,
             dense_errors = false)
-    sol
-end #solve
+    return sol
+end

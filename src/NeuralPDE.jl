@@ -14,7 +14,6 @@ using Cubature: Cubature
 using ComponentArrays: ComponentArrays, ComponentArray, getdata, getaxes
 using ConcreteStructs: @concrete
 using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
-using DiffEqNoiseProcess: DiffEqNoiseProcess
 using DocStringExtensions: DocStringExtensions, FIELDS
 using DomainSets: DomainSets, AbstractInterval, leftendpoint, rightendpoint, ProductDomain
 using ForwardDiff: ForwardDiff
@@ -32,12 +31,11 @@ using MonteCarloMeasurements: Particles
 using Optimisers: Optimisers, Adam
 using Optimization: Optimization
 using OptimizationOptimisers: OptimizationOptimisers
-using OptimizationOptimJL: OptimizationOptimJL
 using Random: Random, AbstractRNG
 using RecursiveArrayTools: DiffEqArray
 using Reexport: @reexport
 using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
-using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem,
+using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem, NoiseProblem,
                  OptimizationFunction, OptimizationProblem, ReturnCode, discretize,
                  isinplace, solve, symbolic_discretize
 using Statistics: Statistics, mean
@@ -66,7 +64,7 @@ include("training_strategies.jl")
 include("adaptive_losses.jl")
 
 include("ode_solve.jl")
-# include("rode_solve.jl")
+include("rode_solve.jl")
 include("dae_solve.jl")
 
 include("transform_inf_integral.jl")
@@ -79,7 +77,7 @@ include("PDE_BPINN.jl")
 
 include("dgm.jl")
 
-export NNODE, NNDAE
+export NNODE, NNDAE, NNRODE
 export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
 export PhysicsInformedNN, discretize
 export BPINNsolution, BayesianPINN
