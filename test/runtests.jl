@@ -1,4 +1,4 @@
-using Pkg
+using Pkg 
 using SafeTestsets
 
 const GROUP = get(ENV, "GROUP", "All")
@@ -98,6 +98,12 @@ end
     if GROUP == "All" || GROUP == "DGM"
         @time @safetestset "Deep Galerkin solver" begin
             include("dgm_test.jl")
+        end
+    end
+
+    if GROUP == "All" || GROUP == "PIPN"
+        @time @safetestset "Physics Informed Point Network" begin
+            include("test_pipn.jl")
         end
     end
 end

@@ -1,7 +1,7 @@
 """
 $(DocStringExtensions.README)
 """
-module NeuralPDE
+module NeuralPDE 
 
 using DocStringExtensions
 using Reexport, Statistics
@@ -55,7 +55,7 @@ include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 include("dgm.jl")
 
-export NNODE, NNDAE,
+export NNODE, PIPN, init_pipn_params, NNDAE, 
        PhysicsInformedNN, discretize,
        GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
        WeightedIntervalTraining,
