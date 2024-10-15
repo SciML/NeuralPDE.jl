@@ -355,8 +355,15 @@ function SciMLBase.__solve(
     opt_algo = ifelse(strategy isa QuadratureTraining, AutoForwardDiff(), AutoZygote())
     optf = OptimizationFunction(total_loss, opt_algo)
 
+    plen = maxiters === nothing ? 6 : ndigits(maxiters)
     callback = function (p, l)
-        verbose && println("Current loss is: $l, Iteration: $(p.iter)")
+        if verbose
+            if maxiters === nothing
+                @printf("[NNODE]\tIter: [%*d]\tLoss: %g\n", plen, p.iter, l)
+            else
+                @printf("[NNODE]\tIter: [%*d/%d]\tLoss: %g\n", plen, p.iter, maxiters, l)
+            end
+        end
         return l < abstol
     end
 

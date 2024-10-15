@@ -99,8 +99,16 @@ function SciMLBase.__solve(
     total_loss(θ, _) = inner_f(θ, phi)
     optf = OptimizationFunction(total_loss, AutoZygote())
 
+
+    plen = maxiters === nothing ? 6 : ndigits(maxiters)
     callback = function (p, l)
-        verbose && println("Current loss is: $l, Iteration: $(p.iter)")
+        if verbose
+            if maxiters === nothing
+                @printf("[NNRODE]\tIter: [%*d]\tLoss: %g\n", plen, p.iter, l)
+            else
+                @printf("[NNRODE]\tIter: [%*d/%d]\tLoss: %g\n", plen, p.iter, maxiters, l)
+            end
+        end
         return l < abstol
     end
 

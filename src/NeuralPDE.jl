@@ -4,7 +4,7 @@ $(DocStringExtensions.README)
 module NeuralPDE
 
 using ADTypes: ADTypes, AutoForwardDiff, AutoZygote
-using Adapt: Adapt, adapt
+using Adapt: Adapt
 using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
                    JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
                    StepSizeAdaptor, TemperedLeapfrog, find_good_stepsize
@@ -31,6 +31,7 @@ using MonteCarloMeasurements: Particles
 using Optimisers: Optimisers, Adam
 using Optimization: Optimization
 using OptimizationOptimisers: OptimizationOptimisers
+using Printf: @printf
 using Random: Random, AbstractRNG
 using RecursiveArrayTools: DiffEqArray
 using Reexport: @reexport

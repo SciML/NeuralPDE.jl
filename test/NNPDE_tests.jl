@@ -179,7 +179,7 @@ end
 
     @testset "$(nameof(typeof(strategy)))" for strategy in strategies
         chain_ = Chain(Dense(2, 12, σ), Dense(12, 12, σ), Dense(12, 1))
-        test_2d_poisson_equation(chain_, strategy_)
+        test_2d_poisson_equation(chain_, strategy)
     end
 
     algs = [CubatureJLp()]
