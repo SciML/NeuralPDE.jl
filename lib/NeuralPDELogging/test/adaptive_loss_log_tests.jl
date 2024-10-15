@@ -64,29 +64,24 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
     callback = function (p, l)
         iteration[1] += 1
         if iteration[1] % 100 == 0
-            @info "Current loss is: $l, iteration is $(iteration[1])"
+            @info "Current loss is: $l, iteration is $(iteration[])"
         end
         if haslogger
-            log_value(logger, "outer_error/loss", l, step = iteration[1])
+            log_value(logger, "outer_error/loss", l, step = iteration[])
             if iteration[1] % 30 == 0
                 u_predict = reshape([first(phi([x, y], p.u)) for x in xs for y in ys],
                     (length(xs), length(ys)))
-                diff_u = abs.(u_predict .- u_real)
-                total_diff = sum(diff_u)
-                log_value(logger, "outer_error/total_diff", total_diff, step = iteration[1])
-                total_u = sum(abs.(u_real))
-                total_diff_rel = total_diff / total_u
-                log_value(logger, "outer_error/total_diff_rel", total_diff_rel,
-                    step = iteration[1])
-                total_diff_sq = sum(diff_u .^ 2)
-                log_value(logger, "outer_error/total_diff_sq", total_diff_sq,
+                log_value(logger, "outer_error/total_diff",
+                    sum(abs2, u_predict .- u_real), step = iteration[1])
+                log_value(logger, "outer_error/total_diff_rel",
+                    total_diff / sum(abs2, u_real), step = iteration[1])
+                log_value(logger, "outer_error/total_diff_sq", sum(diff_u .^ 2),
                     step = iteration[1])
             end
         end
         return false
     end
-    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.03); maxiters = maxiters,
-        callback = callback)
+    res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.03); maxiters, callback)
 
     u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
         (length(xs), length(ys)))

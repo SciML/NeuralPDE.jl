@@ -11,28 +11,42 @@ end
 LogOptions(; log_frequency = 50) = LogOptions(log_frequency)
 
 """This function is defined here as stubs to be overridden by the subpackage NeuralPDELogging if imported"""
-function logvector(logger, v::AbstractVector{R}, name::AbstractString,
-        step::Integer) where {R <: Real}
+function logvector(logger, v::AbstractVector{<:Real}, name::AbstractString, step::Integer)
     nothing
 end
 
 """This function is defined here as stubs to be overridden by the subpackage NeuralPDELogging if imported"""
-function logscalar(logger, s::R, name::AbstractString, step::Integer) where {R <: Real}
+function logscalar(logger, s::Real, name::AbstractString, step::Integer)
     nothing
 end
 
 """
-    PhysicsInformedNN(chain,
-                    strategy;
-                    init_params = nothing,
-                    phi = nothing,
-                    param_estim = false,
-                    additional_loss = nothing,
-                    adaptive_loss = nothing,
-                    logger = nothing,
-                    log_options = LogOptions(),
-                    iteration = nothing,
-                    kwargs...)
+An encoding of the test function phi that is used for calculating the PDE
+value at domain points x
+
+Fields:
+
+- `f`: A representation of the chain function.
+- `st`: The state of the Lux.AbstractLuxLayer. It should be updated on each call.
+"""
+@concrete struct Phi
+    smodel <: StatefulLuxLayer
+end
+
+function Phi(layer::AbstractLuxLayer)
+    return Phi(StatefulLuxLayer{true}(
+        layer, nothing, initialstates(Random.default_rng(), layer)))
+end
+
+(f::Phi)(x::Number, θ) = f([x], θ)[1]
+
+(f::Phi)(x::AbstractArray, θ) = f.smodel(x, θ)
+
+"""
+    PhysicsInformedNN(chain, strategy; init_params = nothing, phi = nothing,
+                      param_estim = false, additional_loss = nothing,
+                      adaptive_loss = nothing, logger = nothing, log_options = LogOptions(),
+                      iteration = nothing, kwargs...)
 
 A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
 `PDESystem` into an `OptimizationProblem` using the Physics-Informed Neural Networks (PINN)
@@ -40,10 +54,11 @@ methodology.
 
 ## Positional Arguments
 
-* `chain`: a vector of Lux/Flux chains with a d-dimensional input and a
-           1-dimensional output corresponding to each of the dependent variables. Note that this
-           specification respects the order of the dependent variables as specified in the PDESystem.
-           Flux chains will be converted to Lux internally using `adapt(FromFluxAdaptor(false, false), chain)`.
+* `chain`: a vector of Lux/Flux chains with a d-dimensional input and a 1-dimensional output
+           corresponding to each of the dependent variables. Note that this specification
+           respects the order of the dependent variables as specified in the PDESystem.
+           Flux chains will be converted to Lux internally using
+           `adapt(FromFluxAdaptor(), chain)`.
 * `strategy`: determines which training strategy will be used. See the Training Strategy
               documentation for more details.
 
@@ -54,252 +69,107 @@ methodology.
   will convert to Float64.
 * `phi`: a trial solution, specified as `phi(x,p)` where `x` is the coordinates vector for
   the dependent variable and `p` are the weights of the phi function (generally the weights
-  of the neural network defining `phi`). By default, this is generated from the `chain`. This
-  should only be used to more directly impose functional information in the training problem,
-  for example imposing the boundary condition by the test function formulation.
+  of the neural network defining `phi`). By default, this is generated from the `chain`.
+  This should only be used to more directly impose functional information in the training
+  problem, for example imposing the boundary condition by the test function formulation.
 * `adaptive_loss`: the choice for the adaptive loss function. See the
   [adaptive loss page](@ref adaptive_loss) for more details. Defaults to no adaptivity.
 * `additional_loss`: a function `additional_loss(phi, θ, p_)` where `phi` are the neural
   network trial solutions, `θ` are the weights of the neural network(s), and `p_` are the
-  hyperparameters of the `OptimizationProblem`. If `param_estim = true`, then `θ` additionally
-  contains the parameters of the differential equation appended to the end of the vector.
+  hyperparameters of the `OptimizationProblem`. If `param_estim = true`, then `θ`
+  additionally contains the parameters of the differential equation appended to the end of
+  the vector.
 * `param_estim`: whether the parameters of the differential equation should be included in
   the values sent to the `additional_loss` function. Defaults to `false`.
 * `logger`: ?? needs docs
 * `log_options`: ?? why is this separate from the logger?
 * `iteration`: used to control the iteration counter???
-* `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on `solve`.
+* `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on
+  `solve`.
 """
-struct PhysicsInformedNN{T, P, PH, DER, PE, AL, ADA, LOG, K} <: AbstractPINN
-    chain::Any
-    strategy::T
-    init_params::P
-    phi::PH
-    derivative::DER
-    param_estim::PE
-    additional_loss::AL
-    adaptive_loss::ADA
-    logger::LOG
+@concrete struct PhysicsInformedNN <: AbstractPINN
+    chain <: Union{AbstractLuxLayer, AbstractArray{<:AbstractLuxLayer}}
+    strategy <: Union{Nothing, AbstractTrainingStrategy}
+    init_params
+    phi <: Union{Phi, AbstractArray{<:Phi}}
+    derivative
+    param_estim
+    additional_loss
+    adaptive_loss
+    logger
     log_options::LogOptions
-    iteration::Vector{Int64}
+    iteration
     self_increment::Bool
     multioutput::Bool
-    kwargs::K
+    kwargs
+end
 
-    function PhysicsInformedNN(chain,
-            strategy;
-            init_params = nothing,
-            phi = nothing,
-            derivative = nothing,
-            param_estim = false,
-            additional_loss = nothing,
-            adaptive_loss = nothing,
-            logger = nothing,
-            log_options = LogOptions(),
-            iteration = nothing,
-            kwargs...)
-        multioutput = chain isa AbstractArray
-        if multioutput
-            !all(i -> i isa Lux.AbstractLuxLayer, chain) &&
-                (chain = Lux.transform.(chain))
-        else
-            !(chain isa AbstractLuxLayer) &&
-                (chain = adapt(FromFluxAdaptor(false, false), chain))
+function PhysicsInformedNN(
+        chain, strategy; init_params = nothing, derivative = nothing, param_estim = false,
+        phi::Union{Nothing, Phi, AbstractArray{<:Phi}} = nothing, additional_loss = nothing,
+        adaptive_loss = nothing, logger = nothing, log_options = LogOptions(),
+        iteration = nothing, kwargs...)
+    multioutput = chain isa AbstractArray
+    if multioutput
+        chain = map(chain) do cᵢ
+            cᵢ isa AbstractLuxLayer && return cᵢ
+            return adapt(FromFluxAdaptor(), cᵢ)
         end
-        if phi === nothing
-            if multioutput
-                _phi = Phi.(chain)
-            else
-                _phi = Phi(chain)
-            end
-        else
-            if multioutput
-                all([phi.f[i] isa Lux.AbstractLuxLayer for i in eachindex(phi.f)]) ||
-                    throw(ArgumentError("Only Lux Chains are supported"))
-            else
-                (phi.f isa Lux.AbstractLuxLayer) ||
-                    throw(ArgumentError("Only Lux Chains are supported"))
-            end
-            _phi = phi
-        end
-
-        if derivative === nothing
-            _derivative = numeric_derivative
-        else
-            _derivative = derivative
-        end
-
-        if iteration isa Vector{Int64}
-            self_increment = false
-        else
-            iteration = [1]
-            self_increment = true
-        end
-
-        new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
-            typeof(param_estim),
-            typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(kwargs)}(
-            chain,
-            strategy,
-            init_params,
-            _phi,
-            _derivative,
-            param_estim,
-            additional_loss,
-            adaptive_loss,
-            logger,
-            log_options,
-            iteration,
-            self_increment,
-            multioutput,
-            kwargs)
+    else
+        chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     end
+
+    phi = phi === nothing ? (multioutput ? map(Phi, chain) : Phi(chain)) : phi
+
+    derivative = ifelse(derivative === nothing, numeric_derivative, derivative)
+
+    if iteration isa Vector{Int}
+        @assert length(iteration) == 1
+        iteration = Ref(iteration, 1)
+        self_increment = false
+    elseif iteration isa Ref
+        self_increment = false
+    else
+        iteration = Ref(1)
+        self_increment = true
+    end
+
+    return PhysicsInformedNN(chain, strategy, init_params, phi, derivative, param_estim,
+        additional_loss, adaptive_loss, logger, log_options, iteration, self_increment,
+        multioutput, kwargs)
 end
 
 """
-    BayesianPINN(chain,
-                  strategy;
-                  init_params = nothing,
-                  phi = nothing,
-                  param_estim = false,
-                  additional_loss = nothing,
-                  adaptive_loss = nothing,
-                  logger = nothing,
-                  log_options = LogOptions(),
-                  iteration = nothing,
-                  dataset = nothing,
-                  kwargs...)
+    BayesianPINN(args...; dataset = nothing, kwargs...)
 
 A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
-`PDESystem` into a likelihood function used for HMC based Posterior Sampling Algorithms [AdvancedHMC.jl](https://turinglang.org/AdvancedHMC.jl/stable/)
-which is later optimized upon to give the Solution Distribution of the PDE, using the Physics-Informed Neural Networks (PINN)
-methodology.
+`PDESystem` into a likelihood function used for HMC based Posterior Sampling Algorithms
+[AdvancedHMC.jl](https://turinglang.org/AdvancedHMC.jl/stable/) which is later optimized
+upon to give the Solution Distribution of the PDE, using the Physics-Informed Neural
+Networks (PINN) methodology.
 
-## Positional Arguments
-
-* `chain`: a vector of Lux.jl chains with a d-dimensional input and a
-  1-dimensional output corresponding to each of the dependent variables. Note that this
-  specification respects the order of the dependent variables as specified in the PDESystem.
-* `strategy`: determines which training strategy will be used. See the Training Strategy
-  documentation for more details.
+All positional arguments and keyword arguments are passed to `PhysicsInformedNN` except
+the ones mentioned below.
 
 ## Keyword Arguments
 
-* `Dataset`: A vector of matrix, each matrix for ith dependant
-  variable and first col in matrix is for dependant variables,
-  remaining columns for independent variables. Needed for inverse problem solving.
-* `init_params`: the initial parameters of the neural networks. If `init_params` is not
-  given, then the neural network default parameters are used. Note that for Lux, the default
-  will convert to Float64.
-* `phi`: a trial solution, specified as `phi(x,p)` where `x` is the coordinates vector for
-  the dependent variable and `p` are the weights of the phi function (generally the weights
-  of the neural network defining `phi`). By default, this is generated from the `chain`. This
-  should only be used to more directly impose functional information in the training problem,
-  for example imposing the boundary condition by the test function formulation.
-* `adaptive_loss`: (STILL WIP), the choice for the adaptive loss function. See the
-  [adaptive loss page](@ref adaptive_loss) for more details. Defaults to no adaptivity.
-* `additional_loss`: a function `additional_loss(phi, θ, p_)` where `phi` are the neural
-  network trial solutions, `θ` are the weights of the neural network(s), and `p_` are the
-  hyperparameters . If `param_estim = true`, then `θ` additionally
-  contains the parameters of the differential equation appended to the end of the vector.
-* `param_estim`: whether the parameters of the differential equation should be included in
-  the values sent to the `additional_loss` function. Defaults to `false`.
-* `logger`: ?? needs docs
-* `log_options`: ?? why is this separate from the logger?
-* `iteration`: used to control the iteration counter???
-* `kwargs`: Extra keyword arguments.
+* `dataset`: A vector of matrix, each matrix for ith dependant variable and first col in
+  matrix is for dependant variables, remaining columns for independent variables. Needed for
+  inverse problem solving.
 """
-struct BayesianPINN{T, P, PH, DER, PE, AL, ADA, LOG, D, K} <: AbstractPINN
-    chain::Any
-    strategy::T
-    init_params::P
-    phi::PH
-    derivative::DER
-    param_estim::PE
-    additional_loss::AL
-    adaptive_loss::ADA
-    logger::LOG
-    log_options::LogOptions
-    iteration::Vector{Int64}
-    self_increment::Bool
-    multioutput::Bool
-    dataset::D
-    kwargs::K
+@concrete struct BayesianPINN <: AbstractPINN
+    pinn <: PhysicsInformedNN
+    dataset
+end
 
-    function BayesianPINN(chain,
-            strategy;
-            init_params = nothing,
-            phi = nothing,
-            derivative = nothing,
-            param_estim = false,
-            additional_loss = nothing,
-            adaptive_loss = nothing,
-            logger = nothing,
-            log_options = LogOptions(),
-            iteration = nothing,
-            dataset = nothing,
-            kwargs...)
-        multioutput = chain isa AbstractArray
-        if multioutput
-            !all(i -> i isa Lux.AbstractLuxLayer, chain) &&
-                (chain = Lux.transform.(chain))
-        else
-            !(chain isa AbstractLuxLayer) &&
-                (chain = adapt(FromFluxAdaptor(false, false), chain))
-        end
-        if phi === nothing
-            if multioutput
-                _phi = Phi.(chain)
-            else
-                _phi = Phi(chain)
-            end
-        else
-            if multioutput
-                all([phi.f[i] isa Lux.AbstractLuxLayer for i in eachindex(phi.f)]) ||
-                    throw(ArgumentError("Only Lux Chains are supported"))
-            else
-                (phi.f isa Lux.AbstractLuxLayer) ||
-                    throw(ArgumentError("Only Lux Chains are supported"))
-            end
-            _phi = phi
-        end
+function Base.getproperty(pinn::BayesianPINN, name::Symbol)
+    name === :dataset && return getfield(pinn, :dataset)
+    name === :pinn && return getfield(pinn, :pinn)
+    return getproperty(pinn.pinn, name)
+end
 
-        if derivative === nothing
-            _derivative = numeric_derivative
-        else
-            _derivative = derivative
-        end
-
-        if iteration isa Vector{Int64}
-            self_increment = false
-        else
-            iteration = [1]
-            self_increment = true
-        end
-
-        if dataset isa Nothing
-            dataset = (nothing, nothing)
-        end
-
-        new{typeof(strategy), typeof(init_params), typeof(_phi), typeof(_derivative),
-            typeof(param_estim),
-            typeof(additional_loss), typeof(adaptive_loss), typeof(logger), typeof(dataset),
-            typeof(kwargs)}(chain,
-            strategy,
-            init_params,
-            _phi,
-            _derivative,
-            param_estim,
-            additional_loss,
-            adaptive_loss,
-            logger,
-            log_options,
-            iteration,
-            self_increment,
-            multioutput,
-            dataset,
-            kwargs)
-    end
+function BayesianPINN(args...; dataset = nothing, kwargs...)
+    return BayesianPINN(PhysicsInformedNN(args...; kwargs...), dataset)
 end
 
 """
@@ -380,7 +250,7 @@ mutable struct PINNRepresentation
     """
     The iteration counter used inside the cost function
     """
-    iteration::Vector{Int}
+    iteration::Any
     """
     The initial parameters as provided by the user. If the PDE is a system of PDEs, this
     will be an array of arrays. If Lux.jl is used, then this is an array of ComponentArrays.
@@ -480,28 +350,6 @@ struct PINNLossFunctions
     """
     datafree_bc_loss_functions::Any
 end
-
-"""
-An encoding of the test function phi that is used for calculating the PDE
-value at domain points x
-
-Fields:
-
-- `f`: A representation of the chain function.
-- `st`: The state of the Lux.AbstractLuxLayer. It should be updated on each call.
-"""
-@concrete struct Phi
-    smodel <: StatefulLuxLayer
-end
-
-function Phi(layer::AbstractLuxLayer)
-    return Phi(StatefulLuxLayer{true}(
-        layer, nothing, initialstates(Random.default_rng(), layer)))
-end
-
-(f::Phi)(x::Number, θ) = f([x], θ)
-
-(f::Phi)(x::AbstractArray, θ) = f.smodel(x, θ)
 
 get_u() = (cord, θ, phi) -> phi(cord, θ)
 

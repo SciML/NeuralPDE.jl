@@ -45,9 +45,9 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxite
         (length(xs), length(ys)))
 
     callback = function (p, l)
-        iteration[1] += 1
-        if iteration[1] % 100 == 0
-            @info "Current loss is: $l, iteration is $(iteration[1])"
+        iteration[] += 1
+        if iteration[] % 100 == 0
+            @info "Current loss is: $l, iteration is $(iteration[])"
         end
         return false
     end

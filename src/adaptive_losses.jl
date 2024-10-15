@@ -90,7 +90,7 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
     adaloss_T = eltype(adaloss.pde_loss_weights)
 
     return (θ, pde_losses, bc_losses) -> begin
-        if iteration[1] % adaloss.reweight_every == 0
+        if iteration[] % adaloss.reweight_every == 0
             # the paper assumes a single pde loss function, so here we grab the maximum of
             # the maximums of each pde loss function
             pde_grads_maxes = [maximum(abs, only(Zygote.gradient(pde_loss_function, θ)))
@@ -107,13 +107,13 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
                                        (1 .- weight_change_inertia) .*
                                        bc_loss_weights_proposed
             logscalar(pinnrep.logger, pde_grads_max, "adaptive_loss/pde_grad_max",
-                iteration[1])
+                iteration[])
             logvector(pinnrep.logger, pde_grads_maxes, "adaptive_loss/pde_grad_maxes",
-                iteration[1])
+                iteration[])
             logvector(pinnrep.logger, bc_grads_mean, "adaptive_loss/bc_grad_mean",
-                iteration[1])
+                iteration[])
             logvector(pinnrep.logger, adaloss.bc_loss_weights,
-                "adaptive_loss/bc_loss_weights", iteration[1])
+                "adaptive_loss/bc_loss_weights", iteration[])
         end
         return nothing
     end
@@ -177,14 +177,14 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
     iteration = pinnrep.iteration
 
     return (θ, pde_losses, bc_losses) -> begin
-        if iteration[1] % adaloss.reweight_every == 0
+        if iteration[] % adaloss.reweight_every == 0
             Optimisers.update!(
                 pde_max_optimiser_setup, adaloss.pde_loss_weights, -pde_losses)
             Optimisers.update!(bc_max_optimiser_setup, adaloss.bc_loss_weights, -bc_losses)
             logvector(pinnrep.logger, adaloss.pde_loss_weights,
-                "adaptive_loss/pde_loss_weights", iteration[1])
+                "adaptive_loss/pde_loss_weights", iteration[])
             logvector(pinnrep.logger, adaloss.bc_loss_weights,
-                "adaptive_loss/bc_loss_weights", iteration[1])
+                "adaptive_loss/bc_loss_weights", iteration[])
         end
         return nothing
     end
