@@ -181,10 +181,10 @@ end
 
     sol1 = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
-        draw_samples = 400,
-        bcstd = [0.05, 0.05, 0.05, 0.05],
-        phystd = [0.05],
-        priorsNNw = (0.0, 1.0),
+        draw_samples = 200,
+        bcstd = [0.0025, 0.0025, 0.0025, 0.0025],
+        phystd = [0.005],
+        priorsNNw = (0.0, 0.5),
         saveats = [1 / 100.0, 1 / 100.0])
 
     xs = sol.timepoints[1]
@@ -193,8 +193,9 @@ end
     u_predict = pmean(sol.ensemblesol[1])
     u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
 
+    @test mean(abs2.(u_predict .- u_real)) < 5e-3
+    @test all(abs.(u_predict .- u_real) .< 15e-3)
     @test sum(abs2.(u_predict .- u_real)) < 0.1
-    @test u_predict≈u_real atol=0.1
 end
 
 @testitem "BPINN PDE: Translating from Flux" tags=[:pdebpinn] begin
