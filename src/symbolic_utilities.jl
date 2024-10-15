@@ -424,9 +424,8 @@ function get_argument end
 
 # Get arguments from boundary condition functions
 function get_argument(eqs, _indvars::Array, _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-        _depvars)
-    get_argument(eqs, dict_indvars, dict_depvars)
+    _, _, dict_indvars, dict_depvars, _ = get_vars(_indvars, _depvars)
+    return get_argument(eqs, dict_indvars, dict_depvars)
 end
 function get_argument(eqs, dict_indvars, dict_depvars)
     exprs = toexpr.(eqs)

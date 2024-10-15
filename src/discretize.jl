@@ -189,17 +189,17 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
     dict_var_span_ = Dict([Symbol(d.variables) => bc for (d, bc) in zip(domains, bc_data)])
 
     bcs_train_sets = map(bound_args) do bt
-        span = map(b -> get(dict_var_span, b, b), bt)
-        return adapt(eltypeθ,
-            hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
+        span = get.((dict_var_span,), bt, bt)
+        return reduce(hcat, vec(map(collect, Iterators.product(span...)))) |>
+               EltypeAdaptor{eltypeθ}()
     end
 
     pde_args = get_argument(eqs, dict_indvars, dict_depvars)
 
     pde_train_sets = map(pde_args) do bt
-        span = map(b -> get(dict_var_span_, b, b), bt)
-        return adapt(eltypeθ,
-            hcat(vec(map(points -> collect(points), Iterators.product(span...)))...))
+        span = get.((dict_var_span_,), bt, bt)
+        return reduce(hcat, vec(map(collect, Iterators.product(span...)))) |>
+               EltypeAdaptor{eltypeθ}()
     end
 
     return [pde_train_sets, bcs_train_sets]
@@ -231,13 +231,16 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
 
     pde_args = get_argument(eqs, dict_indvars, dict_depvars)
 
+    ϵ = cbrt(eps(eltypeθ))
+    eltype_adaptor = EltypeAdaptor{eltypeθ}()
+
     pde_lower_bounds = map(pde_args) do pd
-        span = map(p -> get(dict_lower_bound, p, p), pd)
-        map(s -> adapt(eltypeθ, s) + cbrt(eps(eltypeθ)), span)
+        span = get.((dict_lower_bound,), pd, pd) |> eltype_adaptor
+        return span .+ ϵ
     end
     pde_upper_bounds = map(pde_args) do pd
-        span = map(p -> get(dict_upper_bound, p, p), pd)
-        map(s -> adapt(eltypeθ, s) - cbrt(eps(eltypeθ)), span)
+        span = get.((dict_upper_bound,), pd, pd) |> eltype_adaptor
+        return span .+ ϵ
     end
     pde_bounds = [pde_lower_bounds, pde_upper_bounds]
 
@@ -283,7 +286,7 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
         function integration_(cord, lb, ub, θ)
             cord_ = cord
             function integrand_(x, p)
-                @ignore_derivatives @views(cord_[integrating_var_id]) .= x
+                @ignore_derivatives cord_[integrating_var_id] .= x
                 return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)
             end
             prob_ = IntegralProblem(integrand_, (lb, ub), θ)
@@ -296,7 +299,7 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
         ub_ = zeros(size(ub)[1], size(cord)[2])
         for (i, l) in enumerate(lb)
             if l isa Number
-                @ignore_derivatives lb_[i, :] = fill(l, 1, size(cord)[2])
+                @ignore_derivatives lb_[i, :] .= l
             else
                 @ignore_derivatives lb_[i, :] = l(
                     cord, θ, phi, derivative, nothing, u, nothing)
@@ -304,7 +307,7 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
         end
         for (i, u_) in enumerate(ub)
             if u_ isa Number
-                @ignore_derivatives ub_[i, :] = fill(u_, 1, size(cord)[2])
+                @ignore_derivatives ub_[i, :] .= u_
             else
                 @ignore_derivatives ub_[i, :] = u_(cord, θ, phi, derivative,
                     nothing, u, nothing)
@@ -333,8 +336,9 @@ upon to give Solution or the Solution Distribution of the PDE.
 For more information, see `discretize` and `PINNRepresentation`.
 """
 function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
-    (; eqs, bcs, domain, defaults) = pde_system
+    (; eqs, bcs, domain) = pde_system
     eq_params = pde_system.ps
+    defaults = pde_system.defaults
     (; chain, param_estim, additional_loss, multioutput, init_params, phi, derivative, strategy, logger, iteration, self_increment) = discretization
     (; log_frequency) = discretization.log_options
     adaloss = discretization.adaptive_loss

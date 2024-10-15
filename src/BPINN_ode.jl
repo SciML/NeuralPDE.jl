@@ -117,8 +117,7 @@ function BNNODE(chain, Kernel = HMC; strategy = nothing, draw_samples = 2000,
         numensemble = floor(Int, draw_samples / 3),
         estim_collocate = false,
         autodiff = false, progress = false, verbose = false)
-    !(chain isa AbstractLuxLayer) &&
-        (chain = adapt(FromFluxAdaptor(false, false), chain))
+    chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     BNNODE(chain, Kernel, strategy,
         draw_samples, priorsNNw, param, l2std,
         phystd, dataset, physdt, MCMCkwargs,

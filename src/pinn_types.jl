@@ -113,7 +113,7 @@ function PhysicsInformedNN(
     if multioutput
         chain = map(chain) do cᵢ
             cᵢ isa AbstractLuxLayer && return cᵢ
-            return adapt(FromFluxAdaptor(), cᵢ)
+            return FromFluxAdaptor()(cᵢ)
         end
     else
         chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))

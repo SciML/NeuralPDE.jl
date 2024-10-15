@@ -71,12 +71,12 @@ function test_2d_poisson_equation_adaptive_loss(adaptive_loss, run, outdir, hasl
             if iteration[1] % 30 == 0
                 u_predict = reshape([first(phi([x, y], p.u)) for x in xs for y in ys],
                     (length(xs), length(ys)))
-                log_value(logger, "outer_error/total_diff",
-                    sum(abs2, u_predict .- u_real), step = iteration[1])
+                total_diff = sum(abs, u_predict .- u_real)
+                log_value(logger, "outer_error/total_diff", total_diff, step = iteration[1])
                 log_value(logger, "outer_error/total_diff_rel",
                     total_diff / sum(abs2, u_real), step = iteration[1])
-                log_value(logger, "outer_error/total_diff_sq", sum(diff_u .^ 2),
-                    step = iteration[1])
+                log_value(logger, "outer_error/total_diff_sq",
+                    sum(abs2, u_predict .- u_real), step = iteration[1])
             end
         end
         return false
