@@ -55,7 +55,7 @@ jobs:
           GROUP: ${{ matrix.group }}
       - uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: src,lib/NeuralPDELogging/src
+          directories: src,ext
       - uses: codecov/codecov-action@v4
         with:
           files: lcov.info
