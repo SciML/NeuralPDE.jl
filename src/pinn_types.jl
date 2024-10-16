@@ -10,15 +10,8 @@ end
 
 LogOptions(; log_frequency = 50) = LogOptions(log_frequency)
 
-"""This function is defined here as stubs to be overridden by the subpackage NeuralPDELogging if imported"""
-function logvector(logger, v::AbstractVector{<:Real}, name::AbstractString, step::Integer)
-    nothing
-end
-
-"""This function is defined here as stubs to be overridden by the subpackage NeuralPDELogging if imported"""
-function logscalar(logger, s::Real, name::AbstractString, step::Integer)
-    nothing
-end
+logvector(logger, v::AbstractVector{<:Real}, name::AbstractString, step::Integer) = nothing
+logscalar(logger, s::Real, name::AbstractString, step::Integer) = nothing
 
 """
 An encoding of the test function phi that is used for calculating the PDE

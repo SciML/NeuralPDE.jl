@@ -44,6 +44,12 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 WeightInitializers = "d49dbf32-c5c2-4618-8acc-27bb2598ef2d"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
+[weakdeps]
+TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
+
+[extensions]
+NeuralPDETensorBoardLoggerExt = "TensorBoardLogger"
+
 [compat]
 ADTypes = "1.9.0"
 Adapt = "4"
@@ -96,6 +102,7 @@ StochasticDiffEq = "6.69.1"
 SymbolicIndexingInterface = "0.3.31"
 SymbolicUtils = "3.7.2"
 Symbolics = "6.14"
+TensorBoardLogger = "0.1.24"
 Test = "1.10"
 WeightInitializers = "1.0.3"
 Zygote = "0.6.71"
@@ -117,7 +124,8 @@ OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
+TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "CUDA", "DiffEqNoiseProcess", "ExplicitImports", "Flux", "LineSearches", "LuxCUDA", "LuxCore", "LuxLib", "MethodOfLines", "OptimizationOptimJL", "OrdinaryDiffEq", "Pkg", "SafeTestsets", "StochasticDiffEq", "Test"]
+test = ["Aqua", "CUDA", "DiffEqNoiseProcess", "ExplicitImports", "Flux", "LineSearches", "LuxCUDA", "LuxCore", "LuxLib", "MethodOfLines", "OptimizationOptimJL", "OrdinaryDiffEq", "Pkg", "SafeTestsets", "StochasticDiffEq", "TensorBoardLogger", "Test"]

@@ -1,14 +1,6 @@
-using Pkg
-using SafeTestsets
+using Pkg, SafeTestsets, Test
 
 const GROUP = get(ENV, "GROUP", "All")
-
-const is_APPVEYOR = Sys.iswindows() && haskey(ENV, "APPVEYOR")
-
-function dev_subpkg(subpkg)
-    subpkg_path = joinpath(dirname(@__DIR__), "lib", subpkg)
-    Pkg.develop(PackageSpec(path = subpkg_path))
-end
 
 @time begin
     if GROUP == "All" || GROUP == "QA"
@@ -56,14 +48,13 @@ end
     end
 
     if GROUP == "All" || GROUP == "Logging"
-        dev_subpkg("NeuralPDELogging")
-        subpkg_path = joinpath(dirname(@__DIR__), "lib", "NeuralPDELogging")
-        # XXX: problem in TensorBoardLogger that causes error if run with --depwarn=error
-        Pkg.test(PackageSpec(; name = "NeuralPDELogging", path = subpkg_path);
-            julia_args = ["--depwarn=yes"])
+        @testset for log_setting in ["NoImport", "ImportNoUse", "ImportUse"]
+            ENV["LOG_SETTING"] = log_setting
+            @time @safetestset "Logging" include("logging_tests.jl")
+        end
     end
 
-    if !is_APPVEYOR && GROUP == "GPU"
+    if GROUP == "CUDA"
         @safetestset "NNPDE_gpu_Lux" include("NNPDE_tests_gpu_Lux.jl")
     end
 
