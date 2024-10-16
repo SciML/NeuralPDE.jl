@@ -47,7 +47,7 @@ function (f::RODEPhi)(_, t::AbstractVector, W, θ)
 end
 
 function dfdx(phi::RODEPhi, t, θ, autodiff::Bool, W)
-    autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
+    autodiff && throw(ArgumentError("autodiff not supported for RODE problem."))
     ϵ = sqrt(eps(eltype(t)))
     return (phi(t .+ ϵ, W, θ) .- phi(t, W, θ)) ./ ϵ
 end

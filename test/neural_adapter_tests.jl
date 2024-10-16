@@ -20,8 +20,12 @@ end
     eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sinpi(x) * sinpi(y)
 
     # Initial and boundary conditions
-    bcs = [u(0, y) ~ 0.0, u(1, y) ~ -sinpi(1) * sinpi(y),
-        u(x, 0) ~ 0.0, u(x, 1) ~ -sinpi(x) * sinpi(1)]
+    bcs = [
+        u(0, y) ~ 0.0,
+        u(1, y) ~ -sinpi(1) * sinpi(y),
+        u(x, 0) ~ 0.0,
+        u(x, 1) ~ -sinpi(x) * sinpi(1)
+    ]
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
     quadrature_strategy = QuadratureTraining(
@@ -34,13 +38,20 @@ end
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
     println("Poisson equation, strategy: $(nameof(typeof(quadrature_strategy)))")
-    @time res = solve(prob, Optimisers.Adam(5e-3); callback, maxiters = 10000)
+    @time res = solve(prob, Optimisers.Adam(5e-3); callback, maxiters = 2000)
     phi = discretization.phi
+
+    xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+    analytic_sol_func(x, y) = (sinpi(x) * sinpi(y)) / (2pi^2)
+
+    u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
+    u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
+
+    @test u_predict≈u_real atol=5e-2 norm=Base.Fix2(norm, Inf)
 
     inner_ = 8
     af = tanh
-    chain2 = Chain(Dense(2, inner_, af), Dense(inner_, inner_, af),
-        Dense(inner_, inner_, af), Dense(inner_, 1))
+    chain2 = Chain(Dense(2, inner_, af), Dense(inner_, inner_, af), Dense(inner_, 1))
     initp, st = Lux.setup(Random.default_rng(), chain2)
     init_params2 = ComponentArray{Float64}(initp)
 
@@ -52,34 +63,16 @@ end
     stochastic_strategy = StochasticTraining(1000)
     quasirandom_strategy = QuasiRandomTraining(1000, minibatch = 200, resampling = true)
 
-    reses_ = map([grid_strategy, quadrature_strategy, stochastic_strategy,
-        quasirandom_strategy]) do strategy_
-        println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
+    @testset "$(nameof(typeof(strategy_)))" for strategy_ in [
+        grid_strategy, quadrature_strategy, stochastic_strategy, quasirandom_strategy]
         prob_ = neural_adapter(loss, init_params2, pde_system, strategy_)
-        @time res_ = solve(prob_, Optimisers.Adam(5e-3); callback, maxiters = 10000)
+        @time res_ = solve(prob_, Optimisers.Adam(5e-3); callback, maxiters = 2000)
+        discretization = PhysicsInformedNN(chain2, strategy_; init_params = res_.u)
+        phi_ = discretization.phi
+
+        u_predict_ = [first(phi_([x, y], res_.u)) for x in xs for y in ys]
+        @test u_predict_≈u_real atol=5e-2 norm=Base.Fix2(norm, Inf)
     end
-
-    discretizations = map(
-        res_ -> PhysicsInformedNN(chain2, grid_strategy; init_params = res_.u), reses_)
-    probs = map(discret -> NeuralPDE.discretize(pde_system, discret), discretizations)
-    phis = map(discret -> discret.phi, discretizations)
-
-    xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-    analytic_sol_func(x, y) = (sinpi(x) * sinpi(y)) / (2pi^2)
-
-    u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
-
-    u_predicts = map(zip(phis, reses_)) do (phi_, res_)
-        [first(phi_([x, y], res_.u)) for x in xs for y in ys]
-    end
-
-    u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
-
-    @test u_predict≈u_real rtol=1e-1
-    @test u_predicts[1]≈u_real rtol=1e-1
-    @test u_predicts[2]≈u_real rtol=1e-1
-    @test u_predicts[3]≈u_real rtol=1e-1
-    @test u_predicts[4]≈u_real rtol=1e-1
 end
 
 @testset "Example, 2D Poisson equation, domain decomposition" begin

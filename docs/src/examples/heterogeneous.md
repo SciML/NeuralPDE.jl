@@ -31,8 +31,10 @@ domains = [x ∈ Interval(0.0, 1.0),
     y ∈ Interval(0.0, 1.0)]
 
 numhid = 3
-chains = [[Chain(Dense(1, numhid, σ), Dense(numhid, numhid, σ), Dense(numhid, 1)) for i in 1:2]
-          [Chain(Dense(2, numhid, σ), Dense(numhid, numhid, σ), Dense(numhid, 1)) for i in 1:2]]
+chains = [[Chain(Dense(1, numhid, σ), Dense(numhid, numhid, σ), Dense(numhid, 1))
+           for i in 1:2]
+          [Chain(Dense(2, numhid, σ), Dense(numhid, numhid, σ), Dense(numhid, 1))
+           for i in 1:2]]
 discretization = PhysicsInformedNN(chains, QuadratureTraining())
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y), r(x, y), s(y, x)])

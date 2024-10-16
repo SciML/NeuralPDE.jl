@@ -47,8 +47,8 @@ function get_loss_function_neural_adapter(
     _, _, dict_indvars, dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
 
     eltypeθ = recursive_eltype(init_params)
-    bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
-    return get_loss_function(init_params, loss, bound[1][1], bound[2][1], eltypeθ, strategy)
+    lb, ub = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
+    return get_loss_function(init_params, loss, lb, ub, eltypeθ, strategy)
 end
 
 """
