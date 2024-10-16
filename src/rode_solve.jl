@@ -22,18 +22,26 @@ end
 
 RODEPhi(phi::ODEPhi) = RODEPhi(phi.u0, phi.t0, phi.smodel)
 
-function (f::RODEPhi{<:Number})(t::Number, W, θ)
-    return f.u0 + (t - f.t0) * first(f.smodel([t, W], θ.depvar))
+function (f::RODEPhi)(t, W, θ)
+    dev = safe_get_device(θ)
+    t = safe_expand(dev, t)
+    return f(dev, t, dev(W), θ)
 end
 
-function (f::RODEPhi{<:Number})(t::AbstractVector, W, θ)
+function (f::RODEPhi{<:Number})(dev, t::Number, W, θ)
+    return f.u0 + (t - f.t0) * first(cpu_device()(f.smodel(dev([t, W]), θ.depvar)))
+end
+
+function (f::RODEPhi{<:Number})(_, t::AbstractVector, W, θ)
     return f.u0 .+ (t' .- f.t0) .* f.smodel(vcat(t', W'), θ.depvar)
 end
 
-(f::RODEPhi)(t::Number, W, θ) = f.u0 .+ (t .- f.t0) .* f.smodel([t, W], θ.depvar)
+function (f::RODEPhi)(dev, t::Number, W, θ)
+    return dev(f.u0) .+ (t .- f.t0) .* f.smodel(dev([t, W]), θ.depvar)
+end
 
-function (f::RODEPhi)(t::AbstractVector, W, θ)
-    return f.u0 .+ (t' .- f.t0) .* f.smodel(vcat(t', W'), θ.depvar)
+function (f::RODEPhi)(_, t::AbstractVector, W, θ)
+    return dev(f.u0) .+ (t' .- f.t0) .* f.smodel(vcat(t', W'), θ.depvar)
 end
 
 function dfdx(phi::RODEPhi, t, θ, autodiff::Bool, W)

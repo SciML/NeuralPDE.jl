@@ -1,8 +1,6 @@
 using Lux, Optimisers, OptimizationOptimisers, StochasticDiffEq, DiffEqNoiseProcess,
-      OptimizationOptimJL, Test, Statistics
-using NeuralPDE
+      OptimizationOptimJL, Test, Statistics, Random, NeuralPDE
 
-using Random
 Random.seed!(100)
 
 @testset "RODE Example 1" begin
@@ -15,7 +13,7 @@ Random.seed!(100)
     chain = Chain(Dense(2, 32, gelu), Dense(32, 32, gelu), Dense(32, 1))
     opt = Optimisers.Adam(1e-2)
     sol = solve(
-        prob, NNRODE(chain, W, opt); dt, verbose = false, abstol = 1e-10, maxiters = 10000)
+        prob, NNRODE(chain, W, opt); dt, verbose = true, abstol = 1e-10, maxiters = 10000)
     W2 = NoiseWrapper(sol.W)
     prob1 = RODEProblem(linear, u0, tspan, noise = W2)
     sol2 = solve(prob1, RandomEM(), dt = dt)

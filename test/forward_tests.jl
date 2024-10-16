@@ -82,7 +82,6 @@ end
 end
 
 @testset "Integral" begin
-    #semi-infinite intervals
     @parameters x
     @variables u(..)
     I = Integral(x in ClosedInterval(0, Inf))

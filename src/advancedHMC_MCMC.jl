@@ -19,7 +19,10 @@ NN OUTPUT AT t,θ ~ phi(t,θ).
 """
 function (f::LogTargetDensity)(t::AbstractVector, θ)
     θ = vector_to_parameters(θ, f.init_params)
-    return f.prob.u0 .+ (t' .- f.prob.tspan[1]) .* f.smodel(t', θ)
+    dev = safe_get_device(θ)
+    t = safe_expand(dev, t)
+    u0 = f.prob.u0 |> dev
+    return u0 .+ (t' .- f.prob.tspan[1]) .* f.smodel(t', θ)
 end
 
 (f::LogTargetDensity)(t::Number, θ) = f([t], θ)[:, 1]

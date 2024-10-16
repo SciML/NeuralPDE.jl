@@ -38,9 +38,9 @@ function Phi(layer::AbstractLuxLayer)
         layer, nothing, initialstates(Random.default_rng(), layer)))
 end
 
-(f::Phi)(x::Number, θ) = f([x], θ)[1]
+(f::Phi)(x::Number, θ) = (f([x], θ) |> cpu_device())[1]
 
-(f::Phi)(x::AbstractArray, θ) = f.smodel(x, θ)
+(f::Phi)(x::AbstractArray, θ) = f.smodel(safe_get_device(θ)(x), θ)
 
 """
     PhysicsInformedNN(chain, strategy; init_params = nothing, phi = nothing,
@@ -357,6 +357,7 @@ get_u() = (cord, θ, phi) -> phi(cord, θ)
 function numeric_derivative(phi, u, x, εs, order, θ)
     ε = εs[order]
     _epsilon = inv(first(ε[ε .!= zero(ε)]))
+    ε = ε |> safe_get_device(x)
 
     # any(x->x!=εs[1],εs)
     # εs is the epsilon for each order, if they are all the same then we use a fancy formula

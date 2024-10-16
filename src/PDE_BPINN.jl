@@ -1,75 +1,23 @@
-mutable struct PDELogTargetDensity{
-    ST <: AbstractTrainingStrategy,
-    D <: Union{Nothing, Vector{<:Matrix{<:Real}}},
-    P <: Vector{<:Distribution},
-    I,
-    F,
-    PH
-}
-    dim::Int64
-    strategy::ST
-    dataset::D
-    priors::P
+@concrete struct PDELogTargetDensity
+    dim::Int
+    strategy <: AbstractTrainingStrategy
+    dataset <: Union{Nothing, Vector{<:Matrix{<:Real}}}
+    priors <: Vector{<:Distribution}
     allstd::Vector{Vector{Float64}}
     names::Tuple
     extraparams::Int
-    init_params::I
-    full_loglikelihood::F
-    Φ::PH
-
-    function PDELogTargetDensity(dim, strategy, dataset,
-            priors, allstd, names, extraparams,
-            init_params::AbstractVector, full_loglikelihood, Φ)
-        new{
-            typeof(strategy),
-            typeof(dataset),
-            typeof(priors),
-            typeof(init_params),
-            typeof(full_loglikelihood),
-            typeof(Φ)
-        }(dim,
-            strategy,
-            dataset,
-            priors,
-            allstd,
-            names,
-            extraparams,
-            init_params,
-            full_loglikelihood,
-            Φ)
-    end
-    function PDELogTargetDensity(dim, strategy, dataset,
-            priors, allstd, names, extraparams,
-            init_params::Union{NamedTuple, ComponentArrays.ComponentVector},
-            full_loglikelihood, Φ)
-        new{
-            typeof(strategy),
-            typeof(dataset),
-            typeof(priors),
-            typeof(init_params),
-            typeof(full_loglikelihood),
-            typeof(Φ)
-        }(dim,
-            strategy,
-            dataset,
-            priors,
-            allstd,
-            names,
-            extraparams,
-            init_params,
-            full_loglikelihood,
-            Φ)
-    end
+    init_params <: Union{AbstractVector, NamedTuple, ComponentArray}
+    full_loglikelihood
+    Φ
 end
 
 function LogDensityProblems.logdensity(ltd::PDELogTargetDensity, θ)
     # for parameter estimation neccesarry to use multioutput case
-    return ltd.full_loglikelihood(setparameters(ltd, θ),
-               ltd.allstd) + priorlogpdf(ltd, θ) + L2LossData(ltd, θ)
-    # + L2loss2(ltd, θ)
+    return ltd.full_loglikelihood(setparameters(ltd, θ), ltd.allstd) + priorlogpdf(ltd, θ) +
+           L2LossData(ltd, θ)
 end
 
-function setparameters(ltd::PDELogTargetDensity, θ)
+@views function setparameters(ltd::PDELogTargetDensity, θ)
     names = ltd.names
     ps_new = θ[1:(end - ltd.extraparams)]
     ps = ltd.init_params
@@ -83,13 +31,9 @@ function setparameters(ltd::PDELogTargetDensity, θ)
     a = ComponentArray(NamedTuple{ltd.names}(i for i in Luxparams))
 
     if ltd.extraparams > 0
-        b = θ[(end - ltd.extraparams + 1):end]
-        return ComponentArray(;
-            depvar = a,
-            p = b)
+        return ComponentArray(; depvar = a, p = θ[(end - ltd.extraparams + 1):end])
     else
-        return ComponentArray(;
-            depvar = a)
+        return ComponentArray(; depvar = a)
     end
 end
 
@@ -104,7 +48,6 @@ function L2LossData(ltd::PDELogTargetDensity, θ)
     Φ = ltd.Φ
     init_params = ltd.init_params
     dataset = ltd.dataset
-    sumt = 0
     L2stds = ltd.allstd[3]
     # each dep var has a diff dataset depending on its indep var and their domains
     # these datasets are matrices of first col-dep var and remaining cols-all indep var
@@ -118,21 +61,19 @@ function L2LossData(ltd::PDELogTargetDensity, θ)
     # dataset[i][:, 2:end] -> indepvar cols of a particular depvar's dataset
     # dataset[i][:, 1] -> depvar col of depvar's dataset
 
-    if ltd.extraparams > 0
-        for i in eachindex(Φ)
-            sumt += logpdf(
-                MvNormal(
-                    Φ[i](dataset[i][:, 2:end]',
-                        vector_to_parameters(θ[1:(end - ltd.extraparams)],
-                            init_params)[ltd.names[i]])[1,
-                        :],
-                    Diagonal(abs2.(ones(size(dataset[i])[1]) .*
-                                   L2stds[i]))),
-                dataset[i][:, 1])
-        end
-        return sumt
+    ltd.extraparams ≤ 0 && return false
+
+    sumt = 0
+    for i in eachindex(Φ)
+        sumt += logpdf(
+            MvNormal(
+                Φ[i](dataset[i][:, 2:end]',
+                    vector_to_parameters(θ[1:(end - ltd.extraparams)], init_params)[ltd.names[i]])[
+                    1, :],
+                Diagonal(abs2.(ones(size(dataset[i])[1]) .* L2stds[i]))),
+            dataset[i][:, 1])
     end
-    return 0
+    return sumt
 end
 
 # priors for NN parameters + ODE constants
@@ -140,21 +81,15 @@ function priorlogpdf(ltd::PDELogTargetDensity, θ)
     allparams = ltd.priors
     # Vector of ode parameters priors
     invpriors = allparams[2:end]
-
-    # nn weights
     nnwparams = allparams[1]
 
-    if ltd.extraparams > 0
-        invlogpdf = sum(
-            logpdf(invpriors[length(θ) - i + 1], θ[i])
-            for i in (length(θ) - ltd.extraparams + 1):length(θ);
-            init = 0.0)
+    ltd.extraparams ≤ 0 && return logpdf(nnwparams, θ)
 
-        return (invlogpdf
-                +
-                logpdf(nnwparams, θ[1:(length(θ) - ltd.extraparams)]))
+    invlogpdf = sum((length(θ) - ltd.extraparams + 1):length(θ)) do i
+        logpdf(invpriors[length(θ) - i + 1], θ[i])
     end
-    return logpdf(nnwparams, θ)
+
+    return invlogpdf + logpdf(nnwparams, θ[1:(length(θ) - ltd.extraparams)])
 end
 
 function integratorchoice(Integratorkwargs, initial_ϵ)
@@ -244,54 +179,63 @@ end
 
 """
     ahmc_bayesian_pinn_pde(pde_system, discretization;
-            draw_samples = 1000,
-            bcstd = [0.01], l2std = [0.05],
-            phystd = [0.05], priorsNNw = (0.0, 2.0),
-            param = [], nchains = 1, Kernel = HMC(0.1, 30),
-            Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-                Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
-            Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
-            numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
+        draw_samples = 1000, bcstd = [0.01], l2std = [0.05], phystd = [0.05],
+        priorsNNw = (0.0, 2.0), param = [], nchains = 1, Kernel = HMC(0.1, 30),
+        Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
+        Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
+        numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
 
 ## NOTES
 
 * Dataset is required for accurate Parameter estimation + solving equations.
-* Returned solution is a BPINNsolution consisting of Ensemble solution, estimated PDE and NN parameters
-  for chosen `saveats` grid spacing and last n = `numensemble` samples in Chain. the complete set of samples
-  in the MCMC chain is returned as `fullsolution`,  refer `BPINNsolution` for more details.
+* Returned solution is a BPINNsolution consisting of Ensemble solution, estimated PDE and NN
+  parameters for chosen `saveats` grid spacing and last n = `numensemble` samples in Chain.
+  the complete set of samples in the MCMC chain is returned as `fullsolution`,  refer
+  `BPINNsolution` for more details.
 
 ## Positional Arguments
 
 * `pde_system`: ModelingToolkit defined PDE equation or system of equations.
-* `discretization`: BayesianPINN discretization for the given pde_system, Neural Network and training strategy.
+* `discretization`: BayesianPINN discretization for the given pde_system, Neural Network and
+  training strategy.
 
 ## Keyword Arguments
 
-* `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
-* `bcstd`: Vector of standard deviations of BPINN prediction against Initial/Boundary Condition equations.
-* `l2std`: Vector of standard deviations of BPINN prediction against L2 losses/Dataset for each dependant variable of interest.
-* `phystd`: Vector of standard deviations of BPINN prediction against Chosen Underlying PDE equations.
-* `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of BPINN are Normal Distributions by default.
+* `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are
+  ~2/3 of draw samples)
+* `bcstd`: Vector of standard deviations of BPINN prediction against Initial/Boundary
+  Condition equations.
+* `l2std`: Vector of standard deviations of BPINN prediction against L2 losses/Dataset for
+  each dependant variable of interest.
+* `phystd`: Vector of standard deviations of BPINN prediction against Chosen Underlying PDE
+  equations.
+* `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of
+  BPINN are Normal Distributions by default.
 * `param`: Vector of chosen PDE's parameter's Distributions in case of Inverse problems.
 * `nchains`: number of chains you want to sample.
-* `Kernel`: Choice of MCMC Sampling Algorithm object HMC/NUTS/HMCDA (AdvancedHMC.jl implementations).
-* `Adaptorkwargs`: `Adaptor`, `Metric`, `targetacceptancerate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
-   Note: Target percentage(in decimal) of iterations in which the proposals are accepted (0.8 by default).
-* `Integratorkwargs`: `Integrator`, `jitter_rate`, `tempering_rate`. Refer: https://turinglang.org/AdvancedHMC.jl/stable/
-* `saveats`: Grid spacing for each independent variable for evaluation of ensemble solution, estimated parameters.
-* `numensemble`: Number of last samples to take for creation of ensemble solution, estimated parameters.
+* `Kernel`: Choice of MCMC Sampling Algorithm object HMC/NUTS/HMCDA (AdvancedHMC.jl
+  implementations).
+* `Adaptorkwargs`: `Adaptor`, `Metric`, `targetacceptancerate`. Refer:
+  https://turinglang.org/AdvancedHMC.jl/stable/. Note: Target percentage(in decimal) of
+  iterations in which the proposals are accepted (0.8 by default).
+* `Integratorkwargs`: `Integrator`, `jitter_rate`, `tempering_rate`. Refer:
+  https://turinglang.org/AdvancedHMC.jl/stable/
+* `saveats`: Grid spacing for each independent variable for evaluation of ensemble solution,
+  estimated parameters.
+* `numensemble`: Number of last samples to take for creation of ensemble solution, estimated
+  parameters.
 * `progress`: controls whether to show the progress meter or not.
 * `verbose`: controls the verbosity. (Sample call args in AHMC).
 
-## Warnings
+!!! warning
 
-* AdvancedHMC.jl is still developing convenience structs so might need changes on new releases.
+    AdvancedHMC.jl is still developing convenience structs so might need changes on new
+    releases.
 """
 function ahmc_bayesian_pinn_pde(pde_system, discretization;
-        draw_samples = 1000,
-        bcstd = [0.01], l2std = [0.05],
-        phystd = [0.05], priorsNNw = (0.0, 2.0),
-        param = [], nchains = 1, Kernel = HMC(0.1, 30),
+        draw_samples = 1000, bcstd = [0.01], l2std = [0.05], phystd = [0.05],
+        priorsNNw = (0.0, 2.0), param = [], nchains = 1, Kernel = HMC(0.1, 30),
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
@@ -328,12 +272,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # NN solutions for loglikelihood which is used for L2lossdata
     Φ = pinnrep.phi
 
-    # for new L2 loss
-    # discretization.additional_loss =
-
-    if nchains < 1
-        error("number of chains must be greater than or equal to 1")
-    end
+    @assert nchains≥1 "number of chains must be greater than or equal to 1"
 
     # remove inv params take only NN params, AHMC uses Float64
     initial_nnθ = pinnrep.flat_init_params[1:(end - length(param))]

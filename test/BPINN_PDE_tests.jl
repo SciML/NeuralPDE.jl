@@ -1,10 +1,8 @@
-using Test, MCMCChains, Lux, ModelingToolkit
+using Test, MCMCChains, Lux, ModelingToolkit, ForwardDiff, Distributions, OrdinaryDiffEq,
+      AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+      ComponentArrays
 import ModelingToolkit: Interval, infimum, supremum
-using ForwardDiff, Distributions, OrdinaryDiffEq
-using AdvancedHMC, Statistics, Random, Functors
-using NeuralPDE, MonteCarloMeasurements
-using ComponentArrays
-using Flux
+import Flux
 
 Random.seed!(100)
 

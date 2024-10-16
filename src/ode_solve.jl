@@ -127,13 +127,22 @@ function generate_phi_θ(chain::AbstractLuxLayer, t, u0, init_params)
     return ODEPhi(chain, t, u0, st), init_params
 end
 
-(f::ODEPhi{<:Number})(t::Number, θ) = f.u0 + (t - f.t0) * first(f.smodel([t], θ.depvar))
+function (f::ODEPhi)(t, θ)
+    dev = safe_get_device(θ)
+    return f(dev, safe_expand(dev, t), θ)
+end
 
-(f::ODEPhi{<:Number})(t::AbstractVector, θ) = f.u0 .+ (t' .- f.t0) .* f.smodel(t', θ.depvar)
+function (f::ODEPhi{<:Number})(dev, t::Number, θ)
+    return f.u0 + (t - f.t0) * first(cpu_device()(f.smodel(dev([t]), θ.depvar)))
+end
 
-(f::ODEPhi)(t::Number, θ) = f.u0 .+ (t .- f.t0) .* f.smodel([t], θ.depvar)
+function (f::ODEPhi{<:Number})(_, t::AbstractVector, θ)
+    return f.u0 .+ (t' .- f.t0) .* f.smodel(t', θ.depvar)
+end
 
-(f::ODEPhi)(t::AbstractVector, θ) = f.u0 .+ (t' .- f.t0) .* f.smodel(t', θ.depvar)
+(f::ODEPhi)(dev, t::Number, θ) = dev(f.u0) .+ (t .- f.t0) .* f.smodel(dev([t]), θ.depvar)
+
+(f::ODEPhi)(dev, t::AbstractVector, θ) = dev(f.u0) .+ (t' .- f.t0) .* f.smodel(t', θ.depvar)
 
 """
     ode_dfdx(phi, t, θ, autodiff)

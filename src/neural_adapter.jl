@@ -38,7 +38,7 @@ function get_loss_function_neural_adapter(
     eqs isa Array || (eqs = [eqs])
     eltypeθ = recursive_eltype(init_params)
     train_set = generate_training_sets(pde_system.domain, strategy.dx, eqs, eltypeθ)
-    return get_loss_function(loss, train_set, eltypeθ, strategy)
+    return get_loss_function(init_params, loss, train_set, eltypeθ, strategy)
 end
 
 function get_loss_function_neural_adapter(loss, init_params, pde_system,
@@ -51,7 +51,7 @@ function get_loss_function_neural_adapter(loss, init_params, pde_system,
 
     eltypeθ = recursive_eltype(init_params)
     bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
-    return get_loss_function(loss, bound, eltypeθ, strategy)
+    return get_loss_function(init_params, loss, bound, eltypeθ, strategy)
 end
 
 function get_loss_function_neural_adapter(
@@ -64,7 +64,7 @@ function get_loss_function_neural_adapter(
 
     eltypeθ = recursive_eltype(init_params)
     bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
-    return get_loss_function(loss, bound[1][1], bound[2][1], eltypeθ, strategy)
+    return get_loss_function(init_params, loss, bound[1][1], bound[2][1], eltypeθ, strategy)
 end
 
 """

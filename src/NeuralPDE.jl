@@ -25,6 +25,7 @@ using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
 using LuxCore: LuxCore, AbstractLuxLayer, AbstractLuxWrapperLayer
 using MCMCChains: MCMCChains, Chains, sample
+using MLDataDevices: CPUDevice, cpu_device, get_device
 using ModelingToolkit: ModelingToolkit, Num, PDESystem, toexpr, expand_derivatives, infimum,
                        supremum
 using MonteCarloMeasurements: Particles
@@ -56,6 +57,14 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 abstract type AbstractPINN end
 
 abstract type AbstractTrainingStrategy end
+
+@inline safe_get_device(x) = safe_get_device(get_device(x), x)
+@inline safe_get_device(::Nothing, x) = cpu_device()
+@inline safe_get_device(dev, _) = dev
+
+@inline safe_expand(dev, x) = dev(x)
+@inline safe_expand(::CPUDevice, x::AbstractRange) = x
+@inline safe_collect(dev, x::AbstractRange) = dev(collect(x))
 
 include("eltype_matching.jl")
 
