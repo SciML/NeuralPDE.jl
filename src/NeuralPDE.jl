@@ -78,7 +78,6 @@ include("training_strategies.jl")
 include("adaptive_losses.jl")
 
 include("ode_solve.jl")
-include("rode_solve.jl")
 include("dae_solve.jl")
 
 include("transform_inf_integral.jl")
@@ -91,7 +90,7 @@ include("PDE_BPINN.jl")
 
 include("dgm.jl")
 
-export NNODE, NNDAE, NNRODE
+export NNODE, NNDAE
 export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
 export PhysicsInformedNN, discretize
 export BPINNsolution, BayesianPINN

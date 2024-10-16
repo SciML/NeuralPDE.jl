@@ -22,7 +22,6 @@ jobs:
           - PDEBPINN
           - NNPDE1
           - NNPDE2
-          - NNRODE
           - AdaptiveLoss
           - Logging
           - Forward
