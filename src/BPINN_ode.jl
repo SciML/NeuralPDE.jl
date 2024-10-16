@@ -130,10 +130,10 @@ Contains `ahmc_bayesian_pinn_ode()` function output:
     - step_size
     - nom_step_size
 """
-struct BPINNstats{MC, S, ST}
-    mcmc_chain::MC
-    samples::S
-    statistics::ST
+@concrete struct BPINNstats
+    mcmc_chain
+    samples
+    statistics
 end
 
 """
@@ -146,19 +146,12 @@ contains fields related to that).
 3. `estimated_de_params` - Probabilistic Estimate of DE params from sampled unknown DE
    parameters.
 """
-struct BPINNsolution{O <: BPINNstats, E, NP, OP, P}
-    original::O
-    ensemblesol::E
-    estimated_nn_params::NP
-    estimated_de_params::OP
-    timepoints::P
-
-    function BPINNsolution(
-            original, ensemblesol, estimated_nn_params, estimated_de_params, timepoints)
-        new{typeof(original), typeof(ensemblesol), typeof(estimated_nn_params),
-            typeof(estimated_de_params), typeof(timepoints)}(
-            original, ensemblesol, estimated_nn_params, estimated_de_params, timepoints)
-    end
+@concrete struct BPINNsolution
+    original <: BPINNstats
+    ensemblesol
+    estimated_nn_params
+    estimated_de_params
+    timepoints
 end
 
 function SciMLBase.__solve(prob::SciMLBase.ODEProblem, alg::BNNODE, args...; dt = nothing,

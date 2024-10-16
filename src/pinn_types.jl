@@ -38,10 +38,7 @@ function Phi(layer::AbstractLuxLayer)
         layer, nothing, initialstates(Random.default_rng(), layer)))
 end
 
-function (f::Phi)(x::Number, θ)
-    res_vec = f([x], θ)
-    return @allowscalar only(res_vec)
-end
+(f::Phi)(x::Number, θ) = only(cdev(f([x], θ)))
 
 (f::Phi)(x::AbstractArray, θ) = f.smodel(safe_get_device(θ)(x), θ)
 

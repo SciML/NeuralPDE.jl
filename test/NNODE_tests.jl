@@ -90,28 +90,12 @@ end
         ODEFunction(linear, analytic = linear_analytic), 0.0f0, (0.0f0, 1.0f0))
     luxchain = Chain(Dense(1, 5, σ), Dense(5, 1))
 
-    opt = OptimizationOptimisers.Adam(0.1)
-    sol = solve(prob, NNODE(luxchain, opt), verbose = false, maxiters = 400,
-        abstol = 1.0f-8)
-    @test sol.errors[:l2] < 0.5
-
-    sol = solve(prob,
-        NNODE(luxchain, opt; batch = false, strategy = StochasticTraining(100)),
-        verbose = false, maxiters = 400, abstol = 1.0f-8)
-    @test sol.errors[:l2] < 0.5
-
-    sol = solve(prob,
-        NNODE(luxchain, opt; batch = true, strategy = StochasticTraining(100)),
-        verbose = false, maxiters = 400, abstol = 1.0f-8)
-    @test sol.errors[:l2] < 0.5
-
-    sol = solve(prob, NNODE(luxchain, opt; batch = false), verbose = false,
-        maxiters = 400, abstol = 1.0f-8, dt = 1 / 5.0f0)
-    @test sol.errors[:l2] < 0.5
-
-    sol = solve(prob, NNODE(luxchain, opt; batch = true), verbose = false,
-        maxiters = 400, abstol = 1.0f-8, dt = 1 / 5.0f0)
-    @test sol.errors[:l2] < 0.5
+    @testset for batch in (true, false), strategy in (StochasticTraining(100), nothing)
+        opt = OptimizationOptimisers.Adam(0.1)
+        sol = solve(prob, NNODE(luxchain, opt; batch, strategy),
+            verbose = false, maxiters = 400, abstol = 1.0f-8)
+        @test sol.errors[:l2] < 0.5
+    end
 end
 
 @testset "Example 3" begin

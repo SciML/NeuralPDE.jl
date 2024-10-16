@@ -133,8 +133,7 @@ function (f::ODEPhi)(t, θ)
 end
 
 function (f::ODEPhi{<:Number})(dev, t::Number, θ)
-    res_vec = f.smodel(dev([t]), θ.depvar)
-    res = @allowscalar only(res_vec)
+    res = only(cdev(f.smodel(dev([t]), θ.depvar)))
     return f.u0 + (t - f.t0) * res
 end
 

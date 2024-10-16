@@ -29,8 +29,7 @@ function (f::RODEPhi)(t, W, θ)
 end
 
 function (f::RODEPhi{<:Number})(dev, t::Number, W, θ)
-    res_vec = f.smodel(dev([t, W]), θ.depvar)
-    res = @allowscalar only(res_vec)
+    res = only(cdev(f.smodel(dev([t, W]), θ.depvar)))
     return f.u0 + (t - f.t0) * res
 end
 

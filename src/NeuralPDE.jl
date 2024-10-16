@@ -11,14 +11,13 @@ using DocStringExtensions: FIELDS
 using DomainSets: DomainSets, AbstractInterval, leftendpoint, rightendpoint, ProductDomain
 using ForwardDiff: ForwardDiff
 using Functors: Functors, fmap
-using GPUArraysCore: @allowscalar
 using Integrals: Integrals, CubatureJLh, QuadGKJL
 using IntervalSets: infimum, supremum
 using LinearAlgebra: Diagonal
 using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
 using LuxCore: LuxCore, AbstractLuxLayer, AbstractLuxWrapperLayer
-using MLDataDevices: CPUDevice, cpu_device, get_device
+using MLDataDevices: CPUDevice, get_device
 using Optimisers: Optimisers, Adam
 using Optimization: Optimization
 using OptimizationOptimisers: OptimizationOptimisers
@@ -61,8 +60,10 @@ abstract type AbstractPINN end
 
 abstract type AbstractTrainingStrategy end
 
+const cdev = CPUDevice()
+
 @inline safe_get_device(x) = safe_get_device(get_device(x), x)
-@inline safe_get_device(::Nothing, x) = cpu_device()
+@inline safe_get_device(::Nothing, x) = cdev
 @inline safe_get_device(dev, _) = dev
 
 @inline safe_expand(dev, x) = dev(x)
