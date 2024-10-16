@@ -5,7 +5,8 @@ import ModelingToolkit: Interval, infimum, supremum
 Random.seed!(100)
 
 callback = function (p, l)
-    println("Current loss is: $l")
+    (p.iter == 1 || p.iter % 500 == 0) &&
+        println("Current loss is: $l after $(p.iter) iterations")
     return false
 end
 
@@ -28,13 +29,14 @@ end
     inner = 8
     af = tanh
     chain1 = Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1))
-    init_params = Lux.setup(Random.default_rng(), chain1)[1] |> ComponentArray{Float64}
+    init_params = Lux.initialparameters(Random.default_rng(), chain1) |>
+                  ComponentArray{Float64}
     discretization = PhysicsInformedNN(chain1, quadrature_strategy; init_params)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = NeuralPDE.discretize(pde_system, discretization)
     println("Poisson equation, strategy: $(nameof(typeof(quadrature_strategy)))")
-    @time res = solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
+    @time res = solve(prob, Optimisers.Adam(5e-3); callback, maxiters = 2000)
     phi = discretization.phi
 
     inner_ = 8
@@ -56,7 +58,7 @@ end
         quasirandom_strategy]) do strategy_
         println("Neural adapter Poisson equation, strategy: $(nameof(typeof(strategy_)))")
         prob_ = neural_adapter(loss, init_params2, pde_system, strategy_)
-        @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
+        @time res_ = solve(prob_, Optimisers.Adam(5e-3); callback, maxiters = 2000)
     end
 
     discretizations = map(
@@ -107,7 +109,8 @@ end
     chains = [Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1))
               for _ in 1:count_decomp]
     init_params = map(
-        c -> ComponentArray{Float64}(Lux.setup(Random.default_rng(), c)[1]), chains)
+        c -> ComponentArray{Float64}(Lux.initialparameters(Random.default_rng(), c)),
+        chains)
 
     xs_ = infimum(x_domain):(1 / count_decomp):supremum(x_domain)
     xs_domain = [(xs_[i], xs_[i + 1]) for i in 1:(length(xs_) - 1)]
@@ -147,8 +150,8 @@ end
         discretization = PhysicsInformedNN(
             chains[i], strategy; init_params = init_params[i])
         prob = discretize(pde_system_, discretization)
-        @time res_ = Optimization.solve(
-            prob, OptimizationOptimisers.Adam(5e-3), maxiters = 10000)
+        @time res_ = solve(
+            prob, OptimizationOptimisers.Adam(5e-3); callback, maxiters = 2000)
         @show res_.objective
         phi = discretization.phi
         push!(reses, res_)
@@ -203,10 +206,10 @@ end
 
     prob_ = neural_adapter(
         losses, init_params2, pde_system_map, GridTraining([0.1 / count_decomp, 0.1]))
-    @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
+    @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); callback, maxiters = 2000)
     @show res_.objective
     prob_ = neural_adapter(losses, res_.u, pde_system_map, GridTraining(0.01))
-    @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
+    @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); callback, maxiters = 2000)
     @show res_.objective
 
     phi_ = NeuralPDE.Phi(chain2)
