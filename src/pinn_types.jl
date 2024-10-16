@@ -169,6 +169,7 @@ function Base.getproperty(pinn::BayesianPINN, name::Symbol)
 end
 
 function BayesianPINN(args...; dataset = nothing, kwargs...)
+    dataset === nothing && (dataset = (nothing, nothing))
     return BayesianPINN(PhysicsInformedNN(args...; kwargs...), dataset)
 end
 

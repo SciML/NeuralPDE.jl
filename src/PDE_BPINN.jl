@@ -305,16 +305,9 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     strategy = discretization.strategy
 
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
-    ℓπ = PDELogTargetDensity(nparameters,
-        strategy,
-        dataset,
-        priors,
-        [phystd, bcstd, l2std],
-        names,
-        ninv,
-        initial_nnθ,
-        full_weighted_loglikelihood,
-        Φ)
+    ℓπ = PDELogTargetDensity(
+        nparameters, strategy, dataset, priors, [phystd, bcstd, l2std],
+        names, ninv, initial_nnθ, full_weighted_loglikelihood, Φ)
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
@@ -323,11 +316,13 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     metric = Metric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
 
-    @info("Current Physics Log-likelihood : ",
-        ℓπ.full_loglikelihood(setparameters(ℓπ, initial_θ),
-            ℓπ.allstd))
-    @info("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, initial_θ))
-    @info("Current MSE against dataset Log-likelihood : ", L2LossData(ℓπ, initial_θ))
+    if verbose
+        @printf("Current Physics Log-likelihood : %g\n",
+            ℓπ.full_loglikelihood(setparameters(ℓπ, initial_θ), ℓπ.allstd))
+        @printf("Current Prior Log-likelihood : %g\n", priorlogpdf(ℓπ, initial_θ))
+        @printf("Current MSE against dataset Log-likelihood : %g\n",
+            L2LossData(ℓπ, initial_θ))
+    end
 
     # parallel sampling option
     if nchains != 1
@@ -353,17 +348,10 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
             fullsolution = BPINNstats(mcmc_chain, samples, stats)
             ensemblecurves, estimnnparams, estimated_params, timepoints = inference(
-                samples,
-                pinnrep,
-                saveat,
-                numensemble,
-                ℓπ)
+                samples, pinnrep, saveat, numensemble, ℓπ)
 
-            bpinnsols[i] = BPINNsolution(fullsolution,
-                ensemblecurves,
-                estimnnparams,
-                estimated_params,
-                timepoints)
+            bpinnsols[i] = BPINNsolution(
+                fullsolution, ensemblecurves, estimnnparams, estimated_params, timepoints)
         end
         return bpinnsols
     else
@@ -380,25 +368,20 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         matrix_samples = hcat(samples...)
         mcmc_chain = MCMCChains.Chains(matrix_samples')
 
-        @info("Sampling Complete.")
-        @info("Current Physics Log-likelihood : ",
-            ℓπ.full_loglikelihood(setparameters(ℓπ, samples[end]),
-                ℓπ.allstd))
-        @info("Current Prior Log-likelihood : ", priorlogpdf(ℓπ, samples[end]))
-        @info("Current MSE against dataset Log-likelihood : ",
-            L2LossData(ℓπ, samples[end]))
+        if verbose
+            @printf("Sampling Complete.\n")
+            @printf("Current Physics Log-likelihood : %g\n",
+                ℓπ.full_loglikelihood(setparameters(ℓπ, samples[end]), ℓπ.allstd))
+            @printf("Current Prior Log-likelihood : %g\n", priorlogpdf(ℓπ, samples[end]))
+            @printf("Current MSE against dataset Log-likelihood : %g\n",
+                L2LossData(ℓπ, samples[end]))
+        end
 
         fullsolution = BPINNstats(mcmc_chain, samples, stats)
         ensemblecurves, estimnnparams, estimated_params, timepoints = inference(samples,
-            pinnrep,
-            saveats,
-            numensemble,
-            ℓπ)
+            pinnrep, saveats, numensemble, ℓπ)
 
-        return BPINNsolution(fullsolution,
-            ensemblecurves,
-            estimnnparams,
-            estimated_params,
-            timepoints)
+        return BPINNsolution(
+            fullsolution, ensemblecurves, estimnnparams, estimated_params, timepoints)
     end
 end
