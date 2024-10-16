@@ -39,7 +39,7 @@ the documentation, which contains the unreleased features.
   - Specialized forms for solving `ODEProblem`s with neural networks
   - Compatibility with [Flux.jl](https://fluxml.ai/) and [Lux.jl](https://lux.csail.mit.edu/)
     for all of the GPU-powered machine learning layers available from those libraries.
-  - Compatibility with [NeuralOperators.jl](https://docs.sciml.ai/NeuralOperators/stable/) for
+  - Compatibility with [NeuralOperators.jl](https://github.com/SciML/NeuralOperators.jl) for
     mixing DeepONets and other neural operators (Fourier Neural Operators, Graph Neural Operators,
     etc.) with physics-informed loss functions
 
