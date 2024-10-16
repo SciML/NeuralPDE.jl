@@ -1,11 +1,11 @@
 function generate_training_sets(domains, dx, eqs, eltypeθ)
     dxs = dx isa Array ? dx : fill(dx, length(domains))
     spans = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, dxs)]
-    return hcat(vec(map(points -> collect(points), Iterators.product(spans...)))...) |>
+    return reduce(hcat, vec(map(collect, Iterators.product(spans...)))) |>
            EltypeAdaptor{eltypeθ}()
 end
 
-function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
+function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, _)
     dict_span = Dict([Symbol(d.variables) => [infimum(d.domain), supremum(d.domain)]
                       for d in domains])
     args = get_argument(eqs, dict_indvars, dict_depvars)
@@ -13,23 +13,7 @@ function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strateg
     bounds = first(map(args) do pd
         return get.((dict_span,), pd, pd) |> EltypeAdaptor{eltypeθ}()
     end)
-    return [getindex.(bounds, 1), getindex.(bounds, 2)]
-end
-
-function get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars,
-        ::QuadratureTraining)
-    dict_lower_bound = Dict([Symbol(d.variables) => infimum(d.domain) for d in domains])
-    dict_upper_bound = Dict([Symbol(d.variables) => supremum(d.domain) for d in domains])
-
-    args = get_argument(eqs, dict_indvars, dict_depvars)
-
-    lower_bounds = map(args) do pd
-        return get.((dict_lower_bound,), pd, pd) |> EltypeAdaptor{eltypeθ}()
-    end
-    upper_bounds = map(args) do pd
-        return get.((dict_upper_bound,), pd, pd) |> EltypeAdaptor{eltypeθ}()
-    end
-    return lower_bounds, upper_bounds
+    return first.(bounds), last.(bounds)
 end
 
 function get_loss_function_neural_adapter(
