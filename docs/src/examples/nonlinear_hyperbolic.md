@@ -81,7 +81,7 @@ domains = [t ∈ Interval(0.0, 1.0),
 # Neural network
 input_ = length(domains)
 n = 15
-chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:2]
+chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:2]
 
 strategy = QuadratureTraining()
 discretization = PhysicsInformedNN(chain, strategy)
@@ -100,7 +100,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 200)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 200, callback)
 
 phi = discretization.phi
 

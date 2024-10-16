@@ -91,14 +91,13 @@ input_ = length(domains)
 n = 15
 chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:7]
 
-training_strategy = NeuralPDE.QuadratureTraining(;
-    batch = 200, reltol = 1e-6, abstol = 1e-6)
-discretization = NeuralPDE.PhysicsInformedNN(chain, training_strategy)
+training_strategy = QuadratureTraining(; batch = 200, reltol = 1e-6, abstol = 1e-6)
+discretization = PhysicsInformedNN(chain, training_strategy)
 
 vars = [u1(t, x), u2(t, x), u3(t, x), Dxu1(t, x), Dtu1(t, x), Dxu2(t, x), Dtu2(t, x)]
 @named pdesystem = PDESystem(eqs_, bcs__, domains, [t, x], vars)
-prob = NeuralPDE.discretize(pdesystem, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
+prob = discretize(pdesystem, discretization)
+sym_prob = symbolic_discretize(pdesystem, discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:7]
@@ -112,9 +111,9 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000, callback)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200)
+res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
 
 phi = discretization.phi
 ```

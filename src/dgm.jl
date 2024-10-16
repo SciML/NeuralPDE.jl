@@ -107,8 +107,6 @@ end
         activation2::Function, out_activation::Function, strategy::AbstractTrainingStrategy;
         kwargs...)
 
-returns a `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a `PDESystem` into an `OptimizationProblem` using the Deep Galerkin method.
-
 ## Arguments:
 
 - `in_dims`: number of input dimensions = (spatial dimension + 1).

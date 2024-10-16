@@ -43,11 +43,11 @@ discretization = PhysicsInformedNN(chain, QuasiRandomTraining(20))
 prob = discretize(pde_system, discretization)
 
 callback = function (p, l)
-    println("Current loss is: $l")
+    (p.iter % 500 == 0 || p.iter == 2000) && println("Current loss is: $l")
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000)
+res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000, callback)
 phi = discretization.phi
 ```
 

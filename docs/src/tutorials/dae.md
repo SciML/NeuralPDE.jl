@@ -12,10 +12,7 @@ This tutorial is an introduction to using physics-informed neural networks (PINN
 Let's solve a simple DAE system:
 
 ```@example dae
-using NeuralPDE
-using Random
-using OrdinaryDiffEq, Statistics
-using Lux, OptimizationOptimisers
+using NeuralPDE, Random, OrdinaryDiffEq, Statistics, Lux, OptimizationOptimisers
 
 example = (du, u, p, t) -> [cos(2pi * t) - du[1], u[2] + cos(2pi * t) - du[2]]
 u₀ = [1.0, -1.0]
