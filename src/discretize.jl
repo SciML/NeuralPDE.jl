@@ -431,13 +431,10 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
 
     datafree_pde_loss_functions = [build_loss_function(pinnrep, eq, pde_indvar)
-                                   for (eq, pde_indvar, integration_indvar) in zip(eqs,
-        pde_indvars,
-        pde_integration_vars)]
+                                   for (eq, pde_indvar) in zip(eqs, pde_indvars)]
 
     datafree_bc_loss_functions = [build_loss_function(pinnrep, bc, bc_indvar)
-                                  for (bc, bc_indvar, integration_indvar) in zip(bcs,
-        bc_indvars, bc_integration_vars)]
+                                  for (bc, bc_indvar) in zip(bcs, bc_indvars)]
 
     pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
         strategy, datafree_pde_loss_functions, datafree_bc_loss_functions)

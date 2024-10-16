@@ -29,7 +29,9 @@ function (f::RODEPhi)(t, W, θ)
 end
 
 function (f::RODEPhi{<:Number})(dev, t::Number, W, θ)
-    return f.u0 + (t - f.t0) * first(cpu_device()(f.smodel(dev([t, W]), θ.depvar)))
+    res_vec = f.smodel(dev([t, W]), θ.depvar)
+    res = @allowscalar only(res_vec)
+    return f.u0 + (t - f.t0) * res
 end
 
 function (f::RODEPhi{<:Number})(_, t::AbstractVector, W, θ)

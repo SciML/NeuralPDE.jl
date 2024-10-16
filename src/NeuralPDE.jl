@@ -11,6 +11,7 @@ using DocStringExtensions: FIELDS
 using DomainSets: DomainSets, AbstractInterval, leftendpoint, rightendpoint, ProductDomain
 using ForwardDiff: ForwardDiff
 using Functors: Functors, fmap
+using GPUArraysCore: @allowscalar
 using Integrals: Integrals, CubatureJLh, QuadGKJL
 using IntervalSets: infimum, supremum
 using LinearAlgebra: Diagonal

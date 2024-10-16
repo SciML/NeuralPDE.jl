@@ -133,7 +133,9 @@ function (f::ODEPhi)(t, θ)
 end
 
 function (f::ODEPhi{<:Number})(dev, t::Number, θ)
-    return f.u0 + (t - f.t0) * first(cpu_device()(f.smodel(dev([t]), θ.depvar)))
+    res_vec = f.smodel(dev([t]), θ.depvar)
+    res = @allowscalar only(res_vec)
+    return f.u0 + (t - f.t0) * res
 end
 
 function (f::ODEPhi{<:Number})(_, t::AbstractVector, θ)

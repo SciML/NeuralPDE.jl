@@ -38,7 +38,10 @@ function Phi(layer::AbstractLuxLayer)
         layer, nothing, initialstates(Random.default_rng(), layer)))
 end
 
-(f::Phi)(x::Number, θ) = (f([x], θ) |> cpu_device())[1]
+function (f::Phi)(x::Number, θ)
+    res_vec = f([x], θ)
+    return @allowscalar only(res_vec)
+end
 
 (f::Phi)(x::AbstractArray, θ) = f.smodel(safe_get_device(θ)(x), θ)
 
