@@ -1,34 +1,23 @@
-"""
-$(DocStringExtensions.README)
-"""
 module NeuralPDE
 
 using ADTypes: ADTypes, AutoForwardDiff, AutoZygote
 using Adapt: Adapt
-using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
-                   JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
-                   StepSizeAdaptor, TemperedLeapfrog, find_good_stepsize
 using ArrayInterface: ArrayInterface
 using ChainRulesCore: ChainRulesCore, @non_differentiable, @ignore_derivatives
 using Cubature: Cubature
 using ComponentArrays: ComponentArrays, ComponentArray, getdata, getaxes
 using ConcreteStructs: @concrete
-using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
-using DocStringExtensions: DocStringExtensions, FIELDS
+using DocStringExtensions: FIELDS
 using DomainSets: DomainSets, AbstractInterval, leftendpoint, rightendpoint, ProductDomain
 using ForwardDiff: ForwardDiff
 using Functors: Functors, fmap
 using Integrals: Integrals, CubatureJLh, QuadGKJL
+using IntervalSets: infimum, supremum
 using LinearAlgebra: Diagonal
-using LogDensityProblems: LogDensityProblems
 using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
 using LuxCore: LuxCore, AbstractLuxLayer, AbstractLuxWrapperLayer
-using MCMCChains: MCMCChains, Chains, sample
 using MLDataDevices: CPUDevice, cpu_device, get_device
-using ModelingToolkit: ModelingToolkit, Num, PDESystem, toexpr, expand_derivatives, infimum,
-                       supremum
-using MonteCarloMeasurements: Particles
 using Optimisers: Optimisers, Adam
 using Optimization: Optimization
 using OptimizationOptimisers: OptimizationOptimisers
@@ -41,12 +30,25 @@ using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem, NoiseProblem
                  OptimizationFunction, OptimizationProblem, ReturnCode, discretize,
                  isinplace, solve, symbolic_discretize
 using Statistics: Statistics, mean
-using Symbolics: Symbolics, unwrap, arguments, operation, build_expr
-using SymbolicUtils: SymbolicUtils
-using SymbolicIndexingInterface: SymbolicIndexingInterface
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
 using WeightInitializers: glorot_uniform, zeros32
 using Zygote: Zygote
+
+# Symbolic Stuff
+using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
+using Symbolics: Symbolics, unwrap, arguments, operation, build_expr, Num,
+                 expand_derivatives
+using SymbolicUtils: SymbolicUtils
+using SymbolicIndexingInterface: SymbolicIndexingInterface
+
+# Needed for the Bayesian Stuff
+using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
+                   JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
+                   StepSizeAdaptor, TemperedLeapfrog, find_good_stepsize
+using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
+using LogDensityProblems: LogDensityProblems
+using MCMCChains: MCMCChains, Chains, sample
+using MonteCarloMeasurements: Particles
 
 import LuxCore: initialparameters, initialstates, parameterlength
 

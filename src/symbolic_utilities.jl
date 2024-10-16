@@ -138,10 +138,10 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                     ]
                 end
                 break
-            elseif e isa ModelingToolkit.Differential
+            elseif e isa Differential
                 derivative_variables = Symbol[]
                 order = 0
-                while (_args[1] isa ModelingToolkit.Differential)
+                while (_args[1] isa Differential)
                     order += 1
                     push!(derivative_variables, toexpr(_args[1].x))
                     _args = _args[2].args
