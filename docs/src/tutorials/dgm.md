@@ -53,7 +53,6 @@ u(t, 1) & = 0
 ```@example dgm
 using NeuralPDE
 using ModelingToolkit, Optimization, OptimizationOptimisers
-using Lux: tanh, identity
 using Distributions
 using ModelingToolkit: Interval, infimum, supremum
 using MethodOfLines, OrdinaryDiffEq
@@ -95,18 +94,15 @@ strategy = QuasiRandomTraining(256, minibatch = 32)
 discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
 @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
 prob = discretize(pde_system, discretization)
-global iter = 0
+
 callback = function (p, l)
-    global iter += 1
-    if iter % 20 == 0
-        println("$iter => $l")
-    end
+    (p.iter % 20 == 0) && println("$(p.iter) => $l")
     return false
 end
 
-res = Optimization.solve(prob, Adam(0.1); maxiters = 100)
+res = solve(prob, Adam(0.1); maxiters = 100)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, Adam(0.01); maxiters = 500)
+res = solve(prob, Adam(0.01); maxiters = 500)
 phi = discretization.phi
 
 u_predict = [first(phi([t, x], res.minimizer)) for t in ts, x in xs]

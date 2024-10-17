@@ -1,17 +1,14 @@
-using Lux, ComponentArrays, OptimizationOptimisers
-using Test, NeuralPDE
-using Optimization
-using LuxCUDA, QuasiMonteCarlo
+using Lux, ComponentArrays, OptimizationOptimisers, Test, NeuralPDE, Optimization, LuxCUDA,
+      QuasiMonteCarlo, Random
 import ModelingToolkit: Interval, infimum, supremum
 
-using Random
 Random.seed!(100)
 
 callback = function (p, l)
     println("Current loss is: $l")
     return false
 end
-CUDA.allowscalar(false)
+
 const gpud = gpu_device()
 
 @testset "ODE" begin
@@ -32,22 +29,16 @@ const gpud = gpu_device()
     dt = 0.1f0
     # Neural network
     inner = 20
-    chain = Lux.Chain(Lux.Dense(1, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, 1))
+    chain = Chain(Dense(1, inner, σ), Dense(inner, inner, σ), Dense(inner, inner, σ),
+        Dense(inner, inner, σ), Dense(inner, inner, σ), Dense(inner, 1))
 
     strategy = GridTraining(dt)
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud
-    discretization = PhysicsInformedNN(chain,
-        strategy;
-        init_params = ps)
+    discretization = PhysicsInformedNN(chain, strategy; init_params = ps)
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u(θ)])
     prob = discretize(pde_system, discretization)
-    res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 2000)
+    res = solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 2000)
     phi = discretization.phi
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = [infimum(d.domain):(dt / 10):supremum(d.domain) for d in domains][1]
@@ -73,13 +64,9 @@ end
     @named pdesys = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
 
     inner = 30
-    chain = Lux.Chain(Lux.Dense(2, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, 1))
+    chain = Chain(Dense(2, inner, σ), Dense(inner, inner, σ),
+        Dense(inner, inner, σ), Dense(inner, inner, σ),
+        Dense(inner, inner, σ), Dense(inner, inner, σ), Dense(inner, 1))
 
     strategy = StochasticTraining(500)
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud .|> Float64
@@ -119,11 +106,8 @@ end
     @named pdesys = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
 
     inner = 20
-    chain = Lux.Chain(Lux.Dense(2, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, 1))
+    chain = Chain(Dense(2, inner, σ), Dense(inner, inner, σ),
+        Dense(inner, inner, σ), Dense(inner, inner, σ), Dense(inner, 1))
 
     strategy = QuasiRandomTraining(
         500; sampling_alg = SobolSample(), resampling = false, minibatch = 30)
@@ -173,11 +157,8 @@ end
 
     # Neural network
     inner = 25
-    chain = Lux.Chain(Lux.Dense(3, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, inner, Lux.σ),
-        Lux.Dense(inner, 1))
+    chain = Chain(Dense(3, inner, σ), Dense(inner, inner, σ),
+        Dense(inner, inner, σ), Dense(inner, inner, σ), Dense(inner, 1))
 
     strategy = GridTraining(0.05)
     ps = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray |> gpud .|> Float64

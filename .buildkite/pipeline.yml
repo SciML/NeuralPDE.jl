@@ -1,15 +1,15 @@
 steps:
-  - label: "GPU"
+  - label: "CUDA"
     plugins:
       - JuliaCI/julia#v1:
           version: "1"
       - JuliaCI/julia-test#v1:
-           coverage: false # 1000x slowdown
+           coverage: true
     agents:
       queue: "juliagpu"
       cuda: "*"
     env:
-      GROUP: 'GPU'
+      GROUP: 'CUDA'
       JULIA_PKG_SERVER: "" # it often struggles with our large artifacts
       # SECRET_CODECOV_TOKEN: "..."
     timeout_in_minutes: 240

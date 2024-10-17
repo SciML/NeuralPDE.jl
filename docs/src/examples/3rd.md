@@ -36,18 +36,18 @@ bcs = [u(0.0) ~ 0.0,
 domains = [x ∈ Interval(0.0, 1.0)]
 
 # Neural network
-chain = Lux.Chain(Dense(1, 8, Lux.σ), Dense(8, 1))
+chain = Chain(Dense(1, 8, σ), Dense(8, 1))
 
 discretization = PhysicsInformedNN(chain, QuasiRandomTraining(20))
 @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
 prob = discretize(pde_system, discretization)
 
 callback = function (p, l)
-    println("Current loss is: $l")
+    (p.iter % 500 == 0 || p.iter == 2000) && println("Current loss is: $l")
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000)
+res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000, callback)
 phi = discretization.phi
 ```
 

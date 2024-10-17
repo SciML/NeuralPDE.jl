@@ -1,10 +1,6 @@
-using NeuralPDE, Test
-using Optimization, OptimizationOptimJL, OptimizationOptimisers
-using QuasiMonteCarlo
+using NeuralPDE, Test, Optimization, OptimizationOptimJL, OptimizationOptimisers,
+      QuasiMonteCarlo, DomainSets, Random, Lux, Optimisers
 import ModelingToolkit: Interval, infimum, supremum
-using DomainSets
-using Random
-import Lux
 
 Random.seed!(110)
 
@@ -26,15 +22,13 @@ Random.seed!(110)
     func_s = func(xs)
 
     hidden = 10
-    chain = Lux.Chain(Lux.Dense(1, hidden, Lux.tanh),
-        Lux.Dense(hidden, hidden, Lux.tanh),
-        Lux.Dense(hidden, 1))
+    chain = Chain(Dense(1, hidden, tanh), Dense(hidden, hidden, tanh), Dense(hidden, 1))
 
     strategy = GridTraining(0.01)
     discretization = PhysicsInformedNN(chain, strategy)
     @named pde_system = PDESystem(eq, bc, domain, [x], [u(x)])
     prob = discretize(pde_system, discretization)
-    res = solve(prob, OptimizationOptimisers.Adam(0.05), maxiters = 1000)
+    res = solve(prob, Optimisers.Adam(0.05), maxiters = 1000)
     prob = remake(prob, u0 = res.u)
     res = solve(prob, OptimizationOptimJL.BFGS(initial_stepnorm = 0.01), maxiters = 500)
     @test discretization.phi(xs', res.u)≈func(xs') rtol=0.01
@@ -52,10 +46,8 @@ end
     domain = [x ∈ Interval(x0, x_end)]
 
     hidden = 20
-    chain = Lux.Chain(Lux.Dense(1, hidden, Lux.sin),
-        Lux.Dense(hidden, hidden, Lux.sin),
-        Lux.Dense(hidden, hidden, Lux.sin),
-        Lux.Dense(hidden, 1))
+    chain = Chain(Dense(1, hidden, sin), Dense(hidden, hidden, sin),
+        Dense(hidden, hidden, sin), Dense(hidden, 1))
 
     strategy = GridTraining(0.01)
     discretization = PhysicsInformedNN(chain, strategy)
@@ -83,10 +75,8 @@ end
     d = 0.4
     domain = [x ∈ Interval(x0, x_end), y ∈ Interval(y0, y_end)]
     hidden = 25
-    chain = Lux.Chain(Lux.Dense(2, hidden, Lux.tanh),
-        Lux.Dense(hidden, hidden, Lux.tanh),
-        Lux.Dense(hidden, hidden, Lux.tanh),
-        Lux.Dense(hidden, 1))
+    chain = Chain(Dense(2, hidden, tanh), Dense(hidden, hidden, tanh),
+        Dense(hidden, hidden, tanh), Dense(hidden, 1))
 
     strategy = GridTraining(d)
     discretization = PhysicsInformedNN(chain, strategy)

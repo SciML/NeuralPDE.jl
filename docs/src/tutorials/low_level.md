@@ -36,8 +36,8 @@ domains = [t ∈ Interval(0.0, 1.0),
     x ∈ Interval(-1.0, 1.0)]
 
 # Neural network
-chain = Lux.Chain(Dense(2, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))
-strategy = NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200)
+chain = Chain(Dense(2, 16, σ), Dense(16, 16, σ), Dense(16, 1))
+strategy = QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200)
 
 indvars = [t, x]
 depvars = [u(t, x)]
@@ -60,14 +60,12 @@ end
 
 loss_functions = [pde_loss_functions; bc_loss_functions]
 
-function loss_function(θ, p)
-    sum(map(l -> l(θ), loss_functions))
-end
+loss_function(θ, p) = sum(map(l -> l(θ), loss_functions))
 
-f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
-prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
+f_ = OptimizationFunction(loss_function, AutoZygote())
+prob = OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 3000)
+res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 3000)
 ```
 
 And some analysis:

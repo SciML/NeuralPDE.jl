@@ -1,14 +1,8 @@
-using NeuralPDE, Test
-using Optimization, OptimizationOptimJL, OptimizationOptimisers
-using Integrals, Cubature
-using QuasiMonteCarlo
+using NeuralPDE, Test, Optimization, OptimizationOptimJL, OptimizationOptimisers, Integrals,
+      Cubature, QuasiMonteCarlo, DomainSets, Lux, LineSearches, Random
 import ModelingToolkit: Interval, infimum, supremum
-using DomainSets
-import Lux
-using LineSearches
-using Flux
+import Flux
 
-using Random
 Random.seed!(100)
 
 callback = function (p, l)
@@ -33,7 +27,7 @@ function test_ode(strategy_)
     domains = [θ ∈ Interval(0.0, 1.0)]
 
     # Neural network
-    chain = Lux.Chain(Lux.Dense(1, 12, Lux.σ), Lux.Dense(12, 1))
+    chain = Chain(Dense(1, 12, σ), Dense(12, 1))
 
     discretization = PhysicsInformedNN(chain, strategy_)
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
@@ -54,18 +48,12 @@ end
 
 grid_strategy = GridTraining(0.1)
 quadrature_strategy = QuadratureTraining(quadrature_alg = CubatureJLh(),
-    reltol = 1e3, abstol = 1e-3,
-    maxiters = 50, batch = 100)
+    reltol = 1e3, abstol = 1e-3, maxiters = 50, batch = 100)
 stochastic_strategy = StochasticTraining(100; bcs_points = 50)
-quasirandom_strategy = QuasiRandomTraining(100;
-    sampling_alg = LatinHypercubeSample(),
-    resampling = false,
-    minibatch = 100)
-quasirandom_strategy_resampling = QuasiRandomTraining(100;
-    bcs_points = 50,
-    sampling_alg = LatticeRuleSample(),
-    resampling = true,
-    minibatch = 0)
+quasirandom_strategy = QuasiRandomTraining(100; sampling_alg = LatinHypercubeSample(),
+    resampling = false, minibatch = 100)
+quasirandom_strategy_resampling = QuasiRandomTraining(100; bcs_points = 50,
+    sampling_alg = LatticeRuleSample(), resampling = true, minibatch = 0)
 
 strategies = [
     grid_strategy,
@@ -76,8 +64,8 @@ strategies = [
 ]
 
 @testset "Test ODE/Heterogeneous" begin
-    map(strategies) do strategy_
-        test_ode(strategy_)
+    @testset "$(nameof(typeof(strategy)))" for strategy in strategies
+        test_ode(strategy)
     end
 end
 
@@ -96,31 +84,25 @@ end
 
     bcs = [u(0, 0, 0) ~ 0.0]
 
-    domains = [x ∈ Interval(0.0, 1.0),
-        y ∈ Interval(0.0, 1.0),
-        z ∈ Interval(0.0, 1.0)]
+    domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0), z ∈ Interval(0.0, 1.0)]
 
     chain = [
-        Lux.Chain(Lux.Dense(3, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
-            Lux.Dense(12, 1)),
-        Lux.Chain(Lux.Dense(2, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
-            Lux.Dense(12, 1)),
-        Lux.Chain(Lux.Dense(1, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
-            Lux.Dense(12, 1)),
-        Lux.Chain(Lux.Dense(2, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
-            Lux.Dense(12, 1))]
+        Chain(Dense(3, 12, tanh), Dense(12, 12, tanh), Dense(12, 1)),
+        Chain(Dense(2, 12, tanh), Dense(12, 12, tanh), Dense(12, 1)),
+        Chain(Dense(1, 12, tanh), Dense(12, 12, tanh), Dense(12, 1)),
+        Chain(Dense(2, 12, tanh), Dense(12, 12, tanh), Dense(12, 1))
+    ]
 
-    grid_strategy = NeuralPDE.GridTraining(0.1)
-    quadrature_strategy = NeuralPDE.QuadratureTraining(quadrature_alg = CubatureJLh(),
-        reltol = 1e-3, abstol = 1e-3,
-        maxiters = 50, batch = 100)
+    grid_strategy = GridTraining(0.1)
+    quadrature_strategy = QuadratureTraining(quadrature_alg = CubatureJLh(),
+        reltol = 1e-3, abstol = 1e-3, maxiters = 50, batch = 100)
 
-    discretization = NeuralPDE.PhysicsInformedNN(chain, grid_strategy)
+    discretization = PhysicsInformedNN(chain, grid_strategy)
 
     @named pde_system = PDESystem(eqs, bcs, domains, [x, y, z],
         [u(x, y, z), v(y, x), h(z), p(x, z)])
 
-    prob = NeuralPDE.discretize(pde_system, discretization)
+    prob = discretize(pde_system, discretization)
 
     callback = function (p, l)
         println("Current loss is: $l")
@@ -192,18 +174,17 @@ end
 
 @testset "Example 2, 2D Poisson equation" begin
     grid_strategy = GridTraining(0.1)
-    chain = Lux.Chain(Lux.Dense(2, 12, Lux.σ), Lux.Dense(12, 12, Lux.σ), Lux.Dense(12, 1))
+    chain = Chain(Dense(2, 12, σ), Dense(12, 12, σ), Dense(12, 1))
     test_2d_poisson_equation(chain, grid_strategy)
 
-    for strategy_ in strategies
-        chain_ = Lux.Chain(Lux.Dense(2, 12, Lux.σ), Lux.Dense(12, 12, Lux.σ),
-            Lux.Dense(12, 1))
-        test_2d_poisson_equation(chain_, strategy_)
+    @testset "$(nameof(typeof(strategy)))" for strategy in strategies
+        chain_ = Chain(Dense(2, 12, σ), Dense(12, 12, σ), Dense(12, 1))
+        test_2d_poisson_equation(chain_, strategy)
     end
-    algs = [CubatureJLp()] #CubatureJLh(),
-    for alg in algs
-        chain_ = Lux.Chain(Lux.Dense(2, 12, Lux.σ), Lux.Dense(12, 12, Lux.σ),
-            Lux.Dense(12, 1))
+
+    algs = [CubatureJLp()]
+    @testset "$(nameof(typeof(alg)))" for alg in algs
+        chain_ = Chain(Dense(2, 12, σ), Dense(12, 12, σ), Dense(12, 1))
         strategy_ = NeuralPDE.QuadratureTraining(quadrature_alg = alg, reltol = 1e-4,
             abstol = 1e-3, maxiters = 30, batch = 10)
         test_2d_poisson_equation(chain_, strategy_)
@@ -233,9 +214,8 @@ end
     domains = [x ∈ Interval(0.0, 1.0)]
 
     # Neural network
-    chain = [[Lux.Chain(Lux.Dense(1, 12, Lux.tanh), Lux.Dense(12, 12, Lux.tanh),
-                  Lux.Dense(12, 1)) for _ in 1:3]
-             [Lux.Chain(Lux.Dense(1, 4, Lux.tanh), Lux.Dense(4, 1)) for _ in 1:2]]
+    chain = [[Chain(Dense(1, 12, tanh), Dense(12, 12, tanh), Dense(12, 1)) for _ in 1:3]
+             [Chain(Dense(1, 4, tanh), Dense(4, 1)) for _ in 1:2]]
     quasirandom_strategy = QuasiRandomTraining(100; sampling_alg = LatinHypercubeSample())
 
     discretization = PhysicsInformedNN(chain, quasirandom_strategy)
@@ -286,8 +266,8 @@ end
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
     # Neural network
-    chain1 = Lux.Chain(Lux.Dense(2, 15, Lux.tanh), Lux.Dense(15, 1))
-    chain2 = Lux.Chain(Lux.Dense(2, 15, Lux.tanh), Lux.Dense(15, 1))
+    chain1 = Chain(Dense(2, 15, tanh), Dense(15, 1))
+    chain2 = Chain(Dense(2, 15, tanh), Dense(15, 1))
 
     quadrature_strategy = QuadratureTraining(quadrature_alg = CubatureJLh(),
         reltol = 1e-3, abstol = 1e-3,
@@ -316,22 +296,24 @@ end
 end
 
 @testset "Example 5, 2d wave equation, neumann boundary condition" begin
-    #here we use low level api for build solution
+    # here we use low level api for build solution
     @parameters x, t
     @variables u(..)
     Dxx = Differential(x)^2
     Dtt = Differential(t)^2
     Dt = Differential(t)
 
-    #2D PDE
+    # 2D PDE
     C = 1
     eq = Dtt(u(x, t)) ~ C^2 * Dxx(u(x, t))
 
     # Initial and boundary conditions
-    bcs = [u(0, t) ~ 0.0,# for all t > 0
-        u(1, t) ~ 0.0,# for all t > 0
-        u(x, 0) ~ x * (1.0 - x), #for all 0 < x < 1
-        Dt(u(x, 0)) ~ 0.0] #for all  0 < x < 1]
+    bcs = [
+        u(0, t) ~ 0.0,           # for all t > 0
+        u(1, t) ~ 0.0,           # for all t > 0
+        u(x, 0) ~ x * (1.0 - x), # for all 0 < x < 1
+        Dt(u(x, 0)) ~ 0.0        # for all  0 < x < 1]
+    ]
 
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0),
@@ -339,13 +321,12 @@ end
     @named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
 
     # Neural network
-    chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ), Lux.Dense(16, 16, Lux.σ), Lux.Dense(16, 1))
+    chain = Chain(Dense(2, 16, σ), Dense(16, 16, σ), Dense(16, 1))
     phi = NeuralPDE.Phi(chain)
     derivative = NeuralPDE.numeric_derivative
 
     quadrature_strategy = QuadratureTraining(quadrature_alg = CubatureJLh(),
-        reltol = 1e-3, abstol = 1e-3,
-        maxiters = 50, batch = 100)
+        reltol = 1e-3, abstol = 1e-3, maxiters = 50, batch = 100)
 
     discretization = PhysicsInformedNN(chain, quadrature_strategy)
     prob = discretize(pde_system, discretization)
@@ -390,10 +371,8 @@ end
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
     quadrature_strategy = QuadratureTraining()
-    # Neural network
     inner = 20
-    chain = Lux.Chain(Lux.Dense(2, inner, Lux.tanh), Lux.Dense(inner, inner, Lux.tanh),
-        Lux.Dense(inner, 1))
+    chain = Chain(Dense(2, inner, tanh), Dense(inner, inner, tanh), Dense(inner, 1))
 
     discretization = PhysicsInformedNN(chain, quadrature_strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
@@ -426,7 +405,7 @@ end
 
     chain = Flux.Chain(Flux.Dense(1, 12, Flux.σ), Flux.Dense(12, 1))
     discretization = PhysicsInformedNN(chain, QuadratureTraining())
-    @test discretization.chain isa Lux.AbstractExplicitLayer
+    @test discretization.chain isa Lux.AbstractLuxLayer
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
     prob = discretize(pde_system, discretization)

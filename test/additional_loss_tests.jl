@@ -1,12 +1,7 @@
-using NeuralPDE, Test
-using Optimization, OptimizationOptimJL, OptimizationOptimisers
-using QuasiMonteCarlo, Random
+using NeuralPDE, Test, Optimization, OptimizationOptimJL, OptimizationOptimisers,
+      QuasiMonteCarlo, Random, DomainSets, Integrals, Cubature, OrdinaryDiffEq,
+      ComponentArrays, Lux
 import ModelingToolkit: Interval, infimum, supremum
-using DomainSets
-using Integrals, Cubature
-using OrdinaryDiffEq, ComponentArrays
-import Lux
-using ComponentArrays
 
 @testset "Fokker-Planck" begin
     # the example took from this article https://arxiv.org/abs/1910.10503
@@ -20,7 +15,7 @@ using ComponentArrays
     # Discretization
     dx = 0.01
     # here we use normalization condition: dx*p(x) ~ 1, in order to get non-zero solution.
-    #(α - 3*β*x^2)*p(x) + (α*x - β*x^3)*Dx(p(x)) ~ (_σ^2/2)*Dxx(p(x))
+    # (α - 3*β*x^2)*p(x) + (α*x - β*x^3)*Dx(p(x)) ~ (_σ^2/2)*Dxx(p(x))
     eq = [Dx((α * x - β * x^3) * p(x)) ~ (_σ^2 / 2) * Dxx(p(x))]
     x_0 = -2.2
     x_end = 2.2
@@ -32,11 +27,9 @@ using ComponentArrays
 
     # Neural network
     inn = 18
-    chain = Lux.Chain(Lux.Dense(1, inn, Lux.σ),
-        Lux.Dense(inn, inn, Lux.σ),
-        Lux.Dense(inn, inn, Lux.σ),
-        Lux.Dense(inn, 1))
-    init_params = Float64.(ComponentArray(Lux.setup(Random.default_rng(), chain)[1]))
+    chain = Chain(Dense(1, inn, σ), Dense(inn, inn, σ), Dense(inn, inn, σ), Dense(inn, 1))
+    init_params = ComponentArray{Float64}(Lux.initialparameters(
+        Random.default_rng(), chain))
     lb = [x_0]
     ub = [x_end]
     function norm_loss_function(phi, θ, p)
@@ -45,7 +38,7 @@ using ComponentArrays
         end
         prob1 = IntegralProblem(inner_f, (lb, ub), θ)
         norm2 = solve(prob1, HCubatureJL(), reltol = 1e-8, abstol = 1e-8, maxiters = 10)
-        abs(norm2[1])
+        return abs(norm2[1])
     end
     discretization = PhysicsInformedNN(chain, GridTraining(dx); init_params = init_params,
         additional_loss = norm_loss_function)
@@ -113,8 +106,7 @@ end
 
     input_ = length(domains)
     n = 12
-    chain = [Lux.Chain(Lux.Dense(input_, n, Lux.tanh), Lux.Dense(n, n, Lux.σ),
-                 Lux.Dense(n, 1)) for _ in 1:3]
+    chain = [Chain(Dense(input_, n, tanh), Dense(n, n, σ), Dense(n, 1)) for _ in 1:3]
     #Generate Data
     function lorenz!(du, u, p, t)
         du[1] = 10.0 * (u[2] - u[1])
@@ -154,11 +146,8 @@ end
         for i in 1:1:3)
     end
 
-    discretization = PhysicsInformedNN(chain,
-        GridTraining(dt);
-        init_params = flat_init_params,
-        param_estim = true,
-        additional_loss = additional_loss)
+    discretization = PhysicsInformedNN(chain, GridTraining(dt);
+        init_params = flat_init_params, param_estim = true, additional_loss)
 
     additional_loss(discretization.phi, flat_init_params, nothing)
     @named pde_system = PDESystem(eqs, bcs, domains,
@@ -167,9 +156,7 @@ end
     prob = discretize(pde_system, discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
     sym_prob.loss_functions.full_loss_function(
-        ComponentArray(depvar = flat_init_params,
-            p = ones(3)),
-        Float64[])
+        ComponentArray(depvar = flat_init_params, p = ones(3)), Float64[])
 
     res = solve(prob, OptimizationOptimJL.BFGS(); maxiters = 6000)
     p_ = res.u[(end - 2):end]
@@ -178,10 +165,8 @@ end
     @test sum(abs2, p_[3] - (8 / 3)) < 0.1
 
     ### No init_params
-    discretization = PhysicsInformedNN(chain,
-        GridTraining(dt);
-        param_estim = true,
-        additional_loss = additional_loss)
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(dt); param_estim = true, additional_loss)
 
     additional_loss(discretization.phi, flat_init_params, nothing)
     @named pde_system = PDESystem(eqs, bcs, domains,
@@ -207,10 +192,8 @@ end
     dx = pi / 10
     domain = [x ∈ Interval(x0, x_end)]
     hidden = 10
-    chain = Lux.Chain(Lux.Dense(1, hidden, Lux.tanh),
-        Lux.Dense(hidden, hidden, Lux.sin),
-        Lux.Dense(hidden, hidden, Lux.tanh),
-        Lux.Dense(hidden, 1))
+    chain = Chain(Dense(1, hidden, tanh), Dense(hidden, hidden, sin),
+        Dense(hidden, hidden, tanh), Dense(hidden, 1))
     strategy = GridTraining(dx)
     xs = collect(x0:dx:x_end)'
     aproxf_(x) = @. cos(pi * x)
