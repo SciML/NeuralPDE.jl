@@ -150,7 +150,6 @@ end
 @testitem "PDE II: 2D Poisson" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
     import ModelingToolkit: Interval, infimum, supremum
-    import OptimizationOptimJL: BFGS
 
     function test_2d_poisson_equation(chain, strategy)
         @parameters x y
@@ -177,7 +176,7 @@ end
         discretization = PhysicsInformedNN(chain, strategy; init_params = ps)
         @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
         prob = discretize(pde_system, discretization)
-        res = solve(prob, BFGS(); maxiters = 500, callback)
+        res = solve(prob, Adam(0.1); maxiters = 500, callback)
         phi = discretization.phi
 
         xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
