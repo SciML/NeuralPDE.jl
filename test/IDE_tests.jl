@@ -64,9 +64,8 @@ end
     res = solve(prob, BFGS(); callback, maxiters = 100)
     xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     phi = discretization.phi
-    analytic_sol_func(x) = @. cospi(5x) * x
 
-    u_real = [analytic_sol_func(x) for x in xs]
+    u_real = [x^2 / cos(x) for x in xs]
     u_predict = [first(phi([x], res.u)) for x in xs]
     @test mean(abs2, u_real .- u_predict) < 0.01
 end
@@ -94,6 +93,7 @@ end
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
     res = solve(prob, BFGS(); callback, maxiters = 100)
+    phi = discretization.phi
 
     xs = 0.0:0.01:1.0
     ys = 0.0:0.01:1.0
@@ -126,6 +126,7 @@ end
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
     res = solve(prob, BFGS(); callback, maxiters = 100)
+    phi = discretization.phi
 
     xs = 0.0:0.01:1.0
     ys = 0.0:0.01:1.0
