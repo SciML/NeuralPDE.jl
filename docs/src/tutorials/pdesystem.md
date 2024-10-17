@@ -159,10 +159,8 @@ dx = 0.05
 xs, ys = [infimum(d.domain):(dx / 10):supremum(d.domain) for d in domains]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
-u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-    (length(xs), length(ys)))
-u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-    (length(xs), length(ys)))
+u_predict = [first(phi([x, y], res.u)) for x in xs, y in ys]
+u_real = [analytic_sol_func(x, y) for x in xs, y in ys]
 diff_u = abs.(u_predict .- u_real)
 
 p1 = plot(xs, ys, u_real, linetype = :contourf, title = "analytic");
