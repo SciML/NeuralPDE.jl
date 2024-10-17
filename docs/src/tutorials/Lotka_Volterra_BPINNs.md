@@ -70,8 +70,7 @@ Let's define a PINN.
 
 ```@example bpinn
 # Neural Networks must have 2 outputs as u -> [dx,dy] in function lotka_volterra()
-chain = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh),
-    Lux.Dense(6, 2))
+chain = Chain(Dense(1, 6, tanh), Dense(6, 6, tanh), Dense(6, 2))
 ```
 
 The dataset we generated can be passed for doing parameter estimation using provided priors in `param` keyword argument for [`BNNODE`](@ref).

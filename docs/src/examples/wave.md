@@ -42,7 +42,7 @@ domains = [t ∈ Interval(0.0, 1.0),
 dx = 0.1
 
 # Neural network
-chain = Lux.Chain(Dense(2, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))
+chain = Chain(Dense(2, 16, σ), Dense(16, 16, σ), Dense(16, 1))
 discretization = PhysicsInformedNN(chain, GridTraining(dx))
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
@@ -55,7 +55,7 @@ end
 
 # optimizer
 opt = OptimizationOptimJL.BFGS()
-res = Optimization.solve(prob, opt; callback = callback, maxiters = 1200)
+res = Optimization.solve(prob, opt; callback, maxiters = 1200)
 phi = discretization.phi
 ```
 
@@ -138,11 +138,11 @@ domains = [t ∈ Interval(0.0, L),
 # Neural network
 inn = 25
 innd = 4
-chain = [[Lux.Chain(Dense(2, inn, Lux.tanh),
-              Dense(inn, inn, Lux.tanh),
-              Dense(inn, inn, Lux.tanh),
+chain = [[Chain(Dense(2, inn, tanh),
+              Dense(inn, inn, tanh),
+              Dense(inn, inn, tanh),
               Dense(inn, 1)) for _ in 1:3]
-         [Lux.Chain(Dense(2, innd, Lux.tanh), Dense(innd, 1)) for _ in 1:2]]
+         [Chain(Dense(2, innd, tanh), Dense(innd, 1)) for _ in 1:2]]
 
 strategy = GridTraining(0.02)
 discretization = PhysicsInformedNN(chain, strategy;)

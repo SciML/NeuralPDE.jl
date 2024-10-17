@@ -1,9 +1,5 @@
-using Test, NeuralPDE
-using SciMLBase
-using DomainSets
+using Test, NeuralPDE, SciMLBase, DomainSets, Lux, Random, Zygote, ComponentArrays, Adapt
 import ModelingToolkit: Interval
-import Lux, Random, Zygote
-using ComponentArrays
 
 @testset "ODE" begin
     @parameters x
@@ -13,13 +9,13 @@ using ComponentArrays
     eq = Dx(u(x)) ~ 0.0
     bcs = [u(0.0) ~ u(0.0)]
     domains = [x ∈ Interval(0.0, 1.0)]
-    chain = Lux.Chain(x -> x .^ 2)
+    chain = Chain(x -> x .^ 2)
     init_params, st = Lux.setup(Random.default_rng(), chain)
-    init_params = Float64[]
+    init_params = init_params |> ComponentArray{Float64}
 
-    chain([1], Float64[], st)
+    chain([1], init_params, st)
     strategy_ = GridTraining(0.1)
-    discretization = PhysicsInformedNN(chain, strategy_; init_params = Float64[])
+    discretization = PhysicsInformedNN(chain, strategy_; init_params)
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
     prob = discretize(pde_system, discretization)
     sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
@@ -30,26 +26,24 @@ using ComponentArrays
     dx = strategy_.dx
     eltypeθ = eltype(sym_prob.flat_init_params)
     depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = NeuralPDE.get_vars(
-        pde_system.ivs,
-        pde_system.dvs)
+        pde_system.ivs, pde_system.dvs)
 
     train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
         dict_indvars, dict_depvars)
 
     pde_train_sets, bcs_train_sets = train_sets
-    pde_train_sets = NeuralPDE.adapt(eltypeθ, pde_train_sets)[1]
+    pde_train_sets = Adapt.adapt(eltypeθ, pde_train_sets)[1]
 
     train_data = pde_train_sets
     pde_loss_function = sym_prob.loss_functions.datafree_pde_loss_functions[1]
 
     dudx(x) = @. 2 * x
-    @test pde_loss_function(train_data, Float64[])≈dudx(train_data) rtol=1e-8
+    @test pde_loss_function(train_data, init_params)≈dudx(train_data) rtol=1e-8
 end
 
 @testset "derivatives" begin
-    chain = Lux.Chain(Lux.Dense(2, 16, Lux.σ), Lux.Dense(16, 16, Lux.σ),
-        Lux.Dense(16, 1))
-    init_params = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray .|> Float64
+    chain = Chain(Dense(2, 16, σ), Dense(16, 16, σ), Dense(16, 1))
+    init_params = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray{Float64}
 
     eltypeθ = eltype(init_params)
     phi = NeuralPDE.Phi(chain)
@@ -88,14 +82,13 @@ end
 end
 
 @testset "Integral" begin
-    #semi-infinite intervals
     @parameters x
     @variables u(..)
     I = Integral(x in ClosedInterval(0, Inf))
     eq = I(u(x)) ~ 0
     bcs = [u(1.0) ~ exp(1) / (exp(2) + 3)]
     domains = [x ∈ Interval(1.0, 2.0)]
-    chain = Lux.Chain(x -> exp.(x) ./ (exp.(2 .* x) .+ 3))
+    chain = Chain(x -> exp.(x) ./ (exp.(2 .* x) .+ 3))
     init_params, st = Lux.setup(Random.default_rng(), chain)
     chain([1], init_params, st)
     strategy_ = GridTraining(0.1)
@@ -115,7 +108,7 @@ end
     eqs = I(u(x)) ~ 0
     domains = [x ∈ Interval(1.0, 2.0)]
     bcs = [u(1) ~ u(1)]
-    chain = Lux.Chain(x -> x .* exp.(-x .^ 2))
+    chain = Chain(x -> x .* exp.(-x .^ 2))
     chain([1], init_params, st)
 
     discretization = PhysicsInformedNN(chain, strategy_;
@@ -125,5 +118,5 @@ end
     prob = discretize(pde_system, discretization)
     inner_loss = sym_prob.loss_functions.datafree_pde_loss_functions[1]
     exact_u = 0
-    @test inner_loss(ones(1, 1), init_params)[1]≈exact_u rtol=1e-9
+    @test inner_loss(ones(1, 1), init_params)[1]≈exact_u atol=1e-13
 end

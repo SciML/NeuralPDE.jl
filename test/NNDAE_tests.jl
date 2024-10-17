@@ -1,7 +1,5 @@
-using Test, Flux
-using Random, NeuralPDE
-using OrdinaryDiffEq, Statistics
-import Lux, OptimizationOptimisers, OptimizationOptimJL
+using Test, Random, NeuralPDE, OrdinaryDiffEq, Statistics, Lux, Optimisers,
+      OptimizationOptimJL, Optimisers
 
 Random.seed!(100)
 
@@ -22,15 +20,12 @@ Random.seed!(100)
     ground_sol = solve(prob_mm, Rodas5(), reltol = 1e-8, abstol = 1e-8)
 
     example = (du, u, p, t) -> [cos(2pi * t) - du[1], u[2] + cos(2pi * t) - du[2]]
-    differential_vars = [true, false]
-    prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars)
-    chain = Lux.Chain(Lux.Dense(1, 15, cos), Lux.Dense(15, 15, sin), Lux.Dense(15, 2))
-    opt = OptimizationOptimisers.Adam(0.1)
-    alg = NeuralPDE.NNDAE(chain, opt; autodiff = false)
+    prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = [true, false])
+    chain = Chain(Dense(1, 15, cos), Dense(15, 15, sin), Dense(15, 2))
+    alg = NNDAE(chain, Optimisers.Adam(0.01); autodiff = false)
 
-    sol = solve(prob,
-        alg, verbose = false, dt = 1 / 100.0f0,
-        maxiters = 3000, abstol = 1.0f-10)
+    sol = solve(
+        prob, alg, verbose = false, dt = 1 / 100.0f0, maxiters = 3000, abstol = 1.0f-10)
     @test ground_sol(0:(1 / 100):1)≈sol atol=0.4
 end
 
@@ -52,13 +47,11 @@ end
     example = (du, u, p, t) -> [u[1] - t - du[1], u[2] - t - du[2]]
     differential_vars = [false, true]
     prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars)
-    chain = Lux.Chain(Lux.Dense(1, 15, Lux.σ), Lux.Dense(15, 2))
-    opt = OptimizationOptimisers.Adam(0.1)
-    alg = NNDAE(chain, OptimizationOptimisers.Adam(0.1); autodiff = false)
+    chain = Chain(Dense(1, 15, σ), Dense(15, 2))
+    alg = NNDAE(chain, Optimisers.Adam(0.1); autodiff = false)
 
     sol = solve(prob,
-        alg, verbose = false, dt = 1 / 100.0f0,
-        maxiters = 3000, abstol = 1.0f-10)
+        alg, verbose = false, dt = 1 / 100.0f0, maxiters = 3000, abstol = 1.0f-10)
 
     @test ground_sol(0:(1 / 100):(pi / 2))≈sol atol=0.4
 end

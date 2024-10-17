@@ -60,7 +60,7 @@ chain2 = Lux.Chain(Dense(2, inner_, af),
     Dense(inner_, inner_, af),
     Dense(inner_, 1))
 initp, st = Lux.setup(Random.default_rng(), chain2)
-init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
+init_params2 = Float64.(ComponentArray(initp))
 
 # the rule by which the training will take place is described here in loss function
 function loss(cord, θ)
@@ -226,7 +226,7 @@ chain2 = Lux.Chain(Dense(2, inner_, af),
     Dense(inner_, 1))
 
 initp, st = Lux.setup(Random.default_rng(), chain2)
-init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
+init_params2 = Float64.(ComponentArray(initp))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 

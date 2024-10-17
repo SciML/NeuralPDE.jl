@@ -115,11 +115,8 @@ where
 - θ - weights in neural network.
 """
 function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = false,
-        dict_transformation_vars = nothing,
-        transformation_vars = nothing)
-    @unpack indvars, depvars, dict_indvars, dict_depvars,
-    dict_depvar_input, multioutput, strategy, phi,
-    derivative, integral, flat_init_params, init_params = pinnrep
+        dict_transformation_vars = nothing, transformation_vars = nothing)
+    (; indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input, multioutput, strategy, phi, derivative, integral, flat_init_params, init_params) = pinnrep
     eltypeθ = eltype(flat_init_params)
 
     _args = ex.args
@@ -141,10 +138,10 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                     ]
                 end
                 break
-            elseif e isa ModelingToolkit.Differential
+            elseif e isa Differential
                 derivative_variables = Symbol[]
                 order = 0
-                while (_args[1] isa ModelingToolkit.Differential)
+                while (_args[1] isa Differential)
                     order += 1
                     push!(derivative_variables, toexpr(_args[1].x))
                     _args = _args[2].args
@@ -230,7 +227,7 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                     if l isa Number
                         push!(lb_, l)
                     else
-                        l_expr = NeuralPDE.build_symbolic_loss_function(pinnrep, nothing;
+                        l_expr = build_symbolic_loss_function(pinnrep, nothing;
                             integrand = _dot_(l),
                             integrating_depvars = integrating_depvars,
                             param_estim = false,
@@ -243,7 +240,7 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                     if u_ isa Number
                         push!(ub_, u_)
                     else
-                        u_expr = NeuralPDE.build_symbolic_loss_function(pinnrep, nothing;
+                        u_expr = build_symbolic_loss_function(pinnrep, nothing;
                             integrand = _dot_(u_),
                             integrating_depvars = integrating_depvars,
                             param_estim = false,
@@ -344,18 +341,18 @@ function pair(eq, depvars, dict_depvars, dict_depvar_input)
 end
 
 function get_vars(indvars_, depvars_)
-    indvars = ModelingToolkit.getname.(indvars_)
+    indvars = SymbolicIndexingInterface.getname.(indvars_)
     depvars = Symbol[]
     dict_depvar_input = Dict{Symbol, Vector{Symbol}}()
     for d in depvars_
         if unwrap(d) isa SymbolicUtils.BasicSymbolic
-            dname = ModelingToolkit.getname(d)
+            dname = SymbolicIndexingInterface.getname(d)
             push!(depvars, dname)
             push!(dict_depvar_input,
                 dname => [nameof(unwrap(argument))
                           for argument in arguments(unwrap(d))])
         else
-            dname = ModelingToolkit.getname(d)
+            dname = SymbolicIndexingInterface.getname(d)
             push!(depvars, dname)
             push!(dict_depvar_input, dname => indvars) # default to all inputs if not given
         end
@@ -427,9 +424,8 @@ function get_argument end
 
 # Get arguments from boundary condition functions
 function get_argument(eqs, _indvars::Array, _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
-        _depvars)
-    get_argument(eqs, dict_indvars, dict_depvars)
+    _, _, dict_indvars, dict_depvars, _ = get_vars(_indvars, _depvars)
+    return get_argument(eqs, dict_indvars, dict_depvars)
 end
 function get_argument(eqs, dict_indvars, dict_depvars)
     exprs = toexpr.(eqs)

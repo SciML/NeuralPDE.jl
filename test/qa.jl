@@ -1,11 +1,12 @@
-using NeuralPDE, Aqua
+using NeuralPDE, Aqua, ExplicitImports
+
 @testset "Aqua" begin
-    Aqua.find_persistent_tasks_deps(NeuralPDE)
+    Aqua.test_all(NeuralPDE; ambiguities = false)
     Aqua.test_ambiguities(NeuralPDE, recursive = false)
-    Aqua.test_deps_compat(NeuralPDE)
-    Aqua.test_piracies(NeuralPDE)
-    Aqua.test_project_extras(NeuralPDE)
-    Aqua.test_stale_deps(NeuralPDE)
-    Aqua.test_unbound_args(NeuralPDE)
-    Aqua.test_undefined_exports(NeuralPDE)
+end
+
+@testset "ExplicitImports" begin
+    @test check_no_implicit_imports(NeuralPDE) === nothing
+    @test check_no_stale_explicit_imports(NeuralPDE) === nothing
+    @test check_all_qualified_accesses_via_owners(NeuralPDE) === nothing
 end

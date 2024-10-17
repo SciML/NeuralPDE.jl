@@ -71,13 +71,12 @@ der_ = [Dy(u(x, y)) ~ Dyu(x, y),
 bcs__ = [bcs_; der_]
 
 # Space and time domains
-domains = [x ∈ Interval(0.0, 1.0),
-    y ∈ Interval(0.0, 1.0)]
+domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
 # Neural network
 input_ = length(domains)
 n = 15
-chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:6] # 1:number of @variables
+chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:6] # 1:number of @variables
 
 strategy = GridTraining(0.01)
 discretization = PhysicsInformedNN(chain, strategy)
@@ -91,19 +90,17 @@ pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:6]
 approx_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[7:end]
 
-global iteration = 0
 callback = function (p, l)
-    if iteration % 10 == 0
+    if p.iter % 10 == 0
         println("loss: ", l)
         println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
         println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
         println("der_losses: ", map(l_ -> l_(p.u), approx_derivative_loss_functions))
     end
-    global iteration += 1
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); maxiters = 100)
+res = solve(prob, BFGS(); maxiters = 100, callback)
 
 phi = discretization.phi
 
