@@ -165,7 +165,7 @@ end
     @testset "$(nameof(typeof(strategy)))" for strategy in [
         GridTraining(0.01),
         StochasticTraining(1000),
-        QuadratureTraining(reltol = 1e-3, abstol = 1e-6, maxiters = 50, batch = 100),
+        QuadratureTraining(reltol = 1e-3, abstol = 1e-6, maxiters = 50, batch = 100)
     ]
         alg = NNODE(luxchain, opt; additional_loss, strategy)
         sol = solve(prob, alg; verbose = false, maxiters = 500, abstol = 1e-6)

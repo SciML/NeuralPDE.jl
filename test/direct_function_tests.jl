@@ -31,7 +31,7 @@
     res = solve(prob, Adam(0.05), maxiters = 1000)
     prob = remake(prob, u0 = res.u)
     res = solve(prob, BFGS(initial_stepnorm = 0.01), maxiters = 500)
-    
+
     @test discretization.phi(xs', res.u)≈func(xs') rtol=0.01
 end
 

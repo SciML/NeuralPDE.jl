@@ -7,6 +7,8 @@ function callback(p, l)
     return false
 end
 
+export callback
+
 end
 
 @testitem "IntegroDiff Example 1 -- 1D" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
@@ -59,7 +61,7 @@ end
     discretization = PhysicsInformedNN(chain, strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
     prob = discretize(pde_system, discretization)
-    res = solve(prob, OptimizationOptimJL.BFGS(); callback, maxiters = 100)
+    res = solve(prob, BFGS(); callback, maxiters = 100)
     xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     phi = discretization.phi
     analytic_sol_func(x) = @. cospi(5x) * x
@@ -91,7 +93,7 @@ end
     discretization = PhysicsInformedNN(chain, strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
-    res = solve(prob, OptimizationOptimJL.BFGS(); callback, maxiters = 100)
+    res = solve(prob, BFGS(); callback, maxiters = 100)
 
     xs = 0.0:0.01:1.0
     ys = 0.0:0.01:1.0
@@ -133,7 +135,7 @@ end
     @test mean(abs2, u_real .- u_predict) < 0.01
 end
 
-@testset "IntegroDiff Example 5 -- 1 Input, 2 Outputs" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
+@testitem "IntegroDiff Example 5 -- 1 Input, 2 Outputs" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
     using Optimization, Optimisers, DomainSets, Lux, Random, Statistics
     import ModelingToolkit: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
