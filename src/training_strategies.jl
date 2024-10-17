@@ -291,8 +291,8 @@ end
 """
     WeightedIntervalTraining(weights, samples)
 
-A training strategy that generates points for training based on the given inputs. 
-We split the timespan into equal segments based on the number of weights, 
+A training strategy that generates points for training based on the given inputs.
+We split the timespan into equal segments based on the number of weights,
 then sample points in each segment based on that segments corresponding weight,
 such that the total number of sampled points is equivalent to the given samples
 

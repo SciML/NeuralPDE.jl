@@ -124,7 +124,6 @@ MethodOfLines = "94925ecb-adb7-4558-8ed8-f975c56a0bf4"
 OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-Preferences = "21216c6a-2e73-6563-6e65-726566657250"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
@@ -132,4 +131,3 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Aqua", "CUDA", "DiffEqNoiseProcess", "ExplicitImports", "Flux", "LineSearches", "LuxCUDA", "LuxCore", "LuxLib", "MethodOfLines", "OptimizationOptimJL", "OrdinaryDiffEq", "Pkg", "SafeTestsets", "StochasticDiffEq", "TensorBoardLogger", "Test"]
-

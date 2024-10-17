@@ -73,6 +73,7 @@ suggested extra loss function for ODE solver case
 """
 @views function L2loss2(ltd::LogTargetDensity, θ)
     ltd.extraparams ≤ 0 && return false  # XXX: type-stability?
+
     f = ltd.prob.f
     t = ltd.dataset[end]
     u1 = ltd.dataset[2]
@@ -226,6 +227,7 @@ Prior logpdf for NN parameters + ODE constants.
 @views function priorweights(ltd::LogTargetDensity, θ)
     allparams = ltd.priors
     nnwparams = allparams[1] # nn weights
+
     ltd.extraparams ≤ 0 && return logpdf(nnwparams, θ)
 
     # Vector of ode parameters priors

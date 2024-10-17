@@ -11,7 +11,7 @@ neural operator, which is used as a solver for a parametrized `ODEProblem`.
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as a `Lux.AbstractLuxLayer` or `Flux.Chain`.
+* `chain`: A neural network architecture, defined as a `AbstractLuxLayer` or `Flux.Chain`.
                  `Flux.Chain` will be converted to `Lux` using `adapt(FromFluxAdaptor(false, false), chain)`
 * `opt`: The optimizer to train the neural network.
 * `bounds`: A dictionary containing the bounds for the parameters of the parametric ODE.
@@ -30,17 +30,15 @@ neural operator, which is used as a solver for a parametrized `ODEProblem`.
 * Sifan Wang "Learning the solution operator of parametric partial differential equations with physics-informed DeepOnets"
 * Zongyi Li "Physics-Informed Neural Operator for Learning Partial Differential Equations"
 """
-struct PINOODE{C, O, B, I, S <: Union{Nothing, AbstractTrainingStrategy},
-    AL <: Union{Nothing, Function}, K} <:
-       SciMLBase.AbstractODEAlgorithm
-    chain::C
-    opt::O
-    bounds::B
+@concrete struct PINOODE
+    chain
+    opt
+    bounds
     number_of_parameters::Int
-    init_params::I
-    strategy::S
-    additional_loss::AL
-    kwargs::K
+    init_params
+    strategy <: Union{Nothing, AbstractTrainingStrategy}
+    additional_loss <: Union{Nothing, Function}
+    kwargs
 end
 
 function PINOODE(chain,
@@ -51,38 +49,37 @@ function PINOODE(chain,
         strategy = nothing,
         additional_loss = nothing,
         kwargs...)
-    !(chain isa Lux.AbstractLuxLayer) && (chain = Lux.transform(chain))
-    PINOODE(chain, opt, bounds, number_of_parameters,
+    chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
+    return PINOODE(chain, opt, bounds, number_of_parameters,
         init_params, strategy, additional_loss, kwargs)
 end
 
-struct PINOPhi{C, S}
-    chain::C
-    st::S
-    function PINOPhi(chain::Lux.AbstractLuxLayer, st)
-        new{typeof(chain), typeof(st)}(chain, st)
-    end
+@concrete struct PINOPhi
+    model <:AbstractLuxLayer
+    smodel <: StatefulLuxLayer
 end
 
-function generate_pino_phi_θ(chain::Lux.AbstractLuxLayer, init_params)
-    θ, st = Lux.setup(Random.default_rng(), chain)
-    init_params = isnothing(init_params) ? θ : init_params
-    init_params = ComponentArrays.ComponentArray(init_params)
+function PINOPhi(model::AbstractLuxLayer, st)
+    return PINOPhi(model, StatefulLuxLayer{false}(model, nothing, st))
+end
+
+function generate_pino_phi_θ(chain::AbstractLuxLayer, nothing)
+    θ, st = LuxCore.setup(Random.default_rng(), chain)
+    PINOPhi(chain, st), θ
+end
+
+function generate_pino_phi_θ(chain::AbstractLuxLayer, init_params)
+    st = LuxCore.initialstates(Random.default_rng(), chain)
     PINOPhi(chain, st), init_params
 end
 
-function (f::PINOPhi{C, T})(x::Array, θ) where {C <: Lux.Chain, T}
-    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
-    x = convert.(eltypeθ, adapt(typeθ, x))
-    y, st = f.chain(x, θ, f.st)
-    y
+function (f::PINOPhi{C, T})(x, θ) where {C <: AbstractLuxLayer, T}
+    dev = safe_get_device(θ)
+    return f(dev, safe_expand(dev, x), θ)
 end
 
-function (f::PINOPhi{C, T})(x::Tuple, θ) where {C <: DeepONet, T}
-    eltypeθ, typeθ = eltype(θ), parameterless_type(ComponentArrays.getdata(θ))
-    x = (convert.(eltypeθ, adapt(typeθ, x[1])), convert.(eltypeθ, adapt(typeθ, x[2])))
-    y, st = f.chain(x, θ, f.st)
-    y
+function (f::PINOPhi{C, T})(dev, x, θ) where {C <: AbstractLuxLayer, T}
+    f.smodel(dev(x), θ)
 end
 
 function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
@@ -180,7 +177,7 @@ function get_trainset(
 end
 
 function get_trainset(
-        strategy::GridTraining, chain::Lux.Chain, bounds, number_of_parameters, tspan, eltypeθ)
+        strategy::GridTraining, chain::Chain, bounds, number_of_parameters, tspan, eltypeθ)
     dt = strategy.dx
     tspan_ = tspan[1]:dt:tspan[2]
     pspan = [range(start = b[1], length = number_of_parameters, stop = b[2])
@@ -194,9 +191,9 @@ function get_trainset(
 end
 
 function get_trainset(
-        strategy::StochasticTraining, chain::Union{DeepONet, Lux.Chain},
+        strategy::StochasticTraining, chain::Union{DeepONet, Chain},
         bounds, number_of_parameters, tspan, eltypeθ)
-    (number_of_parameters != strategy.points && chain isa Lux.Chain) &&
+    (number_of_parameters != strategy.points && chain isa Chain) &&
         throw(error("number_of_parameters should be the same strategy.points for StochasticTraining"))
     p = reduce(vcat,
         [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
@@ -208,7 +205,8 @@ end
 
 function generate_loss(
         strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan, eltypeθ)
-    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan, eltypeθ)
+    x = get_trainset(
+        strategy, phi.smodel.model, bounds, number_of_parameters, tspan, eltypeθ)
     function loss(θ, _)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
@@ -217,7 +215,8 @@ end
 function generate_loss(
         strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan, eltypeθ)
     function loss(θ, _)
-        x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan, eltypeθ)
+        x = get_trainset(
+            strategy, phi.smodel.model, bounds, number_of_parameters, tspan, eltypeθ)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
@@ -240,10 +239,10 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         verbose = false,
         saveat = nothing,
         maxiters = nothing)
-    @unpack tspan, u0, f = prob
-    @unpack chain, opt, bounds, number_of_parameters, init_params, strategy, additional_loss = alg
+    (; tspan, u0, f) = prob
+    (; chain, opt, bounds, number_of_parameters, init_params, strategy, additional_loss) = alg
 
-    if !(chain isa Lux.AbstractLuxLayer)
+    if !(chain isa AbstractLuxLayer)
         error("Only Lux.AbstractLuxLayer neural networks are supported")
 
         if !(chain isa DeepONet) || !(chain isa Chain)
@@ -252,7 +251,9 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     end
 
     phi, init_params = generate_pino_phi_θ(chain, init_params)
-    eltypeθ = eltype(init_params)
+
+    # init_params = ComponentArray(init_params)
+    # eltypeθ = eltype(init_params) #TODO?
 
     isinplace(prob) &&
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
@@ -260,14 +261,14 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     try
         if chain isa DeepONet
             in_dim = chain.branch.layers.layer_1.in_dims
-            u = rand(eltypeθ, in_dim, number_of_parameters)
-            v = rand(eltypeθ, 1, 10, 1)
+            u = rand(in_dim, number_of_parameters)
+            v = rand(1, 10, 1)
             x = (u, v)
             phi(x, init_params)
         end
         if chain isa Chain
             in_dim = chain.layers.layer_1.in_dims
-            x = rand(eltypeθ, in_dim, number_of_parameters)
+            x = rand(in_dim, number_of_parameters)
             phi(x, init_params)
         end
     catch err
