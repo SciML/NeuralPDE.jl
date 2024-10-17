@@ -24,7 +24,9 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - "1.10"
+          - "1"
+          - "lts"
+          - "pre"
         group:
           - "QA"
           - "ODEBPINN"
@@ -41,6 +43,6 @@ jobs:
     uses: "SciML/.github/.github/workflows/tests.yml@v1"
     with:
       group: "${{ matrix.group }}"
-      coverage-directories: "src,ext"
       julia-version: "${{ matrix.version }}"
+      coverage-directories: "src,ext"
     secrets: "inherit"
