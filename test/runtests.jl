@@ -26,6 +26,12 @@ const GROUP = get(ENV, "GROUP", "All")
         @time @safetestset "NNDAE" include("NNDAE_tests.jl")
     end
 
+    if GROUP == "All" || GROUP == "PINOODE"
+        @time @safetestset "pino ode" begin
+            include("PINO_ode_tests.jl")
+        end
+    end
+
     if GROUP == "All" || GROUP == "NNPDE2"
         @time @safetestset "Additional Loss" include("additional_loss_tests.jl")
         @time @safetestset "Direction Function Approximation" include("direct_function_tests.jl")
