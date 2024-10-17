@@ -1,14 +1,10 @@
-using Test, MCMCChains, ForwardDiff, Distributions, OrdinaryDiffEq, OptimizationOptimisers,
-      AdvancedHMC, Lux, Statistics, Random, Functors, ComponentArrays, NeuralPDE,
-      MonteCarloMeasurements
-import Flux
+@testitem "BPINN ODE I: Without Param Estimation" tags=[:odebpinn] begin
+    using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
+          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+    import Flux
 
-# note that current testing bounds can be easily further tightened but have been inflated
-# for support for Julia build v1 on latest Julia version it performs much better for below
-# tests
-Random.seed!(100)
+    Random.seed!(100)
 
-@testset "Example 1 - without parameter estimation" begin
     linear_analytic = (u0, p, t) -> u0 + sin(2 * π * t) / (2 * π)
     linear = (u, p, t) -> cos(2 * π * t)
     tspan = (0.0, 2.0)
@@ -56,7 +52,13 @@ Random.seed!(100)
     @test mean(abs.(physsol0_1 .- pmean(sol1lux.ensemblesol[1]))) < 0.025
 end
 
-@testset "Example 2 - with parameter estimation" begin
+@testitem "BPINN ODE II: With Parameter Estimation" tags=[:odebpinn] begin
+    using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
+          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+    import Flux
+
+    Random.seed!(100)
+
     linear_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     linear = (u, p, t) -> cos(p * t)
     tspan = (0.0, 2.0)
@@ -118,7 +120,13 @@ end
     @test abs(p - sol2lux.estimated_de_params[1]) < abs(0.15 * p)
 end
 
-@testset "Example 3" begin
+@testitem "BPINN ODE III" tags=[:odebpinn] begin
+    using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
+          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+    import Flux
+
+    Random.seed!(100)
+
     linear = (u, p, t) -> u / p + exp(t / p) * cos(t)
     tspan = (0.0, 10.0)
     u0 = 0.0
@@ -186,7 +194,13 @@ end
     @test abs(param1 - p) < abs(0.45 * p)
 end
 
-@testset "Translating from Flux" begin
+@testitem "BPINN ODE: Translating from Flux" tags=[:odebpinn] begin
+    using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
+          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+    import Flux
+
+    Random.seed!(100)
+
     linear_analytic = (u0, p, t) -> u0 + sin(2 * π * t) / (2 * π)
     linear = (u, p, t) -> cos(2 * π * t)
     tspan = (0.0, 2.0)
@@ -214,7 +228,13 @@ end
     @test alg.chain isa AbstractLuxLayer
 end
 
-@testset "Example 3 but with the new objective" begin
+@testitem "BPINN ODE III: with the new objective" tags=[:odebpinn] begin
+    using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
+          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+    import Flux
+
+    Random.seed!(100)
+
     linear = (u, p, t) -> u / p + exp(t / p) * cos(t)
     tspan = (0.0, 10.0)
     u0 = 0.0
@@ -289,7 +309,13 @@ end
     @test_broken abs(param3 - p) < abs(0.2 * p)
 end
 
-@testset "Example 4 - improvement" begin
+@testitem "BPINN ODE IV: Improvement" tags=[:odebpinn] begin
+    using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
+          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+    import Flux
+
+    Random.seed!(100)
+
     function lotka_volterra(u, p, t)
         # Model parameters.
         α, β, γ, δ = p

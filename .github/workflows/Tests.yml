@@ -34,7 +34,6 @@ jobs:
           - "NNPDE1"
           - "NNPDE2"
           - "AdaptiveLoss"
-          - "Logging"
           - "Forward"
           - "DGM"
           - "NNODE"
@@ -45,4 +44,5 @@ jobs:
       group: "${{ matrix.group }}"
       julia-version: "${{ matrix.version }}"
       coverage-directories: "src,ext"
+      julia-runtest-depwarn: "yes"  # TensorBoardLogger has a global depwarn
     secrets: "inherit"

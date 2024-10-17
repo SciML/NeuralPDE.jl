@@ -152,14 +152,11 @@ Computes u' using either forward-mode automatic differentiation or numerical dif
 """
 function ode_dfdx end
 
-function ode_dfdx(phi::ODEPhi{<:Number}, t::Number, θ, autodiff::Bool)
-    autodiff && return ForwardDiff.derivative(Base.Fix2(phi, θ), t)
-    ϵ = sqrt(eps(typeof(t)))
-    return (phi(t + ϵ, θ) - phi(t, θ)) / ϵ
-end
-
 function ode_dfdx(phi::ODEPhi, t, θ, autodiff::Bool)
-    autodiff && return ForwardDiff.jacobian(Base.Fix2(phi, θ), t)
+    if autodiff
+        t isa Number && return ForwardDiff.derivative(Base.Fix2(phi, θ), t)
+        return ForwardDiff.jacobian(Base.Fix2(phi, θ), t)
+    end
     ϵ = sqrt(eps(eltype(t)))
     return (phi(t .+ ϵ, θ) .- phi(t, θ)) ./ ϵ
 end

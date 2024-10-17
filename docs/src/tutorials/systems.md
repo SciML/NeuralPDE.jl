@@ -35,7 +35,8 @@ with physics-informed neural networks.
 ## Solution
 
 ```@example system
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches,
+      OptimizationOptimisers
 using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -45,29 +46,32 @@ Dtt = Differential(t)^2
 Dx = Differential(x)
 Dxx = Differential(x)^2
 
-eqs = [Dtt(u1(t, x)) ~ Dxx(u1(t, x)) + u3(t, x) * sin(pi * x),
-    Dtt(u2(t, x)) ~ Dxx(u2(t, x)) + u3(t, x) * cos(pi * x),
-    0.0 ~ u1(t, x) * sin(pi * x) + u2(t, x) * cos(pi * x) - exp(-t)]
+eqs = [
+    Dtt(u1(t, x)) ~ Dxx(u1(t, x)) + u3(t, x) * sinpi(x),
+    Dtt(u2(t, x)) ~ Dxx(u2(t, x)) + u3(t, x) * cospi(x),
+    0.0 ~ u1(t, x) * sinpi(x) + u2(t, x) * cospi(x) - exp(-t)
+]
 
-bcs = [u1(0, x) ~ sin(pi * x),
-    u2(0, x) ~ cos(pi * x),
-    Dt(u1(0, x)) ~ -sin(pi * x),
-    Dt(u2(0, x)) ~ -cos(pi * x),
+bcs = [
+    u1(0, x) ~ sinpi(x),
+    u2(0, x) ~ cospi(x),
+    Dt(u1(0, x)) ~ -sinpi(x),
+    Dt(u2(0, x)) ~ -cospi(x),
     u1(t, 0) ~ 0.0,
     u2(t, 0) ~ exp(-t),
     u1(t, 1) ~ 0.0,
-    u2(t, 1) ~ -exp(-t)]
+    u2(t, 1) ~ -exp(-t)
+]
 
 # Space and time domains
-domains = [t ∈ Interval(0.0, 1.0),
-    x ∈ Interval(0.0, 1.0)]
+domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 1.0)]
 
 # Neural network
 input_ = length(domains)
 n = 15
-chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:3]
+chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:3]
 
-strategy = QuadratureTraining(; batch = 200, abstol = 1e-6, reltol = 1e-6)
+strategy = StochasticTraining(128)
 discretization = PhysicsInformedNN(chain, strategy)
 
 @named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u1(t, x), u2(t, x), u3(t, x)])
@@ -84,7 +88,9 @@ callback = function (p, l)
     return false
 end
 
-res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 1000)
+res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000, callback)
+prob = remake(prob, u0 = res.u)
+res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
 phi = discretization.phi
 ```
 
@@ -95,64 +101,19 @@ interface. Here is an example using the components from `symbolic_discretize` to
 reproduce the `discretize` optimization:
 
 ```@example system
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
-import ModelingToolkit: Interval, infimum, supremum
-
-@parameters t, x
-@variables u1(..), u2(..), u3(..)
-Dt = Differential(t)
-Dtt = Differential(t)^2
-Dx = Differential(x)
-Dxx = Differential(x)^2
-
-eqs = [Dtt(u1(t, x)) ~ Dxx(u1(t, x)) + u3(t, x) * sin(pi * x),
-    Dtt(u2(t, x)) ~ Dxx(u2(t, x)) + u3(t, x) * cos(pi * x),
-    0.0 ~ u1(t, x) * sin(pi * x) + u2(t, x) * cos(pi * x) - exp(-t)]
-
-bcs = [u1(0, x) ~ sin(pi * x),
-    u2(0, x) ~ cos(pi * x),
-    Dt(u1(0, x)) ~ -sin(pi * x),
-    Dt(u2(0, x)) ~ -cos(pi * x),
-    u1(t, 0) ~ 0.0,
-    u2(t, 0) ~ exp(-t),
-    u1(t, 1) ~ 0.0,
-    u2(t, 1) ~ -exp(-t)]
-
-# Space and time domains
-domains = [t ∈ Interval(0.0, 1.0),
-    x ∈ Interval(0.0, 1.0)]
-
-# Neural network
-input_ = length(domains)
-n = 15
-chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:3]
-@named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u1(t, x), u2(t, x), u3(t, x)])
-
-strategy = NeuralPDE.QuadratureTraining()
-discretization = PhysicsInformedNN(chain, strategy)
-sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
-
 pde_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-callback = function (p, l)
-    println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p.u), pde_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p.u), bc_loss_functions))
-    return false
-end
-
 loss_functions = [pde_loss_functions; bc_loss_functions]
 
-function loss_function(θ, p)
-    sum(map(l -> l(θ), loss_functions))
-end
+loss_function(θ, _) = sum(l -> l(θ), loss_functions)
 
-f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
-prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
+f_ = OptimizationFunction(loss_function, AutoZygote())
+prob = OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = Optimization.solve(
-    prob, OptimizationOptimJL.LBFGS(linesearch = BackTracking()); maxiters = 1000)
+res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000, callback)
+prob = remake(prob, u0 = res.u)
+res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
 ```
 
 ## Solution Representation
@@ -168,10 +129,12 @@ ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 minimizers_ = [res.u.depvar[sym_prob.depvars[i]] for i in 1:3]
 
 function analytic_sol_func(t, x)
-    [exp(-t) * sin(pi * x), exp(-t) * cos(pi * x), (1 + pi^2) * exp(-t)]
+    [exp(-t) * sinpi(x), exp(-t) * cospi(x), (1 + pi^2) * exp(-t)]
 end
+
 u_real = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:3]
 u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:3]
+
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:3]
 ps = []
 for i in 1:3
@@ -196,7 +159,7 @@ ps[3]
 
 Notice here that the solution is represented in the `OptimizationSolution` with `u` as
 the parameters for the trained neural network. But, for the case where the neural network
-is from Lux.jl, it's given as a `ComponentArray` where `res.u.depvar.x` corresponds to the result
+is from jl, it's given as a `ComponentArray` where `res.u.depvar.x` corresponds to the result
 for the neural network corresponding to the dependent variable `x`, i.e. `res.u.depvar.u1`
 are the trained parameters for `phi[1]` in our example. For simpler indexing, you can use
 `res.u.depvar[:u1]` or `res.u.depvar[Symbol(:u,1)]` as shown here.
@@ -220,8 +183,7 @@ Dyy = Differential(y)^2
 bcs = [u[1](x, 0) ~ x, u[2](x, 0) ~ 2, u[3](x, 0) ~ 3, u[4](x, 0) ~ 4]
 
 # matrix PDE
-eqs = @. [(Dxx(u_(x, y)) + Dyy(u_(x, y))) for u_ in u] ~ -sin(pi * x) * sin(pi * y) *
-                                                         [0 1; 0 1]
+eqs = @. [(Dxx(u_(x, y)) + Dyy(u_(x, y))) for u_ in u] ~ -sinpi(x) * sinpi(y) * [0 1; 0 1]
 
 size(eqs)
 ```

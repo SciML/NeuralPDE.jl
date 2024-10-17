@@ -10,6 +10,11 @@ on:
       - master
     paths-ignore:
       - 'docs/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch || github.ref != 'refs/tags/v*' }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,7 +28,6 @@ jobs:
           - NNPDE1
           - NNPDE2
           - AdaptiveLoss
-          - Logging
           - Forward
           - DGM
           - NNODE
