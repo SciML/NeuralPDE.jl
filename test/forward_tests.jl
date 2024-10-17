@@ -1,7 +1,7 @@
-using Test, NeuralPDE, SciMLBase, DomainSets, Lux, Random, Zygote, ComponentArrays, Adapt
-import ModelingToolkit: Interval
+@testitem "ODE" tags=[:forward] begin
+    using DomainSets, Lux, Random, Zygote, ComponentArrays, Adapt
+    import ModelingToolkit: Interval
 
-@testset "ODE" begin
     @parameters x
     @variables u(..)
 
@@ -18,7 +18,7 @@ import ModelingToolkit: Interval
     discretization = PhysicsInformedNN(chain, strategy_; init_params)
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
     prob = discretize(pde_system, discretization)
-    sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+    sym_prob = symbolic_discretize(pde_system, discretization)
 
     eqs = pde_system.eqs
     bcs = pde_system.bcs
@@ -31,8 +31,8 @@ import ModelingToolkit: Interval
     train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
         dict_indvars, dict_depvars)
 
-    pde_train_sets, bcs_train_sets = train_sets
-    pde_train_sets = Adapt.adapt(eltypeθ, pde_train_sets)[1]
+    pde_train_sets, bcs_train_sets = train_sets |> NeuralPDE.EltypeAdaptor{eltypeθ}()
+    pde_train_sets = first(pde_train_sets)
 
     train_data = pde_train_sets
     pde_loss_function = sym_prob.loss_functions.datafree_pde_loss_functions[1]
@@ -41,9 +41,13 @@ import ModelingToolkit: Interval
     @test pde_loss_function(train_data, init_params)≈dudx(train_data) rtol=1e-8
 end
 
-@testset "derivatives" begin
+@testitem "derivatives" tags=[:forward] begin
+    using DomainSets, Lux, Random, Zygote, ComponentArrays
+    import ModelingToolkit: Interval
+
     chain = Chain(Dense(2, 16, σ), Dense(16, 16, σ), Dense(16, 1))
-    init_params = Lux.setup(Random.default_rng(), chain)[1] |> ComponentArray{Float64}
+    init_params = Lux.initialparameters(Random.default_rng(), chain) |>
+                  ComponentArray{Float64}
 
     eltypeθ = eltype(init_params)
     phi = NeuralPDE.Phi(chain)
@@ -81,7 +85,10 @@ end
     @test isapprox(hess_phi[4], dphi_yy, atol = 4e-5)
 end
 
-@testset "Integral" begin
+@testitem "Integral" tags=[:forward] begin
+    using DomainSets, Lux, Random, Zygote, ComponentArrays
+    import ModelingToolkit: Interval
+
     @parameters x
     @variables u(..)
     I = Integral(x in ClosedInterval(0, Inf))
@@ -95,7 +102,7 @@ end
     discretization = PhysicsInformedNN(chain, strategy_;
         init_params = init_params)
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
-    sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+    sym_prob = symbolic_discretize(pde_system, discretization)
     prob = discretize(pde_system, discretization)
     inner_loss = sym_prob.loss_functions.datafree_pde_loss_functions[1]
     exact_u = π / (3 * sqrt(3))
@@ -111,10 +118,9 @@ end
     chain = Chain(x -> x .* exp.(-x .^ 2))
     chain([1], init_params, st)
 
-    discretization = PhysicsInformedNN(chain, strategy_;
-        init_params = init_params)
+    discretization = PhysicsInformedNN(chain, strategy_; init_params)
     @named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
-    sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+    sym_prob = symbolic_discretize(pde_system, discretization)
     prob = discretize(pde_system, discretization)
     inner_loss = sym_prob.loss_functions.datafree_pde_loss_functions[1]
     exact_u = 0
