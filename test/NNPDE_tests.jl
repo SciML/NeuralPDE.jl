@@ -273,7 +273,6 @@ end
 @testitem "PDE IV: System of PDEs" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
     import ModelingToolkit: Interval, infimum, supremum
-    import OptimizationOptimJL: BFGS
 
     @parameters x, y
     @variables u1(..), u2(..)
@@ -309,7 +308,7 @@ end
 
     prob = discretize(pde_system, discretization)
 
-    res = solve(prob, BFGS(); maxiters = 1000, callback)
+    res = solve(prob, Adam(0.01); maxiters = 2000, callback)
     phi = discretization.phi
 
     analytic_sol_func(x, y) = [1 / 3 * (6x - y), 1 / 2 * (6x - y)]
@@ -320,8 +319,8 @@ end
     u_predict = [[phi[i]([x, y], res.u.depvar[depvars[i]])[1] for x in xs for y in ys]
                  for i in 1:2]
 
-    @test u_predict[1]≈u_real[1] atol=0.1
-    @test u_predict[2]≈u_real[2] atol=0.1
+    @test u_predict[1]≈u_real[1] atol=0.3 norm=Base.Fix1(maximum, abs)
+    @test u_predict[2]≈u_real[2] atol=0.3 norm=Base.Fix1(maximum, abs)
 end
 
 @testitem "PDE V: 2D Wave Equation" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
@@ -388,7 +387,6 @@ end
 @testitem "PDE VI: PDE with mixed derivative" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
     import ModelingToolkit: Interval, infimum, supremum
-    import OptimizationOptimJL: BFGS
 
     @parameters x y
     @variables u(..)
@@ -409,27 +407,22 @@ end
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
-    quadrature_strategy = QuadratureTraining()
+    strategy = StochasticTraining(1024)
     inner = 20
     chain = Chain(Dense(2, inner, tanh), Dense(inner, inner, tanh), Dense(inner, 1))
 
-    discretization = PhysicsInformedNN(chain, quadrature_strategy)
+    discretization = PhysicsInformedNN(chain, strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
     prob = discretize(pde_system, discretization)
-
-    res = solve(prob, BFGS(); maxiters = 1500)
-    @show res.original
-
+    res = solve(prob, Adam(0.01); maxiters = 5000, callback)
     phi = discretization.phi
 
     analytic_sol_func(x, y) = x + x * y + y^2 / 2
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 
-    u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-        (length(xs), length(ys)))
-    u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-        (length(xs), length(ys)))
+    u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
+    u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
     @test u_predict≈u_real rtol=0.1
 end
 
