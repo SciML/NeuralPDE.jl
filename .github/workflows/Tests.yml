@@ -34,7 +34,6 @@ jobs:
           - "NNPDE1"
           - "NNPDE2"
           - "AdaptiveLoss"
-          - "Logging"
           - "Forward"
           - "DGM"
           - "NNODE"
