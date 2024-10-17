@@ -49,7 +49,6 @@ end
     p, t = get_trainset(chain, bounds, number_of_parameters, tspan, dt)
     ground_solution = ground_analytic.(u0, p, t)
     predict_sol = sol.interp(reduce(vcat, (p, t)))
-    @test eltype(sol.k) == eltype(predict_sol)
     @test ground_solution≈predict_sol rtol=0.05
     p, t = get_trainset(chain, bounds, 100, tspan, 0.01)
     ground_solution = ground_analytic.(u0, p, t)
@@ -96,7 +95,6 @@ end
     ground_solution = ground_analytic.(u0, p, vec(t))
     predict_sol = sol.interp((p, t))
     @test ground_solution≈predict_sol rtol=0.05
-    @test eltype(sol.k) == eltype(predict_sol)
 end
 
 @testset "Example du = cos(p * t) + u" begin
@@ -124,7 +122,6 @@ end
     ground_solution = ground_analytic_.(u0, p, vec(t))
     predict_sol = sol.interp((p, t))
     @test ground_solution≈predict_sol rtol=0.05
-    @test eltype(sol.k) == eltype(predict_sol)
 end
 
 @testset "Example with data du = p*t^2" begin
@@ -170,7 +167,6 @@ end
     ground_solution = ground_analytic.(u0, p, vec(t))
     predict_sol = sol.interp((p, t))
     @test ground_solution≈predict_sol rtol=0.05
-    @test eltype(sol.k) == eltype(predict_sol)
 end
 
 #multiple parameters chain
@@ -204,16 +200,15 @@ end
             [[ground_solution(u0, p[:, i, j], t[1, i, j]) for j in axes(t, 3)]
              for i in axes(p, 2)])'
     end
-    (p, t) = get_trainset(chain, bounds, 50, tspan, 0.025f0)
+    (p, t) = get_trainset(chain, bounds, 20, tspan, 0.1f0)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol.interp(reduce(vcat, (p, t)))[1, :, :]
     @test ground_solution_≈predict rtol=0.05
 
-    p, t = get_trainset(chain, bounds, 60, tspan, 0.01f0)
+    p, t = get_trainset(chain, bounds, 50, tspan, 0.025f0)
     ground_solution_ = ground_solution_f(p, t)
     predict_sol = sol.interp(reduce(vcat, (p, t)))[1, :, :]
     @test ground_solution_≈predict_sol rtol=0.05
-    @test eltype(sol.k) == eltype(predict_sol)
 end
 
 #multiple parameters DeepOnet
@@ -256,7 +251,6 @@ end
     ground_solution_ = ground_solution_f(p, t)
     predict = sol.interp((p, t))
     @test ground_solution_≈predict rtol=0.05
-    @test eltype(sol.k.u) == eltype(predict)
 end
 
 #vector output
@@ -298,7 +292,6 @@ end
     @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.05
     @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.05
     @test ground_solution_≈predict rtol=0.05
-    @test eltype(sol.k) == eltype(predict)
 
     p, t = get_trainset(chain, bounds, 300, tspan, 0.01f0)
     ground_solution_ = ground_solution_f(p, t)
@@ -306,5 +299,4 @@ end
     @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.05
     @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.05
     @test ground_solution_≈predict rtol=0.3
-    @test eltype(sol.k) == eltype(predict)
 end

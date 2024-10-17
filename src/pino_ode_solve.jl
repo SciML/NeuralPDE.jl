@@ -63,7 +63,7 @@ function PINOPhi(model::AbstractLuxLayer, st)
     return PINOPhi(model, StatefulLuxLayer{false}(model, nothing, st))
 end
 
-function generate_pino_phi_θ(chain::AbstractLuxLayer, nothing)
+function generate_pino_phi_θ(chain::AbstractLuxLayer, ::Nothing)
     θ, st = LuxCore.setup(Random.default_rng(), chain)
     PINOPhi(chain, st), θ
 end
@@ -252,8 +252,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
 
     phi, init_params = generate_pino_phi_θ(chain, init_params)
 
-    # init_params = ComponentArray(init_params)
-    # eltypeθ = eltype(init_params) #TODO?
+    init_params = ComponentArray(init_params)
+    eltypeθ = eltype(init_params)
 
     isinplace(prob) &&
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
@@ -261,14 +261,14 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     try
         if chain isa DeepONet
             in_dim = chain.branch.layers.layer_1.in_dims
-            u = rand(in_dim, number_of_parameters)
-            v = rand(1, 10, 1)
+            u = rand(eltypeθ, in_dim, number_of_parameters)
+            v = rand(eltypeθ, 1, 10, 1)
             x = (u, v)
             phi(x, init_params)
         end
         if chain isa Chain
             in_dim = chain.layers.layer_1.in_dims
-            x = rand(in_dim, number_of_parameters)
+            x = rand(eltypeθ, in_dim, number_of_parameters)
             phi(x, init_params)
         end
     catch err
@@ -312,7 +312,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
-    x = get_trainset(strategy, phi.chain, bounds, number_of_parameters, tspan, eltypeθ)
+    x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan, eltypeθ)
     if chain isa DeepONet
         u = phi(x, res.u)
     elseif chain isa Chain
