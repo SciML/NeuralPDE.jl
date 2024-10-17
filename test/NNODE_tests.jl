@@ -251,7 +251,7 @@ end
         problem, alg; verbose = false, maxiters = 5000, saveat = 0.01)
 end
 
-@testitem "ODE: Translating from Flux" tags=[:nnode] begin
+@testitem "NNODE: Translating from Flux" tags=[:nnode] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers
     import Flux
 

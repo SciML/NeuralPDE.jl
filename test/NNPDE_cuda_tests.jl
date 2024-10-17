@@ -16,7 +16,7 @@ export gpud, callback
 end
 
 @testitem "1D ODE - CUDA" tags=[:cuda] setup=[CUDATestSetup] begin
-    using Lux, Optimization, OptimizationOptimisers, Random
+    using Lux, Optimization, OptimizationOptimisers, Random, ComponentArrays
     import ModelingToolkit: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -60,7 +60,7 @@ end
 end
 
 @testitem "1D PDE Dirichlet BC - CUDA" tags=[:cuda] setup=[CUDATestSetup] begin
-    using Lux, Optimization, OptimizationOptimisers, Random
+    using Lux, Optimization, OptimizationOptimisers, Random, ComponentArrays
     import ModelingToolkit: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -106,7 +106,8 @@ end
 end
 
 @testitem "1D PDE Neumann BC - CUDA" tags=[:cuda] setup=[CUDATestSetup] begin
-    using Lux, Optimization, OptimizationOptimisers, Random, QuasiMonteCarlo
+    using Lux, Optimization, OptimizationOptimisers, Random, QuasiMonteCarlo,
+          ComponentArrays
     import ModelingToolkit: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -156,7 +157,7 @@ end
 end
 
 @testitem "2D PDE - CUDA" tags=[:cuda] setup=[CUDATestSetup] begin
-    using Lux, Optimization, OptimizationOptimisers, Random
+    using Lux, Optimization, OptimizationOptimisers, Random, ComponentArrays
     import ModelingToolkit: Interval, infimum, supremum
 
     Random.seed!(100)

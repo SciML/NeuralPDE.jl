@@ -63,7 +63,7 @@ end
     prob = discretize(pde_system, discretization)
     res = solve(prob, OptimizationOptimisers.Adam(0.01), maxiters = 500)
     prob = remake(prob, u0 = res.u)
-    res = solve(prob, OptimizationOptimJL.BFGS(), maxiters = 1000)
+    res = solve(prob, BFGS(), maxiters = 1000)
     dx = 0.01
     xs = collect(x0:dx:x_end)
     func_s = func(xs)
@@ -101,9 +101,9 @@ end
     symprob.loss_functions.full_loss_function(symprob.flat_init_params, nothing)
     res = solve(prob, OptimizationOptimisers.Adam(0.01), maxiters = 500)
     prob = remake(prob, u0 = res.u)
-    res = solve(prob, OptimizationOptimJL.BFGS(), maxiters = 1000)
+    res = solve(prob, BFGS(), maxiters = 1000)
     prob = remake(prob, u0 = res.u)
-    res = solve(prob, OptimizationOptimJL.BFGS(), maxiters = 500)
+    res = solve(prob, BFGS(), maxiters = 500)
     phi = discretization.phi
     xs = collect(x0:0.1:x_end)
     ys = collect(y0:0.1:y_end)

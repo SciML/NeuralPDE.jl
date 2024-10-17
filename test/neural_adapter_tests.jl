@@ -1,16 +1,22 @@
-using Test, NeuralPDE, Optimization, Lux, OptimizationOptimisers, Statistics,
-      ComponentArrays, Random, LinearAlgebra
-import ModelingToolkit: Interval, infimum, supremum
+@testsetup module NeuralAdapterTestSetup
 
-Random.seed!(100)
-
-callback = function (p, l)
+function callback(p, l)
     (p.iter == 1 || p.iter % 500 == 0) &&
         println("Current loss is: $l after $(p.iter) iterations")
     return false
 end
 
-@testset "Example, 2D Poisson equation with Neural adapter" begin
+export callback
+
+end
+
+@testitem "Neural Adapter: 2D Poisson" tags=[:neuraladapter] setup=[NeuralAdapterTestSetup] begin
+    using Optimization, Lux, OptimizationOptimisers, Statistics, ComponentArrays, Random,
+          LinearAlgebra
+    import ModelingToolkit: Interval, infimum, supremum
+
+    Random.seed!(100)
+
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -30,15 +36,12 @@ end
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
     quadrature_strategy = QuadratureTraining(
         reltol = 1e-3, abstol = 1e-6, maxiters = 50, batch = 100)
-    inner = 8
-    af = tanh
-    chain1 = Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1))
+    chain1 = Chain(Dense(2, 8, tanh), Dense(8, 8, tanh), Dense(8, 1))
     discretization = PhysicsInformedNN(chain1, quadrature_strategy)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
-    println("Poisson equation, strategy: $(nameof(typeof(quadrature_strategy)))")
-    @time res = solve(prob, Optimisers.Adam(5e-3); callback, maxiters = 2000)
+    res = solve(prob, Adam(5e-3); callback, maxiters = 2000)
     phi = discretization.phi
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
@@ -49,9 +52,7 @@ end
 
     @test u_predict≈u_real atol=5e-2 norm=Base.Fix2(norm, Inf)
 
-    inner_ = 8
-    af = tanh
-    chain2 = Chain(Dense(2, inner_, af), Dense(inner_, inner_, af), Dense(inner_, 1))
+    chain2 = Chain(Dense(2, 8, tanh), Dense(8, 8, tanh), Dense(8, 1))
     initp, st = Lux.setup(Random.default_rng(), chain2)
     init_params2 = ComponentArray{Float64}(initp)
 
@@ -66,7 +67,7 @@ end
     @testset "$(nameof(typeof(strategy_)))" for strategy_ in [
         grid_strategy, quadrature_strategy, stochastic_strategy, quasirandom_strategy]
         prob_ = neural_adapter(loss, init_params2, pde_system, strategy_)
-        @time res_ = solve(prob_, Optimisers.Adam(5e-3); callback, maxiters = 2000)
+        res_ = solve(prob_, Optimisers.Adam(5e-3); callback, maxiters = 2000)
         discretization = PhysicsInformedNN(chain2, strategy_; init_params = res_.u)
         phi_ = discretization.phi
 
@@ -75,7 +76,13 @@ end
     end
 end
 
-@testset "Example, 2D Poisson equation, domain decomposition" begin
+@testitem "Neural Adapter: 2D Poisson, domain decomposition" tags=[:neuraladapter] setup=[NeuralAdapterTestSetup] begin
+    using Optimization, Lux, OptimizationOptimisers, Statistics, ComponentArrays, Random,
+          LinearAlgebra
+    import ModelingToolkit: Interval, infimum, supremum
+
+    Random.seed!(100)
+
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -83,21 +90,22 @@ end
 
     eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sinpi(x) * sinpi(y)
 
-    bcs = [u(0, y) ~ 0.0, u(1, y) ~ -sinpi(1) * sinpi(y),
-        u(x, 0) ~ 0.0, u(x, 1) ~ -sinpi(x) * sinpi(1)]
+    bcs = [
+        u(0, y) ~ 0.0,
+        u(1, y) ~ -sinpi(1) * sinpi(y),
+        u(x, 0) ~ 0.0,
+        u(x, 1) ~ -sinpi(x) * sinpi(1)
+    ]
 
     # Space
-    x_0 = 0.0
-    x_end = 1.0
+    x_0, x_end = 0.0, 1.0
     x_domain = Interval(x_0, x_end)
     y_domain = Interval(0.0, 1.0)
     domains = [x ∈ x_domain, y ∈ y_domain]
     count_decomp = 10
 
     # Neural network
-    af = tanh
-    inner = 12
-    chains = [Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1))
+    chains = [Chain(Dense(2, 8, tanh), Dense(8, 8, tanh), Dense(8, 1))
               for _ in 1:count_decomp]
 
     xs_ = infimum(x_domain):(1 / count_decomp):supremum(x_domain)
@@ -125,8 +133,6 @@ end
     pde_system_map = []
 
     for i in 1:count_decomp
-        println("decomposition $i")
-
         domains_ = domains_map[i]
         phi_in(cord) = phis[i - 1](cord, reses[i - 1].u)
         phi_bound(x, y) = phi_in(vcat(x, y))
@@ -135,11 +141,11 @@ end
         bcs_ = create_bcs(domains_[1].domain, phi_bound)
         @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
         push!(pde_system_map, pde_system_)
+
         strategy = GridTraining([0.1 / count_decomp, 0.1])
         discretization = PhysicsInformedNN(chains[i], strategy)
         prob = discretize(pde_system_, discretization)
-        @time res_ = solve(prob, Optimisers.Adam(5e-3); callback, maxiters = 2000)
-        @show res_.objective
+        res_ = solve(prob, Optimisers.Adam(5e-3); callback, maxiters = 2000)
         phi = discretization.phi
 
         push!(reses, res_)
@@ -172,13 +178,12 @@ end
         diff_u = reshape(diff_u_array, (length(xs), length(ys)))
         u_predict, diff_u
     end
+
     dx = 0.01
     u_predict, diff_u = compose_result(dx)
 
-    inner_ = 18
-    af = tanh
-    chain2 = Chain(Dense(2, inner_, af), Dense(inner_, inner_, af),
-        Dense(inner_, inner_, af), Dense(inner_, inner_, af), Dense(inner_, 1))
+    chain2 = Chain(Dense(2, 18, tanh), Dense(18, 18, tanh), Dense(18, 18, tanh),
+        Dense(18, 18, tanh), Dense(18, 1))
 
     initp, st = Lux.setup(Random.default_rng(), chain2)
     init_params2 = ComponentArray{Float64}(initp)
@@ -191,11 +196,10 @@ end
 
     prob_ = neural_adapter(
         losses, init_params2, pde_system_map, GridTraining([0.1 / count_decomp, 0.1]))
-    @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); callback, maxiters = 2000)
-    @show res_.objective
+    res_ = solve(prob_, Adam(5e-3); callback, maxiters = 2000)
+
     prob_ = neural_adapter(losses, res_.u, pde_system_map, GridTraining(0.01))
-    @time res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); callback, maxiters = 2000)
-    @show res_.objective
+    res_ = solve(prob_, Adam(5e-3); callback, maxiters = 2000)
 
     phi_ = NeuralPDE.Phi(chain2)
     xs, ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
