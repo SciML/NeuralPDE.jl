@@ -1,29 +1,29 @@
 
 @testsetup module PINOODETestSetup
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
+using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
 
-    function get_trainset(chain::DeepONet, bounds, number_of_parameters, tspan, dt)
-        p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
-        p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
-        t_ = collect(tspan[1]:dt:tspan[2])
-        t = reshape(t_, 1, size(t_, 1), 1)
-        (p, t)
-    end
-
-    function get_trainset(chain::Lux.Chain, bounds, number_of_parameters, tspan, dt)
-        tspan_ = tspan[1]:dt:tspan[2]
-        pspan = [range(start = b[1], length = number_of_parameters, stop = b[2])
-                for b in bounds]
-        x_ = hcat(vec(map(
-            points -> collect(points), Iterators.product([pspan..., tspan_]...)))...)
-        x = reshape(x_, size(bounds, 1) + 1, prod(size.(pspan, 1)), size(tspan_, 1))
-        p, t = x[1:(end - 1), :, :], x[[end], :, :]
-        (p, t)
-    end
-    export get_trainset
+function get_trainset(chain::DeepONet, bounds, number_of_parameters, tspan, dt)
+    p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
+    p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
+    t_ = collect(tspan[1]:dt:tspan[2])
+    t = reshape(t_, 1, size(t_, 1), 1)
+    (p, t)
 end
-#Test Chain with Float64 accuracy
-@testitem "Example du = cos(p * t)" tags=[:pinoode] setup=[PINOODETestSetup] begin
+
+function get_trainset(chain::Lux.Chain, bounds, number_of_parameters, tspan, dt)
+    tspan_ = tspan[1]:dt:tspan[2]
+    pspan = [range(start = b[1], length = number_of_parameters, stop = b[2])
+             for b in bounds]
+    x_ = hcat(vec(map(
+        points -> collect(points), Iterators.product([pspan..., tspan_]...)))...)
+    x = reshape(x_, size(bounds, 1) + 1, prod(size.(pspan, 1)), size(tspan_, 1))
+    p, t = x[1:(end - 1), :, :], x[[end], :, :]
+    (p, t)
+end
+export get_trainset
+end
+#Test Chain
+@testitem "Example Chain du = cos(p * t)" tags=[:pinoode] setup=[PINOODETestSetup] begin
     using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 1.0f0)
@@ -39,9 +39,7 @@ end
     number_of_parameters = 300
     strategy = StochasticTraining(300)
     opt = OptimizationOptimisers.Adam(0.01)
-    alg = PINOODE(
-        chain, opt, bounds, number_of_parameters; strategy = strategy, init_params = θ |>
-                                                                                     f64)
+    alg = PINOODE(chain, opt, bounds, number_of_parameters; strategy = strategy)
     sol = solve(prob, alg, verbose = false, maxiters = 5000)
     ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     dt = 0.025f0
@@ -55,8 +53,8 @@ end
     @test ground_solution≈predict_sol rtol=0.05
 end
 
-#Test DeepONet with Float64 accuracy
-@testitem "Example du = cos(p * t)" tags=[:pinoode] setup=[PINOODETestSetup] begin
+#Test DeepONet
+@testitem "Example DeepONet du = cos(p * t)" tags=[:pinoode] setup=[PINOODETestSetup] begin
     using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 1.0f0)
@@ -82,8 +80,7 @@ end
     number_of_parameters = 50
     strategy = StochasticTraining(40)
     opt = OptimizationOptimisers.Adam(0.01)
-    alg = PINOODE(deeponet, opt, bounds, number_of_parameters;
-        strategy = strategy, init_params = θ |> f64)
+    alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
     sol = solve(prob, alg, verbose = false, maxiters = 3000)
     ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     dt = 0.025f0
