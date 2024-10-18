@@ -79,7 +79,7 @@ three arguments:
   - the hyperparameters `p` .
 
 For a Lux neural network, the composed function will present itself as having θ as a
-[`ComponentArray`](https://docs.sciml.ai/ComponentArrays/stable/)
+[`ComponentArray`](https://github.com/jonniedie/ComponentArrays.jl)
 subsets `θ.x`, which can also be dereferenced like `θ[:x]`. Thus, the additional
 loss looks like:
 

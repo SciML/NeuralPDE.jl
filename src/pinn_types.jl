@@ -1,3 +1,9 @@
+"""
+    LogOptions(log_frequency)
+    LogOptions(; log_frequency = 50)
+
+Options for logging during optimization.
+"""
 struct LogOptions
     log_frequency::Int
     # TODO: add in an option for saving plots in the log. this is currently not done because the type of plot is dependent on the PDESystem
