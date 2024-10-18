@@ -46,6 +46,38 @@ function get_dataset_train_points(eqs, train_sets, pinnrep)
     return points
 end
 
+# dataset must have depvar values for same values of indvars
+function get_dataset_train_points(eqs, train_sets, pinnrep)
+    dict_depvar_input = pinnrep.dict_depvar_input
+    depvars = pinnrep.depvars
+    dict_depvars = pinnrep.dict_depvars
+    dict_indvars = pinnrep.dict_indvars
+
+    symbols_input = [(i, dict_depvar_input[i]) for i in depvars]
+    # [(:u, [:t])]
+    eq_args = NeuralPDE.get_argument(eqs, dict_indvars, dict_depvars)
+    # equation wise indvar presence ~ [[:t]]
+    # in each equation atleast one depvars must be a function of all indvars(to cover heterogenous/not case)
+
+    # train_sets follows order of depvars
+    # take dataset indvar values if for equations depvar's indvar matches input symbol indvar
+    points = []
+    for eq_arg in eq_args
+        eq_points = []
+        for i in eachindex(symbols_input)
+            if symbols_input[i][2] == eq_arg
+                push!(eq_points, train_sets[i][:, 2:end]')
+                # Terminate to avoid repetitive ind var points inclusion
+                break
+            end
+        end
+        # Concatenate points for this equation argument
+        push!(points, vcat(eq_points...))
+    end
+
+    return points
+end
+
 # include dataset points in pde_residual loglikelihood (BayesianPINN)
 function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
         strategy::GridTraining, datafree_pde_loss_function,
@@ -105,6 +137,18 @@ function get_points_loss_functions(loss_function, train_set, eltypeθ, strategy:
     end
 end
 
+function get_points_loss_functions(loss_function, train_set, eltypeθ, strategy::GridTraining;
+        τ = nothing)
+        # loss_function length is number of all points loss is being evaluated upon
+        # train sets rows are for each indvar, cols are coordinates (row_1,row_2,..row_n) at which loss evaluated
+    function loss(θ, std)
+        logpdf(
+            MvNormal(loss_function(train_set, θ)[1, :],
+                LinearAlgebra.Diagonal(abs2.(std .* ones(size(train_set)[2])))),
+            zeros(size(train_set)[2]))
+    end
+end
+
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
         strategy::GridTraining, datafree_pde_loss_function, datafree_bc_loss_function)
     (; domains, eqs, bcs, dict_indvars, dict_depvars) = pinnrep
@@ -125,6 +169,8 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
                           for (_loss, _set) in zip(datafree_pde_loss_function,
                                                    pde_train_sets)]
     bc_loss_functions = [get_loss_function(_loss, _set, eltypeθ, strategy)
+                         for (_loss, _set) in zip(datafree_bc_loss_function,
+                                                   bcs_train_sets)]
                          for (_loss, _set) in zip(datafree_bc_loss_function,
                                                    bcs_train_sets)]
     pde_loss_functions, bc_loss_functions
