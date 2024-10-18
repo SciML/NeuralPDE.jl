@@ -134,7 +134,7 @@ end
 
 function LogDensityProblems.logdensity(Tar::PDELogTargetDensity, θ)
     # for parameter estimation neccesarry to use multioutput case
-    if Tar.L2_loss2 isa Nothing
+    if Tar.L2_loss2 === nothing
         return Tar.full_loglikelihood(setparameters(Tar, θ), Tar.allstd) +
                priorlogpdf(Tar, θ) + L2LossData(Tar, θ)
     else
