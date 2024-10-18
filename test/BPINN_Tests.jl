@@ -6,7 +6,7 @@ using Statistics, Random, Functors, ComponentArrays
 using NeuralPDE, MonteCarloMeasurements
 using Flux
 
-# note that current testing bounds can be easily further tightened but have been inflated for support for Julia build v1
+# note that current testing bounds can be further tightened but have been inflated for support for Julia build v1
 # on latest Julia version it performs much better for below tests
 Random.seed!(100)
 
@@ -343,3 +343,166 @@ end
     param3 = sol3lux_pestim.estimated_de_params[1]
     @test abs(param3 - p) < abs(0.2 * p)
 end
+
+@testset "Example 4 - improvement" begin
+    function lotka_volterra(u, p, t)
+        # Model parameters.
+        α, β, γ, δ = p
+        # Current state.
+        x, y = u
+
+        # Evaluate differential equations.
+        dx = (1 - β * y) * x * α # prey
+        dy = (δ * x - 1) * y * γ  # predator
+
+        return [dx, dy]
+    end
+
+    # initial-value problem.
+    u0 = [1.0, 1.0]
+    p = [1.5, 2 / 3, 3.0, 1 / 3]
+    tspan = (0.0, 4.0)
+    prob = ODEProblem(lotka_volterra, u0, tspan, p)
+
+    # Solve using OrdinaryDiffEq.jl solver
+    dt = 0.2
+    solution = solve(prob, Tsit5(); saveat = dt)
+
+    times = solution.t
+    u = hcat(solution.u...)
+    x = u[1, :] + (0.8 .* randn(length(u[1, :])))
+    y = u[2, :] + (0.8 .* randn(length(u[2, :])))
+    dataset = [x, y, times]
+
+    chain = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh),
+        Lux.Dense(6, 2))
+
+    alg1 = BNNODE(chain;
+        dataset = dataset,
+        draw_samples = 1000,
+        l2std = [0.05, 0.05],
+        phystd = [0.2, 0.2],
+        priorsNNw = (0.0, 1.0),
+        param = [
+            Normal(2, 0.5),
+            Normal(2, 0.5),
+            Normal(2, 0.5),
+            Normal(2, 0.5)])
+
+    alg2 = BNNODE(chain;
+        dataset = dataset,
+        draw_samples = 1000,
+        l2std = [0.05, 0.05],
+        phystd = [0.2, 0.2],
+        phynewstd = [0.3, 0.1],
+        priorsNNw = (0.0, 1.0),
+        param = [
+            Normal(2, 0.5),
+            Normal(2, 0.5),
+            Normal(2, 0.5),
+            Normal(2, 0.5)], estim_collocate = true)
+
+    @time sol_pestim1 = solve(prob, alg1; saveat = dt)
+    @time sol_pestim2 = solve(prob, alg2; saveat = dt)
+
+    unsafe_comparisons(true)
+    bitvec = abs.(p .- sol_pestim1.estimated_de_params) .>
+             abs.(p .- sol_pestim2.estimated_de_params)
+    @test bitvec == ones(size(bitvec))
+end
+
+function lotka_volterra(u, p, t)
+    # Model parameters.
+    β, δ = p
+    # Current state.
+    x, y = u
+
+    # Evaluate differential equations.
+    dx = (3 - β * y) * x # prey
+    dy = (δ * x - 3) * y # predator
+
+    return [dx, dy]
+end
+
+# initial-value problem.
+u0 = [1.0, 1.0]
+p = [2, 1]
+tspan = (0.0, 4.0)
+
+prob = ODEProblem(lotka_volterra, u0, tspan, p)
+
+# Solve using OrdinaryDiffEq.jl solver
+dt = 0.01
+solution = solve(prob, Tsit5(); saveat = dt)
+
+times = solution.t
+u = hcat(solution.u...)
+x = u[1, :] + (0.4 .* randn(length(u[1, :])))
+y = u[2, :] + (0.4 .* randn(length(u[2, :])))
+dataset = [x, y, times]
+scatter!(times, x)
+scatter!(times, y)
+chain = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh),
+    Lux.Dense(6, 2))
+
+alg1 = BNNODE(chain;
+    dataset = dataset,
+    draw_samples = 1000,
+    l2std = [0.1, 0.1],
+    phystd = [0.2, 0.2],
+    priorsNNw = (0.0, 1.0),
+    param = [
+        Normal(1,1),
+        Normal(1,1),], progress = true)
+
+alg2 = BNNODE(chain;
+    dataset = dataset,
+    draw_samples = 1000,
+    l2std = [0.1, 0.1],
+    phystd = [0.2, 0.2],
+    phynewstd = [0.2, 0.2],
+    priorsNNw = (0.0, 1.0),
+    param = [
+        Normal(1,1),
+        Normal(1,1)], estim_collocate = true, progress = true)
+
+@time sol_pestim1 = solve(prob, alg1; saveat = dt)
+@time sol_pestim2 = solve(prob, alg2; saveat = dt)
+
+unsafe_comparisons(true)
+bitvec = abs.(p .- pmean(sol_pestim1.estimated_de_params)) .>
+         abs.(p .- pmean(sol_pestim2.estimated_de_params))
+@test bitvec == ones(size(bitvec))
+
+
+pmean(sol_pestim1.estimated_de_params)
+
+sol_pestim2.estimated_de_params
+sol_pestim1.estimated_de_params
+sol_pestim2.estimated_de_params
+
+sol_pestim1.estimated_de_params
+sol_pestim2.estimated_de_params
+
+sol_pestim1.estimated_de_params
+sol_pestim2.estimated_de_params
+
+p
+sol_pestim1.timepoints
+plot!(sol_pestim1.timepoints, sol_pestim1.ensemblesol[1])
+plot!(sol_pestim2.timepoints, sol_pestim2.ensemblesol[1])
+plot!(sol_pestim1.timepoints, sol_pestim1.ensemblesol[2])
+plot!(sol_pestim2.timepoints, sol_pestim2.ensemblesol[2])
+
+plot!(sol_pestim1.timepoints, pmean(sol_pestim1.ensemblesol[1]))
+plot!(sol_pestim2.timepoints, pmean(sol_pestim2.ensemblesol[1]))
+plot!(sol_pestim1.timepoints, pmean(sol_pestim1.ensemblesol[2]))
+plot!(sol_pestim2.timepoints, pmean(sol_pestim2.ensemblesol[2]))
+
+
+plot(times, u[1, :])
+plot!(times, u[2, :])
+
+plot(sol_pestim1.ensemblesol)
+
+# Parametric PDEs are ill posed problems as, non convex optimization and non global minima might be our solution
