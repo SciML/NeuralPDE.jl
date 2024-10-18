@@ -1,4 +1,3 @@
-using Test
 using OptimizationOptimisers
 using Lux
 using Statistics, Random
@@ -25,7 +24,7 @@ function get_trainset(chain::Lux.Chain, bounds, number_of_parameters, tspan, dt)
 end
 
 #Test Chain with Float64 accuracy
-@testset "Example du = cos(p * t)" begin
+@testitem "Example du = cos(p * t)" tags=[:pinoode] begin
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0
@@ -57,7 +56,7 @@ end
 end
 
 #Test DeepONet with Float64 accuracy
-@testset "Example du = cos(p * t)" begin
+@testitem "Example du = cos(p * t)" tags=[:pinoode] begin
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0
@@ -97,7 +96,7 @@ end
     @test ground_solution≈predict_sol rtol=0.05
 end
 
-@testset "Example du = cos(p * t) + u" begin
+@testitem "Example du = cos(p * t) + u" tags=[:pinoode] begin
     eq_(u, p, t) = cos(p * t) + u
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0f0
@@ -124,7 +123,7 @@ end
     @test ground_solution≈predict_sol rtol=0.05
 end
 
-@testset "Example with data du = p*t^2" begin
+@testitem "Example with data du = p*t^2" tags=[:pinoode] begin
     equation = (u, p, t) -> p * t^2
     tspan = (0.0f0, 1.0f0)
     u0 = 0.0f0
@@ -169,8 +168,8 @@ end
     @test ground_solution≈predict_sol rtol=0.05
 end
 
-#multiple parameters chain
-@testset "Example du = cos(p * t)" begin
+#multiple parameters Сhain
+@testitem "Example multiple parameters Сhain du = p1 * cos(p2 * t) + p3" tags=[:pinoode] begin
     equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]
     tspan = (0.0, 1.0)
     u0 = 1.0
@@ -212,7 +211,7 @@ end
 end
 
 #multiple parameters DeepOnet
-@testset "Example du = cos(p * t)" begin
+@testitem "Example multiple parameters DeepOnet du = p1 * cos(p2 * t) + p3" tags=[:pinoode] begin
     equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]
     tspan = (0.0, 1.0)
     u0 = 1.0
@@ -254,7 +253,7 @@ end
 end
 
 #vector output
-@testset "Example du = [cos(p * t), sin(p * t)]" begin
+@testitem "Example du = [cos(p * t), sin(p * t)]" tags=[:pinoode] begin
     equation = (u, p, t) -> [cos(p * t), sin(p * t)]
     tspan = (0.0f0, 1.0f0)
     u0 = [1.0f0, 0.0f0]

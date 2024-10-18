@@ -55,7 +55,7 @@ function PINOODE(chain,
 end
 
 @concrete struct PINOPhi
-    model <:AbstractLuxLayer
+    model <: AbstractLuxLayer
     smodel <: StatefulLuxLayer
 end
 
@@ -166,18 +166,17 @@ function initial_condition_loss(
 end
 
 function get_trainset(
-        strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan, eltypeθ)
+        strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan)
     dt = strategy.dx
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
     p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
     t = reshape(t_, 1, size(t_, 1), 1)
-    p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
     (p, t)
 end
 
 function get_trainset(
-        strategy::GridTraining, chain::Chain, bounds, number_of_parameters, tspan, eltypeθ)
+        strategy::GridTraining, chain::Chain, bounds, number_of_parameters, tspan)
     dt = strategy.dx
     tspan_ = tspan[1]:dt:tspan[2]
     pspan = [range(start = b[1], length = number_of_parameters, stop = b[2])
@@ -186,37 +185,33 @@ function get_trainset(
         points -> collect(points), Iterators.product([pspan..., tspan_]...)))...)
     x = reshape(x_, size(bounds, 1) + 1, prod(size.(pspan, 1)), size(tspan_, 1))
     p, t = x[1:(end - 1), :, :], x[[end], :, :]
-    p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
     (p, t)
 end
 
 function get_trainset(
         strategy::StochasticTraining, chain::Union{DeepONet, Chain},
-        bounds, number_of_parameters, tspan, eltypeθ)
+        bounds, number_of_parameters, tspan)
     (number_of_parameters != strategy.points && chain isa Chain) &&
         throw(error("number_of_parameters should be the same strategy.points for StochasticTraining"))
     p = reduce(vcat,
         [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
          for bound in bounds])
     t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points, 1) .+ tspan[1]
-    p, t = convert.(eltypeθ, p), convert.(eltypeθ, t)
     (p, t)
 end
 
 function generate_loss(
-        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan, eltypeθ)
-    x = get_trainset(
-        strategy, phi.smodel.model, bounds, number_of_parameters, tspan, eltypeθ)
+        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
+    x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
     function loss(θ, _)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
 
 function generate_loss(
-        strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan, eltypeθ)
+        strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
     function loss(θ, _)
-        x = get_trainset(
-            strategy, phi.smodel.model, bounds, number_of_parameters, tspan, eltypeθ)
+        x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
         initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
@@ -253,7 +248,6 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     phi, init_params = generate_pino_phi_θ(chain, init_params)
 
     init_params = ComponentArray(init_params)
-    eltypeθ = eltype(init_params)
 
     isinplace(prob) &&
         throw(error("The PINOODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."))
@@ -261,14 +255,14 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     try
         if chain isa DeepONet
             in_dim = chain.branch.layers.layer_1.in_dims
-            u = rand(eltypeθ, in_dim, number_of_parameters)
-            v = rand(eltypeθ, 1, 10, 1)
+            u = rand(in_dim, number_of_parameters)
+            v = rand(1, 10, 1)
             x = (u, v)
             phi(x, init_params)
         end
         if chain isa Chain
             in_dim = chain.layers.layer_1.in_dims
-            x = rand(eltypeθ, in_dim, number_of_parameters)
+            x = rand(in_dim, number_of_parameters)
             phi(x, init_params)
         end
     catch err
@@ -286,7 +280,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     end
 
     inner_f = generate_loss(
-        strategy, prob, phi, bounds, number_of_parameters, tspan, eltypeθ)
+        strategy, prob, phi, bounds, number_of_parameters, tspan)
 
     function total_loss(θ, _)
         L2_loss = inner_f(θ, nothing)
@@ -312,7 +306,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
-    x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan, eltypeθ)
+    x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
     if chain isa DeepONet
         u = phi(x, res.u)
     elseif chain isa Chain
