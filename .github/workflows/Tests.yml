@@ -37,6 +37,7 @@ jobs:
           - "Forward"
           - "DGM"
           - "NNODE"
+          - "PINOODE"
           - "NeuralAdapter"
           - "IntegroDiff"
     uses: "SciML/.github/.github/workflows/tests.yml@v1"
