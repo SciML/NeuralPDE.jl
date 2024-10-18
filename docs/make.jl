@@ -18,5 +18,4 @@ makedocs(sitename = "NeuralPDE.jl",
         canonical = "https://docs.sciml.ai/NeuralPDE/stable/"),
     pages = pages)
 
-deploydocs(repo = "github.com/SciML/NeuralPDE.jl.git";
-    push_preview = true)
+deploydocs(repo = "github.com/SciML/NeuralPDE.jl.git"; push_preview = true)
