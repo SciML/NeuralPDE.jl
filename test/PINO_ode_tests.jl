@@ -1,9 +1,6 @@
 
 @testsetup module PINOODETestSetup
-    using OptimizationOptimisers
-    using Lux
-    using NeuralOperators
-    using NeuralPDE
+    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
 
     function get_trainset(chain::DeepONet, bounds, number_of_parameters, tspan, dt)
         p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
@@ -27,7 +24,7 @@
 end
 #Test Chain with Float64 accuracy
 @testitem "Example du = cos(p * t)" tags=[:pinoode] setup=[PINOODETestSetup] begin
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators
+    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0
@@ -60,7 +57,7 @@ end
 
 #Test DeepONet with Float64 accuracy
 @testitem "Example du = cos(p * t)" tags=[:pinoode] setup=[PINOODETestSetup] begin
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators
+    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0
@@ -101,7 +98,7 @@ end
 end
 
 @testitem "Example du = cos(p * t) + u" tags=[:pinoode] setup=[PINOODETestSetup] begin
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators
+    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
     eq_(u, p, t) = cos(p * t) + u
     tspan = (0.0f0, 1.0f0)
     u0 = 1.0f0
@@ -129,7 +126,7 @@ end
 end
 
 @testitem "Example with data du = p*t^2" tags=[:pinoode] setup=[PINOODETestSetup] begin
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators
+    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> p * t^2
     tspan = (0.0f0, 1.0f0)
     u0 = 0.0f0
@@ -176,7 +173,7 @@ end
 
 #multiple parameters Сhain
 @testitem "Example multiple parameters Сhain du = p1 * cos(p2 * t) + p3" tags=[:pinoode] setup=[PINOODETestSetup] begin
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators
+    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]
     tspan = (0.0, 1.0)
     u0 = 1.0
@@ -219,7 +216,7 @@ end
 
 #multiple parameters DeepOnet
 @testitem "Example multiple parameters DeepOnet du = p1 * cos(p2 * t) + p3" tags=[:pinoode] setup=[PINOODETestSetup] begin
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators
+    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]
     tspan = (0.0, 1.0)
     u0 = 1.0
@@ -262,7 +259,7 @@ end
 
 #vector output
 @testitem "Example du = [cos(p * t), sin(p * t)]" tags=[:pinoode] setup=[PINOODETestSetup] begin
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators
+    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> [cos(p * t), sin(p * t)]
     tspan = (0.0f0, 1.0f0)
     u0 = [1.0f0, 0.0f0]
