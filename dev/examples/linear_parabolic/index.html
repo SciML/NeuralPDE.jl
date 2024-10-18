@@ -54,7 +54,7 @@ domains = [x ∈ Interval(0.0, 1.0),
 # Neural network
 input_ = length(domains)
 n = 15
-chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:2]
+chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:2]
 
 strategy = StochasticTraining(500)
 discretization = PhysicsInformedNN(chain, strategy)
@@ -66,18 +66,17 @@ sym_prob = symbolic_discretize(pdesystem, discretization)
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-global iteration = 0
 callback = function (p, l)
-    if iteration % 10 == 0
+    if p.iter % 500 == 0
+        println(&quot;iter: &quot;, p.iter)
         println(&quot;loss: &quot;, l)
         println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p.u), pde_inner_loss_functions))
         println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p.u), bcs_inner_loss_functions))
     end
-    global iteration += 1
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 10000)
+res = solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 5000, callback)
 
 phi = discretization.phi
 
@@ -96,4 +95,43 @@ for i in 1:2
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = &quot;predict&quot;)
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = &quot;error&quot;)
     push!(ps, plot(p1, p2, p3))
-end</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="55d78a74.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="8750b51a.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../heterogeneous/">« PDEs with Dependent Variables on Heterogeneous Domains</a><a class="docs-footer-nextpage" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Tuesday 9 July 2024 14:20">Tuesday 9 July 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">iter: 500
+loss: 3.604957553657753
+pde_losses: [0.572563106481449, 0.3619152890107609]
+bcs_losses: [0.013401344537314518, 0.001626296790617887, 1.2790979978837482, 0.4954861539092221, 0.6912452228706907, 0.08760887707177337]
+iter: 1000
+loss: 0.21670209100816185
+pde_losses: [0.06433072647475303, 0.028928484087927184]
+bcs_losses: [0.0019116573182338464, 0.001509666669914244, 0.018564633017172004, 0.02519096002567584, 0.024423897511930144, 0.011811447443920126]
+iter: 1500
+loss: 0.10823822199583291
+pde_losses: [0.049395503176028574, 0.012088705202840331]
+bcs_losses: [0.0005206886047480283, 0.0007570145760027179, 0.006714834540302594, 0.006695933236601888, 0.0190219159481385, 0.009949498315368817]
+iter: 2000
+loss: 0.07995701808799664
+pde_losses: [0.033241086630318245, 0.00915642291037482]
+bcs_losses: [0.00046309655161034716, 0.0007788706211757111, 0.0030542658895160563, 0.002982009698600421, 0.01583782684138211, 0.0072786303968396535]
+iter: 2500
+loss: 0.05399042647997308
+pde_losses: [0.018435064518877872, 0.008167286351790879]
+bcs_losses: [0.00030174062113818905, 0.00048209915288228907, 0.0022456486271894265, 0.0028426686846373546, 0.013553834663223137, 0.007032896675413655]
+iter: 3000
+loss: 0.04444652536010307
+pde_losses: [0.021772579936649765, 0.008179173308247002]
+bcs_losses: [0.00017493678169857134, 0.0006596021285339974, 0.0007651648797979405, 0.0012976822466893368, 0.011738758058086827, 0.0042355254252385045]
+iter: 3500
+loss: 0.04265368291485504
+pde_losses: [0.021327483203150567, 0.004354778591494588]
+bcs_losses: [0.0003641957395598643, 0.00016334977352773841, 0.0013929543523275721, 0.0015157714363936323, 0.010341920213307815, 0.004105214444061018]
+iter: 4000
+loss: 0.035780321812857015
+pde_losses: [0.01739424441906147, 0.003999036963802747]
+bcs_losses: [0.0002743225896594998, 0.0002936019968651937, 0.00041736906070507205, 0.0005395261609093452, 0.009270437189459543, 0.004246854561529549]
+iter: 4500
+loss: 0.023959582478584984
+pde_losses: [0.007455713829651236, 0.003346815192173904]
+bcs_losses: [0.00029784108296185757, 0.0001337456445575703, 0.00032026378913610086, 0.00032579504120058627, 0.006188053004094827, 0.003845175674943782]
+iter: 5000
+loss: 0.023726951266450306
+pde_losses: [0.011754994909459793, 0.0022315996486866442]
+bcs_losses: [0.00034335858473582496, 3.406493396171187e-5, 0.000338520844757576, 0.00038077154470404664, 0.00608002327806552, 0.003946697477352557]</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="5b0bf4ae.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="9a023ee9.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../heterogeneous/">« PDEs with Dependent Variables on Heterogeneous Domains</a><a class="docs-footer-nextpage" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Friday 18 October 2024 05:14">Friday 18 October 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -11,7 +11,8 @@ u_2(0, x) &amp; = \cos(\pi x) \, ,\\
 \end{align*}\]</p><p>and the boundary conditions:</p><p class="math-container">\[\begin{align*}
 u_1(t, 0) &amp; = u_1(t, 1) = 0 \, ,\\
 u_2(t, 0) &amp; = - u_2(t, 1) = e^{-t} \, ,
-\end{align*}\]</p><p>with physics-informed neural networks.</p><h2 id="Solution"><a class="docs-heading-anchor" href="#Solution">Solution</a><a id="Solution-1"></a><a class="docs-heading-anchor-permalink" href="#Solution" title="Permalink"></a></h2><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
+\end{align*}\]</p><p>with physics-informed neural networks.</p><h2 id="Solution"><a class="docs-heading-anchor" href="#Solution">Solution</a><a id="Solution-1"></a><a class="docs-heading-anchor-permalink" href="#Solution" title="Permalink"></a></h2><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches,
+      OptimizationOptimisers
 using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -21,29 +22,32 @@ Dtt = Differential(t)^2
 Dx = Differential(x)
 Dxx = Differential(x)^2
 
-eqs = [Dtt(u1(t, x)) ~ Dxx(u1(t, x)) + u3(t, x) * sin(pi * x),
-    Dtt(u2(t, x)) ~ Dxx(u2(t, x)) + u3(t, x) * cos(pi * x),
-    0.0 ~ u1(t, x) * sin(pi * x) + u2(t, x) * cos(pi * x) - exp(-t)]
+eqs = [
+    Dtt(u1(t, x)) ~ Dxx(u1(t, x)) + u3(t, x) * sinpi(x),
+    Dtt(u2(t, x)) ~ Dxx(u2(t, x)) + u3(t, x) * cospi(x),
+    0.0 ~ u1(t, x) * sinpi(x) + u2(t, x) * cospi(x) - exp(-t)
+]
 
-bcs = [u1(0, x) ~ sin(pi * x),
-    u2(0, x) ~ cos(pi * x),
-    Dt(u1(0, x)) ~ -sin(pi * x),
-    Dt(u2(0, x)) ~ -cos(pi * x),
+bcs = [
+    u1(0, x) ~ sinpi(x),
+    u2(0, x) ~ cospi(x),
+    Dt(u1(0, x)) ~ -sinpi(x),
+    Dt(u2(0, x)) ~ -cospi(x),
     u1(t, 0) ~ 0.0,
     u2(t, 0) ~ exp(-t),
     u1(t, 1) ~ 0.0,
-    u2(t, 1) ~ -exp(-t)]
+    u2(t, 1) ~ -exp(-t)
+]
 
 # Space and time domains
-domains = [t ∈ Interval(0.0, 1.0),
-    x ∈ Interval(0.0, 1.0)]
+domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 1.0)]
 
 # Neural network
 input_ = length(domains)
 n = 15
-chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:3]
+chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:3]
 
-strategy = QuadratureTraining(; batch = 200, abstol = 1e-6, reltol = 1e-6)
+strategy = StochasticTraining(128)
 discretization = PhysicsInformedNN(chain, strategy)
 
 @named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u1(t, x), u2(t, x), u3(t, x)])
@@ -60,69 +64,26 @@ callback = function (p, l)
     return false
 end
 
-res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 1000)
-phi = discretization.phi</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3-element Vector{NeuralPDE.Phi{Lux.Chain{@NamedTuple{layer_1::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_2::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_3::Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}, Nothing}, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}}:
- NeuralPDE.Phi{Lux.Chain{@NamedTuple{layer_1::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_2::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_3::Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}, Nothing}, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}(Lux.Chain{@NamedTuple{layer_1::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_2::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_3::Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}, Nothing}((layer_1 = Dense(2 =&gt; 15, sigmoid_fast), layer_2 = Dense(15 =&gt; 15, sigmoid_fast), layer_3 = Dense(15 =&gt; 1)), nothing), (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()))
- NeuralPDE.Phi{Lux.Chain{@NamedTuple{layer_1::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_2::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_3::Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}, Nothing}, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}(Lux.Chain{@NamedTuple{layer_1::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_2::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_3::Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}, Nothing}((layer_1 = Dense(2 =&gt; 15, sigmoid_fast), layer_2 = Dense(15 =&gt; 15, sigmoid_fast), layer_3 = Dense(15 =&gt; 1)), nothing), (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()))
- NeuralPDE.Phi{Lux.Chain{@NamedTuple{layer_1::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_2::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_3::Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}, Nothing}, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}(Lux.Chain{@NamedTuple{layer_1::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_2::Lux.Dense{true, typeof(NNlib.sigmoid_fast), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}, layer_3::Lux.Dense{true, typeof(identity), typeof(WeightInitializers.glorot_uniform), typeof(WeightInitializers.zeros32)}}, Nothing}((layer_1 = Dense(2 =&gt; 15, sigmoid_fast), layer_2 = Dense(15 =&gt; 15, sigmoid_fast), layer_3 = Dense(15 =&gt; 1)), nothing), (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()))</code></pre><h2 id="Direct-Construction-via-symbolic_discretize"><a class="docs-heading-anchor" href="#Direct-Construction-via-symbolic_discretize">Direct Construction via symbolic_discretize</a><a id="Direct-Construction-via-symbolic_discretize-1"></a><a class="docs-heading-anchor-permalink" href="#Direct-Construction-via-symbolic_discretize" title="Permalink"></a></h2><p>One can take apart the pieces and reassemble the loss functions using the <code>symbolic_discretize</code> interface. Here is an example using the components from <code>symbolic_discretize</code> to fully reproduce the <code>discretize</code> optimization:</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
-import ModelingToolkit: Interval, infimum, supremum
-
-@parameters t, x
-@variables u1(..), u2(..), u3(..)
-Dt = Differential(t)
-Dtt = Differential(t)^2
-Dx = Differential(x)
-Dxx = Differential(x)^2
-
-eqs = [Dtt(u1(t, x)) ~ Dxx(u1(t, x)) + u3(t, x) * sin(pi * x),
-    Dtt(u2(t, x)) ~ Dxx(u2(t, x)) + u3(t, x) * cos(pi * x),
-    0.0 ~ u1(t, x) * sin(pi * x) + u2(t, x) * cos(pi * x) - exp(-t)]
-
-bcs = [u1(0, x) ~ sin(pi * x),
-    u2(0, x) ~ cos(pi * x),
-    Dt(u1(0, x)) ~ -sin(pi * x),
-    Dt(u2(0, x)) ~ -cos(pi * x),
-    u1(t, 0) ~ 0.0,
-    u2(t, 0) ~ exp(-t),
-    u1(t, 1) ~ 0.0,
-    u2(t, 1) ~ -exp(-t)]
-
-# Space and time domains
-domains = [t ∈ Interval(0.0, 1.0),
-    x ∈ Interval(0.0, 1.0)]
-
-# Neural network
-input_ = length(domains)
-n = 15
-chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:3]
-@named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u1(t, x), u2(t, x), u3(t, x)])
-
-strategy = NeuralPDE.QuadratureTraining()
-discretization = PhysicsInformedNN(chain, strategy)
-sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
-
-pde_loss_functions = sym_prob.loss_functions.pde_loss_functions
+res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000, callback)
+prob = remake(prob, u0 = res.u)
+res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
+phi = discretization.phi</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3-element Vector{NeuralPDE.Phi{Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}}}:
+ NeuralPDE.Phi{Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}}(Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}(Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}((layer_1 = Dense(2 =&gt; 15, σ), layer_2 = Dense(15 =&gt; 15, σ), layer_3 = Dense(15 =&gt; 1)), nothing), nothing, (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()), nothing, static(true)))
+ NeuralPDE.Phi{Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}}(Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}(Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}((layer_1 = Dense(2 =&gt; 15, σ), layer_2 = Dense(15 =&gt; 15, σ), layer_3 = Dense(15 =&gt; 1)), nothing), nothing, (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()), nothing, static(true)))
+ NeuralPDE.Phi{Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}}(Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}(Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}((layer_1 = Dense(2 =&gt; 15, σ), layer_2 = Dense(15 =&gt; 15, σ), layer_3 = Dense(15 =&gt; 1)), nothing), nothing, (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()), nothing, static(true)))</code></pre><h2 id="Direct-Construction-via-symbolic_discretize"><a class="docs-heading-anchor" href="#Direct-Construction-via-symbolic_discretize">Direct Construction via symbolic_discretize</a><a id="Direct-Construction-via-symbolic_discretize-1"></a><a class="docs-heading-anchor-permalink" href="#Direct-Construction-via-symbolic_discretize" title="Permalink"></a></h2><p>One can take apart the pieces and reassemble the loss functions using the <code>symbolic_discretize</code> interface. Here is an example using the components from <code>symbolic_discretize</code> to fully reproduce the <code>discretize</code> optimization:</p><pre><code class="language-julia hljs">pde_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
-
-callback = function (p, l)
-    println(&quot;loss: &quot;, l)
-    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p.u), pde_loss_functions))
-    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p.u), bc_loss_functions))
-    return false
-end
 
 loss_functions = [pde_loss_functions; bc_loss_functions]
 
-function loss_function(θ, p)
-    sum(map(l -&gt; l(θ), loss_functions))
-end
+loss_function(θ, _) = sum(l -&gt; l(θ), loss_functions)
 
-f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
-prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
+f_ = OptimizationFunction(loss_function, AutoZygote())
+prob = OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = Optimization.solve(
-    prob, OptimizationOptimJL.LBFGS(linesearch = BackTracking()); maxiters = 1000)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
-u: ComponentVector{Float64}(depvar = (u1 = (layer_1 = (weight = [-0.9662110007310304 3.1297961844817666; -0.9506368432710331 0.5860873496459598; … ; 0.37109117924360174 -0.701204645460813; 1.3111445150504906 -0.2673491971688441], bias = [-0.5433509405774439; -1.0560309396299246; … ; 0.08636330949031622; -0.1597554508833801;;]), layer_2 = (weight = [-0.545820399044916 0.1398511495993575 … 0.22014166282892372 0.26910974190451914; -0.7085871689846928 -0.17444061654971535 … -0.243384687825053 -0.8268099684115802; … ; 0.9186278712078736 -0.7889351386510535 … -0.9852063049152366 0.13874192783436787; 0.6977430114503346 0.41947689188324194 … -0.31338685575661335 0.31425701113477067], bias = [0.03263374487817727; 0.06289099879386392; … ; -0.6012218873955162; -0.21659655258331204;;]), layer_3 = (weight = [-0.47959923632557605 -1.8777045890396342 … 2.3333976498244846 1.6514729651668976], bias = [-0.16650298519125967;;])), u2 = (layer_1 = (weight = [0.9338147295213097 3.8637021714878697; -2.0192061429369796 -0.7644144672119992; … ; 2.0059544260698603 0.6893806348028236; 1.4278456854416426 1.213060218187952], bias = [-0.44742703771656794; -1.113149947987398; … ; -0.5036497126587421; -1.0551454834884872;;]), layer_2 = (weight = [1.729152186957818 -0.8013052224601297 … -0.5485436773770868 -0.7759445579285685; 0.7389302865205797 0.028642770462247075 … -0.9831792337328104 -0.4729427805772275; … ; -1.1057450549861454 -0.26027289335596054 … 1.3541807871140163 0.8843862056103675; -0.21872016225700752 0.4567366109743008 … 0.16645238246635474 0.11942186724401413], bias = [0.4608945972865428; 0.29421763598766565; … ; -0.5061672167540168; -0.05145022608287273;;]), layer_3 = (weight = [-2.098340282744518 -1.117456357707114 … 2.1521423538747038 -0.31181049417792656], bias = [-0.6648831880769119;;])), u3 = (layer_1 = (weight = [2.4302413861986323 0.6939645533648664; -0.42098001505598465 0.22038370588482986; … ; -1.0614987048905742 -0.25191783982530197; -0.8139652093487919 -0.006367505951459733], bias = [-0.5248838875218025; 0.024044579278879773; … ; 0.0541980104317268; 0.06842871912672754;;]), layer_2 = (weight = [-0.8965021293700274 0.07716682116627141 … 0.3650287329333446 0.2390586998226797; 0.10376883649535146 0.024055682452205025 … -0.006159259986485707 0.0796873050111269; … ; 0.3004159560173719 0.11588699472969816 … -0.2992636666713382 0.30576449759769275; -0.7937050140979494 0.15923594183456394 … 0.5949549773973881 -0.03297638381816555], bias = [0.2792747796629027; -0.1808830927362728; … ; -0.09436913149038095; 0.47689356959811197;;]), layer_3 = (weight = [2.9101186728836654 -1.2192403694602054 … -0.9118713523510655 2.0316636964962393], bias = [0.6544113280279138;;]))))</code></pre><h2 id="Solution-Representation"><a class="docs-heading-anchor" href="#Solution-Representation">Solution Representation</a><a id="Solution-Representation-1"></a><a class="docs-heading-anchor-permalink" href="#Solution-Representation" title="Permalink"></a></h2><p>Now let&#39;s perform some analysis for both the <code>symbolic_discretize</code> and <code>discretize</code> APIs:</p><pre><code class="language-julia hljs">using Plots
+res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000, callback)
+prob = remake(prob, u0 = res.u)
+res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Failure
+u: ComponentVector{Float64}(depvar = (u1 = (layer_1 = (weight = [-0.5576878919021959 1.4407975565858657; 1.3164502150190838 -0.7099642305801231; … ; -1.1439949678376087 0.5714805058565923; -0.12975653610061885 2.596525666214641], bias = [-1.017451236325104, 0.4747234672679025, 0.29696921319599207, 0.5997220236187438, -1.0363426919218182, 0.3484239402908909, 0.20559391937991126, 0.10754986399126201, -0.8036021724613254, -2.019673670165243, 1.0710438926310777, 1.379379360845833, 0.3005548618694266, -0.30277267030719973, -2.018314231574293]), layer_2 = (weight = [-0.07890979933209866 0.27424327459546644 … -0.038763129727218584 -0.25232456502608513; 0.7243223806508969 -1.1217855410079351 … -0.019021047629746452 0.3774229069145645; … ; -0.4196193964967584 0.09467891597839861 … -0.34767153519908817 -0.5810826429231664; -0.6959658512290368 0.5998632098219424 … -0.4863035476169601 -0.17091531470820134], bias = [0.07223283518131637, -0.0083795118391743, -0.21504289368080304, 0.23057805628074304, -0.00713435423045231, -0.20118136094752986, 0.0772453760047201, 0.27672607424475554, -0.14249217741923056, 0.4611255031340121, -0.011944110458446977, 0.033230743289982184, 0.2406852160702317, -0.014777325203380627, -0.06172030292491185]), layer_3 = (weight = [-0.5801610291753542 -0.7598946501477503 … 0.6595167432397635 0.9287730152835405], bias = [0.2490134792606935])), u2 = (layer_1 = (weight = [-2.633128656058501 0.0540417003936067; 2.208346227194978 0.09919991593117042; … ; 0.20746100857778418 -3.507236065748556; 1.0812604363099414 -2.0872754578569306], bias = [-1.422209637825651, 0.15997187535037397, -0.6065977354328379, 0.47779904210534235, 0.3662671272667102, 0.007268311381223781, 0.263105607259393, -0.22286033167871988, -0.750727455677491, -0.46245184513088805, -0.3601084898677611, 0.9848251690841575, 1.222432754039122, -1.0323214891968469, -0.5847807898343946]), layer_2 = (weight = [0.349611686054417 -0.4814725876285577 … -0.4191056483657446 -0.2572504068153205; -1.7664365333837522 1.1553893440823322 … 0.3214980752076947 0.8025864920027432; … ; -1.1775834609284117 -0.21396409201157632 … 1.1137564333718895 0.5649160662943016; 0.29472240183014425 0.18777632755481546 … 0.5828154845718883 0.9723474720611308], bias = [0.01683244744875473, 0.36149025209060753, 0.14857691410884263, -0.4760429567854276, -0.21371647418540704, 0.3460232495486037, -0.022924411897686302, 0.2689961465124483, -0.051633021717189094, 0.20147509362938934, -0.026883959230079246, 0.29905435304538774, -0.2642993986917438, -0.22991562957612904, 0.09058455615150608]), layer_3 = (weight = [-0.7565086635949251 0.7722141231294765 … 0.6515535085135458 -0.9282658384897967], bias = [-0.540307638551009])), u3 = (layer_1 = (weight = [1.5457294434829394 1.0575623423279268; -2.4535199450609557 -1.0647836826149226; … ; -1.9099238259012299 -0.9583113484687759; 2.702476774390216 -0.3863792780261057], bias = [-0.08073876677504647, 0.501419841827919, 0.3811486583616248, 0.623073318326144, 0.15770357412808364, 0.7115456971141673, 0.5239870097943358, -0.0958615752038661, -0.17891032500865656, 1.0022431083360384, 0.4809577999766399, -0.3447744201628915, 0.21473726781097713, 0.059252636461642146, -0.37736460701322344]), layer_2 = (weight = [-0.5113351315456461 1.3304413241877096 … 0.9089037950027808 -0.0849799018753247; -0.7301688734732102 1.0032267714633334 … 0.9770965588771715 -0.7077230837352347; … ; -0.04252493312991516 -0.19372913925177002 … -0.5740991891971788 -0.04433986460755901; 0.08440795654537099 0.34283632941348374 … 0.7081159041504222 -0.15341449746187505], bias = [-0.2881205967257246, 0.01357615805851734, 0.13245439105289888, 0.1039665347126024, -0.12744621195052233, 0.04649944514337063, 0.1019004663264618, 0.13644841506729022, -0.09116569166150011, -0.10598070625520495, -0.3974833162005099, -0.06271295020199173, 0.13291123000277805, 0.06550575027321343, 0.23520332527929774]), layer_3 = (weight = [1.0927245605301532 1.1195951424405457 … -0.20001657727918473 0.8651338788682327], bias = [0.5924540525935941]))))</code></pre><h2 id="Solution-Representation"><a class="docs-heading-anchor" href="#Solution-Representation">Solution Representation</a><a id="Solution-Representation-1"></a><a class="docs-heading-anchor-permalink" href="#Solution-Representation" title="Permalink"></a></h2><p>Now let&#39;s perform some analysis for both the <code>symbolic_discretize</code> and <code>discretize</code> APIs:</p><pre><code class="language-julia hljs">using Plots
 
 phi = discretization.phi
 ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
@@ -130,10 +91,12 @@ ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 minimizers_ = [res.u.depvar[sym_prob.depvars[i]] for i in 1:3]
 
 function analytic_sol_func(t, x)
-    [exp(-t) * sin(pi * x), exp(-t) * cos(pi * x), (1 + pi^2) * exp(-t)]
+    [exp(-t) * sinpi(x), exp(-t) * cospi(x), (1 + pi^2) * exp(-t)]
 end
+
 u_real = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:3]
 u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:3]
+
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:3]
 ps = []
 for i in 1:3
@@ -141,7 +104,7 @@ for i in 1:3
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = &quot;predict&quot;)
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = &quot;error&quot;)
     push!(ps, plot(p1, p2, p3))
-end</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="f113dff1.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="91cc6729.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[3]</code></pre><img src="618288c3.svg" alt="Example block output"/><p>Notice here that the solution is represented in the <code>OptimizationSolution</code> with <code>u</code> as the parameters for the trained neural network. But, for the case where the neural network is from Lux.jl, it&#39;s given as a <code>ComponentArray</code> where <code>res.u.depvar.x</code> corresponds to the result for the neural network corresponding to the dependent variable <code>x</code>, i.e. <code>res.u.depvar.u1</code> are the trained parameters for <code>phi[1]</code> in our example. For simpler indexing, you can use <code>res.u.depvar[:u1]</code> or <code>res.u.depvar[Symbol(:u,1)]</code> as shown here.</p><p>Subsetting the array also works, but is inelegant.</p><p>(If <code>param_estim == true</code>, then <code>res.u.p</code> are the fit parameters)</p><h4 id="Note:-Solving-Matrices-of-PDEs"><a class="docs-heading-anchor" href="#Note:-Solving-Matrices-of-PDEs">Note: Solving Matrices of PDEs</a><a id="Note:-Solving-Matrices-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Note:-Solving-Matrices-of-PDEs" title="Permalink"></a></h4><p>Also, in addition to vector systems, we can use the matrix form of PDEs:</p><pre><code class="language-julia hljs">using ModelingToolkit, NeuralPDE
+end</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="caf05376.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="fec36e69.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[3]</code></pre><img src="0c7bd5ab.svg" alt="Example block output"/><p>Notice here that the solution is represented in the <code>OptimizationSolution</code> with <code>u</code> as the parameters for the trained neural network. But, for the case where the neural network is from jl, it&#39;s given as a <code>ComponentArray</code> where <code>res.u.depvar.x</code> corresponds to the result for the neural network corresponding to the dependent variable <code>x</code>, i.e. <code>res.u.depvar.u1</code> are the trained parameters for <code>phi[1]</code> in our example. For simpler indexing, you can use <code>res.u.depvar[:u1]</code> or <code>res.u.depvar[Symbol(:u,1)]</code> as shown here.</p><p>Subsetting the array also works, but is inelegant.</p><p>(If <code>param_estim == true</code>, then <code>res.u.p</code> are the fit parameters)</p><h4 id="Note:-Solving-Matrices-of-PDEs"><a class="docs-heading-anchor" href="#Note:-Solving-Matrices-of-PDEs">Note: Solving Matrices of PDEs</a><a id="Note:-Solving-Matrices-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Note:-Solving-Matrices-of-PDEs" title="Permalink"></a></h4><p>Also, in addition to vector systems, we can use the matrix form of PDEs:</p><pre><code class="language-julia hljs">using ModelingToolkit, NeuralPDE
 @parameters x y
 @variables (u(..))[1:2, 1:2]
 Dxx = Differential(x)^2
@@ -151,7 +114,6 @@ Dyy = Differential(y)^2
 bcs = [u[1](x, 0) ~ x, u[2](x, 0) ~ 2, u[3](x, 0) ~ 3, u[4](x, 0) ~ 4]
 
 # matrix PDE
-eqs = @. [(Dxx(u_(x, y)) + Dyy(u_(x, y))) for u_ in u] ~ -sin(pi * x) * sin(pi * y) *
-                                                         [0 1; 0 1]
+eqs = @. [(Dxx(u_(x, y)) + Dyy(u_(x, y))) for u_ in u] ~ -sinpi(x) * sinpi(y) * [0 1; 0 1]
 
-size(eqs)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../gpu/">« Using GPUs</a><a class="docs-footer-nextpage" href="../constraints/">Imposing Constraints »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Tuesday 9 July 2024 14:20">Tuesday 9 July 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+size(eqs)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../gpu/">« Using GPUs</a><a class="docs-footer-nextpage" href="../constraints/">Imposing Constraints »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Friday 18 October 2024 05:14">Friday 18 October 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

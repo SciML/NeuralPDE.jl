@@ -26,8 +26,8 @@ domains = [t ∈ Interval(0.0, 1.0),
     x ∈ Interval(-1.0, 1.0)]
 
 # Neural network
-chain = Lux.Chain(Dense(2, 16, Lux.σ), Dense(16, 16, Lux.σ), Dense(16, 1))
-strategy = NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200)
+chain = Chain(Dense(2, 16, σ), Dense(16, 16, σ), Dense(16, 1))
+strategy = QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200)
 
 indvars = [t, x]
 depvars = [u(t, x)]
@@ -50,15 +50,13 @@ end
 
 loss_functions = [pde_loss_functions; bc_loss_functions]
 
-function loss_function(θ, p)
-    sum(map(l -&gt; l(θ), loss_functions))
-end
+loss_function(θ, p) = sum(map(l -&gt; l(θ), loss_functions))
 
-f_ = OptimizationFunction(loss_function, Optimization.AutoZygote())
-prob = Optimization.OptimizationProblem(f_, sym_prob.flat_init_params)
+f_ = OptimizationFunction(loss_function, AutoZygote())
+prob = OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 3000)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
-u: ComponentVector{Float64}(layer_1 = (weight = [-1.1475413410254578 -0.7357437600299409; 7.17438878417152 -2.928441531197166; … ; 2.5962967861442503 -0.13988085726570942; -8.176322892913541 -4.554337712308038], bias = [0.07175763266778447; 1.5439087410413657; … ; -1.1339944826913757; -8.830485603284297;;]), layer_2 = (weight = [0.7522760583971565 -0.5328270988594483 … 1.898464345399219 -0.9155307512144105; 2.4278443075926335 -0.8068528057329222 … 0.5117039450660498 -4.534016100398427; … ; -0.415544031686768 5.741173214255683 … -2.1709927942060006 1.5035439045352517; 1.344675797135169 0.3077382168619069 … 2.0227991426323753 -0.11618964100101517], bias = [0.3765951736973127; -0.3000614235763718; … ; -0.9532184500298564; 0.931515589405514;;]), layer_3 = (weight = [0.015338823740293004 2.117581433054984 … 4.79495852075361 1.9390683296710514], bias = [0.8659263678308953;;]))</code></pre><p>And some analysis:</p><pre><code class="language-julia hljs">using Plots
+res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 3000)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
+u: ComponentVector{Float64}(layer_1 = (weight = [0.8774753796466779 0.9700193662799307; -5.860209421058016 20.978435262133925; … ; -3.0003215190226524 -4.233895873994597; 0.6998256791371886 -0.8941708443871188], bias = [0.8718309616495168, -24.62481086204593, -4.6902948416412285, -0.9963135165049518, -4.753108443496749, -2.9465072991165515, 1.1825277153706024, 3.3305476980251525, 2.2966477029116663, 6.699954968191746, 1.7501129212499602, 1.6765424422858233, 4.299177720395845, -2.5302201535144895, -7.494882301478605, 2.230153287080749]), layer_2 = (weight = [3.1712111979857043 2.300761510076724 … -3.358650420293822 2.945902551717067; -0.511930851418016 0.019660818350983288 … 2.6880699781672805 0.18172955757932427; … ; -0.5607202357303638 0.05930456397416368 … 0.06343019190587662 -0.1291511098678202; -1.7818521420579871 -1.6102202682127464 … 2.1758478969079906 -0.4686818857983124], bias = [0.9876151609718653, 2.1927222727368605, -0.008667225001506754, 0.3753962564420016, 0.6742118474931497, 0.3610016519746654, -1.1041569833128424, -1.3506145369307407, -0.9694279707687393, 1.9331583814588595, -1.4206120551610661, -0.7091052082899383, 0.2982636511316599, 0.3519683588305021, -0.3194524715737684, -0.3787601276633753]), layer_3 = (weight = [6.414388282126146 2.7751130465598135 … -1.5871331047966706 -4.961976682603267], bias = [-1.8973814901696449]))</code></pre><p>And some analysis:</p><pre><code class="language-julia hljs">using Plots
 
 ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 u_predict_contourf = reshape([first(phi([t, x], res.u)) for t in ts for x in xs],
@@ -69,4 +67,4 @@ u_predict = [[first(phi([t, x], res.u)) for x in xs] for t in ts]
 p1 = plot(xs, u_predict[3], title = &quot;t = 0.1&quot;);
 p2 = plot(xs, u_predict[11], title = &quot;t = 0.5&quot;);
 p3 = plot(xs, u_predict[end], title = &quot;t = 1&quot;);
-plot(p1, p2, p3)</code></pre><img src="74d94d67.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../constraints/">« Imposing Constraints</a><a class="docs-footer-nextpage" href="../param_estim/">Optimising Parameters (Solving Inverse Problems) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Tuesday 9 July 2024 14:20">Tuesday 9 July 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(p1, p2, p3)</code></pre><img src="e8d90715.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../constraints/">« Imposing Constraints</a><a class="docs-footer-nextpage" href="../param_estim/">Optimising Parameters (Solving Inverse Problems) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Friday 18 October 2024 05:14">Friday 18 October 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
