@@ -6,6 +6,7 @@
     dataset <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
     priors <: Vector{<:Distribution}
     phystd::Vector{Float64}
+    phynewstd::Vector{Float64}
     l2std::Vector{Float64}
     autodiff::Bool
     physdt::Float64
@@ -97,7 +98,7 @@ suggested extra loss function for ODE solver case
     for i in 1:length(ltd.prob.u0)
         physlogprob += logpdf(
             MvNormal(deri_physsol[i, :],
-                Diagonal(abs2.(T(ltd.phystd[i]) .* ones(T, length(nnsol[i, :]))))),
+                Diagonal(abs2.(T(ltd.phynewstd[i]) .* ones(T, length(nnsol[i, :]))))),
             nnsol[i, :]
         )
     end
@@ -263,7 +264,7 @@ end
 """
     ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining, dataset = [nothing],
                            init_params = nothing, draw_samples = 1000, physdt = 1 / 20.0f0,
-                           l2std = [0.05], phystd = [0.05], priorsNNw = (0.0, 2.0),
+                           l2std = [0.05], phystd = [0.05], phynewstd = [0.05], priorsNNw = (0.0, 2.0),
                            param = [], nchains = 1, autodiff = false, Kernel = HMC,
                            Adaptorkwargs = (Adaptor = StanHMCAdaptor,
                                Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
@@ -336,6 +337,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
   ~2/3 of draw samples)
 * `l2std`: standard deviation of BPINN prediction against L2 losses/Dataset
 * `phystd`: standard deviation of BPINN prediction against Chosen Underlying ODE System
+* `phynewstd`: standard deviation of new loss func term
 * `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of
   BPINN are Normal Distributions by default.
 * `param`: Vector of chosen ODE parameters Distributions in case of Inverse problems.
@@ -366,10 +368,10 @@ Incase you are only solving the Equations for solution, do not provide dataset
 function ahmc_bayesian_pinn_ode(
         prob::SciMLBase.ODEProblem, chain; strategy = GridTraining, dataset = [nothing],
         init_params = nothing, draw_samples = 1000, physdt = 1 / 20.0, l2std = [0.05],
-        phystd = [0.05], priorsNNw = (0.0, 2.0), param = [], nchains = 1, autodiff = false,
-        Kernel = HMC,
-        Adaptorkwargs = (Adaptor = StanHMCAdaptor, Metric = DiagEuclideanMetric,
-            targetacceptancerate = 0.8),
+        phystd = [0.05], phynewstd = [0.05], priorsNNw = (0.0, 2.0), param = [], nchains = 1,
+        autodiff = false, Kernel = HMC,
+        Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,), MCMCkwargs = (n_leapfrog = 30,),
         progress = false, verbose = false, estim_collocate = false)
     @assert !isinplace(prob) "The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."
@@ -419,7 +421,7 @@ function ahmc_bayesian_pinn_ode(
     smodel = StatefulLuxLayer{true}(chain, nothing, st)
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
     ℓπ = LogTargetDensity(nparameters, prob, smodel, strategy, dataset, priors,
-        phystd, l2std, autodiff, physdt, ninv, initial_nnθ, estim_collocate)
+        phystd, phynewstd, l2std, autodiff, physdt, ninv, initial_nnθ, estim_collocate)
 
     if verbose
         @printf("Current Physics Log-likelihood: %g\n", physloglikelihood(ℓπ, initial_θ))
@@ -483,13 +485,13 @@ function ahmc_bayesian_pinn_ode(
 
         if verbose
             println("Sampling Complete.")
-            @printf("Current Physics Log-likelihood: %g\n",
+            @printf("Final Physics Log-likelihood: %g\n",
                 physloglikelihood(ℓπ, samples[end]))
-            @printf("Current Prior Log-likelihood: %g\n", priorweights(ℓπ, samples[end]))
-            @printf("Current MSE against dataset Log-likelihood: %g\n",
+            @printf("Final Prior Log-likelihood: %g\n", priorweights(ℓπ, samples[end]))
+            @printf("Final MSE against dataset Log-likelihood: %g\n",
                 L2LossData(ℓπ, samples[end]))
             if estim_collocate
-                @printf("Current gradient loss against dataset Log-likelihood: %g\n",
+                @printf("Final gradient loss against dataset Log-likelihood: %g\n",
                     L2loss2(ℓπ, samples[end]))
             end
         end
