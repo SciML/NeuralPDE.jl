@@ -14,18 +14,57 @@ corresponding to the grid spacing in each dimension.
     dx
 end
 
-# include dataset points in pde_residual loglikelihood (BayesianPINN)
+# dataset must have depvar values for same values of indvars
+function get_dataset_train_points(eqs, train_sets, pinnrep)
+    dict_depvar_input = pinnrep.dict_depvar_input
+    depvars = pinnrep.depvars
+    dict_depvars = pinnrep.dict_depvars
+    dict_indvars = pinnrep.dict_indvars
+
+    symbols_input = [(i, dict_depvar_input[i]) for i in depvars]
+    # [(:u, [:t])]
+    eq_args = NeuralPDE.get_argument(eqs, dict_indvars, dict_depvars)
+    # equation wise indvar presence ~ [[:t]]
+    # in each equation atleast one depvars must be a function of all indvars(to cover heterogenous/not case)
+
+    # train_sets follows order of depvars
+    # take dataset indvar values if for equations depvar's indvar matches input symbol indvar
+    points = []
+    for eq_arg in eq_args
+        eq_points = []
+        for i in eachindex(symbols_input)
+            if symbols_input[i][2] == eq_arg
+                push!(eq_points, train_sets[i][:, 2:end]')
+                # Terminate to avoid repetitive ind var points inclusion
+                break
+            end
+        end
+        # Concatenate points for this equation argument
+        push!(points, vcat(eq_points...))
+    end
+
+    return points
+end
+
+# includes dataset points in pde_residual loglikelihood (only for BayesianPINN)
 function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
         strategy::GridTraining, datafree_pde_loss_function,
         datafree_bc_loss_function; train_sets_pde = nothing, train_sets_bc = nothing)
     eltypeθ = recursive_eltype(pinnrep.flat_init_params)
     adaptor = EltypeAdaptor{eltypeθ}()
 
+    # only when physics loss is taken, merge_strategy_with_loglikelihood_function() call case
+    if ((train_sets_bc isa Nothing) && (train_sets_pde isa Nothing))
+        train_sets_pde, train_sets_bc = generate_training_sets(
+            domains, dx, eqs, bcs, eltypeθ,
+            dict_indvars, dict_depvars)
+    end
+
     # is vec as later each _set in pde_train_sets are columns as points transformed to
     # vector of points (pde_train_sets must be rowwise)
     pde_loss_functions = if train_sets_pde !== nothing
         pde_train_sets = [train_set[:, 2:end] for train_set in train_sets_pde] |> adaptor
-        [get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
+        [get_points_loss_functions(_loss, _set, eltypeθ, strategy)
          for (_loss, _set) in zip(datafree_pde_loss_function, pde_train_sets)]
     else
         nothing
@@ -33,7 +72,7 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
 
     bc_loss_functions = if train_sets_bc !== nothing
         bcs_train_sets = [train_set[:, 2:end] for train_set in train_sets_bc] |> adaptor
-        [get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
+        [get_points_loss_functions(_loss, _set, eltypeθ, strategy)
          for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
     else
         nothing
@@ -42,6 +81,19 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
     return pde_loss_functions, bc_loss_functions
 end
 
+function get_points_loss_functions(loss_function, train_set, eltypeθ, strategy::GridTraining;
+        τ = nothing)
+        # loss_function length is number of all points loss is being evaluated upon
+        # train sets rows are for each indvar, cols are coordinates (row_1,row_2,..row_n) at which loss evaluated
+    function loss(θ, std)
+        logpdf(
+            MvNormal(loss_function(train_set, θ)[1, :],
+                LinearAlgebra.Diagonal(abs2.(std .* ones(size(train_set)[2])))),
+            zeros(size(train_set)[2]))
+    end
+end
+
+# only for PhysicsInformedNN
 function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
         strategy::GridTraining, datafree_pde_loss_function, datafree_bc_loss_function)
     (; domains, eqs, bcs, dict_indvars, dict_depvars) = pinnrep

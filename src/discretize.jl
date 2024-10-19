@@ -538,6 +538,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
             nothing, nothing
         end
 
+        # this includes losses from dataset domain points as well as discretization points
         function full_loss_function(θ, allstd::Vector{Vector{Float64}})
             stdpdes, stdbcs, stdextra = allstd
             # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them

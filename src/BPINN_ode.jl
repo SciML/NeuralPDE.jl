@@ -3,7 +3,7 @@
 """
     BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 2000,
            priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
-           phystd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
+           phystd = [0.05], phynewstd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
            MCMCargs = (; n_leapfrog=30), nchains = 1, init_params = nothing,
            Adaptorkwargs = (; Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
                               Metric = DiagEuclideanMetric),
@@ -86,6 +86,7 @@ Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, El
     param <: Union{Nothing, Vector{<:Distribution}}
     l2std::Vector{Float64}
     phystd::Vector{Float64}
+    phynewstd::Vector{Float64}
     dataset <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
     physdt::Float64
     MCMCkwargs <: NamedTuple
@@ -102,8 +103,8 @@ end
 
 function BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 2000,
         priorsNNw = (0.0, 2.0), param = nothing, l2std = [0.05], phystd = [0.05],
-        dataset = [nothing], physdt = 1 / 20.0, MCMCkwargs = (n_leapfrog = 30,),
-        nchains = 1, init_params = nothing,
+        phynewstd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
+        MCMCkwargs = (n_leapfrog = 30,), nchains = 1, init_params = nothing,
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,),
@@ -111,7 +112,7 @@ function BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 2000,
         estim_collocate = false, autodiff = false, progress = false, verbose = false)
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return BNNODE(chain, kernel, strategy, draw_samples, priorsNNw, param, l2std, phystd,
-        dataset, physdt, MCMCkwargs, nchains, init_params, Adaptorkwargs,
+        phynewstd, dataset, physdt, MCMCkwargs, nchains, init_params, Adaptorkwargs,
         Integratorkwargs, numensemble, estim_collocate, autodiff, progress, verbose)
 end
 
@@ -157,7 +158,7 @@ end
 function SciMLBase.__solve(prob::SciMLBase.ODEProblem, alg::BNNODE, args...; dt = nothing,
         timeseries_errors = true, save_everystep = true, adaptive = false,
         abstol = 1.0f-6, reltol = 1.0f-3, verbose = false, saveat = 1 / 50.0,
-        maxiters = nothing, numensemble = floor(Int, alg.draw_samples / 3))
+        maxiters = nothing)
     (; chain, param, strategy, draw_samples, numensemble, verbose) = alg
 
     # ahmc_bayesian_pinn_ode needs param=[] for easier vcat operation for full vector of parameters
@@ -168,7 +169,8 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem, alg::BNNODE, args...; dt 
 
     mcmcchain, samples, statistics = ahmc_bayesian_pinn_ode(
         prob, chain; strategy, alg.dataset, alg.draw_samples, alg.init_params,
-        alg.physdt, alg.l2std, alg.phystd, alg.priorsNNw, param, alg.nchains, alg.autodiff,
+        alg.physdt, alg.l2std, alg.phystd, alg.phynewstd,
+        alg.priorsNNw, param, alg.nchains, alg.autodiff,
         Kernel = alg.kernel, alg.Adaptorkwargs, alg.Integratorkwargs,
         alg.MCMCkwargs, alg.progress, alg.verbose, alg.estim_collocate)
 
