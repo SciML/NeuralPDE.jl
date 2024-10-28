@@ -1,6 +1,6 @@
 
 @testsetup module PINOODETestSetup
-using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
+using Lux, NeuralOperators
 
 function get_trainset(chain::DeepONet, bounds, number_of_parameters, tspan, dt)
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
@@ -45,11 +45,11 @@ end
     dt = 0.025f0
     p, t = get_trainset(chain, bounds, number_of_parameters, tspan, dt)
     ground_solution = ground_analytic.(u0, p, t)
-    predict_sol = sol.interp(reduce(vcat, (p, t)))
+    predict_sol = sol(reduce(vcat, (p, t)))
     @test ground_solution≈predict_sol rtol=0.05
     p, t = get_trainset(chain, bounds, 100, tspan, 0.01)
     ground_solution = ground_analytic.(u0, p, t)
-    predict_sol = sol.interp(reduce(vcat, (p, t)))
+    predict_sol = sol(reduce(vcat, (p, t)))
     @test ground_solution≈predict_sol rtol=0.05
 end
 
@@ -86,11 +86,11 @@ end
     dt = 0.025f0
     p, t = get_trainset(deeponet, bounds, number_of_parameters, tspan, dt)
     ground_solution = ground_analytic.(u0, p, vec(t))
-    predict_sol = sol.interp((p, t))
+    predict_sol = sol((p, t))
     @test ground_solution≈predict_sol rtol=0.05
     p, t = get_trainset(deeponet, bounds, 100, tspan, 0.01)
     ground_solution = ground_analytic.(u0, p, vec(t))
-    predict_sol = sol.interp((p, t))
+    predict_sol = sol((p, t))
     @test ground_solution≈predict_sol rtol=0.05
 end
 
@@ -118,7 +118,7 @@ end
                                  (p^2 + 1)
     p, t = get_trainset(deeponet, bounds, number_of_parameters, tspan, dt)
     ground_solution = ground_analytic_.(u0, p, vec(t))
-    predict_sol = sol.interp((p, t))
+    predict_sol = sol((p, t))
     @test ground_solution≈predict_sol rtol=0.05
 end
 
@@ -164,7 +164,7 @@ end
 
     p, t = get_trainset(deeponet, bounds, number_of_parameters, tspan, dt)
     ground_solution = ground_analytic.(u0, p, vec(t))
-    predict_sol = sol.interp((p, t))
+    predict_sol = sol((p, t))
     @test ground_solution≈predict_sol rtol=0.05
 end
 
@@ -202,12 +202,12 @@ end
     end
     (p, t) = get_trainset(chain, bounds, 20, tspan, 0.1f0)
     ground_solution_ = ground_solution_f(p, t)
-    predict = sol.interp(reduce(vcat, (p, t)))[1, :, :]
+    predict = sol(reduce(vcat, (p, t)))[1, :, :]
     @test ground_solution_≈predict rtol=0.05
 
     p, t = get_trainset(chain, bounds, 50, tspan, 0.025f0)
     ground_solution_ = ground_solution_f(p, t)
-    predict_sol = sol.interp(reduce(vcat, (p, t)))[1, :, :]
+    predict_sol = sol(reduce(vcat, (p, t)))[1, :, :]
     @test ground_solution_≈predict_sol rtol=0.05
 end
 
@@ -245,12 +245,12 @@ end
 
     (p, t) = get_trainset(deeponet, bounds, 50, tspan, 0.025f0)
     ground_solution_ = ground_solution_f(p, t)
-    predict = sol.interp((p, t))
+    predict = sol((p, t))
     @test ground_solution_≈predict rtol=0.05
 
     p, t = get_trainset(deeponet, bounds, 100, tspan, 0.01f0)
     ground_solution_ = ground_solution_f(p, t)
-    predict = sol.interp((p, t))
+    predict = sol((p, t))
     @test ground_solution_≈predict rtol=0.05
 end
 
@@ -290,14 +290,14 @@ end
     end
     p, t = get_trainset(chain, bounds, 50, tspan, 0.01f0)
     ground_solution_ = ground_solution_f(p, t)
-    predict = sol.interp(reduce(vcat, (p, t)))
+    predict = sol(reduce(vcat, (p, t)))
     @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.05
     @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.05
     @test ground_solution_≈predict rtol=0.05
 
     p, t = get_trainset(chain, bounds, 300, tspan, 0.01f0)
     ground_solution_ = ground_solution_f(p, t)
-    predict = sol.interp(reduce(vcat, (p, t)))
+    predict = sol(reduce(vcat, (p, t)))
     @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.05
     @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.05
     @test ground_solution_≈predict rtol=0.3
