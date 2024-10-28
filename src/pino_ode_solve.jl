@@ -216,7 +216,7 @@ function generate_loss(
     end
 end
 
-struct PINOODEInterpolation{T <: PINOPhi, T2}
+@concrete struct PINOODEInterpolation{T <: PINOPhi, T2}
     phi::T
     θ::T2
 end
@@ -225,6 +225,10 @@ end
 
 SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::PINOODE) = true
+
+function (sol::SciMLBase.AbstractODESolution)(t::AbstractArray)
+    sol.interp(t)
+end
 
 function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         alg::PINOODE,
