@@ -216,26 +216,67 @@ function generate_loss(
     end
 end
 
+"""
+PINOODEInterpolation(phi, θ)
+
+Interpolation of the solution of the ODE using a trained neural network.
+
+## Arguments
+* `phi`: The neural network
+* `θ`: The parameters of the neural network.
+```
+
+"""
 @concrete struct PINOODEInterpolation{T <: PINOPhi, T2}
     phi::T
     θ::T2
 end
 
+"""
+Override interpolation method for PINOODEInterpolation
+
+## Arguments
+* `x`: Input data on which the solution is to be interpolated.
+## Example
+
+```jldoctest
+interp = PINOODEInterpolation(phi, θ)
+x = rand(2, 50, 10)
+interp(x)
+```
+"""
 (f::PINOODEInterpolation)(x) = f.phi(x, f.θ)
+
+"""
+Override interpolation method for PINOODEInterpolation
+
+## Arguments
+# * `p`: The parameters points on which the solution is to be interpolated.
+# * `t`: The time points on which the solution is to be interpolated.
+
+## Example
+```jldoctest
+interp = PINOODEInterpolation(phi, θ)
+p,t = rand(1, 50, 10), rand(1, 50, 10)
+interp(p, t)
+```
+"""
+function (f::PINOODEInterpolation)(p, t)
+    if f.phi.model isa DeepONet
+        f.phi((p, t), f.θ)
+    elseif f.phi.model isa Chain
+        f.phi(reduce(vcat, (p, t)), f.θ)
+    else
+        error("Only DeepONet and Chain neural networks are supported with PINO ODE")
+    end
+end
 
 SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::PINOODE) = true
 
-#TODO
 function (sol::SciMLBase.AbstractODESolution)(t::AbstractArray)
-    # p,t = sol.t
-    # sol.interp(reduce(vcat, (p, t)))
-    sol.interp(t)
-end
-function (sol::SciMLBase.AbstractODESolution)(t::Tuple)
-    # p,t = sol.t
-    # sol.interp((p, t))
-    sol.interp(t)
+    p, _ = sol.t
+    sol.interp(p, t)
 end
 
 function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
