@@ -141,8 +141,8 @@ end
 
     #generate data
     ground_analytic = (u0, p, t) -> u0 + p * t^3 / 3
-    sol = ground_analytic.(u0, p, vec(t))
     p, t = get_trainset(deeponet, bounds, number_of_parameters, tspan, dt)
+    sol = ground_analytic.(u0, p, vec(t))
     function additional_loss_(phi, θ)
         u = phi((p, t), θ)
         norm = prod(size(u))
@@ -152,7 +152,7 @@ end
     alg = PINOODE(
         deeponet, opt, bounds, number_of_parameters; strategy = strategy,
         additional_loss = additional_loss_)
-    sol = solve(prob, alg, verbose = true, maxiters = 3000)
+    sol = solve(prob, alg, verbose = false, maxiters = 3000)
 
     p, t = get_trainset(deeponet, bounds, number_of_parameters, tspan, dt)
     ground_solution = ground_analytic.(u0, p, vec(t))
