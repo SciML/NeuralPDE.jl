@@ -226,7 +226,15 @@ end
 SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::PINOODE) = true
 
+#TODO
 function (sol::SciMLBase.AbstractODESolution)(t::AbstractArray)
+    # p,t = sol.t
+    # sol.interp(reduce(vcat, (p, t)))
+    sol.interp(t)
+end
+function (sol::SciMLBase.AbstractODESolution)(t::Tuple)
+    # p,t = sol.t
+    # sol.interp((p, t))
     sol.interp(t)
 end
 

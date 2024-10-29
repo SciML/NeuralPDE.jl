@@ -42,8 +42,7 @@ end
     alg = PINOODE(chain, opt, bounds, number_of_parameters; strategy = strategy)
     sol = solve(prob, alg, verbose = false, maxiters = 5000)
     ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
-    dt = 0.025f0
-    p, t = get_trainset(chain, bounds, number_of_parameters, tspan, dt)
+    p, t = get_trainset(chain, bounds, 50, tspan, 0.025)
     ground_solution = ground_analytic.(u0, p, t)
     predict_sol = sol(reduce(vcat, (p, t)))
     @test ground_solution≈predict_sol rtol=0.05
@@ -83,8 +82,7 @@ end
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
     sol = solve(prob, alg, verbose = false, maxiters = 3000)
     ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
-    dt = 0.025f0
-    p, t = get_trainset(deeponet, bounds, number_of_parameters, tspan, dt)
+    p, t = get_trainset(deeponet, bounds, 50, tspan, 0.025)
     ground_solution = ground_analytic.(u0, p, vec(t))
     predict_sol = sol((p, t))
     @test ground_solution≈predict_sol rtol=0.05
@@ -200,12 +198,12 @@ end
             [[ground_solution(u0, p[:, i, j], t[1, i, j]) for j in axes(t, 3)]
              for i in axes(p, 2)])'
     end
-    (p, t) = get_trainset(chain, bounds, 20, tspan, 0.1f0)
+    (p, t) = get_trainset(chain, bounds, 20, tspan, 0.1)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol(reduce(vcat, (p, t)))[1, :, :]
     @test ground_solution_≈predict rtol=0.05
 
-    p, t = get_trainset(chain, bounds, 50, tspan, 0.025f0)
+    p, t = get_trainset(chain, bounds, 50, tspan, 0.025)
     ground_solution_ = ground_solution_f(p, t)
     predict_sol = sol(reduce(vcat, (p, t)))[1, :, :]
     @test ground_solution_≈predict_sol rtol=0.05
@@ -233,22 +231,22 @@ end
 
     bounds = [(1.0, pi), (1.0, 2.0), (2.0, 3.0)]
     number_of_parameters = 50
-    strategy = StochasticTraining(20)
-    opt = OptimizationOptimisers.Adam(0.03)
+    strategy = StochasticTraining(50)
+    opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = false, maxiters = 4000)
+    sol = solve(prob, alg, verbose = false, maxiters = 5000)
     ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) + p[3] * t
     function ground_solution_f(p, t)
         reduce(hcat,
             [[ground_solution(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
     end
 
-    (p, t) = get_trainset(deeponet, bounds, 50, tspan, 0.025f0)
+    (p, t) = get_trainset(deeponet, bounds, 50, tspan, 0.025)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol((p, t))
     @test ground_solution_≈predict rtol=0.05
 
-    p, t = get_trainset(deeponet, bounds, 100, tspan, 0.01f0)
+    p, t = get_trainset(deeponet, bounds, 100, tspan, 0.01)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol((p, t))
     @test ground_solution_≈predict rtol=0.05
@@ -271,7 +269,7 @@ end
     strategy = StochasticTraining(300)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(chain, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = false, maxiters = 6000)
+    sol = solve(prob, alg, verbose = true, maxiters = 6000)
 
     ground_solution = (u0, p, t) -> [1 + sin(p * t) / p, 1 / p - cos(p * t) / p]
     function ground_solution_f(p, t)
@@ -288,14 +286,14 @@ end
         ans_2 = reshape(ans_2, 1, size(ans_2)...)
         vcat(ans_1, ans_2)
     end
-    p, t = get_trainset(chain, bounds, 50, tspan, 0.01f0)
+    p, t = get_trainset(chain, bounds, 50, tspan, 0.025)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol(reduce(vcat, (p, t)))
     @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.05
     @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.05
     @test ground_solution_≈predict rtol=0.05
 
-    p, t = get_trainset(chain, bounds, 300, tspan, 0.01f0)
+    p, t = get_trainset(chain, bounds, 300, tspan, 0.01)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol(reduce(vcat, (p, t)))
     @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.05
