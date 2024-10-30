@@ -417,7 +417,6 @@ function ahmc_bayesian_pinn_ode(
         nparameters += ninv
     end
 
-    t0 = prob.tspan[1]
     smodel = StatefulLuxLayer{true}(chain, nothing, st)
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
     ℓπ = LogTargetDensity(nparameters, prob, smodel, strategy, dataset, priors,

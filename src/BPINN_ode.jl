@@ -101,7 +101,7 @@ Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, El
     verbose::Bool
 end
 
-function BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 2000,
+function BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 1000,
         priorsNNw = (0.0, 2.0), param = nothing, l2std = [0.05], phystd = [0.05],
         phynewstd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
         MCMCkwargs = (n_leapfrog = 30,), nchains = 1, init_params = nothing,
@@ -180,7 +180,7 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem, alg::BNNODE, args...; dt 
 
     θinit, st = LuxCore.setup(Random.default_rng(), chain)
     θ = [vector_to_parameters(samples[i][1:(end - ninv)], θinit)
-         for i in 1:max(draw_samples - draw_samples ÷ 10, draw_samples - 1000)]
+         for i in (draw_samples - numensemble):draw_samples]
 
     luxar = [chain(t', θ[i], st)[1] for i in 1:numensemble]
     # only need for size

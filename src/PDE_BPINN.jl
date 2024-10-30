@@ -32,7 +32,7 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
 
     # Dict_differentials is filled with Differential operator => diff_i key-value pairs
     # masking operation
-    eqs_new = substitute.(eqs, Ref(Dict_differentials))
+    eqs_new = SymbolicUtils.substitute.(eqs, Ref(Dict_differentials))
 
     to_subs, tobe_subs = get_symbols(dataset, depvars, eqs)
 
