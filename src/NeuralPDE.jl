@@ -16,6 +16,7 @@ using IntervalSets: infimum, supremum
 using LinearAlgebra: Diagonal
 using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
+using NeuralOperators: DeepONet
 using LuxCore: LuxCore, AbstractLuxLayer, AbstractLuxWrapperLayer
 using MLDataDevices: CPUDevice, get_device
 using Optimisers: Optimisers, Adam
@@ -79,7 +80,7 @@ include("adaptive_losses.jl")
 
 include("ode_solve.jl")
 include("dae_solve.jl")
-
+include("pino_ode_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
 
@@ -90,6 +91,7 @@ include("PDE_BPINN.jl")
 
 include("dgm.jl")
 
+export PINOODE
 export NNODE, NNDAE
 export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
 export PhysicsInformedNN, discretize
