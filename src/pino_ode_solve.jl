@@ -225,7 +225,6 @@ Interpolation of the solution of the ODE using a trained neural network.
 * `phi`: The neural network
 * `θ`: The parameters of the neural network.
 ```
-
 """
 @concrete struct PINOODEInterpolation{T <: PINOPhi, T2}
     phi::T
