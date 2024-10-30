@@ -1,4 +1,3 @@
-
 @testsetup module PINOODETestSetup
 using Lux, NeuralOperators
 
@@ -45,11 +44,21 @@ end
     p, t = get_trainset(chain, bounds, 50, tspan, 0.025)
     ground_solution = ground_analytic.(u0, p, t)
     predict_sol = sol.interp(p, t)
-    predict_sol = sol.interp(reduce(vcat, (p, t)))
     @test ground_solution≈predict_sol rtol=0.05
     p, t = get_trainset(chain, bounds, 100, tspan, 0.01)
     ground_solution = ground_analytic.(u0, p, t)
     predict_sol = sol.interp(p, t)
+    @test ground_solution≈predict_sol rtol=0.05
+
+    p = sol.prob.p
+    ground_solution = ground_analytic.(u0, p, [1.0])
+    predict_sol = sol(1.0)
+    @test ground_solution≈predict_sol rtol=0.05
+
+    p = sol.prob.p
+    t = rand(size(p)...)
+    ground_solution = ground_analytic.(u0, p, t)
+    predict_sol = sol(t)
     @test ground_solution≈predict_sol rtol=0.05
 end
 
@@ -85,12 +94,16 @@ end
     ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     p, t = get_trainset(deeponet, bounds, 50, tspan, 0.025)
     ground_solution = ground_analytic.(u0, p, vec(t))
-    predict_sol = sol(t)
     predict_sol = sol.interp(p, t)
     @test ground_solution≈predict_sol rtol=0.05
     p, t = get_trainset(deeponet, bounds, 100, tspan, 0.01)
     ground_solution = ground_analytic.(u0, p, vec(t))
     predict_sol = sol.interp(p, t)
+    @test ground_solution≈predict_sol rtol=0.05
+
+    p, t = sol.prob.p, rand(1, 20, 1)
+    ground_solution = ground_analytic.(u0, p, vec(t))
+    predict_sol = sol(t)
     @test ground_solution≈predict_sol rtol=0.05
 end
 

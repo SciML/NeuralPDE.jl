@@ -245,7 +245,7 @@ x = rand(2, 50, 10)
 interp(x)
 ```
 """
-(f::PINOODEInterpolation)(x) = f.phi(x, f.θ)
+(f::PINOODEInterpolation)(x::AbstractArray) = f.phi(x, f.θ)
 
 """
 Override interpolation method for PINOODEInterpolation
@@ -261,11 +261,26 @@ p,t = rand(1, 50, 10), rand(1, 50, 10)
 interp(p, t)
 ```
 """
-function (f::PINOODEInterpolation)(p, t)
+function (f::PINOODEInterpolation)(p::AbstractArray, t::AbstractArray)
     if f.phi.model isa DeepONet
         f.phi((p, t), f.θ)
     elseif f.phi.model isa Chain
+        if size(p, 2) != size(t, 2)
+            error("t should be same size as p")
+        end
         f.phi(reduce(vcat, (p, t)), f.θ)
+    else
+        error("Only DeepONet and Chain neural networks are supported with PINO ODE")
+    end
+end
+
+function (f::PINOODEInterpolation)(p::AbstractArray, t::Number)
+    if f.phi.model isa DeepONet
+        t_ = [t]
+        f.phi((p, t_), f.θ)
+    elseif f.phi.model isa Chain
+        t_ = fill(t, size(p))
+        f.phi(reduce(vcat, (p, t_)), f.θ)
     else
         error("Only DeepONet and Chain neural networks are supported with PINO ODE")
     end
@@ -274,9 +289,8 @@ end
 SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::PINOODE) = true
 
-function (sol::SciMLBase.AbstractODESolution)(t::AbstractArray)
-    p, _ = sol.t
-    sol.interp(p, t)
+function (sol::SciMLBase.AbstractODESolution)(t::Union{Number, AbstractArray})
+    sol.interp(sol.prob.p, t)
 end
 
 function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
@@ -359,16 +373,14 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
-    x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
-    if chain isa DeepONet
-        u = phi(x, res.u)
-    elseif chain isa Chain
-        u = phi(reduce(vcat, x), res.u)
-    end
+    (p, t) = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
+    interp = PINOODEInterpolation(phi, res.u)
+    u = interp(p, t)
+    prob_sol = ODEProblem(f.f, u0, tspan, p)
 
-    sol = SciMLBase.build_solution(prob, alg, x, u;
+    sol = SciMLBase.build_solution(prob_sol, alg, t, u;
         k = res, dense = true,
-        interp = PINOODEInterpolation(phi, res.u),
+        interp = interp,
         calculate_error = false,
         retcode = ReturnCode.Success,
         original = res,
