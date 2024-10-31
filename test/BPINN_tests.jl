@@ -427,10 +427,10 @@ end
              abs.(p .- sol_pestim2.estimated_de_params)
     @test bitvec == ones(size(bitvec))
 
-    Loss_1 = mean(abs, u[1, :] .- pmean(sol_pestim1_1.ensemblesol[1])) +
-             mean(abs, u[2, :] .- pmean(sol_pestim1_1.ensemblesol[2]))
-    Loss_2 = mean(abs, u[1, :] .- pmean(sol_pestim2_1.ensemblesol[1])) +
-             mean(abs, u[2, :] .- pmean(sol_pestim2_1.ensemblesol[2]))
+    Loss_1 = mean(abs, u[1, :] .- pmean(sol_pestim1.ensemblesol[1])) +
+             mean(abs, u[2, :] .- pmean(sol_pestim1.ensemblesol[2]))
+    Loss_2 = mean(abs, u[1, :] .- pmean(sol_pestim2.ensemblesol[1])) +
+             mean(abs, u[2, :] .- pmean(sol_pestim2.ensemblesol[2]))
 
     @test Loss_1 > Loss_2
 end

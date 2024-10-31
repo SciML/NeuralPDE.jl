@@ -15,7 +15,7 @@ end
 
 function LogDensityProblems.logdensity(ltd::PDELogTargetDensity, θ)
     # for parameter estimation neccesarry to use multioutput case
-    if Tar.L2_loss2 === nothing
+    if ltd.L2_loss2 === nothing
         return ltd.full_loglikelihood(setparameters(ltd, θ), ltd.allstd) +
                priorlogpdf(ltd, θ) + L2LossData(ltd, θ)
     else
@@ -23,7 +23,6 @@ function LogDensityProblems.logdensity(ltd::PDELogTargetDensity, θ)
                priorlogpdf(ltd, θ) + L2LossData(ltd, θ) + ltd.L2_loss2(setparameters(ltd, θ), ltd.phynewstd)
     end
 end
-
 
 # you get a vector of losses
 function get_lossy(pinnrep, dataset, Dict_differentials)
@@ -43,7 +42,7 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
 
     # for each dataset point(eq_sub dictionary), substitute in masked equations
     # n_collocated_equations = n_rows_dataset(or n_indvar_coords_dataset)
-    masked_colloc_equations = [[substitute(eq, eq_sub) for eq in eqs_new]
+    masked_colloc_equations = [[Symbolics.substitute(eq, eq_sub) for eq in eqs_new]
                                for eq_sub in eq_subs]
     # now we have vector of dataset depvar's collocated equations
 
@@ -51,7 +50,8 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
     rev_Dict_differentials = Dict(value => key for (key, value) in Dict_differentials)
 
     # unmask Differential terms in masked_colloc_equations
-    colloc_equations = [substitute.(masked_colloc_equation, Ref(rev_Dict_differentials))
+    colloc_equations = [Symbolics.substitute.(
+                            masked_colloc_equation, Ref(rev_Dict_differentials))
                         for masked_colloc_equation in masked_colloc_equations]
 
     # nested vector of datafree_pde_loss_functions (as in discretize.jl)
@@ -314,7 +314,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         Kernel = HMC(0.1, 30), Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
-        numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
+        numensemble = floor(Int, draw_samples / 3), Dict_differentials = nothing, progress = false, verbose = false)
     pinnrep = symbolic_discretize(pde_system, discretization)
     dataset_pde, dataset_bc = discretization.dataset
 
@@ -422,7 +422,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
     ℓπ = PDELogTargetDensity(
         nparameters, strategy, dataset, priors, [phystd, bcstd, l2std], phynewstd,
-        names, ninv, initial_nnθ, full_weighted_loglikelihood, Φ)
+        names, ninv, initial_nnθ, full_weighted_loglikelihood, newloss, Φ)
 
     Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
@@ -496,7 +496,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             @printf("Final MSE against dataset Log-likelihood : %g\n",
                 L2LossData(ℓπ, samples[end]))
             if !(newloss isa Nothing)
-                @printf("Final L2_LOSSY : %g\n",
+                @printf("Final new loss : %g\n",
                     ℓπ.L2_loss2(setparameters(ℓπ, samples[end]),
                         ℓπ.phynewstd))
             end

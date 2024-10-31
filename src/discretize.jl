@@ -549,13 +549,13 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
                                  for (j, bc_loss_function) in enumerate(bc_loss_functions)]
 
             if !(datapde_loss_functions isa Nothing)
-                pde_loglikelihoods += [logpdf(Normal(0, stdpdes[j]), pde_loss_function(θ))
-                                       for (j, pde_loss_function) in enumerate(datapde_loss_functions)]
+                pde_loglikelihoods += [pde_loglike_function(θ, allstd[1])
+                                       for (j, pde_loglike_function) in enumerate(datapde_loss_functions)]
             end
 
             if !(databc_loss_functions isa Nothing)
-                bc_loglikelihoods += [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
-                                      for (j, bc_loss_function) in enumerate(databc_loss_functions)]
+                bc_loglikelihoods += [bc_loglike_function(θ, allstd[2])
+                                      for (j, bc_loglike_function) in enumerate(databc_loss_functions)]
             end
 
             # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized

@@ -88,7 +88,7 @@ function get_points_loss_functions(loss_function, train_set, eltypeθ, strategy:
     function loss(θ, std)
         logpdf(
             MvNormal(loss_function(train_set, θ)[1, :],
-                LinearAlgebra.Diagonal(abs2.(std .* ones(size(train_set)[2])))),
+                Diagonal(abs2.(std .* ones(size(train_set)[2])))),
             zeros(size(train_set)[2]))
     end
 end
