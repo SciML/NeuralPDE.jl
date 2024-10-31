@@ -352,25 +352,6 @@ end
     # @test sum(abs, pmean(p_[2]) - (8 / 3)) < 0.3 * idealp[2]
 end
 
-function recur_expression(exp, Dict_differentials)
-    for in_exp in exp.args
-        if !(in_exp isa Expr)
-            # skip +,== symbols, characters etc
-            continue
-
-        elseif in_exp.args[1] isa ModelingToolkit.Differential
-            # first symbol of differential term
-            # Dict_differentials for masking differential terms
-            # and resubstituting differentials in equations after putting in interpolations
-            # temp = in_exp.args[end]
-            Dict_differentials[eval(in_exp)] = Symbolics.variable("diff_$(length(Dict_differentials) + 1)")
-            return
-        else
-            recur_expression(in_exp, Dict_differentials)
-        end
-    end
-end
-
 @testitem "BPINN PDE Inv III: Improved Parametric Kuromo-Sivashinsky Equation solve" tags=[:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
@@ -378,6 +359,25 @@ end
     import ModelingToolkit: Interval, infimum, supremum
 
     Random.seed!(100)
+
+    function recur_expression(exp, Dict_differentials)
+        for in_exp in exp.args
+            if !(in_exp isa Expr)
+                # skip +,== symbols, characters etc
+                continue
+
+            elseif in_exp.args[1] isa ModelingToolkit.Differential
+                # first symbol of differential term
+                # Dict_differentials for masking differential terms
+                # and resubstituting differentials in equations after putting in interpolations
+                # temp = in_exp.args[end]
+                Dict_differentials[eval(in_exp)] = Symbolics.variable("diff_$(length(Dict_differentials) + 1)")
+                return
+            else
+                recur_expression(in_exp, Dict_differentials)
+            end
+        end
+    end
 
     @parameters x, t, α
     @variables u(..)
