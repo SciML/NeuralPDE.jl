@@ -257,9 +257,10 @@ end
     u = u .+ (u .* 0.2) .* randn(size(u))
     dataset = [hcat(u, timepoints)]
 
+    # BPINNs are formulated with a mesh that must stay the same throughout sampling (as of now)
     @testset "$(nameof(typeof(strategy)))" for strategy in [
-        StochasticTraining(200),
-        QuasiRandomTraining(200),
+        # StochasticTraining(200),
+        # QuasiRandomTraining(200),
         GridTraining([0.02])
     ]
         discretization = BayesianPINN([chainl], strategy; param_estim = true,
