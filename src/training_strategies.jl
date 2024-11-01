@@ -55,15 +55,31 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
 
     # only when physics loss is taken, merge_strategy_with_loglikelihood_function() call case
     if ((train_sets_bc isa Nothing) && (train_sets_pde isa Nothing))
-        train_sets_pde, train_sets_bc = generate_training_sets(
-            domains, dx, eqs, bcs, eltypeθ,
-            dict_indvars, dict_depvars)
+        train_sets = generate_training_sets(
+            pinnrep.domains, strategy.dx, pinnrep.eqs, pinnrep.bcs, eltypeθ,
+            pinnrep.dict_indvars, pinnrep.dict_depvars)
+
+        train_sets_pde, train_sets_bc = train_sets |> adaptor
+        # train_sets_pde matches PhysicsInformedNN solver train_sets[1] dims.
+        pde_loss_functions = [get_points_loss_functions(_loss, _set, eltypeθ, strategy)
+                              for (_loss, _set) in zip(
+            datafree_pde_loss_function, train_sets_pde)]
+
+        bc_loss_functions = [get_points_loss_functions(_loss, _set, eltypeθ, strategy)
+                             for (_loss, _set) in zip(
+            datafree_bc_loss_function, train_sets_bc)]
+
+        return pde_loss_functions, bc_loss_functions
     end
 
-    # is vec as later each _set in pde_train_sets are columns as points transformed to
-    # vector of points (pde_train_sets must be rowwise)
     pde_loss_functions = if train_sets_pde !== nothing
-        pde_train_sets = [train_set[:, 2:end] for train_set in train_sets_pde] |> adaptor
+        # as first col in all rows is depvar's value in depvar's dataset respectively
+        # and we want only all depvar dataset's indvar points
+        pde_train_sets = [train_set[:, 2:end]' for train_set in train_sets_pde] |> adaptor
+
+        # pde_train_sets must match PhysicsInformedNN solver train_sets[1] dims. It is a vector with coords.
+        # Vector is for number of PDE equations in system, Matrix has rows of indvar grid point coords
+        # each loss struct mapped onto (total_numpoints_combs, dim_indvars)
         [get_points_loss_functions(_loss, _set, eltypeθ, strategy)
          for (_loss, _set) in zip(datafree_pde_loss_function, pde_train_sets)]
     else
@@ -71,7 +87,7 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
     end
 
     bc_loss_functions = if train_sets_bc !== nothing
-        bcs_train_sets = [train_set[:, 2:end] for train_set in train_sets_bc] |> adaptor
+        bcs_train_sets = [train_set[:, 2:end]' for train_set in train_sets_bc] |> adaptor
         [get_points_loss_functions(_loss, _set, eltypeθ, strategy)
          for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
     else

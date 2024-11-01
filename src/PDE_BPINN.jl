@@ -53,18 +53,17 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
     colloc_equations = [Symbolics.substitute.(
                             masked_colloc_equation, Ref(rev_Dict_differentials))
                         for masked_colloc_equation in masked_colloc_equations]
-
-    # nested vector of datafree_pde_loss_functions (as in discretize.jl)
+    # nested vector of data_pde_loss_functions (as in discretize.jl)
     # each sub vector has dataset's indvar coord's datafree_colloc_loss_function, n_subvectors = n_rows_dataset(or n_indvar_coords_dataset)
     # zip each colloc equation with args for each build_loss call per equation vector
-    datafree_colloc_loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
+    data_colloc_loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
                                        for (eq, pde_indvar, integration_indvar) in zip(
                                           colloc_equation,
                                           pinnrep.pde_indvars,
                                           pinnrep.pde_integration_vars)]
                                       for colloc_equation in colloc_equations]
 
-    return datafree_colloc_loss_functions
+    return data_colloc_loss_functions
 end
 
 function get_symbols(dataset, depvars, eqs)
@@ -321,39 +320,38 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     newloss = if Dict_differentials isa Nothing
         nothing
     else
-        datafree_colloc_loss_functions = get_lossy(pinnrep, dataset_pde, Dict_differentials)
-        # equals number of indvar coords in dataset
+        data_colloc_loss_functions = get_lossy(pinnrep, dataset_pde, Dict_differentials)
+        # size = number of indvar coords in dataset
         # add case for if parameters present in bcs?
 
         train_sets_pde = get_dataset_train_points(pde_system.eqs,
             dataset_pde,
             pinnrep)
-        colloc_train_sets = [[hcat(train_sets_pde[i][:, j]...)'
-                              for i in eachindex(datafree_colloc_loss_functions[1])]
-                             for j in eachindex(datafree_colloc_loss_functions)]
+        # j is number of indvar coords in dataset, i is number of PDE equations in system
+        # -1 is placeholder, removed in merge_strategy_with_loglikelihood_function function call (train_sets[:, 2:end]())
+        colloc_train_sets = [[hcat([-1], train_sets_pde[i][:, j]...)
+                              for i in eachindex(data_colloc_loss_functions[1])]
+                             for j in eachindex(data_colloc_loss_functions)]
 
-        # for each datafree_colloc_loss_function create loss_functions by passing dataset's indvar coords as train_sets_pde.
+        # using dataset's indvar coords as train_sets_pde and indvar coord's datafree_colloc_loss_function, create loss functions
         # placeholder strategy = GridTraining(0.1), datafree_bc_loss_function and train_sets_bc must be nothing
         # order of indvar coords will be same as corresponding depvar coords values in dataset provided in get_lossy() call.
         pde_loss_function_points = [merge_strategy_with_loglikelihood_function(
                                         pinnrep,
                                         GridTraining(0.1),
-                                        datafree_colloc_loss_functions[i],
+                                        data_colloc_loss_functions[i],
                                         nothing;
                                         train_sets_pde = colloc_train_sets[i],
                                         train_sets_bc = nothing)[1]
-                                    for i in eachindex(datafree_colloc_loss_functions)]
+                                    for i in eachindex(data_colloc_loss_functions)]
 
         function L2_loss2(θ, phynewstd)
-            # first vector of losses,from tuple -> pde losses, first[1] pde loss
-            pde_loglikelihoods = [sum([pde_loss_function(θ, phynewstd[i])
-                                       for (i, pde_loss_function) in enumerate(pde_loss_functions)])
-                                  for pde_loss_functions in pde_loss_function_points]
-
-            # bc_loglikelihoods = [sum([bc_loss_function(θ, phynewstd[i]) for (i, bc_loss_function) in enumerate(pde_loss_function_points[1])]) for pde_loss_function_points in pde_loss_functions]
-            #                      for (j, bc_loss_function) in enumerate(bc_loss_functions)]
-
-            return sum(pde_loglikelihoods)
+            # first sum is over points losses over many equations for the same points
+            # second sum is over all points
+            pde_loglikelihoods = sum([sum([pde_loss_function(θ,
+                                               phynewstd[i])
+                                           for (i, pde_loss_function) in enumerate(pde_loss_functions)])
+                                      for pde_loss_functions in pde_loss_function_points])
         end
     end
 
@@ -435,7 +433,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         @printf("Current Physics Log-likelihood : %g\n",
             ℓπ.full_loglikelihood(setparameters(ℓπ, initial_θ), ℓπ.allstd))
         @printf("Current Prior Log-likelihood : %g\n", priorlogpdf(ℓπ, initial_θ))
-        @printf("Current MSE against dataset Log-likelihood : %g\n",
+        @printf("Current SSE against dataset Log-likelihood : %g\n",
             L2LossData(ℓπ, initial_θ))
         if !(newloss isa Nothing)
             @printf("Current new loss : %g\n",
@@ -493,7 +491,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             @printf("Final Physics Log-likelihood : %g\n",
                 ℓπ.full_loglikelihood(setparameters(ℓπ, samples[end]), ℓπ.allstd))
             @printf("Final Prior Log-likelihood : %g\n", priorlogpdf(ℓπ, samples[end]))
-            @printf("Final MSE against dataset Log-likelihood : %g\n",
+            @printf("Final SSE against dataset Log-likelihood : %g\n",
                 L2LossData(ℓπ, samples[end]))
             if !(newloss isa Nothing)
                 @printf("Final new loss : %g\n",

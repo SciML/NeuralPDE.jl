@@ -425,7 +425,7 @@ function ahmc_bayesian_pinn_ode(
     if verbose
         @printf("Current Physics Log-likelihood: %g\n", physloglikelihood(ℓπ, initial_θ))
         @printf("Current Prior Log-likelihood: %g\n", priorweights(ℓπ, initial_θ))
-        @printf("Current MSE against dataset Log-likelihood: %g\n",
+        @printf("Current SSE against dataset Log-likelihood: %g\n",
             L2LossData(ℓπ, initial_θ))
         if estim_collocate
             @printf("Current gradient loss against dataset Log-likelihood: %g\n",
@@ -487,7 +487,7 @@ function ahmc_bayesian_pinn_ode(
             @printf("Final Physics Log-likelihood: %g\n",
                 physloglikelihood(ℓπ, samples[end]))
             @printf("Final Prior Log-likelihood: %g\n", priorweights(ℓπ, samples[end]))
-            @printf("Final MSE against dataset Log-likelihood: %g\n",
+            @printf("Final SSE against dataset Log-likelihood: %g\n",
                 L2LossData(ℓπ, samples[end]))
             if estim_collocate
                 @printf("Final gradient loss against dataset Log-likelihood: %g\n",

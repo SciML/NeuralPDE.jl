@@ -526,6 +526,10 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     function get_likelihood_estimate_function(discretization::BayesianPINN)
         dataset_pde, dataset_bc = discretization.dataset
 
+        pde_loss_functions, bc_loss_functions = merge_strategy_with_loglikelihood_function(
+            pinnrep, strategy,
+            datafree_pde_loss_functions, datafree_bc_loss_functions)
+
         # required as Physics loss also needed on the discrete dataset domain points
         # data points are discrete and so by default GridTraining loss applies
         # passing placeholder dx with GridTraining, it uses data points irl
@@ -542,20 +546,22 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
         function full_loss_function(θ, allstd::Vector{Vector{Float64}})
             stdpdes, stdbcs, stdextra = allstd
             # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
-            pde_loglikelihoods = [logpdf(Normal(0, stdpdes[i]), pde_loss_function(θ))
-                                  for (i, pde_loss_function) in enumerate(pde_loss_functions)]
+            # SSE FOR LOSS ON GRIDPOINTS not MSE ! i, j depend on number of bcs and eqs
+            pde_loglikelihoods = sum([pde_loglike_function(θ, stdpdes[i])
+                                      for (i, pde_loglike_function) in enumerate(pde_loss_functions)])
 
-            bc_loglikelihoods = [logpdf(Normal(0, stdbcs[j]), bc_loss_function(θ))
-                                 for (j, bc_loss_function) in enumerate(bc_loss_functions)]
+            bc_loglikelihoods = sum([bc_loglike_function(θ, stdbcs[j])
+                                     for (j, bc_loglike_function) in enumerate(bc_loss_functions)])
 
+            # final newloss creation components are similar to this
             if !(datapde_loss_functions isa Nothing)
-                pde_loglikelihoods += [pde_loglike_function(θ, allstd[1])
-                                       for (j, pde_loglike_function) in enumerate(datapde_loss_functions)]
+                pde_loglikelihoods += sum([pde_loglike_function(θ, allstd[1])
+                                           for (j, pde_loglike_function) in enumerate(datapde_loss_functions)])
             end
 
             if !(databc_loss_functions isa Nothing)
-                bc_loglikelihoods += [bc_loglike_function(θ, allstd[2])
-                                      for (j, bc_loglike_function) in enumerate(databc_loss_functions)]
+                bc_loglikelihoods += sum([bc_loglike_function(θ, allstd[2])
+                                          for (j, bc_loglike_function) in enumerate(databc_loss_functions)])
             end
 
             # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
