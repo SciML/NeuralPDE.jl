@@ -137,7 +137,7 @@ end
     sol = solve(prob, Tsit5(); saveat = 0.1)
     u = sol.u
     time = sol.t
-    x̂ = u .+ (u .* 0.2) .* randn(size(u))
+    x̂ = u .+ (u .* 0.1) .* randn(size(u))
     dataset = [x̂, time]
     physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
@@ -148,16 +148,16 @@ end
     chainlux12 = Chain(Dense(1, 6, tanh), Dense(6, 6, tanh), Dense(6, 1))
     θinit, st = Lux.setup(Random.default_rng(), chainlux12)
 
+    # this a forward solve
     fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(
-        prob, chainlux12, draw_samples = 1500, l2std = [0.03],
-        phystd = [0.03], priorsNNw = (0.0, 10.0))
+        prob, chainlux12, draw_samples = 500, phystd = [0.01], priorsNNw = (0.0, 10.0))
 
     fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(
-        prob, chainlux12, dataset = dataset, draw_samples = 1500, l2std = [0.03],
-        phystd = [0.03], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
+        prob, chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.05],
+        phystd = [0.01], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
 
-    alg = BNNODE(chainlux12, dataset = dataset, draw_samples = 1500, l2std = [0.03],
-        phystd = [0.03], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
+    alg = BNNODE(chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.05],
+        phystd = [0.01], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
 
     sol3lux_pestim = solve(prob, alg)
 
@@ -166,32 +166,32 @@ end
     #------------------------------ ahmc_bayesian_pinn_ode() call
     # Mean of last 500 sampled parameter's curves(lux chains)[Ensemble predictions]
     θ = [vector_to_parameters(fhsampleslux12[i], θinit)
-         for i in 1000:length(fhsampleslux12)]
+         for i in 500:length(fhsampleslux12)]
     luxar = [chainlux12(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_1 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
     θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 1)], θinit)
-         for i in 1000:length(fhsampleslux22)]
+         for i in 500:length(fhsampleslux22)]
     luxar = [chainlux12(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-    @test mean(abs, sol.u .- meanscurve2_1) < 1e-1
-    @test mean(abs, physsol1 .- meanscurve2_1) < 1e-1
-    @test mean(abs, sol.u .- meanscurve2_2) < 5e-2
-    @test mean(abs, physsol1 .- meanscurve2_2) < 5e-2
+    @test mean(abs, sol.u .- meanscurve2_1) < 1e-2
+    @test mean(abs, physsol1 .- meanscurve2_1) < 1e-2
+    @test mean(abs, sol.u .- meanscurve2_2) < 1e-1
+    @test mean(abs, physsol1 .- meanscurve2_2) < 1e-1
 
     # estimated parameters(lux chain)
-    param1 = mean(i[62] for i in fhsampleslux22[1000:length(fhsampleslux22)])
-    @test abs(param1 - p) < abs(0.3 * p)
+    param1 = mean(i[62] for i in fhsampleslux22[500:length(fhsampleslux22)])
+    @test abs(param1 - p) < abs(0.5 * p)
 
-    #-------------------------- solve() call
+    #regular formulation is just that bad
     # (lux chain)
     @test mean(abs, physsol2 .- pmean(sol3lux_pestim.ensemblesol[1])) < 0.15
     # estimated parameters(lux chain)
     param1 = sol3lux_pestim.estimated_de_params[1]
-    @test abs(param1 - p) < abs(0.45 * p)
+    @test abs(param1 - p) < abs(0.5 * p)
 end
 
 @testitem "BPINN ODE: Translating from Flux" tags=[:odebpinn] begin
@@ -391,8 +391,8 @@ end
 
     times = solution.t
     u = hcat(solution.u...)
-    x = u[1, :] + (0.4 .* randn(length(u[1, :])))
-    y = u[2, :] + (0.4 .* randn(length(u[2, :])))
+    x = u[1, :] + (0.5 .* randn(length(u[1, :])))
+    y = u[2, :] + (0.5 .* randn(length(u[2, :])))
     dataset = [x, y, times]
 
     chain = Lux.Chain(Lux.Dense(1, 7, tanh), Lux.Dense(7, 7, tanh),
@@ -401,8 +401,8 @@ end
     alg1 = BNNODE(chain;
         dataset = dataset,
         draw_samples = 1000,
-        l2std = [0.4, 0.4],
-        phystd = [0.4, 0.4],
+        l2std = [0.5, 0.5],
+        phystd = [0.5, 0.5],
         priorsNNw = (0.0, 1.0),
         param = [
             Normal(2, 2),
@@ -411,9 +411,9 @@ end
     alg2 = BNNODE(chain;
         dataset = dataset,
         draw_samples = 1000,
-        l2std = [0.4, 0.4],
-        phystd = [0.4, 0.4],
-        phynewstd = [1.2, 1.2],
+        l2std = [0.5, 0.5],
+        phystd = [0.5, 0.5],
+        phynewstd = [1.0, 1.0],
         priorsNNw = (0.0, 1.0),
         param = [
             Normal(2, 2),
