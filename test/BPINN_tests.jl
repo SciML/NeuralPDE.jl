@@ -153,10 +153,10 @@ end
         prob, chainlux12, draw_samples = 500, phystd = [0.01], priorsNNw = (0.0, 10.0))
 
     fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(
-        prob, chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.05],
+        prob, chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.02],
         phystd = [0.05], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
 
-    alg = BNNODE(chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.05],
+    alg = BNNODE(chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.02],
         phystd = [0.05], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
 
     sol3lux_pestim = solve(prob, alg)
