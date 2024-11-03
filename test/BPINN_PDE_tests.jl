@@ -480,7 +480,7 @@ end
         discretization;
         draw_samples = 150,
         bcstd = [0.1, 0.1, 0.1, 0.1, 0.1], phynewstd = [0.5],
-        phystd = [0.2], l2std = [0.5], param = [Distributions.Normal(2.0, 2)],
+        phystd = [0.2], l2std = [0.8], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0],
         Dict_differentials = Dict_differentials)
@@ -489,7 +489,7 @@ end
         discretization;
         draw_samples = 150,
         bcstd = [0.1, 0.1, 0.1, 0.1, 0.1],
-        phystd = [0.2], l2std = [0.5], param = [Distributions.Normal(2.0, 2)],
+        phystd = [0.2], l2std = [0.8], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0])
 
@@ -513,6 +513,7 @@ end
                    for x in xs]
                   for t in ts]
 
+    unsafe_comparisons(true)
     @test all(all, [((diff_u_new[i]) .^ 2 .< 0.6) for i in 1:6]) == true
     @test all(all, [((diff_u_old[i]) .^ 2 .< 0.6) for i in 1:6]) == false
 
@@ -524,6 +525,5 @@ end
     param_old = sol_old.estimated_de_params[1]
     α = 1
     @test abs(param_new - α) < 0.2 * α
-    unsafe_comparisons(true)
     @test abs(param_new - α) < abs(param_old - α)
 end
