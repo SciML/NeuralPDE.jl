@@ -1,4 +1,4 @@
-@testitem "BPINN PDE I: 2D Periodic System" tags=[:pdebpinn] begin
+@testitem "BPINN PDE I: 1D Periodic System" tags=[:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
           ComponentArrays
@@ -21,7 +21,7 @@
     discretization = BayesianPINN([chainl], GridTraining([0.01]))
 
     sol1 = ahmc_bayesian_pinn_pde(
-        pde_system, discretization; draw_samples = 1500, bcstd = [0.02],
+        pde_system, discretization; draw_samples = 1500, bcstd = [0.01],
         phystd = [0.01], priorsNNw = (0.0, 1.0), saveats = [1 / 50.0])
 
     analytic_sol_func(u0, t) = u0 + sinpi(2t) / (2pi)
@@ -29,8 +29,8 @@
     u_real = [analytic_sol_func(0.0, t) for t in ts]
     u_predict = pmean(sol1.ensemblesol[1])
 
-    @test u_predict≈u_real atol=0.5
-    @test mean(u_predict .- u_real) < 0.1
+    # absol tests
+    @test mean(abs, u_predict .- u_real) < 5e-2
 end
 
 @testitem "BPINN PDE II: 1D ODE" tags=[:pdebpinn] begin
@@ -240,7 +240,7 @@ end
     bcs = [u(0) ~ 0.0]
     domains = [t ∈ Interval(0.0, 2.0)]
 
-    chainl = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 1))
+    chainl = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
     initl, st = Lux.setup(Random.default_rng(), chainl)
 
     @named pde_system = PDESystem(eqs,
@@ -269,8 +269,8 @@ end
         sol1 = ahmc_bayesian_pinn_pde(pde_system,
             discretization;
             draw_samples = 1500,
-            bcstd = [0.01],
-            phystd = [0.01], l2std = [0.02],
+            bcstd = [0.02],
+            phystd = [0.02], l2std = [0.02],
             priorsNNw = (0.0, 1.0),
             saveats = [1 / 50.0],
             param = [LogNormal(6.0, 0.5)])
@@ -479,7 +479,7 @@ end
     sol_new = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
         draw_samples = 150,
-        bcstd = [0.1, 0.1, 0.1, 0.1, 0.1], phynewstd = [0.4],
+        bcstd = [0.1, 0.1, 0.1, 0.1, 0.1], phynewstd = [0.5],
         phystd = [0.2], l2std = [0.5], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0],
@@ -524,5 +524,6 @@ end
     param_old = sol_old.estimated_de_params[1]
     α = 1
     @test abs(param_new - α) < 0.2 * α
+    unsafe_comparisons(true)
     @test abs(param_new - α) < abs(param_old - α)
 end

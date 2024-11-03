@@ -154,10 +154,10 @@ end
 
     fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(
         prob, chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.05],
-        phystd = [0.01], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
+        phystd = [0.05], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
 
     alg = BNNODE(chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.05],
-        phystd = [0.01], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
+        phystd = [0.05], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
 
     sol3lux_pestim = solve(prob, alg)
 
@@ -183,7 +183,7 @@ end
     @test mean(abs, physsol1 .- meanscurve2_2) < 1e-1
 
     # estimated parameters(lux chain)
-    param1 = mean(i[62] for i in fhsampleslux22[500:length(fhsampleslux22)])
+    param1 = mean(i[62] for i in fhsampleslux22[400:length(fhsampleslux22)])
     @test abs(param1 - p) < abs(0.5 * p)
 end
 
