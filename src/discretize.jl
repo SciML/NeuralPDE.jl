@@ -555,12 +555,12 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
 
             # final newloss creation components are similar to this
             if !(datapde_loss_functions isa Nothing)
-                pde_loglikelihoods += sum([pde_loglike_function(θ, allstd[1])
+                pde_loglikelihoods += sum([pde_loglike_function(θ, stdpdes[j])
                                            for (j, pde_loglike_function) in enumerate(datapde_loss_functions)])
             end
 
             if !(databc_loss_functions isa Nothing)
-                bc_loglikelihoods += sum([bc_loglike_function(θ, allstd[2])
+                bc_loglikelihoods += sum([bc_loglike_function(θ, stdbcs[j])
                                           for (j, bc_loglike_function) in enumerate(databc_loss_functions)])
             end
 

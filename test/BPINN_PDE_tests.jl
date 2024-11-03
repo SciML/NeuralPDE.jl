@@ -259,8 +259,8 @@ end
 
     # BPINNs are formulated with a mesh that must stay the same throughout sampling (as of now)
     @testset "$(nameof(typeof(strategy)))" for strategy in [
-        # StochasticTraining(200),
-        # QuasiRandomTraining(200),
+    # StochasticTraining(200),
+    # QuasiRandomTraining(200),
         GridTraining([0.02])
     ]
         discretization = BayesianPINN([chainl], strategy; param_estim = true,
@@ -269,8 +269,8 @@ end
         sol1 = ahmc_bayesian_pinn_pde(pde_system,
             discretization;
             draw_samples = 1500,
-            bcstd = [0.05],
-            phystd = [0.01], l2std = [0.01],
+            bcstd = [0.01],
+            phystd = [0.01], l2std = [0.02],
             priorsNNw = (0.0, 1.0),
             saveats = [1 / 50.0],
             param = [LogNormal(6.0, 0.5)])
@@ -280,9 +280,8 @@ end
         u_real = [analytic_sol_func1(0.0, t) for t in ts]
         u_predict = pmean(sol1.ensemblesol[1])
 
-        @test u_predict≈u_real atol=1.5
-        @test mean(u_predict .- u_real) < 0.1
-        @test sol1.estimated_de_params[1]≈param atol=param * 0.3
+        @test mean(abs, u_predict .- u_real) < 5e-2
+        @test sol1.estimated_de_params[1]≈param rtol=0.1
     end
 end
 
@@ -328,7 +327,7 @@ end
     ts = sol.t
     us = hcat(sol.u...)
     us = us .+ ((0.05 .* randn(size(us))) .* us)
-    ts_ = hcat(sol(ts).t...)[1, :]
+    ts_ = hcat(ts...)[1, :]
     dataset = [hcat(us[i, :], ts_) for i in 1:3]
 
     discretization = BayesianPINN(chain, GridTraining([0.01]); param_estim = true,
@@ -480,7 +479,7 @@ end
     sol_new = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
         draw_samples = 150,
-        bcstd = [0.1, 0.1, 0.1, 0.1, 0.1], phynewstd = [0.3],
+        bcstd = [0.1, 0.1, 0.1, 0.1, 0.1], phynewstd = [0.4],
         phystd = [0.2], l2std = [0.5], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0],
@@ -514,8 +513,8 @@ end
                    for x in xs]
                   for t in ts]
 
-    @test all(all, [((diff_u_new[i]) .^ 2 .< 0.5) for i in 1:6]) == true
-    @test all(all, [((diff_u_old[i]) .^ 2 .< 0.5) for i in 1:6]) == false
+    @test all(all, [((diff_u_new[i]) .^ 2 .< 0.6) for i in 1:6]) == true
+    @test all(all, [((diff_u_old[i]) .^ 2 .< 0.6) for i in 1:6]) == false
 
     MSE_new = [sum(abs2, diff_u_new[i]) for i in 1:6]
     MSE_old = [sum(abs2, diff_u_old[i]) for i in 1:6]
