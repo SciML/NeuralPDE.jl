@@ -479,8 +479,8 @@ end
     sol_new = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
         draw_samples = 150,
-        bcstd = [0.1, 0.1, 0.1, 0.1, 0.1], phynewstd = [0.8],
-        phystd = [0.2], l2std = [0.8], param = [Distributions.Normal(2.0, 2)],
+        bcstd = [0.1, 0.1, 0.1, 0.1, 0.1], phynewstd = [1.0],
+        phystd = [0.1], l2std = [0.8], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0],
         Dict_differentials = Dict_differentials)
@@ -489,7 +489,7 @@ end
         discretization;
         draw_samples = 150,
         bcstd = [0.1, 0.1, 0.1, 0.1, 0.1],
-        phystd = [0.2], l2std = [0.8], param = [Distributions.Normal(2.0, 2)],
+        phystd = [0.1], l2std = [0.8], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0])
 
