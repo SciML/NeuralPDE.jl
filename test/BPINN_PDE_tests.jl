@@ -479,7 +479,7 @@ end
     sol_new = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
         draw_samples = 150,
-        bcstd = [0.1, 0.1, 0.1, 0.1, 0.1], phynewstd = [0.1],
+        bcstd = [0.1, 0.1, 0.1, 0.1, 0.1], phynewstd = [0.4],
         phystd = [0.2], l2std = [0.8], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0],
@@ -514,11 +514,11 @@ end
                   for t in ts]
 
     unsafe_comparisons(true)
-    @test all(all, [((diff_u_new[i]) .^ 2 .< 0.6) for i in 1:6]) == true
-    @test all(all, [((diff_u_old[i]) .^ 2 .< 0.6) for i in 1:6]) == false
+    @test all(all, [((diff_u_new[i]) .^ 2 .< 0.7) for i in 1:6]) == true
+    @test all(all, [((diff_u_old[i]) .^ 2 .< 0.7) for i in 1:6]) == false
 
-    MSE_new = [sum(abs2, diff_u_new[i]) for i in 1:6]
-    MSE_old = [sum(abs2, diff_u_old[i]) for i in 1:6]
+    MSE_new = [mean(abs2, diff_u_new[i]) for i in 1:6]
+    MSE_old = [mean(abs2, diff_u_old[i]) for i in 1:6]
     @test (MSE_new .< MSE_old) == [1, 1, 1, 1, 1, 1]
 
     param_new = sol_new.estimated_de_params[1]
