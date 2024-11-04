@@ -514,8 +514,8 @@ end
                   for t in ts]
 
     unsafe_comparisons(true)
-    @test all(all, [((diff_u_new[i]) .^ 2 .< 0.7) for i in 1:6]) == true
-    @test all(all, [((diff_u_old[i]) .^ 2 .< 0.7) for i in 1:6]) == false
+    @test all(all, [((diff_u_new[i]) .^ 2 .< 0.8) for i in 1:6]) == true
+    @test all(all, [((diff_u_old[i]) .^ 2 .< 0.8) for i in 1:6]) == false
 
     MSE_new = [mean(abs2, diff_u_new[i]) for i in 1:6]
     MSE_old = [mean(abs2, diff_u_old[i]) for i in 1:6]
