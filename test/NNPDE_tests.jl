@@ -2,6 +2,12 @@
 
 using NeuralPDE, Cubature, Integrals, QuasiMonteCarlo
 
+# DataGen is Real: https://github.com/SciML/NeuralPDE.jl/issues/906
+@parameters x
+@variables u(..)
+
+NeuralPDE.generate_training_sets([x ∈ (-1.0, 1.0)], 0.1, [u(x) ~ x], [0.0 ~ 0.0], Float64, [x],[:u])
+
 function callback(p, l)
     if p.iter == 1 || p.iter % 250 == 0
         println("Current loss is: $l after $(p.iter) iterations")
