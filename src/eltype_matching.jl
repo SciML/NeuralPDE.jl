@@ -9,6 +9,10 @@ function Adapt.adapt_storage(::EltypeAdaptor{T}, x::AbstractArray) where {T}
     return convert(AbstractArray{T}, x)
 end
 
+function Adapt.adapt_storage(::EltypeAdaptor{T}, x::AbstractArray{Union{}}) where {T}
+    return convert(AbstractArray{T}, x)
+end
+
 function Adapt.adapt_storage(::EltypeAdaptor{T}, x::AbstractArray{<:Complex}) where {T}
     return convert(AbstractArray{Complex{T}}, x)
 end
