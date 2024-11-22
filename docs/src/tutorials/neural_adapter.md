@@ -24,43 +24,44 @@ Dxx = Differential(x)^2
 Dyy = Differential(y)^2
 
 # 2D PDE
-eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
+eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sinpi(x) * sinpi(y)
 
 # Initial and boundary conditions
-bcs = [u(0, y) ~ 0.0, u(1, y) ~ -sin(pi * 1) * sin(pi * y),
-    u(x, 0) ~ 0.0, u(x, 1) ~ -sin(pi * x) * sin(pi * 1)]
+bcs = [
+    u(0, y) ~ 0.0,
+    u(1, y) ~ -sinpi(1) * sinpi(y),
+    u(x, 0) ~ 0.0,
+    u(x, 1) ~ -sinpi(x) * sinpi(1)
+]
 # Space and time domains
 domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
-quadrature_strategy = NeuralPDE.QuadratureTraining(reltol = 1e-3, abstol = 1e-6,
-    maxiters = 50, batch = 100)
-inner = 8
-af = Lux.tanh
-chain1 = Lux.Chain(Lux.Dense(2, inner, af),
-    Lux.Dense(inner, inner, af),
-    Lux.Dense(inner, 1))
 
-discretization = NeuralPDE.PhysicsInformedNN(chain1, quadrature_strategy)
+strategy = StochasticTraining(1024)
+inner = 8
+af = tanh
+chain1 = Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1))
+
+discretization = PhysicsInformedNN(chain1, strategy)
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
-prob = NeuralPDE.discretize(pde_system, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+prob = discretize(pde_system, discretization)
+sym_prob = symbolic_discretize(pde_system, discretization)
 
 callback = function (p, l)
     println("Current loss is: $l")
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000,
+    callback)
 phi = discretization.phi
 
 inner_ = 8
-af = Lux.tanh
-chain2 = Lux.Chain(Dense(2, inner_, af),
-    Dense(inner_, inner_, af),
-    Dense(inner_, inner_, af),
+af = tanh
+chain2 = Chain(Dense(2, inner_, af), Dense(inner_, inner_, af), Dense(inner_, inner_, af),
     Dense(inner_, 1))
 initp, st = Lux.setup(Random.default_rng(), chain2)
-init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
+init_params2 = ComponentArray{Float64}(initp)
 
 # the rule by which the training will take place is described here in loss function
 function loss(cord, θ)
@@ -69,15 +70,15 @@ function loss(cord, θ)
     ch2 .- phi(cord, res.u)
 end
 
-strategy = NeuralPDE.QuadratureTraining(; reltol = 1e-6, abstol = 1e-3)
+strategy = GridTraining(0.1)
 
-prob_ = NeuralPDE.neural_adapter(loss, init_params2, pde_system, strategy)
-res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
+prob_ = neural_adapter(loss, init_params2, pde_system, strategy)
+res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
 
 phi_ = PhysicsInformedNN(chain2, strategy; init_params = res_.u).phi
 
 xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
+analytic_sol_func(x, y) = (sinpi(x) * sinpi(y)) / (2pi^2)
 
 u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
     (length(xs), length(ys)))
@@ -99,7 +100,7 @@ plot(p1, p2, p3, p4, p5)
 
 ## Domain decomposition
 
-In this example, we first obtain a prediction of 2D Poisson equation on subdomains. We split up full domain into 10 sub problems by x, and create separate neural networks for each sub interval. If x domain ∈ [x_0, x_end] so, it is decomposed on 10 part: sub x domains = {[x_0, x_1], ... [x_i,x_i+1], ..., x_9,x_end]}.
+In this example, we first obtain a prediction of 2D Poisson equation on subdomains. We split up full domain into 10 sub problems by x, and create separate neural networks for each sub interval. If x domain ∈ [x_0, x_end] so, it is decomposed on 4 part: sub x domains = {[x_0, x_1], ... [x_i,x_i+1], ..., x_3,x_end]}.
 And then using the method neural_adapter, we retrain the batch of 10 predictions to the one prediction for full domain of task.
 
 ![domain_decomposition](https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png)
@@ -113,10 +114,14 @@ using ModelingToolkit: Interval, infimum, supremum
 Dxx = Differential(x)^2
 Dyy = Differential(y)^2
 
-eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
+eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sinpi(x) * sinpi(y)
 
-bcs = [u(0, y) ~ 0.0, u(1, y) ~ -sin(pi * 1) * sin(pi * y),
-    u(x, 0) ~ 0.0, u(x, 1) ~ -sin(pi * x) * sin(pi * 1)]
+bcs = [
+    u(0, y) ~ 0.0,
+    u(1, y) ~ -sinpi(1) * sinpi(y),
+    u(x, 0) ~ 0.0,
+    u(x, 1) ~ -sinpi(x) * sinpi(1)
+]
 
 # Space
 x_0 = 0.0
@@ -125,38 +130,34 @@ x_domain = Interval(x_0, x_end)
 y_domain = Interval(0.0, 1.0)
 domains = [x ∈ x_domain, y ∈ y_domain]
 
-count_decomp = 10
+count_decomp = 4
 
 # Neural network
-af = Lux.tanh
+af = tanh
 inner = 10
-chains = [Lux.Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1))
-          for _ in 1:count_decomp]
-init_params = map(
-    c -> Float64.(ComponentArray(Lux.setup(Random.default_rng(), c)[1])), chains)
+chain = Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1))
 
 xs_ = infimum(x_domain):(1 / count_decomp):supremum(x_domain)
 xs_domain = [(xs_[i], xs_[i + 1]) for i in 1:(length(xs_) - 1)]
 domains_map = map(xs_domain) do (xs_dom)
     x_domain_ = Interval(xs_dom...)
-    domains_ = [x ∈ x_domain_,
-        y ∈ y_domain]
+    domains_ = [x ∈ x_domain_, y ∈ y_domain]
 end
 
-analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
+analytic_sol_func(x, y) = (sinpi(x) * sinpi(y)) / (2pi^2)
 function create_bcs(x_domain_, phi_bound)
     x_0, x_e = x_domain_.left, x_domain_.right
     if x_0 == 0.0
         bcs = [u(0, y) ~ 0.0,
             u(x_e, y) ~ analytic_sol_func(x_e, y),
             u(x, 0) ~ 0.0,
-            u(x, 1) ~ -sin(pi * x) * sin(pi * 1)]
+            u(x, 1) ~ -sinpi(x) * sinpi(1)]
         return bcs
     end
     bcs = [u(x_0, y) ~ phi_bound(x_0, y),
         u(x_e, y) ~ analytic_sol_func(x_e, y),
         u(x, 0) ~ 0.0,
-        u(x, 1) ~ -sin(pi * x) * sin(pi * 1)]
+        u(x, 1) ~ -sinpi(x) * sinpi(1)]
     bcs
 end
 
@@ -174,14 +175,13 @@ for i in 1:count_decomp
     bcs_ = create_bcs(domains_[1].domain, phi_bound)
     @named pde_system_ = PDESystem(eq, bcs_, domains_, [x, y], [u(x, y)])
     push!(pde_system_map, pde_system_)
-    strategy = NeuralPDE.QuadratureTraining(; reltol = 1e-6, abstol = 1e-3)
 
-    discretization = NeuralPDE.PhysicsInformedNN(chains[i], strategy;
-        init_params = init_params[i])
+    strategy = StochasticTraining(1024)
+    discretization = PhysicsInformedNN(chain, strategy)
 
-    prob = NeuralPDE.discretize(pde_system_, discretization)
-    symprob = NeuralPDE.symbolic_discretize(pde_system_, discretization)
-    res_ = Optimization.solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000)
+    prob = discretize(pde_system_, discretization)
+    symprob = symbolic_discretize(pde_system_, discretization)
+    res_ = solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
     phi = discretization.phi
     push!(reses, res_)
     push!(phis, phi)
@@ -218,15 +218,12 @@ dx = 0.01
 u_predict, diff_u = compose_result(dx)
 
 inner_ = 18
-af = Lux.tanh
-chain2 = Lux.Chain(Dense(2, inner_, af),
-    Dense(inner_, inner_, af),
-    Dense(inner_, inner_, af),
-    Dense(inner_, inner_, af),
-    Dense(inner_, 1))
+af = tanh
+chain2 = Chain(Dense(2, inner_, af), Dense(inner_, inner_, af), Dense(inner_, inner_, af),
+    Dense(inner_, inner_, af), Dense(inner_, 1))
 
 initp, st = Lux.setup(Random.default_rng(), chain2)
-init_params2 = Float64.(ComponentArrays.ComponentArray(initp))
+init_params2 = ComponentArray{Float64}(initp)
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
@@ -243,12 +240,8 @@ callback = function (p, l)
     return false
 end
 
-prob_ = NeuralPDE.neural_adapter(losses, init_params2, pde_system_map,
-    NeuralPDE.QuadratureTraining(; reltol = 1e-6, abstol = 1e-3))
-res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
-prob_ = NeuralPDE.neural_adapter(losses, res_.u, pde_system_map,
-    NeuralPDE.QuadratureTraining(; reltol = 1e-6, abstol = 1e-3))
-res_ = Optimization.solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000)
+prob_ = neural_adapter(losses, init_params2, pde_system_map, StochasticTraining(1024))
+res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000, callback)
 
 phi_ = PhysicsInformedNN(chain2, strategy; init_params = res_.u).phi
 

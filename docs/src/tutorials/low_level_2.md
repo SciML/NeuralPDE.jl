@@ -27,7 +27,7 @@ where $\theta = t - x/2$ and with initial and boundary conditions:
 With Bayesian Physics-Informed Neural Networks, here is an example of using `BayesianPINN` discretization with `ahmc_bayesian_pinn_pde` :
 
 ```@example low_level_2
-using NeuralPDE, Flux, Lux, ModelingToolkit, LinearAlgebra, AdvancedHMC
+using NeuralPDE, Lux, ModelingToolkit, LinearAlgebra, AdvancedHMC
 import ModelingToolkit: Interval, infimum, supremum, Distributions
 using Plots, MonteCarloMeasurements
 
@@ -102,9 +102,7 @@ plot!(noisydataset[1][:, 2], noisydataset[1][:, 1])
 
 ```@example low_level_2
 # Neural network
-chain = Lux.Chain(Lux.Dense(2, 8, Lux.tanh),
-    Lux.Dense(8, 8, Lux.tanh),
-    Lux.Dense(8, 1))
+chain = Chain(Dense(2, 8, tanh), Dense(8, 8, tanh), Dense(8, 1))
 
 discretization = NeuralPDE.BayesianPINN([chain],
     GridTraining([dx, dt]), param_estim = true, dataset = [noisydataset, nothing])

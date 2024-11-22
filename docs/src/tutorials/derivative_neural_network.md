@@ -52,9 +52,8 @@ We approximate the derivative of the neural network with another neural network
 using the second numeric derivative `Dt(Dtu1(t,x))`.
 
 ```@example derivativenn
-using NeuralPDE, Lux, ModelingToolkit
-using Optimization, OptimizationOptimisers, OptimizationOptimJL, LineSearches
-using Plots
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers,
+      OptimizationOptimJL, LineSearches, Plots
 using ModelingToolkit: Interval, infimum, supremum
 
 @parameters t, x
@@ -63,42 +62,46 @@ Dx = Differential(x)
 @variables u1(..), u2(..), u3(..)
 @variables Dxu1(..) Dtu1(..) Dxu2(..) Dtu2(..)
 
-eqs_ = [Dt(Dtu1(t, x)) ~ Dx(Dxu1(t, x)) + u3(t, x) * sin(pi * x),
-    Dt(Dtu2(t, x)) ~ Dx(Dxu2(t, x)) + u3(t, x) * cos(pi * x),
-    exp(-t) ~ u1(t, x) * sin(pi * x) + u2(t, x) * cos(pi * x)]
+eqs_ = [
+    Dt(Dtu1(t, x)) ~ Dx(Dxu1(t, x)) + u3(t, x) * sinpi(x),
+    Dt(Dtu2(t, x)) ~ Dx(Dxu2(t, x)) + u3(t, x) * cospi(x),
+    exp(-t) ~ u1(t, x) * sinpi(x) + u2(t, x) * cospi(x)
+]
 
-bcs_ = [u1(0.0, x) ~ sin(pi * x),
-    u2(0.0, x) ~ cos(pi * x),
-    Dt(u1(0, x)) ~ -sin(pi * x),
-    Dt(u2(0, x)) ~ -cos(pi * x),
+bcs_ = [
+    u1(0.0, x) ~ sinpi(x),
+    u2(0.0, x) ~ cospi(x),
+    Dt(u1(0, x)) ~ -sinpi(x),
+    Dt(u2(0, x)) ~ -cospi(x),
     u1(t, 0.0) ~ 0.0,
     u2(t, 0.0) ~ exp(-t),
     u1(t, 1.0) ~ 0.0,
-    u2(t, 1.0) ~ -exp(-t)]
+    u2(t, 1.0) ~ -exp(-t)
+]
 
-der_ = [Dt(u1(t, x)) ~ Dtu1(t, x),
+der_ = [
+    Dt(u1(t, x)) ~ Dtu1(t, x),
     Dt(u2(t, x)) ~ Dtu2(t, x),
     Dx(u1(t, x)) ~ Dxu1(t, x),
-    Dx(u2(t, x)) ~ Dxu2(t, x)]
+    Dx(u2(t, x)) ~ Dxu2(t, x)
+]
 
 bcs__ = [bcs_; der_]
 
 # Space and time domains
-domains = [t ∈ Interval(0.0, 1.0),
-    x ∈ Interval(0.0, 1.0)]
+domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 1.0)]
 
 input_ = length(domains)
 n = 15
-chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:7]
+chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:7]
 
-training_strategy = NeuralPDE.QuadratureTraining(;
-    batch = 200, reltol = 1e-6, abstol = 1e-6)
-discretization = NeuralPDE.PhysicsInformedNN(chain, training_strategy)
+training_strategy = StochasticTraining(128)
+discretization = PhysicsInformedNN(chain, training_strategy)
 
 vars = [u1(t, x), u2(t, x), u3(t, x), Dxu1(t, x), Dtu1(t, x), Dxu2(t, x), Dtu2(t, x)]
 @named pdesystem = PDESystem(eqs_, bcs__, domains, [t, x], vars)
-prob = NeuralPDE.discretize(pdesystem, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
+prob = discretize(pdesystem, discretization)
+sym_prob = symbolic_discretize(pdesystem, discretization)
 
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:7]
@@ -112,9 +115,9 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000, callback)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200)
+res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
 
 phi = discretization.phi
 ```
@@ -127,13 +130,13 @@ using Plots
 ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 minimizers_ = [res.u.depvar[sym_prob.depvars[i]] for i in 1:length(chain)]
 
-u1_real(t, x) = exp(-t) * sin(pi * x)
-u2_real(t, x) = exp(-t) * cos(pi * x)
+u1_real(t, x) = exp(-t) * sinpi(x)
+u2_real(t, x) = exp(-t) * cospi(x)
 u3_real(t, x) = (1 + pi^2) * exp(-t)
-Dxu1_real(t, x) = pi * exp(-t) * cos(pi * x)
-Dtu1_real(t, x) = -exp(-t) * sin(pi * x)
-Dxu2_real(t, x) = -pi * exp(-t) * sin(pi * x)
-Dtu2_real(t, x) = -exp(-t) * cos(pi * x)
+Dxu1_real(t, x) = pi * exp(-t) * cospi(x)
+Dtu1_real(t, x) = -exp(-t) * sinpi(x)
+Dxu2_real(t, x) = -pi * exp(-t) * sinpi(x)
+Dtu2_real(t, x) = -exp(-t) * cospi(x)
 
 function analytic_sol_func_all(t, x)
     [u1_real(t, x), u2_real(t, x), u3_real(t, x),

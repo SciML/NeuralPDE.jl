@@ -5,10 +5,7 @@ NeuralPDE supports training PINNs with complex differential equations. This exam
 As the input to this neural network is time which is real, we need to initialize the parameters of the neural network with complex values for it to output and train with complex values.
 
 ```@example complex
-using Random, NeuralPDE
-using OrdinaryDiffEq
-using Lux, OptimizationOptimisers
-using Plots
+using Random, NeuralPDE, OrdinaryDiffEq, Lux, OptimizationOptimisers, Plots
 rng = Random.default_rng()
 Random.seed!(100)
 
@@ -30,11 +27,9 @@ parameters = [2.0, 0.0, 1.0]
 
 problem = ODEProblem(bloch_equations, u0, time_span, parameters)
 
-chain = Lux.Chain(
-    Lux.Dense(1, 16, tanh;
-        init_weight = (rng, a...) -> Lux.kaiming_normal(rng, ComplexF64, a...)),
-    Lux.Dense(
-        16, 4; init_weight = (rng, a...) -> Lux.kaiming_normal(rng, ComplexF64, a...))
+chain = Chain(
+    Dense(1, 16, tanh; init_weight = kaiming_normal(ComplexF64)),
+    Dense(16, 4; init_weight = kaiming_normal(ComplexF64))
 )
 ps, st = Lux.setup(rng, chain)
 

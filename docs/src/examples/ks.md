@@ -53,14 +53,13 @@ bcs = [u(x, 0) ~ u_analytic(x, 0),
     Dx(u(10, t)) ~ du(10, t)]
 
 # Space and time domains
-domains = [x ∈ Interval(-10.0, 10.0),
-    t ∈ Interval(0.0, 1.0)]
+domains = [x ∈ Interval(-10.0, 10.0), t ∈ Interval(0.0, 1.0)]
 # Discretization
 dx = 0.4;
 dt = 0.2;
 
 # Neural network
-chain = Lux.Chain(Dense(2, 12, Lux.σ), Dense(12, 12, Lux.σ), Dense(12, 1))
+chain = Chain(Dense(2, 12, σ), Dense(12, 12, σ), Dense(12, 1))
 
 discretization = PhysicsInformedNN(chain, GridTraining([dx, dt]))
 @named pde_system = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
@@ -72,7 +71,7 @@ callback = function (p, l)
 end
 
 opt = OptimizationOptimJL.BFGS()
-res = Optimization.solve(prob, opt; maxiters = 2000)
+res = Optimization.solve(prob, opt; maxiters = 2000, callback)
 phi = discretization.phi
 ```
 

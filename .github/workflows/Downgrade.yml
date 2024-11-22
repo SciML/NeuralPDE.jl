@@ -10,6 +10,11 @@ on:
       - master
     paths-ignore:
       - 'docs/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch || github.ref != 'refs/tags/v*' }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,14 +28,13 @@ jobs:
           - NNPDE1
           - NNPDE2
           - AdaptiveLoss
-          - Logging
           - Forward
           - DGM
           - NNODE
           - NeuralAdapter
           - IntegroDiff
         version:
-          - "1"
+          - "1.10"
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -55,8 +59,8 @@ jobs:
           GROUP: ${{ matrix.group }}
       - uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: src,lib/NeuralPDELogging/src
-      - uses: codecov/codecov-action@v4
+          directories: src,ext
+      - uses: codecov/codecov-action@v5
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}

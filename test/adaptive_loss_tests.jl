@@ -1,88 +1,124 @@
-using Optimization, OptimizationOptimisers
-using Test, NeuralPDE
+@testsetup module AdaptiveLossTestSetup
+using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, NeuralPDE, Test,
+      TensorBoardLogger
 import ModelingToolkit: Interval, infimum, supremum
-using DomainSets
-using Random
-import Lux
 
-nonadaptive_loss = NeuralPDE.NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
-gradnormadaptive_loss = NeuralPDE.GradientScaleAdaptiveLoss(100, pde_loss_weights = 1e3,
-    bc_loss_weights = 1)
-adaptive_loss = NeuralPDE.MiniMaxAdaptiveLoss(100; pde_loss_weights = 1,
-    bc_loss_weights = 1)
-adaptive_losses = [nonadaptive_loss, gradnormadaptive_loss, adaptive_loss]
-maxiters = 4000
-seed = 60
+function solve_with_adaptive_loss(
+        adaptive_loss; haslogger = false, outdir = mktempdir(), run = 1)
+    logdir = joinpath(outdir, string(run))
+    logger = haslogger ? TBLogger(logdir) : nothing
 
-## 2D Poisson equation
-function test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = 60, maxiters = 4000)
-    Random.seed!(seed)
+    Random.seed!(60)
     hid = 40
-    chain_ = Lux.Chain(Lux.Dense(2, hid, Lux.σ), Lux.Dense(hid, hid, Lux.σ),
-        Lux.Dense(hid, 1))
-    strategy_ = NeuralPDE.StochasticTraining(256)
-    @info "adaptive reweighting test outdir:, maxiters: $(maxiters), 2D Poisson equation, adaptive_loss: $(nameof(typeof(adaptive_loss))) "
+    chain = Chain(Dense(2, hid, tanh), Dense(hid, hid, tanh), Dense(hid, 1))
+    strategy = StochasticTraining(256)
+
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
     Dyy = Differential(y)^2
 
     # 2D PDE
-    eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
+    eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sinpi(x) * sinpi(y)
 
     # Initial and boundary conditions
-    bcs = [u(0, y) ~ 0.0, u(1, y) ~ -sin(pi * 1) * sin(pi * y),
-        u(x, 0) ~ 0.0, u(x, 1) ~ -sin(pi * x) * sin(pi * 1)]
-    # Space and time domains
-    domains = [x ∈ Interval(0.0, 1.0),
-        y ∈ Interval(0.0, 1.0)]
+    bcs = [
+        u(0, y) ~ 0.0,
+        u(1, y) ~ -sinpi(1) * sinpi(y),
+        u(x, 0) ~ 0.0,
+        u(x, 1) ~ -sinpi(x) * sinpi(1)
+    ]
 
-    iteration = [0]
-    discretization = PhysicsInformedNN(chain_,
-        strategy_;
-        adaptive_loss = adaptive_loss,
-        logger = nothing,
-        iteration = iteration)
+    # Space and time domains
+    domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
+
+    discretization = PhysicsInformedNN(chain, strategy; adaptive_loss, logger)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
     phi = discretization.phi
+
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-    analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
-    u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-        (length(xs), length(ys)))
+    analytic_sol_func(x, y) = (sinpi(x) * sinpi(y)) / (2pi^2)
+    u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
 
     callback = function (p, l)
-        iteration[1] += 1
-        if iteration[1] % 100 == 0
-            @info "Current loss is: $l, iteration is $(iteration[1])"
+        if p.iter % 250 == 0
+            @info "[$(nameof(typeof(adaptive_loss)))] Current loss is: $l, iteration is $(p.iter)"
+        end
+        if haslogger
+            log_value(logger, "outer_error/loss", l, step = p.iter)
+            if p.iter % 30 == 0
+                u_predict = [first(phi([x, y], p.u)) for x in xs for y in ys]
+                total_diff = sum(abs, u_predict .- u_real)
+                log_value(logger, "outer_error/total_diff", total_diff, step = p.iter)
+                log_value(logger, "outer_error/total_diff_rel",
+                    total_diff / sum(abs2, u_real), step = p.iter)
+                log_value(logger, "outer_error/total_diff_sq",
+                    sum(abs2, u_predict .- u_real), step = p.iter)
+            end
         end
         return false
     end
-    res = solve(
-        prob, OptimizationOptimisers.Adam(0.03); maxiters = maxiters, callback = callback)
-    u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-        (length(xs), length(ys)))
-    diff_u = abs.(u_predict .- u_real)
-    total_diff = sum(diff_u)
-    total_u = sum(abs.(u_real))
+
+    res = solve(prob, Adam(0.03); maxiters = 2000, callback)
+    u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
+
+    total_diff = sum(abs, u_predict .- u_real)
+    total_u = sum(abs, u_real)
     total_diff_rel = total_diff / total_u
-    (error = total_diff, total_diff_rel = total_diff_rel)
+
+    return total_diff_rel
 end
 
-@info "testing that the adaptive loss methods roughly succeed"
-function test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters(adaptive_loss)
-    test_2d_poisson_equation_adaptive_loss(adaptive_loss; seed = seed, maxiters = maxiters)
-end
-error_results_no_logs = map(test_2d_poisson_equation_adaptive_loss_no_logs_run_seediters,
-    adaptive_losses)
+export solve_with_adaptive_loss
 
-# accuracy tests
-@show error_results_no_logs[1][:total_diff_rel]
-@show error_results_no_logs[2][:total_diff_rel]
-@show error_results_no_logs[3][:total_diff_rel]
-# accuracy tests, these work for this specific seed but might not for others
-# note that this doesn't test that the adaptive losses are outperforming the nonadaptive loss, which is not guaranteed, and seed/arch/hyperparam/pde etc dependent
-@test error_results_no_logs[1][:total_diff_rel] < 0.4
-@test error_results_no_logs[2][:total_diff_rel] < 0.4
-@test error_results_no_logs[3][:total_diff_rel] < 0.4
+end
+
+@testitem "2D Poisson: NonAdaptiveLoss" tags=[:adaptiveloss] setup=[AdaptiveLossTestSetup] begin
+    loss = NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
+
+    tmpdir = mktempdir()
+
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = false, outdir = tmpdir, run = 1)
+    @test total_diff_rel < 0.4
+    @test length(readdir(tmpdir)) == 0
+
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = true, outdir = tmpdir, run = 2)
+    @test total_diff_rel < 0.4
+    @test length(readdir(tmpdir)) == 1
+end
+
+@testitem "2D Poisson: GradientScaleAdaptiveLoss" tags=[:adaptiveloss] setup=[AdaptiveLossTestSetup] begin
+    loss = GradientScaleAdaptiveLoss(100, pde_loss_weights = 1e3, bc_loss_weights = 1)
+
+    tmpdir = mktempdir()
+
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = false, outdir = tmpdir, run = 1)
+    @test total_diff_rel < 0.4
+    @test length(readdir(tmpdir)) == 0
+
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = true, outdir = tmpdir, run = 2)
+    @test total_diff_rel < 0.4
+    @test length(readdir(tmpdir)) == 1
+end
+
+@testitem "2D Poisson: MiniMaxAdaptiveLoss" tags=[:adaptiveloss] setup=[AdaptiveLossTestSetup] begin
+    loss = MiniMaxAdaptiveLoss(100; pde_loss_weights = 1, bc_loss_weights = 1)
+
+    tmpdir = mktempdir()
+
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = false, outdir = tmpdir, run = 1)
+    @test total_diff_rel < 0.4
+    @test length(readdir(tmpdir)) == 0
+
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = true, outdir = tmpdir, run = 2)
+    @test total_diff_rel < 0.4
+    @test length(readdir(tmpdir)) == 1
+end

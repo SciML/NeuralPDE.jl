@@ -3,6 +3,7 @@ pages = ["index.md",
         "Bayesian PINNs for Coupled ODEs" => "tutorials/Lotka_Volterra_BPINNs.md",
         "PINNs DAEs" => "tutorials/dae.md",
         "Parameter Estimation with PINNs for ODEs" => "tutorials/ode_parameter_estimation.md",
+        "Physics informed Neural Operator ODEs" => "tutorials/pino_ode.md",
         "Deep Galerkin Method" => "tutorials/dgm.md"        #"examples/nnrode_example.md", # currently incorrect
     ],
     "PDE PINN Tutorials" => Any[
@@ -31,6 +32,7 @@ pages = ["index.md",
         "manual/training_strategies.md",
         "manual/adaptive_losses.md",
         "manual/logging.md",
-        "manual/neural_adapters.md"],
+        "manual/neural_adapters.md",
+        "manual/pino_ode.md"],
     "Developer Documentation" => Any["developer/debugging.md"]
 ]

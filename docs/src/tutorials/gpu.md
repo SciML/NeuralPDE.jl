@@ -33,11 +33,8 @@ using the `gpu` function on the initial parameters, like:
 using Lux, LuxCUDA, ComponentArrays, Random
 const gpud = gpu_device()
 inner = 25
-chain = Chain(Dense(3, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, 1))
+chain = Chain(Dense(3, inner, σ), Dense(inner, inner, σ), Dense(inner, inner, σ),
+    Dense(inner, inner, σ), Dense(inner, 1))
 ps = Lux.setup(Random.default_rng(), chain)[1]
 ps = ps |> ComponentArray |> gpud .|> Float64
 ```
@@ -82,18 +79,13 @@ domains = [t ∈ Interval(t_min, t_max),
 
 # Neural network
 inner = 25
-chain = Chain(Dense(3, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, inner, Lux.σ),
-    Dense(inner, 1))
+chain = Chain(Dense(3, inner, σ), Dense(inner, inner, σ), Dense(inner, inner, σ),
+    Dense(inner, inner, σ), Dense(inner, 1))
 
 strategy = QuasiRandomTraining(100)
 ps = Lux.setup(Random.default_rng(), chain)[1]
 ps = ps |> ComponentArray |> gpud .|> Float64
-discretization = PhysicsInformedNN(chain,
-    strategy,
-    init_params = ps)
+discretization = PhysicsInformedNN(chain, strategy; init_params = ps)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x, y], [u(t, x, y)])
 prob = discretize(pde_system, discretization)

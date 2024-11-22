@@ -70,7 +70,7 @@ domains = [x ∈ Interval(0.0, 1.0),
 # Neural network
 input_ = length(domains)
 n = 15
-chain = [Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, 1)) for _ in 1:2]
+chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:2]
 
 strategy = StochasticTraining(500)
 discretization = PhysicsInformedNN(chain, strategy)
@@ -82,18 +82,17 @@ sym_prob = symbolic_discretize(pdesystem, discretization)
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-global iteration = 0
 callback = function (p, l)
-    if iteration % 10 == 0
+    if p.iter % 500 == 0
+        println("iter: ", p.iter)
         println("loss: ", l)
         println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
         println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
     end
-    global iteration += 1
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 10000)
+res = solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 5000, callback)
 
 phi = discretization.phi
 

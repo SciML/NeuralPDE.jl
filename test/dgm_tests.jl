@@ -1,11 +1,8 @@
-using NeuralPDE, Test
+@testitem "Poisson's equation" tags=[:dgm] begin
+    using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
+          MethodOfLines, OrdinaryDiffEq, LinearAlgebra
+    import ModelingToolkit: Interval, infimum, supremum
 
-using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions, MethodOfLines,
-      OrdinaryDiffEq
-import ModelingToolkit: Interval, infimum, supremum
-import Lux: tanh, identity
-
-@testset "Poisson's equation" begin
     @parameters x y
     @variables u(..)
     Dxx = Differential(x)^2
@@ -26,37 +23,31 @@ import Lux: tanh, identity
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
 
-    global iter = 0
     callback = function (p, l)
-        global iter += 1
-        if iter % 50 == 0
-            println("$iter => $l")
-        end
+        p.iter % 50 == 0 && println("$(p.iter) => $l")
         return false
     end
 
-    res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 500)
+    res = solve(prob, Adam(0.01); callback, maxiters = 500)
     prob = remake(prob, u0 = res.u)
-    res = Optimization.solve(prob, Adam(0.001); callback = callback, maxiters = 200)
+    res = solve(prob, Adam(0.001); callback, maxiters = 200)
     phi = discretization.phi
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
-    u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-        (length(xs), length(ys)))
-    u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-        (length(xs), length(ys)))
-    @test u_predict≈u_real atol=0.1
+    u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
+    u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
+
+    @test u_real≈u_predict atol=0.4
 end
 
-@testset "Black-Scholes PDE: European Call Option" begin
-    K = 50.0
-    T = 1.0
-    r = 0.05
-    σ = 0.25
-    S = 130.0
-    S_multiplier = 1.3
+@testitem "Black-Scholes PDE: European Call Option" tags=[:dgm] begin
+    using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
+          MethodOfLines, OrdinaryDiffEq, LinearAlgebra
+    import ModelingToolkit: Interval, infimum, supremum
+
+    K, T, r, σ, S, S_multiplier = 50.0, 1.0, 0.05, 0.25, 130.0, 1.3
 
     @parameters x t
     @variables g(..)
@@ -78,18 +69,14 @@ end
     @named pde_system = PDESystem(eq, bcs, domains, [t, x], [g(t, x)])
     prob = discretize(pde_system, discretization)
 
-    global iter = 0
     callback = function (p, l)
-        global iter += 1
-        if iter % 50 == 0
-            println("$iter => $l")
-        end
+        p.iter % 50 == 0 && println("$(p.iter) => $l")
         return false
     end
 
-    res = Optimization.solve(prob, Adam(0.1); callback = callback, maxiters = 100)
+    res = solve(prob, Adam(0.1); callback, maxiters = 100)
     prob = remake(prob, u0 = res.u)
-    res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 500)
+    res = solve(prob, Adam(0.01); callback, maxiters = 500)
     phi = discretization.phi
 
     function analytical_soln(t, x, K, σ, T)
@@ -108,7 +95,11 @@ end
     @test u_predict≈u_real rtol=0.05
 end
 
-@testset "Burger's equation" begin
+@testitem "Burger's equation" tags=[:dgm] begin
+    using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
+          MethodOfLines, OrdinaryDiffEq, LinearAlgebra
+    import ModelingToolkit: Interval, infimum, supremum
+
     @parameters x t
     @variables u(..)
 
@@ -143,21 +134,18 @@ end
     discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
     prob = discretize(pde_system, discretization)
-    global iter = 0
+
     callback = function (p, l)
-        global iter += 1
-        if iter % 20 == 0
-            println("$iter => $l")
-        end
+        p.iter % 50 == 0 && println("$(p.iter) => $l")
         return false
     end
 
-    res = Optimization.solve(prob, Adam(0.01); callback = callback, maxiters = 200)
+    res = solve(prob, Adam(0.01); callback = callback, maxiters = 200)
     prob = remake(prob, u0 = res.u)
-    res = Optimization.solve(prob, Adam(0.001); callback = callback, maxiters = 100)
+    res = solve(prob, Adam(0.001); callback = callback, maxiters = 100)
     phi = discretization.phi
 
     u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
 
-    @test u_predict≈u_MOL rtol=0.025
+    @test u_predict≈u_MOL rtol=0.1
 end

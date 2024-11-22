@@ -23,6 +23,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        version:
+          - "1"
+          - "lts"
+          - "pre"
         group:
           - "QA"
           - "ODEBPINN"
@@ -30,14 +34,16 @@ jobs:
           - "NNPDE1"
           - "NNPDE2"
           - "AdaptiveLoss"
-          - "Logging"
           - "Forward"
           - "DGM"
           - "NNODE"
+          - "PINOODE"
           - "NeuralAdapter"
           - "IntegroDiff"
     uses: "SciML/.github/.github/workflows/tests.yml@v1"
     with:
       group: "${{ matrix.group }}"
-      coverage-directories: "src,lib/NeuralPDELogging/src"
+      julia-version: "${{ matrix.version }}"
+      coverage-directories: "src,ext"
+      julia-runtest-depwarn: "yes"  # TensorBoardLogger has a global depwarn
     secrets: "inherit"
