@@ -90,10 +90,12 @@ include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 
 include("dgm.jl")
+include("NN_SDE_solve.jl")
 
 export PINOODE
 export NNODE, NNDAE
 export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
+export NNSDE
 export PhysicsInformedNN, discretize
 export BPINNsolution, BayesianPINN
 export DeepGalerkin
