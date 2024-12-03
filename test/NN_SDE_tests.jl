@@ -1,7 +1,6 @@
 @testitem "Test-1" tags=[:nnsde] begin
-    using NeuralPDE, Lux, Optimization, OptimizationOptimJL, Plots
-    using ModelingToolkit: Interval
-    using OrdinaryDiffEq, Random
+    using OrdinaryDiffEq, Random, Lux, Optimisers
+    using OptimizationOptimJL: BFGS
     Random.seed!(100)
 
     α = 1
