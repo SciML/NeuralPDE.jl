@@ -47,7 +47,7 @@ end
     dt = 1 / 50.0f0
     abstol = 1e-10
     autodiff = false
-    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 1500)
+    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 135)
     opt = BFGS()
     numensemble = 300
 
