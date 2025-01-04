@@ -108,7 +108,7 @@ Symbolics = "6.14"
 TensorBoardLogger = "0.1.24"
 Test = "1.10"
 WeightInitializers = "1.0.3"
-Zygote = "0.6.71"
+Zygote = "0.6.71, 0.7"
 julia = "1.10"
 
 [extras]
