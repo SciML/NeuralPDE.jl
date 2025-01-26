@@ -20,7 +20,8 @@ function LogDensityProblems.logdensity(ltd::PDELogTargetDensity, θ)
                priorlogpdf(ltd, θ) + L2LossData(ltd, θ)
     else
         return ltd.full_loglikelihood(setparameters(ltd, θ), ltd.allstd) +
-               priorlogpdf(ltd, θ) + L2LossData(ltd, θ) + ltd.L2_loss2(setparameters(ltd, θ), ltd.phynewstd)
+               priorlogpdf(ltd, θ) + L2LossData(ltd, θ) +
+               ltd.L2_loss2(setparameters(ltd, θ), ltd.phynewstd)
     end
 end
 
@@ -37,7 +38,15 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
 
     # for values of all depvars at corresponding indvar values in dataset, create dictionaries {Dict(x(t) => 1.0496435863173237, y(t) => 1.9227770685615337)}
     # In each Dict, num form of depvar is key to its value at certain coords of indvars, n_dicts = n_rows_dataset(or n_indvar_coords_dataset)
-    eq_subs = [Dict(tobe_subs[depvar] => to_subs[depvar][i] for depvar in depvars)
+    # println([depvar for (j, depvar) in enumerate(depvars)])
+    # println(Dict(tobe_subs[depvar] => to_subs[depvar][10]
+    # for (j, depvar) in enumerate(depvars)))
+    # depvars1 = [depvar for (j, depvar) in enumerate(depvars)]
+    # println([i for i in 1:size(dataset[1][:, 1])[1]])
+    function return_dict(tobe_subs, to_subs, depvars, i)
+        return Dict(tobe_subs[depvar] => to_subs[depvar][i] for depvar in depvars)
+    end
+    eq_subs = [return_dict(tobe_subs, to_subs, depvars, i)
                for i in 1:size(dataset[1][:, 1])[1]]
 
     # for each dataset point(eq_sub dictionary), substitute in masked equations
@@ -57,11 +66,11 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
     # each sub vector has dataset's indvar coord's datafree_colloc_loss_function, n_subvectors = n_rows_dataset(or n_indvar_coords_dataset)
     # zip each colloc equation with args for each build_loss call per equation vector
     data_colloc_loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
-                                       for (eq, pde_indvar, integration_indvar) in zip(
-                                          colloc_equation,
-                                          pinnrep.pde_indvars,
-                                          pinnrep.pde_integration_vars)]
-                                      for colloc_equation in colloc_equations]
+                                   for (eq, pde_indvar, integration_indvar) in zip(
+                                      colloc_equation,
+                                      pinnrep.pde_indvars,
+                                      pinnrep.pde_integration_vars)]
+                                  for colloc_equation in colloc_equations]
 
     return data_colloc_loss_functions
 end
