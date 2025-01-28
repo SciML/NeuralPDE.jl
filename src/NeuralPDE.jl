@@ -83,7 +83,6 @@ include("dae_solve.jl")
 include("pino_ode_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
-include("../lib/BayesianNeuralPDE/src/BayesianNeuralPDE.jl")
 
 include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
