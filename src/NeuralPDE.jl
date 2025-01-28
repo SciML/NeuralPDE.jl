@@ -90,8 +90,8 @@ include("advancedHMC_MCMC.jl")
 include("dgm.jl")
 
 using BayesianNeuralPDE
-export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde,
-       BPINNsolution, BayesianPINN
+export ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde,
+       BNNODE, BPINNsolution, BayesianPINN
 
 export PINOODE
 export NNODE, NNDAE
