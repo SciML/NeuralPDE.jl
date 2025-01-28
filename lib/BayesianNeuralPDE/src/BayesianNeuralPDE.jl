@@ -2,6 +2,7 @@ module BayesianNeuralPDE
 
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
+include("discretize.jl")
 include("PDE_BPINN.jl")
 include("pinn_types.jl")
 
