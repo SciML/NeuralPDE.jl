@@ -44,7 +44,6 @@ SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 WeightInitializers = "d49dbf32-c5c2-4618-8acc-27bb2598ef2d"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
-BayesianNeuralPDE = "3cea9122-e921-42ea-a9d7-c72fcb58ce53"
 
 [weakdeps]
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
