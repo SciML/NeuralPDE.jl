@@ -83,19 +83,16 @@ include("dae_solve.jl")
 include("pino_ode_solve.jl")
 include("transform_inf_integral.jl")
 include("discretize.jl")
+include("../lib/BayesianNeuralPDE/src/BayesianNeuralPDE.jl")
 
 include("neural_adapter.jl")
 include("advancedHMC_MCMC.jl")
-include("BPINN_ode.jl")
-include("PDE_BPINN.jl")
 
 include("dgm.jl")
 
 export PINOODE
 export NNODE, NNDAE
-export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
 export PhysicsInformedNN, discretize
-export BPINNsolution, BayesianPINN
 export DeepGalerkin
 
 export neural_adapter

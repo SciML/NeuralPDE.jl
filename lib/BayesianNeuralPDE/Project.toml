@@ -1,0 +1,4 @@
+name = "BayesianNeuralPDE"
+uuid = "3cea9122-e921-42ea-a9d7-c72fcb58ce53"
+authors = ["paramthakkar123 <paramthakkar864@gmail.com>"]
+version = "0.1.0"
