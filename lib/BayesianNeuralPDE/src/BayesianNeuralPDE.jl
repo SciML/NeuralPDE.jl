@@ -1,5 +1,8 @@
 module BayesianNeuralPDE
 
+using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
+      AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+
 include("advancedHMC_MCMC.jl")
 include("BPINN_ode.jl")
 include("discretize.jl")
