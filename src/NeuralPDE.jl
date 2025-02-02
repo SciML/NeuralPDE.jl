@@ -75,7 +75,6 @@ include("pinn_types.jl")
 include("symbolic_utilities.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
-include("../lib/BayesianNeuralPDE/src/BayesianNeuralPDE.jl")
 
 include("ode_solve.jl")
 include("dae_solve.jl")
@@ -93,7 +92,6 @@ export NNODE, NNDAE
 export PhysicsInformedNN, discretize
 export DeepGalerkin
 
-using .BayesianNeuralPDE
 export ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde,
 	BNNODE, BPINNsolution, BayesianPINN
 
