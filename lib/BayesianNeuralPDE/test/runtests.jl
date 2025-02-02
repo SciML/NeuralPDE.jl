@@ -13,8 +13,8 @@ const GROUP = lowercase(get(ENV, "GROUP", "all"))
 using NeuralPDE
 
 @info "Running tests with $(RETESTITEMS_NWORKERS) workers and \
-       $(RETESTITEMS_NWORKER_THREADS) threads for group $(GROUP)"
+	   $(RETESTITEMS_NWORKER_THREADS) threads for group $(GROUP)"
 
 ReTestItems.runtests(NeuralPDE; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
-    nworkers = RETESTITEMS_NWORKERS,
-    nworker_threads = RETESTITEMS_NWORKER_THREADS, testitem_timeout = 3600)
+	nworkers = RETESTITEMS_NWORKERS,
+	nworker_threads = RETESTITEMS_NWORKER_THREADS, testitem_timeout = 3600)
