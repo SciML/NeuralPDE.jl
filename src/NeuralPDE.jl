@@ -92,9 +92,6 @@ export NNODE, NNDAE
 export PhysicsInformedNN, discretize
 export DeepGalerkin
 
-export ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde,
-	BNNODE, BPINNsolution, BayesianPINN
-
 export neural_adapter
 
 export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
