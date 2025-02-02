@@ -1,7 +1,7 @@
 module BayesianNeuralPDE
 
 using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-	AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+      AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
 using Printf: @printf
 using ConcreteStructs: @concrete
 using NeuralPDE: PhysicsInformedNN

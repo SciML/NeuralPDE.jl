@@ -17,17 +17,17 @@ the ones mentioned below.
   inverse problem solving.
 """
 @concrete struct BayesianPINN <: AbstractPINN
-	pinn <: PhysicsInformedNN
-	dataset::Any
+    pinn <: PhysicsInformedNN
+    dataset::Any
 end
 
 function Base.getproperty(pinn::BayesianPINN, name::Symbol)
-	name === :dataset && return getfield(pinn, :dataset)
-	name === :pinn && return getfield(pinn, :pinn)
-	return getproperty(pinn.pinn, name)
+    name === :dataset && return getfield(pinn, :dataset)
+    name === :pinn && return getfield(pinn, :pinn)
+    return getproperty(pinn.pinn, name)
 end
 
 function BayesianPINN(args...; dataset = nothing, kwargs...)
-	dataset === nothing && (dataset = (nothing, nothing))
-	return BayesianPINN(PhysicsInformedNN(args...; kwargs...), dataset)
+    dataset === nothing && (dataset = (nothing, nothing))
+    return BayesianPINN(PhysicsInformedNN(args...; kwargs...), dataset)
 end
