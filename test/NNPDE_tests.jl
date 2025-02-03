@@ -394,6 +394,8 @@ end
 @testitem "PDE VI: PDE with mixed derivative" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
     import ModelingToolkit: Interval, infimum, supremum
+    using OptimizationOptimJL: BFGS
+    using LineSearches: BackTracking
 
     @parameters x y
     @variables u(..)
@@ -414,15 +416,15 @@ end
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
-    strategy = StochasticTraining(1024)
+    strategy = StochasticTraining(2048)
     inner = 20
-    chain = Chain(Dense(2, inner, tanh), Dense(inner, inner, tanh), Dense(inner, 1))
+    chain = Chain(Dense(2, inner, sigmoid), Dense(inner, inner, sigmoid), Dense(inner, 1))
 
     discretization = PhysicsInformedNN(chain, strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
     prob = discretize(pde_system, discretization)
-    res = solve(prob, Adam(0.01); maxiters = 5000, callback)
+    res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 500, callback)
     phi = discretization.phi
 
     analytic_sol_func(x, y) = x + x * y + y^2 / 2
