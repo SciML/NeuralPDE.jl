@@ -20,7 +20,8 @@ function LogDensityProblems.logdensity(ltd::PDELogTargetDensity, θ)
                priorlogpdf(ltd, θ) + L2LossData(ltd, θ)
     else
         return ltd.full_loglikelihood(setparameters(ltd, θ), ltd.allstd) +
-               priorlogpdf(ltd, θ) + L2LossData(ltd, θ) + ltd.L2_loss2(setparameters(ltd, θ), ltd.phynewstd)
+               priorlogpdf(ltd, θ) + L2LossData(ltd, θ) +
+               ltd.L2_loss2(setparameters(ltd, θ), ltd.phynewstd)
     end
 end
 
@@ -57,11 +58,11 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
     # each sub vector has dataset's indvar coord's datafree_colloc_loss_function, n_subvectors = n_rows_dataset(or n_indvar_coords_dataset)
     # zip each colloc equation with args for each build_loss call per equation vector
     data_colloc_loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
-                                       for (eq, pde_indvar, integration_indvar) in zip(
-                                          colloc_equation,
-                                          pinnrep.pde_indvars,
-                                          pinnrep.pde_integration_vars)]
-                                      for colloc_equation in colloc_equations]
+                                   for (eq, pde_indvar, integration_indvar) in zip(
+                                      colloc_equation,
+                                      pinnrep.pde_indvars,
+                                      pinnrep.pde_integration_vars)]
+                                  for colloc_equation in colloc_equations]
 
     return data_colloc_loss_functions
 end
