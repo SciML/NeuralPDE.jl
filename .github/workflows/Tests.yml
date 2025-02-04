@@ -29,10 +29,6 @@ jobs:
           - "pre"
         group:
           - "QA"
-          - "ODEBPINN"
-          - "PDEBPINN"
-          - "NNPDE1"
-          - "NNPDE2"
           - "AdaptiveLoss"
           - "Forward"
           - "DGM"
@@ -47,3 +43,33 @@ jobs:
       coverage-directories: "src,ext"
       julia-runtest-depwarn: "yes"  # TensorBoardLogger has a global depwarn
     secrets: "inherit"
+
+  bayesian_tests:
+    name: "Bayesian Tests"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - "1"
+          - "lts"
+          - "pre"
+        group:
+          - "ODEBPINN"
+          - "PDEBPINN"
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.version }}
+
+      - name: Install dependencies
+        run: julia --project -e 'using Pkg; Pkg.instantiate()'
+
+      - name: Run BayesianNeuralPDE tests
+        env:
+          GROUP: ${{ matrix.group }}
+        run: julia --project=lib/BayesianNeuralPDE -e 'using Pkg; Pkg.test()'
