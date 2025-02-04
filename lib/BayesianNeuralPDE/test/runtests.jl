@@ -10,11 +10,11 @@ const GROUP = lowercase(get(ENV, "GROUP", "all"))
 #     get(ENV, "RETESTITEMS_NWORKER_THREADS",
 #         string(max(Hwloc.num_virtual_cores() ÷ RETESTITEMS_NWORKERS, 1))))
 
-using NeuralPDE
+using BayesianNeuralPDE
 
 @info "Running tests with $(RETESTITEMS_NWORKERS) workers and \
     $(RETESTITEMS_NWORKER_THREADS) threads for group $(GROUP)"
 
-ReTestItems.runtests(NeuralPDE; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
+ReTestItems.runtests(BayesianNeuralPDE; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
     nworkers = RETESTITEMS_NWORKERS,
     nworker_threads = RETESTITEMS_NWORKER_THREADS, testitem_timeout = 3600)
