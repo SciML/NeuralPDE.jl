@@ -8,9 +8,9 @@
     names::Tuple
     extraparams::Int
     init_params <: Union{AbstractVector, NamedTuple, ComponentArray}
-    full_loglikelihood
-    L2_loss2
-    Φ
+    full_loglikelihood::Any
+    L2_loss2::Any
+    Φ::Any
 end
 
 function LogDensityProblems.logdensity(ltd::PDELogTargetDensity, θ)
@@ -20,7 +20,8 @@ function LogDensityProblems.logdensity(ltd::PDELogTargetDensity, θ)
                priorlogpdf(ltd, θ) + L2LossData(ltd, θ)
     else
         return ltd.full_loglikelihood(setparameters(ltd, θ), ltd.allstd) +
-               priorlogpdf(ltd, θ) + L2LossData(ltd, θ) + ltd.L2_loss2(setparameters(ltd, θ), ltd.phynewstd)
+               priorlogpdf(ltd, θ) + L2LossData(ltd, θ) +
+               ltd.L2_loss2(setparameters(ltd, θ), ltd.phynewstd)
     end
 end
 
@@ -57,11 +58,11 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
     # each sub vector has dataset's indvar coord's datafree_colloc_loss_function, n_subvectors = n_rows_dataset(or n_indvar_coords_dataset)
     # zip each colloc equation with args for each build_loss call per equation vector
     data_colloc_loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
-                                       for (eq, pde_indvar, integration_indvar) in zip(
-                                          colloc_equation,
-                                          pinnrep.pde_indvars,
-                                          pinnrep.pde_integration_vars)]
-                                      for colloc_equation in colloc_equations]
+                                   for (eq, pde_indvar, integration_indvar) in zip(
+                                      colloc_equation,
+                                      pinnrep.pde_indvars,
+                                      pinnrep.pde_integration_vars)]
+                                  for colloc_equation in colloc_equations]
 
     return data_colloc_loss_functions
 end
@@ -251,13 +252,13 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
 end
 
 """
-    ahmc_bayesian_pinn_pde(pde_system, discretization;
-        draw_samples = 1000, bcstd = [0.01], l2std = [0.05], phystd = [0.05],
-        phynewstd = [0.05], priorsNNw = (0.0, 2.0), param = [], nchains = 1,
-        Kernel = HMC(0.1, 30), Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
-        Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
-        numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
+	ahmc_bayesian_pinn_pde(pde_system, discretization;
+		draw_samples = 1000, bcstd = [0.01], l2std = [0.05], phystd = [0.05],
+		phynewstd = [0.05], priorsNNw = (0.0, 2.0), param = [], nchains = 1,
+		Kernel = HMC(0.1, 30), Adaptorkwargs = (Adaptor = StanHMCAdaptor,
+			Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
+		Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
+		numensemble = floor(Int, draw_samples / 3), progress = false, verbose = false)
 
 ## NOTES
 
@@ -304,8 +305,8 @@ end
 
 !!! warning
 
-    AdvancedHMC.jl is still developing convenience structs so might need changes on new
-    releases.
+	AdvancedHMC.jl is still developing convenience structs so might need changes on new
+	releases.
 """
 function ahmc_bayesian_pinn_pde(pde_system, discretization;
         draw_samples = 1000, bcstd = [0.01], l2std = [0.05], phystd = [0.05],

@@ -29,10 +29,6 @@ jobs:
           - "pre"
         group:
           - "QA"
-          - "ODEBPINN"
-          - "PDEBPINN"
-          - "NNPDE1"
-          - "NNPDE2"
           - "AdaptiveLoss"
           - "Forward"
           - "DGM"

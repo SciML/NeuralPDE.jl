@@ -187,7 +187,7 @@ end
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
           ComponentArrays
     import ModelingToolkit: Interval, infimum, supremum
-    import Flux
+    using Flux: Flux
 
     Random.seed!(100)
 
