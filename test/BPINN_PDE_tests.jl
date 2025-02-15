@@ -463,8 +463,7 @@ end
     Dict_differentials = Dict()
     exps = toexpr.(eqs)
     nullobj = [recur_expression(exp, Dict_differentials) for exp in exps]
-    Dict_differentials
-    # is now ;
+    # Dict_differentials is now ;
     # Dict{Any, Any} with 5 entries:
     #   Differential(x)(Differential(x)(u(x, t)))            => diff_5
     #   Differential(x)(Differential(x)(Differential(x)(u(x… => diff_1
