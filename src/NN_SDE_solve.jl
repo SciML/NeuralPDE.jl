@@ -74,10 +74,10 @@ function ∂u_∂t end
 function ∂u_∂t(phi::SDEPhi, inputs::Array{<:Array{<:Number, 1}}, θ, autodiff::Bool)
     autodiff &&
         return [ForwardDiff.gradient(
-                    t -> (phi(add_rand_coeff(t, input[2:end]), θ)), input[1])
+                    t -> (phi(vcat(t, input[2:end]), θ)), input[1])
                 for input in inputs]
     ϵ = sqrt(eps(eltype(inputs[1])))
-    return [(phi(add_rand_coeff(input[1] + ϵ, input[2:end]), θ) .- phi(input, θ)) ./ ϵ
+    return [(phi(vcat(input[1] + ϵ, input[2:end]), θ) .- phi(input, θ)) ./ ϵ
             for input in inputs]
 end
 
@@ -163,10 +163,6 @@ function add_rand_coeff(times, n_z::Number)
     times isa Number && return vcat(times, rand(Normal(0, 1), n_z))
     return [vcat(time, rand(Normal(0, 1), n_z))
             for time in times]
-end
-
-function add_rand_coeff(times::Number, n_z::AbstractVector)
-    return vcat(times, n_z)
 end
 
 """
@@ -430,9 +426,10 @@ function SciMLBase.__solve(
         inputs = add_rand_coeff(ts, n_z)
 
         if u0 isa Number
-            u = [first(phi(input, res.u)) for input in inputs]
+            u = [(u0 + (input[1] - t0) * first(phi(input, res.u)))
+                 for input in inputs]
         else
-            u = [phi(input, res.u) for input in inputs]
+            u = [(u0 + (input[1] - t0) * phi(input, res.u)) for input in inputs]
         end
         push!(ensembles, u)
         push!(ensemble_inputs, inputs)

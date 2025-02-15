@@ -58,10 +58,10 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
     # zip each colloc equation with args for each build_loss call per equation vector
     data_colloc_loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
                                        for (eq, pde_indvar, integration_indvar) in zip(
-                                           colloc_equation,
-                                           pinnrep.pde_indvars,
-                                           pinnrep.pde_integration_vars)]
-                                       for colloc_equation in colloc_equations]
+                                          colloc_equation,
+                                          pinnrep.pde_indvars,
+                                          pinnrep.pde_integration_vars)]
+                                      for colloc_equation in colloc_equations]
 
     return data_colloc_loss_functions
 end
