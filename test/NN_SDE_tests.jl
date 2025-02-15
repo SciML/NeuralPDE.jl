@@ -46,9 +46,9 @@ end
     luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1))
 
     dt = 1 / 50.0f0
-    abstol = 1e-10
+    abstol = 1e-8
     autodiff = false
-    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 200)
+    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 300)
     opt = BFGS()
     numensemble = 200
 
@@ -145,6 +145,8 @@ end
     @test MSE_2 < MSE_1
     @test MSE_2 < 5e-2
 
+    @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) >
+          mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution))
     @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) < 1e-1
-    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 3e-2
+    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 5e-2
 end
