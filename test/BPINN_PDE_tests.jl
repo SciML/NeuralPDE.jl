@@ -463,6 +463,7 @@ end
     Dict_differentials = Dict()
     exps = toexpr.(eqs)
     nullobj = [recur_expression(exp, Dict_differentials) for exp in exps]
+
     # Dict_differentials is now ;
     # Dict{Any, Any} with 5 entries:
     #   Differential(x)(Differential(x)(u(x, t)))            => diff_5
@@ -482,7 +483,7 @@ end
         phystd = [0.2], l2std = [0.8], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0],
-        Dict_differentials = Dict_differentials, progress = true)
+        Dict_differentials = Dict_differentials)
 
     sol_old = ahmc_bayesian_pinn_pde(pde_system,
         discretization;
