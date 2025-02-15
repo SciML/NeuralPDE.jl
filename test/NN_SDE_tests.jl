@@ -30,7 +30,7 @@
 end
 
 @testitem "Test-2" tags=[:nnsde] begin
-    using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess
+    using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
     using OptimizationOptimJL: BFGS
     Random.seed!(100)
 
