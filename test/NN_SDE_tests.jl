@@ -45,7 +45,7 @@ end
     luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1))
 
     dt = 1 / 50.0f0
-    abstol = 1e-12
+    abstol = 1e-10
     autodiff = false
     kwargs = (; verbose = true, dt = dt, abstol, maxiters = 300)
     opt = BFGS()
