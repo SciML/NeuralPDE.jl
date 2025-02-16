@@ -46,7 +46,7 @@ end
     luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1))
 
     dt = 1 / 50.0f0
-    abstol = 1e-8
+    abstol = 1e-12
     autodiff = false
     kwargs = (; verbose = true, dt = dt, abstol, maxiters = 300)
     opt = BFGS()
@@ -79,7 +79,7 @@ end
     # as we reduce num_samples, < and > sub_sample cases start performing better (mean against analytic_sol and truncated_sol)
     # but the Rate of improvements of less < subsample case seems to be higher as we reduce num_samples.
 
-    num_samples = 1000
+    num_samples = 2000
     num_time_steps = dt
     z1_samples = rand(Normal(0, 1), num_samples)
     z2_samples = rand(Normal(0, 1), num_samples)
@@ -148,5 +148,5 @@ end
     @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) >
           mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution))
     @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) < 1e-1
-    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 5e-2
+    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 5e-3
 end
