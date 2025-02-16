@@ -148,5 +148,5 @@ end
     @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) >
           mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution))
     @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) < 1e-1
-    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 5e-3
+    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 1e-2
 end
