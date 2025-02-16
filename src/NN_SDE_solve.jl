@@ -429,12 +429,13 @@ function SciMLBase.__solve(
             u = [(u0 + (input[1] - t0) * first(phi(input, res.u)))
                  for input in inputs]
         else
-            u = [(u0 + (input[1] - t0) * phi(input, res.u)) for input in inputs]
+            u = [(u0 .+ (input[1] - t0) * phi(input, res.u)) for input in inputs]
         end
         push!(ensembles, u)
         push!(ensemble_inputs, inputs)
     end
-    mean_sde_sol = mean(ensembles)
+    sde_sols = hcat(ensembles...)
+    mean_sde_sol = [mean(sde_sols[i, :]) for i in 1:size(ts)[1]]
 
     sol = SciMLBase.build_solution(prob, alg, ts, mean_sde_sol; k = res, dense = true,
         interp = NNSDEInterpolation(phi, res.u), calculate_error = false,

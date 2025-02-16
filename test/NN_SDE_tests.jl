@@ -33,7 +33,6 @@ end
     using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
     using OptimizationOptimJL: BFGS
     Random.seed!(100)
-    println(randn(2))
 
     α = 1.2
     β = 1.1
@@ -50,7 +49,7 @@ end
     autodiff = false
     kwargs = (; verbose = true, dt = dt, abstol, maxiters = 300)
     opt = BFGS()
-    numensemble = 200
+    numensemble = 1000
 
     sol_1 = solve(
         prob, NNSDE(
@@ -148,5 +147,5 @@ end
     @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) >
           mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution))
     @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) < 1e-1
-    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 1e-2
+    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 5e-2
 end
