@@ -32,7 +32,6 @@ end
 @testitem "Test-2" tags=[:nnsde] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
     using OptimizationOptimJL: BFGS
-    Random.seed!(100)
 
     α = 1.2
     β = 1.1
