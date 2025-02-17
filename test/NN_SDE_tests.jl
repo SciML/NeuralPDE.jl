@@ -49,7 +49,7 @@ end
     autodiff = false
     kwargs = (; verbose = true, dt = dt, abstol, maxiters = 300)
     opt = BFGS()
-    numensemble = 1000
+    numensemble = 2000
 
     sol_2 = solve(
         prob, NNSDE(
@@ -61,6 +61,7 @@ end
             luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 1, batch = true);
         kwargs...)
 
+    # sol_1 and sol_2 have same timespan
     ts = sol_1.timepoints
     u1 = sol_1.mean_fit
     u2 = sol_2.mean_fit
@@ -79,7 +80,7 @@ end
     # as we reduce num_samples, < and > sub_sample cases start performing better (mean against analytic_sol and truncated_sol)
     # but the Rate of improvements of less < subsample case seems to be higher as we reduce num_samples.
 
-    num_samples = 2000
+    num_samples = 3000
     num_time_steps = dt
     z1_samples = rand(Normal(0, 1), num_samples)
     z2_samples = rand(Normal(0, 1), num_samples)
@@ -127,6 +128,7 @@ end
     mean_predicted_solution_1 = mean(predicted_solution_samples_1, dims = 2)
     mean_predicted_solution_2 = mean(predicted_solution_samples_2, dims = 2)
 
+    # testing over different sample sizes
     error_1 = sum(abs2, mean_analytic_solution .- u1)
     error_2 = sum(abs2, mean_analytic_solution .- u2)
     @test error_1 > error_2
@@ -134,7 +136,7 @@ end
     MSE_1 = mean(abs2.(mean_analytic_solution .- u1))
     MSE_2 = mean(abs2.(mean_analytic_solution .- u2))
     @test MSE_2 < MSE_1
-    @test MSE_2 < 5e-2
+    @test MSE_2 < 1e-2
 
     error_1 = sum(abs2, mean_analytic_solution .- mean_predicted_solution_1)
     error_2 = sum(abs2, mean_analytic_solution .- mean_predicted_solution_2)
@@ -143,10 +145,10 @@ end
     MSE_1 = mean(abs2.(mean_analytic_solution .- mean_predicted_solution_1))
     MSE_2 = mean(abs2.(mean_analytic_solution .- mean_predicted_solution_2))
     @test MSE_2 < MSE_1
-    @test MSE_2 < 5e-2
+    @test MSE_2 < 1e-2
 
     @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) >
           mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution))
-    @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) < 1e-1
-    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 5e-2
+    @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) < 5e-2
+    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 2e-2
 end
