@@ -32,6 +32,7 @@ end
 @testitem "Test-2" tags=[:nnsde] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
     using OptimizationOptimJL: BFGS
+    Random.seed!(100)
 
     α = 1.2
     β = 1.1
@@ -50,13 +51,14 @@ end
     opt = BFGS()
     numensemble = 1000
 
-    sol_1 = solve(
-        prob, NNSDE(
-            luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 1, batch = true);
-        kwargs...)
     sol_2 = solve(
         prob, NNSDE(
             luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 10, batch = true);
+        kwargs...)
+
+    sol_1 = solve(
+        prob, NNSDE(
+            luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 1, batch = true);
         kwargs...)
 
     ts = sol_1.timepoints
