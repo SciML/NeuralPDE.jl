@@ -417,14 +417,14 @@ end
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
     strategy = StochasticTraining(2048)
-    inner = 20
+    inner = 32
     chain = Chain(Dense(2, inner, sigmoid), Dense(inner, inner, sigmoid), Dense(inner, 1))
 
     discretization = PhysicsInformedNN(chain, strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
     prob = discretize(pde_system, discretization)
-    res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 500, callback)
+    res = solve(prob, BFGS(); maxiters = 500, callback)
     phi = discretization.phi
 
     analytic_sol_func(x, y) = x + x * y + y^2 / 2

@@ -171,7 +171,6 @@ end
         alg = NNODE(luxchain, opt; additional_loss, strategy)
         @test begin
             sol = solve(prob, alg; verbose = false, maxiters = 500, abstol = 1e-6)
-            @show sol.errors[:l2]
             sol.errors[:l2] < 0.5
         end
     end
