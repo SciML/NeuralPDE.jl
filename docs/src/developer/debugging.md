@@ -36,11 +36,11 @@ eltypeθ = eltype(init_params)
 phi = NeuralPDE.get_phi(chain)
 derivative = NeuralPDE.get_numeric_derivative()
 
-u_ = (cord, θ, phi) -> sum(phi(cord, θ))
+u_ = @closure (cord, θ, phi) -> sum(phi(cord, θ))
 
 phi([1, 2], init_params)
 
-phi_ = (p) -> phi(p, init_params)[1]
+phi_ = @closure (p) -> phi(p, init_params)[1]
 dphi = Zygote.gradient(phi_, [1.0, 2.0])
 
 dphi1 = derivative(phi, u_, [1.0, 2.0], [[0.0049215667, 0.0]], 1, init_params)
@@ -57,7 +57,7 @@ multioutput = chain isa AbstractArray
 strategy = NeuralPDE.GridTraining(dx)
 integral = NeuralPDE.get_numeric_integral(strategy, indvars, multioutput, chain, derivative)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq, indvars, depvars, phi, derivative,
+_pde_loss_function = @closure NeuralPDE.build_loss_function(eq, indvars, depvars, phi, derivative,
     integral, multioutput, init_params,
     strategy)
 ```
@@ -82,7 +82,7 @@ julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
 ```
 
 ```julia
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc, indvars, depvars,
+_bc_loss_functions = [ @closure NeuralPDE.build_loss_function(bc, indvars, depvars,
                           phi, derivative, integral, multioutput,
                           init_params, strategy,
                           bc_indvars = bc_indvar)

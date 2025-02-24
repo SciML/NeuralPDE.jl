@@ -93,7 +93,7 @@ domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 1.0)]
 
 input_ = length(domains)
 n = 15
-chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:7]
+chain = [@closure Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:7]
 
 training_strategy = StochasticTraining(128)
 discretization = PhysicsInformedNN(chain, training_strategy)
@@ -107,7 +107,7 @@ pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:7]
 approx_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[9:end]
 
-callback = function (p, l)
+callback = @closure function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
@@ -128,7 +128,7 @@ And some analysis:
 using Plots
 
 ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-minimizers_ = [res.u.depvar[sym_prob.depvars[i]] for i in 1:length(chain)]
+minimizers_ = [@closure res.u.depvar[sym_prob.depvars[i]] for i in 1:length(chain)]
 
 u1_real(t, x) = exp(-t) * sinpi(x)
 u2_real(t, x) = exp(-t) * cospi(x)

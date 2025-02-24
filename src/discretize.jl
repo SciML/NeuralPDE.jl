@@ -314,13 +314,16 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
             end
         end
         integration_arr = Matrix{Float64}(undef, 1, 0)
-        for i in 1:size(cord, 2)
-            integration_arr = hcat(integration_arr,
-                integration_(cord[:, i], lb_[:, i], ub_[:, i], θ))
+        
+        for i in axes(cord, 2)
+    integration_arr = hcat(integration_arr,
+        integration_(cord[:, i], lb_[:, i], ub_[:, i], θ))
         end
+
         return integration_arr
     end
 end
+
 """
     prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
 

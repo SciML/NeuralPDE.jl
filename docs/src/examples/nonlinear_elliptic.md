@@ -45,9 +45,18 @@ root(x) = f(x) - g(x)
 
 # Analytic solution
 k = find_zero(root, (0, 1), Bisection())                            # k is a root of the algebraic (transcendental) equation f(x) = g(x)
-θ(x, y) = (cosh(sqrt(f(k)) * x) + sinh(sqrt(f(k)) * x)) * (y + 1)   # Analytical solution to Helmholtz equation
-w_analytic(x, y) = θ(x, y) - h(k) / f(k)
-u_analytic(x, y) = k * w_analytic(x, y)
+θ = let k = k  
+    (x, y) -> (cosh(sqrt(f(k)) * x) + sinh(sqrt(f(k)) * x)) * (y + 1)
+end
+
+w_analytic = let θ = θ, h_k = h(k) / f(k)  # Closure for analytic function
+    (x, y) -> θ(x, y) - h_k
+end
+
+u_analytic = let k = k, w_analytic = w_analytic  # Closure for u_analytic
+    (x, y) -> k * w_analytic(x, y)
+end
+
 
 # Nonlinear Steady-State Systems of Two Reaction-Diffusion Equations with 3 arbitrary function f, g, h
 eqs_ = [
@@ -105,14 +114,21 @@ res = solve(prob, BFGS(); maxiters = 100, callback)
 phi = discretization.phi
 
 # Analysis
+# Analysis with closure
 xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
 depvars = [:u, :w]
 minimizers_ = [res.u.depvar[depvars[i]] for i in 1:2]
 
-analytic_sol_func(x, y) = [u_analytic(x, y), w_analytic(x, y)]
+analytic_sol_func = let u_analytic = u_analytic, w_analytic = w_analytic  # Closure for analytic function
+    (x, y) -> [u_analytic(x, y), w_analytic(x, y)]
+end
+
 u_real = [[analytic_sol_func(x, y)[i] for x in xs for y in ys] for i in 1:2]
-u_predict = [[phi[i]([x, y], minimizers_[i])[1] for x in xs for y in ys] for i in 1:2]
+u_predict = let phi = phi, minimizers_ = minimizers_  # Closure for predicted values
+    [[phi[i]([x, y], minimizers_[i])[1] for x in xs for y in ys] for i in 1:2]
+end
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+
 ps = []
 for i in 1:2
     p1 = plot(xs, ys, u_real[i], linetype = :contourf, title = "u$i, analytic")
