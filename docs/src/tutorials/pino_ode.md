@@ -15,7 +15,7 @@ using NeuralOperators
 using NeuralPDE
 
 # Define the parametric ODE equation
-equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]
+@closure equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]
 tspan = (0.0, 1.0)
 u0 = 1.0
 prob = ODEProblem(equation, u0, tspan)
@@ -46,7 +46,7 @@ Now let's compare the prediction from the learned operator with the ground truth
 ```@example pino
 using Plots
 
-function get_trainset(bounds, tspan, number_of_parameters, dt)
+@closure function get_trainset(bounds, tspan, number_of_parameters, dt)
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
     p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
@@ -55,7 +55,7 @@ function get_trainset(bounds, tspan, number_of_parameters, dt)
 end
 
 # Compute the ground truth solution for each parameter
-ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) + p[3] * t
+@closure ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) + p[3] * t
 function ground_solution_f(p, t)
     reduce(hcat,
         [[ground_solution(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
