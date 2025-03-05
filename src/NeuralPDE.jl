@@ -29,7 +29,7 @@ using Reexport: @reexport
 using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
 using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem, NoiseProblem,
                  OptimizationFunction, OptimizationProblem, ReturnCode, discretize,
-                 isinplace, solve, symbolic_discretize, ODEProblem, AbstractODESolution
+                 isinplace, solve, symbolic_discretize, ODEProblem, ODESolution
 using Statistics: Statistics, mean
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
 using WeightInitializers: glorot_uniform, zeros32
