@@ -1,0 +1,47 @@
+name: "Bayesian Tests"
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'lib/BayesianNeuralPDE/**'
+  pull_request:
+    paths:
+      - 'lib/BayesianNeuralPDE/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch || github.ref != 'refs/tags/v*' }}
+
+jobs:
+  tests:
+    name: Julia ${{ matrix.version }} - ${{ matrix.group }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - '1'
+          - 'lts'
+          - 'pre'
+        group:
+          - 'ODEBPINN'
+          - 'PDEBPINN'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.version }}
+
+      - name: Run tests
+        run: |
+          julia --project -e 'using Pkg; Pkg.instantiate()'
+          julia --project -e 'using Pkg; Pkg.build()'
+          julia --project -e 'using Pkg; Pkg.test(coverage=true)'
+        env:
+          JULIA_GROUP: ${{ matrix.group }}
+          JULIA_COVERAGE_DIRECTORIES: "src,ext"
+          JULIA_RUNTEST_DEPWARN: "yes"
