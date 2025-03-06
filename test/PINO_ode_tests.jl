@@ -231,7 +231,7 @@ end
         Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
             Dense(10 => 10, Lux.tanh_fast)))
 
-    u = rand(2, 50)
+    u = rand(3, 50)
     v = rand(1, 40, 1)
     θ, st = Lux.setup(Random.default_rng(), deeponet)
     c = deeponet((u, v), θ, st)[1]

@@ -281,6 +281,12 @@ function (f::NNODEInterpolation)(t::Vector, idxs, ::Type{Val{0}}, p, continuity)
     return DiffEqArray([out[idxs, i] for i in axes(out, 2)], t)
 end
 
+function (sol::ODESolution{T, N, U, U2, D, T2, R, D2, P, A})(
+        t::AbstractVector{<:Number}, ::Type{deriv}, idxs::Nothing,
+        continuity) where {T, N, U, U2, D, T2, R, D2, P, A <: NNODE, deriv}
+    sol.interp(t, idxs, deriv, sol.prob.p, continuity)
+end
+
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::NNODE) = true
 

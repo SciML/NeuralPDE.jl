@@ -97,10 +97,11 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
     return pde_loss_functions, bc_loss_functions
 end
 
-function get_points_loss_functions(loss_function, train_set, eltypeθ, strategy::GridTraining;
+function get_points_loss_functions(
+        loss_function, train_set, eltypeθ, strategy::GridTraining;
         τ = nothing)
-        # loss_function length is number of all points loss is being evaluated upon
-        # train sets rows are for each indvar, cols are coordinates (row_1,row_2,..row_n) at which loss evaluated
+    # loss_function length is number of all points loss is being evaluated upon
+    # train sets rows are for each indvar, cols are coordinates (row_1,row_2,..row_n) at which loss evaluated
     function loss(θ, std)
         logpdf(
             MvNormal(loss_function(train_set, θ)[1, :],
