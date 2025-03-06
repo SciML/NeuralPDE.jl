@@ -17,6 +17,7 @@ compared with classical methods.
 
 ## Installation
 
+
 Assuming that you already have Julia correctly installed, it suffices to install NeuralPDE.jl in the standard way, that is, by typing `] add NeuralPDE`. Note:
 to exit the Pkg REPL-mode, just press <kbd>Backspace</kbd> or <kbd>Ctrl</kbd> + <kbd>C</kbd>.
 
