@@ -187,10 +187,10 @@ end
         phi = discretization.phi
 
         xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
-        analytic_sol_func(x, y) = (sinpi(x) * sinpi(y)) / (2pi^2)
+        analytic = (x, y) -> (sinpi(x) * sinpi(y)) / (2pi^2)
 
         u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
-        u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
+        u_real = [analytic(x, y) for x in xs for y in ys]
 
         @test u_predict≈u_real atol=2.0
     end
