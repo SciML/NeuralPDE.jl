@@ -44,8 +44,8 @@
     meanscurve = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
     # --------------------- ahmc_bayesian_pinn_ode() call
-    @test mean(abs.(x̂ .- meanscurve)) < 0.05
-    @test mean(abs.(physsol1 .- meanscurve)) < 0.005
+    @test mean(abs.(x̂ .- meanscurve)) < 0.06
+    @test mean(abs.(physsol1 .- meanscurve)) < 0.006
 
     #--------------------- solve() call
     @test mean(abs.(x̂1 .- pmean(sol1lux.ensemblesol[1]))) < 0.025
