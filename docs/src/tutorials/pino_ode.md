@@ -21,11 +21,11 @@ u0 = 1.0
 prob = ODEProblem(equation, u0, tspan)
 
 # Set the number of parameters for the ODE
-number_of_parameter = 3
+number_of_parameters = 3
 # Define the DeepONet architecture for the PINO
 deeponet = NeuralOperators.DeepONet(
     Chain(
-        Dense(number_of_parameter => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
+        Dense(number_of_parameters => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
     Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
         Dense(10 => 10, Lux.tanh_fast)))
 
