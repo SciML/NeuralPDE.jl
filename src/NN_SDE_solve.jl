@@ -85,19 +85,25 @@ end
     inner_sde_loss(phi, f, autodiff, t, θ, p, param_estim)
 
 Simple L2 inner loss for the SDE at a time `t` and random variables z_i with parameters `θ` of the neural network.
+    
+For NNSE instead of a matrix, input is a N x n_sub x (t+n_z) dim array N -> n timepoints, n_sub -> n_sub_batch, t+n_z -> chain/phi input dims.
+Inner Sde loss enforces strong solution across sub_batches (strong sol convergence implies weak sol convergence but not vice versa)
+Note: NNODE, NNSDE take only a single Neural Network which is multioutput or singleoutput
+
 """
 function inner_sde_loss end
 
-# no batching used case
+# no batching
 function inner_sde_loss(
-        phi::SDEPhi, f, g, autodiff::Bool, inputs::Array{<:Array{<:Number, 1}}, θ, p, param_estim::Bool)
+        phi::SDEPhi, f, g, autodiff::Bool, inputs::Array{<:Array{<:Number, 1}},
+        θ, p, param_estim::Bool, n_sub_batch)
     p_ = param_estim ? θ.p : p
 
     # phi's many outputs for the same timepoint's many sub_batches
     # must also cover multioutput case
     u = [phi(sub_batch_input, θ) for sub_batch_input in inputs]
 
-    # for t's sub_batch we consider the ith batch in sub_batch as indvar, z_i... inputs for the ith phi output (also covers sub_batch=1 case)
+    # for t's sub_batch we consider the i_th batch in sub_batch as indvar, z_i... inputs for the ith phi output (also covers sub_batch=1 case)
     fs = if phi.u0 isa Number
         [f(u[i][1], p_, inp[1]) +
          g(u[i][1], p_, inp[1]) * √2 *
@@ -114,25 +120,24 @@ function inner_sde_loss(
     # gradient at t is not affected by sub_batch z_i values beyond use in phi(t+ϵ)
     dudt = ∂u_∂t(phi, inputs, θ, autodiff)
 
-    # .- broadcasting over multiple/single outputs and subbatches
-    # fs and dudt size is (n_sub_batch,)
-    # then broadcast sum(abs2,) over each row-sub_batch's col-multiple/single outputs's L1 error
-    # finally sum over vector of L2 errors for each row-sub_batch/sum(Δphi(sub_batch_i)/dt) (can also apply mean of L2's across sub_batch)
-    return mean(sum.(abs2, fs .- dudt))
+    # initial .- broadcasting over  NN multiple/single outputs and subbatches simultaneously
+    # fs and dudt size is (n_sub_batch, NN_output_size), loss is for one timepoint
+    # broadcasted sum(abs2,) over losses for each sub_batch, where rows - sub_batch's and cols - NN multiple/single outputs
+    # finally sum over vector of L2 errors (all the sub_batches) (direct sum/mean of L2's across sub_batches)
+    return sum(sum.(abs2, fs .- dudt))
 end
 
-# NNODE, NNSDE take only a single NN which is multioutput/singleoutput
-# instead of a matrix, input is a N x n_sub x (t+n_z) dim array N -> n timepoints, n_sub -> n_sub_batch, t+n_z -> chain/phi input dims
+# batching case
 function inner_sde_loss(
         phi::SDEPhi, f, g, autodiff::Bool, inputs::Array{<:Array{<:Array{<:Number, 1}}},
-        θ, p, param_estim::Bool)
+        θ, p, param_estim::Bool, n_sub_batch)
     p_ = param_estim ? θ.p : p
 
-    # phi's many outputs for each timepoint's many sub_batches, input for each ti, sub_batch_input for each input's sub_batches
+    # phi's many outputs for each timepoint's many sub_batches, input for each t_i, sub_batch_input for each input's sub_batches
     # must also cover multioutput case
     u = [[phi(sub_batch_input, θ) for sub_batch_input in input] for input in inputs]
 
-    # for each ti's sub_batch we consider the ith batch in sub_batch as indvar, z_i... inputs for the ith phi output (covers subbatch=1 case for each ti)
+    # for each t_i's sub_batch we consider the i_th batch in sub_batch as indvar, z_i... inputs for the i_th phi output (covers subbatch=1 case for each t_i)
     fs = if phi.u0 isa Number
         [[f(u[i][j][1], p_, inpi[1]) +
           g(u[i][j][1], p_, inpi[1]) * 2^(1 / 2) *
@@ -144,12 +149,15 @@ function inner_sde_loss(
           sum(inpi[1 + k] * cos((k - 1 / 2)pi * inpi[1]) for k in 1:(length(inpi) - 1))
           for (j, inpi) in enumerate(inp)] for (i, inp) in enumerate(inputs)]
     end
-    # fs[1] is made of n=n_sub_batch, vectors of n=n_output_dims dim each
-    # gradient at all ti's is not affected by their sub_batch's z_i values beyond use in phi(ti+ϵ)
+
+    # fs[i] is made of n=n_sub_batch, vectors of n=n_output_dims dim each
+    # gradient at t_i's is not affected by their sub_batch's z_i values beyond use in phi(ti+ϵ)
     dudt = [∂u_∂t(phi, inpi, θ, autodiff) for inpi in inputs]
 
-    # same explanation as in non batching case, but for mean L2 loss we aggregate final sum over all timepoints.
-    return sum(mean(sum.(abs2, fs[i] .- dudt[i])) for i in eachindex(inputs)) /
+    # Taking MSE across Z, each fs and du/dt has n_sub_batch elements in them
+    # sum used for each timepoint's sub_batch as strong convergence enforced for each WienerProcess realization
+    # same explanation as in non batching case, final mean L2 aggregates over all timepoints.
+    return sum(sum(sum.(abs2, fs[i] .- dudt[i])) for i in eachindex(inputs)) /
            length(inputs)
 end
 
@@ -176,13 +184,15 @@ function generate_loss(
     inputs = AbstractVector{Any}[]
     function integrand(t::Number, θ)
         inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch]]
-        return abs2(inner_sde_loss(phi, f, g, autodiff, inputs, θ, p, param_estim))
+        return abs2(inner_sde_loss(
+            phi, f, g, autodiff, inputs, θ, p, param_estim, n_sub_batch))
     end
 
     # when ts is a list
     function integrand(ts, θ)
         inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in ts]
-        return [abs2(inner_sde_loss(phi, f, g, autodiff, input, θ, p, param_estim))
+        return [abs2(inner_sde_loss(
+                    phi, f, g, autodiff, input, θ, p, param_estim, n_sub_batch))
                 for input in inputs]
     end
 
@@ -207,9 +217,11 @@ function generate_loss(
 
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     batch &&
-        return (θ, _) -> inner_sde_loss(phi, f, g, autodiff, inputs, θ, p, param_estim),
+        return (θ, _) -> inner_sde_loss(
+            phi, f, g, autodiff, inputs, θ, p, param_estim, n_sub_batch),
         inputs
-    return (θ, _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p, param_estim)
+    return (θ, _) -> sum([inner_sde_loss(
+                              phi, f, g, autodiff, input, θ, p, param_estim, n_sub_batch)
                           for input in inputs]),
     inputs
 end
@@ -225,9 +237,9 @@ function generate_loss(strategy::StochasticTraining, phi, f, g, autodiff::Bool,
         inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in ts]
 
         if batch
-            inner_sde_loss(phi, f, g, autodiff, inputs, θ, p, param_estim)
+            inner_sde_loss(phi, f, g, autodiff, inputs, θ, p, param_estim, n_sub_batch)
         else
-            sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p, param_estim)
+            sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p, param_estim, n_sub_batch)
                  for input in inputs])
         end
     end,
@@ -252,9 +264,11 @@ function generate_loss(
     inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in ts]
 
     batch &&
-        return (θ, _) -> inner_sde_loss(phi, f, g, autodiff, inputs, θ, p, param_estim),
+        return (θ, _) -> inner_sde_loss(
+            phi, f, g, autodiff, inputs, θ, p, param_estim, n_sub_batch),
         inputs
-    return (θ, _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p, param_estim)
+    return (θ, _) -> sum([inner_sde_loss(
+                              phi, f, g, autodiff, input, θ, p, param_estim, n_sub_batch)
                           for input in inputs]),
     inputs
 end
@@ -263,9 +277,11 @@ function evaluate_tstops_loss(
         phi, f, g, autodiff::Bool, tstops, n_z, n_sub_batch, p, batch, param_estim::Bool)
     inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in tstops]
     batch &&
-        return (θ, _) -> inner_sde_loss(phi, f, g, autodiff, inputs, θ, p, param_estim),
+        return (θ, _) -> inner_sde_loss(
+            phi, f, g, autodiff, inputs, θ, p, param_estim, n_sub_batch),
         inputs
-    return (θ, _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p, param_estim)
+    return (θ, _) -> sum([inner_sde_loss(
+                              phi, f, g, autodiff, input, θ, p, param_estim, n_sub_batch)
                           for input in inputs]),
     inputs
 end
@@ -325,8 +341,10 @@ function SciMLBase.__solve(
         tstops = nothing
 )
     (; u0, tspan, f, g, p) = prob
-    # rescaling timespan so KKL expansion can be applied for loss formulation
+    # rescaling timespan and discretization so KKL expansion can be applied for loss formulation
+    dt = dt / abs(tspan[2] - tspan[1])
     tspan = tspan ./ tspan[end]
+
     t0 = tspan[1]
     (; param_estim, chain, opt, autodiff, init_params, batch, additional_loss, sub_batch, numensemble) = alg
     n_z = chain[1].in_dims - 1
