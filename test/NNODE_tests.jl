@@ -1,10 +1,3 @@
-# using Test, Random, NeuralPDE, OrdinaryDiffEq, Statistics, Lux, OptimizationOptimisers,
-#       OptimizationOptimJL, WeightInitializers, LineSearches
-# import Flux
-
-# rng = Random.default_rng()
-# Random.seed!(100)
-
 @testitem "Scalar" tags=[:nnode] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers
     using OptimizationOptimJL: BFGS
