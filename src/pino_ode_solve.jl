@@ -260,7 +260,10 @@ p,t = rand(1, 50, 10), rand(1, 50, 10)
 interp(p, t)
 ```
 """
-function (f::PINOODEInterpolation)(p::AbstractArray, t::AbstractArray)
+(f::PINOODEInterpolation)(p, t) = f(t, nothing, Val{0}, p, nothing)
+
+function (f::PINOODEInterpolation)(
+        t::AbstractArray, ::Nothing, ::Type{Val{0}}, p::AbstractArray, continuity)
     if f.phi.model isa DeepONet
         f.phi((p, t), f.θ)
     elseif f.phi.model isa Chain
@@ -273,7 +276,8 @@ function (f::PINOODEInterpolation)(p::AbstractArray, t::AbstractArray)
     end
 end
 
-function (f::PINOODEInterpolation)(p::AbstractArray, t::Number)
+function (f::PINOODEInterpolation)(
+        t::Number, ::Nothing, ::Type{Val{0}}, p::AbstractArray, continuity)
     if f.phi.model isa DeepONet
         t_ = [t]
         f.phi((p, t_), f.θ)
@@ -288,8 +292,16 @@ end
 SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::PINOODE) = true
 
-function (sol::SciMLBase.AbstractODESolution)(t::Union{Number, AbstractArray})
-    sol.interp(sol.prob.p, t)
+function (sol::ODESolution{T, N, U, U2, D, T2, R, D2, P, A})(
+        t::AbstractArray, ::Type{deriv}, idxs::Nothing,
+        continuity) where {T, N, U, U2, D, T2, R, D2, P, A <: PINOODE, deriv}
+    sol.interp(t, idxs, deriv, sol.prob.p, continuity)
+end
+
+function (sol::ODESolution{T, N, U, U2, D, T2, R, D2, P, A})(
+        t::AbstractVector{<:Number}, ::Type{deriv}, idxs::Nothing,
+        continuity) where {T, N, U, U2, D, T2, R, D2, P, A <: PINOODE, deriv}
+    sol.interp(t, idxs, deriv, sol.prob.p, continuity)
 end
 
 function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
