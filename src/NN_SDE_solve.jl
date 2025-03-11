@@ -341,9 +341,11 @@ function SciMLBase.__solve(
         tstops = nothing
 )
     (; u0, tspan, f, g, p) = prob
-    # rescaling timespan and discretization so KKL expansion can be applied for loss formulation
-    dt = dt / abs(tspan[2] - tspan[1])
+    # rescaling tspan, discretization so KKL expansion can be applied for loss formulation
     tspan = tspan ./ tspan[end]
+    if dt !== nothing
+        dt = dt / abs(tspan[2] - tspan[1])
+    end
 
     t0 = tspan[1]
     (; param_estim, chain, opt, autodiff, init_params, batch, additional_loss, sub_batch, numensemble) = alg
