@@ -49,7 +49,7 @@ using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
 using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
 using LogDensityProblems: LogDensityProblems
 using MCMCChains: MCMCChains, Chains, sample
-using MonteCarloMeasurements: Particles
+using MonteCarloMeasurements: Particles, pmean
 
 import LuxCore: initialparameters, initialstates, parameterlength
 
