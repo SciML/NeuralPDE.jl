@@ -21,22 +21,28 @@ u0 = 1.0
 prob = ODEProblem(equation, u0, tspan)
 
 # Set the number of parameters for the ODE
-number_of_parameter = 3
+num_params = 3
+
 # Define the DeepONet architecture for the PINO
 deeponet = NeuralOperators.DeepONet(
     Chain(
-        Dense(number_of_parameter => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
+        Dense(num_params => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 10)),
     Chain(Dense(1 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast),
         Dense(10 => 10, Lux.tanh_fast)))
 
 # Define the bounds for the parameters
 bounds = [(1.0, pi), (1.0, 2.0), (2.0, 3.0)]
 number_of_parameter_samples = 50
+
 # Define the training strategy
 strategy = StochasticTraining(20)
+
 # Define the optimizer
 opt = OptimizationOptimisers.Adam(0.03)
-alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
+
+# Define `PINNODE`
+alg = PINOODE(deeponet, opt, bounds, num_params; strategy = strategy)
+
 # Solve the ODE problem using the PINOODE algorithm
 sol = solve(prob, alg, verbose = false, maxiters = 4000)
 ```
@@ -63,21 +69,25 @@ end
 
 # generate the solution with new parameters for test the model
 (p, t) = get_trainset(bounds, tspan, 50, 0.025)
+
 # compute the ground truth solution
 ground_solution_ = ground_solution_f(p, t)
+
 # predict the solution with the PINO model
-predict = sol.interp((p, t))
+predict = sol.interp(p, t)
 
 # calculate the errors between the ground truth solution and the predicted solution
 errors = ground_solution_ - predict
+
 # calculate the mean error and the standard deviation of the errors
 mean_error = mean(errors)
+
 # calculate the standard deviation of the errors
 std_error = std(errors)
 
 p, t = get_trainset(bounds, tspan, 100, 0.01)
 ground_solution_ = ground_solution_f(p, t)
-predict = sol.interp((p, t))
+predict = sol.interp(p, t)
 
 errors = ground_solution_ - predict
 mean_error = mean(errors)
