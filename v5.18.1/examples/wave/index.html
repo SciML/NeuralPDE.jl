@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>1D Wave Equation with Dirichlet boundary conditions · NeuralPDE.jl</title><meta name="title" content="1D Wave Equation with Dirichlet boundary conditions · NeuralPDE.jl"/><meta property="og:title" content="1D Wave Equation with Dirichlet boundary conditions · NeuralPDE.jl"/><meta property="twitter:title" content="1D Wave Equation with Dirichlet boundary conditions · NeuralPDE.jl"/><meta name="description" content="Documentation for NeuralPDE.jl."/><meta property="og:description" content="Documentation for NeuralPDE.jl."/><meta property="twitter:description" content="Documentation for NeuralPDE.jl."/><meta property="og:url" content="https://docs.sciml.ai/NeuralPDE/stable/examples/wave/"/><meta property="twitter:url" content="https://docs.sciml.ai/NeuralPDE/stable/examples/wave/"/><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/examples/wave/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/ode/">Introduction to NeuralPDE for ODEs</a></li><li><a class="tocitem" href="../../tutorials/Lotka_Volterra_BPINNs/">Bayesian PINNs for Coupled ODEs</a></li><li><a class="tocitem" href="../../tutorials/dae/">PINNs DAEs</a></li><li><a class="tocitem" href="../../tutorials/ode_parameter_estimation/">Parameter Estimation with PINNs for ODEs</a></li><li><a class="tocitem" href="../../tutorials/pino_ode/">Physics informed Neural Operator ODEs</a></li><li><a class="tocitem" href="../../tutorials/dgm/">Deep Galerkin Method</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../../tutorials/low_level_2/">Bayesian PINNs for PDEs</a></li><li><a class="tocitem" href="../../tutorials/gpu/">Using GPUs</a></li><li><a class="tocitem" href="../../tutorials/systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../../tutorials/constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../../tutorials/low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../../tutorials/param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../../tutorials/integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../../tutorials/neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../../tutorials/derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li class="is-active"><a class="tocitem" href>1D Wave Equation with Dirichlet boundary conditions</a><ul class="internal"><li><a class="tocitem" href="#1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions"><span>1D Damped Wave Equation with Dirichlet boundary conditions</span></a></li></ul></li><li><a class="tocitem" href="../3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="../nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li><li><a class="tocitem" href="../complex/">Complex Equations with PINNs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/dae/">Differential Algebraic Equation Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/bpinns/"><code>BayesianPINN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li><li><a class="tocitem" href="../../manual/pino_ode/">Physics-Informed Neural Operator (PINO) for ODEs</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Extended Examples</a></li><li class="is-active"><a href>1D Wave Equation with Dirichlet boundary conditions</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>1D Wave Equation with Dirichlet boundary conditions</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/examples/wave.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="1D-Wave-Equation-with-Dirichlet-boundary-conditions"><a class="docs-heading-anchor" href="#1D-Wave-Equation-with-Dirichlet-boundary-conditions">1D Wave Equation with Dirichlet boundary conditions</a><a id="1D-Wave-Equation-with-Dirichlet-boundary-conditions-1"></a><a class="docs-heading-anchor-permalink" href="#1D-Wave-Equation-with-Dirichlet-boundary-conditions" title="Permalink"></a></h1><p>Let&#39;s solve this 1-dimensional wave equation:</p><p class="math-container">\[\begin{align*}
+∂^2_t u(x, t) = c^2 ∂^2_x u(x, t) \quad &amp; \textsf{for all } 0 &lt; x &lt; 1 \text{ and } t &gt; 0 \, , \\
+u(0, t) = u(1, t) = 0 \quad &amp; \textsf{for all } t &gt; 0 \, , \\
+u(x, 0) = x (1-x)     \quad &amp; \textsf{for all } 0 &lt; x &lt; 1 \, , \\
+∂_t u(x, 0) = 0       \quad &amp; \textsf{for all } 0 &lt; x &lt; 1 \, , \\
+\end{align*}\]</p><p>with grid discretization <code>dx = 0.1</code> and physics-informed neural networks.</p><p>Further, the solution of this equation with the given boundary conditions is presented.</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, Optimization, OptimizationOptimJL
+using ModelingToolkit: Interval
+
+@parameters t, x
+@variables u(..)
+Dxx = Differential(x)^2
+Dtt = Differential(t)^2
+Dt = Differential(t)
+
+#2D PDE
+C = 1
+eq = Dtt(u(t, x)) ~ C^2 * Dxx(u(t, x))
+
+# Initial and boundary conditions
+bcs = [u(t, 0) ~ 0.0,# for all t &gt; 0
+    u(t, 1) ~ 0.0,# for all t &gt; 0
+    u(0, x) ~ x * (1.0 - x), #for all 0 &lt; x &lt; 1
+    Dt(u(0, x)) ~ 0.0] #for all  0 &lt; x &lt; 1]
+
+# Space and time domains
+domains = [t ∈ Interval(0.0, 1.0),
+    x ∈ Interval(0.0, 1.0)]
+# Discretization
+dx = 0.1
+
+# Neural network
+chain = Chain(Dense(2, 16, σ), Dense(16, 16, σ), Dense(16, 1))
+discretization = PhysicsInformedNN(chain, GridTraining(dx))
+
+@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
+prob = discretize(pde_system, discretization)
+
+callback = function (p, l)
+    println(&quot;Current loss is: $l&quot;)
+    return false
+end
+
+# optimizer
+opt = OptimizationOptimJL.BFGS()
+res = Optimization.solve(prob, opt; callback, maxiters = 1200)
+phi = discretization.phi</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NeuralPDE.Phi{Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}}(Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}(Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}((layer_1 = Dense(2 =&gt; 16, σ), layer_2 = Dense(16 =&gt; 16, σ), layer_3 = Dense(16 =&gt; 1)), nothing), nothing, (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()), nothing, static(true)))</code></pre><p>We can plot the predicted solution of the PDE and compare it with the analytical solution to plot the relative error.</p><pre><code class="language-julia hljs">using Plots
+
+ts, xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+function analytic_sol_func(t, x)
+    sum([(8 / (k^3 * pi^3)) * sin(k * pi * x) * cos(C * k * pi * t) for k in 1:2:50000])
+end
+
+u_predict = reshape([first(phi([t, x], res.u)) for t in ts for x in xs],
+    (length(ts), length(xs)))
+u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs],
+    (length(ts), length(xs)))
+
+diff_u = abs.(u_predict .- u_real)
+p1 = plot(ts, xs, u_real, linetype = :contourf, title = &quot;analytic&quot;);
+p2 = plot(ts, xs, u_predict, linetype = :contourf, title = &quot;predict&quot;);
+p3 = plot(ts, xs, diff_u, linetype = :contourf, title = &quot;error&quot;);
+plot(p1, p2, p3)</code></pre><img src="6c689b1f.svg" alt="Example block output"/><h2 id="1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions"><a class="docs-heading-anchor" href="#1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions">1D Damped Wave Equation with Dirichlet boundary conditions</a><a id="1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions-1"></a><a class="docs-heading-anchor-permalink" href="#1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions" title="Permalink"></a></h2><p>Now let&#39;s solve the 1-dimensional wave equation with damping.</p><p class="math-container">\[\begin{aligned}
+\frac{\partial^2 u(t,x)}{\partial x^2} = \frac{1}{c^2} \frac{\partial^2 u(t,x)}{\partial t^2} + v \frac{\partial u(t,x)}{\partial t} \\
+u(t, 0) = u(t, L) = 0 \\
+u(0, x) = x(1-x) \\
+u_t(0, x) = 1 - 2x \\
+\end{aligned}\]</p><p>with grid discretization <code>dx = 0.05</code> and physics-informed neural networks. Here, we take advantage of adaptive derivative to increase accuracy.</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using Plots, Printf
+using ModelingToolkit: Interval, infimum, supremum
+
+@parameters t, x
+@variables u(..) Dxu(..) Dtu(..) O1(..) O2(..)
+Dxx = Differential(x)^2
+Dtt = Differential(t)^2
+Dx = Differential(x)
+Dt = Differential(t)
+
+# Constants
+v = 3
+b = 2
+L = 1.0
+@assert b &gt; 0 &amp;&amp; b &lt; 2π / (L * v)
+
+# 1D damped wave
+eq = Dx(Dxu(t, x)) ~ 1 / v^2 * Dt(Dtu(t, x)) + b * Dtu(t, x)
+
+# Initial and boundary conditions
+bcs_ = [u(t, 0) ~ 0.0,# for all t &gt; 0
+    u(t, L) ~ 0.0,# for all t &gt; 0
+    u(0, x) ~ x * (1.0 - x), # for all 0 &lt; x &lt; 1
+    Dtu(0, x) ~ 1 - 2x # for all  0 &lt; x &lt; 1
+]
+
+ep = (cbrt(eps(eltype(Float64))))^2 / 6
+
+der = [Dxu(t, x) ~ Dx(u(t, x)) + ep * O1(t, x),
+    Dtu(t, x) ~ Dt(u(t, x)) + ep * O2(t, x)]
+
+bcs = [bcs_; der]
+
+# Space and time domains
+domains = [t ∈ Interval(0.0, L),
+    x ∈ Interval(0.0, L)]
+
+# Neural network
+inn = 25
+innd = 4
+chain = [[Chain(Dense(2, inn, tanh),
+              Dense(inn, inn, tanh),
+              Dense(inn, inn, tanh),
+              Dense(inn, 1)) for _ in 1:3]
+         [Chain(Dense(2, innd, tanh), Dense(innd, 1)) for _ in 1:2]]
+
+strategy = GridTraining(0.02)
+discretization = PhysicsInformedNN(chain, strategy;)
+
+@named pde_system = PDESystem(eq, bcs, domains, [t, x],
+    [u(t, x), Dxu(t, x), Dtu(t, x), O1(t, x), O2(t, x)])
+prob = discretize(pde_system, discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
+
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
+
+callback = function (p, l)
+    println(&quot;loss: &quot;, l)
+    println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p.u), pde_inner_loss_functions))
+    println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p.u), bcs_inner_loss_functions))
+    return false
+end
+
+res = Optimization.solve(prob, BFGS(); maxiters = 2000)
+prob = remake(prob, u0 = res.u)
+res = Optimization.solve(prob, BFGS(); maxiters = 2000)
+
+phi = discretization.phi[1]
+
+# Analysis
+ts, xs = [infimum(d.domain):0.05:supremum(d.domain) for d in domains]
+
+μ_n(k) = (v * sqrt(4 * k^2 * π^2 - b^2 * L^2 * v^2)) / (2 * L)
+function b_n(k)
+    2 / L * -(L^2 *
+      ((2 * π * L - π) * k * sin(π * k) + ((π^2 - π^2 * L) * k^2 + 2 * L) * cos(π * k) -
+       2 * L)) / (π^3 * k^3)
+end # vegas((x, ϕ) -&gt; ϕ[1] = sin(k * π * x[1]) * f(x[1])).integral[1]
+function a_n(k)
+    2 / -(L * μ_n(k)) * (L * (((2 * π * L^2 - π * L) * b * k * sin(π * k) +
+       ((π^2 * L - π^2 * L^2) * b * k^2 + 2 * L^2 * b) * cos(π * k) - 2 * L^2 * b) * v^2 +
+      4 * π * L * k * sin(π * k) + (2 * π^2 - 4 * π^2 * L) * k^2 * cos(π * k) -
+      2 * π^2 * k^2)) / (2 * π^3 * k^3)
+end
+
+# Plot
+function analytic_sol_func(t, x)
+    sum([sin((k * π * x) / L) * exp(-v^2 * b * t / 2) *
+         (a_n(k) * sin(μ_n(k) * t) + b_n(k) * cos(μ_n(k) * t)) for k in 1:2:100])
+end # TODO replace 10 with 500
+anim = @animate for t in ts
+    @info &quot;Time $t...&quot;
+    sol = [analytic_sol_func(t, x) for x in xs]
+    sol_p = [first(phi([t, x], res.u.depvar.u)) for x in xs]
+    plot(sol, label = &quot;analytic&quot;, ylims = [0, 0.1])
+    title = @sprintf(&quot;t = %.3f&quot;, t)
+    plot!(sol_p, label = &quot;predict&quot;, ylims = [0, 0.1], title = title)
+end
+gif(anim, &quot;1Dwave_damped_adaptive.gif&quot;, fps = 200)
+
+# Surface plot
+ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+u_predict = reshape(
+    [first(phi([t, x], res.u.depvar.u)) for
+     t in ts for x in xs], (length(ts), length(xs)))
+u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs],
+    (length(ts), length(xs)))
+
+diff_u = abs.(u_predict .- u_real)
+p1 = plot(ts, xs, u_real, linetype = :contourf, title = &quot;analytic&quot;);
+p2 = plot(ts, xs, u_predict, linetype = :contourf, title = &quot;predict&quot;);
+p3 = plot(ts, xs, diff_u, linetype = :contourf, title = &quot;error&quot;);
+plot(p1, p2, p3)</code></pre><img src="7bfd36c9.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../tutorials/derivative_neural_network/">« The Derivative Neural Network Approximation</a><a class="docs-footer-nextpage" href="../3rd/">ODE with a 3rd-Order Derivative »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.1 on <span class="colophon-date" title="Friday 14 March 2025 10:17">Friday 14 March 2025</span>. Using Julia version 1.11.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

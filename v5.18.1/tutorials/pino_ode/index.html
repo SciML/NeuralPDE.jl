@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Physics informed Neural Operator ODEs · NeuralPDE.jl</title><meta name="title" content="Physics informed Neural Operator ODEs · NeuralPDE.jl"/><meta property="og:title" content="Physics informed Neural Operator ODEs · NeuralPDE.jl"/><meta property="twitter:title" content="Physics informed Neural Operator ODEs · NeuralPDE.jl"/><meta name="description" content="Documentation for NeuralPDE.jl."/><meta property="og:description" content="Documentation for NeuralPDE.jl."/><meta property="twitter:description" content="Documentation for NeuralPDE.jl."/><meta property="og:url" content="https://docs.sciml.ai/NeuralPDE/stable/tutorials/pino_ode/"/><meta property="twitter:url" content="https://docs.sciml.ai/NeuralPDE/stable/tutorials/pino_ode/"/><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/tutorials/pino_ode/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../ode/">Introduction to NeuralPDE for ODEs</a></li><li><a class="tocitem" href="../Lotka_Volterra_BPINNs/">Bayesian PINNs for Coupled ODEs</a></li><li><a class="tocitem" href="../dae/">PINNs DAEs</a></li><li><a class="tocitem" href="../ode_parameter_estimation/">Parameter Estimation with PINNs for ODEs</a></li><li class="is-active"><a class="tocitem" href>Physics informed Neural Operator ODEs</a><ul class="internal"><li><a class="tocitem" href="#Operator-Learning-for-a-family-of-parametric-ODEs"><span>Operator Learning for a family of parametric ODEs</span></a></li></ul></li><li><a class="tocitem" href="../dgm/">Deep Galerkin Method</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../low_level_2/">Bayesian PINNs for PDEs</a></li><li><a class="tocitem" href="../gpu/">Using GPUs</a></li><li><a class="tocitem" href="../systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../../examples/wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../../examples/3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../../examples/ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../../examples/heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../../examples/linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="../../examples/nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li><li><a class="tocitem" href="../../examples/complex/">Complex Equations with PINNs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/dae/">Differential Algebraic Equation Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/bpinns/"><code>BayesianPINN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li><li><a class="tocitem" href="../../manual/pino_ode/">Physics-Informed Neural Operator (PINO) for ODEs</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">ODE PINN Tutorials</a></li><li class="is-active"><a href>Physics informed Neural Operator ODEs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Physics informed Neural Operator ODEs</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/tutorials/pino_ode.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Physics-Informed-Neural-Operator-for-ODEs"><a class="docs-heading-anchor" href="#Physics-Informed-Neural-Operator-for-ODEs">Physics Informed Neural Operator for ODEs</a><a id="Physics-Informed-Neural-Operator-for-ODEs-1"></a><a class="docs-heading-anchor-permalink" href="#Physics-Informed-Neural-Operator-for-ODEs" title="Permalink"></a></h1><p>This tutorial provides an example of how to use the Physics Informed Neural Operator (PINO) for solving a family of parametric ordinary differential equations (ODEs).</p><h2 id="Operator-Learning-for-a-family-of-parametric-ODEs"><a class="docs-heading-anchor" href="#Operator-Learning-for-a-family-of-parametric-ODEs">Operator Learning for a family of parametric ODEs</a><a id="Operator-Learning-for-a-family-of-parametric-ODEs-1"></a><a class="docs-heading-anchor-permalink" href="#Operator-Learning-for-a-family-of-parametric-ODEs" title="Permalink"></a></h2><p>In this section, we will define a parametric ODE and then learn it with a PINO using <a href="../../manual/pino_ode/#NeuralPDE.PINOODE"><code>PINOODE</code></a>. The PINO will be trained to learn the mapping from the parameters of the ODE to its solution.</p><pre><code class="language-julia hljs">using Test
+using OptimizationOptimisers
+using Lux
+using Statistics, Random
+using NeuralOperators
+using NeuralPDE
+
+# Define the parametric ODE equation
+equation = (u, p, t) -&gt; p[1] * cos(p[2] * t) + p[3]
+tspan = (0.0, 1.0)
+u0 = 1.0
+prob = ODEProblem(equation, u0, tspan)
+
+# Set the number of parameters for the ODE
+num_params = 3
+
+# Define the DeepONet architecture for the PINO
+deeponet = NeuralOperators.DeepONet(
+    Chain(
+        Dense(num_params =&gt; 10, Lux.tanh_fast), Dense(10 =&gt; 10, Lux.tanh_fast), Dense(10 =&gt; 10)),
+    Chain(Dense(1 =&gt; 10, Lux.tanh_fast), Dense(10 =&gt; 10, Lux.tanh_fast),
+        Dense(10 =&gt; 10, Lux.tanh_fast)))
+
+# Define the bounds for the parameters
+bounds = [(1.0, pi), (1.0, 2.0), (2.0, 3.0)]
+number_of_parameter_samples = 50
+
+# Define the training strategy
+strategy = StochasticTraining(20)
+
+# Define the optimizer
+opt = OptimizationOptimisers.Adam(0.03)
+
+# Define `PINNODE`
+alg = PINOODE(deeponet, opt, bounds, num_params; strategy = strategy)
+
+# Solve the ODE problem using the PINOODE algorithm
+sol = solve(prob, alg, verbose = false, maxiters = 4000)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
+Interpolation: Trained neural network interpolation
+t: 1×20×1 Array{Float64, 3}:
+[:, :, 1] =
+ 0.304311  0.828689  0.973667  0.831179  …  0.307964  0.431287  0.0340639
+u: 20×3 Matrix{Float64}:
+ 2.4408   2.17469  2.4306
+ 4.60305  3.81871  4.28785
+ 5.07459  4.15705  4.61846
+ 4.61165  3.82494  4.29417
+ 1.09643  1.10913  1.15224
+ 1.86848  1.72296  1.88849
+ 1.32673  1.29272  1.37222
+ 4.52731  3.76371  4.23176
+ 3.43619  2.94852  3.34196
+ 4.92126  4.04774  4.5146
+ 3.49238  2.9915   3.39116
+ 2.27703  2.04577  2.27608
+ 3.10527  2.6936   3.04634
+ 5.10911  4.18157  4.64135
+ 1.34973  1.31103  1.39417
+ 5.14001  4.2035   4.66167
+ 2.65075  2.33945  2.62746
+ 2.4574   2.18774  2.44622
+ 3.01078  2.62032  2.96032
+ 1.16696  1.16539  1.21963</code></pre><p>Now let&#39;s compare the prediction from the learned operator with the ground truth solution which is obtained by analytic solution of the parametric ODE.</p><pre><code class="language-julia hljs">using Plots
+
+function get_trainset(bounds, tspan, number_of_parameters, dt)
+    p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
+    p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
+    t_ = collect(tspan[1]:dt:tspan[2])
+    t = collect(reshape(t_, 1, size(t_, 1), 1))
+    (p, t)
+end
+
+# Compute the ground truth solution for each parameter
+ground_solution = (u0, p, t) -&gt; u0 + p[1] / p[2] * sin(p[2] * t) + p[3] * t
+function ground_solution_f(p, t)
+    reduce(hcat,
+        [[ground_solution(u0, p[:, i], t[j]) for j in axes(t, 2)] for i in axes(p, 2)])
+end
+
+# generate the solution with new parameters for test the model
+(p, t) = get_trainset(bounds, tspan, 50, 0.025)
+
+# compute the ground truth solution
+ground_solution_ = ground_solution_f(p, t)
+
+# predict the solution with the PINO model
+predict = sol.interp(p, t)
+
+# calculate the errors between the ground truth solution and the predicted solution
+errors = ground_solution_ - predict
+
+# calculate the mean error and the standard deviation of the errors
+mean_error = mean(errors)
+
+# calculate the standard deviation of the errors
+std_error = std(errors)
+
+p, t = get_trainset(bounds, tspan, 100, 0.01)
+ground_solution_ = ground_solution_f(p, t)
+predict = sol.interp(p, t)
+
+errors = ground_solution_ - predict
+mean_error = mean(errors)
+std_error = std(errors)
+
+# Plot the predicted solution and the ground truth solution as a filled contour plot
+# predict, represents the predicted solution for each parameter value and time
+plot(predict, linetype = :contourf)
+plot!(ground_solution_, linetype = :contourf)</code></pre><img src="9c1acecc.svg" alt="Example block output"/><pre><code class="language-julia hljs"># &#39;i&#39; is the index of the parameter &#39;p&#39; in the dataset
+i = 20
+# &#39;predict&#39; is the predicted solution from the PINO model
+plot(predict[:, i], label = &quot;Predicted&quot;)
+# &#39;ground&#39; is the ground truth solution
+plot!(ground_solution_[:, i], label = &quot;Ground truth&quot;)</code></pre><img src="0c90f254.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ode_parameter_estimation/">« Parameter Estimation with PINNs for ODEs</a><a class="docs-footer-nextpage" href="../dgm/">Deep Galerkin Method »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.1 on <span class="colophon-date" title="Friday 14 March 2025 10:17">Friday 14 March 2025</span>. Using Julia version 1.11.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
