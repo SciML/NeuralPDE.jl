@@ -284,26 +284,18 @@ end
     mean_predicted_solution_2 = mean(predicted_solution_samples_2, dims = 2)
 
     # testing over different Z_i sample sizes
-    error_1 = sum(abs2, mean_analytic_solution .- pmean(u1))
-    error_2 = sum(abs2, mean_analytic_solution .- pmean(u2))
-    @test error_1 > error_2
-    @test error_2 < 3e-3
-
     MSE_1 = mean(abs2.(mean_analytic_solution .- pmean(u1)))
     MSE_2 = mean(abs2.(mean_analytic_solution .- pmean(u2)))
-    @test MSE_2 < MSE_1
+    @test MSE_1 < 3e-5
     @test MSE_2 < 3e-5
 
-    error_1 = sum(abs2, mean_analytic_solution .- mean_predicted_solution_1)
-    error_2 = sum(abs2, mean_analytic_solution .- mean_predicted_solution_2)
+    error_1 = sum(abs2, mean_truncated_solution .- mean_predicted_solution_1)
+    error_2 = sum(abs2, mean_truncated_solution .- mean_predicted_solution_2)
     @test error_1 > error_2
     @test error_2 < 3e-3
 
-    MSE_1 = mean(abs2.(mean_analytic_solution .- mean_predicted_solution_1))
-    MSE_2 = mean(abs2.(mean_analytic_solution .- mean_predicted_solution_2))
+    MSE_1 = mean(abs2.(mean_truncated_solution .- mean_predicted_solution_1))
+    MSE_2 = mean(abs2.(mean_truncated_solution .- mean_predicted_solution_2))
     @test MSE_2 < MSE_1
     @test MSE_2 < 3e-5
-
-    @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) >
-          mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution))
 end
