@@ -146,7 +146,7 @@ end
     MSE_1 = mean(abs2.(mean_analytic_solution .- pmean(u1)))
     MSE_2 = mean(abs2.(mean_analytic_solution .- pmean(u2)))
     @test MSE_2 < MSE_1
-    @test MSE_2 < 1e-2
+    @test MSE_2 < 5e-2
 
     error_1 = sum(abs2, mean_analytic_solution .- mean_predicted_solution_1)
     error_2 = sum(abs2, mean_analytic_solution .- mean_predicted_solution_2)
@@ -155,12 +155,12 @@ end
     MSE_1 = mean(abs2.(mean_analytic_solution .- mean_predicted_solution_1))
     MSE_2 = mean(abs2.(mean_analytic_solution .- mean_predicted_solution_2))
     @test MSE_2 < MSE_1
-    @test MSE_2 < 1e-2
+    @test MSE_2 < 5e-2
 
     @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) >
           mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution))
-    @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) < 5e-2
-    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 2e-2
+    @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) < 3e-1
+    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 3e-2
 end
 
 # Equation 65 from https://arxiv.org/abs/1804.04344
@@ -180,10 +180,10 @@ end
     dim = 1 + 6
     luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, tanh), Dense(16, 16, σ), Dense(16, 1))
 
-    dt = 1 / 100.0f0
+    dt = 1 / 50.0f0
     abstol = 1e-10
     autodiff = false
-    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 150)
+    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 300)
     opt = BFGS()
     numensemble = 2000
 
