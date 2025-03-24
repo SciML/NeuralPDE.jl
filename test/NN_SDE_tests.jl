@@ -181,20 +181,20 @@ end
     luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, tanh), Dense(16, 16, σ), Dense(16, 1))
 
     dt = 1 / 50.0f0
-    abstol = 1e-10
+    abstol = 1e-7
     autodiff = false
     kwargs = (; verbose = true, dt = dt, abstol, maxiters = 300)
     opt = BFGS()
     numensemble = 2000
 
-    sol_2 = solve(
-        prob, NNSDE(
-            luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 10, batch = true);
-        kwargs...)
-
     sol_1 = solve(
         prob, NNSDE(
             luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 1, batch = true);
+        kwargs...)
+
+    sol_2 = solve(
+        prob, NNSDE(
+            luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 10, batch = true);
         kwargs...)
 
     # sol_1 and sol_2 have same timespan
