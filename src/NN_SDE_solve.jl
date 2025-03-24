@@ -125,7 +125,7 @@ function inner_sde_loss(
     # fs and dudt size is (n_sub_batch, NN_output_size), loss is for one timepoint
     # broadcasted sum(abs2,) over losses for each sub_batch, where rows - sub_batch's and cols - NN multiple/single outputs
     # finally mean over vector of L2 errors (all the sub_batches) (direct sum(strong sol)/mean(weak sol) across sub_batches)
-    return sum(sum.(abs2, fs .- dudt))
+    return mean(sum.(abs2, fs .- dudt))
 end
 
 # batching case
@@ -156,9 +156,9 @@ function inner_sde_loss(
     dudt = [∂u_∂t(phi, inpi, θ, autodiff) for inpi in inputs]
 
     # Taking MSE across Z, each fs and du/dt has n_sub_batch elements in them
-    # mean used for each timepoint's sub_batch as weak solution enforced for each WienerProcess realization (gives better results in test file case.)
+    # mean used for each timepoint's sub_batch as weak solution enforced for each WienerProcess realization (better results for same n iterations)
     # similar explanation as non batching additionally final sum aggregated over all timepoints.
-    return sum(sum(sum.(abs2, fs[i] .- dudt[i])) for i in eachindex(inputs)) /
+    return sum(mean(sum.(abs2, fs[i] .- dudt[i])) for i in eachindex(inputs)) /
            length(inputs)
 end
 
@@ -468,7 +468,7 @@ function SciMLBase.__solve(
         SciMLBase.calculate_solution_errors!(
             sol; timeseries_errors = true, dense_errors = false)
 
-    # seperate Wernier process realisations and thier solutions can be accessed via ensembles, ensemble_inputs
+    # separate Wernier process realisations and their solutions can be accessed via ensembles, ensemble_inputs
     return SDEsol(
         sol, strong_sde_sol, ts, ensembles, ensemble_inputs, numensemble, training_sets)
 end
