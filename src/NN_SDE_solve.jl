@@ -121,11 +121,11 @@ function inner_sde_loss(
     # gradient at t is not affected by sub_batch z_i values beyond use in phi(t+ϵ)
     dudt = ∂u_∂t(phi, inputs, θ, autodiff)
 
-    # initial .- broadcasting over  NN multiple/single outputs and subbatches simultaneously
+    # initially .- broadcasting over  NN multiple/single outputs and subbatches simultaneously
     # fs and dudt size is (n_sub_batch, NN_output_size), loss is for one timepoint
     # broadcasted sum(abs2,) over losses for each sub_batch, where rows - sub_batch's and cols - NN multiple/single outputs
     # finally mean over vector of L2 errors (all the sub_batches) (direct sum(strong sol)/mean(weak sol) across sub_batches)
-    return mean(sum.(abs2, fs .- dudt))
+    return sum(sum.(abs2, fs .- dudt))
 end
 
 # batching case
@@ -158,7 +158,7 @@ function inner_sde_loss(
     # Taking MSE across Z, each fs and du/dt has n_sub_batch elements in them
     # mean used for each timepoint's sub_batch as weak solution enforced for each WienerProcess realization (gives better results in test file case.)
     # similar explanation as non batching additionally final sum aggregated over all timepoints.
-    return sum(mean(sum.(abs2, fs[i] .- dudt[i])) for i in eachindex(inputs)) /
+    return sum(sum(sum.(abs2, fs[i] .- dudt[i])) for i in eachindex(inputs)) /
            length(inputs)
 end
 
@@ -343,16 +343,16 @@ function SciMLBase.__solve(
 )
     (; u0, tspan, f, g, p) = prob
     # rescaling tspan, discretization so KKL expansion can be applied for loss formulation
-    tspan = tspan ./ tspan[end]
+    tspan_scale = tspan ./ tspan[end]
     if dt !== nothing
-        dt = dt / abs(tspan[2] - tspan[1])
+        dt = dt / abs(tspan_scale[2] - tspan_scale[1])
     end
 
-    t0 = tspan[1]
+    t0 = tspan_scale[1]
     (; param_estim, chain, opt, autodiff, init_params, batch, additional_loss, sub_batch, numensemble) = alg
     n_z = chain[1].in_dims - 1
 
-    phi, init_params = generate_phi(chain, t0, u0, init_params)
+    sde_phi, init_params = generate_phi(chain, t0, u0, init_params)
 
     (recursive_eltype(init_params) <: Complex && alg.strategy isa QuadratureTraining) &&
         error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
@@ -369,6 +369,7 @@ function SciMLBase.__solve(
         if dt !== nothing
             GridTraining(dt)
         else
+            # FIX ! - QuadratureTraining dosent work.
             QuadratureTraining(; quadrature_alg = QuadGKJL(),
                 reltol = convert(eltype(u0), reltol), abstol = convert(eltype(u0), abstol),
                 maxiters, batch = 0)
@@ -378,24 +379,24 @@ function SciMLBase.__solve(
     end
 
     inner_f, training_sets = generate_loss(
-        strategy, phi, f, g, autodiff, tspan, n_z, sub_batch, p, batch, param_estim)
+        strategy, sde_phi, f, g, autodiff, tspan_scale, n_z, sub_batch, p, batch, param_estim)
 
     (param_estim && additional_loss === nothing) &&
         throw(ArgumentError("Please provide `additional_loss` in `NNSDE` for parameter estimation (`param_estim` is true)."))
 
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
-        L2_loss = inner_f(θ, phi)
+        L2_loss = inner_f(θ, sde_phi)
         if additional_loss !== nothing
-            L2_loss = L2_loss + additional_loss(phi, θ)
+            L2_loss = L2_loss + additional_loss(sde_phi, θ)
         end
         if tstops !== nothing
             num_tstops_points = length(tstops)
             tstops_loss_func = evaluate_tstops_loss(
-                phi, f, g, autodiff, tstops, n_z, sub_batch, p, batch, param_estim)
-            tstops_loss = tstops_loss_func(θ, phi)
+                sde_phi, f, g, autodiff, tstops, n_z, sub_batch, p, batch, param_estim)
+            tstops_loss = tstops_loss_func(θ, sde_phi)
             if strategy isa GridTraining
-                num_original_points = length(tspan[1]:(strategy.dx):tspan[2])
+                num_original_points = length(tspan_scale[1]:(strategy.dx):tspan_scale[2])
             elseif strategy isa Union{WeightedIntervalTraining, StochasticTraining}
                 num_original_points = strategy.points
             else
@@ -429,15 +430,15 @@ function SciMLBase.__solve(
 
     #solutions at timepoints
     if saveat isa Number
-        ts = tspan[1]:saveat:tspan[2]
+        ts = tspan_scale[1]:saveat:tspan_scale[2]
     elseif saveat isa AbstractArray
         ts = saveat
     elseif dt !== nothing
-        ts = tspan[1]:dt:tspan[2]
+        ts = tspan_scale[1]:dt:tspan_scale[2]
     elseif save_everystep
-        ts = range(tspan[1], tspan[2], length = 100)
+        ts = range(tspan_scale[1], tspan_scale[2], length = 100)
     else
-        ts = [tspan[1], tspan[2]]
+        ts = [tspan_scale[1], tspan_scale[2]]
     end
     ts = collect(ts)
 
@@ -447,10 +448,9 @@ function SciMLBase.__solve(
         inputs = add_rand_coeff(ts, n_z)
 
         if u0 isa Number
-            u = [(u0 + (input[1] - t0) * first(phi(input, res.u)))
-                 for input in inputs]
+            u = [first(sde_phi(input, res.u)) for input in inputs]
         else
-            u = [(u0 .+ (input[1] - t0) * phi(input, res.u)) for input in inputs]
+            u = [sde_phi(input, res.u) for input in inputs]
         end
         push!(ensembles, u)
         push!(ensemble_inputs, inputs)
@@ -461,7 +461,7 @@ function SciMLBase.__solve(
     # SDEsol.solution contains the weak solution only
     # Strong solution can be accessed via SDEsol.strong_sol
     sol = SciMLBase.build_solution(prob, alg, ts, strong_sde_sol; k = res, dense = true,
-        interp = NNSDEInterpolation(phi, res.u), calculate_error = false,
+        interp = NNSDEInterpolation(sde_phi, res.u), calculate_error = false,
         retcode = ReturnCode.Success, original = res, resid = res.objective)
 
     SciMLBase.has_analytic(prob.f) &&
