@@ -4,8 +4,8 @@ We may also solve hyperbolic systems like the following
 
 ```math
 \begin{aligned}
-\frac{\partial^2u}{\partial t^2} = \frac{a}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + u f(\frac{u}{w})  \\
-\frac{\partial^2w}{\partial t^2} = \frac{b}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + w g(\frac{u}{w})  \\
+\frac{\partial^2u}{\partial t^2} &= \frac{a}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + u f(\frac{u}{w})  \\
+\frac{\partial^2w}{\partial t^2} &= \frac{b}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + w g(\frac{u}{w})  \\
 \end{aligned}
 ```
 
@@ -13,16 +13,16 @@ where f and g are arbitrary functions. With initial and boundary conditions:
 
 ```math
 \begin{aligned}
-u(0,x) = k * [j0(ξ(0, x)) + y0(ξ(0, x))] \\
-u(t,0) = k * [j0(ξ(t, 0)) + y0(ξ(t, 0))] \\
-u(t,1) = k * [j0(ξ(t, 1)) + y0(ξ(t, 1))] \\
-w(0,x) = j0(ξ(0, x)) + y0(ξ(0, x)) \\
-w(t,0) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
-w(t,1) = j0(ξ(t, 0)) + y0(ξ(t, 0)) \\
+u(0,x) &= k * [j_0(ξ(0, x)) + y_0(ξ(0, x))] \\
+u(t,0) &= k * [j_0(ξ(t, 0)) + y_0(ξ(t, 0))] \\
+u(t,1) &= k * [j_0(ξ(t, 1)) + y_0(ξ(t, 1))] \\
+w(0,x) &= j_0(ξ(0, x)) + y_0(ξ(0, x)) \\
+w(t,0) &= j_0(ξ(t, 0)) + y_0(ξ(t, 0)) \\
+w(t,1) &= j_0(ξ(t, 0)) + y_0(ξ(t, 0)) \\
 \end{aligned}
 ```
 
-where k is a root of the algebraic (transcendental) equation f(k) = g(k), j0 and y0 are the Bessel functions, and ξ(t, x) is:
+where ``k`` is a root of the algebraic (transcendental) equation ``f(k) = g(k)``, ``j_0`` and ``y_0`` are the Bessel functions, and ``ξ(t, x)`` is:
 
 ```math
 \begin{aligned}
