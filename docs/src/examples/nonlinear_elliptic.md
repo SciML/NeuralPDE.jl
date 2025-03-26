@@ -4,8 +4,8 @@ We can also solve nonlinear systems, such as the system of nonlinear elliptic PD
 
 ```math
 \begin{aligned}
-\frac{\partial^2u}{\partial x^2} + \frac{\partial^2u}{\partial y^2} = uf(\frac{u}{w}) + \frac{u}{w}h(\frac{u}{w}) \\
-\frac{\partial^2w}{\partial x^2} + \frac{\partial^2w}{\partial y^2} = wg(\frac{u}{w}) + h(\frac{u}{w}) \\
+\frac{\partial^2u}{\partial x^2} + \frac{\partial^2u}{\partial y^2} &= uf(\frac{u}{w}) + \frac{u}{w}h(\frac{u}{w}) \\
+\frac{\partial^2w}{\partial x^2} + \frac{\partial^2w}{\partial y^2} &= wg(\frac{u}{w}) + h(\frac{u}{w}) \\
 \end{aligned}
 ```
 
@@ -13,12 +13,12 @@ where f, g, h are arbitrary functions. With initial and boundary conditions:
 
 ```math
 \begin{aligned}
-u(0,y) = y + 1 \\
-w(1, y) = [cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
-w(x,0) = cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)}) \\
-w(0,y) = k(y + 1) \\
-u(1, y) = k[cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
-u(x,0) = k[cosh(\sqrt[]{f(k)}) + sinh(\sqrt[]{f(k)})] \\
+u(0,y) &= y + 1 \\
+w(1,y) &= [\cosh(\sqrt[]{f(k)}) + \sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
+w(x,0) &= \cosh(\sqrt[]{f(k)}) + \sinh(\sqrt[]{f(k)}) \\
+w(0,y) &= k(y + 1) \\
+u(1,y) &= k[\cosh(\sqrt[]{f(k)}) + \sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
+u(x,0) &= k[\cosh(\sqrt[]{f(k)}) + \sinh(\sqrt[]{f(k)})] \\
 \end{aligned}
 ```
 
