@@ -190,7 +190,7 @@ function generate_loss(
             phi, f, g, autodiff, inputs, θ, p, param_estim, train_type))
     end
 
-    # when ts is a list
+    # when ts is a 1D Array
     function integrand(ts, θ)
         inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in ts]
         return [abs2(inner_sde_loss(
@@ -241,10 +241,10 @@ function generate_loss(strategy::StochasticTraining, phi, f, g, autodiff::Bool,
 
         if batch
             inner_sde_loss(
-                phi, f, g, autodiff, inputs, θ, p, param_estim, n_sub_batch, train_type)
+                phi, f, g, autodiff, inputs, θ, p, param_estim, train_type)
         else
             sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p,
-                     param_estim, n_sub_batch, train_type)
+                     param_estim, train_type)
                  for input in inputs])
         end
     end,
@@ -270,10 +270,10 @@ function generate_loss(
 
     batch &&
         return (θ, _) -> inner_sde_loss(
-            phi, f, g, autodiff, inputs, θ, p, param_estim, n_sub_batch, train_type),
+            phi, f, g, autodiff, inputs, θ, p, param_estim, train_type),
         inputs
     return (θ, _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p,
-                              param_estim, n_sub_batch, train_type)
+                              param_estim, train_type)
                           for input in inputs]),
     inputs
 end
@@ -284,11 +284,10 @@ function evaluate_tstops_loss(
     inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in tstops]
     batch &&
         return (θ, _) -> inner_sde_loss(
-            phi, f, g, autodiff, inputs, θ, p, param_estim, n_sub_batch, train_type),
+            phi, f, g, autodiff, inputs, θ, p, param_estim, train_type),
         inputs
-    return (θ, _) -> sum([inner_sde_loss(
-                              phi, f, g, autodiff, input, θ, p,
-                              param_estim, n_sub_batch, train_type)
+    return (θ, _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p,
+                              param_estim, train_type)
                           for input in inputs]),
     inputs
 end
@@ -374,11 +373,9 @@ function SciMLBase.__solve(
         if dt !== nothing
             GridTraining(dt)
         else
-            # FIX ! - QuadratureTraining dosent work yet.
-            error("QuadratureTraining for SDE PINNs is work in progress...")
-            # QuadratureTraining(; quadrature_alg = QuadGKJL(),
-            # reltol = convert(eltype(u0), reltol), abstol = convert(eltype(u0), abstol),
-            # maxiters, batch = 0)
+            QuadratureTraining(; quadrature_alg = QuadGKJL(),
+                reltol = convert(eltype(u0), reltol), abstol = convert(eltype(u0), abstol),
+                maxiters, batch = 0)
         end
     else
         alg.strategy
