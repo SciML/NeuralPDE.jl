@@ -1,7 +1,7 @@
 @testitem "BPINN ODE I: Without Param Estimation" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
+    using Flux: Flux
 
     Random.seed!(100)
 
@@ -55,7 +55,7 @@ end
 @testitem "BPINN ODE II: With Parameter Estimation" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
+    using Flux: Flux
 
     Random.seed!(100)
 
@@ -123,7 +123,7 @@ end
 @testitem "BPINN ODE III" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
+    using Flux: Flux
 
     Random.seed!(100)
 
@@ -190,7 +190,7 @@ end
 @testitem "BPINN ODE: Translating from Flux" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
+    using Flux: Flux
 
     Random.seed!(100)
 
@@ -224,7 +224,7 @@ end
 @testitem "BPINN ODE III: with the new objective" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
+    using Flux: Flux
 
     Random.seed!(100)
 
@@ -304,7 +304,7 @@ end
 @testitem "BPINN ODE III: new objective solve call" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
+    using Flux: Flux
 
     Random.seed!(100)
 
@@ -355,7 +355,7 @@ end
 @testitem "BPINN ODE IV: Improvement" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
+    using Flux: Flux
 
     Random.seed!(100)
 

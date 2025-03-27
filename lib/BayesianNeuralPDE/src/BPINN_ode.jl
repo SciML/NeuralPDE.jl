@@ -1,14 +1,14 @@
 # HIGH level API for BPINN ODE solver
 
 """
-    BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 2000,
-           priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
-           phystd = [0.05], phynewstd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
-           MCMCargs = (; n_leapfrog=30), nchains = 1, init_params = nothing,
-           Adaptorkwargs = (; Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
-                              Metric = DiagEuclideanMetric),
-           Integratorkwargs = (Integrator = Leapfrog,), autodiff = false,
-           progress = false, verbose = false)
+	BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 2000,
+		   priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
+		   phystd = [0.05], phynewstd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
+		   MCMCargs = (; n_leapfrog=30), nchains = 1, init_params = nothing,
+		   Adaptorkwargs = (; Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
+							  Metric = DiagEuclideanMetric),
+		   Integratorkwargs = (Integrator = Leapfrog,), autodiff = false,
+		   progress = false, verbose = false)
 
 Algorithm for solving ordinary differential equations using a Bayesian neural network. This
 is a specialization of the physics-informed neural network which is used as a solver for a
@@ -16,9 +16,9 @@ standard `ODEProblem`.
 
 !!! warn
 
-    Note that BNNODE only supports ODEs which are written in the out-of-place form, i.e.
-    `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place, then the BNNODE
-    will exit with an error.
+	Note that BNNODE only supports ODEs which are written in the out-of-place form, i.e.
+	`du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place, then the BNNODE
+	will exit with an error.
 
 ## Positional Arguments
 
@@ -48,14 +48,14 @@ dataset = [x̂, time]
 chainlux = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
 
 alg = BNNODE(chainlux; draw_samples = 2000, l2std = [0.05], phystd = [0.05],
-             priorsNNw = (0.0, 3.0), progress = true)
+			 priorsNNw = (0.0, 3.0), progress = true)
 
 sol_lux = solve(prob, alg)
 
 # with parameter estimation
 alg = BNNODE(chainlux; dataset, draw_samples = 2000, l2std = [0.05], phystd = [0.05],
-             priorsNNw = (0.0, 10.0), param = [Normal(6.5, 0.5), Normal(-3, 0.5)],
-             progress = true)
+			 priorsNNw = (0.0, 10.0), param = [Normal(6.5, 0.5), Normal(-3, 0.5)],
+			 progress = true)
 
 sol_lux_pestim = solve(prob, alg)
 ```
@@ -79,7 +79,7 @@ Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, El
 """
 @concrete struct BNNODE <: NeuralPDEAlgorithm
     chain <: AbstractLuxLayer
-    kernel
+    kernel::Any
     strategy <: Union{Nothing, AbstractTrainingStrategy}
     draw_samples::Int
     priorsNNw::Tuple{Float64, Float64}
@@ -122,19 +122,19 @@ Contains `ahmc_bayesian_pinn_ode()` function output:
 1. A MCMCChains.jl chain object for sampled parameters.
 2. The set of all sampled parameters.
 3. Statistics like:
-    - n_steps
-    - acceptance_rate
-    - log_density
-    - hamiltonian_energy
-    - hamiltonian_energy_error
-    - numerical_error
-    - step_size
-    - nom_step_size
+	- n_steps
+	- acceptance_rate
+	- log_density
+	- hamiltonian_energy
+	- hamiltonian_energy_error
+	- numerical_error
+	- step_size
+	- nom_step_size
 """
 @concrete struct BPINNstats
-    mcmc_chain
-    samples
-    statistics
+    mcmc_chain::Any
+    samples::Any
+    statistics::Any
 end
 
 """
@@ -149,10 +149,10 @@ contains fields related to that).
 """
 @concrete struct BPINNsolution
     original <: BPINNstats
-    ensemblesol
-    estimated_nn_params
-    estimated_de_params
-    timepoints
+    ensemblesol::Any
+    estimated_nn_params::Any
+    estimated_de_params::Any
+    timepoints::Any
 end
 
 function SciMLBase.__solve(prob::SciMLBase.ODEProblem, alg::BNNODE, args...; dt = nothing,
