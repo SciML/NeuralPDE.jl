@@ -132,7 +132,7 @@ end
     @test pmean(sum(abs2.(strong_predicted_solution_1 .- strong_truncated_solution))) >
           pmean(sum(abs2.(strong_predicted_solution_2 .- strong_truncated_solution)))
 
-    # weal solution tests
+    # weak solution tests
     mean_analytic_solution = mean(analytic_solution_samples, dims = 2)
     mean_truncated_solution = mean(truncated_solution_samples, dims = 2)
     mean_predicted_solution_1 = mean(predicted_solution_samples_1, dims = 2)
