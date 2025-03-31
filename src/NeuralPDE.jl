@@ -49,7 +49,7 @@ using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
 using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
 using LogDensityProblems: LogDensityProblems
 using MCMCChains: MCMCChains, Chains, sample
-using MonteCarloMeasurements: Particles
+using MonteCarloMeasurements: Particles, pmean
 
 import LuxCore: initialparameters, initialstates, parameterlength
 
@@ -90,10 +90,12 @@ include("BPINN_ode.jl")
 include("PDE_BPINN.jl")
 
 include("dgm.jl")
+include("NN_SDE_solve.jl")
 
 export PINOODE
 export NNODE, NNDAE
 export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
+export NNSDE
 export PhysicsInformedNN, discretize
 export BPINNsolution, BayesianPINN
 export DeepGalerkin

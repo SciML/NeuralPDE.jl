@@ -25,6 +25,7 @@ jobs:
           - QA
           - ODEBPINN
           - PDEBPINN
+          - NNSDE
           - NNPDE1
           - NNPDE2
           - AdaptiveLoss
