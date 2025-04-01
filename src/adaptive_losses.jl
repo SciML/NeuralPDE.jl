@@ -16,7 +16,7 @@ change during optimization
 @concrete mutable struct NonAdaptiveLoss{T <: Real} <: AbstractAdaptiveLoss
     pde_loss_weights::Vector{T}
     bc_loss_weights::Vector{T}
-    additional_loss_weights::Vector{T}
+    additional_loss_weights::Vector{T} 
 end
 
 function NonAdaptiveLoss{T}(; pde_loss_weights = 1.0, bc_loss_weights = 1.0,
@@ -28,7 +28,7 @@ end
 
 NonAdaptiveLoss(; kwargs...) = NonAdaptiveLoss{Float64}(; kwargs...)
 
-function generate_adaptive_loss_function(::PINNRepresentation, ::NonAdaptiveLoss, _, __)
+@closure function generate_adaptive_loss_function(::PINNRepresentation, ::NonAdaptiveLoss, _, __)
     return Returns(nothing)
 end
 
@@ -83,7 +83,7 @@ function GradientScaleAdaptiveLoss(args...; kwargs...)
     return GradientScaleAdaptiveLoss{Float64}(args...; kwargs...)
 end
 
-function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
+@closure function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
         adaloss::GradientScaleAdaptiveLoss, pde_loss_functions, bc_loss_functions)
     weight_change_inertia = adaloss.weight_change_inertia
     iteration = pinnrep.iteration
@@ -168,7 +168,7 @@ end
 
 MiniMaxAdaptiveLoss(args...; kwargs...) = MiniMaxAdaptiveLoss{Float64}(args...; kwargs...)
 
-function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
+@closure function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
         adaloss::MiniMaxAdaptiveLoss, _, __)
     pde_max_optimiser_setup = Optimisers.setup(
         adaloss.pde_max_optimiser, adaloss.pde_loss_weights)
