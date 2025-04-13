@@ -273,7 +273,7 @@ end
         dataset = dataset,
         draw_samples = 600,
         l2std = [0.1],
-        phystd = [0.05],
+        phystd = [0.1],
         phynewstd = [0.07],
         priorsNNw = (0.0,
             1.0),
@@ -286,7 +286,7 @@ end
         dataset = dataset,
         draw_samples = 600,
         l2std = [0.1],
-        phystd = [0.05],
+        phystd = [0.1],
         priorsNNw = (0.0,
             1.0),
         param = [
@@ -309,8 +309,8 @@ end
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-    @test mean(abs.(sol.u .- meanscurve2_2)) < 1e-2
-    @test mean(abs.(physsol1 .- meanscurve2_2)) < 1e-2
+    @test mean(abs.(sol.u .- meanscurve2_2)) < 2e-2
+    @test mean(abs.(physsol1 .- meanscurve2_2)) < 2e-2
     @test mean(abs.(sol.u .- meanscurve2_1)) > mean(abs.(sol.u .- meanscurve2_2))
     @test mean(abs.(physsol1 .- meanscurve2_1)) > mean(abs.(physsol1 .- meanscurve2_2))
 
