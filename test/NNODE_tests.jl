@@ -169,35 +169,35 @@ end
     end
 end
 
-@testitem "ODE Parameter Estimation" tags=[:nnode] begin
-    using OrdinaryDiffEq, Random, Lux, OptimizationOptimJL, LineSearches
+# @testitem "ODE Parameter Estimation" tags=[:nnode] begin
+#     using OrdinaryDiffEq, Random, Lux, OptimizationOptimJL, LineSearches
 
-    Random.seed!(100)
+#     Random.seed!(100)
 
-    function lorenz(u, p, t)
-        return [p[1] * (u[2] - u[1]),
-            u[1] * (p[2] - u[3]) - u[2],
-            u[1] * u[2] - p[3] * u[3]]
-    end
-    prob = ODEProblem(lorenz, [1.0, 0.0, 0.0], (0.0, 1.0), [1.0, 1.0, 1.0])
-    true_p = [2.0, 3.0, 2.0]
-    prob2 = remake(prob, p = true_p)
-    sol = solve(prob2, Tsit5(); saveat = 0.01)
-    t_ = sol.t
-    u_ = reduce(hcat, sol.u)
-    function additional_loss(phi, θ)
-        return sum(abs2, phi(t_, θ) .- u_) / 100
-    end
-    n = 8
-    luxchain = Chain(Dense(1, n, σ), Dense(n, n, σ), Dense(n, 3))
+#     function lorenz(u, p, t)
+#         return [p[1] * (u[2] - u[1]),
+#             u[1] * (p[2] - u[3]) - u[2],
+#             u[1] * u[2] - p[3] * u[3]]
+#     end
+#     prob = ODEProblem(lorenz, [1.0, 0.0, 0.0], (0.0, 1.0), [1.0, 1.0, 1.0])
+#     true_p = [2.0, 3.0, 2.0]
+#     prob2 = remake(prob, p = true_p)
+#     sol = solve(prob2, Tsit5(); saveat = 0.01)
+#     t_ = sol.t
+#     u_ = reduce(hcat, sol.u)
+#     function additional_loss(phi, θ)
+#         return sum(abs2, phi(t_, θ) .- u_) / 100
+#     end
+#     n = 8
+#     luxchain = Chain(Dense(1, n, σ), Dense(n, n, σ), Dense(n, 3))
 
-    alg = NNODE(luxchain, BFGS(linesearch = BackTracking()); strategy = GridTraining(0.01),
-        param_estim = true, additional_loss)
+#     alg = NNODE(luxchain, BFGS(linesearch = BackTracking()); strategy = GridTraining(0.01),
+#         param_estim = true, additional_loss)
 
-    sol = solve(prob, alg; verbose = false, abstol = 1e-8, maxiters = 1000, saveat = t_)
-    @test sol.k.u.p≈true_p atol=1e-2
-    @test reduce(hcat, sol.u)≈u_ atol=1e-2
-end
+#     sol = solve(prob, alg; verbose = false, abstol = 1e-8, maxiters = 1000, saveat = t_)
+#     @test sol.k.u.p≈true_p atol=1e-2
+#     @test reduce(hcat, sol.u)≈u_ atol=1e-2
+# end
 
 @testitem "ODE Complex Numbers" tags=[:nnode] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers

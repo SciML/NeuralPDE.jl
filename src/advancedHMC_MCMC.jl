@@ -76,9 +76,9 @@ suggested extra loss function for ODE solver case
     ltd.extraparams ≤ 0 && return false  # XXX: type-stability?
 
     f = ltd.prob.f
-    t = ltd.dataset[end]
-    u1 = ltd.dataset[2]
-    û = ltd.dataset[1]
+    t = ltd.dataset[end - 1]
+    û = ltd.dataset[1:(end - 2)]
+    quadrature_weights = ltd.dataset[end]
 
     nnsol = ode_dfdx(ltd, t, θ[1:(length(θ) - ltd.extraparams)], ltd.autodiff)
 
@@ -86,21 +86,24 @@ suggested extra loss function for ODE solver case
                  θ[((length(θ) - ltd.extraparams) + 1):length(θ)]
 
     physsol = if length(ltd.prob.u0) == 1
-        [f(û[i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
+        [f(û[1][i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
     else
-        [f([û[i], u1[i]], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
+        [f([û[j][i] for j in 1:(length(dataset) - 2)], ode_params, tᵢ)
+         for (i, tᵢ) in enumerate(t)]
     end
     # form of NN output matrix output dim x n
     deri_physsol = reduce(hcat, physsol)
     T = promote_type(eltype(deri_physsol), eltype(nnsol))
 
     physlogprob = T(0)
+    loss_vals = nnsol .- deri_physsol
+    # for BPINNS Quadrature is applied on timewise logpdfs
+    # Gridtraining/trapezoidal rule quadrature_weights is dt.*ones(T, length(t))
     for i in 1:length(ltd.prob.u0)
-        physlogprob += logpdf(
-            MvNormal(deri_physsol[i, :],
-                Diagonal(abs2.(T(ltd.phynewstd[i]) .* ones(T, length(nnsol[i, :]))))),
-            nnsol[i, :]
-        )
+        physlogprob += sum([logpdf(
+                                Normal(loss_vals[i, j], T(ltd.phynewstd[i])),
+                                T(0)
+                            ) for j in eachindex(t)] .* quadrature_weights)
     end
     return physlogprob
 end
@@ -112,7 +115,7 @@ L2 loss loglikelihood(needed for ODE parameter estimation).
     (ltd.dataset isa Vector{Nothing} || ltd.extraparams == 0) && return 0
 
     # matrix(each row corresponds to vector u's rows)
-    nn = ltd(ltd.dataset[end], θ[1:(length(θ) - ltd.extraparams)])
+    nn = ltd(ltd.dataset[end - 1], θ[1:(length(θ) - ltd.extraparams)])
     T = eltype(nn)
 
     L2logprob = zero(T)
@@ -150,7 +153,7 @@ end
 function getlogpdf(strategy::GridTraining, ltd::LogTargetDensity, f, autodiff::Bool,
         tspan, ode_params, θ)
     ts = collect(eltype(strategy.dx), tspan[1]:(strategy.dx):tspan[2])
-    t = ltd.dataset isa Vector{Nothing} ? ts : vcat(ts, ltd.dataset[end])
+    t = ltd.dataset isa Vector{Nothing} ? ts : vcat(ts, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
@@ -158,16 +161,18 @@ function getlogpdf(strategy::StochasticTraining, ltd::LogTargetDensity,
         f, autodiff::Bool, tspan, ode_params, θ)
     T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
     samples = (tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1]
-    t = ltd.dataset isa Vector{Nothing} ? samples : vcat(samples, ltd.dataset[end])
+    t = ltd.dataset isa Vector{Nothing} ? samples : vcat(samples, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
 function getlogpdf(strategy::QuadratureTraining, ltd::LogTargetDensity, f, autodiff::Bool,
         tspan, ode_params, θ)
+    # integrand is shape of NN output
     integrand(t::Number, θ) = innerdiff(ltd, f, autodiff, [t], θ, ode_params)
     intprob = IntegralProblem(
         integrand, (tspan[1], tspan[2]), θ; nout = length(ltd.prob.u0))
     sol = solve(intprob, QuadGKJL(); strategy.abstol, strategy.reltol)
+    # sum over losses for all NN outputs
     return sum(sol.u)
 end
 
@@ -185,7 +190,7 @@ function getlogpdf(strategy::WeightedIntervalTraining, ltd::LogTargetDensity, f,
         append!(ts, temp_data)
     end
 
-    t = ltd.dataset isa Vector{Nothing} ? ts : vcat(ts, ltd.dataset[end])
+    t = ltd.dataset isa Vector{Nothing} ? ts : vcat(ts, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
@@ -381,8 +386,8 @@ function ahmc_bayesian_pinn_ode(
     strategy = strategy == GridTraining ? strategy(physdt) : strategy
 
     if dataset != [nothing] &&
-       (length(dataset) < 2 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
-        error("Invalid dataset. dataset would be timeseries (x̂,t) where type: Vector{Vector{AbstractFloat}")
+       (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
+        error("Invalid dataset. dataset would be timeseries (x̂,t,W) where type: Vector{Vector{AbstractFloat}")
     end
 
     if dataset != [nothing] && param == []
