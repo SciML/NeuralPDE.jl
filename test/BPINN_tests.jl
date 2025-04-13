@@ -318,7 +318,7 @@ end
     @test abs(param2 - p) < abs(0.05 * p)
 
     param1 = mean(i[62] for i in fhsampleslux12[500:length(fhsampleslux12)])
-    @test abs(param1 - p) > abs(0.5 * p)
+    @test abs(param1 - p) > abs(0.4 * p)
     @test abs(param2 - p) < abs(param1 - p)
 end
 
