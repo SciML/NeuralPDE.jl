@@ -76,7 +76,7 @@ end
     u = [linear_analytic(u0, p, ti) for ti in ta]
     x̂ = collect(Float64, Array(u) + 0.2 * randn(size(u)))
     time = vec(collect(Float64, ta))
-    dataset = [x̂, time]
+    dataset = [x̂, time, ones(length(time))]
     physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
     # testing points for solve call(saveat=1/50.0 ∴ at t = collect(eltype(saveat), prob.tspan[1]:saveat:prob.tspan[2] internally estimates)
@@ -137,8 +137,10 @@ end
     sol = solve(prob, Tsit5(); saveat = 0.1)
     u = sol.u
     time = sol.t
+
+    # Note this is signal scaled gaussian noise, therefore the noise is biased and L2 penalizes high std points implicitly.
     x̂ = u .+ (u .* 0.1) .* randn(size(u))
-    dataset = [x̂, time]
+    dataset = [x̂, time, ones(length(time))]
     physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
     # separate set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
@@ -228,7 +230,10 @@ end
     using FastGaussQuadrature, PolyChaos, Integrals
     Random.seed!(100)
 
-    N = 17  # choose number of nodes, enough to approximate 2n-2 degree polynomials (gauss-lobatto case)
+    # (original tests can be run with 100 training points, check solve call tests.)
+    # n=10, 15, 30 for gaussian noise std=0.1, the new model performs much better as well.
+    N = 30  # choose number of nodes, enough to approximate 2n-2 degree polynomials (gauss-lobatto case)
+
     # x, w = gausslegendre(N) # does not include endpoints
     x, w = gausslobatto(N)
     # x, w = clenshaw_curtis(N)
@@ -252,13 +257,14 @@ end
     u = sol.u  # use these points for collocation
     ts = sol.t
 
-    x̂ = u .+ (0.05 .* randn(size(u)))
+    # old model finds less noisy signal easier to learn. (i think its overfitting)
+    x̂ = u .+ (0.1 .* randn(size(u)))
     dataset = [x̂, ts, W]
     physsol1 = [linear_analytic(prob.u0, p, ts[i]) for i in eachindex(ts)]
     chainlux12 = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
     θinit, st = Lux.setup(Random.default_rng(), chainlux12)
 
-    # std for the equation is limited by the physics's loss objective
+    # std for the equation is limited ~ anywhere between L2std to (1/σ + 1/σ^2)^-0.5
     # in case physics loss is high non linear in p, set to L2 data std.
     # the new loss however, is not bound too much by this constraint.
     # you could always directly fit model to all data, but it ignores equation, overfits data.
@@ -266,9 +272,9 @@ end
         prob, chainlux12,
         dataset = dataset,
         draw_samples = 600,
-        l2std = [0.05],
+        l2std = [0.1],
         phystd = [0.05],
-        phynewstd = [0.05],
+        phynewstd = [0.07],
         priorsNNw = (0.0,
             1.0),
         param = [
@@ -279,7 +285,7 @@ end
         prob, chainlux12,
         dataset = dataset,
         draw_samples = 600,
-        l2std = [0.05],
+        l2std = [0.1],
         phystd = [0.05],
         priorsNNw = (0.0,
             1.0),
@@ -316,56 +322,57 @@ end
     @test abs(param2 - p) < abs(param1 - p)
 end
 
-# @testitem "BPINN ODE III: Inverse solve Improvement solve call" tags=[:odebpinn] begin
-#     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-#           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-#     import Flux
+@testitem "BPINN ODE III: Inverse solve Improvement solve call" tags=[:odebpinn] begin
+    using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
+          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+    import Flux
 
-#     Random.seed!(100)
+    Random.seed!(100)
 
-#     linear = (u, p, t) -> u / p + exp(t / p) * cos(t)
-#     tspan = (0.0, 10.0)
-#     u0 = 0.0
-#     p = -5.0
-#     prob = ODEProblem(linear, u0, tspan, p)
-#     linear_analytic = (u0, p, t) -> exp(t / p) * (u0 + sin(t))
+    linear = (u, p, t) -> u / p + exp(t / p) * cos(t)
+    tspan = (0.0, 10.0)
+    u0 = 0.0
+    p = -5.0
+    prob = ODEProblem(linear, u0, tspan, p)
+    linear_analytic = (u0, p, t) -> exp(t / p) * (u0 + sin(t))
 
-#     # SOLUTION AND CREATE DATASET
-#     sol = solve(prob, Tsit5(); saveat = 0.1)
-#     u = sol.u
-#     time = sol.t
-#     x̂ = u .+ (0.1 .* randn(size(u)))
-#     dataset = [x̂, time]
+    # SOLUTION AND CREATE DATASET
+    sol = solve(prob, Tsit5(); saveat = 0.1)
+    u = sol.u
+    time = sol.t
+    x̂ = u .+ (0.1 .* randn(size(u)))
+    # dx=0.1 Gridtraining for newloss
+    dataset = [x̂, time, 0.1 .* ones(length(time))]
 
-#     # set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
-#     time1 = vec(collect(Float64, range(tspan[1], tspan[2], length = 501)))
-#     physsol2 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
+    # set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
+    time1 = vec(collect(Float64, range(tspan[1], tspan[2], length = 501)))
+    physsol2 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
 
-#     chainlux12 = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
-#     θinit, st = Lux.setup(Random.default_rng(), chainlux12)
+    chainlux12 = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
+    θinit, st = Lux.setup(Random.default_rng(), chainlux12)
 
-#     alg = BNNODE(chainlux12,
-#         dataset = dataset,
-#         draw_samples = 1000,
-#         l2std = [0.1],
-#         phystd = [0.01],
-#         phynewstd = [0.01],
-#         priorsNNw = (0.0,
-#             1.0),
-#         param = [
-#             Normal(-7, 3)
-#         ], numensemble = 200,
-#         estim_collocate = true)
+    alg = BNNODE(chainlux12,
+        dataset = dataset,
+        draw_samples = 1000,
+        l2std = [0.1],
+        phystd = [0.01],
+        phynewstd = [0.01],
+        priorsNNw = (0.0,
+            1.0),
+        param = [
+            Normal(-7, 3)
+        ], numensemble = 200,
+        estim_collocate = true)
 
-#     sol3lux_pestim = solve(prob, alg)
+    sol3lux_pestim = solve(prob, alg)
 
-#     #-------------------------- solve() call
-#     @test mean(abs.(physsol2 .- pmean(sol3lux_pestim.ensemblesol[1]))) < 1e-2
+    #-------------------------- solve() call
+    @test mean(abs.(physsol2 .- pmean(sol3lux_pestim.ensemblesol[1]))) < 1e-2
 
-#     # estimated parameters
-#     param3 = sol3lux_pestim.estimated_de_params[1]
-#     @test abs(param3 - p) < abs(0.05 * p)
-# end
+    # estimated parameters
+    param3 = sol3lux_pestim.estimated_de_params[1]
+    @test abs(param3 - p) < abs(0.05 * p)
+end
 
 # @testitem "BPINN ODE IV: Inverse solve Improvement" tags=[:odebpinn] begin
 #     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
