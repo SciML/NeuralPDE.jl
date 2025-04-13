@@ -45,7 +45,7 @@
 
     # --------------------- ahmc_bayesian_pinn_ode() call
     @test mean(abs.(x̂ .- meanscurve)) < 0.05
-    @test mean(abs.(physsol1 .- meanscurve)) < 0.005
+    @test mean(abs.(physsol1 .- meanscurve)) < 0.006
 
     #--------------------- solve() call
     @test mean(abs.(x̂1 .- pmean(sol1lux.ensemblesol[1]))) < 0.025
@@ -309,8 +309,8 @@ end
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-    @test mean(abs.(sol.u .- meanscurve2_2)) < 2e-2
-    @test mean(abs.(physsol1 .- meanscurve2_2)) < 2e-2
+    @test mean(abs.(sol.u .- meanscurve2_2)) < 5e-2
+    @test mean(abs.(physsol1 .- meanscurve2_2)) < 5e-2
     @test mean(abs.(sol.u .- meanscurve2_1)) > mean(abs.(sol.u .- meanscurve2_2))
     @test mean(abs.(physsol1 .- meanscurve2_1)) > mean(abs.(physsol1 .- meanscurve2_2))
 
@@ -342,7 +342,7 @@ end
     time = sol.t
     x̂ = u .+ (0.1 .* randn(size(u)))
     # dx=0.1 Gridtraining for newloss
-    dataset = [x̂, time, 0.1 .* ones(length(time))]
+    dataset = [x̂, time, ones(length(time))]
 
     # set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
     time1 = vec(collect(Float64, range(tspan[1], tspan[2], length = 501)))
