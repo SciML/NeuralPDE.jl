@@ -97,13 +97,14 @@ suggested extra loss function for ODE solver case
 
     physlogprob = T(0)
     loss_vals = nnsol .- deri_physsol
-    # for BPINNS Quadrature is applied on timewise logpdfs
+    # for BPINNS Quadrature is NOT applied on timewise logpdfs, it isnt being driven to zero.
     # Gridtraining/trapezoidal rule quadrature_weights is dt.*ones(T, length(t))
     for i in 1:length(ltd.prob.u0)
-        physlogprob += sum([logpdf(
-                                Normal(loss_vals[i, j], T(ltd.phynewstd[i])),
-                                T(0)
-                            ) for j in eachindex(t)] .* quadrature_weights)
+        physlogprob += logpdf(
+            MvNormal(loss_vals[i, :] .* quadrature_weights,
+                Diagonal(abs2.(T(ltd.phynewstd[i]) .* ones(T, length(nnsol[i, :]))))),
+            zeros(length(t))
+        )
     end
     return physlogprob
 end

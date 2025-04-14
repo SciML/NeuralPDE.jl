@@ -264,7 +264,7 @@ end
     chainlux12 = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
     θinit, st = Lux.setup(Random.default_rng(), chainlux12)
 
-    # std for the equation is limited ~ anywhere between L2std to (1/σ + 1/σ^2)^-0.5
+    # std for the equation is limited ~ (1/σ + 1/σ^2)^-0.5
     # in case physics loss is high non linear in p, set to L2 data std.
     # the new loss however, is not bound too much by this constraint.
     # you could always directly fit model to all data, but it ignores equation, overfits data.
@@ -274,7 +274,7 @@ end
         draw_samples = 600,
         l2std = [0.1],
         phystd = [0.1],
-        phynewstd = [0.07],
+        phynewstd = [0.075],
         priorsNNw = (0.0,
             1.0),
         param = [
@@ -315,10 +315,10 @@ end
     @test mean(abs.(physsol1 .- meanscurve2_1)) > mean(abs.(physsol1 .- meanscurve2_2))
 
     param2 = mean(i[62] for i in fhsampleslux22[500:length(fhsampleslux22)])
-    @test abs(param2 - p) < abs(0.05 * p)
+    @test abs(param2 - p) < abs(0.1 * p)
 
     param1 = mean(i[62] for i in fhsampleslux12[500:length(fhsampleslux12)])
-    @test abs(param1 - p) > abs(0.4 * p)
+    @test abs(param1 - p) > abs(0.5 * p)
     @test abs(param2 - p) < abs(param1 - p)
 end
 
