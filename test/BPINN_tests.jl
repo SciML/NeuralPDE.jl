@@ -274,7 +274,7 @@ end
         draw_samples = 600,
         l2std = [0.1],
         phystd = [0.1],
-        phynewstd = [0.075],
+        phynewstd = [0.07],
         priorsNNw = (0.0,
             1.0),
         param = [
