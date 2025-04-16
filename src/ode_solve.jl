@@ -91,14 +91,17 @@ Networks 9, no. 5 (1998): 987-1000.
     strategy <: Union{Nothing, AbstractTrainingStrategy}
     param_estim
     additional_loss <: Union{Nothing, Function}
+    dataset <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
+    estim_collocate::Bool
     kwargs
 end
 
 function NNODE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-        batch = true, param_estim = false, additional_loss = nothing, kwargs...)
+        batch = true, param_estim = false, additional_loss = nothing,
+        dataset = [nothing], estim_collocate = false, kwargs...)
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return NNODE(chain, opt, init_params, autodiff, batch,
-        strategy, param_estim, additional_loss, kwargs)
+        strategy, param_estim, additional_loss, dataset, estim_collocate, kwargs)
 end
 
 """
@@ -263,6 +266,44 @@ function generate_loss(::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
            spaces only. Use StochasticTraining instead.")
 end
 
+"""
+L2 loss (needed for ODE parameter estimation).
+"""
+function generate_L2lossData(dataset, phi, n_output)
+    dataset isa Vector{Nothing} && return 0
+    return (θ, _) -> sum(sum(abs2, phi(dataset[end - 1], θ)[i, :] .- dataset[i])
+    for i in 1:n_output)
+end
+
+"""
+new loss
+"""
+function generate_L2loss2(f, autodiff, dataset, phi, n_output)
+    dataset isa Vector{Nothing} && return 0
+    t = dataset[end - 1]
+    û = dataset[1:(end - 2)]
+    quadrature_weights = dataset[end]
+
+    function L2loss2(θ, _)
+        nnsol = ode_dfdx(phi, t, θ, autodiff)
+        ode_params = θ.p
+
+        physsol = if n_output == 1
+            [f(û[1][i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
+        else
+            [f([û[j][i] for j in 1:(length(dataset) - 2)], ode_params, tᵢ)
+             for (i, tᵢ) in enumerate(t)]
+        end
+        # form of NN output matrix output dim x n
+        deri_physsol = reduce(hcat, physsol)
+        loss_vals = nnsol .- deri_physsol
+
+        # Quadrature is applied on timewise losses
+        # Gridtraining/trapezoidal rule quadrature_weights is dt.*ones(T, length(t))
+        return sum(sum(abs2, loss_vals[i, :] .* quadrature_weights) for i in 1:n_output)
+    end
+end
+
 @concrete struct NNODEInterpolation
     phi <: ODEPhi
     θ
@@ -307,7 +348,8 @@ function SciMLBase.__solve(
 )
     (; u0, tspan, f, p) = prob
     t0 = tspan[1]
-    (; param_estim, chain, opt, autodiff, init_params, batch, additional_loss) = alg
+    # add estim_collocate, dataset (or nothing) in NNODE
+    (; param_estim, estim_collocate, dataset, chain, opt, autodiff, init_params, batch, additional_loss, estim_collocate) = alg
 
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
 
@@ -336,12 +378,33 @@ function SciMLBase.__solve(
 
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
 
+    if dataset != [nothing] &&
+       (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
+        error("Invalid dataset. dataset would be timeseries (x̂,t,W) where type: Vector{Vector{AbstractFloat}")
+    end
+
+    if dataset == [nothing] && param_estim
+        error("Dataset is Required for Parameter Estimation.")
+    elseif dataset == [nothing] && estim_collocate
+        error("Dataset Required for Parameter Estimation using new loss.")
+    end
+
+    n_output = length(u0)
+    L2lossData = generate_L2lossData(dataset, phi, n_output)
+    L2loss2 = generate_L2loss2(f, autodiff, dataset, phi, n_output)
+
     (param_estim && additional_loss === nothing) &&
         throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
 
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
         L2_loss = inner_f(θ, phi)
+
+        if param_estim && estim_collocate
+            L2_loss = L2_loss + L2LossData(θ, phi) + L2loss2(θ, phi)
+        elseif param_estim
+            L2_loss = L2_loss + L2LossData(θ, phi)
+        end
         if additional_loss !== nothing
             L2_loss = L2_loss + additional_loss(phi, θ)
         end
