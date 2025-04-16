@@ -280,7 +280,7 @@ end
             1.0),
         param = [
             Normal(-7, 3)
-        ], estim_collocate = true, progress = true, verbose = true)
+        ], estim_collocate = true)
 
     fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(
         prob, chainlux12,
@@ -292,7 +292,7 @@ end
             1.0),
         param = [
             Normal(-7, 3)
-        ], progress = true, verbose = true)
+        ])
 
     # testing timepoints
     t = sol.t
