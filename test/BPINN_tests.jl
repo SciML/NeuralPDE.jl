@@ -356,7 +356,7 @@ end
         draw_samples = 1000,
         l2std = [0.1],
         phystd = [0.01],
-        phynewstd = (p) -> [0.01 / p],
+        phynewstd = (p) -> [0.1 / p],
         priorsNNw = (0.0,
             1.0),
         param = [
@@ -428,7 +428,7 @@ end
 #         draw_samples = 1000,
 #         l2std = [0.5, 0.5],
 #         phystd = [0.5, 0.5],
-#         phynewstd = [1.0, 1.0],
+#         phynewstd = (p) -> [1.0, 1.0],
 #         priorsNNw = (0.0, 1.0),
 #         param = [
 #             Normal(2, 2),

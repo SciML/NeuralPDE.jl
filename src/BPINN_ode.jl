@@ -3,7 +3,7 @@
 """
     BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 2000,
            priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
-           phystd = [0.05], phynewstd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
+           phystd = [0.05], phynewstd = (ode_params)->[0.05], dataset = [nothing], physdt = 1 / 20.0,
            MCMCargs = (; n_leapfrog=30), nchains = 1, init_params = nothing,
            Adaptorkwargs = (; Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
                               Metric = DiagEuclideanMetric),
@@ -86,7 +86,7 @@ Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, El
     param <: Union{Nothing, Vector{<:Distribution}}
     l2std::Vector{Float64}
     phystd::Vector{Float64}
-    phynewstd::Vector{Float64}
+    phynewstd::Function
     dataset <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
     physdt::Float64
     MCMCkwargs <: NamedTuple
@@ -103,7 +103,7 @@ end
 
 function BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 1000,
         priorsNNw = (0.0, 2.0), param = nothing, l2std = [0.05], phystd = [0.05],
-        phynewstd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
+        phynewstd = (ode_params) -> [0.05], dataset = [nothing], physdt = 1 / 20.0,
         MCMCkwargs = (n_leapfrog = 30,), nchains = 1, init_params = nothing,
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
