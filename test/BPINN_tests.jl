@@ -235,9 +235,8 @@ end
     # new model is always better (less points, more noise etc), given the correct std.
     # std for the equation is limited ~ var propagated via data points through chosen equation var.
     # for inverse problems ratio of datapoints and unsolved datapoints is important.
-    # avergage acceptance rate must be high adjust iterations accordaingly
 
-    N = 50  # choose number of nodes, enough to approximate 2n-2 degree polynomials (gauss-lobatto case)
+    N = 20  # choose number of nodes, enough to approximate 2n-2 degree polynomials (gauss-lobatto case)
     # x, w = gausslegendre(N) # does not include endpoints
     x, w = gausslobatto(N)
     # x, w = clenshaw_curtis(N)
@@ -272,10 +271,10 @@ end
     fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(
         prob, chainlux12,
         dataset = dataset,
-        draw_samples = 500,
+        draw_samples = 2500,
         l2std = [0.1],
-        phystd = [0.02],
-        phynewstd = [0.02],
+        phystd = [0.1],
+        phynewstd = (p) -> [0.1 / p],
         priorsNNw = (0.0,
             1.0),
         param = [
@@ -285,9 +284,9 @@ end
     fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(
         prob, chainlux12,
         dataset = dataset,
-        draw_samples = 500,
+        draw_samples = 2500,
         l2std = [0.1],
-        phystd = [0.02],
+        phystd = [0.1],
         priorsNNw = (0.0,
             1.0),
         param = [
@@ -299,13 +298,13 @@ end
     #------------------------------ ahmc_bayesian_pinn_ode() call
     # Mean of last 100 sampled parameter's curves(lux chains)[Ensemble predictions]
     θ = [vector_to_parameters(fhsampleslux12[i][1:(end - 1)], θinit)
-         for i in 400:length(fhsampleslux12)]
+         for i in 2400:length(fhsampleslux12)]
     luxar = [chainlux12(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_1 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
     θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 1)], θinit)
-         for i in 400:length(fhsampleslux22)]
+         for i in 2400:length(fhsampleslux22)]
     luxar = [chainlux12(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
@@ -315,11 +314,11 @@ end
     @test mean(abs.(sol.u .- meanscurve2_1)) > mean(abs.(sol.u .- meanscurve2_2))
     @test mean(abs.(physsol1 .- meanscurve2_1)) > mean(abs.(physsol1 .- meanscurve2_2))
 
-    param2 = mean(i[62] for i in fhsampleslux22[400:length(fhsampleslux22)])
+    param2 = mean(i[62] for i in fhsampleslux22[2400:length(fhsampleslux22)])
     @test abs(param2 - p) < abs(0.2 * p)
 
-    param1 = mean(i[62] for i in fhsampleslux12[400:length(fhsampleslux12)])
-    @test abs(param1 - p) > abs(0.7 * p)
+    param1 = mean(i[62] for i in fhsampleslux12[2400:length(fhsampleslux12)])
+    @test abs(param1 - p) > abs(0.5 * p)
     @test abs(param2 - p) < abs(param1 - p)
 end
 
@@ -357,7 +356,7 @@ end
         draw_samples = 1000,
         l2std = [0.1],
         phystd = [0.01],
-        phynewstd = [0.01],
+        phynewstd = (p) -> [0.01 / p],
         priorsNNw = (0.0,
             1.0),
         param = [

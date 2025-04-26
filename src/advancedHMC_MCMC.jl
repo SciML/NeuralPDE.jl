@@ -6,7 +6,7 @@
     dataset <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
     priors <: Vector{<:Distribution}
     phystd::Vector{Float64}
-    phynewstd::Vector{Float64}
+    phynewstd::Function
     l2std::Vector{Float64}
     autodiff::Bool
     physdt::Float64
@@ -84,6 +84,7 @@ suggested extra loss function for ODE solver case
 
     ode_params = ltd.extraparams == 1 ? θ[((length(θ) - ltd.extraparams) + 1)] :
                  θ[((length(θ) - ltd.extraparams) + 1):length(θ)]
+    phynewstd = ltd.phynewstd(ode_params)
 
     physsol = if length(ltd.prob.u0) == 1
         [f(û[1][i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
@@ -102,7 +103,7 @@ suggested extra loss function for ODE solver case
     for i in 1:length(ltd.prob.u0)
         physlogprob += logpdf(
             MvNormal(loss_vals[i, :] .* quadrature_weights,
-                Diagonal(abs2.(T(ltd.phynewstd[i]) .* ones(T, length(nnsol[i, :]))))),
+                Diagonal(abs2.(T(phynewstd[i]) .* ones(T, length(nnsol[i, :]))))),
             zeros(length(t))
         )
     end
@@ -270,7 +271,7 @@ end
 """
     ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining, dataset = [nothing],
                            init_params = nothing, draw_samples = 1000, physdt = 1 / 20.0f0,
-                           l2std = [0.05], phystd = [0.05], phynewstd = [0.05], priorsNNw = (0.0, 2.0),
+                           l2std = [0.05], phystd = [0.05], phynewstd = (ode_params)->[0.05], priorsNNw = (0.0, 2.0),
                            param = [], nchains = 1, autodiff = false, Kernel = HMC,
                            Adaptorkwargs = (Adaptor = StanHMCAdaptor,
                                Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
@@ -343,7 +344,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
   ~2/3 of draw samples)
 * `l2std`: standard deviation of BPINN prediction against L2 losses/Dataset
 * `phystd`: standard deviation of BPINN prediction against Chosen Underlying ODE System
-* `phynewstd`: standard deviation of new loss func term
+* `phynewstd`: Function in ode_params that gives the standard deviation of the new loss function terms.
 * `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of
   BPINN are Normal Distributions by default.
 * `param`: Vector of chosen ODE parameters Distributions in case of Inverse problems.
@@ -374,7 +375,8 @@ Incase you are only solving the Equations for solution, do not provide dataset
 function ahmc_bayesian_pinn_ode(
         prob::SciMLBase.ODEProblem, chain; strategy = GridTraining, dataset = [nothing],
         init_params = nothing, draw_samples = 1000, physdt = 1 / 20.0, l2std = [0.05],
-        phystd = [0.05], phynewstd = [0.05], priorsNNw = (0.0, 2.0), param = [], nchains = 1,
+        phystd = [0.05], phynewstd = (ode_params) -> [0.05],
+        priorsNNw = (0.0, 2.0), param = [], nchains = 1,
         autodiff = false, Kernel = HMC,
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
