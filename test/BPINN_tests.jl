@@ -235,7 +235,7 @@ end
     # std for the equation is limited ~ (var propagated via data points through chosen equation var/phystd)
     # for inverse problems ratio of datapoints and unsolved datapoints is important.
 
-    N = 20  # choose number of nodes, enough to approximate 2n-2 degree polynomials (gauss-lobatto case)
+    N = 22  # choose number of nodes, enough to approximate 2n-2 degree polynomials (gauss-lobatto case)
     # x, w = gausslegendre(N) # does not include endpoints
     x, w = gausslobatto(N)
     # x, w = clenshaw_curtis(N)
@@ -270,9 +270,9 @@ end
     fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(
         prob, chainlux12,
         dataset = dataset,
-        draw_samples = 1000,
+        draw_samples = 2500,
         l2std = [0.1],
-        phystd = [0.01],
+        phystd = [0.1],
         phynewstd = (p) -> [0.1 / p],
         priorsNNw = (0.0,
             1.0),
@@ -283,9 +283,9 @@ end
     fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(
         prob, chainlux12,
         dataset = dataset,
-        draw_samples = 1000,
+        draw_samples = 2500,
         l2std = [0.1],
-        phystd = [0.01],
+        phystd = [0.1],
         priorsNNw = (0.0,
             1.0),
         param = [
