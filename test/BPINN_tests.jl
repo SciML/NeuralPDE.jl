@@ -235,7 +235,7 @@ end
     # std for the equation is limited ~ (var propagated via data points through chosen equation var/phystd)
     # for inverse problems ratio of datapoints and unsolved datapoints is important.
 
-    N = 22  # choose number of nodes, enough to approximate 2n-2 degree polynomials (gauss-lobatto case)
+    N = 20  # choose number of nodes, enough to approximate 2n-2 degree polynomials (gauss-lobatto case)
     # x, w = gausslegendre(N) # does not include endpoints
     x, w = gausslobatto(N)
     # x, w = clenshaw_curtis(N)
