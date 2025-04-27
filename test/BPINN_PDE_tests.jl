@@ -379,8 +379,9 @@ end
         end
     end
 
-    @parameters x, t, α
-    @variables u(..)
+    @parameters α
+    @variables x, t
+    @syms u(x, t)
     Dt = Differential(t)
     Dx = Differential(x)
     Dx2 = Differential(x)^2
