@@ -230,13 +230,12 @@ end
     using FastGaussQuadrature, PolyChaos, Integrals
     Random.seed!(100)
 
-    # (original tests can be run with 100 training points, check solve call tests.)
-    # n=10, 15, 30 for gaussian noise std=0.1, the new model performs much better as well.
-    # new model is always better (less points, more noise etc), given the correct std.
+    # (original Improvement tests can be run with 100 training points, check solve call tests.)
+    # new model is always better (especially less points, more noise etc), given the correct std & enough samples.
     # std for the equation is limited ~ (var propagated via data points through chosen equation var/phystd)
     # for inverse problems ratio of datapoints and unsolved datapoints is important.
 
-    N = 25  # choose number of nodes, enough to approximate 2n-2 degree polynomials (gauss-lobatto case)
+    N = 20  # choose number of nodes, enough to approximate 2n-2 degree polynomials (gauss-lobatto case)
     # x, w = gausslegendre(N) # does not include endpoints
     x, w = gausslobatto(N)
     # x, w = clenshaw_curtis(N)
@@ -271,9 +270,9 @@ end
     fh_mcmc_chainlux22, fhsampleslux22, fhstatslux22 = ahmc_bayesian_pinn_ode(
         prob, chainlux12,
         dataset = dataset,
-        draw_samples = 2500,
+        draw_samples = 1000,
         l2std = [0.1],
-        phystd = [0.1],
+        phystd = [0.01],
         phynewstd = (p) -> [0.1 / p],
         priorsNNw = (0.0,
             1.0),
@@ -284,9 +283,9 @@ end
     fh_mcmc_chainlux12, fhsampleslux12, fhstatslux12 = ahmc_bayesian_pinn_ode(
         prob, chainlux12,
         dataset = dataset,
-        draw_samples = 2500,
+        draw_samples = 1000,
         l2std = [0.1],
-        phystd = [0.1],
+        phystd = [0.01],
         priorsNNw = (0.0,
             1.0),
         param = [
