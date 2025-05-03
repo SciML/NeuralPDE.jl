@@ -190,7 +190,7 @@ end
     u1_ = [u_[i][1] for i in eachindex(t_)]
     u2_ = [u_[i][2] for i in eachindex(t_)]
     u3_ = [u_[i][3] for i in eachindex(t_)]
-    dataset = [u1_, u2_, u3_, t_, W]
+    dataset = [u1_, u2_, u3_, t_, ones(length(t_))]
 
     alg = NNODE(luxchain, BFGS(linesearch = BackTracking());
         strategy = GridTraining(0.01), dataset = dataset,
@@ -224,7 +224,7 @@ end
 
     # this example is especially easy for new loss.
     # even with 1 observed data points, we can exactly calculate the physics parameters (even before solve call).
-    N = 5
+    N = 7
     # x, w = gausslegendre(N) # does not include endpoints
     x, w = gausslobatto(N)
     # x, w = clenshaw_curtis(N)
@@ -238,22 +238,22 @@ end
     sol = solve(prob2, Tsit5(); saveat = t)
     t_ = sol.t
     u_ = sol.u
-    u1_ = [u_[i][1] for i in 1:5]
-    u2_ = [u_[i][2] for i in 1:5]
-    u3_ = [u_[i][3] for i in 1:5]
+    u1_ = [u_[i][1] for i in eachindex(t_)]
+    u2_ = [u_[i][2] for i in eachindex(t_)]
+    u3_ = [u_[i][3] for i in eachindex(t_)]
     dataset = [u1_, u2_, u3_, t_, W]
 
     alg_old = NNODE(luxchain, BFGS(linesearch = BackTracking());
-        strategy = GridTraining(0.02), dataset = dataset,
+        strategy = GridTraining(0.01), dataset = dataset,
         param_estim = true)
     sol_old = solve(
-        prob, alg_old; verbose = false, abstol = 1e-9, maxiters = 2000, saveat = 0.01)
+        prob, alg_old; verbose = false, abstol = 1e-12, maxiters = 2000, saveat = 0.01)
 
     alg_new = NNODE(
-        luxchain, BFGS(linesearch = BackTracking()); strategy = GridTraining(0.02),
+        luxchain, BFGS(linesearch = BackTracking()); strategy = GridTraining(0.01),
         param_estim = true, dataset = dataset, estim_collocate = true)
     sol_new = solve(
-        prob, alg_new; verbose = false, abstol = 1e-9, maxiters = 2000, saveat = 0.01)
+        prob, alg_new; verbose = false, abstol = 1e-12, maxiters = 2000, saveat = 0.01)
 
     sol = solve(prob2, Tsit5(); saveat = 0.01)
     c = hcat(sol.u...)
@@ -264,7 +264,7 @@ end
     @test_broken reduce(hcat, sol_old.u)≈c atol=10
 
     @test sol_new.k.u.p≈true_p atol=1e-2
-    @test reduce(hcat, sol_new.u)≈c atol=5e-2
+    @test reduce(hcat, sol_new.u)≈c atol=3e-2
 end
 
 @testitem "ODE Complex Numbers" tags=[:nnode] begin
