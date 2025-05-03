@@ -393,17 +393,14 @@ function SciMLBase.__solve(
     L2lossData = generate_L2lossData(dataset, phi, n_output)
     L2loss2 = generate_L2loss2(f, autodiff, dataset, phi, n_output)
 
-    (param_estim && additional_loss === nothing) &&
-        throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
-
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
         L2_loss = inner_f(θ, phi)
 
         if param_estim && estim_collocate
-            L2_loss = L2_loss + L2LossData(θ, phi) + L2loss2(θ, phi)
+            L2_loss = L2_loss + L2lossData(θ, phi) + L2loss2(θ, phi)
         elseif param_estim
-            L2_loss = L2_loss + L2LossData(θ, phi)
+            L2_loss = L2_loss + L2lossData(θ, phi)
         end
         if additional_loss !== nothing
             L2_loss = L2_loss + additional_loss(phi, θ)
