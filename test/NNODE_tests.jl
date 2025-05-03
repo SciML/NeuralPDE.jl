@@ -223,7 +223,7 @@ end
     luxchain = Chain(Dense(1, n, σ), Dense(n, n, σ), Dense(n, 3))
 
     # this example is especially easy for new loss.
-    # even with 1 observed data points, we can exactly calcuate the physics parameters (even before solving if needed).
+    # even with 1 observed data points, we can exactly calculate the physics parameters (even before solve call).
     N = 5
     # x, w = gausslegendre(N) # does not include endpoints
     x, w = gausslobatto(N)
