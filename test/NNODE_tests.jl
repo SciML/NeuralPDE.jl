@@ -187,6 +187,7 @@ end
     sol = solve(prob2, Tsit5(); saveat = 0.01)
     t_ = sol.t
     u_ = sol.u
+    sol_points = hcat(u_...)
     u1_ = [u_[i][1] for i in eachindex(t_)]
     u2_ = [u_[i][2] for i in eachindex(t_)]
     u3_ = [u_[i][3] for i in eachindex(t_)]
@@ -197,12 +198,8 @@ end
         param_estim = true)
     sol = solve(prob, alg; verbose = false, abstol = 1e-8, maxiters = 1000, saveat = t_)
 
-    c = hcat(u_...)
-    a = hcat(sol_old.u...)
-    b = hcat(sol_new.u...)
-
     @test sol.k.u.p≈true_p atol=1e-2
-    @test reduce(hcat, sol.u)≈c atol=1e-2
+    @test reduce(hcat, sol.u)≈sol_points atol=1e-2
 end
 
 @testitem "ODE Parameter Estimation Improvement" tags=[:nnode] begin
@@ -256,15 +253,15 @@ end
         prob, alg_new; verbose = false, abstol = 1e-12, maxiters = 2000, saveat = 0.01)
 
     sol = solve(prob2, Tsit5(); saveat = 0.01)
-    c = hcat(sol.u...)
-    a = hcat(sol_old.u...)
-    b = hcat(sol_new.u...)
+    sol_points = hcat(sol.u...)
+    sol_old_points = hcat(sol_old.u...)
+    sol_new_points = hcat(sol_new.u...)
 
-    @test_broken sol_old.k.u.p≈true_p atol=10
-    @test_broken reduce(hcat, sol_old.u)≈c atol=10
+    @test !isapprox(sol_old.k.u.p, true_p; atol = 10)
+    @test !isapprox(sol_old_points, sol_points; atol = 10)
 
     @test sol_new.k.u.p≈true_p atol=1e-2
-    @test reduce(hcat, sol_new.u)≈c atol=3e-2
+    @test sol_new_points≈sol_points atol=3e-2
 end
 
 @testitem "ODE Complex Numbers" tags=[:nnode] begin
