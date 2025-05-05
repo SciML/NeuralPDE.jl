@@ -89,7 +89,7 @@ suggested extra loss function for ODE solver case
     physsol = if length(ltd.prob.u0) == 1
         [f(û[1][i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
     else
-        [f([û[j][i] for j in 1:(length(dataset) - 2)], ode_params, tᵢ)
+        [f([û[j][i] for j in 1:length(û)], ode_params, tᵢ)
          for (i, tᵢ) in enumerate(t)]
     end
     # form of NN output matrix output dim x n
