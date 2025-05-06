@@ -86,7 +86,7 @@ Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, El
     param <: Union{Nothing, Vector{<:Distribution}}
     l2std::Vector{Float64}
     phystd::Vector{Float64}
-    phynewstd::Function
+    phynewstd
     dataset <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
     physdt::Float64
     MCMCkwargs <: NamedTuple
