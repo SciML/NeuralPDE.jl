@@ -74,7 +74,7 @@ suggested extra loss function for ODE solver case
 """
 @views function L2loss2(ltd::LogTargetDensity, θ)
     ltd.extraparams ≤ 0 && return false  # XXX: type-stability?
-
+    u0 = ltd.prob.u0
     f = ltd.prob.f
     t = ltd.dataset[end - 1]
     û = ltd.dataset[1:(end - 2)]
@@ -86,10 +86,10 @@ suggested extra loss function for ODE solver case
                  θ[((length(θ) - ltd.extraparams) + 1):length(θ)]
     phynewstd = ltd.phynewstd(ode_params)
 
-    physsol = if length(ltd.prob.u0) == 1
+    physsol = if length(u0) == 1
         [f(û[1][i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
     else
-        [f([û[j][i] for j in 1:length(û)], ode_params, tᵢ)
+        [f([û[j][i] for j in eachindex(u0)], ode_params, tᵢ)
          for (i, tᵢ) in enumerate(t)]
     end
     # form of NN output matrix output dim x n
@@ -97,13 +97,13 @@ suggested extra loss function for ODE solver case
     T = promote_type(eltype(deri_physsol), eltype(nnsol))
 
     physlogprob = T(0)
-    loss_vals = nnsol .- deri_physsol
     # for BPINNS Quadrature is NOT applied on timewise logpdfs, it isnt being driven to zero.
     # Gridtraining/trapezoidal rule quadrature_weights is dt.*ones(T, length(t))
-    for i in 1:length(ltd.prob.u0)
+    # dims of phynewstd is same as u0 due to BNNODE being an out-of-place ODE solver.
+    for i in eachindex(u0)
         physlogprob += logpdf(
-            MvNormal(loss_vals[i, :] .* quadrature_weights,
-                Diagonal(abs2.(T(phynewstd[i]) .* ones(T, length(nnsol[i, :]))))),
+            MvNormal(abs2.(nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights,
+                Diagonal(abs2.(T(phynewstd[i]) .* ones(T, length(t))))),
             zeros(length(t))
         )
     end
@@ -209,23 +209,21 @@ MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN
 
     # this is a vector{vector{dx,dy}}(handle case single u(float passed))
     if length(out[:, 1]) == 1
-        physsol = [f(out[:, i][1], ode_params, t[i]) for i in 1:length(out[1, :])]
+        physsol = [f(out[:, i][1], ode_params, t[i]) for i in eachindex(t)]
     else
-        physsol = [f(out[:, i], ode_params, t[i]) for i in 1:length(out[1, :])]
+        physsol = [f(out[:, i], ode_params, t[i]) for i in eachindex(t)]
     end
     physsol = reduce(hcat, physsol)
 
     nnsol = ode_dfdx(ltd, t, θ[1:(length(θ) - ltd.extraparams)], autodiff)
-
-    vals = nnsol .- physsol
-    T = eltype(vals)
+    T = eltype(nnsol)
 
     # N dimensional vector if N outputs for NN(each row has logpdf of u[i] where u is vector
     # of dependant variables)
     return [logpdf(
-                MvNormal(vals[i, :],
-                    Diagonal(abs2.(T(ltd.phystd[i]) .* ones(T, length(vals[i, :]))))),
-                zeros(T, length(vals[i, :]))
+                MvNormal(abs2.(nnsol[i, :] .- physsol[i, :]),
+                    Diagonal(abs2.(T(ltd.phystd[i]) .* ones(T, length(t))))),
+                zeros(T, length(t))
             ) for i in 1:length(ltd.prob.u0)]
 end
 

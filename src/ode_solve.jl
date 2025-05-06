@@ -296,11 +296,11 @@ function generate_L2loss2(f, autodiff, dataset, phi, n_output)
         end
         # form of NN output matrix output dim x n
         deri_physsol = reduce(hcat, physsol)
-        loss_vals = nnsol .- deri_physsol
 
         # Quadrature is applied on timewise losses
         # Gridtraining/trapezoidal rule quadrature_weights is dt.*ones(T, length(t))
-        return sum(sum(abs2, loss_vals[i, :] .* quadrature_weights) for i in 1:n_output)
+        return sum(sum(abs2.(nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights)
+        for i in 1:n_output)
     end
 end
 
