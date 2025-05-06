@@ -102,7 +102,7 @@ suggested extra loss function for ODE solver case
     # dims of phynewstd is same as u0 due to BNNODE being an out-of-place ODE solver.
     for i in eachindex(u0)
         physlogprob += logpdf(
-            MvNormal(abs2.(nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights,
+            MvNormal((nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights,
                 Diagonal(abs2.(T(phynewstd[i]) .* ones(T, length(t))))),
             zeros(length(t))
         )
@@ -221,7 +221,7 @@ MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN
     # N dimensional vector if N outputs for NN(each row has logpdf of u[i] where u is vector
     # of dependant variables)
     return [logpdf(
-                MvNormal(abs2.(nnsol[i, :] .- physsol[i, :]),
+                MvNormal((nnsol[i, :] .- physsol[i, :]),
                     Diagonal(abs2.(T(ltd.phystd[i]) .* ones(T, length(t))))),
                 zeros(T, length(t))
             ) for i in 1:length(ltd.prob.u0)]
@@ -467,7 +467,8 @@ function ahmc_bayesian_pinn_ode(
 
             MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
             Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
-            samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
+            samples,
+            stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
                 progress = progress, verbose = verbose)
 
             samplesc[i] = samples
@@ -485,7 +486,8 @@ function ahmc_bayesian_pinn_ode(
 
         MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
         Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
-        samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
+        samples,
+        stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
 
         if verbose
