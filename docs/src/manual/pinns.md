@@ -2,11 +2,15 @@
 
 Using the PINNs solver, we can solve general nonlinear PDEs:
 
-![generalPDE](https://user-images.githubusercontent.com/12683885/86625781-5648c800-bfce-11ea-9d99-fbcb5c37fe0c.png)
+```math
+f{\left(x; \frac{∂u}{∂x_1}, \dots, \frac{∂u}{∂x_d}; \frac{∂^2 u}{∂x_1 ∂x_1}, \frac{∂^2 u}{∂x_1 ∂x_d}; \dots ; \lambda\right)} = 0, x \in \Omega,
+```
 
 with suitable boundary conditions:
 
-![bcs](https://user-images.githubusercontent.com/12683885/86625874-8001ef00-bfce-11ea-9417-1a216c7d90aa.png)
+```math
+B(u, x) = 0 \; \text{ on } \; ∂\Omega
+```
 
 where time t is a special component of x, and Ω contains the temporal domain.
 

@@ -1,14 +1,12 @@
 # Solving Integro-Differential Equations with Physics-Informed Neural Networks (PINNs)
 
-The integral of function u(x),
+The integral of function ``u(x)``,
 
 ```math
 \int_{0}^{t}u(x)dx
 ```
 
-where x is variable of integral and t is variable of integro-differential equation,
-
-is defined as
+where ``x`` is variable of integral and ``t`` is variable of integro-differential equation, is defined as
 
 ```julia
 using ModelingToolkit
