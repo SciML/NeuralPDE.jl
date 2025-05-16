@@ -232,7 +232,7 @@ end
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
     import Flux
-    using FastGaussQuadrature, PolyChaos, Integrals
+    using FastGaussQuadrature
     Random.seed!(100)
 
     # (original Improvement tests can be run with 100 training points, check solve call tests.)
@@ -384,7 +384,7 @@ end
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
     import Flux
-    using FastGaussQuadrature, PolyChaos, Integrals
+    using FastGaussQuadrature
     Random.seed!(100)
     using NeuralPDE, Test
 
