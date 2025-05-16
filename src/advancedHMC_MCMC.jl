@@ -323,12 +323,12 @@ fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chain1,
 
 ## NOTES
 
-Dataset is required for accurate Parameter estimation + solving equations
-Incase you are only solving the Equations for solution, do not provide dataset
+Dataset is required for accurate Parameter estimation in Inverse Problems.
+Incase you are only solving Non parametric ODE Equations for a solution, do not provide a dataset.
 
 ## Positional Arguments
 
-* `prob`: DEProblem(out of place and the function signature should be f(u,p,t).
+* `prob`: ODEProblem(out of place and the function signature should be f(u,p,t).
 * `chain`: Lux Neural Netork which would be made the Bayesian PINN.
 
 ## Keyword Arguments
@@ -395,13 +395,13 @@ function ahmc_bayesian_pinn_ode(
 
     if !isempty(dataset) &&
        (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
-        error("Invalid dataset. dataset would be timeseries (x̂,t,W) where type: Vector{Vector{AbstractFloat}}")
+        error("Invalid dataset. The dataset would be a timeseries (x̂,t,W) with type: Vector{Vector{AbstractFloat}}")
     end
 
     if !isempty(dataset) && isempty(param)
-        println("Dataset is only needed for Parameter Estimation + Forward Problem, not in only Forward Problem case.")
+        println("Dataset is only needed for Inverse problems performing Parameter Estimation, not in only Forward Problem case.")
     elseif isempty(dataset) && !isempty(param)
-        error("Dataset Required for Parameter Estimation.")
+        error("Dataset Required for Inverse problems performing Parameter Estimation.")
     end
 
     initial_nnθ, chain, st = generate_ltd(chain, init_params)

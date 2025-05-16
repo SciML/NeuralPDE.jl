@@ -30,7 +30,7 @@ standard `ODEProblem`.
 * `additional_loss`: A function additional_loss(phi, θ) where phi are the neural network
                      trial solutions, θ are the weights of the neural network(s).
 * `dataset`: Is either an empty Vector or a nested Vector of the form `[x̂, t, W]` where `x̂` are dependant variable observations, `t` are time points and `W` are quadrature weights for domain.
-             The dataset is used to compute the L2 loss against the data and also for the new loss function.
+             The dataset is used to compute a L2 loss against the data and also for the new loss function.
              For multiple dependant variables, there will be multiple vectors with the last two vectors in dataset still being for `t`, `W`.
              Is empty by default assuming a forward problem is being solved.
 * `autodiff`: The switch between automatic and numerical differentiation for
@@ -387,13 +387,13 @@ function SciMLBase.__solve(
 
     if !isempty(dataset) &&
        (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
-        error("Invalid dataset. dataset would be timeseries (x̂,t,W) where type: Vector{Vector{AbstractFloat}")
+        error("Invalid dataset. The dataset would be a timeseries (x̂,t,W) with type: Vector{Vector{AbstractFloat}")
     end
 
-    if isempty(dataset) && param_estim
-        error("Dataset is Required for Parameter Estimation.")
+    if isempty(dataset) && param_estim && isnothing(additional_loss)
+        error("Dataset or an additional loss is required for Inverse problems performing Parameter Estimation.")
     elseif isempty(dataset) && estim_collocate
-        error("Dataset Required for Parameter Estimation using new loss.")
+        error("Dataset is required for Inverse problems performing Parameter Estimation using the new loss.")
     end
 
     n_output = length(u0)
