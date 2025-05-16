@@ -204,7 +204,7 @@ end
 
 @testitem "ODE Parameter Estimation Improvement" tags=[:nnode] begin
     using OrdinaryDiffEq, Random, Lux, OptimizationOptimJL, LineSearches
-    using FastGaussQuadrature, PolyChaos, Integrals
+    using FastGaussQuadrature
     Random.seed!(100)
 
     function lorenz(u, p, t)

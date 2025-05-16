@@ -3,7 +3,7 @@
     prob <: SciMLBase.ODEProblem
     smodel <: StatefulLuxLayer
     strategy <: AbstractTrainingStrategy
-    dataset <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
+    dataset <: Union{Vector, Vector{<:Vector{<:AbstractFloat}}}
     priors <: Vector{<:Distribution}
     phystd::Vector{Float64}
     phynewstd::Function
@@ -114,7 +114,7 @@ end
 L2 loss loglikelihood(needed for ODE parameter estimation).
 """
 @views function L2LossData(ltd::LogTargetDensity, θ)
-    (ltd.dataset isa Vector{Nothing} || ltd.extraparams == 0) && return 0
+    (isempty(ltd.dataset) || ltd.extraparams == 0) && return 0
 
     # matrix(each row corresponds to vector u's rows)
     nn = ltd(ltd.dataset[end - 1], θ[1:(length(θ) - ltd.extraparams)])
@@ -155,7 +155,7 @@ end
 function getlogpdf(strategy::GridTraining, ltd::LogTargetDensity, f, autodiff::Bool,
         tspan, ode_params, θ)
     ts = collect(eltype(strategy.dx), tspan[1]:(strategy.dx):tspan[2])
-    t = ltd.dataset isa Vector{Nothing} ? ts : vcat(ts, ltd.dataset[end - 1])
+    t = isempty(ltd.dataset) ? ts : vcat(ts, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
@@ -163,7 +163,7 @@ function getlogpdf(strategy::StochasticTraining, ltd::LogTargetDensity,
         f, autodiff::Bool, tspan, ode_params, θ)
     T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
     samples = (tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1]
-    t = ltd.dataset isa Vector{Nothing} ? samples : vcat(samples, ltd.dataset[end - 1])
+    t = isempty(ltd.dataset) ? samples : vcat(samples, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
@@ -192,7 +192,7 @@ function getlogpdf(strategy::WeightedIntervalTraining, ltd::LogTargetDensity, f,
         append!(ts, temp_data)
     end
 
-    t = ltd.dataset isa Vector{Nothing} ? ts : vcat(ts, ltd.dataset[end - 1])
+    t = isempty(ltd.dataset) ? ts : vcat(ts, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
@@ -267,7 +267,7 @@ function kernelchoice(Kernel, MCMCkwargs)
 end
 
 """
-    ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining, dataset = [nothing],
+    ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining, dataset = [],
                            init_params = nothing, draw_samples = 1000, physdt = 1 / 20.0f0,
                            l2std = [0.05], phystd = [0.05], phynewstd = (ode_params)->[0.05], priorsNNw = (0.0, 2.0),
                            param = [], nchains = 1, autodiff = false, Kernel = HMC,
@@ -299,7 +299,7 @@ time = sol.t[1:100]
 
 ### dataset and BPINN create
 x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
-dataset = [x̂, time]
+dataset = [x̂, time, 0.05 .* ones(length(time))]
 
 chain1 = Lux.Chain(Lux.Dense(1, 5, tanh), Lux.Dense(5, 5, tanh), Lux.Dense(5, 1)
 
@@ -335,6 +335,10 @@ Incase you are only solving the Equations for solution, do not provide dataset
 
 * `strategy`: The training strategy used to choose the points for the evaluations. By
   default GridTraining is used with given physdt discretization.
+* `dataset`: Is either an empty Vector or a nested Vector of the form `[x̂, t, W]` where `x̂` are dependant variable observations, `t` are time points and `W` are quadrature weights for domain.
+  The dataset is used to compute the L2 loss against the data and also for the new loss function.
+  For multiple dependant variables, there will be multiple vectors with the last two vectors in dataset still being for `t`, `W`.
+  Is empty by default assuming a forward problem is being solved.
 * `init_params`: initial parameter values for BPINN (ideally for multiple chains different
   initializations preferred)
 * `nchains`: number of chains you want to sample
@@ -342,7 +346,9 @@ Incase you are only solving the Equations for solution, do not provide dataset
   ~2/3 of draw samples)
 * `l2std`: standard deviation of BPINN prediction against L2 losses/Dataset
 * `phystd`: standard deviation of BPINN prediction against Chosen Underlying ODE System
-* `phynewstd`: Function in ode_params that gives the standard deviation of the new loss function terms.
+* `phynewstd`: A function that gives the standard deviation of the new loss function at each iteration. 
+   It takes the ODE parameters as input and returns a vector of standard deviations.
+   Is (ode_params) -> [0.05] by default.
 * `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of
   BPINN are Normal Distributions by default.
 * `param`: Vector of chosen ODE parameters Distributions in case of Inverse problems.
@@ -362,6 +368,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
     * `max_depth`: Maximum doubling tree depth (NUTS)
     * `Δ_max`: Maximum divergence during doubling tree (NUTS)
     Refer: https://turinglang.org/AdvancedHMC.jl/stable/
+* `estim_collocate`: A boolean value to indicate whether to use the new loss function or not. This is only relevant for ODE parameter estimation.
 * `progress`: controls whether to show the progress meter or not.
 * `verbose`: controls the verbosity. (Sample call args in AHMC)
 
@@ -371,7 +378,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
     releases.
 """
 function ahmc_bayesian_pinn_ode(
-        prob::SciMLBase.ODEProblem, chain; strategy = GridTraining, dataset = [nothing],
+        prob::SciMLBase.ODEProblem, chain; strategy = GridTraining, dataset = [],
         init_params = nothing, draw_samples = 1000, physdt = 1 / 20.0, l2std = [0.05],
         phystd = [0.05], phynewstd = (ode_params) -> [0.05],
         priorsNNw = (0.0, 2.0), param = [], nchains = 1,
@@ -386,14 +393,14 @@ function ahmc_bayesian_pinn_ode(
 
     strategy = strategy == GridTraining ? strategy(physdt) : strategy
 
-    if dataset != [nothing] &&
+    if !isempty(dataset) &&
        (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
-        error("Invalid dataset. dataset would be timeseries (x̂,t,W) where type: Vector{Vector{AbstractFloat}")
+        error("Invalid dataset. dataset would be timeseries (x̂,t,W) where type: Vector{Vector{AbstractFloat}}")
     end
 
-    if dataset != [nothing] && param == []
+    if !isempty(dataset) && isempty(param)
         println("Dataset is only needed for Parameter Estimation + Forward Problem, not in only Forward Problem case.")
-    elseif dataset == [nothing] && param != []
+    elseif isempty(dataset) && !isempty(param)
         error("Dataset Required for Parameter Estimation.")
     end
 

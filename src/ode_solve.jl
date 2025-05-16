@@ -1,8 +1,9 @@
 abstract type NeuralPDEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
 
 """
-    NNODE(chain, opt, init_params = nothing; autodiff = false, batch = 0,
-          additional_loss = nothing, kwargs...)
+    NNODE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
+        batch = true, param_estim = false, additional_loss = nothing,
+        dataset = [], estim_collocate = false, kwargs...)
 
 Algorithm for solving ordinary differential equations using a neural network. This is a
 specialization of the physics-informed neural network which is used as a solver for a
@@ -28,6 +29,10 @@ standard `ODEProblem`.
 
 * `additional_loss`: A function additional_loss(phi, θ) where phi are the neural network
                      trial solutions, θ are the weights of the neural network(s).
+* `dataset`: Is either an empty Vector or a nested Vector of the form `[x̂, t, W]` where `x̂` are dependant variable observations, `t` are time points and `W` are quadrature weights for domain.
+             The dataset is used to compute the L2 loss against the data and also for the new loss function.
+             For multiple dependant variables, there will be multiple vectors with the last two vectors in dataset still being for `t`, `W`.
+             Is empty by default assuming a forward problem is being solved.
 * `autodiff`: The switch between automatic and numerical differentiation for
               the PDE operators. The reverse mode of the loss function is always
               automatic differentiation (via Zygote), this is only for the derivative
@@ -44,6 +49,7 @@ standard `ODEProblem`.
 * `strategy`: The training strategy used to choose the points for the evaluations.
               Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
               `dt` is given, and `GridTraining` is used with `dt` if given.
+* `estim_collocate`: A boolean value to indicate whether to use the new loss function or not. This is only relevant for ODE parameter estimation.
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## Examples
@@ -91,14 +97,14 @@ Networks 9, no. 5 (1998): 987-1000.
     strategy <: Union{Nothing, AbstractTrainingStrategy}
     param_estim
     additional_loss <: Union{Nothing, Function}
-    dataset <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
+    dataset <: Union{Vector, Vector{<:Vector{<:AbstractFloat}}}
     estim_collocate::Bool
     kwargs
 end
 
 function NNODE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         batch = true, param_estim = false, additional_loss = nothing,
-        dataset = [nothing], estim_collocate = false, kwargs...)
+        dataset = [], estim_collocate = false, kwargs...)
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return NNODE(chain, opt, init_params, autodiff, batch,
         strategy, param_estim, additional_loss, dataset, estim_collocate, kwargs)
@@ -270,7 +276,7 @@ end
 L2 loss (needed for ODE parameter estimation).
 """
 function generate_L2lossData(dataset, phi, n_output)
-    dataset isa Vector{Nothing} && return 0
+    isempty(dataset) && return 0
     return (θ, _) -> sum(sum(abs2, phi(dataset[end - 1], θ)[i, :] .- dataset[i])
     for i in 1:n_output)
 end
@@ -279,7 +285,7 @@ end
 new loss
 """
 function generate_L2loss2(f, autodiff, dataset, phi, n_output)
-    dataset isa Vector{Nothing} && return 0
+    isempty(dataset) && return 0
     t = dataset[end - 1]
     û = dataset[1:(end - 2)]
     quadrature_weights = dataset[end]
@@ -349,7 +355,8 @@ function SciMLBase.__solve(
     (; u0, tspan, f, p) = prob
     t0 = tspan[1]
     # add estim_collocate, dataset (or nothing) in NNODE
-    (; param_estim, estim_collocate, dataset, chain, opt, autodiff, init_params, batch, additional_loss, estim_collocate) = alg
+    (; param_estim, estim_collocate, dataset, chain, opt, autodiff,
+    init_params, batch, additional_loss, estim_collocate) = alg
 
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
 
@@ -378,14 +385,14 @@ function SciMLBase.__solve(
 
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
 
-    if dataset != [nothing] &&
+    if !isempty(dataset) &&
        (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
         error("Invalid dataset. dataset would be timeseries (x̂,t,W) where type: Vector{Vector{AbstractFloat}")
     end
 
-    if dataset == [nothing] && param_estim
+    if isempty(dataset) && param_estim
         error("Dataset is Required for Parameter Estimation.")
-    elseif dataset == [nothing] && estim_collocate
+    elseif isempty(dataset) && estim_collocate
         error("Dataset Required for Parameter Estimation using new loss.")
     end
 
