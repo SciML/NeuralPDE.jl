@@ -3,12 +3,11 @@
 """
     BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 2000,
            priorsNNw = (0.0, 2.0), param = [nothing], l2std = [0.05],
-           phystd = [0.05], phynewstd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
+           phystd = [0.05], phynewstd = (ode_params)->[0.05], dataset = [], physdt = 1 / 20.0,
            MCMCargs = (; n_leapfrog=30), nchains = 1, init_params = nothing,
            Adaptorkwargs = (; Adaptor = StanHMCAdaptor, targetacceptancerate = 0.8,
                               Metric = DiagEuclideanMetric),
-           Integratorkwargs = (Integrator = Leapfrog,), autodiff = false,
-           progress = false, verbose = false)
+           Integratorkwargs = (Integrator = Leapfrog,), autodiff = false, estim_collocate = false, progress = false, verbose = false)
 
 Algorithm for solving ordinary differential equations using a Bayesian neural network. This
 is a specialization of the physics-informed neural network which is used as a solver for a
@@ -43,7 +42,7 @@ sol = solve(prob, Tsit5(); saveat = 0.05)
 u = sol.u[1:100]
 time = sol.t[1:100]
 x̂ = u .+ (u .* 0.2) .* randn(size(u))
-dataset = [x̂, time]
+dataset = [x̂, time, 0.05 .* ones(length(time))]
 
 chainlux = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
 
@@ -86,8 +85,8 @@ Kevin Linka, Amelie Schäfer, Xuhui Meng, Zongren Zou, George Em Karniadakis, El
     param <: Union{Nothing, Vector{<:Distribution}}
     l2std::Vector{Float64}
     phystd::Vector{Float64}
-    phynewstd::Vector{Float64}
-    dataset <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
+    phynewstd
+    dataset <: Union{Vector, Vector{<:Vector{<:AbstractFloat}}}
     physdt::Float64
     MCMCkwargs <: NamedTuple
     nchains::Int
@@ -103,7 +102,7 @@ end
 
 function BNNODE(chain, kernel = HMC; strategy = nothing, draw_samples = 1000,
         priorsNNw = (0.0, 2.0), param = nothing, l2std = [0.05], phystd = [0.05],
-        phynewstd = [0.05], dataset = [nothing], physdt = 1 / 20.0,
+        phynewstd = (ode_params) -> [0.05], dataset = [], physdt = 1 / 20.0,
         MCMCkwargs = (n_leapfrog = 30,), nchains = 1, init_params = nothing,
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),

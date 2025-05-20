@@ -1,8 +1,9 @@
 abstract type NeuralPDEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
 
 """
-    NNODE(chain, opt, init_params = nothing; autodiff = false, batch = 0,
-          additional_loss = nothing, kwargs...)
+    NNODE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
+        batch = true, param_estim = false, additional_loss = nothing,
+        dataset = [], estim_collocate = false, kwargs...)
 
 Algorithm for solving ordinary differential equations using a neural network. This is a
 specialization of the physics-informed neural network which is used as a solver for a
@@ -28,6 +29,10 @@ standard `ODEProblem`.
 
 * `additional_loss`: A function additional_loss(phi, θ) where phi are the neural network
                      trial solutions, θ are the weights of the neural network(s).
+* `dataset`: Is either an empty Vector or a nested Vector of the form `[x̂, t, W]` where `x̂` are dependant variable observations, `t` are time points and `W` are quadrature weights for domain.
+             The dataset is used to compute a L2 loss against the data and also for the new loss function.
+             For multiple dependant variables, there will be multiple vectors with the last two vectors in dataset still being for `t`, `W`.
+             Is empty by default assuming a forward problem is being solved.
 * `autodiff`: The switch between automatic and numerical differentiation for
               the PDE operators. The reverse mode of the loss function is always
               automatic differentiation (via Zygote), this is only for the derivative
@@ -44,6 +49,7 @@ standard `ODEProblem`.
 * `strategy`: The training strategy used to choose the points for the evaluations.
               Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
               `dt` is given, and `GridTraining` is used with `dt` if given.
+* `estim_collocate`: A boolean value to indicate whether to use the new loss function or not. This is only relevant for ODE parameter estimation.
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## Examples
@@ -91,14 +97,17 @@ Networks 9, no. 5 (1998): 987-1000.
     strategy <: Union{Nothing, AbstractTrainingStrategy}
     param_estim
     additional_loss <: Union{Nothing, Function}
+    dataset <: Union{Vector, Vector{<:Vector{<:AbstractFloat}}}
+    estim_collocate::Bool
     kwargs
 end
 
 function NNODE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-        batch = true, param_estim = false, additional_loss = nothing, kwargs...)
+        batch = true, param_estim = false, additional_loss = nothing,
+        dataset = [], estim_collocate = false, kwargs...)
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return NNODE(chain, opt, init_params, autodiff, batch,
-        strategy, param_estim, additional_loss, kwargs)
+        strategy, param_estim, additional_loss, dataset, estim_collocate, kwargs)
 end
 
 """
@@ -263,6 +272,44 @@ function generate_loss(::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
            spaces only. Use StochasticTraining instead.")
 end
 
+"""
+L2 loss (needed for ODE parameter estimation).
+"""
+function generate_L2lossData(dataset, phi, n_output)
+    isempty(dataset) && return 0
+    return (θ, _) -> sum(sum(abs2, phi(dataset[end - 1], θ)[i, :] .- dataset[i])
+    for i in 1:n_output)
+end
+
+"""
+new loss
+"""
+function generate_L2loss2(f, autodiff, dataset, phi, n_output)
+    isempty(dataset) && return 0
+    t = dataset[end - 1]
+    û = dataset[1:(end - 2)]
+    quadrature_weights = dataset[end]
+
+    function L2loss2(θ, _)
+        nnsol = ode_dfdx(phi, t, θ, autodiff)
+        ode_params = θ.p
+
+        physsol = if n_output == 1
+            [f(û[1][i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
+        else
+            [f([û[j][i] for j in 1:(length(dataset) - 2)], ode_params, tᵢ)
+             for (i, tᵢ) in enumerate(t)]
+        end
+        # form of NN output matrix output dim x n
+        deri_physsol = reduce(hcat, physsol)
+
+        # Quadrature is applied on timewise losses
+        # Gridtraining/trapezoidal rule quadrature_weights is dt.*ones(T, length(t))
+        return sum(sum(abs2.(nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights)
+        for i in 1:n_output)
+    end
+end
+
 @concrete struct NNODEInterpolation
     phi <: ODEPhi
     θ
@@ -307,7 +354,9 @@ function SciMLBase.__solve(
 )
     (; u0, tspan, f, p) = prob
     t0 = tspan[1]
-    (; param_estim, chain, opt, autodiff, init_params, batch, additional_loss) = alg
+    # add estim_collocate, dataset (or nothing) in NNODE
+    (; param_estim, estim_collocate, dataset, chain, opt, autodiff,
+    init_params, batch, additional_loss, estim_collocate) = alg
 
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
 
@@ -336,12 +385,30 @@ function SciMLBase.__solve(
 
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
 
-    (param_estim && additional_loss === nothing) &&
-        throw(ArgumentError("Please provide `additional_loss` in `NNODE` for parameter estimation (`param_estim` is true)."))
+    if !isempty(dataset) &&
+       (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
+        error("Invalid dataset. The dataset would be a timeseries (x̂,t,W) with type: Vector{Vector{AbstractFloat}")
+    end
+
+    if isempty(dataset) && param_estim && isnothing(additional_loss)
+        error("Dataset or an additional loss is required for Inverse problems performing Parameter Estimation.")
+    elseif isempty(dataset) && estim_collocate
+        error("Dataset is required for Inverse problems performing Parameter Estimation using the new loss.")
+    end
+
+    n_output = length(u0)
+    L2lossData = generate_L2lossData(dataset, phi, n_output)
+    L2loss2 = generate_L2loss2(f, autodiff, dataset, phi, n_output)
 
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
         L2_loss = inner_f(θ, phi)
+
+        if param_estim && estim_collocate
+            L2_loss = L2_loss + L2lossData(θ, phi) + L2loss2(θ, phi)
+        elseif param_estim
+            L2_loss = L2_loss + L2lossData(θ, phi)
+        end
         if additional_loss !== nothing
             L2_loss = L2_loss + additional_loss(phi, θ)
         end

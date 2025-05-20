@@ -3,10 +3,10 @@
     prob <: SciMLBase.ODEProblem
     smodel <: StatefulLuxLayer
     strategy <: AbstractTrainingStrategy
-    dataset <: Union{Vector{Nothing}, Vector{<:Vector{<:AbstractFloat}}}
+    dataset <: Union{Vector, Vector{<:Vector{<:AbstractFloat}}}
     priors <: Vector{<:Distribution}
     phystd::Vector{Float64}
-    phynewstd::Vector{Float64}
+    phynewstd::Function
     l2std::Vector{Float64}
     autodiff::Bool
     physdt::Float64
@@ -74,32 +74,37 @@ suggested extra loss function for ODE solver case
 """
 @views function L2loss2(ltd::LogTargetDensity, θ)
     ltd.extraparams ≤ 0 && return false  # XXX: type-stability?
-
+    u0 = ltd.prob.u0
     f = ltd.prob.f
-    t = ltd.dataset[end]
-    u1 = ltd.dataset[2]
-    û = ltd.dataset[1]
+    t = ltd.dataset[end - 1]
+    û = ltd.dataset[1:(end - 2)]
+    quadrature_weights = ltd.dataset[end]
 
     nnsol = ode_dfdx(ltd, t, θ[1:(length(θ) - ltd.extraparams)], ltd.autodiff)
 
     ode_params = ltd.extraparams == 1 ? θ[((length(θ) - ltd.extraparams) + 1)] :
                  θ[((length(θ) - ltd.extraparams) + 1):length(θ)]
+    phynewstd = ltd.phynewstd(ode_params)
 
-    physsol = if length(ltd.prob.u0) == 1
-        [f(û[i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
+    physsol = if length(u0) == 1
+        [f(û[1][i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
     else
-        [f([û[i], u1[i]], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
+        [f([û[j][i] for j in eachindex(u0)], ode_params, tᵢ)
+         for (i, tᵢ) in enumerate(t)]
     end
     # form of NN output matrix output dim x n
     deri_physsol = reduce(hcat, physsol)
     T = promote_type(eltype(deri_physsol), eltype(nnsol))
 
     physlogprob = T(0)
-    for i in 1:length(ltd.prob.u0)
+    # for BPINNS Quadrature is NOT applied on timewise logpdfs, it isnt being driven to zero.
+    # Gridtraining/trapezoidal rule quadrature_weights is dt.*ones(T, length(t))
+    # dims of phynewstd is same as u0 due to BNNODE being an out-of-place ODE solver.
+    for i in eachindex(u0)
         physlogprob += logpdf(
-            MvNormal(deri_physsol[i, :],
-                Diagonal(abs2.(T(ltd.phynewstd[i]) .* ones(T, length(nnsol[i, :]))))),
-            nnsol[i, :]
+            MvNormal((nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights,
+                Diagonal(abs2.(T(phynewstd[i]) .* ones(T, length(t))))),
+            zeros(length(t))
         )
     end
     return physlogprob
@@ -109,10 +114,10 @@ end
 L2 loss loglikelihood(needed for ODE parameter estimation).
 """
 @views function L2LossData(ltd::LogTargetDensity, θ)
-    (ltd.dataset isa Vector{Nothing} || ltd.extraparams == 0) && return 0
+    (isempty(ltd.dataset) || ltd.extraparams == 0) && return 0
 
     # matrix(each row corresponds to vector u's rows)
-    nn = ltd(ltd.dataset[end], θ[1:(length(θ) - ltd.extraparams)])
+    nn = ltd(ltd.dataset[end - 1], θ[1:(length(θ) - ltd.extraparams)])
     T = eltype(nn)
 
     L2logprob = zero(T)
@@ -150,7 +155,7 @@ end
 function getlogpdf(strategy::GridTraining, ltd::LogTargetDensity, f, autodiff::Bool,
         tspan, ode_params, θ)
     ts = collect(eltype(strategy.dx), tspan[1]:(strategy.dx):tspan[2])
-    t = ltd.dataset isa Vector{Nothing} ? ts : vcat(ts, ltd.dataset[end])
+    t = isempty(ltd.dataset) ? ts : vcat(ts, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
@@ -158,16 +163,18 @@ function getlogpdf(strategy::StochasticTraining, ltd::LogTargetDensity,
         f, autodiff::Bool, tspan, ode_params, θ)
     T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
     samples = (tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1]
-    t = ltd.dataset isa Vector{Nothing} ? samples : vcat(samples, ltd.dataset[end])
+    t = isempty(ltd.dataset) ? samples : vcat(samples, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
 function getlogpdf(strategy::QuadratureTraining, ltd::LogTargetDensity, f, autodiff::Bool,
         tspan, ode_params, θ)
+    # integrand is shape of NN output
     integrand(t::Number, θ) = innerdiff(ltd, f, autodiff, [t], θ, ode_params)
     intprob = IntegralProblem(
         integrand, (tspan[1], tspan[2]), θ; nout = length(ltd.prob.u0))
     sol = solve(intprob, QuadGKJL(); strategy.abstol, strategy.reltol)
+    # sum over losses for all NN outputs
     return sum(sol.u)
 end
 
@@ -185,7 +192,7 @@ function getlogpdf(strategy::WeightedIntervalTraining, ltd::LogTargetDensity, f,
         append!(ts, temp_data)
     end
 
-    t = ltd.dataset isa Vector{Nothing} ? ts : vcat(ts, ltd.dataset[end])
+    t = isempty(ltd.dataset) ? ts : vcat(ts, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
@@ -202,23 +209,21 @@ MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN
 
     # this is a vector{vector{dx,dy}}(handle case single u(float passed))
     if length(out[:, 1]) == 1
-        physsol = [f(out[:, i][1], ode_params, t[i]) for i in 1:length(out[1, :])]
+        physsol = [f(out[:, i][1], ode_params, t[i]) for i in eachindex(t)]
     else
-        physsol = [f(out[:, i], ode_params, t[i]) for i in 1:length(out[1, :])]
+        physsol = [f(out[:, i], ode_params, t[i]) for i in eachindex(t)]
     end
     physsol = reduce(hcat, physsol)
 
     nnsol = ode_dfdx(ltd, t, θ[1:(length(θ) - ltd.extraparams)], autodiff)
-
-    vals = nnsol .- physsol
-    T = eltype(vals)
+    T = eltype(nnsol)
 
     # N dimensional vector if N outputs for NN(each row has logpdf of u[i] where u is vector
     # of dependant variables)
     return [logpdf(
-                MvNormal(vals[i, :],
-                    Diagonal(abs2.(T(ltd.phystd[i]) .* ones(T, length(vals[i, :]))))),
-                zeros(T, length(vals[i, :]))
+                MvNormal((nnsol[i, :] .- physsol[i, :]),
+                    Diagonal(abs2.(T(ltd.phystd[i]) .* ones(T, length(t))))),
+                zeros(T, length(t))
             ) for i in 1:length(ltd.prob.u0)]
 end
 
@@ -262,9 +267,9 @@ function kernelchoice(Kernel, MCMCkwargs)
 end
 
 """
-    ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining, dataset = [nothing],
+    ahmc_bayesian_pinn_ode(prob, chain; strategy = GridTraining, dataset = [],
                            init_params = nothing, draw_samples = 1000, physdt = 1 / 20.0f0,
-                           l2std = [0.05], phystd = [0.05], phynewstd = [0.05], priorsNNw = (0.0, 2.0),
+                           l2std = [0.05], phystd = [0.05], phynewstd = (ode_params)->[0.05], priorsNNw = (0.0, 2.0),
                            param = [], nchains = 1, autodiff = false, Kernel = HMC,
                            Adaptorkwargs = (Adaptor = StanHMCAdaptor,
                                Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
@@ -294,7 +299,7 @@ time = sol.t[1:100]
 
 ### dataset and BPINN create
 x̂ = collect(Float64, Array(u) + 0.05 * randn(size(u)))
-dataset = [x̂, time]
+dataset = [x̂, time, 0.05 .* ones(length(time))]
 
 chain1 = Lux.Chain(Lux.Dense(1, 5, tanh), Lux.Dense(5, 5, tanh), Lux.Dense(5, 1)
 
@@ -318,18 +323,22 @@ fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chain1,
 
 ## NOTES
 
-Dataset is required for accurate Parameter estimation + solving equations
-Incase you are only solving the Equations for solution, do not provide dataset
+Dataset is required for accurate Parameter estimation in Inverse Problems.
+Incase you are only solving Non parametric ODE Equations for a solution, do not provide a dataset.
 
 ## Positional Arguments
 
-* `prob`: DEProblem(out of place and the function signature should be f(u,p,t).
+* `prob`: ODEProblem(out of place and the function signature should be f(u,p,t).
 * `chain`: Lux Neural Netork which would be made the Bayesian PINN.
 
 ## Keyword Arguments
 
 * `strategy`: The training strategy used to choose the points for the evaluations. By
   default GridTraining is used with given physdt discretization.
+* `dataset`: Is either an empty Vector or a nested Vector of the form `[x̂, t, W]` where `x̂` are dependant variable observations, `t` are time points and `W` are quadrature weights for domain.
+  The dataset is used to compute the L2 loss against the data and also for the new loss function.
+  For multiple dependant variables, there will be multiple vectors with the last two vectors in dataset still being for `t`, `W`.
+  Is empty by default assuming a forward problem is being solved.
 * `init_params`: initial parameter values for BPINN (ideally for multiple chains different
   initializations preferred)
 * `nchains`: number of chains you want to sample
@@ -337,7 +346,9 @@ Incase you are only solving the Equations for solution, do not provide dataset
   ~2/3 of draw samples)
 * `l2std`: standard deviation of BPINN prediction against L2 losses/Dataset
 * `phystd`: standard deviation of BPINN prediction against Chosen Underlying ODE System
-* `phynewstd`: standard deviation of new loss func term
+* `phynewstd`: A function that gives the standard deviation of the new loss function at each iteration. 
+   It takes the ODE parameters as input and returns a vector of standard deviations.
+   Is (ode_params) -> [0.05] by default.
 * `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of
   BPINN are Normal Distributions by default.
 * `param`: Vector of chosen ODE parameters Distributions in case of Inverse problems.
@@ -357,6 +368,7 @@ Incase you are only solving the Equations for solution, do not provide dataset
     * `max_depth`: Maximum doubling tree depth (NUTS)
     * `Δ_max`: Maximum divergence during doubling tree (NUTS)
     Refer: https://turinglang.org/AdvancedHMC.jl/stable/
+* `estim_collocate`: A boolean value to indicate whether to use the new loss function or not. This is only relevant for ODE parameter estimation.
 * `progress`: controls whether to show the progress meter or not.
 * `verbose`: controls the verbosity. (Sample call args in AHMC)
 
@@ -366,9 +378,10 @@ Incase you are only solving the Equations for solution, do not provide dataset
     releases.
 """
 function ahmc_bayesian_pinn_ode(
-        prob::SciMLBase.ODEProblem, chain; strategy = GridTraining, dataset = [nothing],
+        prob::SciMLBase.ODEProblem, chain; strategy = GridTraining, dataset = [],
         init_params = nothing, draw_samples = 1000, physdt = 1 / 20.0, l2std = [0.05],
-        phystd = [0.05], phynewstd = [0.05], priorsNNw = (0.0, 2.0), param = [], nchains = 1,
+        phystd = [0.05], phynewstd = (ode_params) -> [0.05],
+        priorsNNw = (0.0, 2.0), param = [], nchains = 1,
         autodiff = false, Kernel = HMC,
         Adaptorkwargs = (Adaptor = StanHMCAdaptor,
             Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
@@ -380,15 +393,15 @@ function ahmc_bayesian_pinn_ode(
 
     strategy = strategy == GridTraining ? strategy(physdt) : strategy
 
-    if dataset != [nothing] &&
-       (length(dataset) < 2 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
-        error("Invalid dataset. dataset would be timeseries (x̂,t) where type: Vector{Vector{AbstractFloat}")
+    if !isempty(dataset) &&
+       (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
+        error("Invalid dataset. The dataset would be a timeseries (x̂,t,W) with type: Vector{Vector{AbstractFloat}}")
     end
 
-    if dataset != [nothing] && param == []
-        println("Dataset is only needed for Parameter Estimation + Forward Problem, not in only Forward Problem case.")
-    elseif dataset == [nothing] && param != []
-        error("Dataset Required for Parameter Estimation.")
+    if !isempty(dataset) && isempty(param)
+        println("Dataset is only needed for Inverse problems performing Parameter Estimation, not in only Forward Problem case.")
+    elseif isempty(dataset) && !isempty(param)
+        error("Dataset Required for Inverse problems performing Parameter Estimation.")
     end
 
     initial_nnθ, chain, st = generate_ltd(chain, init_params)
@@ -461,7 +474,8 @@ function ahmc_bayesian_pinn_ode(
 
             MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
             Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
-            samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
+            samples,
+            stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
                 progress = progress, verbose = verbose)
 
             samplesc[i] = samples
@@ -479,7 +493,8 @@ function ahmc_bayesian_pinn_ode(
 
         MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
         Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
-        samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
+        samples,
+        stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
 
         if verbose
