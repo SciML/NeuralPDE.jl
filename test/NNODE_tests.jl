@@ -219,7 +219,7 @@ end
     n = 8
     luxchain = Chain(Dense(1, n, σ), Dense(n, n, σ), Dense(n, 3))
 
-    # this example is especially easy for new loss.
+    # this example is especially easy for the Data Quadrature loss.
     # even with ~2 observed data points, we can exactly calculate the physics parameters (even before solve call).
     N = 7
     # x, w = gausslegendre(N) # does not include endpoints

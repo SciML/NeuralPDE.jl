@@ -284,7 +284,7 @@ end
   each dependant variable of interest.
 * `phystd`: Vector of standard deviations of BPINN prediction against Chosen Underlying PDE
   equations.
-* `phynewstd`: Vector of standard deviations of new loss term.
+* `phynewstd`: Vector of standard deviations of the Data Quadrature loss term.
 * `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of
   BPINN are Normal Distributions by default.
 * `param`: Vector of chosen PDE's parameter's Distributions in case of Inverse problems.
@@ -437,7 +437,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         @printf("Current SSE against dataset Log-likelihood : %g\n",
             L2LossData(ℓπ, initial_θ))
         if !(newloss isa Nothing)
-            @printf("Current new loss : %g\n",
+            @printf("Current Data Quadrature loss : %g\n",
                 ℓπ.L2_loss2(setparameters(ℓπ, initial_θ),
                     ℓπ.phynewstd))
         end
@@ -495,7 +495,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             @printf("Final SSE against dataset Log-likelihood : %g\n",
                 L2LossData(ℓπ, samples[end]))
             if !(newloss isa Nothing)
-                @printf("Final new loss : %g\n",
+                @printf("Final Data Quadrature loss : %g\n",
                     ℓπ.L2_loss2(setparameters(ℓπ, samples[end]),
                         ℓπ.phynewstd))
             end

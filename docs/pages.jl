@@ -3,6 +3,7 @@ pages = ["index.md",
         "Bayesian PINNs for Coupled ODEs" => "tutorials/Lotka_Volterra_BPINNs.md",
         "PINNs DAEs" => "tutorials/dae.md",
         "Parameter Estimation with PINNs for ODEs" => "tutorials/ode_parameter_estimation.md",
+        "Improved PINNs for Inverse problems in ODEs" => "tutorials/data_collocation_Inverse.md",
         "Physics informed Neural Operator ODEs" => "tutorials/pino_ode.md",
         "Deep Galerkin Method" => "tutorials/dgm.md"        #"examples/nnrode_example.md", # currently incorrect
     ],

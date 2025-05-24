@@ -30,7 +30,7 @@ standard `ODEProblem`.
 * `additional_loss`: A function additional_loss(phi, θ) where phi are the neural network
                      trial solutions, θ are the weights of the neural network(s).
 * `dataset`: Is either an empty Vector or a nested Vector of the form `[x̂, t, W]` where `x̂` are dependant variable observations, `t` are time points and `W` are quadrature weights for domain.
-             The dataset is used to compute a L2 loss against the data and also for the new loss function.
+             The dataset is used to compute a L2 loss against the data and also for the Data Quadrature loss function.
              For multiple dependant variables, there will be multiple vectors with the last two vectors in dataset still being for `t`, `W`.
              Is empty by default assuming a forward problem is being solved.
 * `autodiff`: The switch between automatic and numerical differentiation for
@@ -49,7 +49,7 @@ standard `ODEProblem`.
 * `strategy`: The training strategy used to choose the points for the evaluations.
               Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
               `dt` is given, and `GridTraining` is used with `dt` if given.
-* `estim_collocate`: A boolean value to indicate whether to use the new loss function or not. This is only relevant for ODE parameter estimation.
+* `estim_collocate`: A boolean value to indicate whether to use the Data Quadrature loss function or not. This is only relevant for ODE parameter estimation.
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## Examples
@@ -282,7 +282,7 @@ function generate_L2lossData(dataset, phi, n_output)
 end
 
 """
-new loss
+Data Quadrature loss function (provides very accurate solution, parameter estimates and a method for algorithmic sampling of a minimal set of data points for Inverse problems).
 """
 function generate_L2loss2(f, autodiff, dataset, phi, n_output)
     isempty(dataset) && return 0
@@ -393,7 +393,7 @@ function SciMLBase.__solve(
     if isempty(dataset) && param_estim && isnothing(additional_loss)
         error("Dataset or an additional loss is required for Inverse problems performing Parameter Estimation.")
     elseif isempty(dataset) && estim_collocate
-        error("Dataset is required for Inverse problems performing Parameter Estimation using the new loss.")
+        error("Dataset is required for Inverse problems performing Parameter Estimation using the Data Quadrature loss function.")
     end
 
     n_output = length(u0)
