@@ -3,7 +3,7 @@
 Consider an Inverse problem setting for the  [lotka volterra system](https://en.wikipedia.org/wiki/Lotka%E2%80%93Volterra_equations). Here we want to optimize parameters $\alpha$, $\beta$, $\gamma$ and $\delta$ and also solve a parametric Lotka Volterra system.
 PINNs are especially useful in these types of problems and are preferred over conventional solvers, due to their ability to learn from observations - the underlying physics governing the distribution of observations.
 
-We start by defining the problem, with a random initialization for parameters:
+We start by defining the problem, with a random and non informative initialization for parameters:
 
 ```@example improv_param_estim
 using NeuralPDE, OrdinaryDiffEq, Lux, Random, OptimizationOptimJL, LineSearches,
@@ -21,7 +21,8 @@ end
 
 tspan = (0.0, 5.0)
 u0 = [5.0, 5.0]
-prob = ODEProblem(lv, u0, tspan, rand(-20.0:20.0, 4))
+initialization = rand(-20.0:20.0, 4)
+prob = ODEProblem(lv, u0, tspan, initialization)
 ```
 
 We require a set of observations before we train the PINN.
@@ -90,10 +91,10 @@ Now we have all the pieces to solve the optimization problem.
 
 ```@example improv_param_estim
 sol_old = solve(
-    prob, alg_old; verbose = true, abstol = 1e-12, maxiters = 3000, saveat = 0.01)
+    prob, alg_old; verbose = true, abstol = 1e-12, maxiters = 5000, saveat = 0.01)
 
 sol_new = solve(
-    prob, alg_new; verbose = true, abstol = 1e-12, maxiters = 3000, saveat = 0.01)
+    prob, alg_new; verbose = true, abstol = 1e-12, maxiters = 5000, saveat = 0.01)
 
 sol = solve(prob_data, Tsit5(); saveat = 0.01)
 sol_points = hcat(sol.u...)
@@ -124,7 +125,7 @@ We can see that it is a good fit! Now let's see what the estimated parameters of
 
 ```@example improv_param_estim
 sol_old.k.u.p
-@test sol_old.k.u.p≈true_p rtol=1e-2 norm=Base.Fix1(maximum, abs) # hide
+@test any(true_p .- sol_old.k.u.p .> 0.5 .* true_p) # hide
 ```
 
 Nowhere near the true [1.5, 1.0, 3.0, 1.0]. But the new model gives :
