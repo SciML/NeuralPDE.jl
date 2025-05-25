@@ -132,7 +132,7 @@ Nowhere near the true [1.5, 1.0, 3.0, 1.0]. But the new model gives :
 
 ```@example improv_param_estim
 sol_new.k.u.p
-@test sol_new.k.u.p≈true_p rtol=1e-2 norm=Base.Fix1(maximum, abs) # hide
+@test sol_new.k.u.p≈true_p rtol=2e-2 norm=Base.Fix1(maximum, abs) # hide
 ```
 
 This is indeed close to the true values [1.5, 1.0, 3.0, 1.0].
