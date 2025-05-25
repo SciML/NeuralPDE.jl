@@ -1,12 +1,13 @@
 # Model Improvement in Physics-Informed Neural Networks for solving Inverse problems in ODEs.
 
-Consider an Inverse problem setting for the  [lotka volterra system](https://en.wikipedia.org/wiki/Lotka%E2%80%93Volterra_equations). Here we want to optimize parameters $\alpha$, $\beta$, $\gamma$ and $\delta$ and also solve a parametric Lotka Volterra system. 
+Consider an Inverse problem setting for the  [lotka volterra system](https://en.wikipedia.org/wiki/Lotka%E2%80%93Volterra_equations). Here we want to optimize parameters $\alpha$, $\beta$, $\gamma$ and $\delta$ and also solve a parametric Lotka Volterra system.
 PINNs are especially useful in these types of problems and are preferred over conventional solvers, due to their ability to learn from observations - the underlying physics governing the distribution of observations.
 
 We start by defining the problem, with a random initialization for parameters:
 
 ```@example param_estim_lv
-using NeuralPDE, OrdinaryDiffEq, Lux, Random, OptimizationOptimJL, LineSearches, Distributions, Plots
+using NeuralPDE, OrdinaryDiffEq, Lux, Random, OptimizationOptimJL, LineSearches,
+      Distributions, Plots
 using FastGaussQuadrature
 using Test # hide
 
@@ -20,7 +21,7 @@ end
 
 tspan = (0.0, 5.0)
 u0 = [5.0, 5.0]
-prob = ODEProblem(lv, u0, tspan, rand(-10.0:10.0, 4))
+prob = ODEProblem(lv, u0, tspan, rand(-20.0:20.0, 4))
 ```
 
 We require a set of observations before we train the PINN.
@@ -34,7 +35,7 @@ true_p = [1.5, 1.0, 3.0, 1.0]
 prob_data = remake(prob, p = true_p)
 
 N = 20
-x, w = gausslobatto(N) 
+x, w = gausslobatto(N)
 a = tspan[1]
 b = tspan[2]
 ```
@@ -118,6 +119,7 @@ plot(sol, labels = ["u1" "u2"])
 plot!(sol_new, labels = ["u1_pinn_new" "u2_pinn_new"])
 scatter!(sol_data, labels = ["u1_data" "u2_data"])
 ```
+
 We can see that it is a good fit! Now let's see what the estimated parameters of the equation tell us in both cases.
 
 ```@example param_estim_lv
