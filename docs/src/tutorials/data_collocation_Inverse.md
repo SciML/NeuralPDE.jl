@@ -5,7 +5,7 @@ PINNs are especially useful in these types of problems and are preferred over co
 
 We start by defining the problem, with a random initialization for parameters:
 
-```@example param_estim_lv
+```@example improv_param_estim
 using NeuralPDE, OrdinaryDiffEq, Lux, Random, OptimizationOptimJL, LineSearches,
       Distributions, Plots
 using FastGaussQuadrature
@@ -30,7 +30,7 @@ We simulate a system that uses the true parameter `true_p` values and record phe
 
 The value for `N` can be incremented based on the non linearity (~ `N` degree polynomial) in the measured phenomenon, this tutorial's setting shows that even with minimal but systematically chosen data-points we can extract excellent results.
 
-```@example param_estim_lv
+```@example improv_param_estim
 true_p = [1.5, 1.0, 3.0, 1.0]
 prob_data = remake(prob, p = true_p)
 
@@ -42,14 +42,14 @@ b = tspan[2]
 
 Now scale the weights and the gauss-lobatto/clenshaw-curtis/gauss-legendre quadrature points to fit in `tspan`.
 
-```@example param_estim_lv
+```@example improv_param_estim
 t = map((x) -> (x * (b - a) + (b + a)) / 2, x)
 W = map((x) -> x * (b - a) / 2, w)
 ```
 
 We now have our dataset of `20` measurements in our `tspan` and corresponding weights. Using this we can now use the Data Quadrature loss function by passing `estim_collocate` = `true` in [`NNODE`](@ref).
 
-```
+```@example improv_param_estim
 sol_data = solve(prob_data, Tsit5(); saveat = t)
 t_ = sol_data.t
 u_ = sol_data.u
@@ -60,7 +60,7 @@ dataset = [u1_, u2_, t_, W]
 
 Now, let's define a neural network for the PINN using [Lux.jl](https://lux.csail.mit.edu/).
 
-```@example param_estim_lv
+```@example improv_param_estim
 rng = Random.default_rng()
 Random.seed!(rng, 0)
 n = 7
@@ -76,7 +76,7 @@ ps, st = Lux.setup(rng, chain) |> f64
 We now define the optimizer and [`NNODE`](@ref) - the ODE solving PINN algorithm, for the old PINN model and the proposed new PINN formulation which uses a Data Quadrature loss.
 This optimizer and respective algorithms are plugged into the `solve` calls for comparing results between the new and old PINN models.
 
-```@example param_estim_lv
+```@example improv_param_estim
 opt = LBFGS(linesearch = BackTracking())
 
 alg_old = NNODE(
@@ -88,7 +88,7 @@ alg_new = NNODE(chain, opt; strategy = GridTraining(0.01), param_estim = true,
 
 Now we have all the pieces to solve the optimization problem.
 
-```@example param_estim_lv
+```@example improv_param_estim
 sol_old = solve(
     prob, alg_old; verbose = true, abstol = 1e-12, maxiters = 3000, saveat = 0.01)
 
@@ -104,7 +104,7 @@ sol_new_points = hcat(sol_new.u...)
 Let's plot the predictions from the PINN models, data used and compare it to the ideal system solution.
 First the old model.
 
-```@example param_estim_lv
+```@example improv_param_estim
 plot(sol, labels = ["u1" "u2"])
 plot!(sol_old, labels = ["u1_pinn_old" "u2_pinn_old"])
 scatter!(sol_data, labels = ["u1_data" "u2_data"])
@@ -114,7 +114,7 @@ Clearly the old model cannot optimize given a realistic, tougher initialization 
 
 Lets move on to the proposed new model...
 
-```@example param_estim_lv
+```@example improv_param_estim
 plot(sol, labels = ["u1" "u2"])
 plot!(sol_new, labels = ["u1_pinn_new" "u2_pinn_new"])
 scatter!(sol_data, labels = ["u1_data" "u2_data"])
@@ -122,14 +122,14 @@ scatter!(sol_data, labels = ["u1_data" "u2_data"])
 
 We can see that it is a good fit! Now let's see what the estimated parameters of the equation tell us in both cases.
 
-```@example param_estim_lv
+```@example improv_param_estim
 sol_old.k.u.p
 @test sol_old.k.u.p≈true_p rtol=1e-2 norm=Base.Fix1(maximum, abs) # hide
 ```
 
 Nowhere near the true [1.5, 1.0, 3.0, 1.0]. But the new model gives :
 
-```@example param_estim_lv
+```@example improv_param_estim
 sol_new.k.u.p
 @test sol_new.k.u.p≈true_p rtol=1e-2 norm=Base.Fix1(maximum, abs) # hide
 ```
