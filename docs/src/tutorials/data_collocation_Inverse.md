@@ -21,7 +21,7 @@ end
 
 tspan = (0.0, 5.0)
 u0 = [5.0, 5.0]
-initialization = rand(-20.0:20.0, 4)
+initialization = [-5.0, 8.0, 5.0, -7.0]
 prob = ODEProblem(lv, u0, tspan, initialization)
 ```
 
