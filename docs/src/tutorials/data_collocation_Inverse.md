@@ -139,4 +139,4 @@ This is indeed close to the true values [1.5, 1.0, 3.0, 1.0].
 
 !!! note
     
-    This feature for using a Data collocation loss is also available for BPINNs solving Inverse problems in ODEs. Use a `dataset` of form as described in this tutorial and set `estim_collocate`=`true` and you are good to go.
+    This feature for using a Data collocation loss is also available for BPINNs solving Inverse problems in ODEs. Use a `dataset` of the form as described in this tutorial and set `estim_collocate`=`true` and you are good to go.
