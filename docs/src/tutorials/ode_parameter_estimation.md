@@ -54,7 +54,7 @@ Next we define the optimizer and [`NNODE`](@ref) which is then plugged into the 
 ```@example param_estim_lv
 opt = LBFGS(linesearch = BackTracking())
 alg = NNODE(chain, opt, ps; strategy = WeightedIntervalTraining([0.7, 0.2, 0.1], 500),
-    param_estim = true, additional_loss)
+    param_estim = true, additional_loss = additional_loss)
 ```
 
 Now we have all the pieces to solve the optimization problem.
