@@ -406,7 +406,7 @@ function SciMLBase.__solve(
 
         if param_estim && estim_collocate
             L2_loss = L2_loss + L2lossData(θ, phi) + L2loss2(θ, phi)
-        elseif param_estim
+        elseif param_estim && !isempty(dataset)
             L2_loss = L2_loss + L2lossData(θ, phi)
         end
         if additional_loss !== nothing
