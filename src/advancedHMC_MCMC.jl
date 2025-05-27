@@ -336,7 +336,7 @@ Incase you are only solving Non parametric ODE Equations for a solution, do not 
 * `strategy`: The training strategy used to choose the points for the evaluations. By
   default GridTraining is used with given physdt discretization.
 * `dataset`: Is either an empty Vector or a nested Vector of the form `[x̂, t, W]` where `x̂` are dependant variable observations, `t` are time points and `W` are quadrature weights for domain.
-  The dataset is used to compute the L2 loss against the data and also for the new loss function.
+  The dataset is used to compute the L2 loss against the data and also for the Data Duadrature loss function.
   For multiple dependant variables, there will be multiple vectors with the last two vectors in dataset still being for `t`, `W`.
   Is empty by default assuming a forward problem is being solved.
 * `init_params`: initial parameter values for BPINN (ideally for multiple chains different
@@ -346,7 +346,7 @@ Incase you are only solving Non parametric ODE Equations for a solution, do not 
   ~2/3 of draw samples)
 * `l2std`: standard deviation of BPINN prediction against L2 losses/Dataset
 * `phystd`: standard deviation of BPINN prediction against Chosen Underlying ODE System
-* `phynewstd`: A function that gives the standard deviation of the new loss function at each iteration. 
+* `phynewstd`: A function that gives the standard deviation of the Data Quadrature loss function at each iteration. 
    It takes the ODE parameters as input and returns a vector of standard deviations.
    Is (ode_params) -> [0.05] by default.
 * `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of
@@ -368,7 +368,7 @@ Incase you are only solving Non parametric ODE Equations for a solution, do not 
     * `max_depth`: Maximum doubling tree depth (NUTS)
     * `Δ_max`: Maximum divergence during doubling tree (NUTS)
     Refer: https://turinglang.org/AdvancedHMC.jl/stable/
-* `estim_collocate`: A boolean value to indicate whether to use the new loss function or not. This is only relevant for ODE parameter estimation.
+* `estim_collocate`: A boolean value to indicate whether to use the Data Quadrature loss function or not. This is only relevant for ODE parameter estimation.
 * `progress`: controls whether to show the progress meter or not.
 * `verbose`: controls the verbosity. (Sample call args in AHMC)
 
