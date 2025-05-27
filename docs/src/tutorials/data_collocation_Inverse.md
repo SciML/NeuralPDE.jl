@@ -121,21 +121,21 @@ plot!(sol_new, labels = ["u1_pinn_new" "u2_pinn_new"])
 scatter!(sol_data, labels = ["u1_data" "u2_data"])
 ```
 
-We can see that it is a good fit! Now let's see what the estimated parameters of the equation tell us in both cases.
+We can see that it is a good fit! Now let's examine what the estimated parameters of the equation tell us in both cases. We also test for the following: the old model's estimates have at least one parameter value deviating from it's true value by more than `50%` while all the new model's estimates must be within `2%` of the `true_p` values.
 
 ```@example improv_param_estim
-sol_old.k.u.p
 @test any(true_p .- sol_old.k.u.p .> 0.5 .* true_p) # hide
+sol_old.k.u.p
 ```
 
 Nowhere near the true [1.5, 1.0, 3.0, 1.0]. But the new model gives :
 
 ```@example improv_param_estim
-sol_new.k.u.p
 @test sol_new.k.u.p≈true_p rtol=2e-2 norm=Base.Fix1(maximum, abs) # hide
+sol_new.k.u.p
 ```
 
-This is indeed close to the true values [1.5, 1.0, 3.0, 1.0].
+This is indeed very close to the true ODE parameter values [1.5, 1.0, 3.0, 1.0].
 
 !!! note
     
