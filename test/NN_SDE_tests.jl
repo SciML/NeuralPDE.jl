@@ -355,7 +355,7 @@ end
         end
     end
     mean_analytic_solution = mean(analytic_solution_samples, dims = 2)
-    plot(mean_analytic_solution)
+    # plot(mean_analytic_solution)
 
     function additional_loss(phi, θ)
         return sum(abs2,
@@ -421,10 +421,10 @@ end
                                                  (ts[i] - ts[1]) .*
                                                  sol_1.solution.interp.phi(
                 phi_inputs[j][:, i], sol_1.solution.interp.θ)
-            # predicted_solution_samples_2[i, j] = u₀ .+
-            #  (ts[i] - ts[1]) .*
-            #  sol_2.solution.interp.phi(
-            # phi_inputs[j][:, i], sol_2.solution.interp.θ)
+            predicted_solution_samples_2[i, j] = u₀ .+
+              (ts[i] - ts[1]) .*
+              sol_2.solution.interp.phi(
+             phi_inputs[j][:, i], sol_2.solution.interp.θ)
 
             truncated_solution_samples[i, j] = truncated_sol(
                 u₀, ts[i], z1_samples[j], z2_samples[j], z3_samples[j])
