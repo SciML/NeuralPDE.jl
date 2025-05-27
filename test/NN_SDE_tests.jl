@@ -300,7 +300,7 @@ end
     @test MSE_2 < 3e-5
 end
 
-@testitem "SDE Parameter Estimation" tags=[:nnode] begin
+@testitem "SDE Parameter Estimation" tags=[:nnsde] begin
     using NeuralPDE
     using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
     using OptimizationOptimJL: BFGS
