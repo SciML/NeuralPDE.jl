@@ -54,7 +54,7 @@ NeuralPDETensorBoardLoggerExt = "TensorBoardLogger"
 [compat]
 ADTypes = "1.9.0"
 Adapt = "4"
-AdvancedHMC = "0.6.1, 0.7"
+AdvancedHMC = "0.6.1, 0.7, 0.8"
 Aqua = "0.8.9"
 ArrayInterface = "7.11"
 CUDA = "5.5.2"
