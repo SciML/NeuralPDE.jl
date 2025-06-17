@@ -32,9 +32,9 @@ Fields:
     smodel <: StatefulLuxLayer
 end
 
-function Phi(layer::AbstractLuxLayer)
-    return Phi(StatefulLuxLayer{true}(
-        layer, nothing, initialstates(Random.default_rng(), layer)))
+function Phi(layer::AbstractLuxLayer; init_states = nothing)
+    init_states === nothing && (init_states = initialstates(Random.default_rng(), layer))
+    return Phi(StatefulLuxLayer{true}(layer, nothing, init_states))
 end
 
 (f::Phi)(x::Number, θ) = only(cdev(f([x], θ)))
@@ -42,8 +42,8 @@ end
 (f::Phi)(x::AbstractArray, θ) = f.smodel(safe_get_device(θ)(x), θ)
 
 """
-    PhysicsInformedNN(chain, strategy; init_params = nothing, phi = nothing,
-                      param_estim = false, additional_loss = nothing,
+    PhysicsInformedNN(chain, strategy; init_params = nothing, init_states = nothing,
+                      phi = nothing, param_estim = false, additional_loss = nothing,
                       adaptive_loss = nothing, logger = nothing, log_options = LogOptions(),
                       iteration = nothing, kwargs...)
 
@@ -65,6 +65,9 @@ methodology.
 
 * `init_params`: the initial parameters of the neural networks. If `init_params` is not
   given, then the neural network default parameters are used. Note that for Lux, the default
+  will convert to Float64.
+* `init_states`: the initial states of the neural networks. If `init_states` is not
+  given, then the neural network default states are used. Note that for Lux, the default
   will convert to Float64.
 * `phi`: a trial solution, specified as `phi(x,p)` where `x` is the coordinates vector for
   the dependent variable and `p` are the weights of the phi function (generally the weights
@@ -90,6 +93,7 @@ methodology.
     chain <: Union{AbstractLuxLayer, AbstractArray{<:AbstractLuxLayer}}
     strategy <: Union{Nothing, AbstractTrainingStrategy}
     init_params
+    init_states
     phi <: Union{Phi, AbstractArray{<:Phi}}
     derivative
     param_estim
@@ -104,10 +108,10 @@ methodology.
 end
 
 function PhysicsInformedNN(
-        chain, strategy; init_params = nothing, derivative = nothing, param_estim = false,
-        phi::Union{Nothing, Phi, AbstractArray{<:Phi}} = nothing, additional_loss = nothing,
-        adaptive_loss = nothing, logger = nothing, log_options = LogOptions(),
-        iteration = nothing, kwargs...)
+        chain, strategy; init_params = nothing, init_states = nothing, derivative = nothing,
+        param_estim = false, phi::Union{Nothing, Phi, AbstractArray{<:Phi}} = nothing,
+        additional_loss = nothing, adaptive_loss = nothing, logger = nothing,
+        log_options = LogOptions(), iteration = nothing, kwargs...)
     multioutput = chain isa AbstractArray
     if multioutput
         chain = map(chain) do cᵢ
@@ -118,7 +122,11 @@ function PhysicsInformedNN(
         chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     end
 
-    phi = phi === nothing ? (multioutput ? map(Phi, chain) : Phi(chain)) : phi
+    phi = phi === nothing ?
+        (multioutput ?
+            map(x -> Phi(x[1], x[2]), zip(chain, init_states)) :
+            Phi(chain; init_states)) :
+        phi
 
     derivative = ifelse(derivative === nothing, numeric_derivative, derivative)
 
@@ -133,9 +141,9 @@ function PhysicsInformedNN(
         self_increment = true
     end
 
-    return PhysicsInformedNN(chain, strategy, init_params, phi, derivative, param_estim,
-        additional_loss, adaptive_loss, logger, log_options, iteration, self_increment,
-        multioutput, kwargs)
+    return PhysicsInformedNN(chain, strategy, init_params, init_states, phi, derivative,
+        param_estim, additional_loss, adaptive_loss, logger, log_options, iteration,
+        self_increment, multioutput, kwargs)
 end
 
 """
