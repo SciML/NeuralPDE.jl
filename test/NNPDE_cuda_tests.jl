@@ -62,6 +62,7 @@ end
 @testitem "1D PDE Dirichlet BC - CUDA" tags=[:cuda] setup=[CUDATestSetup] begin
     using Lux, Optimization, OptimizationOptimisers, Random, ComponentArrays
     import ModelingToolkit: Interval, infimum, supremum
+    import Boltz.Layers: PeriodicEmbedding
 
     Random.seed!(100)
 
@@ -74,22 +75,24 @@ end
     bcs = [
         u(0, x) ~ cos(x),
         u(t, 0) ~ exp(-t),
-        u(t, 1) ~ exp(-t) * cos(1)
+        u(t, 2π) ~ exp(-t)
     ]
 
-    domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 1.0)]
+    domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 2π)]
 
     @named pdesys = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
 
     inner = 30
-    chain = Chain(Dense(2, inner, σ), Dense(inner, inner, σ),
+    chain = Chain(PeriodicEmbedding([2], [2π]), Dense(3, inner, σ), Dense(inner, inner, σ),
         Dense(inner, inner, σ), Dense(inner, inner, σ),
         Dense(inner, inner, σ), Dense(inner, inner, σ), Dense(inner, 1))
 
-    strategy = StochasticTraining(500)
-    ps = Lux.initialparameters(Random.default_rng(), chain) |> ComponentArray |> gpud |> f64
+    strategy = StochasticTraining(1000)
+    ps, st = Lux.setup(Random.default_rng(), chain)
+    ps = ps |> ComponentArray |> gpu_device() |> f64
+    st = st |> gpu_device() |> f64
 
-    discretization = PhysicsInformedNN(chain, strategy; init_params = ps)
+    discretization = PhysicsInformedNN(chain, strategy; init_params = ps, init_states = st)
     prob = discretize(pdesys, discretization)
     res = solve(prob, Adam(0.01); maxiters = 1000)
     prob = remake(prob, u0 = res.u)
