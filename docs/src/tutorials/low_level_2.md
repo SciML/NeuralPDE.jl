@@ -28,7 +28,8 @@ With Bayesian Physics-Informed Neural Networks, here is an example of using `Bay
 
 ```@example low_level_2
 using NeuralPDE, Lux, ModelingToolkit, LinearAlgebra, AdvancedHMC
-import ModelingToolkit: Interval, infimum, supremum, Distributions
+import ModelingToolkit: infimum, supremum, Distributions
+import DomainSets: Interval
 using Plots, MonteCarloMeasurements
 
 @parameters x, t, α

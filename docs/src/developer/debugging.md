@@ -7,7 +7,8 @@ PDE solvers.
 
 ```julia
 using NeuralPDE, ModelingToolkit, Flux, Zygote
-import ModelingToolkit: Interval, infimum, supremum
+import ModelingToolkit: infimum, supremum
+import DomainSets: Interval
 # 2d wave equation, neumann boundary condition
 @parameters x, t
 @variables u(..)

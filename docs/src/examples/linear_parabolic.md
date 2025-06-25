@@ -28,7 +28,8 @@ with a physics-informed neural network.
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers,
       OptimizationOptimJL, LineSearches
 using Plots
-using ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: infimum, supremum
+import DomainSets: Interval
 
 @parameters t, x
 @variables u(..), w(..)

@@ -54,7 +54,8 @@ using the second numeric derivative `Dt(Dtu1(t,x))`.
 ```@example derivativenn
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers,
       OptimizationOptimJL, LineSearches, Plots
-using ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: infimum, supremum
+using DomainSets: Interval
 
 @parameters t, x
 Dt = Differential(t)

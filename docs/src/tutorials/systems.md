@@ -37,7 +37,8 @@ with physics-informed neural networks.
 ```@example system
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches,
       OptimizationOptimisers
-using ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: infimum, supremum
+using DomainSets: Interval
 
 @parameters t, x
 @variables u1(..), u2(..), u3(..)

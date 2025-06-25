@@ -11,7 +11,7 @@ Here, we write an arbitrary heterogeneous system:
 
 ```@example heterogeneous
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
-import ModelingToolkit: Interval
+import DomainSets: Interval
 
 @parameters x y
 @variables p(..) q(..) r(..) s(..)

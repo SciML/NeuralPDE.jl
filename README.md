@@ -47,7 +47,8 @@ the documentation, which contains the unreleased features.
 
 ```julia
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers
-import ModelingToolkit: Interval, infimum, supremum
+import ModelingToolkit: infimum, supremum
+import DomainSets: Interval
 
 @parameters x y
 @variables u(..)

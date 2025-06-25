@@ -44,7 +44,8 @@ u(0) = 0
 
 ```@example integro
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, DomainSets
-using ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: infimum, supremum
+using DomainSets: Interval
 using Plots
 
 @parameters t

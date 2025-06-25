@@ -54,7 +54,8 @@ u(t, 1) & = 0
 using NeuralPDE
 using ModelingToolkit, Optimization, OptimizationOptimisers
 using Distributions
-using ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: infimum, supremum
+using DomainSets: Interval
 using MethodOfLines, OrdinaryDiffEq
 using Plots
 

@@ -37,7 +37,8 @@ using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots,
       LineSearches
 using SpecialFunctions
 using Plots
-using ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: infimum, supremum
+using DomainSets: Interval
 
 @parameters t, x
 @variables u(..), w(..)
