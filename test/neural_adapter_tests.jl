@@ -13,7 +13,8 @@ end
 @testitem "Neural Adapter: 2D Poisson" tags=[:neuraladapter] setup=[NeuralAdapterTestSetup] begin
     using Optimization, Lux, OptimizationOptimisers, Statistics, ComponentArrays, Random,
           LinearAlgebra
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
@@ -79,7 +80,8 @@ end
 @testitem "Neural Adapter: 2D Poisson, domain decomposition" tags=[:neuraladapter] setup=[NeuralAdapterTestSetup] begin
     using Optimization, Lux, OptimizationOptimisers, Statistics, ComponentArrays, Random,
           LinearAlgebra
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 

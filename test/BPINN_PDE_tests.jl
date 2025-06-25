@@ -2,7 +2,8 @@
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
           ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
@@ -37,7 +38,8 @@ end
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
           ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
@@ -80,7 +82,8 @@ end
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
           ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
@@ -136,7 +139,8 @@ end
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
           ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
@@ -186,7 +190,8 @@ end
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
           ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
     import Flux
 
     Random.seed!(100)
@@ -228,7 +233,8 @@ end
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
           ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
@@ -289,7 +295,8 @@ end
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
           ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
@@ -356,7 +363,8 @@ end
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
           AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
           ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
@@ -459,7 +467,7 @@ end
         [α],
         defaults = Dict([α => 2.0]))
 
-    # neccesarry for loss function construction (involves Operator masking) 
+    # neccesarry for loss function construction (involves Operator masking)
     eqs = pde_system.eqs
     Dict_differentials = Dict()
     exps = toexpr.(eqs)

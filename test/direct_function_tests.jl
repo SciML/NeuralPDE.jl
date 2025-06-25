@@ -1,6 +1,7 @@
 @testitem "Approximation of function 1D" tags=[:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, Optimisers
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
     import OptimizationOptimJL: BFGS
 
     Random.seed!(110)
@@ -37,7 +38,8 @@ end
 
 @testitem "Approximation of function 1D - 2" tags=[:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, Optimisers
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
     import OptimizationOptimJL: BFGS
 
     Random.seed!(110)
@@ -72,7 +74,8 @@ end
 
 @testitem "Approximation of function 2D" tags=[:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, Optimisers
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
     import OptimizationOptimJL: BFGS
 
     Random.seed!(110)

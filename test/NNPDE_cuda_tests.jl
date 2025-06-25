@@ -17,7 +17,8 @@ end
 
 @testitem "1D ODE - CUDA" tags=[:cuda] setup=[CUDATestSetup] begin
     using Lux, Optimization, OptimizationOptimisers, Random, ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
@@ -61,7 +62,8 @@ end
 
 @testitem "1D PDE Dirichlet BC - CUDA" tags=[:cuda] setup=[CUDATestSetup] begin
     using Lux, Optimization, OptimizationOptimisers, Random, ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
     import Boltz.Layers: PeriodicEmbedding
 
     Random.seed!(100)
@@ -111,7 +113,8 @@ end
 @testitem "1D PDE Neumann BC - CUDA" tags=[:cuda] setup=[CUDATestSetup] begin
     using Lux, Optimization, OptimizationOptimisers, Random, QuasiMonteCarlo,
           ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
@@ -161,7 +164,8 @@ end
 
 @testitem "2D PDE - CUDA" tags=[:cuda] setup=[CUDATestSetup] begin
     using Lux, Optimization, OptimizationOptimisers, Random, ComponentArrays
-    import ModelingToolkit: Interval, infimum, supremum
+    import ModelingToolkit: infimum, supremum
+    import DomainSets: Interval
 
     Random.seed!(100)
 
