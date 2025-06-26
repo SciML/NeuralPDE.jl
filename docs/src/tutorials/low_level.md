@@ -14,8 +14,7 @@ with Physics-Informed Neural Networks. Here is an example of using the low-level
 
 ```@example low_level
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
-using ModelingToolkit: infimum, supremum
-using DomainSets: Interval
+using DomainSets: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..)

@@ -99,8 +99,7 @@ with grid discretization `dx = 0.05` and physics-informed neural networks. Here,
 ```@example wave2
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using Plots, Printf
-using ModelingToolkit: infimum, supremum
-using DomainSets: Interval
+using DomainSets: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..) Dxu(..) Dtu(..) O1(..) O2(..)

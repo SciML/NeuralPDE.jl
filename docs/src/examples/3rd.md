@@ -17,8 +17,7 @@ We will use physics-informed neural networks.
 ```@example 3rdDerivative
 using NeuralPDE, Lux, ModelingToolkit
 using Optimization, OptimizationOptimJL, OptimizationOptimisers
-import ModelingToolkit: infimum, supremum
-import DomainSets: Interval
+import DomainSets: Interval, infimum, supremum
 
 @parameters x
 @variables u(..)
