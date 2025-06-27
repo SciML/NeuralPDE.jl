@@ -23,7 +23,7 @@ with Physics-Informed Neural Networks.
 ```@example fokkerplank
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
 using Integrals, Cubature
-using ModelingToolkit: Interval, infimum, supremum
+using DomainSets: Interval, infimum, supremum
 # the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x
 @variables p(..)

@@ -1,7 +1,7 @@
 @testitem "Poisson's equation" tags=[:dgm] begin
     using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
           MethodOfLines, OrdinaryDiffEq, LinearAlgebra
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
 
     @parameters x y
     @variables u(..)
@@ -45,7 +45,7 @@ end
 @testitem "Black-Scholes PDE: European Call Option" tags=[:dgm] begin
     using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
           MethodOfLines, OrdinaryDiffEq, LinearAlgebra
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
 
     K, T, r, σ, S, S_multiplier = 50.0, 1.0, 0.05, 0.25, 130.0, 1.3
 
@@ -98,7 +98,7 @@ end
 @testitem "Burger's equation" tags=[:dgm] begin
     using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
           MethodOfLines, OrdinaryDiffEq, LinearAlgebra
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
 
     @parameters x t
     @variables u(..)
