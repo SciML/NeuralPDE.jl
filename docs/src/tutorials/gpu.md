@@ -45,7 +45,7 @@ In total, this looks like:
 using NeuralPDE, Lux, LuxCUDA, Random, ComponentArrays
 using Optimization
 using OptimizationOptimisers
-import ModelingToolkit: Interval
+import DomainSets: Interval
 using Plots
 using Printf
 

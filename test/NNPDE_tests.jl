@@ -84,7 +84,7 @@ end
 
 @testitem "PDE I: Heterogeneous system" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using DomainSets, Lux, Random, Optimisers, Integrals
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     @parameters x, y, z
@@ -156,7 +156,7 @@ end
 
 @testitem "PDE II: 2D Poisson" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
 
     function test_2d_poisson_equation(chain, strategy)
         @parameters x y
@@ -211,7 +211,7 @@ end
 
 @testitem "PDE III: 3rd-order ODE" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     @parameters x
@@ -279,7 +279,7 @@ end
 
 @testitem "PDE IV: System of PDEs" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
 
     @parameters x, y
     @variables u1(..), u2(..)
@@ -333,7 +333,7 @@ end
 @testitem "PDE V: 2D Wave Equation" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals,
           LineSearches, Integrals
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     @parameters x, t
@@ -393,7 +393,7 @@ end
 
 @testitem "PDE VI: PDE with mixed derivative" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     using OptimizationOptimJL: BFGS
     using LineSearches: BackTracking
 
@@ -437,7 +437,7 @@ end
 
 @testitem "NNPDE: Translating from Flux" tags=[:nnpde1] setup=[NNPDE1TestSetup] begin
     using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
     import Flux
 

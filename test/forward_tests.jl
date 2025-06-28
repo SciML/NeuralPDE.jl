@@ -1,6 +1,5 @@
 @testitem "ODE" tags=[:forward] begin
     using DomainSets, Lux, Random, Zygote, ComponentArrays, Adapt
-    import ModelingToolkit: Interval
 
     @parameters x
     @variables u(..)
@@ -43,7 +42,6 @@ end
 
 @testitem "derivatives" tags=[:forward] begin
     using DomainSets, Lux, Random, Zygote, ComponentArrays
-    import ModelingToolkit: Interval
 
     chain = Chain(Dense(2, 16, σ), Dense(16, 16, σ), Dense(16, 1))
     init_params = Lux.initialparameters(Random.default_rng(), chain) |>
@@ -87,7 +85,6 @@ end
 
 @testitem "Integral" tags=[:forward] begin
     using DomainSets, Lux, Random, Zygote, ComponentArrays
-    import ModelingToolkit: Interval
 
     @parameters x
     @variables u(..)

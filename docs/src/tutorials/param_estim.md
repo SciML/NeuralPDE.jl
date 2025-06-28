@@ -17,7 +17,7 @@ We start by defining the problem,
 ```@example param_estim
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, OrdinaryDiffEq,
       Plots, LineSearches
-using ModelingToolkit: Interval, infimum, supremum
+using DomainSets: Interval, infimum, supremum
 @parameters t, σ_, β, ρ
 @variables x(..), y(..), z(..)
 Dt = Differential(t)

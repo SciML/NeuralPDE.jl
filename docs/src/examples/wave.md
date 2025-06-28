@@ -17,7 +17,7 @@ Further, the solution of this equation with the given boundary conditions is pre
 
 ```@example wave
 using NeuralPDE, Lux, Optimization, OptimizationOptimJL
-using ModelingToolkit: Interval
+using DomainSets: Interval
 
 @parameters t, x
 @variables u(..)
@@ -99,7 +99,7 @@ with grid discretization `dx = 0.05` and physics-informed neural networks. Here,
 ```@example wave2
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using Plots, Printf
-using ModelingToolkit: Interval, infimum, supremum
+using DomainSets: Interval, infimum, supremum
 
 @parameters t, x
 @variables u(..) Dxu(..) Dtu(..) O1(..) O2(..)

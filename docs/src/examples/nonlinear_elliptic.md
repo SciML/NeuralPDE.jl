@@ -29,7 +29,7 @@ This is done using a derivative neural network approximation.
 ```@example nonlinear_elliptic
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots
 using Plots
-using ModelingToolkit: Interval, infimum, supremum
+using DomainSets: Interval, infimum, supremum
 
 @parameters x, y
 Dx = Differential(x)

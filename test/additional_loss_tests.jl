@@ -1,7 +1,7 @@
 @testitem "Fokker-Planck" tags=[:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, ComponentArrays,
           Integrals, Cubature
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     using OptimizationOptimJL: BFGS, LBFGS
 
     # the example took from this article https://arxiv.org/abs/1910.10503
@@ -103,7 +103,7 @@ end
 @testitem "Lorenz System" tags=[:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, ComponentArrays,
           OrdinaryDiffEq
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     using OptimizationOptimJL: BFGS
 
     @parameters t, σ_, β, ρ
@@ -191,7 +191,7 @@ end
 @testitem "Approximation from data and additional_loss" tags=[:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Optimisers,
           ModelingToolkit, OrdinaryDiffEq, LinearAlgebra, Lux
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     @parameters x

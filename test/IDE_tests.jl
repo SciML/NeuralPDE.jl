@@ -13,7 +13,7 @@ end
 
 @testitem "IntegroDiff Example 1 -- 1D" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
     using Optimization, Optimisers, DomainSets, Lux, Random, Statistics
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     Random.seed!(110)
@@ -43,7 +43,7 @@ end
 
 @testitem "IntegroDiff Example 2 -- 1D" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
     using Optimization, Optimisers, DomainSets, Lux, Random, Statistics
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     Random.seed!(110)
@@ -72,7 +72,7 @@ end
 
 @testitem "IntegroDiff Example 3 -- 2 Inputs, 1 Output" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
     using Optimization, Optimisers, DomainSets, Lux, Random, Statistics
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     Random.seed!(110)
@@ -105,7 +105,7 @@ end
 
 @testitem "IntegroDiff Example 4 -- 2 Inputs, 1 Output" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
     using Optimization, Optimisers, DomainSets, Lux, Random, Statistics
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     Random.seed!(110)
@@ -138,7 +138,7 @@ end
 
 @testitem "IntegroDiff Example 5 -- 1 Input, 2 Outputs" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
     using Optimization, Optimisers, DomainSets, Lux, Random, Statistics
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     Random.seed!(110)
@@ -172,7 +172,7 @@ end
 
 @testitem "IntegroDiff Example 6: Infinity" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
     using Optimization, Optimisers, DomainSets, Lux, Random, Statistics
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     Random.seed!(110)
@@ -200,7 +200,7 @@ end
 
 @testitem "IntegroDiff Example 7: Infinity" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
     using Optimization, Optimisers, DomainSets, Lux, Random, Statistics
-    import ModelingToolkit: Interval, infimum, supremum
+    import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
     Random.seed!(110)

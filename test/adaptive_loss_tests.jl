@@ -1,7 +1,7 @@
 @testsetup module AdaptiveLossTestSetup
 using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, NeuralPDE, Test,
       TensorBoardLogger
-import ModelingToolkit: Interval, infimum, supremum
+import DomainSets: Interval, infimum, supremum
 
 function solve_with_adaptive_loss(
         adaptive_loss; haslogger = false, outdir = mktempdir(), run = 1)
