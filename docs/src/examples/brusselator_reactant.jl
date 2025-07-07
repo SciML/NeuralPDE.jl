@@ -51,8 +51,8 @@ function laplacian(net::StatefulLuxLayer, xyt)
 end
 
 function pde_residual(u, v, xyt, α, f_vals)
-    u_pred, _ = u(xyt)
-    v_pred, _ = v(xyt)
+    u_pred = u(xyt)
+    v_pred = v(xyt)
     _, _, ∂u_∂t = first_derivs(u, xyt)
     _, _, ∂v_∂t = first_derivs(v, xyt)
     ∇²u = laplacian(u, xyt)
