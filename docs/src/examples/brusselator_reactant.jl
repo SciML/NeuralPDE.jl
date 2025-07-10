@@ -1,5 +1,4 @@
-#Scalar Indexing Error
-using Lux, Random, Reactant, Enzyme, MLUtils, Optimisers, OnlineStats, CairoMakie, Statistics, Printf, CUDA
+using Lux, Random, Reactant, Enzyme, MLUtils, Optimisers, OnlineStats, CairoMakie, Statistics, Printf, CUDA, Revise
 
 const T = Float32
 global device_func = reactant_device(; force=true)
@@ -64,16 +63,16 @@ function pde_residual(u, v, xyt, α, f_vals)
 end
 
 function ic_loss(u, v, xyt, target_u, target_v)
-    pu, _ = u(xyt)
-    pv, _ = v(xyt)
+    pu = u(xyt)
+    pv = v(xyt)
     mean(abs2, pu .- target_u) + mean(abs2, pv .- target_v)
 end
 
 function bc_loss(u, v, x0, x1, y0, y1)
-    ux0, _ = u(x0); ux1, _ = u(x1)
-    uy0, _ = u(y0); uy1, _ = u(y1)
-    vx0, _ = v(x0); vx1, _ = v(x1)
-    vy0, _ = v(y0); vy1, _ = v(y1)
+    ux0 = u(x0); ux1 = u(x1)
+    uy0 = u(y0); uy1 = u(y1)
+    vx0 = v(x0); vx1 = v(x1)
+    vy0 = v(y0); vy1 = v(y1)
     mean(abs2, ux0 .- ux1) + mean(abs2, uy0 .- uy1) +
     mean(abs2, vx0 .- vx1) + mean(abs2, vy0 .- vy1)
 end
@@ -191,8 +190,8 @@ function visualize_brusselator(train_state, normalizer, denormalizer)
     u_net = StatefulLuxLayer{true}(train_state.model.u, cpu_device()(train_state.parameters.u), cpu_device()(train_state.states.u))
     v_net = StatefulLuxLayer{true}(train_state.model.v, cpu_device()(train_state.parameters.v), cpu_device()(train_state.states.v))
 
-    u_pred, _ = u_net(norm_grid)
-    v_pred, _ = v_net(norm_grid)
+    u_pred = u_net(norm_grid)
+    v_pred = v_net(norm_grid)
 
     u_pred = reshape(Array(u_pred), length(xs), length(ys), length(ts))
     v_pred = reshape(Array(v_pred), length(xs), length(ys), length(ts))
