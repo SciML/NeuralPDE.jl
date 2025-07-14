@@ -1,4 +1,5 @@
-using ModelingToolkit, ModelingToolkitNeuralNets, Optimization, OptimizationOptimJL, Symbolics, Lux, NNlib, StableRNGs, Random, Plots, LineSearches, ComponentArrays 
+using ModelingToolkit, ModelingToolkitNeuralNets, Optimization, OptimizationOptimJL, Symbolics,
+      Lux, NNlib, StableRNGs, Random, Plots, LineSearches, ComponentArrays
 
 @variables x y
 Dx = Differential(x)
@@ -13,7 +14,7 @@ chain = Lux.Chain(
     Lux.Dense(16, 1)
 )
 NN_expr, p_nn_sym = SymbolicNeuralNetwork(; chain=chain, n_input=2, n_output=1, rng=StableRNG(42))
-u_expr = NN_expr([x, y])[1]  
+u_expr = NN_expr([x, y], p_nn_sym)[1]
 
 
 # PDE and Boundary Conditions
@@ -44,15 +45,17 @@ bc_y1_x_data = rand(num_bc)
 @parameters bcx0_y_sym[1:num_bc] bcx1_y_sym[1:num_bc]
 @parameters bcy0_x_sym[1:num_bc] bcy1_x_sym[1:num_bc]
 
+bc_x0_residual^2
+substitute(bc_x0_residual^2, Dict(y =>0.0))
 
-# Loss 
-pde_loss_expr = sum(substitute(pde_residual_expr^2, Dict(x => col_x[i], y => col_y[i])) for i in 1:num_col)
+# Loss
+pde_loss_expr = sum(Symbolics.fast_substitute(pde_residual_expr^2, Dict(x => col_x[i], y => col_y[i])) for i in 1:num_col)
 
 bc_loss_expr = sum(
-    substitute(bc_x0_residual^2, Dict(y => bcx0_y_sym[i])) +
-    substitute(bc_x1_residual^2, Dict(y => bcx1_y_sym[i])) +
-    substitute(bc_y0_residual^2, Dict(x => bcy0_x_sym[i])) +
-    substitute(bc_y1_residual^2, Dict(x => bcy1_x_sym[i]))
+    Symbolics.fast_substitute(bc_x0_residual^2, Dict(y => bcx0_y_sym[i])) +
+    Symbolics.fast_substitute(bc_x1_residual^2, Dict(y => bcx1_y_sym[i])) +
+    Symbolics.fast_substitute(bc_y0_residual^2, Dict(x => bcy0_x_sym[i])) +
+    Symbolics.fast_substitute(bc_y1_residual^2, Dict(x => bcy1_x_sym[i]))
     for i in 1:num_bc
 )
 
@@ -61,6 +64,9 @@ total_loss = pde_loss_expr + bc_loss_expr
 # Optimization
 sym_data = vcat(col_x, col_y, bcx0_y_sym, bcx1_y_sym, bcy0_x_sym, bcy1_x_sym)
 u0 = randn(Float64, length(p_nn_sym))
+rng = Random.GLOBAL_RNG
+init_params = Lux.initialparameters(rng, chain)
+ca = ComponentArray(init_params)
 
 flat_data = vcat(
     collocation_pts_x,
@@ -73,16 +79,16 @@ flat_data = vcat(
 
 @assert length(sym_data) == length(flat_data)
 
-@named system = OptimizationSystem(total_loss, p_nn_sym, sym_data)
+@named system = OptimizationSystem(total_loss, p_nn_sym, [sym_data; NN_expr])
 system = complete(system)
 
-prob = OptimizationProblem(system, u0, flat_data; grad=true)
+prob = OptimizationProblem(system, [p_nn_sym => u0], [sym_data .=> flat_data; NN_expr => ModelingToolkitNeuralNets.StatelessApplyWrapper(chain, typeof(ca))]; grad=true)
 result = solve(prob, LBFGS(linesearch=LineSearches.BackTracking()); maxiters=1000)
 
 # Evaluation
 function u_pred(xval, yval, chain, optimized_params)
-    ps = ComponentArray(optimized_params, Lux.initialparameters(Random.GLOBAL_RNG, chain))
-    return Lux.apply(chain, [xval, yval], ps)[1]
+    ps = convert(typeof(ca),optimized_params)
+    return ModelingToolkitNeuralNets.stateless_apply(chain, [xval, yval], ps)[1]
 end
 
 u_exact(x, y) = sin(π * x) * sin(π * y)
