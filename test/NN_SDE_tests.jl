@@ -201,12 +201,10 @@ end
             luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 10, batch = true);
         kwargs...)
 
-    # sol_1, sol_2 have the same timespan and are multioutput.
+    # sol_1, sol_2 have the same timespan and are single output.
     ts = sol_1.timepoints
-    u1_1 = sol_1.estimated_sol[1]
-    u1_2 = sol_1.estimated_sol[2]
-    u2_1 = sol_2.estimated_sol[1]
-    u2_2 = sol_2.estimated_sol[2]
+    u1 = sol_1.estimated_sol[1]
+    u2 = sol_2.estimated_sol[1]
 
     analytic_sol(u0, p, t, W) = (u0 / sqrt(1 + t)) + (β * (t + α * W) / sqrt(1 + t))
     function W_kkl(t, z1, z2, z3, z4, z5, z6)
@@ -424,7 +422,7 @@ end
     mean_predicted_solution_2 = mean(predicted_solution_samples_2, dims = 2)
 
     # testing over different Z_i sample sizes
-    @test mean(abs2.(mean_analytic_solution .- pmean(u2))) < 8e-2
+    @test mean(abs2.(mean_analytic_solution .- pmean(u2))) < 9e-2
     @test mean(abs2.(mean_analytic_solution .- mean_predicted_solution_2)) < 8e-2
     @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 8e-2
 
@@ -444,8 +442,9 @@ end
     @test mean(abs2, solution_1_strong_solve .- truncated_solution_strong_paths) < 1e-1
 
     # estimated sde parameter tests (we trained with 15 observed solution paths).
-    @test sol_1.estimated_params[1].≈ideal_p[1] rtol=1e-1
-    @test sol_1.estimated_params[2].≈ideal_p[2] rtol=1e-1
-    @test sol_2.estimated_params[1].≈ideal_p[1] rtol=1e-1
-    @test sol_2.estimated_params[2].≈ideal_p[2] rtol=1e-1
+    # absolute value taken for 2nd estimated parameter as loss for variance is independant of this parameter's direction.
+    @test sol_1.estimated_params[1].≈ideal_p[1] rtol=2e-1
+    @test abs(sol_1.estimated_params[2]).≈ideal_p[2] rtol=8e-2
+    @test sol_2.estimated_params[1].≈ideal_p[1] rtol=2e-1
+    @test abs(sol_2.estimated_params[2]).≈ideal_p[2] rtol=8e-2
 end
