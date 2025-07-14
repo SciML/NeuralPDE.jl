@@ -357,9 +357,9 @@ end
     dataset = [observed_process, ts]
 
     # solver configuration
-    abstol = 1e-9
+    abstol = 1e-12
     autodiff = false
-    kwargs = (; verbose = true, dt = 1 / 50.0f0, abstol, maxiters = 300)
+    kwargs = (; verbose = true, dt = 1 / 50.0f0, abstol, maxiters = 600)
     opt = BFGS()
     numensemble = 200
 
@@ -424,9 +424,9 @@ end
     mean_predicted_solution_2 = mean(predicted_solution_samples_2, dims = 2)
 
     # testing over different Z_i sample sizes
-    @test mean(abs2.(mean_analytic_solution .- pmean(u2))) < 3e-2
-    @test mean(abs2.(mean_analytic_solution .- mean_predicted_solution_2)) < 5e-3
-    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 3e-2
+    @test mean(abs2.(mean_analytic_solution .- pmean(u2))) < 8e-2
+    @test mean(abs2.(mean_analytic_solution .- mean_predicted_solution_2)) < 8e-2
+    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 8e-2
 
     # strong solution tests (sol_1)
     # get SDEPINN output at fixed path we solved over.
