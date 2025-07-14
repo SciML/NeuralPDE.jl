@@ -1,4 +1,4 @@
-@testitem "Test-1" tags=[:nnsde] begin
+@testitem "Test-1 solve & autodiff" tags=[:nnsde] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers
     using OptimizationOptimJL: BFGS
     Random.seed!(100)
@@ -10,8 +10,9 @@
     g(u, p, t) = β * u
     tspan = (0.0, 1.0)
     prob = SDEProblem(f, g, u₀, tspan)
-    dim = 1 + 3
-    luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1))
+    n_z = 3
+    dim = 1 + n_z
+    luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1)) |> f64
 
     @testset "$(nameof(typeof(opt))) -- $(autodiff)" for opt in [BFGS(), Adam(0.1)],
         autodiff in [false, true]
@@ -29,7 +30,7 @@
     end
 end
 
-@testitem "Test - GBM SDE" tags=[:nnsde] begin
+@testitem "Test-2 GBM SDE" tags=[:nnsde] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
     using OptimizationOptimJL: BFGS
     using MonteCarloMeasurements: Particles, pmean
@@ -42,8 +43,9 @@ end
     g(u, p, t) = β * u
     tspan = (0.0, 1.0)
     prob = SDEProblem(f, g, u₀, tspan)
-    dim = 1 + 3
-    luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1))
+    n_z = 3
+    dim = 1 + n_z
+    luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1)) |> f64
 
     dt = 1 / 50.0f0
     abstol = 1e-6
@@ -64,8 +66,8 @@ end
 
     # sol_1 and sol_2 have same timespan
     ts = sol_1.timepoints
-    u1 = sol_1.strong_sol
-    u2 = sol_2.strong_sol
+    u1 = sol_1.estimated_sol[1]
+    u2 = sol_2.estimated_sol[1]
 
     analytic_sol(u0, p, t, W) = u0 * exp((α - β^2 / 2) * t + β * W)
     function W_kkl(t, z1, z2, z3)
@@ -105,17 +107,17 @@ end
             # for each sample, pass each timepoints and get output
             analytic_solution_samples[i, j] = analytic_sol(u₀, 0, ts[i], W_samples[i, j])
 
-            predicted_solution_samples_1[i, j] = sol_1.solution.interp.phi(
-                phi_inputs[j][:, i], sol_1.solution.interp.θ)
-            predicted_solution_samples_2[i, j] = sol_2.solution.interp.phi(
-                phi_inputs[j][:, i], sol_2.solution.interp.θ)
+            predicted_solution_samples_1[i, j] = sol_1.rode_solution.interp.phi(
+                phi_inputs[j][:, i], sol_1.rode_solution.interp.θ)
+            predicted_solution_samples_2[i, j] = sol_2.rode_solution.interp.phi(
+                phi_inputs[j][:, i], sol_2.rode_solution.interp.θ)
 
             truncated_solution_samples[i, j] = truncated_sol(
                 u₀, ts[i], z1_samples[j], z2_samples[j], z3_samples[j])
         end
     end
 
-    # strong solution tests
+    # strong ensemble solution tests
     strong_analytic_solution = [Particles(analytic_solution_samples[i, :])
                                 for i in eachindex(ts)]
     strong_truncated_solution = [Particles(truncated_solution_samples[i, :])
@@ -132,7 +134,7 @@ end
     @test pmean(sum(abs2.(strong_predicted_solution_1 .- strong_truncated_solution))) >
           pmean(sum(abs2.(strong_predicted_solution_2 .- strong_truncated_solution)))
 
-    # weak solution tests
+    # weak ensemble solution tests
     mean_analytic_solution = mean(analytic_solution_samples, dims = 2)
     mean_truncated_solution = mean(truncated_solution_samples, dims = 2)
     mean_predicted_solution_1 = mean(predicted_solution_samples_1, dims = 2)
@@ -177,8 +179,10 @@ end
     g(u, p, t) = β * α / sqrt(1 + t)
     tspan = (0.0, 1.0)
     prob = SDEProblem(f, g, u₀, tspan)
-    dim = 1 + 6
-    luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, tanh), Dense(16, 16, σ), Dense(16, 1))
+    n_z = 6
+    dim = 1 + n_z
+    luxchain = Chain(
+        Dense(dim, 16, σ), Dense(16, 16, tanh), Dense(16, 16, σ), Dense(16, 1)) |> f64
 
     dt = 1 / 50.0f0
     abstol = 1e-7
@@ -197,10 +201,12 @@ end
             luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 10, batch = true);
         kwargs...)
 
-    # sol_1 and sol_2 have same timespan
+    # sol_1, sol_2 have the same timespan and are multioutput.
     ts = sol_1.timepoints
-    u1 = sol_1.strong_sol
-    u2 = sol_2.strong_sol
+    u1_1 = sol_1.estimated_sol[1]
+    u1_2 = sol_1.estimated_sol[2]
+    u2_1 = sol_2.estimated_sol[1]
+    u2_2 = sol_2.estimated_sol[2]
 
     analytic_sol(u0, p, t, W) = (u0 / sqrt(1 + t)) + (β * (t + α * W) / sqrt(1 + t))
     function W_kkl(t, z1, z2, z3, z4, z5, z6)
@@ -248,10 +254,10 @@ end
             # for each sample, pass each timepoints and get output
             analytic_solution_samples[i, j] = analytic_sol(u₀, 0, ts[i], W_samples[i, j])
 
-            predicted_solution_samples_1[i, j] = sol_1.solution.interp.phi(
-                phi_inputs[j][:, i], sol_1.solution.interp.θ)
-            predicted_solution_samples_2[i, j] = sol_2.solution.interp.phi(
-                phi_inputs[j][:, i], sol_2.solution.interp.θ)
+            predicted_solution_samples_1[i, j] = sol_1.rode_solution.interp.phi(
+                phi_inputs[j][:, i], sol_1.rode_solution.interp.θ)
+            predicted_solution_samples_2[i, j] = sol_2.rode_solution.interp.phi(
+                phi_inputs[j][:, i], sol_2.rode_solution.interp.θ)
 
             truncated_solution_samples[i, j] = truncated_sol(
                 u₀, ts[i], z1_samples[j], z2_samples[j], z3_samples[j],
@@ -300,153 +306,146 @@ end
     @test MSE_2 < 3e-5
 end
 
-@testitem "SDE Parameter Estimation" tags=[:nnsde] begin
-    using NeuralPDE
+@testitem "Test-4 GBM SDE Inverse, weak & strong solving" tags=[:nnsde] begin
+    # Also works for brownian motion with constant drift.
     using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
+    using MonteCarloMeasurements: pmean, Particles
     using OptimizationOptimJL: BFGS
     Random.seed!(100)
 
-    α = 1.2
-    β = 1.1
-    param_initval = 0.0
+    # problem setting
+    ideal_p = [1.5, 0.5]
+    param_initval = [0.0, 0.0]
     u₀ = 0.5
-
-    f(u, p, t) = p * u
-    g(u, p, t) = β * u
+    f(u, p, t) = p[1] * u
+    g(u, p, t) = p[2] * u
     tspan = (0.0, 1.0)
     prob = SDEProblem(f, g, u₀, tspan, param_initval)
-    dim = 1 + 3
+    n_z = 3
+    dim = 1 + n_z
+
+    # discretization for dataset
     dt = 1 / 100.0f0
-    luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1))
+    luxchain = Chain(Dense(dim, 10, tanh), Dense(10, 10, tanh), Dense(10, 1)) |> f64
 
-    prob.p
+    # Dataset Preparation
+    num_samples = 15
+    ts = collect(tspan[1]:dt:tspan[2])
+    num_time_steps = length(ts)
 
-    analytic_sol(u0, p, t, W) = u0 * exp((α - β^2 / 2) * t + β * W)
+    # We want n=num_samples strong solutions defined at timepoints.
+    W_samples = Array{Float64}(undef, num_time_steps, num_samples)
+    for i in 1:num_samples
+        W = WienerProcess(0.0, 0.0)
+        probtemp = NoiseProblem(W, (0.0, 1.0))
+        Np_sol = solve(probtemp; dt = dt)
+        W_samples[:, i] = Np_sol.u
+    end
+
+    analytic_sol(u0, p, t, W) = u0 * exp((p[1] - p[2]^2 / 2) * t + p[2] * W)
+    analytic_solution_samples = Array{Float64}(undef, num_time_steps, num_samples)
+    for i in 1:num_time_steps
+        for j in 1:num_samples
+            # for each timepoint, pass each strong path's W value.
+            analytic_solution_samples[i, j] = analytic_sol(
+                u₀, ideal_p, ts[i], W_samples[i, j])
+        end
+    end
+
+    # adapted process got from filration Ft on the probability space of SDE solution, time.
+    observed_process = [analytic_solution_samples[:, i] for i in 1:num_samples]
+    dataset = [observed_process, ts]
+
+    # solver configuration
+    abstol = 1e-9
+    autodiff = false
+    kwargs = (; verbose = true, dt = 1 / 50.0f0, abstol, maxiters = 300)
+    opt = BFGS()
+    numensemble = 200
+
+    # for inverse problems more sub_batch leads to learning mainly the drift parameter
+    alg_1 = NNSDE(luxchain, opt; autodiff, numensemble = numensemble,
+        sub_batch = 1, batch = true, param_estim = true, strong_loss = true, dataset = dataset)
+    alg_2 = NNSDE(luxchain, opt; autodiff, numensemble = numensemble,
+        sub_batch = 1, batch = true, param_estim = true, strong_loss = false, dataset = dataset)
+    sol_1 = solve(prob, alg_1; kwargs...)
+    sol_2 = solve(prob, alg_2; kwargs...)
+
+    # sol_1, sol_2 have the same timespan and are single output
+    ts = sol_1.timepoints
+    u2 = sol_2.estimated_sol[1]
+
     function W_kkl(t, z1, z2, z3)
         √2 * (z1 * sin((1 - 1 / 2) * π * t) / ((1 - 1 / 2) * π) +
          z2 * sin((2 - 1 / 2) * π * t) / ((2 - 1 / 2) * π) +
          z3 * sin((3 - 1 / 2) * π * t) / ((3 - 1 / 2) * π))
     end
-
-    num_samples = 10000
-    num_time_steps = dt
-    z1_samples = rand(Normal(0, 1), num_samples)
-    z2_samples = rand(Normal(0, 1), num_samples)
-    z3_samples = rand(Normal(0, 1), num_samples)
-
-    ts = collect(tspan[1]:dt:tspan[2])
-    num_time_steps = size(ts)[1]
-    W_samples = Array{Float64}(undef, num_time_steps, num_samples)
-
-    for i in 1:num_samples
-        W = WienerProcess(0.0, 0.0)
-        probtemp = NoiseProblem(W, (0.0, 1.0))
-        Np_sol = solve(probtemp; dt = dt)
-        W_samples[:, i] = Np_sol.u
-    end
-    temp_rands = hcat(z1_samples, z2_samples, z3_samples)'
-    phi_inputs = [hcat([vcat(ts[j], temp_rands[:, i]) for j in eachindex(ts)]...)
-                  for i in 1:num_samples]
-
-    analytic_solution_samples = Array{Float64}(undef, num_time_steps, num_samples)
-    for j in 1:num_samples
-        for i in 1:num_time_steps
-            # for each sample, pass each timepoints and get output
-            analytic_solution_samples[i, j] = analytic_sol(
-                u₀, α, ts[i], W_samples[i, j])
-        end
-    end
-    mean_analytic_solution = mean(analytic_solution_samples, dims = 2)
-    # plot(mean_analytic_solution)
-
-    function additional_loss(phi, θ)
-        return sum(abs2,
-            [mean([phi(phi_inputs[j][:, i], θ) for j in 1:10]) for i in 1:101] .-
-            mean_analytic_solution) / 101
+    function truncated_sol(u0, p, t, z1, z2, z3)
+        u0 *
+        exp((p[1] - p[2]^2 / 2) * t + p[2] * W_kkl(t, z1, z2, z3))
     end
 
-    abstol = 1e-10
-    autodiff = false
-    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 300)
-    opt = BFGS()
-    numensemble = 2000
-
-    alg = NNSDE(luxchain, opt; autodiff, numensemble = numensemble,
-        sub_batch = 1, batch = true, param_estim = true, additional_loss)
-
-    sol_1 = solve(prob, alg; kwargs...)
-
-    # sol_1 and sol_2 have same timespan
-    ts = sol_1.timepoints
-    u1 = sol_1.strong_sol
-    # u2 = sol_2.strong_sol
-
-    truncated_sol(u0, t, z1, z2, z3) = u0 *
-                                       exp((α - β^2 / 2) * t + β * W_kkl(t, z1, z2, z3))
-
-    num_samples = 10
-    num_time_steps = dt
-    z1_samples = rand(Normal(0, 1), num_samples)
-    z2_samples = rand(Normal(0, 1), num_samples)
-    z3_samples = rand(Normal(0, 1), num_samples)
-
-    num_time_steps = size(ts)[1]
+    # testing dataset must be for the same timepoints as solution
+    num_samples = 100
+    num_time_steps = length(ts)
     W_samples = Array{Float64}(undef, num_time_steps, num_samples)
     for i in 1:num_samples
         W = WienerProcess(0.0, 0.0)
         probtemp = NoiseProblem(W, (0.0, 1.0))
-        Np_sol = solve(probtemp; dt = dt)
+        Np_sol = solve(probtemp; dt = kwargs.dt)
         W_samples[:, i] = Np_sol.u
     end
 
-    temp_rands = hcat(z1_samples, z2_samples, z3_samples)'
-    phi_inputs = [hcat([vcat(ts[j], temp_rands[:, i]) for j in eachindex(ts)]...)
+    temp_rands = hcat([randn(num_samples) for _ in 1:n_z]...)'
+    phi_inputs = [reduce(hcat, [vcat(ts[j], temp_rands[:, i]) for j in eachindex(ts)])
                   for i in 1:num_samples]
 
     analytic_solution_samples = Array{Float64}(undef, num_time_steps, num_samples)
     truncated_solution_samples = Array{Float64}(undef, num_time_steps, num_samples)
-    predicted_solution_samples_1 = Array{Float64}(undef, num_time_steps, num_samples)
-    # predicted_solution_samples_2 = Array{Float64}(undef, num_time_steps, num_samples)
+    predicted_solution_samples_2 = Array{Float64}(undef, num_time_steps, num_samples)
 
     for j in 1:num_samples
         for i in 1:num_time_steps
             # for each sample, pass each timepoints and get output
-            analytic_solution_samples[i, j] = analytic_sol(u₀, 0, ts[i], W_samples[i, j])
+            analytic_solution_samples[i, j] = analytic_sol(
+                u₀, ideal_p, ts[i], W_samples[i, j])
 
-            predicted_solution_samples_1[i, j] = u₀ .+
-                                                 (ts[i] - ts[1]) .*
-                                                 sol_1.solution.interp.phi(
-                phi_inputs[j][:, i], sol_1.solution.interp.θ)
-            # predicted_solution_samples_2[i, j] = u₀ .+
-            #  (ts[i] - ts[1]) .*
-            #  sol_2.solution.interp.phi(
-            # phi_inputs[j][:, i], sol_2.solution.interp.θ)
+            predicted_solution_samples_2[i, j] = sol_2.rode_solution.interp.phi(
+                phi_inputs[j][:, i], sol_2.rode_solution.interp.θ)
 
             truncated_solution_samples[i, j] = truncated_sol(
-                u₀, ts[i], z1_samples[j], z2_samples[j], z3_samples[j])
+                u₀, ideal_p, ts[i], temp_rands[:, j]...)
         end
     end
 
+    # weak solution tests (sol_2)
     mean_analytic_solution = mean(analytic_solution_samples, dims = 2)
     mean_truncated_solution = mean(truncated_solution_samples, dims = 2)
-    mean_predicted_solution_1 = mean(predicted_solution_samples_1, dims = 2)
-    # mean_predicted_solution_2 = mean(predicted_solution_samples_2, dims = 2)
-
-    # using Plots
-    # plotly()
-    # plot(mean_analytic_solution)
-    # plot!(u1)
-    # plot!(mean_predicted_solution_1)
-    # sol_1.solution.interp.θ[:p]
-    # prob.p
+    mean_predicted_solution_2 = mean(predicted_solution_samples_2, dims = 2)
 
     # testing over different Z_i sample sizes
-    using Test
-    error_1 = sum(abs2, mean_analytic_solution .- u1)
-    @test sol_1.solution.interp.θ[:p]≈α atol=1e-3
-    @test sol_1.solution.interp.θ[:p]≈α rtol=2e-2
-    α
-    sol_1.solution.u
-    sol_1.solution.u[end]
-    sol_1.timepoints
+    @test mean(abs2.(mean_analytic_solution .- pmean(u2))) < 3e-2
+    @test mean(abs2.(mean_analytic_solution .- mean_predicted_solution_2)) < 5e-3
+    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 3e-2
+
+    # strong solution tests (sol_1)
+    # get SDEPINN output at fixed path we solved over.
+    solution_1_strong_solve = reduce(vcat,
+        Base.Fix2(sol_1.rode_solution.interp.phi,
+            sol_1.rode_solution.interp.θ).(
+            collect.(sol_1.training_sets)))
+
+    # get truncated solution on strong path over which training was done.
+    truncatedsol_data_inputs = reduce(hcat, sol_1.training_sets)
+    truncated_solution_strong_paths = [truncated_sol(
+                                           u₀, ideal_p, truncatedsol_data_inputs[:, i]...)
+                                       for i in eachindex(ts)]
+
+    @test mean(abs2, solution_1_strong_solve .- truncated_solution_strong_paths) < 1e-1
+
+    # estimated sde parameter tests (we trained with 15 observed solution paths).
+    @test sol_1.estimated_params[1].≈ideal_p[1] rtol=1e-1
+    @test sol_1.estimated_params[2].≈ideal_p[2] rtol=1e-1
+    @test sol_2.estimated_params[1].≈ideal_p[1] rtol=1e-1
+    @test sol_2.estimated_params[2].≈ideal_p[2] rtol=1e-1
 end

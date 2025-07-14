@@ -1,36 +1,36 @@
 """
     NNSDE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         batch = true, param_estim = false, additional_loss = nothing,
-        dataset = [], estim_collocate = false, kwargs...)
+        sub_batch = 1, strong_loss = false, numensemble = 10, kwargs...)
 
-Algorithm for solving stochastic ordinary differential equations using a neural network. This is a
-specialization of the physics-informed neural network which is used as a solver for a
-standard `SDEProblem`.
+This is an algorithm for solving stochastic ordinary differential equations using a specialization of physics-informed neural networks (PINNs).
+Allows users to solve standard `SDEProblem`s using a Stochastic PINN (SPINN) solver.
 
 !!! warning
 
-    Note that NNSDE only supports ODEs which are written in the out-of-place form, i.e.
-    `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place, then the NNODE
+    NNSDE only supports SDEs which are written in an out-of-place form, i.e.
+    `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place, then the NNSDE algorithm
     will exit with an error.
 
 ## Positional Arguments
 
-* `chain`: A neural network architecture, defined as a `Lux.AbstractLuxLayer` or
-           `Flux.Chain`. `Flux.Chain` will be converted to `Lux` using
+* `chain`: A neural network (NN) architecture specific to SPINNs, such that the input dimensions correspond
+            to time and `n` independant random variables chosen as the SDE's diffusion - Wiener process's orthogonal random basis in it's KKL expansion.
+            `n` has to be chosen by the user, depending on how accurately they want to represent stochasticity via the eigenvalues of the SDE's diffusion matrix in the SPINN surrogate.
+            the chain is defined as a `Lux.AbstractLuxLayer` or `Flux.Chain`. `Flux.Chain` will be converted to `Lux` using
            `adapt(FromFluxAdaptor(), chain)`.
 * `opt`: The optimizer to train the neural network.
-* `init_params`: The initial parameter of the neural network. By default, this is `nothing`
+* `init_params`: The initialization scheme for the neural network. By default, this is `nothing`
                  which thus uses the random initialization provided by the neural network
                  library.
 
 ## Keyword Arguments
 
+* `sub_batch` = 1
+* `strong_loss` = false
+* `numensemble` = 10
 * `additional_loss`: A function additional_loss(phi, θ) where phi are the neural network
                      trial solutions, θ are the weights of the neural network(s).
-* `dataset`: Is either an empty Vector or a nested Vector of the form `[x̂, t, W]` where `x̂` are dependant variable observations, `t` are time points and `W` are quadrature weights for domain.
-             The dataset is used to compute a L2 loss against the data and also for the Data Quadrature loss function.
-             For multiple dependant variables, there will be multiple vectors with the last two vectors in dataset still being for `t`, `W`.
-             Is empty by default assuming a forward problem is being solved.
 * `autodiff`: The switch between automatic and numerical differentiation for
               the PDE operators. The reverse mode of the loss function is always
               automatic differentiation (via Zygote), this is only for the derivative
@@ -47,7 +47,6 @@ standard `SDEProblem`.
 * `strategy`: The training strategy used to choose the points for the evaluations.
               Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
               `dt` is given, and `GridTraining` is used with `dt` if given.
-* `estim_collocate`: A boolean value to indicate whether to use the Data Quadrature loss function or not. This is only relevant for ODE parameter estimation.
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## Examples
@@ -82,38 +81,41 @@ analysis.
 
 ## References
 
-Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neural networks
-for solving ordinary and partial differential equations." IEEE Transactions on Neural
-Networks 9, no. 5 (1998): 987-1000.
+Stochastic PDE Functionality #531 : https://github.com/SciML/NeuralPDE.jl/issues/531
+
 """
+
 @concrete struct NNSDE
     chain <: AbstractLuxLayer
     opt
     init_params
+    strategy <: Union{Nothing, AbstractTrainingStrategy}
     autodiff::Bool
     batch::Bool
-    strategy <: Union{Nothing, AbstractTrainingStrategy}
-    param_estim::Bool
-    additional_loss <: Union{Nothing, Function}
     sub_batch::Int64
     strong_loss::Bool
+    param_estim::Bool
+    dataset <: Union{Vector, Vector{<:Vector}}
+    data_sub_batch::Int64
     numensemble::Number
+    additional_loss <: Union{Nothing, Function}
     kwargs
 end
 
 function NNSDE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-        batch = true, param_estim = false, additional_loss = nothing,
-        sub_batch = 1, strong_loss = false, numensemble = 10, kwargs...)
+        batch = true, sub_batch = 1, strong_loss = false, param_estim = false, dataset = [],
+        data_sub_batch = 1, numensemble = 10, additional_loss = nothing, kwargs...)
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
-    return NNSDE(chain, opt, init_params, autodiff, batch,
-        strategy, param_estim, additional_loss, sub_batch, strong_loss, numensemble, kwargs)
+    return NNSDE(
+        chain, opt, init_params, strategy, autodiff, batch, sub_batch, strong_loss,
+        param_estim, dataset, data_sub_batch, numensemble, additional_loss, kwargs)
 end
 
 """
     SDEPhi(chain::Lux.AbstractLuxLayer, t, u0, st)
 
 Internal struct, used for representing the SDE solution as a neural network in a form that
-respects boundary conditions, i.e. `phi(inp) = u0 + inp[1]*NN(inp)`.
+respects boundary conditions, i.e. `phi(inp) = u0 + inp[1] * NN(inp)`.
 """
 @concrete struct SDEPhi
     u0
@@ -130,13 +132,15 @@ function (f::SDEPhi)(inp, θ)
     return f(dev, safe_expand(dev, inp), θ)
 end
 
-function (f::SDEPhi{<:Number})(dev, inp::Array{<:Number, 1}, θ)
+# single timepoint, single sample (t[i],z_1,z_2...) input.
+function (f::SDEPhi)(dev, inp::Vector{<:Number}, θ)
     res = only(cdev(f.smodel(dev(inp), θ.depvar)))
-    return f.u0 + (inp[1] - f.t0) * res
+    return f.u0 .+ (inp[1] - f.t0) .* res
 end
 
-function (f::SDEPhi)(dev, inp::Array{<:Number, 1}, θ)
-    return dev(f.u0) .+ (inp[1] - f.t0) .* f.smodel(dev(inp), θ.depvar)
+# single timepoint, multiple Matrix samples input.
+function (f::SDEPhi)(dev, inp::Matrix{<:Number}, θ)
+    return dev(f.u0) .+ ((inp[1, :] .- f.t0)' .* f.smodel(dev(inp), θ.depvar))
 end
 
 function generate_phi(chain::AbstractLuxLayer, t, u0, ::Nothing)
@@ -156,115 +160,221 @@ Computes for sde's solution u, u' using either forward-mode automatic differenti
 """
 function ∂u_∂t end
 
-# earlier input as number or abstract vector, now becomes array1 or matrix
-# input first col must be time, rest all z_i's
-# vector of t_i's sub_batch input vectors = inputs
-# returns a vector of gradients for each sub_batch, for each method call over all its sub_batches
-function ∂u_∂t(phi::SDEPhi, inputs::Array{<:Array{<:Number, 1}}, θ, autodiff::Bool)
+# du_dt is defined for single timepoint Matrix inputs. (refer inner_sde_loss for the Matrix form details).
+function ∂u_∂t(
+        inputs::Matrix{<:Number}, operator_info::Tuple{
+            SDEPhi, ComponentArrays.ComponentVector, Bool})
+    phi, θ, autodiff = operator_info
     autodiff &&
-        return [ForwardDiff.gradient(
-                    t -> (phi(vcat(t, input[2:end]), θ)), input[1])
-                for input in inputs]
-    ϵ = sqrt(eps(eltype(inputs[1])))
-    return [(phi(vcat(input[1] + ϵ, input[2:end]), θ) .- phi(input, θ)) ./ ϵ
-            for input in inputs]
+        return ForwardDiff.jacobian(t -> phi(vcat(t, inputs[2:end, :]), θ), inputs[1, :])
+
+    ϵ = sqrt(eps(eltype(inputs)))
+    return (phi(vcat(inputs[1, :]' .+ ϵ, inputs[2:end, :]), θ) .- phi(inputs, θ)) ./ ϵ
 end
 
 """
-    inner_sde_loss(phi, f, autodiff, t, θ, p, param_estim)
+    inner_sde_loss(phi, f, autodiff, inputs, θ, p, param_estim, train_type)
 
 Simple L2 inner loss for the SDE at a time `t` and random variables z_i with parameters `θ` of the neural network.
     
-For NNSE instead of a matrix, input is a N x n_sub x (t+n_z) dim array N -> n timepoints, n_sub -> n_sub_batch, t+n_z -> chain/phi input dims.
-Inner Sde loss enforces weak/strong solution across sub_batches (strong sol convergence implies weak sol convergence but not vice versa)
-Note: test file GBM SDE case, weak sol training gives better results for more sub_samples. strong sol training gives opposite results.
-Note: NNODE, NNSDE take only a single Neural Network which is multioutput or singleoutput
+for non batching case we take in single timepoint input per call:
+    - inputs is a NN_input_dims x n_samples matrix.
 
+for batching case we take in a Vector of timepoints as inputs per call:
+    - inputs is n=n_timepoints sized Vector of NN_input_dims x n_samples matrices.
+
+train_type allows for solving across a few strong paths of the SDE solution OR capturing the whole expected SDE solution.
+Note: NNODE, NNSDE take only a single Neural Network which is multioutput or singleoutput
 """
 function inner_sde_loss end
 
-# no batching
+# no batching across time
 function inner_sde_loss(
-        phi::SDEPhi, f, g, autodiff::Bool, inputs::Array{<:Array{<:Number, 1}},
-        θ, p, param_estim::Bool, train_type)
+        phi::SDEPhi, f, g, autodiff::Bool, inputs::P,
+        θ, p, param_estim::Bool, train_type) where {P <: Matrix{<:Number}}
     p_ = param_estim ? θ.p : p
 
-    # phi's many outputs for the same timepoint's many sub_batches
-    # must also cover multioutput case
-    u = [phi(sub_batch_input, θ) for sub_batch_input in inputs]
+    # u is NN_output_dims x n_samples matrix.
+    u = phi(inputs, θ)
+    n_inp = phi.smodel.model[1].in_dims - 1
+    n_samples = size(inputs)[2]
 
-    # for t's sub_batch we consider the i_th batch in sub_batch as indvar, z_i... inputs for the ith phi output (also covers sub_batch=1 case)
+    # inputs is a NN_input_dims x n_samples matrix, first row being the time domain discretized point.
+    # each timepoint in domain has an associated (1+n_z) x n_samples Matrix of NN inputs.
     fs = if phi.u0 isa Number
-        [f(u[i][1], p_, inp[1]) +
-         g(u[i][1], p_, inp[1]) * √2 *
-         sum(inp[1 + j] * cos((j - 1 / 2)pi * inp[1]) for j in 1:(length(inp) - 1))
-         for (i, inp) in enumerate(inputs)]
+        reduce(hcat,
+            [f(u[:, i][1], p_, inputs[1, i]) +
+             g(u[:, i][1], p_, inputs[1, i]) * √2 *
+             sum(inputs[1 + j, i] * cos((j - 1 / 2)pi * inputs[1, i]) for j in 1:n_inp)
+             for i in 1:n_samples])
     else
-        # will be vector in multioutput case
-        [f(u[i], p_, inp[1]) +
-         g(u[i], p_, inp[1]) * √2 *
-         sum(inp[1 + j] * cos((j - 1 / 2)pi * inp[1]) for j in 1:(length(inp) - 1))
-         for (i, inp) in enumerate(inputs)]
+        # multioutput case.
+        reduce(hcat,
+            [f(u[:, i], p_, inputs[1, i]) +
+             g(u[:, i], p_, inputs[1, i]) * √2 *
+             sum(inputs[1 + j, i] * cos((j - 1 / 2)pi * inputs[1, i]) for j in 1:n_inp)
+             for i in 1:n_samples])
     end
 
-    # gradient at t is not affected by sub_batch z_i values beyond use in phi(t+ϵ)
-    dudt = ∂u_∂t(phi, inputs, θ, autodiff)
+    # dudt is jacobian matrix NN_output_dims x n_samples.
+    dudt = ∂u_∂t(inputs, (phi, θ, autodiff))
 
-    # initially .- broadcasting over  NN multiple/single outputs and subbatches simultaneously
-    # fs and dudt size is (n_sub_batch, NN_output_size), loss is for one timepoint
-    # broadcasted sum(abs2,) over losses for each sub_batch, where rows - sub_batch's and cols - NN multiple/single outputs
-    # finally mean over vector of L2 errors (all the sub_batches) (direct sum(strong sol)/mean(weak sol) across sub_batches)
-    return train_type(sum.(abs2, fs .- dudt))
+    # sum call is over multioutputs, train_type called over dims=2/n_samples axis.
+    return sum(train_type(abs2.(fs .- dudt), dims = 2))
 end
 
 # batching case
 function inner_sde_loss(
-        phi::SDEPhi, f, g, autodiff::Bool, inputs::Array{<:Array{<:Array{<:Number, 1}}},
-        θ, p, param_estim::Bool, train_type)
+        phi::SDEPhi, f, g, autodiff::Bool, inputs::P,
+        θ, p, param_estim::Bool, train_type) where {P <:
+                                                    Vector{<:Matrix{<:Number}}}
     p_ = param_estim ? θ.p : p
+    n_inp = phi.smodel.model[1].in_dims - 1
+    # quadrature alg call case handling
+    n_samples = isempty(inputs) ? 0 : size(inputs[1])[2]
 
-    # phi's many outputs for each timepoint's many sub_batches, input for each t_i, sub_batch_input for each input's sub_batches
-    # must also cover multioutput case
-    u = [[phi(sub_batch_input, θ) for sub_batch_input in input] for input in inputs]
+    # same dims as inputs, u[i] now being a NN_output_dims x n_samples Matrix
+    u = Base.Fix2(phi, θ).(inputs)
 
-    # for each t_i's sub_batch we consider the i_th batch in sub_batch as indvar, z_i... inputs for the i_th phi output (covers subbatch=1 case for each t_i)
+    # inputs is a Vector of NN_input_dims x n_samples matrices, each timepoint[i] -> inputs[i] Matrix{<:Number}.
+    # each timepoint in domain has an associated (1+n_z) x n_samples Matrix of NN inputs. 
     fs = if phi.u0 isa Number
-        [[f(u[i][j][1], p_, inpi[1]) +
-          g(u[i][j][1], p_, inpi[1]) * 2^(1 / 2) *
-          sum(inpi[1 + k] * cos((k - 1 / 2)pi * inpi[1]) for k in 1:(length(inpi) - 1))
-          for (j, inpi) in enumerate(inp)] for (i, inp) in enumerate(inputs)]
+        [reduce(hcat,
+             [f(u[k][:, i][1], p_, inputs[k][1, i]) +
+              g(u[k][:, i][1], p_, inputs[k][1, i]) * √2 *
+              sum(inputs[k][1 + j, i] * cos((j - 1 / 2)pi * inputs[k][1, i])
+              for j in 1:n_inp) for i in 1:n_samples]) for k in eachindex(inputs)]
     else
-        [[f(u[i][j], p_, inpi[1]) +
-          g(u[i][j], p_, inpi[1]) * 2^(1 / 2) *
-          sum(inpi[1 + k] * cos((k - 1 / 2)pi * inpi[1]) for k in 1:(length(inpi) - 1))
-          for (j, inpi) in enumerate(inp)] for (i, inp) in enumerate(inputs)]
+        # multioutput case
+        [reduce(hcat,
+             [f(u[k][:, i], p_, inputs[k][1, i]) +
+              g(u[k][:, i], p_, inputs[k][1, i]) * √2 *
+              sum(inputs[k][1 + j, i] * cos((j - 1 / 2)pi * inputs[k][1, i])
+              for j in 1:n_inp) for i in 1:n_samples]) for k in eachindex(inputs)]
     end
 
-    # fs[i] is made of n=n_sub_batch, vectors of n=n_output_dims dim each
-    # gradient at t_i's is not affected by their sub_batch's z_i values beyond use in phi(ti+ϵ)
-    dudt = [∂u_∂t(phi, inpi, θ, autodiff) for inpi in inputs]
+    # same dims as inputs, dudt[i] now being a NN_output_dims x n_samples Matrix
+    dudt = Base.Fix2(∂u_∂t, (phi, θ, autodiff)).(inputs)
 
-    # Taking MSE across Z, each fs and du/dt has n_sub_batch elements in them
-    # mean used for each timepoint's sub_batch as weak solution enforced for each WienerProcess realization (better results for same n iterations)
-    # similar explanation as non batching additionally final sum aggregated over all timepoints.
-    return sum(train_type(sum.(abs2, fs[i] .- dudt[i])) for i in eachindex(inputs)) /
-           length(inputs)
+    return sum(sum(train_type(abs2.(fs[i] .- dudt[i]), dims = 2))
+    for i in eachindex(inputs)) / length(inputs)
 end
 
 """
-    add_rand_coeff(times, n_z)
-n_z is the number of orthogonal basis (probability space) of Random variables taken in the KKl expansion for an SDE.
-n_z can also be a list of sampled values
-returns a list appending n_z or n = n_z sampled (Uniform Gaussian) random variables values to a fixed time's value or a list of times.
+    add_rand_coeff(times, n_z, n_sub_batch)
+
+For n=n_sub_batch independant random coeff/basis variables z_i, values at each timepoint. 
+This is a weak training discretization of the time domain & similar to Monte Carlo sampling across z_i probability spaces.
+n_z is the number of Independant Random basis vectors for the Brownian's probability space used for truncating via the KKl expansion.
+returns a list appending n = n_z sampled (Uniform Gaussian) values to a fixed time's value or a list of times.
 """
-function add_rand_coeff(times, n_z::Int64)
-    times isa Number && return vcat(times, rand(Normal(0, 1), n_z))
-    return [vcat(time, rand(Normal(0, 1), n_z))
+# strategy 1 -> train for the expected behaviour of SDE solution.
+function add_rand_coeff(times::P, n_z::Int64, n_sub_batch::Int64) where {P <: Number}
+    return reduce(hcat, [vcat(times, rand(Normal(0, 1), n_z)) for i in 1:n_sub_batch])
+end
+
+function add_rand_coeff(times::Vector, n_z::Int64, n_sub_batch::Int64)
+    return [reduce(hcat, [vcat(time, rand(Normal(0, 1), n_z)) for i in 1:n_sub_batch])
             for time in times]
 end
 
 """
-    generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
+    add_rand_coeff_2(times, n_z, num_samples)
+
+For n=n_samples strong paths (z_i... are the same per sample) - strong training discretization over input domain.
+n_z is the number of Independant Random basis vectors for the Brownian's probability space used for truncating via the KKl expansion.
+returns a list appending n = n_z sampled (Uniform Gaussian) random variables values to a list of times.
+"""
+# strategy 2 -> train over n = num_samples strong realisations of the process.
+function add_rand_coeff_2(times, n_z::Int64, num_samples)
+    # each timepoint is paired with a set of fixed n_z random coefficients.
+    # This is defined via a Filtration on the estimated probability space for the adapted process.
+    # t is fixed, therefore eigen-functions,values are fixed with it. W (therefore z_i) is not fixed so z_i sampled randomnly.
+
+    zi_samples = [rand(Normal(0, 1), n_z) for i in 1:num_samples]
+    return [reduce(hcat, [vcat(time, zi_samples[i]) for i in 1:num_samples])
+            for time in times]
+end
+
+"""
+    generate_DataMoments_loss(dataset, phi, n_output)
+
+returns a function that computes the L2 loss between the neural network's output and the dataset provided.
+Naive moment matching loss (works best low sub_batches + strong loss).
+"""
+function generate_DataMoments_loss(
+        dataset::Vector{<:Vector}, n_z::Int64, phi::SDEPhi, f, g,
+        autodiff::Bool, p, param_estim::Bool, data_sub_batch::Int64, train_type)
+    # n_timepoints x data_sub_batch Matrix
+    process = reduce(hcat, dataset[1])
+    # n_timepoints sized Vector
+    ts = dataset[2]
+
+    # construct NN inputs of form [t,n_i] for the physics loss to be applied on the dataset points.
+    sdephi_inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, data_sub_batch) :
+                    add_rand_coeff(ts, n_z, data_sub_batch)
+
+    # moment matching (MSE across time for 1st, 2nd moments) - assumes diffusion is a Gaussian at each timepoint
+    # uses sample variance
+    return (θ, _) -> begin
+        sum(abs2,
+            mean(process, dims = 2) .-
+            mean.(Base.Fix2(phi, θ).(sdephi_inputs))) / length(ts) +
+        # train_type is strong in inner loss as we have data_sub_batch strong solutions.
+        abs2(
+            inner_sde_loss(
+            phi, f, g, autodiff, sdephi_inputs, θ, p, param_estim, train_type)
+        ) +
+        # get variances across cols - realisations (data_sub_batches)
+        # then sum over times, to get each (timepoint, solution) -> variance
+        sum(abs2,
+            sum(abs2.(process .- mean(process, dims = 2)), dims = 2) .-
+            sum(
+                abs2.(reduce(vcat, Base.Fix2(phi, θ).(sdephi_inputs)) .-
+                      mean.(Base.Fix2(phi, θ).(sdephi_inputs))),
+                dims = 2)) /
+        (length(ts) * (data_sub_batch - 1)^2)
+    end,
+    sdephi_inputs
+end
+
+"""
+    generate_EM_L2loss(dataset, phi, n_output)
+
+returns a loss function using the provided dataset.
+A Moment matching loss based on the Euler Maruyama discretiztion scheme for SDE solution increments.
+The observed solution increments Xt+1 - Xt follow the Normal(f(u,p,t) * Δt, g(u,p,t)^2 * Δt)  Distribution.
+(The above follows as Wiener increments are independant & Normally Distributed with variance = Δt)
+"""
+function get_increments(x::Vector{T}) where {T}
+    @views return x[2:end] .- x[1:(end - 1)]
+end
+
+function generate_EM_L2loss(dataset::Vector{<:Vector}, f, g)
+    # n_timepoints-1 sized Vector
+    process = reduce(hcat, dataset[1])
+    Δt = get_increments(dataset[2])
+    # n_timepoints-1 x data_sub_batch Matrix
+    X_increments = reduce(hcat, get_increments.(dataset[1]))
+    n, n_samples = size(X_increments)
+
+    loss_fn = (θ, _) -> begin
+        gx = reduce(hcat,
+            [[g(process[i, j], θ.p, dataset[2][i])^2 * Δt[i] for i in 1:n]
+             for j in 1:n_samples])
+        fx = reduce(hcat,
+            [[f(process[i, j], θ.p, dataset[2][i]) * Δt[i] for i in 1:n]
+             for j in 1:n_samples])
+
+        # loss based on moments of the Gaussian Increments
+        return sum(abs2, X_increments .- fx) + sum(abs2, abs2.(X_increments .- fx) .- gx)
+    end
+
+    return loss_fn, nothing
+end
+
+"""
+    generate_loss(strategy, phi, f, g, autodiff, tspan, n_z, n_sub_batch, train_type, p, batch, param_estim)
 
 Representation of the loss function, parametric on the training strategy `strategy`.
 """
@@ -272,15 +382,20 @@ function generate_loss(
         strategy::QuadratureTraining, phi, f, g, autodiff::Bool, tspan, n_z::Int64, n_sub_batch::Int64, train_type, p,
         batch::Bool, param_estim::Bool)
     inputs = AbstractVector{Any}[]
+    zt_samples = [rand(Normal(0, 1), n_z) for i in 1:n_sub_batch]
+
     function integrand(t::Number, θ)
-        inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch]]
+        inputs = train_type == sum ?
+                 reduce(hcat, [vcat(time, zt_samples[i]) for i in 1:n_sub_batch]) :
+                 add_rand_coeff(t, n_z, n_sub_batch)
         return abs2(inner_sde_loss(
             phi, f, g, autodiff, inputs, θ, p, param_estim, train_type))
     end
 
     # when ts is a 1D Array
-    function integrand(ts, θ)
-        inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in ts]
+    function integrand(ts::Vector, θ)
+        inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, n_sub_batch) :
+                 add_rand_coeff(ts, n_z, n_sub_batch)
         return [abs2(inner_sde_loss(
                     phi, f, g, autodiff, input, θ, p, param_estim, train_type))
                 for input in inputs]
@@ -300,11 +415,11 @@ end
 function generate_loss(
         strategy::GridTraining, phi, f, g, autodiff::Bool, tspan, n_z::Int64, n_sub_batch::Int64,
         train_type, p, batch::Bool, param_estim::Bool)
-    ts = tspan[1]:(strategy.dx):tspan[2]
-    # in (t,n_i,..) space we solve at one point, NN(input) can also represent only this point if subbatch=1
-    # inp = add_rand_coeff(ts, n_z)
-    # for each ti in t we have n=n_sub_batch phi onput possibilities
-    inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in ts]
+    ts = collect(tspan[1]:(strategy.dx):tspan[2])
+
+    # n_timepoints * (1+n_z) * n_samples -> Vector{Matrix{Float64}}
+    inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, n_sub_batch) :
+             add_rand_coeff(ts, n_z, n_sub_batch)
 
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     batch &&
@@ -325,7 +440,8 @@ function generate_loss(strategy::StochasticTraining, phi, f, g, autodiff::Bool,
     return (θ, _) -> begin
         T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
         ts = ((tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1])
-        inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in ts]
+        inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, n_sub_batch) :
+                 add_rand_coeff(ts, n_z, n_sub_batch)
 
         if batch
             inner_sde_loss(
@@ -354,7 +470,8 @@ function generate_loss(
                     ((index - 1) * difference)
         append!(ts, temp_data)
     end
-    inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in ts]
+    inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, n_sub_batch) :
+             add_rand_coeff(ts, n_z, n_sub_batch)
 
     batch &&
         return (θ, _) -> inner_sde_loss(
@@ -369,7 +486,9 @@ end
 function evaluate_tstops_loss(
         phi, f, g, autodiff::Bool, tstops, n_z::Int64, n_sub_batch::Int64,
         train_type, p, batch::Bool, param_estim::Bool)
-    inputs = [[add_rand_coeff(t, n_z) for i in 1:n_sub_batch] for t in tstops]
+    inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, n_sub_batch) :
+             add_rand_coeff(ts, n_z, n_sub_batch)
+
     batch &&
         return (θ, _) -> inner_sde_loss(
             phi, f, g, autodiff, inputs, θ, p, param_estim, train_type),
@@ -410,13 +529,16 @@ SciMLBase.interp_summary(::NNSDEInterpolation) = "Trained neural network interpo
 SciMLBase.allowscomplex(::NNSDE) = true
 
 @concrete struct SDEsol
-    solution
-    strong_sol::AbstractVector{<:Particles}
-    timepoints::AbstractVector{<:Number}
-    ensemble_fits::AbstractVector
-    ensemble_inputs::AbstractVector
-    numensemble::Number
-    training_sets::AbstractVector
+    original
+    rode_solution
+    estimated_sol::Vector{<:Vector{<:Particles}}
+    timepoints::Vector{<:Number}
+    estimated_params::Union{Nothing, Vector{<:Number}}
+    ensemble_fits::Vector{<:Matrix{<:Number}}
+    ensemble_inputs::Vector
+    numensemble::Int64
+    training_sets::Vector
+    dataset_training_sets::Union{Nothing, Vector}
 end
 
 function SciMLBase.__solve(
@@ -435,14 +557,21 @@ function SciMLBase.__solve(
         tstops = nothing
 )
     (; u0, tspan, f, g, p) = prob
-    # rescaling tspan, discretization so KKL expansion can be applied for loss formulation
+    # rescaling tspan discretization so KKL expansion can be applied for loss formulation
     tspan_scale = tspan ./ tspan[end]
     if dt !== nothing
         dt = dt / abs(tspan_scale[2] - tspan_scale[1])
     end
-
     t0 = tspan_scale[1]
-    (; param_estim, chain, opt, autodiff, init_params, batch, additional_loss, sub_batch, strong_loss, numensemble) = alg
+
+    # add this field in NNSDE !!!
+    moment_loss = false
+
+    # sub_batch is basically the number of samples/n_samples of the truncated KKL's RV basis.
+    # For weak training: higher sub_batch corresponds with a narrower confidence band/ increased certainty in the Weak solution.
+    # For strong training: it means more strong paths to train over.
+    # weak loss-> weak training is default solve mode.
+    (; param_estim, sub_batch, strong_loss, chain, opt, autodiff, init_params, batch, additional_loss, dataset, numensemble, data_sub_batch) = alg
     n_z = chain[1].in_dims - 1
     sde_phi, init_params = generate_phi(chain, t0, u0, init_params)
 
@@ -469,20 +598,47 @@ function SciMLBase.__solve(
         alg.strategy
     end
 
-    # train_type is weak training (expectation based loss) by default, use strong_loss = true for strong loss (pathwise loss)
+    # train_type is weak (expectation based loss + random sets of z_i for all timepoints) by default
+    # use strong_loss = true for strong loss (pathwise total loss summation + same z_i for all timepoints)
     train_type = strong_loss ? sum : mean
+
     inner_f, training_sets = generate_loss(
         strategy, sde_phi, f, g, autodiff, tspan_scale, n_z,
         sub_batch, train_type, p, batch, param_estim)
 
-    (param_estim && additional_loss === nothing) &&
-        throw(ArgumentError("Please provide `additional_loss` in `NNSDE` for parameter estimation (`param_estim` is true)."))
+    if isempty(dataset) && param_estim && isnothing(additional_loss)
+        error("Dataset or an additional loss is required for Inverse problems performing Parameter Estimation.")
+    end
+
+    if !isempty(dataset)
+        if (length(dataset) < 2 || !(dataset isa Vector{<:Vector}))
+            error("Invalid dataset. The dataset would be a timeseries (x̂,t) where t is type: Vector{AbstractFloat} and x̂ is of type: Vector{<:Vector{<:AbstractFloat}}.")
+        end
+
+        EM_L2loss, dataset_training_sets = generate_EM_L2loss(dataset, f, g)
+
+        if moment_loss
+            # min batch for L2 mean is sub samples of the dataset
+            data_sub_batch = max(data_sub_batch, length(dataset[1]))
+            DataMoments_loss, dataset_training_sets = generate_DataMoments_loss(
+                dataset, n_z, sde_phi, f, g,
+                autodiff, p, param_estim, data_sub_batch, train_type)
+        end
+    else
+        dataset_training_sets = nothing
+    end
 
     # Creates OptimizationFunction Object from total_loss
     function total_loss(θ, _)
-        L2_loss = inner_f(θ, sde_phi)
+        phys_loss = inner_f(θ, sde_phi)
         if additional_loss !== nothing
-            L2_loss = L2_loss + additional_loss(sde_phi, θ)
+            phys_loss = phys_loss + additional_loss(sde_phi, θ)
+        end
+        if param_estim == true && !isnothing(dataset)
+            phys_loss = phys_loss + EM_L2loss(θ, sde_phi)
+        end
+        if param_estim && moment_loss
+            phys_loss = phys_loss + DataMoments_loss(θ, sde_phi)
         end
         if tstops !== nothing
             num_tstops_points = length(tstops)
@@ -495,14 +651,15 @@ function SciMLBase.__solve(
             elseif strategy isa Union{WeightedIntervalTraining, StochasticTraining}
                 num_original_points = strategy.points
             else
-                return L2_loss + tstops_loss
+                return phys_loss + tstops_loss
             end
-            total_original_loss = L2_loss * num_original_points
+            total_original_loss = phys_loss * num_original_points
             total_tstops_loss = tstops_loss * num_tstops_points
             total_points = num_original_points + num_tstops_points
-            L2_loss = (total_original_loss + total_tstops_loss) / total_points
+            phys_loss = (total_original_loss + total_tstops_loss) / total_points
+            return phys_loss
         end
-        return L2_loss
+        return phys_loss
     end
 
     opt_algo = ifelse(strategy isa QuadratureTraining, AutoForwardDiff(), AutoZygote())
@@ -537,25 +694,15 @@ function SciMLBase.__solve(
     end
     ts = collect(ts)
 
-    ensembles = []
-    ensemble_inputs = []
-    for i in 1:numensemble
-        inputs = add_rand_coeff(ts, n_z)
+    # validation ensemble creation for all timepoints -> reflects learnt dynamics of the SDE solution's Expectation.
+    validation_inputs = add_rand_coeff(ts, n_z, numensemble)
+    u = [sde_phi(input, res.u) for input in validation_inputs]
+    n_output = chain[end].out_dims
+    sol_parts = [[Particles(u[i][j, :]) for i in eachindex(ts)] for j in 1:n_output]
 
-        if u0 isa Number
-            u = [first(sde_phi(input, res.u)) for input in inputs]
-        else
-            u = [sde_phi(input, res.u) for input in inputs]
-        end
-        push!(ensembles, u)
-        push!(ensemble_inputs, inputs)
-    end
-    sde_sols = hcat(ensembles...)
-    strong_sde_sol = [Particles(sde_sols[i, :]) for i in eachindex(ts)]
+    estimated_sde_parameters = param_estim ? collect(res.u.p) : nothing
 
-    # SDEsol.solution contains the weak solution only
-    # Strong solution can be accessed via SDEsol.strong_sol
-    sol = SciMLBase.build_solution(prob, alg, ts, strong_sde_sol; k = res, dense = true,
+    sol = SciMLBase.build_solution(prob, alg, ts, sol_parts; dense = true,
         interp = NNSDEInterpolation(sde_phi, res.u), calculate_error = false,
         retcode = ReturnCode.Success, original = res, resid = res.objective)
 
@@ -563,7 +710,8 @@ function SciMLBase.__solve(
         SciMLBase.calculate_solution_errors!(
             sol; timeseries_errors = true, dense_errors = false)
 
-    # separate Wernier process realisations and their solutions can be accessed via ensembles, ensemble_inputs
+    # separate solution realisations, inputs can be accessed via ensembles, ensemble_inputs
     return SDEsol(
-        sol, strong_sde_sol, ts, ensembles, ensemble_inputs, numensemble, training_sets)
+        res, sol, sol_parts, ts, estimated_sde_parameters, u, validation_inputs,
+        numensemble, training_sets, dataset_training_sets)
 end
