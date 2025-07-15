@@ -48,7 +48,7 @@ end
     luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1)) |> f64
 
     dt = 1 / 50.0f0
-    abstol = 1e-6
+    abstol = 1e-12
     autodiff = false
     kwargs = (; verbose = true, dt = dt, abstol, maxiters = 400)
     opt = BFGS()
@@ -78,7 +78,7 @@ end
     truncated_sol(u0, t, z1, z2, z3) = u0 *
                                        exp((α - β^2 / 2) * t + β * W_kkl(t, z1, z2, z3))
 
-    num_samples = 3000
+    num_samples = 2000
     num_time_steps = dt
     z1_samples = rand(Normal(0, 1), num_samples)
     z2_samples = rand(Normal(0, 1), num_samples)
@@ -161,7 +161,7 @@ end
 
     @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) >
           mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution))
-    @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) < 3e-1
+    @test mean(abs2.(mean_predicted_solution_1 .- mean_truncated_solution)) < 8e-2
     @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 5e-2
 end
 
@@ -359,7 +359,7 @@ end
     autodiff = false
     kwargs = (; verbose = true, dt = 1 / 50.0f0, abstol, maxiters = 700)
     opt = BFGS()
-    numensemble = 200
+    numensemble = 100
 
     # for inverse problems more sub_batch leads to learning mainly the drift parameter
     alg_1 = NNSDE(luxchain, opt; autodiff, numensemble = numensemble,
@@ -384,7 +384,7 @@ end
     end
 
     # testing dataset must be for the same timepoints as solution
-    num_samples = 100
+    num_samples = 200
     num_time_steps = length(ts)
     W_samples = Array{Float64}(undef, num_time_steps, num_samples)
     for i in 1:num_samples
@@ -422,9 +422,9 @@ end
     mean_predicted_solution_2 = mean(predicted_solution_samples_2, dims = 2)
 
     # testing over different, same Z_i sample sizes
-    @test mean(abs2.(mean_analytic_solution .- pmean(u2))) < 9e-2
-    @test mean(abs2.(mean_analytic_solution .- mean_predicted_solution_2)) < 9e-2
-    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 9e-2
+    @test mean(abs2.(mean_analytic_solution .- pmean(u2))) < 5e-2
+    @test mean(abs2.(mean_analytic_solution .- mean_predicted_solution_2)) < 5e-2
+    @test mean(abs2.(mean_predicted_solution_2 .- mean_truncated_solution)) < 5e-2
 
     # strong solution tests (sol_1)
     # get SDEPINN output at fixed path we solved over.
@@ -439,7 +439,7 @@ end
                                            u₀, ideal_p, truncatedsol_data_inputs[:, i]...)
                                        for i in eachindex(ts)]
 
-    @test mean(abs2, solution_1_strong_solve .- truncated_solution_strong_paths) < 1e-1
+    @test mean(abs2, solution_1_strong_solve .- truncated_solution_strong_paths) < 5e-2
 
     # estimated sde parameter tests (we trained with 15 observed solution paths).
     # absolute value taken for 2nd estimated parameter as loss for variance is independant of this parameter's direction.
