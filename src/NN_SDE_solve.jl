@@ -1,7 +1,9 @@
 """
+
     NNSDE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-        batch = true, param_estim = false, additional_loss = nothing,
-        sub_batch = 1, strong_loss = false, numensemble = 10, kwargs...)
+        batch = true, sub_batch = 1, strong_loss = false,
+        moment_loss = false, param_estim = false, dataset = [],
+        data_sub_batch = 1, numensemble = 10, additional_loss = nothing, kwargs...)
 
 This is an algorithm for solving stochastic ordinary differential equations using a specialization of physics-informed neural networks (PINNs).
 Allows users to solve standard `SDEProblem`s using a Stochastic PINN (SPINN) solver.
@@ -94,6 +96,7 @@ Stochastic PDE Functionality #531 : https://github.com/SciML/NeuralPDE.jl/issues
     batch::Bool
     sub_batch::Int64
     strong_loss::Bool
+    moment_loss::Bool
     param_estim::Bool
     dataset <: Union{Vector, Vector{<:Vector}}
     data_sub_batch::Int64
@@ -103,11 +106,12 @@ Stochastic PDE Functionality #531 : https://github.com/SciML/NeuralPDE.jl/issues
 end
 
 function NNSDE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-        batch = true, sub_batch = 1, strong_loss = false, param_estim = false, dataset = [],
+        batch = true, sub_batch = 1, strong_loss = false,
+        moment_loss = false, param_estim = false, dataset = [],
         data_sub_batch = 1, numensemble = 10, additional_loss = nothing, kwargs...)
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return NNSDE(
-        chain, opt, init_params, strategy, autodiff, batch, sub_batch, strong_loss,
+        chain, opt, init_params, strategy, autodiff, batch, sub_batch, strong_loss, moment_loss,
         param_estim, dataset, data_sub_batch, numensemble, additional_loss, kwargs)
 end
 
@@ -564,14 +568,11 @@ function SciMLBase.__solve(
     end
     t0 = tspan_scale[1]
 
-    # add this field in NNSDE !!!
-    moment_loss = false
-
     # sub_batch is basically the number of samples/n_samples of the truncated KKL's RV basis.
     # For weak training: higher sub_batch corresponds with a narrower confidence band/ increased certainty in the Weak solution.
     # For strong training: it means more strong paths to train over.
     # weak loss-> weak training is default solve mode.
-    (; param_estim, sub_batch, strong_loss, chain, opt, autodiff, init_params, batch, additional_loss, dataset, numensemble, data_sub_batch) = alg
+    (; param_estim, sub_batch, strong_loss, moment_loss, chain, opt, autodiff, init_params, batch, additional_loss, dataset, numensemble, data_sub_batch) = alg
     n_z = chain[1].in_dims - 1
     sde_phi, init_params = generate_phi(chain, t0, u0, init_params)
 
