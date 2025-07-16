@@ -30,7 +30,7 @@ Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
-AdvancedHMC = "0.6.1, 0.7"
+AdvancedHMC = "0.6.1, 0.7, 0.8"
 ComponentArrays = "0.15.8"
 Cubature = "1.5"
 DiffEqBase = "6.148"
