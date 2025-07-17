@@ -124,7 +124,9 @@ function PhysicsInformedNN(
 
     phi = phi === nothing ?
         (multioutput ?
-            map(x -> Phi(x[1], x[2]), zip(chain, init_states)) :
+            (init_states === nothing ?
+                map(x -> Phi(x; init_states), chain) :
+                map(x -> Phi(x[1]; init_states = x[2]), zip(chain, init_states))) :
             Phi(chain; init_states)) :
         phi
 
