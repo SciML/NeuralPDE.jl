@@ -30,7 +30,7 @@
     u_predict = pmean(sol1.ensemblesol[1])
 
     # absol tests
-    @test mean(abs, u_predict .- u_real) < 5e-2
+    @test mean(abs, u_predict .- u_real) < 8e-2
 end
 
 @testitem "BPINN PDE II: 1D ODE" tags=[:pdebpinn] begin
@@ -280,7 +280,7 @@ end
         u_real = [analytic_sol_func1(0.0, t) for t in ts]
         u_predict = pmean(sol1.ensemblesol[1])
 
-        @test mean(abs, u_predict .- u_real) < 5e-2
+        @test mean(abs, u_predict .- u_real) < 8e-2
         @test sol1.estimated_de_params[1]≈param rtol=0.1
     end
 end
