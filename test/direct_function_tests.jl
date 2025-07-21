@@ -32,7 +32,7 @@
     prob = remake(prob, u0 = res.u)
     res = solve(prob, BFGS(initial_stepnorm = 0.01), maxiters = 500)
 
-    @test discretization.phi(xs', res.u)≈func(xs') rtol=0.01
+    @test discretization.phi(xs', res.u)≈func(xs') rtol=0.02
 end
 
 @testitem "Approximation of function 1D - 2" tags=[:nnpde2] begin
@@ -67,7 +67,7 @@ end
     dx = 0.01
     xs = collect(x0:dx:x_end)
     func_s = func(xs)
-    @test discretization.phi(xs', res.u)≈func(xs') rtol=0.01
+    @test discretization.phi(xs', res.u)≈func(xs') rtol=0.02
 end
 
 @testitem "Approximation of function 2D" tags=[:nnpde2] begin

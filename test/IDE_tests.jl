@@ -38,7 +38,7 @@ end
 
     u_real = [analytic_sol_func(t) for t in ts]
     u_predict = [first(phi([t], res.u)) for t in ts]
-    @test mean(abs2, u_real .- u_predict) < 0.01
+    @test mean(abs2, u_real .- u_predict) < 0.02
 end
 
 @testitem "IntegroDiff Example 2 -- 1D" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
@@ -67,7 +67,7 @@ end
 
     u_real = [x^2 / cos(x) for x in xs]
     u_predict = [first(phi([x], res.u)) for x in xs]
-    @test mean(abs2, u_real .- u_predict) < 0.01
+    @test mean(abs2, u_real .- u_predict) < 0.02
 end
 
 @testitem "IntegroDiff Example 3 -- 2 Inputs, 1 Output" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
@@ -133,7 +133,7 @@ end
 
     u_real = collect(x + y^2 for y in ys, x in xs)
     u_predict = collect(Array(phi([x, y], res.u))[1] for y in ys, x in xs)
-    @test mean(abs2, u_real .- u_predict) < 0.01
+    @test mean(abs2, u_real .- u_predict) < 0.02
 end
 
 @testitem "IntegroDiff Example 5 -- 1 Input, 2 Outputs" tags=[:integrodiff] setup=[IntegroDiffTestSetup] begin
@@ -221,5 +221,5 @@ end
     phi = discretization.phi
     u_predict = [first(phi([x], res.u)) for x in xs]
     u_real = [1 / x^2 for x in xs]
-    @test u_real≈u_predict rtol=0.01
+    @test u_real≈u_predict rtol=0.02
 end

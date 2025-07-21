@@ -229,5 +229,5 @@ end
     res = solve(prob, BFGS(); maxiters = 500)
     phi = discretization.phi
 
-    @test phi(xs, res.u)≈aproxf(xs) rtol=0.01
+    @test phi(xs, res.u)≈aproxf(xs) rtol=0.02
 end

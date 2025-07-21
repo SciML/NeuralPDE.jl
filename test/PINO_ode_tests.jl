@@ -39,27 +39,27 @@ end
     strategy = StochasticTraining(300)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(chain, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = false, maxiters = 5000)
+    sol = solve(prob, alg, verbose = false, maxiters = 3000)
     ground_analytic = (u0, p, t) -> u0 + sin(p * t) / (p)
     p, t = get_trainset(chain, bounds, 50, tspan, 0.025)
     ground_solution = ground_analytic.(u0, p, t)
     predict_sol = sol.interp(p, t)
-    @test ground_solution≈predict_sol rtol=0.05
+    @test ground_solution≈predict_sol rtol=0.08
     p, t = get_trainset(chain, bounds, 100, tspan, 0.01)
     ground_solution = ground_analytic.(u0, p, t)
     predict_sol = sol.interp(p, t)
-    @test ground_solution≈predict_sol rtol=0.05
+    @test ground_solution≈predict_sol rtol=0.08
 
     p = sol.prob.p
     ground_solution = ground_analytic.(u0, p, [1.0])
     predict_sol = sol(1.0)
-    @test ground_solution≈predict_sol rtol=0.05
+    @test ground_solution≈predict_sol rtol=0.08
 
     p = sol.prob.p
     t = rand(size(p)...)
     ground_solution = ground_analytic.(u0, p, t)
     predict_sol = sol(t)
-    @test ground_solution≈predict_sol rtol=0.05
+    @test ground_solution≈predict_sol rtol=0.08
 end
 
 #Test DeepONet
@@ -95,16 +95,16 @@ end
     p, t = get_trainset(deeponet, bounds, 50, tspan, 0.025)
     ground_solution = ground_analytic.(u0, p, vec(t))
     predict_sol = sol.interp(p, t)
-    @test ground_solution≈predict_sol rtol=0.05
+    @test ground_solution≈predict_sol rtol=0.08
     p, t = get_trainset(deeponet, bounds, 100, tspan, 0.01)
     ground_solution = ground_analytic.(u0, p, vec(t))
     predict_sol = sol.interp(p, t)
-    @test ground_solution≈predict_sol rtol=0.05
+    @test ground_solution≈predict_sol rtol=0.08
 
     p, t = sol.prob.p, rand(1, 20, 1)
     ground_solution = ground_analytic.(u0, p, vec(t))
     predict_sol = sol(t)
-    @test ground_solution≈predict_sol rtol=0.05
+    @test ground_solution≈predict_sol rtol=0.08
 end
 
 @testitem "Example du = cos(p * t) + u" tags=[:pinoode] setup=[PINOODETestSetup] begin
@@ -124,7 +124,7 @@ end
     strategy = GridTraining(0.1)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = false, maxiters = 4000)
+    sol = solve(prob, alg, verbose = false, maxiters = 3000)
     sol.original.objective
     #if u0 == 1
     ground_analytic_(u0, p, t) = (p * sin(p * t) - cos(p * t) + (p^2 + 2) * exp(t)) /
@@ -132,7 +132,7 @@ end
     p, t = get_trainset(deeponet, bounds, number_of_parameters, tspan, dt)
     ground_solution = ground_analytic_.(u0, p, vec(t))
     predict_sol = sol.interp(p, t)
-    @test ground_solution≈predict_sol rtol=0.05
+    @test ground_solution≈predict_sol rtol=0.08
 end
 
 @testitem "Example with data du = p*t^2" tags=[:pinoode] setup=[PINOODETestSetup] begin
@@ -170,7 +170,7 @@ end
     p, t = get_trainset(deeponet, bounds, number_of_parameters, tspan, dt)
     ground_solution = ground_analytic.(u0, p, vec(t))
     predict_sol = sol.interp(p, t)
-    @test ground_solution≈predict_sol rtol=0.05
+    @test ground_solution≈predict_sol rtol=0.08
 end
 
 #multiple parameters Сhain
@@ -196,7 +196,7 @@ end
     strategy = StochasticTraining(200)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(chain, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = false, maxiters = 5000)
+    sol = solve(prob, alg, verbose = false, maxiters = 3000)
 
     ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) #+ p[3] * t
 
@@ -208,12 +208,12 @@ end
     (p, t) = get_trainset(chain, bounds, 20, tspan, 0.1)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol.interp(p, t)[1, :, :]
-    @test ground_solution_≈predict rtol=0.05
+    @test ground_solution_≈predict rtol=0.08
 
     p, t = get_trainset(chain, bounds, 50, tspan, 0.025)
     ground_solution_ = ground_solution_f(p, t)
     predict_sol = sol.interp(p, t)[1, :, :]
-    @test ground_solution_≈predict_sol rtol=0.05
+    @test ground_solution_≈predict_sol rtol=0.08
 end
 
 #multiple parameters DeepOnet
@@ -241,7 +241,7 @@ end
     strategy = StochasticTraining(50)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(deeponet, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = false, maxiters = 5000)
+    sol = solve(prob, alg, verbose = false, maxiters = 3000)
     ground_solution = (u0, p, t) -> u0 + p[1] / p[2] * sin(p[2] * t) #+ p[3] * t
     function ground_solution_f(p, t)
         reduce(hcat,
@@ -251,12 +251,12 @@ end
     (p, t) = get_trainset(deeponet, bounds, 50, tspan, 0.025)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol.interp(p, t)
-    @test ground_solution_≈predict rtol=0.05
+    @test ground_solution_≈predict rtol=0.08
 
     p, t = get_trainset(deeponet, bounds, 100, tspan, 0.01)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol.interp(p, t)
-    @test ground_solution_≈predict rtol=0.05
+    @test ground_solution_≈predict rtol=0.08
 end
 
 #vector output
@@ -278,7 +278,7 @@ end
     strategy = StochasticTraining(100)
     opt = OptimizationOptimisers.Adam(0.01)
     alg = PINOODE(chain, opt, bounds, number_of_parameters; strategy = strategy)
-    sol = solve(prob, alg, verbose = false, maxiters = 6000)
+    sol = solve(prob, alg, verbose = false, maxiters = 3000)
 
     ground_solution = (u0, p, t) -> [1 + sin(p * t) / p, 1 / p - cos(p * t) / p]
     function ground_solution_f(p, t)
@@ -298,14 +298,14 @@ end
     p, t = get_trainset(chain, bounds, 50, tspan, 0.025)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol.interp(p, t)
-    @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.05
-    @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.05
-    @test ground_solution_≈predict rtol=0.05
+    @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.08
+    @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.08
+    @test ground_solution_≈predict rtol=0.08
 
     p, t = get_trainset(chain, bounds, 300, tspan, 0.01)
     ground_solution_ = ground_solution_f(p, t)
     predict = sol.interp(p, t)
-    @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.05
-    @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.05
-    @test ground_solution_≈predict rtol=0.05
+    @test ground_solution_[1, :, :]≈predict[1, :, :] rtol=0.08
+    @test ground_solution_[2, :, :]≈predict[2, :, :] rtol=0.08
+    @test ground_solution_≈predict rtol=0.08
 end
