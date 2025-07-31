@@ -51,8 +51,9 @@ u_analytic(x, y) = k * w_analytic(x, y)
 
 # Nonlinear Steady-State Systems of Two Reaction-Diffusion Equations with 3 arbitrary function f, g, h
 eqs_ = [
-    Dx(Dxu(x, y)) + Dy(Dyu(x, y)) ~ u(x, y) * f(u(x, y) / w(x, y)) +
-                                    u(x, y) / w(x, y) * h(u(x, y) / w(x, y)),
+    Dx(Dxu(x, y)) + Dy(Dyu(x, y)) ~
+    u(x, y) * f(u(x, y) / w(x, y)) +
+    u(x, y) / w(x, y) * h(u(x, y) / w(x, y)),
     Dx(Dxw(x, y)) + Dy(Dyw(x, y)) ~ w(x, y) * g(u(x, y) / w(x, y)) + h(u(x, y) / w(x, y))]
 
 # Boundary conditions

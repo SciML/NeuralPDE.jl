@@ -73,8 +73,9 @@ end
          z2 * sin((2 - 1 / 2) * π * t) / ((2 - 1 / 2) * π) +
          z3 * sin((3 - 1 / 2) * π * t) / ((3 - 1 / 2) * π))
     end
-    truncated_sol(u0, t, z1, z2, z3) = u0 *
-                                       exp((α - β^2 / 2) * t + β * W_kkl(t, z1, z2, z3))
+    truncated_sol(
+        u0, t, z1, z2, z3) = u0 *
+                             exp((α - β^2 / 2) * t + β * W_kkl(t, z1, z2, z3))
 
     num_samples = 3000
     num_time_steps = dt

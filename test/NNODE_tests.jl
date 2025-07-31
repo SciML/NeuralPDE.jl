@@ -53,8 +53,10 @@ end
 @testitem "ODE I" tags=[:nnode] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers
 
-    linear = (u, p, t) -> @. t^3 + 2 * t + (t^2) * ((1 + 3 * (t^2)) / (1 + t + (t^3))) -
-                             u * (t + ((1 + 3 * (t^2)) / (1 + t + t^3)))
+    linear = (u,
+        p,
+        t) -> @. t^3 + 2 * t + (t^2) * ((1 + 3 * (t^2)) / (1 + t + (t^3))) -
+                 u * (t + ((1 + 3 * (t^2)) / (1 + t + t^3)))
     linear_analytic = (u0, p, t) -> [exp(-(t^2) / 2) / (1 + t + t^3) + t^2]
     prob = ODEProblem(
         ODEFunction(linear; analytic = linear_analytic), [1.0f0], (0.0f0, 1.0f0))
@@ -62,6 +64,7 @@ end
     opt = Adam(0.01)
 
     @testset for strategy in [nothing, StochasticTraining(100)], batch in [false, true]
+
         sol = solve(
             prob, NNODE(luxchain, opt; batch, strategy); verbose = false, maxiters = 200,
             abstol = 1e-6)
@@ -81,6 +84,7 @@ end
     luxchain = Chain(Dense(1, 5, σ), Dense(5, 1))
 
     @testset for batch in [false, true], strategy in [StochasticTraining(100), nothing]
+
         opt = Adam(0.1)
         sol = solve(
             prob, NNODE(luxchain, opt; batch, strategy); verbose = false, maxiters = 200,

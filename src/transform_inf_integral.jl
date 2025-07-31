@@ -103,7 +103,8 @@ function transform_inf_integral(lb, ub, integrating_ex, integrating_depvars,
             end
         end
 
-        dict_transformation_vars, transformation_vars, integrating_var_transformation = transform_inf_expr(
+        dict_transformation_vars, transformation_vars,
+        integrating_var_transformation = transform_inf_expr(
             integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable, transform_indvars)
 
         ϵ = 1 / 20 #cbrt(eps(eltypeθ))

@@ -123,12 +123,12 @@ function PhysicsInformedNN(
     end
 
     phi = phi === nothing ?
-        (multioutput ?
-            (init_states === nothing ?
-                map(x -> Phi(x; init_states), chain) :
-                map(x -> Phi(x[1]; init_states = x[2]), zip(chain, init_states))) :
-            Phi(chain; init_states)) :
-        phi
+          (multioutput ?
+           (init_states === nothing ?
+            map(x -> Phi(x; init_states), chain) :
+            map(x -> Phi(x[1]; init_states = x[2]), zip(chain, init_states))) :
+           Phi(chain; init_states)) :
+          phi
 
     derivative = ifelse(derivative === nothing, numeric_derivative, derivative)
 

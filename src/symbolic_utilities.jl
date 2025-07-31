@@ -116,7 +116,8 @@ where
 """
 function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = false,
         dict_transformation_vars = nothing, transformation_vars = nothing)
-    (; indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input, multioutput, strategy, phi, derivative, integral, flat_init_params, init_params) = pinnrep
+    (; indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input, multioutput,
+        strategy, phi, derivative, integral, flat_init_params, init_params) = pinnrep
     eltypeθ = eltype(flat_init_params)
 
     _args = ex.args
@@ -150,7 +151,8 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
                 dict_interior_indvars = Dict([indvar .=> j
-                                              for (j, indvar) in enumerate(dict_depvar_input[depvar])])
+                                              for (j, indvar) in
+                                                  enumerate(dict_depvar_input[depvar])])
                 dim_l = length(dict_interior_indvars)
 
                 var_ = is_integral ? :(derivative) : :($(Expr(:$, :derivative)))
@@ -192,7 +194,10 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                 end
 
                 lb, ub = get_limits(_args[1].domain.domain)
-                lb, ub, _args[2], dict_transformation_vars, transformation_vars = transform_inf_integral(
+                lb, ub,
+                _args[2],
+                dict_transformation_vars,
+                transformation_vars = transform_inf_integral(
                     lb,
                     ub,
                     _args[2],
@@ -364,7 +369,8 @@ function get_vars(indvars_, depvars_)
 end
 
 function get_integration_variables(eqs, _indvars::Array, _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
+    depvars, indvars, dict_indvars, dict_depvars,
+    dict_depvar_input = get_vars(_indvars,
         _depvars)
     get_integration_variables(eqs, dict_indvars, dict_depvars)
 end
@@ -385,7 +391,8 @@ Returns all variables that are used in each equations or boundary condition.
 function get_variables end
 
 function get_variables(eqs, _indvars::Array, _depvars::Array)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(_indvars,
+    depvars, indvars, dict_indvars, dict_depvars,
+    dict_depvar_input = get_vars(_indvars,
         _depvars)
     return get_variables(eqs, dict_indvars, dict_depvars)
 end

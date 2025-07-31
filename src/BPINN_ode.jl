@@ -166,7 +166,8 @@ function SciMLBase.__solve(prob::SciMLBase.ODEProblem, alg::BNNODE, args...; dt 
 
     @assert alg.draw_samples≥0 "Number of samples to be drawn has to be >=0."
 
-    mcmcchain, samples, statistics = ahmc_bayesian_pinn_ode(
+    mcmcchain, samples,
+    statistics = ahmc_bayesian_pinn_ode(
         prob, chain; strategy, alg.dataset, alg.draw_samples, alg.init_params,
         alg.physdt, alg.l2std, alg.phystd, alg.phynewstd,
         alg.priorsNNw, param, alg.nchains, alg.autodiff,

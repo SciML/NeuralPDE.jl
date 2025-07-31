@@ -43,7 +43,8 @@ Dx4 = Differential(x)^4
 # α = 1
 β = 4
 γ = 1
-eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) + α * Dx2(u(x, t)) + β * Dx3(u(x, t)) + γ * Dx4(u(x, t)) ~ 0
+eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) + α * Dx2(u(x, t)) + β * Dx3(u(x, t)) +
+     γ * Dx4(u(x, t)) ~ 0
 
 u_analytic(x, t; z = -x / 2 + t) = 11 + 15 * tanh(z) - 15 * tanh(z)^2 - 15 * tanh(z)^3
 du(x, t; z = -x / 2 + t) = 15 / 2 * (tanh(z) + 1) * (3 * tanh(z) - 1) * sech(z)^2
@@ -129,8 +130,9 @@ And some analysis:
 
 ```@example low_level_2
 phi = discretization.phi[1]
-xs, ts = [infimum(d.domain):dx:supremum(d.domain)
-          for (d, dx) in zip(domains, [dx / 10, dt])]
+xs,
+ts = [infimum(d.domain):dx:supremum(d.domain)
+      for (d, dx) in zip(domains, [dx / 10, dt])]
 u_predict = [[first(pmean(phi([x, t], sol1.estimated_nn_params[1]))) for x in xs]
              for t in ts]
 u_real = [[u_analytic(x, t) for x in xs] for t in ts]

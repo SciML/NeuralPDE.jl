@@ -76,48 +76,48 @@ export solve_with_adaptive_loss
 end
 
 @testitem "2D Poisson: NonAdaptiveLoss" tags=[:adaptiveloss] setup=[AdaptiveLossTestSetup] begin
-    loss = NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
+    loss=NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
 
-    tmpdir = mktempdir()
+    tmpdir=mktempdir()
 
-    total_diff_rel = solve_with_adaptive_loss(
+    total_diff_rel=solve_with_adaptive_loss(
         loss; haslogger = false, outdir = tmpdir, run = 1)
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 0
 
-    total_diff_rel = solve_with_adaptive_loss(
+    total_diff_rel=solve_with_adaptive_loss(
         loss; haslogger = true, outdir = tmpdir, run = 2)
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 1
 end
 
 @testitem "2D Poisson: GradientScaleAdaptiveLoss" tags=[:adaptiveloss] setup=[AdaptiveLossTestSetup] begin
-    loss = GradientScaleAdaptiveLoss(100, pde_loss_weights = 1e3, bc_loss_weights = 1)
+    loss=GradientScaleAdaptiveLoss(100, pde_loss_weights = 1e3, bc_loss_weights = 1)
 
-    tmpdir = mktempdir()
+    tmpdir=mktempdir()
 
-    total_diff_rel = solve_with_adaptive_loss(
+    total_diff_rel=solve_with_adaptive_loss(
         loss; haslogger = false, outdir = tmpdir, run = 1)
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 0
 
-    total_diff_rel = solve_with_adaptive_loss(
+    total_diff_rel=solve_with_adaptive_loss(
         loss; haslogger = true, outdir = tmpdir, run = 2)
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 1
 end
 
 @testitem "2D Poisson: MiniMaxAdaptiveLoss" tags=[:adaptiveloss] setup=[AdaptiveLossTestSetup] begin
-    loss = MiniMaxAdaptiveLoss(100; pde_loss_weights = 1, bc_loss_weights = 1)
+    loss=MiniMaxAdaptiveLoss(100; pde_loss_weights = 1, bc_loss_weights = 1)
 
-    tmpdir = mktempdir()
+    tmpdir=mktempdir()
 
-    total_diff_rel = solve_with_adaptive_loss(
+    total_diff_rel=solve_with_adaptive_loss(
         loss; haslogger = false, outdir = tmpdir, run = 1)
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 0
 
-    total_diff_rel = solve_with_adaptive_loss(
+    total_diff_rel=solve_with_adaptive_loss(
         loss; haslogger = true, outdir = tmpdir, run = 2)
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 1
