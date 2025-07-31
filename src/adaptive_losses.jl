@@ -89,7 +89,9 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
     iteration = pinnrep.iteration
     adaloss_T = eltype(adaloss.pde_loss_weights)
 
-    return (θ, pde_losses, bc_losses) -> begin
+    return (θ,
+        pde_losses,
+        bc_losses) -> begin
         if iteration[] % adaloss.reweight_every == 0
             # the paper assumes a single pde loss function, so here we grab the maximum of
             # the maximums of each pde loss function
@@ -176,7 +178,9 @@ function generate_adaptive_loss_function(pinnrep::PINNRepresentation,
         adaloss.bc_max_optimiser, adaloss.bc_loss_weights)
     iteration = pinnrep.iteration
 
-    return (θ, pde_losses, bc_losses) -> begin
+    return (θ,
+        pde_losses,
+        bc_losses) -> begin
         if iteration[] % adaloss.reweight_every == 0
             Optimisers.update!(
                 pde_max_optimiser_setup, adaloss.pde_loss_weights, -pde_losses)

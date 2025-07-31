@@ -25,7 +25,8 @@ The UnitSquare domain ranges both x and y from 0 to 1.
 Similarly, a rectangular or cuboidal domain can be defined using `ProductDomain` of ClosedIntervals.
 
 ```julia
-Ix = Integral((x, y) in DomainSets.ProductDomain(ClosedInterval(0, 1), ClosedInterval(0, x)))
+Ix = Integral((
+    x, y) in DomainSets.ProductDomain(ClosedInterval(0, 1), ClosedInterval(0, x)))
 ```
 
 ## 1-dimensional example

@@ -30,7 +30,8 @@ function build_symbolic_loss_function(pinnrep::PINNRepresentation, eqs;
         bc_indvars = pinnrep.indvars, integrand = nothing,
         dict_transformation_vars = nothing, transformation_vars = nothing,
         integrating_depvars = pinnrep.depvars)
-    (; depvars, dict_depvars, dict_depvar_input, phi, derivative, integral, multioutput, init_params, strategy, eq_params, param_estim, default_p) = pinnrep
+    (; depvars, dict_depvars, dict_depvar_input, phi, derivative, integral,
+        multioutput, init_params, strategy, eq_params, param_estim, default_p) = pinnrep
 
     if integrand isa Nothing
         loss_function = parse_equation(pinnrep, eqs)
@@ -179,6 +180,7 @@ function generate_training_sets(domains, dx, eqs, bcs, eltypeθ, dict_indvars::D
 
     dif = [eltypeθ[] for i in 1:size(domains)[1]]
     for _args in bound_vars, (i, x) in enumerate(_args)
+
         x isa Number && push!(dif[i], x)
     end
     cord_train_set = collect.(spans)
@@ -280,9 +282,22 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
 end
 
 function get_numeric_integral(pinnrep::PINNRepresentation)
-    (; strategy, indvars, depvars, derivative, depvars, indvars, dict_indvars, dict_depvars) = pinnrep
+    (; strategy, indvars, depvars, derivative, depvars,
+        indvars, dict_indvars, dict_depvars) = pinnrep
 
-    return (u, cord, phi, integrating_var_id, integrand_func, lb, ub, θ; strategy = strategy, indvars = indvars, depvars = depvars, dict_indvars = dict_indvars, dict_depvars = dict_depvars) -> begin
+    return (u,
+        cord,
+        phi,
+        integrating_var_id,
+        integrand_func,
+        lb,
+        ub,
+        θ;
+        strategy = strategy,
+        indvars = indvars,
+        depvars = depvars,
+        dict_indvars = dict_indvars,
+        dict_depvars = dict_depvars) -> begin
         function integration_(cord, lb, ub, θ)
             cord_ = cord
             function integrand_(x, p)
@@ -339,14 +354,16 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     (; eqs, bcs, domain) = pde_system
     eq_params = pde_system.ps
     defaults = pde_system.defaults
-    (; chain, param_estim, additional_loss, multioutput, init_params, phi, derivative, strategy, logger, iteration, self_increment) = discretization
+    (; chain, param_estim, additional_loss, multioutput, init_params, phi,
+        derivative, strategy, logger, iteration, self_increment) = discretization
     (; log_frequency) = discretization.log_options
     adaloss = discretization.adaptive_loss
 
     default_p = eq_params isa SciMLBase.NullParameters ? nothing :
                 [defaults[ep] for ep in eq_params]
 
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = get_vars(
+    depvars, indvars, dict_indvars,
+    dict_depvars, dict_depvar_input = get_vars(
         pde_system.indvars, pde_system.depvars)
 
     if init_params === nothing
@@ -436,7 +453,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     datafree_bc_loss_functions = [build_loss_function(pinnrep, bc, bc_indvar)
                                   for (bc, bc_indvar) in zip(bcs, bc_indvars)]
 
-    pde_loss_functions, bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
+    pde_loss_functions,
+    bc_loss_functions = merge_strategy_with_loss_function(pinnrep,
         strategy, datafree_pde_loss_functions, datafree_bc_loss_functions)
 
     # setup for all adaptive losses
@@ -526,15 +544,17 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     function get_likelihood_estimate_function(discretization::BayesianPINN)
         dataset_pde, dataset_bc = discretization.dataset
 
-        pde_loss_functions, bc_loss_functions = merge_strategy_with_loglikelihood_function(
+        pde_loss_functions,
+        bc_loss_functions = merge_strategy_with_loglikelihood_function(
             pinnrep, strategy,
             datafree_pde_loss_functions, datafree_bc_loss_functions)
 
         # required as Physics loss also needed on the discrete dataset domain points
         # data points are discrete and so by default GridTraining loss applies
         # passing placeholder dx with GridTraining, it uses data points irl
-        datapde_loss_functions, databc_loss_functions = if dataset_bc !== nothing ||
-                                                           dataset_pde !== nothing
+        datapde_loss_functions,
+        databc_loss_functions = if dataset_bc !== nothing ||
+                                   dataset_pde !== nothing
             merge_strategy_with_loglikelihood_function(pinnrep, GridTraining(0.1),
                 datafree_pde_loss_functions, datafree_bc_loss_functions,
                 train_sets_pde = dataset_pde, train_sets_bc = dataset_bc)
@@ -548,20 +568,24 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
             # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
             # SSE FOR LOSS ON GRIDPOINTS not MSE ! i, j depend on number of bcs and eqs
             pde_loglikelihoods = sum([pde_loglike_function(θ, stdpdes[i])
-                                      for (i, pde_loglike_function) in enumerate(pde_loss_functions)])
+                                      for (i, pde_loglike_function) in
+                                          enumerate(pde_loss_functions)])
 
             bc_loglikelihoods = sum([bc_loglike_function(θ, stdbcs[j])
-                                     for (j, bc_loglike_function) in enumerate(bc_loss_functions)])
+                                     for (j, bc_loglike_function) in
+                                         enumerate(bc_loss_functions)])
 
             # final newloss creation components are similar to this
             if !(datapde_loss_functions isa Nothing)
                 pde_loglikelihoods += sum([pde_loglike_function(θ, stdpdes[j])
-                                           for (j, pde_loglike_function) in enumerate(datapde_loss_functions)])
+                                           for (j, pde_loglike_function) in
+                                               enumerate(datapde_loss_functions)])
             end
 
             if !(databc_loss_functions isa Nothing)
                 bc_loglikelihoods += sum([bc_loglike_function(θ, stdbcs[j])
-                                          for (j, bc_loglike_function) in enumerate(databc_loss_functions)])
+                                          for (j, bc_loglike_function) in
+                                              enumerate(databc_loss_functions)])
             end
 
             # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized

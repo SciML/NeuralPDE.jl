@@ -143,7 +143,7 @@ function L2LossData(ltd::PDELogTargetDensity, θ)
             MvNormal(
                 Φ[i](dataset[i][:, 2:end]',
                     vector_to_parameters(θ[1:(end - ltd.extraparams)], init_params)[ltd.names[i]])[
-                    1, :],
+                1, :],
                 Diagonal(abs2.(ones(size(dataset[i])[1]) .* L2stds[i]))),
             dataset[i][:, 1])
     end
@@ -351,7 +351,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             # second sum is over all points
             pde_loglikelihoods = sum([sum([pde_loss_function(θ,
                                                phynewstd[i])
-                                           for (i, pde_loss_function) in enumerate(pde_loss_functions)])
+                                           for (i, pde_loss_function) in
+                                               enumerate(pde_loss_functions)])
                                       for pde_loss_functions in pde_loss_function_points])
         end
     end
@@ -423,7 +424,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         nparameters, strategy, dataset, priors, [phystd, bcstd, l2std], phynewstd,
         names, ninv, initial_nnθ, full_weighted_loglikelihood, newloss, Φ)
 
-    Adaptor, Metric, targetacceptancerate = Adaptorkwargs[:Adaptor],
+    Adaptor, Metric,
+    targetacceptancerate = Adaptorkwargs[:Adaptor],
     Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
 
     # Define Hamiltonian system (nparameters ~ dimensionality of the sampling space)
@@ -439,7 +441,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         if !(newloss isa Nothing)
             @printf("Current Data Quadrature loss : %g\n",
                 ℓπ.L2_loss2(setparameters(ℓπ, initial_θ),
-                    ℓπ.phynewstd))
+                ℓπ.phynewstd))
         end
     end
 
@@ -458,7 +460,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
                 StepSizeAdaptor(targetacceptancerate, integrator))
             Kernel = AdvancedHMC.make_kernel(Kernel, integrator)
-            samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
+            samples,
+            stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
                 progress = progress, verbose = verbose)
 
             # return a chain(basic chain),samples and stats
@@ -466,7 +469,9 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             mcmc_chain = MCMCChains.Chains(matrix_samples')
 
             fullsolution = BPINNstats(mcmc_chain, samples, stats)
-            ensemblecurves, estimnnparams, estimated_params, timepoints = inference(
+            ensemblecurves, estimnnparams,
+            estimated_params,
+            timepoints = inference(
                 samples, pinnrep, saveat, numensemble, ℓπ)
 
             bpinnsols[i] = BPINNsolution(
@@ -480,7 +485,8 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             StepSizeAdaptor(targetacceptancerate, integrator))
 
         Kernel = AdvancedHMC.make_kernel(Kernel, integrator)
-        samples, stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
+        samples,
+        stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
             adaptor; progress = progress, verbose = verbose)
 
         # return a chain(basic chain),samples and stats
@@ -497,12 +503,13 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             if !(newloss isa Nothing)
                 @printf("Final Data Quadrature loss : %g\n",
                     ℓπ.L2_loss2(setparameters(ℓπ, samples[end]),
-                        ℓπ.phynewstd))
+                    ℓπ.phynewstd))
             end
         end
 
         fullsolution = BPINNstats(mcmc_chain, samples, stats)
-        ensemblecurves, estimnnparams, estimated_params, timepoints = inference(samples,
+        ensemblecurves, estimnnparams,
+        estimated_params, timepoints = inference(samples,
             pinnrep, saveats, numensemble, ℓπ)
 
         return BPINNsolution(

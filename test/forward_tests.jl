@@ -24,7 +24,8 @@
     domains = pde_system.domain
     dx = strategy_.dx
     eltypeθ = eltype(sym_prob.flat_init_params)
-    depvars, indvars, dict_indvars, dict_depvars, dict_depvar_input = NeuralPDE.get_vars(
+    depvars, indvars, dict_indvars,
+    dict_depvars, dict_depvar_input = NeuralPDE.get_vars(
         pde_system.ivs, pde_system.dvs)
 
     train_sets = generate_training_sets(domains, dx, eqs, bcs, eltypeθ,
