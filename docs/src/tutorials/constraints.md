@@ -54,7 +54,7 @@ chain = Lux.Chain(Dense(1, inn, Lux.σ),
 lb = [x_0]
 ub = [x_end]
 function norm_loss_function(phi, θ, p)
-    function inner_f(x, θ)
+    @closure function inner_f(x, θ)
         0.01 * phi(x, θ) .- 1
     end
     prob = IntegralProblem(inner_f, lb, ub, θ)
