@@ -18,7 +18,7 @@ u_expr = NN_expr([x, y], p_nn_sym)[1]
 
 
 # PDE and Boundary Conditions
-f_rhs = -π^2 * sin(π * x) * sin(π * y)
+f_rhs = sin(π * x) * sin(π * y)
 pde_residual_expr = expand_derivatives(Dxx(u_expr) + Dyy(u_expr)) - f_rhs
 
 bc_x0_residual = substitute(u_expr, x => 0.0)
@@ -91,7 +91,7 @@ function u_pred(xval, yval, chain, optimized_params)
     return ModelingToolkitNeuralNets.stateless_apply(chain, [xval, yval], ps)[1]
 end
 
-u_exact(x, y) = sin(π * x) * sin(π * y)
+u_exact(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
 xs = range(0, 1; length=100)
 ys = range(0, 1; length=100)
