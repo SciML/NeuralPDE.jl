@@ -443,7 +443,7 @@ end
     @test mean(abs2, solution_1_strong_solve .- truncated_solution_strong_paths) < 5e-2
 
     # estimated sde parameter tests (we trained with 15 observed solution paths).
-    # absolute value taken for 2nd estimated parameter as loss for variance is independant of this parameter's direction.
+    # absolute value taken for 2nd estimated parameter as loss for variance is independent of this parameter's direction.
     @test sol_1.estimated_params[1].≈ideal_p[1] rtol=2e-1
     @test abs(sol_1.estimated_params[2]).≈ideal_p[2] rtol=8e-2
     @test sol_2.estimated_params[1].≈ideal_p[1] rtol=2e-1
