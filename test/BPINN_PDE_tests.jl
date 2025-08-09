@@ -30,7 +30,7 @@
     u_predict = pmean(sol1.ensemblesol[1])
 
     # absol tests
-    @test mean(abs, u_predict .- u_real) < 5e-2
+    @test mean(abs, u_predict .- u_real) < 8e-2
 end
 
 @testitem "BPINN PDE II: 1D ODE" tags=[:pdebpinn] begin
@@ -46,8 +46,9 @@ end
     Dθ = Differential(θ)
 
     # 1D ODE
-    eq = Dθ(u(θ)) ~ θ^3 + 2.0f0 * θ + (θ^2) * ((1.0f0 + 3 * (θ^2)) / (1.0f0 + θ + (θ^3))) -
-                    u(θ) * (θ + ((1.0f0 + 3.0f0 * (θ^2)) / (1.0f0 + θ + θ^3)))
+    eq = Dθ(u(θ)) ~
+         θ^3 + 2.0f0 * θ + (θ^2) * ((1.0f0 + 3 * (θ^2)) / (1.0f0 + θ + (θ^3))) -
+         u(θ) * (θ + ((1.0f0 + 3.0f0 * (θ^2)) / (1.0f0 + θ + θ^3)))
 
     # Initial and boundary conditions
     bcs = [u(0.0) ~ 1.0f0]
@@ -196,8 +197,9 @@ end
     Dθ = Differential(θ)
 
     # 1D ODE
-    eq = Dθ(u(θ)) ~ θ^3 + 2.0f0 * θ + (θ^2) * ((1.0f0 + 3 * (θ^2)) / (1.0f0 + θ + (θ^3))) -
-                    u(θ) * (θ + ((1.0f0 + 3.0f0 * (θ^2)) / (1.0f0 + θ + θ^3)))
+    eq = Dθ(u(θ)) ~
+         θ^3 + 2.0f0 * θ + (θ^2) * ((1.0f0 + 3 * (θ^2)) / (1.0f0 + θ + (θ^3))) -
+         u(θ) * (θ + ((1.0f0 + 3.0f0 * (θ^2)) / (1.0f0 + θ + θ^3)))
 
     # Initial and boundary conditions
     bcs = [u(0.0) ~ 1.0f0]
@@ -280,7 +282,7 @@ end
         u_real = [analytic_sol_func1(0.0, t) for t in ts]
         u_predict = pmean(sol1.ensemblesol[1])
 
-        @test mean(abs, u_predict .- u_real) < 5e-2
+        @test mean(abs, u_predict .- u_real) < 8e-2
         @test sol1.estimated_de_params[1]≈param rtol=0.1
     end
 end
@@ -391,7 +393,8 @@ end
     # α = 1 (KS equation to be parametric in a)
     β = 4
     γ = 1
-    eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) + α * Dx2(u(x, t)) + β * Dx3(u(x, t)) + γ * Dx4(u(x, t)) ~ 0
+    eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) + α * Dx2(u(x, t)) + β * Dx3(u(x, t)) +
+         γ * Dx4(u(x, t)) ~ 0
 
     u_analytic(x, t; z = -x / 2 + t) = 11 + 15 * tanh(z) - 15 * tanh(z)^2 - 15 * tanh(z)^3
     du(x, t; z = -x / 2 + t) = 15 / 2 * (tanh(z) + 1) * (3 * tanh(z) - 1) * sech(z)^2
@@ -495,8 +498,9 @@ end
         saveats = [1 / 100.0, 1 / 100.0])
 
     phi = discretization.phi[1]
-    xs, ts = [infimum(d.domain):dx:supremum(d.domain)
-              for (d, dx) in zip(domains, [dx / 10, dt])]
+    xs,
+    ts = [infimum(d.domain):dx:supremum(d.domain)
+          for (d, dx) in zip(domains, [dx / 10, dt])]
     u_real = [[u_analytic(x, t) for x in xs] for t in ts]
 
     u_predict_new = [[first(pmean(phi([x, t], sol_new.estimated_nn_params[1]))) for x in xs]

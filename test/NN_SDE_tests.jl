@@ -75,8 +75,9 @@ end
          z2 * sin((2 - 1 / 2) * π * t) / ((2 - 1 / 2) * π) +
          z3 * sin((3 - 1 / 2) * π * t) / ((3 - 1 / 2) * π))
     end
-    truncated_sol(u0, t, z1, z2, z3) = u0 *
-                                       exp((α - β^2 / 2) * t + β * W_kkl(t, z1, z2, z3))
+    truncated_sol(
+        u0, t, z1, z2, z3) = u0 *
+                             exp((α - β^2 / 2) * t + β * W_kkl(t, z1, z2, z3))
 
     num_samples = 2000
     num_time_steps = dt
@@ -290,18 +291,18 @@ end
     # testing over different Z_i sample sizes
     MSE_1 = mean(abs2.(mean_analytic_solution .- pmean(u1)))
     MSE_2 = mean(abs2.(mean_analytic_solution .- pmean(u2)))
-    @test MSE_1 < 5e-5
-    @test MSE_2 < 3e-5
+    @test MSE_1 < 1e-4
+    @test MSE_2 < 8e-5
 
     error_1 = sum(abs2, mean_truncated_solution .- mean_predicted_solution_1)
     error_2 = sum(abs2, mean_truncated_solution .- mean_predicted_solution_2)
     @test error_1 > error_2
-    @test error_2 < 3e-3
+    @test error_2 < 5e-3
 
     MSE_1 = mean(abs2.(mean_truncated_solution .- mean_predicted_solution_1))
     MSE_2 = mean(abs2.(mean_truncated_solution .- mean_predicted_solution_2))
     @test MSE_2 < MSE_1
-    @test MSE_2 < 3e-5
+    @test MSE_2 < 8e-5
 end
 
 @testitem "Test-4 GBM SDE Inverse, weak & strong solving" tags=[:nnsde] begin

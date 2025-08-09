@@ -230,7 +230,8 @@ end
 function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
         batch, param_estim::Bool)
     autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
-    return (θ, _) -> begin
+    return (θ,
+        _) -> begin
         T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
         ts = (tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1]
         if batch
@@ -263,8 +264,9 @@ end
 
 function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim::Bool)
     batch && return (θ, _) -> inner_loss(phi, f, autodiff, tstops, θ, p, param_estim)
-    return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim)
-                          for t in tstops])
+    return (
+        θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim)
+                      for t in tstops])
 end
 
 function generate_loss(::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
@@ -277,7 +279,8 @@ L2 loss (needed for ODE parameter estimation).
 """
 function generate_L2lossData(dataset, phi, n_output)
     isempty(dataset) && return 0
-    return (θ, _) -> sum(sum(abs2, phi(dataset[end - 1], θ)[i, :] .- dataset[i])
+    return (θ,
+        _) -> sum(sum(abs2, phi(dataset[end - 1], θ)[i, :] .- dataset[i])
     for i in 1:n_output)
 end
 
@@ -356,7 +359,7 @@ function SciMLBase.__solve(
     t0 = tspan[1]
     # add estim_collocate, dataset (or nothing) in NNODE
     (; param_estim, estim_collocate, dataset, chain, opt, autodiff,
-    init_params, batch, additional_loss, estim_collocate) = alg
+        init_params, batch, additional_loss, estim_collocate) = alg
 
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
 

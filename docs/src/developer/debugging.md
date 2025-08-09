@@ -145,7 +145,8 @@ julia> bcs_train_set
 ```
 
 ```julia
-pde_bounds, bcs_bounds = NeuralPDE.get_bounds(
+pde_bounds,
+bcs_bounds = NeuralPDE.get_bounds(
     domains, [eq], bcs, eltypeθ, indvars, depvars,
     NeuralPDE.StochasticTraining(100))
 ```

@@ -127,7 +127,8 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
         datafree_pde_loss_function, pde_train_sets)]
 
     bc_loss_functions = [get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
-                         for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
+                         for (_loss, _set) in
+                             zip(datafree_bc_loss_function, bcs_train_sets)]
 
     return pde_loss_functions, bc_loss_functions
 end
@@ -344,7 +345,10 @@ function get_loss_function(init_params, loss_function, lb, ub, eltypeθ,
     end
 
     area = eltypeθ(prod(abs.(ub .- lb)))
-    f_ = (lb, ub, loss_, θ) -> begin
+    f_ = (lb,
+        ub,
+        loss_,
+        θ) -> begin
         function integrand(x, θ)
             x = x |> dev |> EltypeAdaptor{eltypeθ}()
             return sum(abs2, view(loss_(x, θ), 1, :), dims = 2) #./ size_x

@@ -126,6 +126,7 @@ We can see that it is a good fit! Now let's examine what the estimated parameter
 ```@example improv_param_estim
 sol_old.k.u.p
 ```
+
 ```@example improv_param_estim
 @test any(true_p .- sol_old.k.u.p .> 0.5 .* true_p) # hide
 ```
@@ -135,6 +136,7 @@ This is nowhere near the true [1.5, 1.0, 3.0, 1.0]. But the new model gives :
 ```@example improv_param_estim
 sol_new.k.u.p
 ```
+
 ```@example improv_param_estim
 @test sol_new.k.u.p≈true_p rtol=2e-2 norm=Base.Fix1(maximum, abs) # hide
 ```

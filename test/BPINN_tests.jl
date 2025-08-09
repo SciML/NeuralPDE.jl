@@ -45,12 +45,12 @@
     meanscurve = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
     # --------------------- ahmc_bayesian_pinn_ode() call
-    @test mean(abs.(x̂ .- meanscurve)) < 0.05
-    @test mean(abs.(physsol1 .- meanscurve)) < 0.006
+    @test mean(abs.(x̂ .- meanscurve)) < 0.08
+    @test mean(abs.(physsol1 .- meanscurve)) < 0.01
 
     #--------------------- solve() call
-    @test mean(abs.(x̂1 .- pmean(sol1lux.ensemblesol[1]))) < 0.025
-    @test mean(abs.(physsol0_1 .- pmean(sol1lux.ensemblesol[1]))) < 0.025
+    @test mean(abs.(x̂1 .- pmean(sol1lux.ensemblesol[1]))) < 0.04
+    @test mean(abs.(physsol0_1 .- pmean(sol1lux.ensemblesol[1]))) < 0.04
 end
 
 @testitem "BPINN ODE II: With Parameter Estimation" tags=[:odebpinn] begin

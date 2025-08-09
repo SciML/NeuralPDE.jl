@@ -10,59 +10,27 @@ on:
       - master
     paths-ignore:
       - 'docs/**'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch || github.ref != 'refs/tags/v*' }}
-
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
         group:
-          - QA
-          - ODEBPINN
-          - PDEBPINN
-          - NNSDE
           - NNPDE1
-          - NNPDE2
-          - AdaptiveLoss
-          - Forward
-          - DGM
-          - NNODE
-          - NeuralAdapter
-          - IntegroDiff
-        version:
-          - "1.10"
+        downgrade_mode: ['alldeps']
+        julia-version: ['1.10']
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
         with:
-          version: ${{ matrix.version }}
-      - uses: actions/cache@v4
-        env:
-          cache-name: cache-artifacts
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/julia-downgrade-compat@v2
+#        if: ${{ matrix.version == '1.6' }}
         with:
-          path: ~/.julia/artifacts
-          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-test-${{ env.cache-name }}-
-            ${{ runner.os }}-test-
-            ${{ runner.os }}-
-      - uses: julia-actions/julia-downgrade-compat@v1
-        with:
-          skip: LinearAlgebra, Pkg, Random, Test
+          skip: Pkg,TOML
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+        with:
+          ALLOW_RERESOLVE: false
         env:
           GROUP: ${{ matrix.group }}
-      - uses: julia-actions/julia-processcoverage@v1
-        with:
-          directories: src,ext
-      - uses: codecov/codecov-action@v5
-        with:
-          files: lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true

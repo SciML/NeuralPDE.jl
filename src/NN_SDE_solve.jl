@@ -471,12 +471,14 @@ function generate_loss(
 
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     batch &&
-        return (θ, _) -> inner_sde_loss(
+        return (θ,
+            _) -> inner_sde_loss(
             phi, f, g, autodiff, inputs, θ, p, param_estim, train_type),
         inputs
-    return (θ, _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p,
-                              param_estim, train_type)
-                          for input in inputs]),
+    return (θ,
+        _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p,
+                       param_estim, train_type)
+                   for input in inputs]),
     inputs
 end
 
@@ -485,7 +487,8 @@ function generate_loss(strategy::StochasticTraining, phi, f, g, autodiff::Bool,
     autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
     inputs = AbstractVector{Any}[]
 
-    return (θ, _) -> begin
+    return (θ,
+        _) -> begin
         T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
         ts = ((tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1])
         inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, sub_batch) :
@@ -522,12 +525,14 @@ function generate_loss(
              add_rand_coeff(ts, n_z, sub_batch)
 
     batch &&
-        return (θ, _) -> inner_sde_loss(
+        return (θ,
+            _) -> inner_sde_loss(
             phi, f, g, autodiff, inputs, θ, p, param_estim, train_type),
         inputs
-    return (θ, _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p,
-                              param_estim, train_type)
-                          for input in inputs]),
+    return (θ,
+        _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p,
+                       param_estim, train_type)
+                   for input in inputs]),
     inputs
 end
 
@@ -538,12 +543,14 @@ function evaluate_tstops_loss(
              add_rand_coeff(ts, n_z, sub_batch)
 
     batch &&
-        return (θ, _) -> inner_sde_loss(
+        return (θ,
+            _) -> inner_sde_loss(
             phi, f, g, autodiff, inputs, θ, p, param_estim, train_type),
         inputs
-    return (θ, _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p,
-                              param_estim, train_type)
-                          for input in inputs]),
+    return (θ,
+        _) -> sum([inner_sde_loss(phi, f, g, autodiff, input, θ, p,
+                       param_estim, train_type)
+                   for input in inputs]),
     inputs
 end
 
@@ -651,7 +658,8 @@ function SciMLBase.__solve(
     # For weak training: higher sub_batch corresponds with a narrower confidence band/ increased certainty in the Weak solution.
     # For strong training: it means more strong paths to train over.
     # weak loss-> weak training is default solve mode.
-    (; param_estim, sub_batch, strong_loss, moment_loss, chain, opt, autodiff, init_params, batch, additional_loss, dataset, numensemble, data_sub_batch) = alg
+    (; param_estim, sub_batch, strong_loss, moment_loss, chain, opt, autodiff, init_params, batch,
+        additional_loss, dataset, numensemble, data_sub_batch) = alg
     n_z = chain[1].in_dims - 1
     sde_phi, init_params = generate_phi(chain, t0, u0, init_params)
 
@@ -681,8 +689,8 @@ function SciMLBase.__solve(
     # train_type is weak (expectation based loss + random sets of z_i for all timepoints) by default
     # use strong_loss = true for strong loss (pathwise total loss summation + same z_i for all timepoints)
     train_type = strong_loss ? sum : mean
-
-    inner_f, training_sets = generate_loss(
+    inner_f,
+    training_sets = generate_loss(
         strategy, sde_phi, f, g, autodiff, tspan_scale, n_z,
         sub_batch, train_type, p, batch, param_estim)
 

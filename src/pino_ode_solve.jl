@@ -313,7 +313,8 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
         saveat = nothing,
         maxiters = nothing)
     (; tspan, u0, f) = prob
-    (; chain, opt, bounds, number_of_parameters, init_params, strategy, additional_loss) = alg
+    (; chain, opt, bounds, number_of_parameters,
+        init_params, strategy, additional_loss) = alg
 
     if !(chain isa AbstractLuxLayer)
         error("Only Lux.AbstractLuxLayer neural networks are supported")
