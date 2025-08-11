@@ -19,14 +19,14 @@ jobs:
         package:
           - {user: SciML, repo: PDESystemLibrary.jl, group: NeuralPDE}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
           arch: x64
       - uses: julia-actions/julia-buildpkg@latest
       - name: Clone Downstream
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ matrix.package.user }}/${{ matrix.package.repo }}
           path: downstream
