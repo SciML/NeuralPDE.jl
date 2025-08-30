@@ -76,8 +76,8 @@ end
          z3 * sin((3 - 1 / 2) * π * t) / ((3 - 1 / 2) * π))
     end
     truncated_sol(
-    u0, t, z1, z2, z3) = u0 *
-                         exp((α - β^2 / 2) * t + β * W_kkl(t, z1, z2, z3))
+        u0, t, z1, z2, z3) = u0 *
+                             exp((α - β^2 / 2) * t + β * W_kkl(t, z1, z2, z3))
 
     num_samples = 2000
     num_time_steps = dt
@@ -446,8 +446,8 @@ end
 
     # estimated sde parameter tests (we trained with 15 observed solution paths).
     # absolute value taken for 2nd estimated parameter as loss for variance is independent of this parameter's direction.
-    @test sol_1.estimated_params[1].≈ideal_p[1] rtol=2e-1
-    @test abs(sol_1.estimated_params[2]).≈ideal_p[2] rtol=8e-2
-    @test sol_2.estimated_params[1].≈ideal_p[1] rtol=2e-1
-    @test abs(sol_2.estimated_params[2]).≈ideal_p[2] rtol=8e-2
+    @test sol_1.estimated_params[1] .≈ ideal_p[1] rtol=2e-1
+    @test abs(sol_1.estimated_params[2]) .≈ ideal_p[2] rtol=8e-2
+    @test sol_2.estimated_params[1] .≈ ideal_p[1] rtol=2e-1
+    @test abs(sol_2.estimated_params[2]) .≈ ideal_p[2] rtol=8e-2
 end

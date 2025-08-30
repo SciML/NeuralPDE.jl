@@ -363,7 +363,8 @@ function generate_DataMoments_loss(
 
     # moment matching (MSE across time for 1st, 2nd moments) - assumes diffusion is a Gaussian at each timepoint
     # uses sample variance
-    return (θ, _) -> begin
+    return (θ,
+        _) -> begin
         sum(abs2,
             mean(process, dims = 2) .-
             mean.(Base.Fix2(phi, θ).(sdephi_inputs))) / length(ts) +
@@ -406,7 +407,8 @@ function generate_EM_L2loss(dataset::Vector{<:Vector}, f, g)
     X_increments = reduce(hcat, get_increments.(dataset[1]))
     n, n_samples = size(X_increments)
 
-    loss_fn = (θ, _) -> begin
+    loss_fn = (θ,
+        _) -> begin
         gx = reduce(hcat,
             [[g(process[i, j], θ.p, dataset[2][i])^2 * Δt[i] for i in 1:n]
              for j in 1:n_samples])
@@ -658,7 +660,8 @@ function SciMLBase.__solve(
     # For weak training: higher sub_batch corresponds with a narrower confidence band/ increased certainty in the Weak solution.
     # For strong training: it means more strong paths to train over.
     # weak loss-> weak training is default solve mode.
-    (; param_estim, sub_batch, strong_loss, moment_loss, chain, opt, autodiff, init_params, batch,
+    (; param_estim, sub_batch, strong_loss, moment_loss,
+        chain, opt, autodiff, init_params, batch,
         additional_loss, dataset, numensemble, data_sub_batch) = alg
     n_z = chain[1].in_dims - 1
     sde_phi, init_params = generate_phi(chain, t0, u0, init_params)
@@ -709,7 +712,8 @@ function SciMLBase.__solve(
         if moment_loss
             # min batch for L2 mean is sub samples of the dataset
             data_sub_batch = max(data_sub_batch, length(dataset[1]))
-            DataMoments_loss, dataset_training_sets = generate_DataMoments_loss(
+            DataMoments_loss,
+            dataset_training_sets = generate_DataMoments_loss(
                 dataset, n_z, sde_phi, f, g,
                 autodiff, p, param_estim, data_sub_batch, train_type)
         end
