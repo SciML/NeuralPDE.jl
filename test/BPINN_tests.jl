@@ -77,7 +77,7 @@ end
     u = [linear_analytic(u0, p, ti) for ti in ta]
     x̂ = collect(Float64, Array(u) + 0.2 * randn(size(u)))
     time = vec(collect(Float64, ta))
-    dataset = [x̂, time, ones(length(time))]
+    dataset = [x̂, time]
     physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
     # testing points for solve call(saveat=1/50.0 ∴ at t = collect(eltype(saveat), prob.tspan[1]:saveat:prob.tspan[2] internally estimates)
@@ -142,7 +142,7 @@ end
 
     # Note this is signal scaled gaussian noise, therefore the noise is biased and L2 penalizes high std points implicitly.
     x̂ = u .+ (u .* 0.1) .* randn(size(u))
-    dataset = [x̂, time, ones(length(time))]
+    dataset = [x̂, time]
     physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
     # separate set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
@@ -347,7 +347,8 @@ end
     u = sol.u
     time = sol.t
     x̂ = u .+ (0.1 .* randn(size(u)))
-    # dx=0.1 Gridtraining for newloss
+
+    # dx = 0.1 Gridtraining for newloss
     dataset = [x̂, time, ones(length(time))]
 
     # set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
