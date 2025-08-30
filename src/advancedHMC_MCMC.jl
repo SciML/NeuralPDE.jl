@@ -470,10 +470,6 @@ function ahmc_bayesian_pinn_ode(
         end
     end
 
-    
-    println("gargantula 2: ",priorweights(ℓπ, initial_θ))
-    dfsafdas()
-
     Adaptor = Adaptorkwargs[:Adaptor]
     Metric = Adaptorkwargs[:Metric]
     targetacceptancerate = Adaptorkwargs[:targetacceptancerate]
