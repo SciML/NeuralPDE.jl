@@ -64,8 +64,7 @@ sol_lux_pestim = solve(prob, alg)
 Note that the solution is evaluated at fixed time points according to the strategy chosen.
 ensemble solution is evaluated and given at steps of `saveat`.
 A Dataset must be provided : When doing ODE Parameter Estimation OR if we want to use a Data L2 loss
-and/or Data Quadrature loss term 
-(flagged via `estim_collocate`) during a forward solve.
+and/or Data Quadrature loss term (flagged via `estim_collocate`) during a forward solve.
 The neural network is a fully continuous solution so `BPINNsolution`
 is an accurate interpolation (up to the neural network training result). In addition, the
 `BPINNstats` is returned as `sol.fullsolution` for further analysis.

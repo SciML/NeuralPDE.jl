@@ -1,7 +1,6 @@
 @testitem "BPINN ODE I: Without Param Estimation" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
 
     Random.seed!(100)
 
@@ -56,7 +55,6 @@ end
 @testitem "BPINN ODE II: With Parameter Estimation" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
 
     Random.seed!(100)
 
@@ -125,7 +123,6 @@ end
 @testitem "BPINN ODE III" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
 
     Random.seed!(100)
 
@@ -230,9 +227,8 @@ end
 
 @testitem "BPINN ODE III: Inverse solve Improvement" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
-    using FastGaussQuadrature
+          AdvancedHMC, Statistics, Random, Functors, ComponentArrays,
+          MonteCarloMeasurements, FastGaussQuadrature
     Random.seed!(100)
 
     # (original Improvement tests can be run with 100 training points, check solve call tests.)
@@ -331,7 +327,6 @@ end
 @testitem "BPINN ODE III: Inverse solve Improvement solve call" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
 
     Random.seed!(100)
 
@@ -384,10 +379,8 @@ end
 @testitem "BPINN ODE IV: Inverse solve Improvement" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
     using FastGaussQuadrature
     Random.seed!(100)
-    using NeuralPDE, Test
 
     function lotka_volterra(u, p, t)
         # Model parameters.

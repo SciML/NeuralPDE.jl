@@ -72,8 +72,8 @@ end
 suggested extra loss function for ODE solver case
 """
 @views function L2loss2(ltd::LogTargetDensity, θ)
-    # estim_collocate must be flagged true and dataset must not be empty.
-    (isempty(ltd.dataset) && !ltd.estim_collocate) && return 0
+    # estim_collocate must be flagged true.
+    !ltd.estim_collocate && return 0
     u0 = ltd.prob.u0
     f = ltd.prob.f
     t = ltd.dataset[end - 1]
@@ -408,19 +408,31 @@ function ahmc_bayesian_pinn_ode(
         error("Dataset is Required for Inverse problems performing Parameter Estimation.")
     end
 
-    # checking the dataset's form.
+    # dataset is compulsory in case of using Data Quadrature loss
+    if isempty(dataset) && estim_collocate
+        error("Dataset is Required for using the Data Quadrature loglikelihood term.")
+    end
+
+    # checking the provided dataset's form. (if dataset is non empty L2 loglikelihood is automatically chosen)
     if !isempty(dataset)
+        # L2, data quadrature loglikelihood is chosen
+        # estim_collocate = true case, where dataset is of incorrect min dims.
         if (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}})) &&
            estim_collocate
             error("Invalid dataset for Inverse solve with Data Quadrature loss. The dataset would be a timeseries (x̂,t,W) with type: Vector{Vector{AbstractFloat}}")
         end
+
+        # only L2 loglikelihood is chosen
+        # estim_collocate = false case, where regular dataset [x̂,t] form (required for atleast only L2 loss) is incorrect.
         if (length(dataset) < 2 || !(dataset isa Vector{<:Vector{<:AbstractFloat}})) &&
            !estim_collocate
             # estim_collocate = false case, where regular dataset [x̂,t] form is incorrect.
             error("Invalid dataset for Inverse solve. The dataset would be a timeseries (x̂,t) with type: Vector{Vector{AbstractFloat}}")
         end
 
-        # if above error not triggered, pad the dataset for W column (this ensures that the dataset index accessing is correct in all methods even if estim_collocate = false)
+        # if the above error is not triggered (this means atleast L2 is valid).
+        # We must pad the dataset with a dummy W column (this ensures correct dataset
+        # index referencing in all methods except the Data Quadrature loss).
         if (length(dataset) < 2 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
             @info "Padding the dataset with a uniform W = 1 weights column"
             dataset = vcat(dataset, ones(length(dataset[end])))
