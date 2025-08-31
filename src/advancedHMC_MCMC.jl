@@ -430,12 +430,14 @@ function ahmc_bayesian_pinn_ode(
             error("Invalid dataset for Inverse solve. The dataset would be a timeseries (x̂,t) with type: Vector{Vector{AbstractFloat}}")
         end
 
-        # if the above error is not triggered (this means atleast L2 is valid).
+        # if the above errors is not triggered -> (this means atleast L2 is valid: we have x, t in the dataset) && (if estim_collocate was true then W is also present)
         # We must pad the dataset with a dummy W column (this ensures correct dataset
         # index referencing in all methods except the Data Quadrature loss).
-        if (length(dataset) < 2 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
-            @info "Padding the dataset with a uniform W = 1 weights column"
+        # do the below only if estim_collocate is false, so that L2 loss dataset access is correct.
+        if (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}})) &&
+           !estim_collocate
             dataset = vcat(dataset, ones(length(dataset[end])))
+            @info "Padding the dataset with a uniform W = 1 weights column."
         end
     end
 
