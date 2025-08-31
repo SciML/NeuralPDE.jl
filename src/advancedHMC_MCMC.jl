@@ -436,7 +436,7 @@ function ahmc_bayesian_pinn_ode(
         # do the below only if estim_collocate is false, so that L2 loss dataset access is correct.
         if (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}})) &&
            !estim_collocate
-            dataset = vcat(dataset, ones(length(dataset[end])))
+            dataset = vcat(dataset, [ones(length(dataset[end]))])
             @info "Padding the dataset with a uniform W = 1 weights column."
         end
     end
