@@ -28,6 +28,7 @@ standard `DAEProblem`.
 * `strategy`: The training strategy used to choose the points for the evaluations.
               By default, `GridTraining` is used with `dt` if given.
 """
+const ydev = reactant_device()
 @concrete struct NNDAE <: SciMLBase.AbstractDAEAlgorithm
     chain <: AbstractLuxLayer
     opt
@@ -88,7 +89,7 @@ function SciMLBase.__solve(
     t0 = tspan[1]
     (; chain, opt, autodiff, init_params) = alg
 
-    phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
+    phi, init_params = generate_phi_θ(chain, t0, ydev(u0), ydev(init_params))
     init_params = ComponentArray(; depvar = init_params)
 
     @assert !isinplace(prob) "The NNODE solver only supports out-of-place DAE definitions, i.e. du=f(u,p,t)."
