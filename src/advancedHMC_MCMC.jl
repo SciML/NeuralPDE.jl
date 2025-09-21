@@ -58,9 +58,8 @@ end
 vector_to_parameters(ps_new::AbstractVector, _::AbstractVector) = ps_new
 
 function LogDensityProblems.logdensity(ltd::LogTargetDensity, θ)
-    ldensity = physloglikelihood(ltd, θ) + priorweights(ltd, θ) + L2LossData(ltd, θ)
-    ltd.estim_collocate && return ldensity + L2loss2(ltd, θ)
-    return ldensity
+    return physloglikelihood(ltd, θ) + priorweights(ltd, θ) + L2LossData(ltd, θ) +
+           L2loss2(ltd, θ)
 end
 
 LogDensityProblems.dimension(ltd::LogTargetDensity) = ltd.dim
@@ -73,7 +72,8 @@ end
 suggested extra loss function for ODE solver case
 """
 @views function L2loss2(ltd::LogTargetDensity, θ)
-    ltd.extraparams ≤ 0 && return false  # XXX: type-stability?
+    # estim_collocate must be flagged true.
+    !ltd.estim_collocate && return 0
     u0 = ltd.prob.u0
     f = ltd.prob.f
     t = ltd.dataset[end - 1]
@@ -82,8 +82,15 @@ suggested extra loss function for ODE solver case
 
     nnsol = ode_dfdx(ltd, t, θ[1:(length(θ) - ltd.extraparams)], ltd.autodiff)
 
-    ode_params = ltd.extraparams == 1 ? θ[((length(θ) - ltd.extraparams) + 1)] :
-                 θ[((length(θ) - ltd.extraparams) + 1):length(θ)]
+    ode_params = if ltd.extraparams == 0
+        # using the loss in forward solve.
+        ltd.prob.p
+    else
+        # using the loss in inverse solve.
+        ltd.extraparams == 1 ? θ[((length(θ) - ltd.extraparams) + 1)] :
+        θ[((length(θ) - ltd.extraparams) + 1):length(θ)]
+    end
+
     phynewstd = ltd.phynewstd(ode_params)
 
     physsol = if length(u0) == 1
@@ -114,7 +121,9 @@ end
 L2 loss loglikelihood(needed for ODE parameter estimation).
 """
 @views function L2LossData(ltd::LogTargetDensity, θ)
-    (isempty(ltd.dataset) || ltd.extraparams == 0) && return 0
+    # dataset must not be empty.
+    # In case dataset is provided during forward solve, L2 loss is used automatically.
+    isempty(ltd.dataset) && return 0
 
     # matrix(each row corresponds to vector u's rows)
     nn = ltd(ltd.dataset[end - 1], θ[1:(length(θ) - ltd.extraparams)])
@@ -155,6 +164,7 @@ end
 function getlogpdf(strategy::GridTraining, ltd::LogTargetDensity, f, autodiff::Bool,
         tspan, ode_params, θ)
     ts = collect(eltype(strategy.dx), tspan[1]:(strategy.dx):tspan[2])
+    # include dataset grid points in the physics loglikelihood
     t = isempty(ltd.dataset) ? ts : vcat(ts, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
@@ -238,10 +248,7 @@ Prior logpdf for NN parameters + ODE constants.
 
     # Vector of ode parameters priors
     invpriors = allparams[2:end]
-
-    invlogpdf = sum(
-        logpdf(invpriors[length(θ) - i + 1], θ[i])
-    for i in (length(θ) - ltd.extraparams + 1):length(θ))
+    invlogpdf = sum(logpdf.(invpriors, θ[(length(θ) - ltd.extraparams + 1):end]))
 
     return invlogpdf + logpdf(nnwparams, θ[1:(length(θ) - ltd.extraparams)])
 end
@@ -303,9 +310,8 @@ dataset = [x̂, time, 0.05 .* ones(length(time))]
 
 chain1 = Lux.Chain(Lux.Dense(1, 5, tanh), Lux.Dense(5, 5, tanh), Lux.Dense(5, 1)
 
-### simply solving ode here hence better to not pass dataset(uses ode params specified in prob)
+### Simply solving ode - forward solve (uses ode params specified in prob itself). 
 fh_mcmc_chain1, fhsamples1, fhstats1 = ahmc_bayesian_pinn_ode(prob, chain1,
-                                                            dataset = dataset,
                                                             draw_samples = 1500,
                                                             l2std = [0.05],
                                                             phystd = [0.05],
@@ -323,8 +329,9 @@ fh_mcmc_chain2, fhsamples2, fhstats2 = ahmc_bayesian_pinn_ode(prob, chain1,
 
 ## NOTES
 
-Dataset is required for accurate Parameter estimation in Inverse Problems.
-Incase you are only solving Non parametric ODE Equations for a solution, do not provide a dataset.
+A `dataset` is required for accurate Parameter estimation in Inverse Problems.
+Incase you are only solving Non Parametric ODE Equations - you do not need the `dataset`, 
+unless you additionally choose to use the Data L2 loss against `dataset` for some reason and/or the Data Quadrature loss by also flagging `estim_collocate`.
 
 ## Positional Arguments
 
@@ -334,32 +341,33 @@ Incase you are only solving Non parametric ODE Equations for a solution, do not 
 ## Keyword Arguments
 
 * `strategy`: The training strategy used to choose the points for the evaluations. By
-  default GridTraining is used with given physdt discretization.
-* `dataset`: Is either an empty Vector or a nested Vector of the form `[x̂, t, W]` where `x̂` are dependant variable observations, `t` are time points and `W` are quadrature weights for domain.
-  The dataset is used to compute the L2 loss against the data and also for the Data Duadrature loss function.
-  For multiple dependant variables, there will be multiple vectors with the last two vectors in dataset still being for `t`, `W`.
-  Is empty by default assuming a forward problem is being solved.
+              default GridTraining is used with given physdt discretization.
+* `dataset`: This is either an empty Vector or a nested Vector of the form `[x̂, t]` where `x̂` are dependant variable observations and `t` are time points.
+             For Inverse problem solving, it is required to pass in the `dataset`.
+             If `estim_collocate = true`, you have to additionally pass in `W` as quadrature weights for the domain to make the dataset of the form `[x̂, t, W]`.
+             The dataset is used to compute the L2 loss against the data and also for an optional Data Quadrature loss function.
+             For multiple dependant variables, there will be multiple nested vectors with the last two vectors in the dataset corresponding to `t` and if `estim_collocate = true` then `W`.
+             `dataset` is empty `[]` by default, assuming a forward problem is being solved (but you can always include it, incase you want to use a more informative loglikelihood).
 * `init_params`: initial parameter values for BPINN (ideally for multiple chains different
-  initializations preferred)
-* `nchains`: number of chains you want to sample
-* `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are
-  ~2/3 of draw samples)
+                 initializations preferred)
+* `nchains`: number of chains you want to sample.
+* `draw_samples`: number of samples to be drawn in the MCMC algorithms (warmup samples are ~2/3 of draw samples)
 * `l2std`: standard deviation of BPINN prediction against L2 losses/Dataset
 * `phystd`: standard deviation of BPINN prediction against Chosen Underlying ODE System
 * `phynewstd`: A function that gives the standard deviation of the Data Quadrature loss function at each iteration. 
-   It takes the ODE parameters as input and returns a vector of standard deviations.
-   Is (ode_params) -> [0.05] by default.
+               It takes the ODE parameters as input and returns a vector of standard deviations.
+               Is (ode_params) -> [0.05] by default.
 * `priorsNNw`: Tuple of (mean, std) for BPINN Network parameters. Weights and Biases of
-  BPINN are Normal Distributions by default.
+               BPINN are Normal Distributions by default.
 * `param`: Vector of chosen ODE parameters Distributions in case of Inverse problems.
 * `autodiff`: Boolean Value for choice of Derivative Backend(default is numerical)
 * `physdt`: Timestep for approximating ODE in it's Time domain. (1/20.0 by default)
 * `Kernel`: Choice of MCMC Sampling Algorithm (AdvancedHMC.jl implementations HMC/NUTS/HMCDA)
 * `Integratorkwargs`: `Integrator`, `jitter_rate`, `tempering_rate`.
-  Refer: https://turinglang.org/AdvancedHMC.jl/stable/
+                       Refer: https://turinglang.org/AdvancedHMC.jl/stable/
 * `Adaptorkwargs`: `Adaptor`, `Metric`, `targetacceptancerate`.
-  Refer: https://turinglang.org/AdvancedHMC.jl/stable/ Note: Target percentage (in decimal)
-  of iterations in which the proposals are accepted (0.8 by default)
+                    Refer: https://turinglang.org/AdvancedHMC.jl/stable/ Note: Target percentage (in decimal)
+                    of iterations in which the proposals are accepted (0.8 by default)
 * `MCMCargs`: A NamedTuple containing all the chosen MCMC kernel's (HMC/NUTS/HMCDA)
   Arguments, as follows :
     * `n_leapfrog`: number of leapfrog steps for HMC
@@ -368,7 +376,9 @@ Incase you are only solving Non parametric ODE Equations for a solution, do not 
     * `max_depth`: Maximum doubling tree depth (NUTS)
     * `Δ_max`: Maximum divergence during doubling tree (NUTS)
     Refer: https://turinglang.org/AdvancedHMC.jl/stable/
-* `estim_collocate`: A boolean value to indicate whether to use the Data Quadrature loss function or not. This is only relevant for ODE parameter estimation.
+* `estim_collocate`: A boolean value to indicate whether to use the Data Quadrature loss function or not.
+                     This is mainly relevant for ODE parameter estimation.
+                     When this is `true`, ensure that you pass in the quadrature weights vector `W` as the last vector in `dataset`.
 * `progress`: controls whether to show the progress meter or not.
 * `verbose`: controls the verbosity. (Sample call args in AHMC)
 
@@ -393,15 +403,42 @@ function ahmc_bayesian_pinn_ode(
 
     strategy = strategy == GridTraining ? strategy(physdt) : strategy
 
-    if !isempty(dataset) &&
-       (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
-        error("Invalid dataset. The dataset would be a timeseries (x̂,t,W) with type: Vector{Vector{AbstractFloat}}")
+    # dataset is compulsory for inverse problems.
+    if isempty(dataset) && !isempty(param)
+        error("Dataset is Required for Inverse problems performing Parameter Estimation.")
     end
 
-    if !isempty(dataset) && isempty(param)
-        println("Dataset is only needed for Inverse problems performing Parameter Estimation, not in only Forward Problem case.")
-    elseif isempty(dataset) && !isempty(param)
-        error("Dataset Required for Inverse problems performing Parameter Estimation.")
+    # dataset is compulsory in case of using Data Quadrature loss
+    if isempty(dataset) && estim_collocate
+        error("Dataset is Required for using the Data Quadrature loglikelihood term.")
+    end
+
+    # checking the provided dataset's form. (if dataset is non empty L2 loglikelihood is automatically chosen)
+    if !isempty(dataset)
+        # L2, data quadrature loglikelihood is chosen
+        # estim_collocate = true case, where dataset is of incorrect min dims.
+        if (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}})) &&
+           estim_collocate
+            error("Invalid dataset for Inverse solve with Data Quadrature loss. The dataset would be a timeseries (x̂,t,W) with type: Vector{Vector{AbstractFloat}}")
+        end
+
+        # only L2 loglikelihood is chosen
+        # estim_collocate = false case, where regular dataset [x̂,t] form (required for atleast only L2 loss) is incorrect.
+        if (length(dataset) < 2 || !(dataset isa Vector{<:Vector{<:AbstractFloat}})) &&
+           !estim_collocate
+            # estim_collocate = false case, where regular dataset [x̂,t] form is incorrect.
+            error("Invalid dataset for Inverse solve. The dataset would be a timeseries (x̂,t) with type: Vector{Vector{AbstractFloat}}")
+        end
+
+        # if the above errors is not triggered -> (this means atleast L2 is valid: we have x, t in the dataset) && (if estim_collocate was true then W is also present)
+        # We must pad the dataset with a dummy W column (this ensures correct dataset
+        # index referencing in all methods except the Data Quadrature loss).
+        # do the below only if estim_collocate is false, so that L2 loss dataset access is correct.
+        if (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}})) &&
+           !estim_collocate
+            dataset = vcat(dataset, [ones(length(dataset[end]))])
+            @info "Padding the dataset with a uniform W = 1 weights column."
+        end
     end
 
     initial_nnθ, chain, st = generate_ltd(chain, init_params)
@@ -419,6 +456,7 @@ function ahmc_bayesian_pinn_ode(
     ninv = length(param)
     priors = [
         MvNormal(T(priorsNNw[1]) * ones(T, nparameters),
+        # order of ode params must be consistent during loglikelihood calculation.
         Diagonal(abs2.(T(priorsNNw[2]) .* ones(T, nparameters))))
     ]
 

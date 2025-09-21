@@ -1,7 +1,6 @@
 @testitem "BPINN ODE I: Without Param Estimation" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
 
     Random.seed!(100)
 
@@ -56,7 +55,6 @@ end
 @testitem "BPINN ODE II: With Parameter Estimation" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
 
     Random.seed!(100)
 
@@ -77,7 +75,7 @@ end
     u = [linear_analytic(u0, p, ti) for ti in ta]
     x̂ = collect(Float64, Array(u) + 0.2 * randn(size(u)))
     time = vec(collect(Float64, ta))
-    dataset = [x̂, time, ones(length(time))]
+    dataset = [x̂, time]
     physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
     # testing points for solve call(saveat=1/50.0 ∴ at t = collect(eltype(saveat), prob.tspan[1]:saveat:prob.tspan[2] internally estimates)
@@ -125,7 +123,6 @@ end
 @testitem "BPINN ODE III" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
 
     Random.seed!(100)
 
@@ -142,7 +139,7 @@ end
 
     # Note this is signal scaled gaussian noise, therefore the noise is biased and L2 penalizes high std points implicitly.
     x̂ = u .+ (u .* 0.1) .* randn(size(u))
-    dataset = [x̂, time, ones(length(time))]
+    dataset = [x̂, time]
     physsol1 = [linear_analytic(prob.u0, p, time[i]) for i in eachindex(time)]
 
     # separate set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
@@ -230,9 +227,8 @@ end
 
 @testitem "BPINN ODE III: Inverse solve Improvement" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
-    using FastGaussQuadrature
+          AdvancedHMC, Statistics, Random, Functors, ComponentArrays,
+          MonteCarloMeasurements, FastGaussQuadrature
     Random.seed!(100)
 
     # (original Improvement tests can be run with 100 training points, check solve call tests.)
@@ -331,7 +327,6 @@ end
 @testitem "BPINN ODE III: Inverse solve Improvement solve call" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
 
     Random.seed!(100)
 
@@ -347,7 +342,8 @@ end
     u = sol.u
     time = sol.t
     x̂ = u .+ (0.1 .* randn(size(u)))
-    # dx=0.1 Gridtraining for newloss
+
+    # dx = 0.1 Gridtraining for newloss
     dataset = [x̂, time, ones(length(time))]
 
     # set of points for testing the solve() call (it uses saveat 1/50 hence here length 501)
@@ -383,10 +379,8 @@ end
 @testitem "BPINN ODE IV: Inverse solve Improvement" tags=[:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
           AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
-    import Flux
     using FastGaussQuadrature
     Random.seed!(100)
-    using NeuralPDE, Test
 
     function lotka_volterra(u, p, t)
         # Model parameters.
