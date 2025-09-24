@@ -81,7 +81,7 @@ sym_prob = symbolic_discretize(pdesystem, discretization)
 pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-callback = function (p, l)
+callback = @closure function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
@@ -106,7 +106,8 @@ bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 loss_functions = [pde_loss_functions; bc_loss_functions]
 
-loss_function(θ, _) = sum(l -> l(θ), loss_functions)
+loss_function = @closure (θ, _) -> sum(l -> l(θ), loss_functions)
+
 
 f_ = OptimizationFunction(loss_function, AutoZygote())
 prob = OptimizationProblem(f_, sym_prob.flat_init_params)
