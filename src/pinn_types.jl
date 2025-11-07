@@ -367,6 +367,23 @@ get_u() = (cord, θ, phi) -> phi(cord, θ)
 function numeric_derivative(phi, u, x, εs, order, θ)
     ε = εs[order]
     _epsilon = inv(first(ε[ε .!= zero(ε)]))
+
+    # Recompute epsilon at the precision of the parameters θ to maintain AD precision
+    eltypeθ = recursive_eltype(θ)
+    if eltypeθ != eltype(ε)
+        # Recompute epsilon with correct type
+        epsilon_magnitude = eps(eltypeθ)^(one(eltypeθ) / convert(eltypeθ, 2 + order))
+        # Reconstruct ε preserving the sparsity pattern
+        ε_new = zeros(eltypeθ, length(ε))
+        for i in eachindex(ε)
+            if !iszero(ε[i])
+                ε_new[i] = epsilon_magnitude
+            end
+        end
+        ε = ε_new
+        _epsilon = inv(epsilon_magnitude)
+    end
+
     ε = ε |> safe_get_device(x)
 
     # any(x->x!=εs[1],εs)

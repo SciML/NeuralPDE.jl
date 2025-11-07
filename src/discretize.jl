@@ -310,8 +310,11 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
             return sol
         end
 
-        lb_ = zeros(size(lb)[1], size(cord)[2])
-        ub_ = zeros(size(ub)[1], size(cord)[2])
+        # Use the precision of the parameters θ for all arrays
+        eltypeθ = recursive_eltype(θ)
+
+        lb_ = zeros(eltypeθ, size(lb)[1], size(cord)[2])
+        ub_ = zeros(eltypeθ, size(ub)[1], size(cord)[2])
         for (i, l) in enumerate(lb)
             if l isa Number
                 @ignore_derivatives lb_[i, :] .= l
@@ -328,7 +331,7 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
                     nothing, u, nothing)
             end
         end
-        integration_arr = Matrix{Float64}(undef, 1, 0)
+        integration_arr = Matrix{eltypeθ}(undef, 1, 0)
         for i in 1:size(cord, 2)
             integration_arr = hcat(integration_arr,
                 integration_(cord[:, i], lb_[:, i], ub_[:, i], θ))
