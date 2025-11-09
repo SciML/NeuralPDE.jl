@@ -130,7 +130,7 @@ function PhysicsInformedNN(
            Phi(chain; init_states)) :
           phi
 
-    derivative = ifelse(derivative === nothing, numeric_derivative, derivative)
+    derivative = ifelse(derivative === nothing, autodiff_derivative, derivative)
 
     if iteration isa Vector{Int}
         @assert length(iteration) == 1
@@ -363,7 +363,57 @@ end
 
 get_u() = (cord, θ, phi) -> phi(cord, θ)
 
-# the method to calculate the derivative
+# the method to calculate the derivative using automatic differentiation
+function autodiff_derivative(phi, u, x, εs, order, θ)
+    ε = εs[order]
+
+    # Find which dimension to differentiate
+    dims_to_diff = findall(!iszero, ε)
+    @assert length(dims_to_diff) == 1 "Currently only support single-dimension derivatives"
+    dim_idx = dims_to_diff[1]
+
+    # x is (n_dims, n_points), we need to compute derivative w.r.t. dimension dim_idx for each point
+    n_dims, n_points = size(x)
+
+    if order == 1
+        # First order derivative using ForwardDiff
+        # Compute derivative for each point in the batch
+        results = map(1:n_points) do i
+            x_point = x[:, i]
+            f = xval -> begin
+                # Create x_modified with the appropriate type for ForwardDiff
+                x_modified = similar(x_point, typeof(xval))
+                for j in 1:n_dims
+                    x_modified[j] = (j == dim_idx) ? xval : x_point[j]
+                end
+                # phi expects (n_dims, n_points) so we need to reshape
+                x_reshaped = reshape(x_modified, n_dims, 1)
+                return first(u(x_reshaped, θ, phi))
+            end
+            ForwardDiff.derivative(f, x_point[dim_idx])
+        end
+        return reshape(results, 1, n_points)
+    else
+        # Higher order derivatives: recursively apply autodiff_derivative
+        results = map(1:n_points) do i
+            x_point = x[:, i]
+            f = xval -> begin
+                x_modified = similar(x_point, typeof(xval))
+                for j in 1:n_dims
+                    x_modified[j] = (j == dim_idx) ? xval : x_point[j]
+                end
+                x_reshaped = reshape(x_modified, n_dims, 1)
+                deriv = autodiff_derivative(
+                    phi, u, x_reshaped, @view(εs[1:(end - 1)]), order - 1, θ)
+                return first(deriv)
+            end
+            ForwardDiff.derivative(f, x_point[dim_idx])
+        end
+        return reshape(results, 1, n_points)
+    end
+end
+
+# the method to calculate the derivative using finite differences
 function numeric_derivative(phi, u, x, εs, order, θ)
     ε = εs[order]
     _epsilon = inv(first(ε[ε .!= zero(ε)]))
