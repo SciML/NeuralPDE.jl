@@ -119,7 +119,7 @@ using Printf
         residual,
         AutoForwardDiff(),
         θ,
-        (v,),
+        (v,)
     )[1]
 
     jvp_error = norm(jvp_explicit - jvp_pushforward[:]) / norm(jvp_explicit)
@@ -148,7 +148,7 @@ using Printf
         fun,
         AutoForwardDiff(),
         θ,
-        (v,),
+        (v,)
     )[1]
 
     model_jvp_error = norm(jvp_explicit_model - jvp_pushforward_model[:]) /
