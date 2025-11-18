@@ -6,5 +6,5 @@ updates:
     schedule:
       interval: "weekly"
     ignore:
-    - dependency-name: "crate-ci/typos"
-      update-types: ["version-update:semver-patch"]
+      - dependency-name: "crate-ci/typos"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
