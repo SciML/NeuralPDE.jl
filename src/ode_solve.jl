@@ -88,6 +88,7 @@ Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neura
 for solving ordinary and partial differential equations." IEEE Transactions on Neural
 Networks 9, no. 5 (1998): 987-1000.
 """
+const xdev = reactant_device()
 @concrete struct NNODE
     chain <: AbstractLuxLayer
     opt
@@ -137,12 +138,11 @@ function generate_phi_θ(chain::AbstractLuxLayer, t, u0, init_params)
 end
 
 function (f::ODEPhi)(t, θ)
-    dev = safe_get_device(θ)
-    return f(dev, safe_expand(dev, t), θ)
+    return f(xdev, safe_expand(xdev, t), θ)
 end
 
 function (f::ODEPhi{<:Number})(dev, t::Number, θ)
-    res = only(cdev(f.smodel(dev([t]), θ.depvar)))
+    res = only(f.smodel(xdev([t]), θ.depvar))
     return f.u0 + (t - f.t0) * res
 end
 
@@ -361,7 +361,7 @@ function SciMLBase.__solve(
     (; param_estim, estim_collocate, dataset, chain, opt, autodiff,
         init_params, batch, additional_loss, estim_collocate) = alg
 
-    phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
+    phi, init_params = generate_phi_θ(chain, t0, xdev(u0), xdev(init_params))
 
     (recursive_eltype(init_params) <: Complex && alg.strategy isa QuadratureTraining) &&
         error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
@@ -471,7 +471,7 @@ function SciMLBase.__solve(
     else
         u = [phi(t, res.u) for t in ts]
     end
-
+    
     sol = SciMLBase.build_solution(prob, alg, ts, u; k = res, dense = true,
         interp = NNODEInterpolation(phi, res.u), calculate_error = false,
         retcode = ReturnCode.Success, original = res, resid = res.objective)

@@ -24,6 +24,7 @@ using Optimization: Optimization
 using OptimizationOptimisers: OptimizationOptimisers
 using Printf: @printf
 using Random: Random, AbstractRNG
+using Reactant: Reactant, reactant_device
 using RecursiveArrayTools: DiffEqArray
 using Reexport: @reexport
 using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
@@ -61,7 +62,7 @@ abstract type AbstractPINN end
 
 abstract type AbstractTrainingStrategy end
 
-const cdev = CPUDevice()
+const cdev = CPUDevice() 
 
 @inline safe_get_device(x) = safe_get_device(get_device(x), x)
 @inline safe_get_device(::Nothing, x) = cdev
