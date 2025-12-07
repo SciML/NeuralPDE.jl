@@ -13,7 +13,7 @@ Algorithm for solving ordinary differential equations using a Bayesian neural ne
 is a specialization of the physics-informed neural network which is used as a solver for a
 standard `ODEProblem`.
 
-!!! warn
+!!! warning
 
     Note that BNNODE only supports ODEs which are written in the out-of-place form, i.e.
     `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared out-of-place, then the BNNODE

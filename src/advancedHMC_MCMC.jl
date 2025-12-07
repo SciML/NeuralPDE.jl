@@ -284,7 +284,7 @@ end
                            MCMCkwargs = (n_leapfrog = 30,), progress = false,
                            verbose = false)
 
-!!! warn
+!!! warning
 
     Note that `ahmc_bayesian_pinn_ode()` only supports ODEs which are written in the
     out-of-place form, i.e. `du = f(u,p,t)`, and not `f(du,u,p,t)`. If not declared
