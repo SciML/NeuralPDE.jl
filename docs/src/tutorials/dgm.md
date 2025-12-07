@@ -18,7 +18,7 @@ G^l &= \sigma_1(U^{g,l} \vec{x} + W^{g,l} S_l + b^{g,l}); \quad l = 1, \ldots, L
 R^l &= \sigma_1(U^{r,l} \vec{x} + W^{r,l} S^l + b^{r,l}); \quad l = 1, \ldots, L; \\
 H^l &= \sigma_2(U^{h,l} \vec{x} + W^{h,l}(S^l \cdot R^l) + b^{h,l}); \quad l = 1, \ldots, L; \\
 S^{l+1} &= (1 - G^l) \cdot H^l + Z^l \cdot S^{l}; \quad l = 1, \ldots, L; \\
-f(t, x; \theta) &= \sigma_{out}(W S^{L+1} + b).
+f(t, x; \theta) &= \sigma_\text{out}(W S^{L+1} + b).
 \end{align*}
 ```
 
@@ -42,7 +42,7 @@ with boundary conditions
 
 ```math
 \begin{align*}
-u(t, x) & = - sin(πx), \\
+u(t, x) & = - \sin(πx), \\
 u(t, -1) & = 0, \\
 u(t, 1) & = 0
 \end{align*}
