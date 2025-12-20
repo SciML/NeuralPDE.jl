@@ -396,3 +396,96 @@ function numeric_derivative(phi, u, x, εs, order, θ)
         error("This shouldn't happen!")
     end
 end
+
+"""
+    autodiff_derivative(phi, u, x, εs, order, θ)
+
+Compute spatial derivatives using automatic differentiation (ForwardDiff).
+This provides higher precision than numeric finite differences, especially when
+the loss function is differentiated through (e.g., for JVP/VJP computations).
+
+The εs argument is only used to determine which variables to differentiate
+with respect to (based on the non-zero positions), not for step sizes.
+
+Supports derivatives up to order 4.
+
+Note: This function is designed for use with ForwardDiff-based optimization
+backends (like `AutoForwardDiff()`). For Zygote-based optimization, use the
+default `numeric_derivative` function.
+"""
+function autodiff_derivative(phi, u, x, εs, order, θ)
+    n_points = size(x, 2)
+
+    # Get the variable indices from the epsilon vectors
+    # The non-zero position in each ε indicates which variable to differentiate
+    var_indices = Int[]
+    for ε in εs
+        idx = findfirst(el -> el != zero(el), ε)
+        if idx !== nothing
+            push!(var_indices, idx)
+        end
+    end
+
+    # Pre-allocate result (this function is not Zygote-compatible)
+    T = eltype(θ)
+    result = zeros(T, 1, n_points)
+
+    if order == 1
+        # First-order derivative: use gradient
+        var_idx = var_indices[1]
+        for i in 1:n_points
+            point = x[:, i]
+            grad = ForwardDiff.gradient(
+                coord -> phi(reshape(coord, :, 1), θ)[1, 1], point)
+            result[1, i] = grad[var_idx]
+        end
+    elseif order == 2
+        # Second-order derivative: use Hessian (handles pure and mixed)
+        var_idx1 = var_indices[1]
+        var_idx2 = var_indices[2]
+        for i in 1:n_points
+            point = x[:, i]
+            hess = ForwardDiff.hessian(
+                coord -> phi(reshape(coord, :, 1), θ)[1, 1], point)
+            result[1, i] = hess[var_idx1, var_idx2]
+        end
+    elseif order == 3
+        # Third-order derivative: nested differentiation
+        var_idx1 = var_indices[1]
+        var_idx2 = var_indices[2]
+        var_idx3 = var_indices[3]
+        for i in 1:n_points
+            point = x[:, i]
+            function hess_elem(coord)
+                h = ForwardDiff.hessian(
+                    c -> phi(reshape(c, :, 1), θ)[1, 1], coord)
+                return h[var_idx2, var_idx3]
+            end
+            third_grad = ForwardDiff.gradient(hess_elem, point)
+            result[1, i] = third_grad[var_idx1]
+        end
+    elseif order == 4
+        # Fourth-order derivative: nested differentiation
+        var_idx1 = var_indices[1]
+        var_idx2 = var_indices[2]
+        var_idx3 = var_indices[3]
+        var_idx4 = var_indices[4]
+        for i in 1:n_points
+            point = x[:, i]
+            function third_deriv(coord)
+                function hess_elem_inner(c)
+                    h = ForwardDiff.hessian(
+                        c2 -> phi(reshape(c2, :, 1), θ)[1, 1], c)
+                    return h[var_idx3, var_idx4]
+                end
+                return ForwardDiff.gradient(hess_elem_inner, coord)[var_idx2]
+            end
+            fourth_grad = ForwardDiff.gradient(third_deriv, point)
+            result[1, i] = fourth_grad[var_idx1]
+        end
+    else
+        error("autodiff_derivative only supports order 1-4, got order=$order")
+    end
+
+    return result
+end

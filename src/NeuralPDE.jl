@@ -107,7 +107,8 @@ export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
 
 export build_loss_function, get_loss_function,
        generate_training_sets, get_variables, get_argument, get_bounds,
-       get_numeric_integral, symbolic_discretize, vector_to_parameters
+       get_numeric_integral, symbolic_discretize, vector_to_parameters,
+       autodiff_derivative, numeric_derivative
 
 export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
        MiniMaxAdaptiveLoss
