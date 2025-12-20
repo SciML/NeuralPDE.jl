@@ -5,7 +5,8 @@ function get_trainset(chain::DeepONet, bounds, number_of_parameters, tspan, dt)
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
     p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
-    t = reshape(t_, 1, size(t_, 1), 1)
+    # NeuralOperators 0.6+ requires 2D trunk input
+    t = reshape(t_, 1, size(t_, 1))
     (p, t)
 end
 
@@ -74,17 +75,6 @@ end
             Dense(1=>10, Lux.tanh_fast), Dense(10=>10, Lux.tanh_fast), Dense(10=>10)),
         Chain(Dense(1=>10, Lux.tanh_fast), Dense(10=>10, Lux.tanh_fast),
             Dense(10=>10, Lux.tanh_fast)))
-    u=rand(Float32, 1, 50)
-    v=rand(Float32, 1, 40, 1)
-    branch=deeponet.branch
-    θ, st=Lux.setup(Random.default_rng(), branch)
-    b=branch(u, θ, st)[1]
-    trunk=deeponet.trunk
-    θ, st=Lux.setup(Random.default_rng(), trunk)
-    t=trunk(v, θ, st)[1]
-    θ, st=Lux.setup(Random.default_rng(), deeponet)
-    deeponet((u, v), θ, st)[1]
-
     bounds=[(pi, 2pi)]
     number_of_parameters=50
     strategy=StochasticTraining(40)
@@ -101,7 +91,8 @@ end
     predict_sol=sol.interp(p, t)
     @test ground_solution≈predict_sol rtol=0.08
 
-    p, t=sol.prob.p, rand(1, 20, 1)
+    # NeuralOperators 0.6+ requires 2D trunk input
+    p, t=sol.prob.p, rand(1, 20)
     ground_solution=ground_analytic.(u0, p, vec(t))
     predict_sol=sol(t)
     @test ground_solution≈predict_sol rtol=0.08
@@ -230,11 +221,6 @@ end
             Dense(input_branch_size=>10, Lux.tanh_fast), Dense(10=>10, Lux.tanh_fast), Dense(10=>10)),
         Chain(Dense(1=>10, Lux.tanh_fast), Dense(10=>10, Lux.tanh_fast),
             Dense(10=>10, Lux.tanh_fast)))
-
-    u=rand(3, 50)
-    v=rand(1, 40, 1)
-    θ, st=Lux.setup(Random.default_rng(), deeponet)
-    c=deeponet((u, v), θ, st)[1]
 
     bounds=[(1.0, pi), (1.0, 2.0), (2.0, 3.0)]
     number_of_parameters=100

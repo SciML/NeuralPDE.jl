@@ -143,7 +143,8 @@ function initial_condition_loss(
         phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
         C <: DeepONet, T}
     p, t = x
-    t0 = reshape([prob.tspan[1]], (1, 1, 1))
+    # NeuralOperators 0.6+ requires 2D trunk input
+    t0 = reshape([prob.tspan[1]], (1, 1))
     x0 = (p, t0)
     u = phi(x0, θ)
     u0 = size(prob.u0, 1) == 1 ? fill(prob.u0, size(u)) :
@@ -171,7 +172,8 @@ function get_trainset(
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
     p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
-    t = reshape(t_, 1, size(t_, 1), 1)
+    # NeuralOperators 0.6+ requires 2D trunk input
+    t = reshape(t_, 1, size(t_, 1))
     (p, t)
 end
 
@@ -189,9 +191,20 @@ function get_trainset(
 end
 
 function get_trainset(
-        strategy::StochasticTraining, chain::Union{DeepONet, Chain},
+        strategy::StochasticTraining, chain::DeepONet,
         bounds, number_of_parameters, tspan)
-    (number_of_parameters != strategy.points && chain isa Chain) &&
+    p = reduce(vcat,
+        [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
+         for bound in bounds])
+    # NeuralOperators 0.6+ requires 2D trunk input
+    t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points) .+ tspan[1]
+    (p, t)
+end
+
+function get_trainset(
+        strategy::StochasticTraining, chain::Chain,
+        bounds, number_of_parameters, tspan)
+    (number_of_parameters != strategy.points) &&
         throw(error("number_of_parameters should be the same strategy.points for StochasticTraining"))
     p = reduce(vcat,
         [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
@@ -279,7 +292,8 @@ end
 function (f::PINOODEInterpolation)(
         t::Number, ::Nothing, ::Type{Val{0}}, p::AbstractArray, continuity)
     if f.phi.model isa DeepONet
-        t_ = [t]
+        # NeuralOperators 0.6+ requires 2D trunk input
+        t_ = reshape([t], 1, 1)
         f.phi((p, t_), f.θ)
     elseif f.phi.model isa Chain
         t_ = fill(t, size(p))
@@ -333,9 +347,11 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
 
     try
         if chain isa DeepONet
-            in_dim = chain.branch.layers.layer_1.in_dims
+            # Use length(bounds) as branch input dimension - this is the number of parameters
+            in_dim = length(bounds)
             u = rand(in_dim, number_of_parameters)
-            v = rand(1, 10, 1)
+            # NeuralOperators 0.6+ requires 2D trunk input
+            v = rand(1, 10)
             x = (u, v)
             phi(x, init_params)
         end
