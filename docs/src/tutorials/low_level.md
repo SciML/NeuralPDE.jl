@@ -51,7 +51,7 @@ phi = sym_prob.phi
 pde_loss_functions = sym_prob.loss_functions.pde_loss_functions
 bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
-callback = function (p, l)
+@closure callback = function (p, l)
     println("loss: ", l)
     println("pde_losses: ", map(l_ -> l_(p.u), pde_loss_functions))
     println("bcs_losses: ", map(l_ -> l_(p.u), bc_loss_functions))
@@ -60,7 +60,7 @@ end
 
 loss_functions = [pde_loss_functions; bc_loss_functions]
 
-loss_function(θ, p) = sum(map(l -> l(θ), loss_functions))
+@closure loss_function(θ, p) = sum(map(l -> l(θ), loss_functions))
 
 f_ = OptimizationFunction(loss_function, AutoZygote())
 prob = OptimizationProblem(f_, sym_prob.flat_init_params)
