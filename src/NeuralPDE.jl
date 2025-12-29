@@ -37,8 +37,7 @@ using Zygote: Zygote
 
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
-using Symbolics: Symbolics, unwrap, arguments, operation, build_expr, Num,
-                 expand_derivatives
+using Symbolics: Symbolics, unwrap, arguments, operation, Num, expand_derivatives
 using SymbolicUtils: SymbolicUtils
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
@@ -56,6 +55,10 @@ import LuxCore: initialparameters, initialstates, parameterlength
 @reexport using SciMLBase, ModelingToolkit
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
+
+# build_expr was removed from Symbolics.jl v7, provide a local implementation
+# This creates an Expr with the given head and arguments
+build_expr(head::Symbol, args) = Expr(head, args...)
 
 abstract type AbstractPINN end
 
