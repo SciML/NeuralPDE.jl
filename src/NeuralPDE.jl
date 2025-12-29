@@ -63,13 +63,18 @@ build_expr(head::Symbol, args) = Expr(head, args...)
 # PDESystem field accessor for compatibility with both ModelingToolkit 9/10 (defaults)
 # and ModelingToolkit 11+ (initial_conditions)
 function get_pdesystem_defaults(pde_system::PDESystem)
-    if hasproperty(pde_system, :defaults)
-        return pde_system.defaults
+    defaults = if hasproperty(pde_system, :defaults)
+        pde_system.defaults
     elseif hasproperty(pde_system, :initial_conditions)
-        return pde_system.initial_conditions
+        pde_system.initial_conditions
     else
+        nothing
+    end
+    # Handle NullParameters or nothing - return empty Dict in these cases
+    if defaults === nothing || defaults isa SciMLBase.NullParameters
         return Dict()
     end
+    return defaults
 end
 
 abstract type AbstractPINN end
