@@ -160,7 +160,7 @@ end
 
     @named pde_system = PDESystem(eqs, bcs, domains,
         [t], [x(t), y(t), z(t)], [σ_, ρ, β],
-        defaults = Dict([p => 1.0 for p in [σ_, ρ, β]]))
+        initial_conditions = Dict([p => 1.0 for p in [σ_, ρ, β]]))
 
     prob = discretize(pde_system, discretization)
     sym_prob = symbolic_discretize(pde_system, discretization)
@@ -176,7 +176,7 @@ end
 
     @named pde_system = PDESystem(eqs, bcs, domains,
         [t], [x(t), y(t), z(t)], [σ_, ρ, β],
-        defaults = Dict([p => 1.0 for p in [σ_, ρ, β]]))
+        initial_conditions = Dict([p => 1.0 for p in [σ_, ρ, β]]))
 
     prob = discretize(pde_system, discretization)
     sym_prob = symbolic_discretize(pde_system, discretization)

@@ -115,7 +115,7 @@ discretization = NeuralPDE.BayesianPINN([chain],
     [x, t],
     [u(x, t)],
     [α],
-    defaults = Dict([α => 0.5]))
+    initial_conditions = Dict([α => 0.5]))
 
 sol1 = ahmc_bayesian_pinn_pde(pde_system,
     discretization;
