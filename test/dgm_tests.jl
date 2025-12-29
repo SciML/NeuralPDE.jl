@@ -107,42 +107,42 @@ end
     @parameters x t
     @variables u(..)
 
-    Dt = Differential(t)
-    Dx = Differential(x)
-    Dxx = Dx^2
-    α = 0.05
-    eq = Dt(u(t, x)) + u(t, x) * Dx(u(t, x)) - α * Dxx(u(t, x)) ~ 0 # Burger's equation
+    Dt=Differential(t)
+    Dx=Differential(x)
+    Dxx=Dx^2
+    α=0.05
+    eq=Dt(u(t, x))+u(t, x)*Dx(u(t, x))-α*Dxx(u(t, x))~0 # Burger's equation
 
-    bcs = [
-        u(0.0, x) ~ -sin(π * x),
-        u(t, -1.0) ~ 0.0,
-        u(t, 1.0) ~ 0.0
+    bcs=[
+        u(0.0, x)~-sin(π*x),
+        u(t, -1.0)~0.0,
+        u(t, 1.0)~0.0
     ]
 
-    domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(-1.0, 1.0)]
+    domains=[t ∈ Interval(0.0, 1.0), x ∈ Interval(-1.0, 1.0)]
 
     # NeuralPDE
-    strategy = QuasiRandomTraining(256, minibatch = 32)
-    discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
+    strategy=QuasiRandomTraining(256, minibatch = 32)
+    discretization=DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
-    prob = discretize(pde_system, discretization)
+    prob=discretize(pde_system, discretization)
 
-    callback = function (p, l)
-        p.iter % 50 == 0 && println("$(p.iter) => $l")
+    callback=function (p, l)
+        p.iter%50==0&&println("$(p.iter) => $l")
         return false
     end
 
-    res = solve(prob, Adam(0.01); callback = callback, maxiters = 200)
-    prob = remake(prob, u0 = res.u)
-    res = solve(prob, Adam(0.001); callback = callback, maxiters = 100)
-    phi = discretization.phi
+    res=solve(prob, Adam(0.01); callback = callback, maxiters = 200)
+    prob=remake(prob, u0 = res.u)
+    res=solve(prob, Adam(0.001); callback = callback, maxiters = 100)
+    phi=discretization.phi
 
-    ts = 0.0:0.01:1.0
-    xs = -1.0:0.01:1.0
-    u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
+    ts=0.0:0.01:1.0
+    xs=-1.0:0.01:1.0
+    u_predict=[first(phi([t, x], res.u)) for t in ts, x in xs]
 
     # Test that the solution is reasonable (initial condition is -sin(π*x))
-    u_initial = [first(phi([0.0, x], res.u)) for x in xs]
-    u_expected_initial = [-sin(π * x) for x in xs]
+    u_initial=[first(phi([0.0, x], res.u)) for x in xs]
+    u_expected_initial=[-sin(π*x) for x in xs]
     @test u_initial≈u_expected_initial atol=0.3
 end
