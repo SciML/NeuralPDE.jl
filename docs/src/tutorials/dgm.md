@@ -26,7 +26,7 @@ where $\vec{x}$ is the concatenated vector of $(t, x)$ and $L$ is the number of 
 
 ### Example
 
-Let's try to solve the following Burger's equation using Deep Galerkin Method for $\alpha = 0.05$ and compare our solution with the finite difference method:
+Let's try to solve the following Burger's equation using Deep Galerkin Method for $\alpha = 0.05$:
 
 ```math
 \partial_t u(t, x) + u(t, x) \partial_x u(t, x) - \alpha \partial_{xx} u(t, x) = 0 
@@ -54,8 +54,7 @@ u(t, 1) & = 0
 using NeuralPDE
 using ModelingToolkit, Optimization, OptimizationOptimisers
 using Distributions
-using DomainSets: Interval, infimum, supremum
-using MethodOfLines, OrdinaryDiffEq
+using DomainSets: Interval
 using Plots
 
 @parameters x t
@@ -77,18 +76,6 @@ bcs = [
 
 domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(-1.0, 1.0)]
 
-# MethodOfLines, for FD solution
-dx = 0.01
-order = 2
-discretization = MOLFiniteDifference([x => dx], t, saveat = 0.01)
-@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
-prob = discretize(pde_system, discretization)
-sol = solve(prob, Tsit5())
-ts = sol[t]
-xs = sol[x]
-
-u_MOL = sol[u(t, x)]
-
 # NeuralPDE, using Deep Galerkin Method
 strategy = QuasiRandomTraining(256, minibatch = 32)
 discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
@@ -105,14 +92,18 @@ prob = remake(prob, u0 = res.u)
 res = solve(prob, Adam(0.01); maxiters = 500)
 phi = discretization.phi
 
-u_predict = [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
-
-diff_u = abs.(u_predict .- u_MOL)
 tgrid = 0.0:0.01:1.0
 xgrid = -1.0:0.01:1.0
 
-p1 = plot(tgrid, xgrid, u_MOL', linetype = :contourf, title = "FD");
-p2 = plot(tgrid, xgrid, u_predict', linetype = :contourf, title = "predict");
-p3 = plot(tgrid, xgrid, diff_u', linetype = :contourf, title = "error");
-plot(p1, p2, p3)
+u_predict = [first(phi([t, x], res.minimizer)) for t in tgrid, x in xgrid]
+
+# Plot the solution
+p1 = plot(tgrid, xgrid, u_predict', linetype = :contourf, title = "DGM Solution");
+
+# Also check initial condition
+u_initial = [first(phi([0.0, x], res.minimizer)) for x in xgrid]
+u_expected = [-sin(π * x) for x in xgrid]
+p2 = plot(xgrid, u_initial, label = "DGM at t=0", title = "Initial Condition");
+plot!(p2, xgrid, u_expected, label = "Expected: -sin(πx)", linestyle = :dash);
+plot(p1, p2, layout = (1, 2))
 ```
