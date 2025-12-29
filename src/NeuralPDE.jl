@@ -60,6 +60,18 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 # This creates an Expr with the given head and arguments
 build_expr(head::Symbol, args) = Expr(head, args...)
 
+# PDESystem field accessor for compatibility with both ModelingToolkit 9/10 (defaults)
+# and ModelingToolkit 11+ (initial_conditions)
+function get_pdesystem_defaults(pde_system::PDESystem)
+    if hasproperty(pde_system, :defaults)
+        return pde_system.defaults
+    elseif hasproperty(pde_system, :initial_conditions)
+        return pde_system.initial_conditions
+    else
+        return Dict()
+    end
+end
+
 abstract type AbstractPINN end
 
 abstract type AbstractTrainingStrategy end
