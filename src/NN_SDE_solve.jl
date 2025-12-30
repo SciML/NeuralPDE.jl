@@ -541,8 +541,8 @@ end
 function evaluate_tstops_loss(
         phi, f, g, autodiff::Bool, tstops, n_z::Int64, sub_batch::Int64,
         train_type, p, batch::Bool, param_estim::Bool)
-    inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, sub_batch) :
-             add_rand_coeff(ts, n_z, sub_batch)
+    inputs = train_type == sum ? add_rand_coeff_2(tstops, n_z, sub_batch) :
+             add_rand_coeff(tstops, n_z, sub_batch)
 
     batch &&
         return (θ,

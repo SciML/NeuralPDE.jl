@@ -472,7 +472,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
             ensemblecurves, estimnnparams,
             estimated_params,
             timepoints = inference(
-                samples, pinnrep, saveat, numensemble, ℓπ)
+                samples, pinnrep, saveats, numensemble, ℓπ)
 
             bpinnsols[i] = BPINNsolution(
                 fullsolution, ensemblecurves, estimnnparams, estimated_params, timepoints)

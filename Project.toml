@@ -76,6 +76,7 @@ Hwloc = "3.3.0"
 Integrals = "4.5"
 InteractiveUtils = "<0.0.1, 1"
 IntervalSets = "0.7.10"
+JET = "0.9"
 LineSearches = "7.3"
 LinearAlgebra = "1.10"
 LogDensityProblems = "2"
@@ -123,6 +124,7 @@ FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 LuxCUDA = "d0bbae9a-e099-4d5b-a835-1c6931763bda"
 LuxCore = "bb33d45b-7691-41d6-9220-0943567d0623"
@@ -136,4 +138,4 @@ TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "Boltz", "CUDA", "DiffEqNoiseProcess", "ExplicitImports", "FastGaussQuadrature", "Flux", "Hwloc", "InteractiveUtils", "LineSearches", "LuxCUDA", "LuxCore", "LuxLib", "MethodOfLines", "OptimizationOptimJL", "OrdinaryDiffEq", "ReTestItems", "StochasticDiffEq", "TensorBoardLogger", "Test"]
+test = ["Aqua", "Boltz", "CUDA", "DiffEqNoiseProcess", "ExplicitImports", "FastGaussQuadrature", "Flux", "Hwloc", "InteractiveUtils", "JET", "LineSearches", "LuxCUDA", "LuxCore", "LuxLib", "MethodOfLines", "OptimizationOptimJL", "OrdinaryDiffEq", "ReTestItems", "StochasticDiffEq", "TensorBoardLogger", "Test"]

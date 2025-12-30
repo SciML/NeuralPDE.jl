@@ -26,14 +26,14 @@ function _dot_(x::Expr)
         Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
     elseif x.head === :comparison
         Expr(:comparison,
-            (iseven(i) && dottable_(arg) && arg isa Symbol && isoperator(arg) ?
+            (iseven(i) && dottable_(arg) && arg isa Symbol && Base.isoperator(arg) ?
              Symbol('.', arg) : arg for (i, arg) in pairs(dotargs))...)
     elseif x.head === :$
         x.args[1]
     elseif x.head === :let # don't add dots to `let x=...` assignments
-        Expr(:let, undot(dotargs[1]), dotargs[2])
+        Expr(:let, Broadcast.undot(dotargs[1]), dotargs[2])
     elseif x.head === :for # don't add dots to for x=... assignments
-        Expr(:for, undot(dotargs[1]), dotargs[2])
+        Expr(:for, Broadcast.undot(dotargs[1]), dotargs[2])
     elseif (x.head === :(=) || x.head === :function || x.head === :macro) &&
            Meta.isexpr(x.args[1], :call) # function or macro definition
         Expr(x.head, x.args[1], dotargs[2])
