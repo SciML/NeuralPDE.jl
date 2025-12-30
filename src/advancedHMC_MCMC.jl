@@ -111,7 +111,7 @@ suggested extra loss function for ODE solver case
         physlogprob += logpdf(
             MvNormal((nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights,
                 Diagonal(abs2.(T(phynewstd[i]) .* ones(T, length(t))))),
-            zeros(length(t))
+            zeros(T, length(t))
         )
     end
     return physlogprob

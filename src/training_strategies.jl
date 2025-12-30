@@ -105,8 +105,8 @@ function get_points_loss_functions(
     function loss(θ, std)
         logpdf(
             MvNormal(loss_function(train_set, θ)[1, :],
-                Diagonal(abs2.(std .* ones(size(train_set)[2])))),
-            zeros(size(train_set)[2]))
+                Diagonal(abs2.(std .* ones(eltypeθ, size(train_set)[2])))),
+            zeros(eltypeθ, size(train_set)[2]))
     end
 end
 
