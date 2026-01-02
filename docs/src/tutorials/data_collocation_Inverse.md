@@ -1,6 +1,6 @@
 # Model Improvement in Physics-Informed Neural Networks for solving Inverse problems in ODEs.
 
-Consider an Inverse problem setting for the  [lotka volterra system](https://en.wikipedia.org/wiki/Lotka%E2%80%93Volterra_equations). Here we want to optimize parameters $\alpha$, $\beta$, $\gamma$ and $\delta$ and also solve a parametric Lotka Volterra system.
+Consider an Inverse problem setting for the [lotka volterra system](https://en.wikipedia.org/wiki/Lotka%E2%80%93Volterra_equations). Here we want to optimize parameters $\alpha$, $\beta$, $\gamma$ and $\delta$ and also solve a parametric Lotka Volterra system.
 PINNs are especially useful in these types of problems and are preferred over conventional solvers, due to their ability to learn from observations - the underlying physics governing the distribution of observations.
 
 We start by defining the problem, with a random and non informative initialization for parameters:
