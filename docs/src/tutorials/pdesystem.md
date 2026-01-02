@@ -44,7 +44,7 @@ bcs = [
     u(0, y) ~ 0.0, u(1, y) ~ 0.0,
     u(x, 0) ~ 0.0, u(x, 1) ~ 0.0
 ]
-# Space and time domains
+# Space domains
 domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
 # Neural network
@@ -96,8 +96,8 @@ using Plots
 
 @parameters x y
 @variables u(..)
-@derivatives Dxx'' ~ x
-@derivatives Dyy'' ~ y
+Dxx = Differential(x)^2
+Dyy = Differential(y)^2
 
 # 2D PDE
 eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
@@ -105,7 +105,7 @@ eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
 # Boundary conditions
 bcs = [u(0, y) ~ 0.0, u(1, y) ~ 0.0,
     u(x, 0) ~ 0.0, u(x, 1) ~ 0.0]
-# Space and time domains
+# Space domains
 domains = [x ∈ Interval(0.0, 1.0),
     y ∈ Interval(0.0, 1.0)]
 ```
