@@ -28,8 +28,8 @@ using RecursiveArrayTools: DiffEqArray
 using Reexport: @reexport
 using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
 using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem, NoiseProblem,
-                 OptimizationFunction, OptimizationProblem, ReturnCode, discretize,
-                 isinplace, solve, symbolic_discretize, ODEProblem, ODESolution
+    OptimizationFunction, OptimizationProblem, ReturnCode, discretize,
+    isinplace, solve, symbolic_discretize, ODEProblem, ODESolution
 using Statistics: Statistics, mean
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
 using WeightInitializers: glorot_uniform, zeros32
@@ -38,14 +38,14 @@ using Zygote: Zygote
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
 using Symbolics: Symbolics, unwrap, arguments, operation, build_expr, Num,
-                 expand_derivatives
+    expand_derivatives
 using SymbolicUtils: SymbolicUtils
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
 # Needed for the Bayesian Stuff
 using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
-                   JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
-                   StepSizeAdaptor, TemperedLeapfrog, find_good_stepsize
+    JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
+    StepSizeAdaptor, TemperedLeapfrog, find_good_stepsize
 using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
 using LogDensityProblems: LogDensityProblems
 using MCMCChains: MCMCChains, Chains, sample
@@ -103,14 +103,14 @@ export DeepGalerkin
 export neural_adapter
 
 export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
-       WeightedIntervalTraining
+    WeightedIntervalTraining
 
 export build_loss_function, get_loss_function,
-       generate_training_sets, get_variables, get_argument, get_bounds,
-       get_numeric_integral, symbolic_discretize, vector_to_parameters
+    generate_training_sets, get_variables, get_argument, get_bounds,
+    get_numeric_integral, symbolic_discretize, vector_to_parameters
 
 export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
-       MiniMaxAdaptiveLoss
+    MiniMaxAdaptiveLoss
 
 export LogOptions
 

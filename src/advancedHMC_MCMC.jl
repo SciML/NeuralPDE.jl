@@ -59,7 +59,7 @@ vector_to_parameters(ps_new::AbstractVector, _::AbstractVector) = ps_new
 
 function LogDensityProblems.logdensity(ltd::LogTargetDensity, θ)
     return physloglikelihood(ltd, θ) + priorweights(ltd, θ) + L2LossData(ltd, θ) +
-           L2loss2(ltd, θ)
+        L2loss2(ltd, θ)
 end
 
 LogDensityProblems.dimension(ltd::LogTargetDensity) = ltd.dim
@@ -88,7 +88,7 @@ suggested extra loss function for ODE solver case
     else
         # using the loss in inverse solve.
         ltd.extraparams == 1 ? θ[((length(θ) - ltd.extraparams) + 1)] :
-        θ[((length(θ) - ltd.extraparams) + 1):length(θ)]
+            θ[((length(θ) - ltd.extraparams) + 1):length(θ)]
     end
 
     phynewstd = ltd.phynewstd(ode_params)
@@ -96,8 +96,10 @@ suggested extra loss function for ODE solver case
     physsol = if length(u0) == 1
         [f(û[1][i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
     else
-        [f([û[j][i] for j in eachindex(u0)], ode_params, tᵢ)
-         for (i, tᵢ) in enumerate(t)]
+        [
+            f([û[j][i] for j in eachindex(u0)], ode_params, tᵢ)
+                for (i, tᵢ) in enumerate(t)
+        ]
     end
     # form of NN output matrix output dim x n
     deri_physsol = reduce(hcat, physsol)
@@ -109,8 +111,10 @@ suggested extra loss function for ODE solver case
     # dims of phynewstd is same as u0 due to BNNODE being an out-of-place ODE solver.
     for i in eachindex(u0)
         physlogprob += logpdf(
-            MvNormal((nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights,
-                Diagonal(abs2.(T(phynewstd[i]) .* ones(T, length(t))))),
+            MvNormal(
+                (nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights,
+                Diagonal(abs2.(T(phynewstd[i]) .* ones(T, length(t))))
+            ),
             zeros(T, length(t))
         )
     end
@@ -153,7 +157,7 @@ function physloglikelihood(ltd::LogTargetDensity, θ)
     # parameter estimation chosen or not
     if ltd.extraparams > 0
         ode_params = ltd.extraparams == 1 ? θ[((length(θ) - ltd.extraparams) + 1)] :
-                     θ[((length(θ) - ltd.extraparams) + 1):length(θ)]
+            θ[((length(θ) - ltd.extraparams) + 1):length(θ)]
     else
         ode_params = p isa SciMLBase.NullParameters ? Float64[] : p
     end
@@ -161,35 +165,44 @@ function physloglikelihood(ltd::LogTargetDensity, θ)
     return getlogpdf(strategy, ltd, f, autodiff, tspan, ode_params, θ)
 end
 
-function getlogpdf(strategy::GridTraining, ltd::LogTargetDensity, f, autodiff::Bool,
-        tspan, ode_params, θ)
+function getlogpdf(
+        strategy::GridTraining, ltd::LogTargetDensity, f, autodiff::Bool,
+        tspan, ode_params, θ
+    )
     ts = collect(eltype(strategy.dx), tspan[1]:(strategy.dx):tspan[2])
     # include dataset grid points in the physics loglikelihood
     t = isempty(ltd.dataset) ? ts : vcat(ts, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
-function getlogpdf(strategy::StochasticTraining, ltd::LogTargetDensity,
-        f, autodiff::Bool, tspan, ode_params, θ)
+function getlogpdf(
+        strategy::StochasticTraining, ltd::LogTargetDensity,
+        f, autodiff::Bool, tspan, ode_params, θ
+    )
     T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
     samples = (tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1]
     t = isempty(ltd.dataset) ? samples : vcat(samples, ltd.dataset[end - 1])
     return sum(innerdiff(ltd, f, autodiff, t, θ, ode_params))
 end
 
-function getlogpdf(strategy::QuadratureTraining, ltd::LogTargetDensity, f, autodiff::Bool,
-        tspan, ode_params, θ)
+function getlogpdf(
+        strategy::QuadratureTraining, ltd::LogTargetDensity, f, autodiff::Bool,
+        tspan, ode_params, θ
+    )
     # integrand is shape of NN output
     integrand(t::Number, θ) = innerdiff(ltd, f, autodiff, [t], θ, ode_params)
     intprob = IntegralProblem(
-        integrand, (tspan[1], tspan[2]), θ; nout = length(ltd.prob.u0))
+        integrand, (tspan[1], tspan[2]), θ; nout = length(ltd.prob.u0)
+    )
     sol = solve(intprob, QuadGKJL(); strategy.abstol, strategy.reltol)
     # sum over losses for all NN outputs
     return sum(sol.u)
 end
 
-function getlogpdf(strategy::WeightedIntervalTraining, ltd::LogTargetDensity, f,
-        autodiff::Bool, tspan, ode_params, θ)
+function getlogpdf(
+        strategy::WeightedIntervalTraining, ltd::LogTargetDensity, f,
+        autodiff::Bool, tspan, ode_params, θ
+    )
     minT, maxT = tspan
     weights = strategy.weights ./ sum(strategy.weights)
     N = length(weights)
@@ -198,7 +211,7 @@ function getlogpdf(strategy::WeightedIntervalTraining, ltd::LogTargetDensity, f,
     ts = eltype(difference)[]
     for (index, item) in enumerate(weights)
         temp_data = rand(1, trunc(Int, strategy.points * item)) .* difference .+ minT .+
-                    ((index - 1) * difference)
+            ((index - 1) * difference)
         append!(ts, temp_data)
     end
 
@@ -209,8 +222,10 @@ end
 """
 MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN with parameters θ.
 """
-@views function innerdiff(ltd::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, θ,
-        ode_params)
+@views function innerdiff(
+        ltd::LogTargetDensity, f, autodiff::Bool, t::AbstractVector, θ,
+        ode_params
+    )
     # ltd used for phi and LogTargetDensity object attributes access
     out = ltd(t, θ[1:(length(θ) - ltd.extraparams)])
 
@@ -230,11 +245,15 @@ MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN
 
     # N dimensional vector if N outputs for NN(each row has logpdf of u[i] where u is vector
     # of dependant variables)
-    return [logpdf(
-                MvNormal((nnsol[i, :] .- physsol[i, :]),
-                    Diagonal(abs2.(T(ltd.phystd[i]) .* ones(T, length(t))))),
+    return [
+        logpdf(
+                MvNormal(
+                    (nnsol[i, :] .- physsol[i, :]),
+                    Diagonal(abs2.(T(ltd.phystd[i]) .* ones(T, length(t))))
+                ),
                 zeros(T, length(t))
-            ) for i in 1:length(ltd.prob.u0)]
+            ) for i in 1:length(ltd.prob.u0)
+    ]
 end
 
 """
@@ -263,7 +282,7 @@ function generate_ltd(chain::AbstractLuxLayer, ::Nothing)
 end
 
 function kernelchoice(Kernel, MCMCkwargs)
-    if Kernel == HMCDA
+    return if Kernel == HMCDA
         Kernel(MCMCkwargs[:δ], MCMCkwargs[:λ])
     elseif Kernel == NUTS
         δ, max_depth, Δ_max = MCMCkwargs[:δ], MCMCkwargs[:max_depth], MCMCkwargs[:Δ_max]
@@ -393,10 +412,13 @@ function ahmc_bayesian_pinn_ode(
         phystd = [0.05], phynewstd = (ode_params) -> [0.05],
         priorsNNw = (0.0, 2.0), param = [], nchains = 1,
         autodiff = false, Kernel = HMC,
-        Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
+        Adaptorkwargs = (
+            Adaptor = StanHMCAdaptor,
+            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8,
+        ),
         Integratorkwargs = (Integrator = Leapfrog,), MCMCkwargs = (n_leapfrog = 30,),
-        progress = false, verbose = false, estim_collocate = false)
+        progress = false, verbose = false, estim_collocate = false
+    )
     @assert !isinplace(prob) "The BPINN ODE solver only supports out-of-place ODE definitions, i.e. du=f(u,p,t)."
 
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
@@ -418,14 +440,14 @@ function ahmc_bayesian_pinn_ode(
         # L2, data quadrature loglikelihood is chosen
         # estim_collocate = true case, where dataset is of incorrect min dims.
         if (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}})) &&
-           estim_collocate
+                estim_collocate
             error("Invalid dataset for Inverse solve with Data Quadrature loss. The dataset would be a timeseries (x̂,t,W) with type: Vector{Vector{AbstractFloat}}")
         end
 
         # only L2 loglikelihood is chosen
         # estim_collocate = false case, where regular dataset [x̂,t] form (required for atleast only L2 loss) is incorrect.
         if (length(dataset) < 2 || !(dataset isa Vector{<:Vector{<:AbstractFloat}})) &&
-           !estim_collocate
+                !estim_collocate
             # estim_collocate = false case, where regular dataset [x̂,t] form is incorrect.
             error("Invalid dataset for Inverse solve. The dataset would be a timeseries (x̂,t) with type: Vector{Vector{AbstractFloat}}")
         end
@@ -435,7 +457,7 @@ function ahmc_bayesian_pinn_ode(
         # index referencing in all methods except the Data Quadrature loss).
         # do the below only if estim_collocate is false, so that L2 loss dataset access is correct.
         if (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}})) &&
-           !estim_collocate
+                !estim_collocate
             dataset = vcat(dataset, [ones(length(dataset[end]))])
             @info "Padding the dataset with a uniform W = 1 weights column."
         end
@@ -443,8 +465,8 @@ function ahmc_bayesian_pinn_ode(
 
     initial_nnθ, chain, st = generate_ltd(chain, init_params)
 
-    @assert nchains≤Threads.nthreads() "number of chains is greater than available threads"
-    @assert nchains≥1 "number of chains must be greater than 1"
+    @assert nchains ≤ Threads.nthreads() "number of chains is greater than available threads"
+    @assert nchains ≥ 1 "number of chains must be greater than 1"
 
     # eltype(physdt) cause needs Float64 for find_good_stepsize
     # Lux chain(using component array later as vector_to_parameter need namedtuple)
@@ -455,9 +477,11 @@ function ahmc_bayesian_pinn_ode(
     nparameters = length(initial_θ)
     ninv = length(param)
     priors = [
-        MvNormal(T(priorsNNw[1]) * ones(T, nparameters),
-        # order of ode params must be consistent during loglikelihood calculation.
-        Diagonal(abs2.(T(priorsNNw[2]) .* ones(T, nparameters))))
+        MvNormal(
+            T(priorsNNw[1]) * ones(T, nparameters),
+            # order of ode params must be consistent during loglikelihood calculation.
+            Diagonal(abs2.(T(priorsNNw[2]) .* ones(T, nparameters)))
+        ),
     ]
 
     # append Ode params to all paramvector
@@ -470,17 +494,23 @@ function ahmc_bayesian_pinn_ode(
 
     smodel = StatefulLuxLayer{true}(chain, nothing, st)
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
-    ℓπ = LogTargetDensity(nparameters, prob, smodel, strategy, dataset, priors,
-        phystd, phynewstd, l2std, autodiff, physdt, ninv, initial_nnθ, estim_collocate)
+    ℓπ = LogTargetDensity(
+        nparameters, prob, smodel, strategy, dataset, priors,
+        phystd, phynewstd, l2std, autodiff, physdt, ninv, initial_nnθ, estim_collocate
+    )
 
     if verbose
         @printf("Current Physics Log-likelihood: %g\n", physloglikelihood(ℓπ, initial_θ))
         @printf("Current Prior Log-likelihood: %g\n", priorweights(ℓπ, initial_θ))
-        @printf("Current SSE against dataset Log-likelihood: %g\n",
-            L2LossData(ℓπ, initial_θ))
+        @printf(
+            "Current SSE against dataset Log-likelihood: %g\n",
+            L2LossData(ℓπ, initial_θ)
+        )
         if estim_collocate
-            @printf("Current gradient loss against dataset Log-likelihood: %g\n",
-                L2loss2(ℓπ, initial_θ))
+            @printf(
+                "Current gradient loss against dataset Log-likelihood: %g\n",
+                L2loss2(ℓπ, initial_θ)
+            )
         end
     end
 
@@ -507,14 +537,18 @@ function ahmc_bayesian_pinn_ode(
             )
             initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
             integrator = integratorchoice(Integratorkwargs, initial_ϵ)
-            adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
-                StepSizeAdaptor(targetacceptancerate, integrator))
+            adaptor = adaptorchoice(
+                Adaptor, MassMatrixAdaptor(metric),
+                StepSizeAdaptor(targetacceptancerate, integrator)
+            )
 
             MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
             Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
             samples,
-            stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
-                progress = progress, verbose = verbose)
+                stats = sample(
+                hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
+                progress = progress, verbose = verbose
+            )
 
             samplesc[i] = samples
             statsc[i] = stats
@@ -526,25 +560,35 @@ function ahmc_bayesian_pinn_ode(
     else
         initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
         integrator = integratorchoice(Integratorkwargs, initial_ϵ)
-        adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
-            StepSizeAdaptor(targetacceptancerate, integrator))
+        adaptor = adaptorchoice(
+            Adaptor, MassMatrixAdaptor(metric),
+            StepSizeAdaptor(targetacceptancerate, integrator)
+        )
 
         MCMC_alg = kernelchoice(Kernel, MCMCkwargs)
         Kernel = AdvancedHMC.make_kernel(MCMC_alg, integrator)
         samples,
-        stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
-            adaptor; progress = progress, verbose = verbose)
+            stats = sample(
+            hamiltonian, Kernel, initial_θ, draw_samples,
+            adaptor; progress = progress, verbose = verbose
+        )
 
         if verbose
             println("Sampling Complete.")
-            @printf("Final Physics Log-likelihood: %g\n",
-                physloglikelihood(ℓπ, samples[end]))
+            @printf(
+                "Final Physics Log-likelihood: %g\n",
+                physloglikelihood(ℓπ, samples[end])
+            )
             @printf("Final Prior Log-likelihood: %g\n", priorweights(ℓπ, samples[end]))
-            @printf("Final SSE against dataset Log-likelihood: %g\n",
-                L2LossData(ℓπ, samples[end]))
+            @printf(
+                "Final SSE against dataset Log-likelihood: %g\n",
+                L2LossData(ℓπ, samples[end])
+            )
             if estim_collocate
-                @printf("Final gradient loss against dataset Log-likelihood: %g\n",
-                    L2loss2(ℓπ, samples[end]))
+                @printf(
+                    "Final gradient loss against dataset Log-likelihood: %g\n",
+                    L2loss2(ℓπ, samples[end])
+                )
             end
         end
 

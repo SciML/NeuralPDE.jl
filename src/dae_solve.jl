@@ -37,24 +37,34 @@ standard `DAEProblem`.
     kwargs
 end
 
-function NNDAE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-        kwargs...)
+function NNDAE(
+        chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
+        kwargs...
+    )
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return NNDAE(chain, opt, init_params, autodiff, strategy, kwargs)
 end
 
-function dfdx(phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool,
-        differential_vars::AbstractVector)
+function dfdx(
+        phi::ODEPhi, t::AbstractVector, θ, autodiff::Bool,
+        differential_vars::AbstractVector
+    )
     autodiff && throw(ArgumentError("autodiff not supported for DAE problem."))
     ϵ = sqrt(eps(eltype(t)))
     dϕ = (phi(t .+ ϵ, θ) .- phi(t, θ)) ./ ϵ
-    return reduce(vcat,
-        [dv ? dϕ[i:i, :] : zeros(eltype(dϕ), 1, size(dϕ, 2))
-         for (i, dv) in enumerate(differential_vars)])
+    return reduce(
+        vcat,
+        [
+            dv ? dϕ[i:i, :] : zeros(eltype(dϕ), 1, size(dϕ, 2))
+                for (i, dv) in enumerate(differential_vars)
+        ]
+    )
 end
 
-function inner_loss(phi::ODEPhi, f, autodiff::Bool, t::AbstractVector,
-        θ, p, differential_vars::AbstractVector)
+function inner_loss(
+        phi::ODEPhi, f, autodiff::Bool, t::AbstractVector,
+        θ, p, differential_vars::AbstractVector
+    )
     out = phi(t, θ)
     dphi = dfdx(phi, t, θ, autodiff, differential_vars)
     return mapreduce(+, enumerate(t)) do (i, tᵢ)
@@ -62,8 +72,10 @@ function inner_loss(phi::ODEPhi, f, autodiff::Bool, t::AbstractVector,
     end / length(t)
 end
 
-function generate_loss(strategy::GridTraining, phi::ODEPhi, f, autodiff::Bool, tspan, p,
-        differential_vars::AbstractVector)
+function generate_loss(
+        strategy::GridTraining, phi::ODEPhi, f, autodiff::Bool, tspan, p,
+        differential_vars::AbstractVector
+    )
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     ts = tspan[1]:(strategy.dx):tspan[2]
     return (θ, _) -> sum(abs2, inner_loss(phi, f, autodiff, ts, θ, p, differential_vars))
@@ -83,7 +95,7 @@ function SciMLBase.__solve(
         saveat = nothing,
         maxiters = nothing,
         tstops = nothing
-)
+    )
     (; u0, tspan, f, p, differential_vars) = prob
     t0 = tspan[1]
     (; chain, opt, autodiff, init_params) = alg
@@ -137,11 +149,15 @@ function SciMLBase.__solve(
         u = [phi(t, res.u) for t in ts]
     end
 
-    sol = SciMLBase.build_solution(prob, alg, ts, u; k = res, dense = true,
+    sol = SciMLBase.build_solution(
+        prob, alg, ts, u; k = res, dense = true,
         calculate_error = false, retcode = ReturnCode.Success, original = res,
-        resid = res.objective)
+        resid = res.objective
+    )
     SciMLBase.has_analytic(prob.f) &&
-        SciMLBase.calculate_solution_errors!(sol; timeseries_errors = true,
-            dense_errors = false)
+        SciMLBase.calculate_solution_errors!(
+        sol; timeseries_errors = true,
+        dense_errors = false
+    )
     return sol
 end

@@ -1,10 +1,11 @@
 @testsetup module AdaptiveLossTestSetup
 using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, NeuralPDE, Test,
-      TensorBoardLogger
+    TensorBoardLogger
 import DomainSets: Interval, infimum, supremum
 
 function solve_with_adaptive_loss(
-        adaptive_loss; haslogger = false, outdir = mktempdir(), run = 1)
+        adaptive_loss; haslogger = false, outdir = mktempdir(), run = 1
+    )
     logdir = joinpath(outdir, string(run))
     logger = haslogger ? TBLogger(logdir) : nothing
 
@@ -26,7 +27,7 @@ function solve_with_adaptive_loss(
         u(0, y) ~ 0.0,
         u(1, y) ~ -sinpi(1) * sinpi(y),
         u(x, 0) ~ 0.0,
-        u(x, 1) ~ -sinpi(x) * sinpi(1)
+        u(x, 1) ~ -sinpi(x) * sinpi(1),
     ]
 
     # Space and time domains
@@ -52,10 +53,14 @@ function solve_with_adaptive_loss(
                 u_predict = [first(phi([x, y], p.u)) for x in xs for y in ys]
                 total_diff = sum(abs, u_predict .- u_real)
                 log_value(logger, "outer_error/total_diff", total_diff, step = p.iter)
-                log_value(logger, "outer_error/total_diff_rel",
-                    total_diff / sum(abs2, u_real), step = p.iter)
-                log_value(logger, "outer_error/total_diff_sq",
-                    sum(abs2, u_predict .- u_real), step = p.iter)
+                log_value(
+                    logger, "outer_error/total_diff_rel",
+                    total_diff / sum(abs2, u_real), step = p.iter
+                )
+                log_value(
+                    logger, "outer_error/total_diff_sq",
+                    sum(abs2, u_predict .- u_real), step = p.iter
+                )
             end
         end
         return false
@@ -75,50 +80,56 @@ export solve_with_adaptive_loss
 
 end
 
-@testitem "2D Poisson: NonAdaptiveLoss" tags=[:adaptiveloss] setup=[AdaptiveLossTestSetup] begin
-    loss=NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
+@testitem "2D Poisson: NonAdaptiveLoss" tags = [:adaptiveloss] setup = [AdaptiveLossTestSetup] begin
+    loss = NonAdaptiveLoss(pde_loss_weights = 1, bc_loss_weights = 1)
 
-    tmpdir=mktempdir()
+    tmpdir = mktempdir()
 
-    total_diff_rel=solve_with_adaptive_loss(
-        loss; haslogger = false, outdir = tmpdir, run = 1)
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = false, outdir = tmpdir, run = 1
+    )
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 0
 
-    total_diff_rel=solve_with_adaptive_loss(
-        loss; haslogger = true, outdir = tmpdir, run = 2)
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = true, outdir = tmpdir, run = 2
+    )
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 1
 end
 
-@testitem "2D Poisson: GradientScaleAdaptiveLoss" tags=[:adaptiveloss] setup=[AdaptiveLossTestSetup] begin
-    loss=GradientScaleAdaptiveLoss(100, pde_loss_weights = 1e3, bc_loss_weights = 1)
+@testitem "2D Poisson: GradientScaleAdaptiveLoss" tags = [:adaptiveloss] setup = [AdaptiveLossTestSetup] begin
+    loss = GradientScaleAdaptiveLoss(100, pde_loss_weights = 1.0e3, bc_loss_weights = 1)
 
-    tmpdir=mktempdir()
+    tmpdir = mktempdir()
 
-    total_diff_rel=solve_with_adaptive_loss(
-        loss; haslogger = false, outdir = tmpdir, run = 1)
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = false, outdir = tmpdir, run = 1
+    )
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 0
 
-    total_diff_rel=solve_with_adaptive_loss(
-        loss; haslogger = true, outdir = tmpdir, run = 2)
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = true, outdir = tmpdir, run = 2
+    )
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 1
 end
 
-@testitem "2D Poisson: MiniMaxAdaptiveLoss" tags=[:adaptiveloss] setup=[AdaptiveLossTestSetup] begin
-    loss=MiniMaxAdaptiveLoss(100; pde_loss_weights = 1, bc_loss_weights = 1)
+@testitem "2D Poisson: MiniMaxAdaptiveLoss" tags = [:adaptiveloss] setup = [AdaptiveLossTestSetup] begin
+    loss = MiniMaxAdaptiveLoss(100; pde_loss_weights = 1, bc_loss_weights = 1)
 
-    tmpdir=mktempdir()
+    tmpdir = mktempdir()
 
-    total_diff_rel=solve_with_adaptive_loss(
-        loss; haslogger = false, outdir = tmpdir, run = 1)
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = false, outdir = tmpdir, run = 1
+    )
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 0
 
-    total_diff_rel=solve_with_adaptive_loss(
-        loss; haslogger = true, outdir = tmpdir, run = 2)
+    total_diff_rel = solve_with_adaptive_loss(
+        loss; haslogger = true, outdir = tmpdir, run = 2
+    )
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 1
 end

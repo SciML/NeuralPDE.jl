@@ -1,4 +1,4 @@
-@testitem "Approximation of function 1D" tags=[:nnpde2] begin
+@testitem "Approximation of function 1D" tags = [:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, Optimisers
     import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
@@ -32,10 +32,10 @@
     prob = remake(prob, u0 = res.u)
     res = solve(prob, BFGS(initial_stepnorm = 0.01), maxiters = 500)
 
-    @test discretization.phi(xs', res.u)≈func(xs') rtol=0.02
+    @test discretization.phi(xs', res.u) ≈ func(xs') rtol = 0.02
 end
 
-@testitem "Approximation of function 1D - 2" tags=[:nnpde2] begin
+@testitem "Approximation of function 1D - 2" tags = [:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, Optimisers
     import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
@@ -54,8 +54,10 @@ end
     domain = [x ∈ Interval(x0, x_end)]
 
     hidden = 20
-    chain = Chain(Dense(1, hidden, sin), Dense(hidden, hidden, sin),
-        Dense(hidden, hidden, sin), Dense(hidden, 1))
+    chain = Chain(
+        Dense(1, hidden, sin), Dense(hidden, hidden, sin),
+        Dense(hidden, hidden, sin), Dense(hidden, 1)
+    )
 
     strategy = GridTraining(0.01)
     discretization = PhysicsInformedNN(chain, strategy)
@@ -67,10 +69,10 @@ end
     dx = 0.01
     xs = collect(x0:dx:x_end)
     func_s = func(xs)
-    @test discretization.phi(xs', res.u)≈func(xs') rtol=0.02
+    @test discretization.phi(xs', res.u) ≈ func(xs') rtol = 0.02
 end
 
-@testitem "Approximation of function 2D" tags=[:nnpde2] begin
+@testitem "Approximation of function 2D" tags = [:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, Optimisers
     import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
@@ -91,8 +93,10 @@ end
     d = 0.4
     domain = [x ∈ Interval(x0, x_end), y ∈ Interval(y0, y_end)]
     hidden = 25
-    chain = Chain(Dense(2, hidden, tanh), Dense(hidden, hidden, tanh),
-        Dense(hidden, hidden, tanh), Dense(hidden, 1))
+    chain = Chain(
+        Dense(2, hidden, tanh), Dense(hidden, hidden, tanh),
+        Dense(hidden, hidden, tanh), Dense(hidden, 1)
+    )
     strategy = GridTraining(d)
     discretization = PhysicsInformedNN(chain, strategy)
     @named pde_system = PDESystem(eq, bc, domain, [x, y], [u(x, y)])
@@ -107,11 +111,13 @@ end
     phi = discretization.phi
     xs = collect(x0:0.1:x_end)
     ys = collect(y0:0.1:y_end)
-    u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
-        (length(xs), length(ys)))
+    u_predict = reshape(
+        [first(phi([x, y], res.u)) for x in xs for y in ys],
+        (length(xs), length(ys))
+    )
     u_real = reshape([func(x, y) for x in xs for y in ys], (length(xs), length(ys)))
     diff_u = abs.(u_predict .- u_real)
-    @test u_predict≈u_real rtol=0.05
+    @test u_predict ≈ u_real rtol = 0.05
 end
 
 @testitem "Trivial BC [0 ~ 0] fails for some training strategies" begin
@@ -142,11 +148,11 @@ end
     chain = Chain(Dense(1, 10, tanh), Dense(10, 10, tanh), Dense(10, 1))
 
     for strategy in (
-        GridTraining(0.01),
-        StochasticTraining(1000),
-        QuasiRandomTraining(1000),
-        QuadratureTraining()
-    )
+            GridTraining(0.01),
+            StochasticTraining(1000),
+            QuasiRandomTraining(1000),
+            QuadratureTraining(),
+        )
         discretization = PhysicsInformedNN(chain, strategy)
         @named pde_system = PDESystem(eq, bc, domain, [x], [u(x)])
         prob = discretize(pde_system, discretization)

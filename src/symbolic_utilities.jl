@@ -22,12 +22,16 @@ dottable_(x::Function) = true
 _dot_(x) = x
 function _dot_(x::Expr)
     dotargs = Base.mapany(_dot_, x.args)
-    if x.head === :call && dottable_(x.args[1])
+    return if x.head === :call && dottable_(x.args[1])
         Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
     elseif x.head === :comparison
-        Expr(:comparison,
-            (iseven(i) && dottable_(arg) && arg isa Symbol && isoperator(arg) ?
-             Symbol('.', arg) : arg for (i, arg) in pairs(dotargs))...)
+        Expr(
+            :comparison,
+            (
+                iseven(i) && dottable_(arg) && arg isa Symbol && isoperator(arg) ?
+                    Symbol('.', arg) : arg for (i, arg) in pairs(dotargs)
+            )...
+        )
     elseif x.head === :$
         x.args[1]
     elseif x.head === :let # don't add dots to `let x=...` assignments
@@ -35,7 +39,7 @@ function _dot_(x::Expr)
     elseif x.head === :for # don't add dots to for x=... assignments
         Expr(:for, undot(dotargs[1]), dotargs[2])
     elseif (x.head === :(=) || x.head === :function || x.head === :macro) &&
-           Meta.isexpr(x.args[1], :call) # function or macro definition
+            Meta.isexpr(x.args[1], :call) # function or macro definition
         Expr(x.head, x.args[1], dotargs[2])
     elseif x.head === :(<:) || x.head === :(>:)
         tmp = x.head === :(<:) ? :.<: : :.>:
@@ -69,13 +73,17 @@ Dict{Symbol,Int64} with 3 entries:
 get_dict_vars(vars) = Dict([Symbol(v) .=> i for (i, v) in enumerate(vars)])
 
 # Wrapper for _transform_expression
-function transform_expression(pinnrep::PINNRepresentation, ex; is_integral = false,
+function transform_expression(
+        pinnrep::PINNRepresentation, ex; is_integral = false,
         dict_transformation_vars = nothing,
-        transformation_vars = nothing)
+        transformation_vars = nothing
+    )
     if ex isa Expr
-        ex = _transform_expression(pinnrep, ex; is_integral = is_integral,
+        ex = _transform_expression(
+            pinnrep, ex; is_integral = is_integral,
             dict_transformation_vars = dict_transformation_vars,
-            transformation_vars = transformation_vars)
+            transformation_vars = transformation_vars
+        )
     end
     return ex
 end
@@ -84,7 +92,7 @@ function get_ε(dim::Int, der_num::Int, ::Type{eltypeθ}, order) where {eltypeθ
     epsilon = ^(eps(eltypeθ), one(eltypeθ) / (2 + order))
     ε = zeros(eltypeθ, dim)
     ε[der_num] = epsilon
-    ε
+    return ε
 end
 
 function get_limits(domain)
@@ -92,7 +100,7 @@ function get_limits(domain)
         return [leftendpoint(domain)], [rightendpoint(domain)]
     elseif domain isa ProductDomain
         return collect(map(leftendpoint, DomainSets.components(domain))),
-        collect(map(rightendpoint, DomainSets.components(domain)))
+            collect(map(rightendpoint, DomainSets.components(domain)))
     end
 end
 
@@ -114,10 +122,14 @@ where
 - order - order of derivative.
 - θ - weights in neural network.
 """
-function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = false,
-        dict_transformation_vars = nothing, transformation_vars = nothing)
-    (; indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input, multioutput,
-        strategy, phi, derivative, integral, flat_init_params, init_params) = pinnrep
+function _transform_expression(
+        pinnrep::PINNRepresentation, ex; is_integral = false,
+        dict_transformation_vars = nothing, transformation_vars = nothing
+    )
+    (;
+        indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input, multioutput,
+        strategy, phi, derivative, integral, flat_init_params, init_params,
+    ) = pinnrep
     eltypeθ = eltype(flat_init_params)
 
     _args = ex.args
@@ -135,7 +147,7 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                         var_,
                         Symbol(:cord, num_depvar),
                         Symbol(:($θ), num_depvar),
-                        Symbol(:phi, num_depvar)
+                        Symbol(:phi, num_depvar),
                     ]
                 end
                 break
@@ -150,9 +162,13 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
-                dict_interior_indvars = Dict([indvar .=> j
-                                              for (j, indvar) in
-                                                  enumerate(dict_depvar_input[depvar])])
+                dict_interior_indvars = Dict(
+                    [
+                        indvar .=> j
+                            for (j, indvar) in
+                            enumerate(dict_depvar_input[depvar])
+                    ]
+                )
                 dim_l = length(dict_interior_indvars)
 
                 var_ = is_integral ? :(derivative) : :($(Expr(:$, :derivative)))
@@ -170,7 +186,7 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                         Symbol(:cord, num_depvar),
                         εs_dnv,
                         order,
-                        Symbol(:($θ), num_depvar)
+                        Symbol(:($θ), num_depvar),
                     ]
                 end
                 break
@@ -195,9 +211,9 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
 
                 lb, ub = get_limits(_args[1].domain.domain)
                 lb, ub,
-                _args[2],
-                dict_transformation_vars,
-                transformation_vars = transform_inf_integral(
+                    _args[2],
+                    dict_transformation_vars,
+                    transformation_vars = transform_inf_integral(
                     lb,
                     ub,
                     _args[2],
@@ -205,24 +221,31 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                     dict_depvar_input,
                     dict_depvars,
                     integrating_variable,
-                    eltypeθ)
+                    eltypeθ
+                )
 
-                num_depvar = map(int_depvar -> dict_depvars[int_depvar],
-                    integrating_depvars)
-                integrand_ = transform_expression(pinnrep, _args[2];
+                num_depvar = map(
+                    int_depvar -> dict_depvars[int_depvar],
+                    integrating_depvars
+                )
+                integrand_ = transform_expression(
+                    pinnrep, _args[2];
                     is_integral = false,
                     dict_transformation_vars = dict_transformation_vars,
-                    transformation_vars = transformation_vars)
+                    transformation_vars = transformation_vars
+                )
                 integrand__ = _dot_(integrand_)
 
-                integrand = build_symbolic_loss_function(pinnrep, nothing;
+                integrand = build_symbolic_loss_function(
+                    pinnrep, nothing;
                     integrand = integrand__,
                     integrating_depvars = integrating_depvars,
                     eq_params = SciMLBase.NullParameters(),
                     dict_transformation_vars = dict_transformation_vars,
                     transformation_vars = transformation_vars,
                     param_estim = false,
-                    default_p = nothing)
+                    default_p = nothing
+                )
                 # integrand = repr(integrand)
                 lb = toexpr.(lb)
                 ub = toexpr.(ub)
@@ -232,11 +255,13 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                     if l isa Number
                         push!(lb_, l)
                     else
-                        l_expr = build_symbolic_loss_function(pinnrep, nothing;
+                        l_expr = build_symbolic_loss_function(
+                            pinnrep, nothing;
                             integrand = _dot_(l),
                             integrating_depvars = integrating_depvars,
                             param_estim = false,
-                            default_p = nothing)
+                            default_p = nothing
+                        )
                         l_f = @RuntimeGeneratedFunction(l_expr)
                         push!(lb_, l_f)
                     end
@@ -245,11 +270,13 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                     if u_ isa Number
                         push!(ub_, u_)
                     else
-                        u_expr = build_symbolic_loss_function(pinnrep, nothing;
+                        u_expr = build_symbolic_loss_function(
+                            pinnrep, nothing;
                             integrand = _dot_(u_),
                             integrating_depvars = integrating_depvars,
                             param_estim = false,
-                            default_p = nothing)
+                            default_p = nothing
+                        )
                         u_f = @RuntimeGeneratedFunction(u_expr)
                         push!(ub_, u_f)
                     end
@@ -265,15 +292,17 @@ function _transform_expression(pinnrep::PINNRepresentation, ex; is_integral = fa
                     integrand_func,
                     lb_,
                     ub_,
-                    :($θ)
+                    :($θ),
                 ]
                 break
             end
         else
-            ex.args[i] = _transform_expression(pinnrep, ex.args[i];
+            ex.args[i] = _transform_expression(
+                pinnrep, ex.args[i];
                 is_integral = is_integral,
                 dict_transformation_vars = dict_transformation_vars,
-                transformation_vars = transformation_vars)
+                transformation_vars = transformation_vars
+            )
         end
     end
     return ex
@@ -313,7 +342,7 @@ function parse_equation(pinnrep::PINNRepresentation, eq)
     right_expr = transform_expression(pinnrep, toexpr(eq_rhs))
     left_expr = _dot_(left_expr)
     right_expr = _dot_(right_expr)
-    loss_func = :($left_expr .- $right_expr)
+    return loss_func = :($left_expr .- $right_expr)
 end
 
 function get_indvars_ex(bc_indvars) # , dict_this_eq_indvars)
@@ -329,7 +358,7 @@ function get_indvars_ex(bc_indvars) # , dict_this_eq_indvars)
             :(fill($u, size($:cord[[1], :])))
         end
     end
-    indvars_ex
+    return indvars_ex
 end
 
 """
@@ -342,7 +371,7 @@ function pair(eq, depvars, dict_depvars, dict_depvar_input)
             dict_depvars[depvar] => dict_depvar_input[depvar]
         end
     end
-    Dict(filter(p -> p !== nothing, pair_))
+    return Dict(filter(p -> p !== nothing, pair_))
 end
 
 function get_vars(indvars_, depvars_)
@@ -353,9 +382,13 @@ function get_vars(indvars_, depvars_)
         if unwrap(d) isa SymbolicUtils.BasicSymbolic
             dname = SymbolicIndexingInterface.getname(d)
             push!(depvars, dname)
-            push!(dict_depvar_input,
-                dname => [nameof(unwrap(argument))
-                          for argument in arguments(unwrap(d))])
+            push!(
+                dict_depvar_input,
+                dname => [
+                    nameof(unwrap(argument))
+                        for argument in arguments(unwrap(d))
+                ]
+            )
         else
             dname = SymbolicIndexingInterface.getname(d)
             push!(depvars, dname)
@@ -370,16 +403,22 @@ end
 
 function get_integration_variables(eqs, _indvars::Array, _depvars::Array)
     depvars, indvars, dict_indvars, dict_depvars,
-    dict_depvar_input = get_vars(_indvars,
-        _depvars)
-    get_integration_variables(eqs, dict_indvars, dict_depvars)
+        dict_depvar_input = get_vars(
+        _indvars,
+        _depvars
+    )
+    return get_integration_variables(eqs, dict_indvars, dict_depvars)
 end
 
 function get_integration_variables(eqs, dict_indvars, dict_depvars)
     exprs = toexpr.(eqs)
-    vars = map(exprs) do expr
-        _vars = Symbol.(filter(indvar -> length(find_thing_in_expr(expr, indvar)) > 0,
-            sort(collect(keys(dict_indvars)))))
+    return vars = map(exprs) do expr
+        _vars = Symbol.(
+            filter(
+                indvar -> length(find_thing_in_expr(expr, indvar)) > 0,
+                sort(collect(keys(dict_indvars)))
+            )
+        )
     end
 end
 
@@ -392,8 +431,10 @@ function get_variables end
 
 function get_variables(eqs, _indvars::Array, _depvars::Array)
     depvars, indvars, dict_indvars, dict_depvars,
-    dict_depvar_input = get_vars(_indvars,
-        _depvars)
+        dict_depvar_input = get_vars(
+        _indvars,
+        _depvars
+    )
     return get_variables(eqs, dict_indvars, dict_depvars)
 end
 
