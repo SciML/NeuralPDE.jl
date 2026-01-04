@@ -1,6 +1,6 @@
-@testitem "Fokker-Planck" tags=[:nnpde2] begin
+@testitem "Fokker-Planck" tags = [:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, ComponentArrays,
-          Integrals, Cubature
+        Integrals, Cubature
     import DomainSets: Interval, infimum, supremum
     using OptimizationOptimJL: BFGS, LBFGS
 
@@ -28,20 +28,25 @@
     inn = 18
     chain = Chain(Dense(1, inn, σ), Dense(inn, inn, σ), Dense(inn, inn, σ), Dense(inn, 1))
 
-    init_params = ComponentArray{Float64}(Lux.initialparameters(
-        Random.default_rng(), chain))
+    init_params = ComponentArray{Float64}(
+        Lux.initialparameters(
+            Random.default_rng(), chain
+        )
+    )
 
     lb, ub = [x_0], [x_end]
 
     function norm_loss_function(phi, θ, p)
         inner_f(x, θ) = dx * phi(x, θ) .- 1
         prob1 = IntegralProblem(inner_f, (lb, ub), θ)
-        norm2 = solve(prob1, HCubatureJL(), reltol = 1e-8, abstol = 1e-8, maxiters = 10)
+        norm2 = solve(prob1, HCubatureJL(), reltol = 1.0e-8, abstol = 1.0e-8, maxiters = 10)
         return abs(norm2[1])
     end
 
-    discretization = PhysicsInformedNN(chain, GridTraining(dx); init_params,
-        additional_loss = norm_loss_function)
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(dx); init_params,
+        additional_loss = norm_loss_function
+    )
     @named pde_system = PDESystem(eq, bcs, domains, [x], [p(x)])
     prob = discretize(pde_system, discretization)
 
@@ -70,10 +75,11 @@
     u_real = [analytic_sol_func(x) for x in xs]
 
     u_predict = [first(phi(x, res.u)) for x in xs]
-    @test u_predict≈u_real rtol=1e-3
+    @test u_predict ≈ u_real rtol = 1.0e-3
 
     discretization = PhysicsInformedNN(
-        chain, GridTraining(dx); additional_loss = norm_loss_function)
+        chain, GridTraining(dx); additional_loss = norm_loss_function
+    )
     @named pde_system = PDESystem(eq, bcs, domains, [x], [p(x)])
     prob = discretize(pde_system, discretization)
 
@@ -97,12 +103,12 @@
     res = solve(prob, BFGS(); maxiters = 2000, callback)
 
     u_predict = [first(phi(x, res.u)) for x in xs]
-    @test u_predict≈u_real rtol=1e-3
+    @test u_predict ≈ u_real rtol = 1.0e-3
 end
 
-@testitem "Lorenz System" tags=[:nnpde2] begin
+@testitem "Lorenz System" tags = [:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, ComponentArrays,
-          OrdinaryDiffEq
+        OrdinaryDiffEq
     import DomainSets: Interval, infimum, supremum
     using OptimizationOptimJL: BFGS
 
@@ -112,7 +118,7 @@ end
     eqs = [
         Dt(x(t)) ~ σ_ * (y(t) - x(t)),
         Dt(y(t)) ~ x(t) * (ρ - z(t)) - y(t),
-        Dt(z(t)) ~ x(t) * y(t) - β * z(t)
+        Dt(z(t)) ~ x(t) * y(t) - β * z(t),
     ]
 
     bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
@@ -137,9 +143,14 @@ end
 
     data = [reduce(hcat, sol.u), reduce(hcat, sol.t)]
 
-    init_params = [ComponentArray{Float64}(Lux.initialparameters(
-                       Random.default_rng(), chain[i]))
-                   for i in 1:3]
+    init_params = [
+        ComponentArray{Float64}(
+                Lux.initialparameters(
+                    Random.default_rng(), chain[i]
+                )
+            )
+            for i in 1:3
+    ]
 
     names = (:x, :y, :z)
     flat_init_params = ComponentArray(NamedTuple{names}(i for i in init_params))
@@ -155,12 +166,16 @@ end
         end
     end
 
-    discretization = PhysicsInformedNN(chain, GridTraining(dt);
-        init_params = flat_init_params, param_estim = true, additional_loss)
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(dt);
+        init_params = flat_init_params, param_estim = true, additional_loss
+    )
 
-    @named pde_system = PDESystem(eqs, bcs, domains,
+    @named pde_system = PDESystem(
+        eqs, bcs, domains,
         [t], [x(t), y(t), z(t)], [σ_, ρ, β],
-        defaults = Dict([p => 1.0 for p in [σ_, ρ, β]]))
+        defaults = Dict([p => 1.0 for p in [σ_, ρ, β]])
+    )
 
     prob = discretize(pde_system, discretization)
     sym_prob = symbolic_discretize(pde_system, discretization)
@@ -172,11 +187,14 @@ end
     @test sum(abs2, p_[3] - (8 / 3)) < 0.1
 
     discretization = PhysicsInformedNN(
-        chain, GridTraining(dt); param_estim = true, additional_loss)
+        chain, GridTraining(dt); param_estim = true, additional_loss
+    )
 
-    @named pde_system = PDESystem(eqs, bcs, domains,
+    @named pde_system = PDESystem(
+        eqs, bcs, domains,
         [t], [x(t), y(t), z(t)], [σ_, ρ, β],
-        defaults = Dict([p => 1.0 for p in [σ_, ρ, β]]))
+        defaults = Dict([p => 1.0 for p in [σ_, ρ, β]])
+    )
 
     prob = discretize(pde_system, discretization)
     sym_prob = symbolic_discretize(pde_system, discretization)
@@ -188,9 +206,9 @@ end
     @test sum(abs2, p_[3] - (8 / 3)) < 0.1
 end
 
-@testitem "Approximation from data and additional_loss" tags=[:nnpde2] begin
+@testitem "Approximation from data and additional_loss" tags = [:nnpde2] begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Optimisers,
-          ModelingToolkit, OrdinaryDiffEq, LinearAlgebra, Lux
+        ModelingToolkit, OrdinaryDiffEq, LinearAlgebra, Lux
     import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
@@ -206,8 +224,10 @@ end
     domain = [x ∈ Interval(x0, x_end)]
     hidden = 10
 
-    chain = Chain(Dense(1, hidden, tanh), Dense(hidden, hidden, sin),
-        Dense(hidden, hidden, tanh), Dense(hidden, 1))
+    chain = Chain(
+        Dense(1, hidden, tanh), Dense(hidden, hidden, sin),
+        Dense(hidden, hidden, tanh), Dense(hidden, 1)
+    )
 
     strategy = GridTraining(dx)
     xs = collect(x0:dx:x_end)'
@@ -229,5 +249,5 @@ end
     res = solve(prob, BFGS(); maxiters = 500)
     phi = discretization.phi
 
-    @test phi(xs, res.u)≈aproxf(xs) rtol=0.02
+    @test phi(xs, res.u) ≈ aproxf(xs) rtol = 0.02
 end

@@ -47,9 +47,11 @@ function get_dataset_train_points(eqs, train_sets, pinnrep)
 end
 
 # includes dataset points in pde_residual loglikelihood (only for BayesianPINN)
-function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
+function merge_strategy_with_loglikelihood_function(
+        pinnrep::PINNRepresentation,
         strategy::GridTraining, datafree_pde_loss_function,
-        datafree_bc_loss_function; train_sets_pde = nothing, train_sets_bc = nothing)
+        datafree_bc_loss_function; train_sets_pde = nothing, train_sets_bc = nothing
+    )
     eltypeθ = recursive_eltype(pinnrep.flat_init_params)
     adaptor = EltypeAdaptor{eltypeθ}()
 
@@ -57,17 +59,24 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
     if ((train_sets_bc isa Nothing) && (train_sets_pde isa Nothing))
         train_sets = generate_training_sets(
             pinnrep.domains, strategy.dx, pinnrep.eqs, pinnrep.bcs, eltypeθ,
-            pinnrep.dict_indvars, pinnrep.dict_depvars)
+            pinnrep.dict_indvars, pinnrep.dict_depvars
+        )
 
         train_sets_pde, train_sets_bc = train_sets |> adaptor
         # train_sets_pde matches PhysicsInformedNN solver train_sets[1] dims.
-        pde_loss_functions = [get_points_loss_functions(_loss, _set, eltypeθ, strategy)
-                              for (_loss, _set) in zip(
-            datafree_pde_loss_function, train_sets_pde)]
+        pde_loss_functions = [
+            get_points_loss_functions(_loss, _set, eltypeθ, strategy)
+                for (_loss, _set) in zip(
+                    datafree_pde_loss_function, train_sets_pde
+                )
+        ]
 
-        bc_loss_functions = [get_points_loss_functions(_loss, _set, eltypeθ, strategy)
-                             for (_loss, _set) in zip(
-            datafree_bc_loss_function, train_sets_bc)]
+        bc_loss_functions = [
+            get_points_loss_functions(_loss, _set, eltypeθ, strategy)
+                for (_loss, _set) in zip(
+                    datafree_bc_loss_function, train_sets_bc
+                )
+        ]
 
         return pde_loss_functions, bc_loss_functions
     end
@@ -80,16 +89,20 @@ function merge_strategy_with_loglikelihood_function(pinnrep::PINNRepresentation,
         # pde_train_sets must match PhysicsInformedNN solver train_sets[1] dims. It is a vector with coords.
         # Vector is for number of PDE equations in system, Matrix has rows of indvar grid point coords
         # each loss struct mapped onto (total_numpoints_combs, dim_indvars)
-        [get_points_loss_functions(_loss, _set, eltypeθ, strategy)
-         for (_loss, _set) in zip(datafree_pde_loss_function, pde_train_sets)]
+        [
+            get_points_loss_functions(_loss, _set, eltypeθ, strategy)
+                for (_loss, _set) in zip(datafree_pde_loss_function, pde_train_sets)
+        ]
     else
         nothing
     end
 
     bc_loss_functions = if train_sets_bc !== nothing
         bcs_train_sets = [train_set[:, 2:end]' for train_set in train_sets_bc] |> adaptor
-        [get_points_loss_functions(_loss, _set, eltypeθ, strategy)
-         for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)]
+        [
+            get_points_loss_functions(_loss, _set, eltypeθ, strategy)
+                for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)
+        ]
     else
         nothing
     end
@@ -99,42 +112,56 @@ end
 
 function get_points_loss_functions(
         loss_function, train_set, eltypeθ, strategy::GridTraining;
-        τ = nothing)
+        τ = nothing
+    )
     # loss_function length is number of all points loss is being evaluated upon
     # train sets rows are for each indvar, cols are coordinates (row_1,row_2,..row_n) at which loss evaluated
-    function loss(θ, std)
-        logpdf(
-            MvNormal(loss_function(train_set, θ)[1, :],
-                Diagonal(abs2.(std .* ones(eltypeθ, size(train_set)[2])))),
-            zeros(eltypeθ, size(train_set)[2]))
+    return function loss(θ, std)
+        return logpdf(
+            MvNormal(
+                loss_function(train_set, θ)[1, :],
+                Diagonal(abs2.(std .* ones(eltypeθ, size(train_set)[2])))
+            ),
+            zeros(eltypeθ, size(train_set)[2])
+        )
     end
 end
 
 # only for PhysicsInformedNN
-function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
-        strategy::GridTraining, datafree_pde_loss_function, datafree_bc_loss_function)
+function merge_strategy_with_loss_function(
+        pinnrep::PINNRepresentation,
+        strategy::GridTraining, datafree_pde_loss_function, datafree_bc_loss_function
+    )
     (; domains, eqs, bcs, dict_indvars, dict_depvars) = pinnrep
     eltypeθ = recursive_eltype(pinnrep.flat_init_params)
     adaptor = EltypeAdaptor{eltypeθ}()
 
-    train_sets = generate_training_sets(domains, strategy.dx, eqs, bcs, eltypeθ,
-        dict_indvars, dict_depvars)
+    train_sets = generate_training_sets(
+        domains, strategy.dx, eqs, bcs, eltypeθ,
+        dict_indvars, dict_depvars
+    )
 
     # the points in the domain and on the boundary
     pde_train_sets, bcs_train_sets = train_sets |> adaptor
-    pde_loss_functions = [get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
-                          for (_loss, _set) in zip(
-        datafree_pde_loss_function, pde_train_sets)]
+    pde_loss_functions = [
+        get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
+            for (_loss, _set) in zip(
+                datafree_pde_loss_function, pde_train_sets
+            )
+    ]
 
-    bc_loss_functions = [get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
-                         for (_loss, _set) in
-                             zip(datafree_bc_loss_function, bcs_train_sets)]
+    bc_loss_functions = [
+        get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
+            for (_loss, _set) in
+            zip(datafree_bc_loss_function, bcs_train_sets)
+    ]
 
     return pde_loss_functions, bc_loss_functions
 end
 
 function get_loss_function(
-        init_params, loss_function, train_set, eltype0, ::GridTraining; τ = nothing)
+        init_params, loss_function, train_set, eltype0, ::GridTraining; τ = nothing
+    )
     init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
     train_set = train_set |> safe_get_device(init_params) |> EltypeAdaptor{eltype0}()
     return θ -> mean(abs2, loss_function(train_set, θ))
@@ -164,8 +191,10 @@ function generate_random_points(points, bound, eltypeθ)
     return rand(eltypeθ, length(lb), points) .* (ub .- lb) .+ lb
 end
 
-function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
-        strategy::StochasticTraining, datafree_pde_loss_function, datafree_bc_loss_function)
+function merge_strategy_with_loss_function(
+        pinnrep::PINNRepresentation,
+        strategy::StochasticTraining, datafree_pde_loss_function, datafree_bc_loss_function
+    )
     (; domains, eqs, bcs, dict_indvars, dict_depvars) = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
@@ -173,22 +202,28 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
     pde_bounds, bcs_bounds = bounds
 
-    pde_loss_functions = [get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy)
-                          for (_loss, bound) in zip(datafree_pde_loss_function, pde_bounds)]
+    pde_loss_functions = [
+        get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy)
+            for (_loss, bound) in zip(datafree_pde_loss_function, pde_bounds)
+    ]
 
-    bc_loss_functions = [get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy)
-                         for (_loss, bound) in zip(datafree_bc_loss_function, bcs_bounds)]
+    bc_loss_functions = [
+        get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy)
+            for (_loss, bound) in zip(datafree_bc_loss_function, bcs_bounds)
+    ]
 
-    pde_loss_functions, bc_loss_functions
+    return pde_loss_functions, bc_loss_functions
 end
 
-function get_loss_function(init_params, loss_function, bound, eltypeθ,
-        strategy::StochasticTraining; τ = nothing)
+function get_loss_function(
+        init_params, loss_function, bound, eltypeθ,
+        strategy::StochasticTraining; τ = nothing
+    )
     init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
     dev = safe_get_device(init_params)
     return θ -> begin
         sets = generate_random_points(strategy.points, bound, eltypeθ) |> dev |>
-               EltypeAdaptor{recursive_eltype(θ)}()
+            EltypeAdaptor{recursive_eltype(θ)}()
         return mean(abs2, loss_function(sets, θ))
     end
 end
@@ -228,21 +263,28 @@ For more information, see [QuasiMonteCarlo.jl](https://docs.sciml.ai/QuasiMonteC
     minibatch::Int
 end
 
-function QuasiRandomTraining(points; bcs_points = points,
-        sampling_alg = LatinHypercubeSample(), resampling = true, minibatch = 0)
+function QuasiRandomTraining(
+        points; bcs_points = points,
+        sampling_alg = LatinHypercubeSample(), resampling = true, minibatch = 0
+    )
     return QuasiRandomTraining(points, bcs_points, sampling_alg, resampling, minibatch)
 end
 
-function generate_quasi_random_points_batch(points, bound, eltypeθ, sampling_alg,
-        minibatch)
+function generate_quasi_random_points_batch(
+        points, bound, eltypeθ, sampling_alg,
+        minibatch
+    )
     lb, ub = bound
     return QuasiMonteCarlo.generate_design_matrices(
-        points, lb, ub, sampling_alg, minibatch) |> EltypeAdaptor{eltypeθ}()
+        points, lb, ub, sampling_alg, minibatch
+    ) |> EltypeAdaptor{eltypeθ}()
 end
 
-function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
+function merge_strategy_with_loss_function(
+        pinnrep::PINNRepresentation,
         strategy::QuasiRandomTraining, datafree_pde_loss_function,
-        datafree_bc_loss_function)
+        datafree_bc_loss_function
+    )
     (; domains, eqs, bcs, dict_indvars, dict_depvars) = pinnrep
 
     eltypeθ = eltype(pinnrep.flat_init_params)
@@ -250,19 +292,27 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
     bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
     pde_bounds, bcs_bounds = bounds
 
-    pde_loss_functions = [get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy)
-                          for (_loss, bound) in zip(datafree_pde_loss_function, pde_bounds)]
+    pde_loss_functions = [
+        get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy)
+            for (_loss, bound) in zip(datafree_pde_loss_function, pde_bounds)
+    ]
 
-    strategy_ = QuasiRandomTraining(strategy.bcs_points; strategy.sampling_alg,
-        strategy.resampling, strategy.minibatch)
-    bc_loss_functions = [get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy_)
-                         for (_loss, bound) in zip(datafree_bc_loss_function, bcs_bounds)]
+    strategy_ = QuasiRandomTraining(
+        strategy.bcs_points; strategy.sampling_alg,
+        strategy.resampling, strategy.minibatch
+    )
+    bc_loss_functions = [
+        get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy_)
+            for (_loss, bound) in zip(datafree_bc_loss_function, bcs_bounds)
+    ]
 
     return pde_loss_functions, bc_loss_functions
 end
 
-function get_loss_function(init_params, loss_function, bound, eltypeθ,
-        strategy::QuasiRandomTraining; τ = nothing)
+function get_loss_function(
+        init_params, loss_function, bound, eltypeθ,
+        strategy::QuasiRandomTraining; τ = nothing
+    )
     (; sampling_alg, points, resampling, minibatch) = strategy
 
     init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
@@ -271,14 +321,16 @@ function get_loss_function(init_params, loss_function, bound, eltypeθ,
     return if resampling
         θ -> begin
             sets = @ignore_derivatives QuasiMonteCarlo.sample(
-                points, bound[1], bound[2], sampling_alg)
+                points, bound[1], bound[2], sampling_alg
+            )
             sets = sets |> dev |> EltypeAdaptor{eltypeθ}()
             return mean(abs2, loss_function(sets, θ))
         end
     else
         point_batch = generate_quasi_random_points_batch(
-                          points, bound, eltypeθ, sampling_alg, minibatch) |> dev |>
-                      EltypeAdaptor{eltypeθ}()
+            points, bound, eltypeθ, sampling_alg, minibatch
+        ) |> dev |>
+            EltypeAdaptor{eltypeθ}()
         θ -> mean(abs2, loss_function(point_batch[rand(1:minibatch)], θ))
     end
 end
@@ -312,13 +364,17 @@ For more information on the argument values and algorithm choices, see
     batch::Int
 end
 
-function QuadratureTraining(; quadrature_alg = CubatureJLh(), reltol = 1e-3, abstol = 1e-6,
-        maxiters = 1_000, batch = 100)
-    QuadratureTraining(quadrature_alg, reltol, abstol, maxiters, batch)
+function QuadratureTraining(;
+        quadrature_alg = CubatureJLh(), reltol = 1.0e-3, abstol = 1.0e-6,
+        maxiters = 1_000, batch = 100
+    )
+    return QuadratureTraining(quadrature_alg, reltol, abstol, maxiters, batch)
 end
 
-function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
-        strategy::QuadratureTraining, datafree_pde_loss_function, datafree_bc_loss_function)
+function merge_strategy_with_loss_function(
+        pinnrep::PINNRepresentation,
+        strategy::QuadratureTraining, datafree_pde_loss_function, datafree_bc_loss_function
+    )
     (; domains, eqs, bcs, dict_indvars, dict_depvars) = pinnrep
     eltypeθ = eltype(pinnrep.flat_init_params)
 
@@ -326,17 +382,23 @@ function merge_strategy_with_loss_function(pinnrep::PINNRepresentation,
     pde_bounds, bcs_bounds = bounds
 
     lbs, ubs = pde_bounds
-    pde_loss_functions = [get_loss_function(pinnrep, _loss, lb, ub, eltypeθ, strategy)
-                          for (_loss, lb, ub) in zip(datafree_pde_loss_function, lbs, ubs)]
+    pde_loss_functions = [
+        get_loss_function(pinnrep, _loss, lb, ub, eltypeθ, strategy)
+            for (_loss, lb, ub) in zip(datafree_pde_loss_function, lbs, ubs)
+    ]
     lbs, ubs = bcs_bounds
-    bc_loss_functions = [get_loss_function(pinnrep, _loss, lb, ub, eltypeθ, strategy)
-                         for (_loss, lb, ub) in zip(datafree_bc_loss_function, lbs, ubs)]
+    bc_loss_functions = [
+        get_loss_function(pinnrep, _loss, lb, ub, eltypeθ, strategy)
+            for (_loss, lb, ub) in zip(datafree_bc_loss_function, lbs, ubs)
+    ]
 
     return pde_loss_functions, bc_loss_functions
 end
 
-function get_loss_function(init_params, loss_function, lb, ub, eltypeθ,
-        strategy::QuadratureTraining; τ = nothing)
+function get_loss_function(
+        init_params, loss_function, lb, ub, eltypeθ,
+        strategy::QuadratureTraining; τ = nothing
+    )
     init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
     dev = safe_get_device(init_params)
 
@@ -345,18 +407,22 @@ function get_loss_function(init_params, loss_function, lb, ub, eltypeθ,
     end
 
     area = eltypeθ(prod(abs.(ub .- lb)))
-    f_ = (lb,
+    f_ = (
+        lb,
         ub,
         loss_,
-        θ) -> begin
+        θ,
+    ) -> begin
         function integrand(x, θ)
             x = x |> dev |> EltypeAdaptor{eltypeθ}()
             return sum(abs2, view(loss_(x, θ), 1, :), dims = 2) #./ size_x
         end
         integral_function = BatchIntegralFunction(integrand, max_batch = strategy.batch)
         prob = IntegralProblem(integral_function, (lb, ub), θ)
-        return solve(prob, strategy.quadrature_alg; strategy.reltol, strategy.abstol,
-            strategy.maxiters)[1]
+        return solve(
+            prob, strategy.quadrature_alg; strategy.reltol, strategy.abstol,
+            strategy.maxiters
+        )[1]
     end
     return (θ) -> f_(lb, ub, loss_function, θ) / area
 end
@@ -384,8 +450,10 @@ This training strategy can only be used with ODEs (`NNODE`).
     points::Int
 end
 
-function get_loss_function(init_params, loss_function, train_set, eltype0,
-        ::WeightedIntervalTraining; τ = nothing)
+function get_loss_function(
+        init_params, loss_function, train_set, eltype0,
+        ::WeightedIntervalTraining; τ = nothing
+    )
     init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
     train_set = train_set |> safe_get_device(init_params) |> EltypeAdaptor{eltype0}()
     return (θ) -> mean(abs2, loss_function(train_set, θ))

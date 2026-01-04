@@ -102,12 +102,16 @@ Networks 9, no. 5 (1998): 987-1000.
     kwargs
 end
 
-function NNODE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
+function NNODE(
+        chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         batch = true, param_estim = false, additional_loss = nothing,
-        dataset = [], estim_collocate = false, kwargs...)
+        dataset = [], estim_collocate = false, kwargs...
+    )
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
-    return NNODE(chain, opt, init_params, autodiff, batch,
-        strategy, param_estim, additional_loss, dataset, estim_collocate, kwargs)
+    return NNODE(
+        chain, opt, init_params, autodiff, batch,
+        strategy, param_estim, additional_loss, dataset, estim_collocate, kwargs
+    )
 end
 
 """
@@ -183,7 +187,8 @@ function inner_loss(phi::ODEPhi, f, autodiff::Bool, t::Number, θ, p, param_esti
 end
 
 function inner_loss(
-        phi::ODEPhi, f, autodiff::Bool, t::AbstractVector, θ, p, param_estim::Bool)
+        phi::ODEPhi, f, autodiff::Bool, t::AbstractVector, θ, p, param_estim::Bool
+    )
     p_ = param_estim ? θ.p : p
     out = phi(t, θ)
     fs = if phi.u0 isa Number
@@ -200,8 +205,10 @@ end
 
 Representation of the loss function, parametric on the training strategy `strategy`.
 """
-function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim::Bool)
+function generate_loss(
+        strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
+        batch, param_estim::Bool
+    )
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
 
     function integrand(ts, θ)
@@ -211,8 +218,10 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
     function loss(θ, _)
         intf = BatchIntegralFunction(integrand, max_batch = strategy.batch)
         intprob = IntegralProblem(intf, (tspan[1], tspan[2]), θ)
-        sol = solve(intprob, strategy.quadrature_alg; strategy.abstol,
-            strategy.reltol, strategy.maxiters)
+        sol = solve(
+            intprob, strategy.quadrature_alg; strategy.abstol,
+            strategy.reltol, strategy.maxiters
+        )
         return sol.u
     end
 
@@ -220,18 +229,23 @@ function generate_loss(strategy::QuadratureTraining, phi, f, autodiff::Bool, tsp
 end
 
 function generate_loss(
-        strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool)
+        strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool
+    )
     ts = tspan[1]:(strategy.dx):tspan[2]
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     batch && return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
     return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
 end
 
-function generate_loss(strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim::Bool)
+function generate_loss(
+        strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
+        batch, param_estim::Bool
+    )
     autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
-    return (θ,
-        _) -> begin
+    return (
+        θ,
+        _,
+    ) -> begin
         T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
         ts = (tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1]
         if batch
@@ -244,7 +258,8 @@ end
 
 function generate_loss(
         strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim::Bool)
+        batch, param_estim::Bool
+    )
     autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT, maxT = tspan
     weights = strategy.weights ./ sum(strategy.weights)
@@ -254,7 +269,7 @@ function generate_loss(
     ts = eltype(difference)[]
     for (index, item) in enumerate(weights)
         temp_data = rand(1, trunc(Int, strategy.points * item)) .* difference .+ minT .+
-                    ((index - 1) * difference)
+            ((index - 1) * difference)
         append!(ts, temp_data)
     end
 
@@ -265,8 +280,13 @@ end
 function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim::Bool)
     batch && return (θ, _) -> inner_loss(phi, f, autodiff, tstops, θ, p, param_estim)
     return (
-        θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim)
-                      for t in tstops])
+        θ, _,
+    ) -> sum(
+        [
+            inner_loss(phi, f, autodiff, t, θ, p, param_estim)
+                for t in tstops
+        ]
+    )
 end
 
 function generate_loss(::QuasiRandomTraining, phi, f, autodiff::Bool, tspan)
@@ -279,9 +299,13 @@ L2 loss (needed for ODE parameter estimation).
 """
 function generate_L2lossData(dataset, phi, n_output)
     isempty(dataset) && return 0
-    return (θ,
-        _) -> sum(sum(abs2, phi(dataset[end - 1], θ)[i, :] .- dataset[i])
-    for i in 1:n_output)
+    return (
+        θ,
+        _,
+    ) -> sum(
+        sum(abs2, phi(dataset[end - 1], θ)[i, :] .- dataset[i])
+            for i in 1:n_output
+    )
 end
 
 """
@@ -293,23 +317,27 @@ function generate_L2loss2(f, autodiff, dataset, phi, n_output)
     û = dataset[1:(end - 2)]
     quadrature_weights = dataset[end]
 
-    function L2loss2(θ, _)
+    return function L2loss2(θ, _)
         nnsol = ode_dfdx(phi, t, θ, autodiff)
         ode_params = θ.p
 
         physsol = if n_output == 1
             [f(û[1][i], ode_params, tᵢ) for (i, tᵢ) in enumerate(t)]
         else
-            [f([û[j][i] for j in 1:(length(dataset) - 2)], ode_params, tᵢ)
-             for (i, tᵢ) in enumerate(t)]
+            [
+                f([û[j][i] for j in 1:(length(dataset) - 2)], ode_params, tᵢ)
+                    for (i, tᵢ) in enumerate(t)
+            ]
         end
         # form of NN output matrix output dim x n
         deri_physsol = reduce(hcat, physsol)
 
         # Quadrature is applied on timewise losses
         # Gridtraining/trapezoidal rule quadrature_weights is dt.*ones(T, length(t))
-        return sum(sum(abs2.(nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights)
-        for i in 1:n_output)
+        return sum(
+            sum(abs2.(nnsol[i, :] .- deri_physsol[i, :]) .* quadrature_weights)
+                for i in 1:n_output
+        )
     end
 end
 
@@ -333,8 +361,9 @@ end
 
 function (sol::ODESolution{T, N, U, U2, D, T2, R, D2, P, A})(
         t::AbstractVector{<:Number}, ::Type{deriv}, idxs::Nothing,
-        continuity) where {T, N, U, U2, D, T2, R, D2, P, A <: NNODE, deriv}
-    sol.interp(t, idxs, deriv, sol.prob.p, continuity)
+        continuity
+    ) where {T, N, U, U2, D, T2, R, D2, P, A <: NNODE, deriv}
+    return sol.interp(t, idxs, deriv, sol.prob.p, continuity)
 end
 
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
@@ -354,12 +383,14 @@ function SciMLBase.__solve(
         saveat = nothing,
         maxiters = nothing,
         tstops = nothing
-)
+    )
     (; u0, tspan, f, p) = prob
     t0 = tspan[1]
     # add estim_collocate, dataset (or nothing) in NNODE
-    (; param_estim, estim_collocate, dataset, chain, opt, autodiff,
-        init_params, batch, additional_loss, estim_collocate) = alg
+    (;
+        param_estim, estim_collocate, dataset, chain, opt, autodiff,
+        init_params, batch, additional_loss, estim_collocate,
+    ) = alg
 
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
 
@@ -378,9 +409,11 @@ function SciMLBase.__solve(
         if dt !== nothing
             GridTraining(dt)
         else
-            QuadratureTraining(; quadrature_alg = QuadGKJL(),
+            QuadratureTraining(;
+                quadrature_alg = QuadGKJL(),
                 reltol = convert(eltype(u0), reltol), abstol = convert(eltype(u0), abstol),
-                maxiters, batch = 0)
+                maxiters, batch = 0
+            )
         end
     else
         alg.strategy
@@ -389,7 +422,7 @@ function SciMLBase.__solve(
     inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
 
     if !isempty(dataset) &&
-       (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
+            (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
         error("Invalid dataset. The dataset would be a timeseries (x̂,t,W) with type: Vector{Vector{AbstractFloat}")
     end
 
@@ -418,7 +451,8 @@ function SciMLBase.__solve(
         if tstops !== nothing
             num_tstops_points = length(tstops)
             tstops_loss_func = evaluate_tstops_loss(
-                phi, f, autodiff, tstops, p, batch, param_estim)
+                phi, f, autodiff, tstops, p, batch, param_estim
+            )
             tstops_loss = tstops_loss_func(θ, phi)
             if strategy isa GridTraining
                 num_original_points = length(tspan[1]:(strategy.dx):tspan[2])
@@ -472,13 +506,16 @@ function SciMLBase.__solve(
         u = [phi(t, res.u) for t in ts]
     end
 
-    sol = SciMLBase.build_solution(prob, alg, ts, u; k = res, dense = true,
+    sol = SciMLBase.build_solution(
+        prob, alg, ts, u; k = res, dense = true,
         interp = NNODEInterpolation(phi, res.u), calculate_error = false,
-        retcode = ReturnCode.Success, original = res, resid = res.objective)
+        retcode = ReturnCode.Success, original = res, resid = res.objective
+    )
 
     SciMLBase.has_analytic(prob.f) &&
         SciMLBase.calculate_solution_errors!(
-            sol; timeseries_errors = true, dense_errors = false)
+        sol; timeseries_errors = true, dense_errors = false
+    )
 
     return sol
 end

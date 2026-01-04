@@ -1,6 +1,6 @@
-@testitem "BPINN ODE I: Without Param Estimation" tags=[:odebpinn] begin
+@testitem "BPINN ODE I: Without Param Estimation" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
 
     Random.seed!(100)
 
@@ -29,8 +29,9 @@
     θinit, st = Lux.setup(Random.default_rng(), chainlux)
 
     fh_mcmc_chain, fhsamples,
-    fhstats = ahmc_bayesian_pinn_ode(
-        prob, chainlux, draw_samples = 2500)
+        fhstats = ahmc_bayesian_pinn_ode(
+        prob, chainlux, draw_samples = 2500
+    )
 
     alg = BNNODE(chainlux, draw_samples = 2500)
     sol1lux = solve(prob, alg)
@@ -52,9 +53,9 @@
     @test mean(abs.(physsol0_1 .- pmean(sol1lux.ensemblesol[1]))) < 0.04
 end
 
-@testitem "BPINN ODE II: With Parameter Estimation" tags=[:odebpinn] begin
+@testitem "BPINN ODE II: With Parameter Estimation" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
 
     Random.seed!(100)
 
@@ -89,20 +90,25 @@ end
     θinit, st = Lux.setup(Random.default_rng(), chainlux1)
 
     fh_mcmc_chain, fhsamples,
-    fhstats = ahmc_bayesian_pinn_ode(
+        fhstats = ahmc_bayesian_pinn_ode(
         prob, chainlux1, dataset = dataset, draw_samples = 2500,
-        physdt = 1 / 50.0, priorsNNw = (0.0, 3.0), param = [LogNormal(9, 0.5)])
+        physdt = 1 / 50.0, priorsNNw = (0.0, 3.0), param = [LogNormal(9, 0.5)]
+    )
 
-    alg = BNNODE(chainlux1, dataset = dataset, draw_samples = 2500, physdt = 1 / 50.0,
-        priorsNNw = (0.0, 3.0), param = [LogNormal(9, 0.5)])
+    alg = BNNODE(
+        chainlux1, dataset = dataset, draw_samples = 2500, physdt = 1 / 50.0,
+        priorsNNw = (0.0, 3.0), param = [LogNormal(9, 0.5)]
+    )
 
     sol2lux = solve(prob, alg)
 
     # testing points
     t = time
     # Mean of last 500 sampled parameter's curves(flux and lux chains)[Ensemble predictions]
-    θ = [vector_to_parameters(fhsamples[i][1:(end - 1)], θinit)
-         for i in 2000:length(fhsamples)]
+    θ = [
+        vector_to_parameters(fhsamples[i][1:(end - 1)], θinit)
+            for i in 2000:length(fhsamples)
+    ]
     luxar = [chainlux1(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
@@ -114,15 +120,15 @@ end
     @test abs(p - mean([fhsamples[i][23] for i in 2000:length(fhsamples)])) < abs(0.35 * p)
 
     #-------------------------- solve() call
-    @test mean(abs.(physsol1_1 .- pmean(sol2lux.ensemblesol[1]))) < 8e-2
+    @test mean(abs.(physsol1_1 .- pmean(sol2lux.ensemblesol[1]))) < 8.0e-2
 
     # ESTIMATED ODE PARAMETERS (NN1 AND NN2)
     @test abs(p - sol2lux.estimated_de_params[1]) < abs(0.15 * p)
 end
 
-@testitem "BPINN ODE III" tags=[:odebpinn] begin
+@testitem "BPINN ODE III" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
 
     Random.seed!(100)
 
@@ -151,16 +157,20 @@ end
 
     # this a forward solve
     fh_mcmc_chainlux12, fhsampleslux12,
-    fhstatslux12 = ahmc_bayesian_pinn_ode(
-        prob, chainlux12, draw_samples = 500, phystd = [0.01], priorsNNw = (0.0, 10.0))
+        fhstatslux12 = ahmc_bayesian_pinn_ode(
+        prob, chainlux12, draw_samples = 500, phystd = [0.01], priorsNNw = (0.0, 10.0)
+    )
 
     fh_mcmc_chainlux22, fhsampleslux22,
-    fhstatslux22 = ahmc_bayesian_pinn_ode(
+        fhstatslux22 = ahmc_bayesian_pinn_ode(
         prob, chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.02],
-        phystd = [0.05], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
+        phystd = [0.05], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)]
+    )
 
-    alg = BNNODE(chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.02],
-        phystd = [0.05], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)])
+    alg = BNNODE(
+        chainlux12, dataset = dataset, draw_samples = 500, l2std = [0.02],
+        phystd = [0.05], priorsNNw = (0.0, 10.0), param = [Normal(-7, 4)]
+    )
 
     sol3lux_pestim = solve(prob, alg)
 
@@ -168,20 +178,24 @@ end
     t = sol.t
     #------------------------------ ahmc_bayesian_pinn_ode() call
     # Mean of last 500 sampled parameter's curves(lux chains)[Ensemble predictions]
-    θ = [vector_to_parameters(fhsampleslux12[i], θinit)
-         for i in 400:length(fhsampleslux12)]
+    θ = [
+        vector_to_parameters(fhsampleslux12[i], θinit)
+            for i in 400:length(fhsampleslux12)
+    ]
     luxar = [chainlux12(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_1 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-    θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 1)], θinit)
-         for i in 400:length(fhsampleslux22)]
+    θ = [
+        vector_to_parameters(fhsampleslux22[i][1:(end - 1)], θinit)
+            for i in 400:length(fhsampleslux22)
+    ]
     luxar = [chainlux12(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-    @test mean(abs, sol.u .- meanscurve2_1) < 1e-2
-    @test mean(abs, physsol1 .- meanscurve2_1) < 1e-2
+    @test mean(abs, sol.u .- meanscurve2_1) < 1.0e-2
+    @test mean(abs, physsol1 .- meanscurve2_1) < 1.0e-2
     @test mean(abs, sol.u .- meanscurve2_2) < 1.5
     @test mean(abs, physsol1 .- meanscurve2_2) < 1.5
 
@@ -190,9 +204,9 @@ end
     @test abs(param1 - p) < abs(0.5 * p)
 end
 
-@testitem "BPINN ODE: Translating from Flux" tags=[:odebpinn] begin
+@testitem "BPINN ODE: Translating from Flux" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
     import Flux
 
     Random.seed!(100)
@@ -219,16 +233,17 @@ end
     physsol0_1 = [linear_analytic(prob.u0, p, time1[i]) for i in eachindex(time1)]
     chainflux = Flux.Chain(Flux.Dense(1, 7, tanh), Flux.Dense(7, 1)) |> Flux.f64
     fh_mcmc_chain, fhsamples,
-    fhstats = ahmc_bayesian_pinn_ode(
-        prob, chainflux, draw_samples = 2500)
+        fhstats = ahmc_bayesian_pinn_ode(
+        prob, chainflux, draw_samples = 2500
+    )
     alg = BNNODE(chainflux, draw_samples = 2500)
     @test alg.chain isa AbstractLuxLayer
 end
 
-@testitem "BPINN ODE III: Inverse solve Improvement" tags=[:odebpinn] begin
+@testitem "BPINN ODE III: Inverse solve Improvement" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-          AdvancedHMC, Statistics, Random, Functors, ComponentArrays,
-          MonteCarloMeasurements, FastGaussQuadrature
+        AdvancedHMC, Statistics, Random, Functors, ComponentArrays,
+        MonteCarloMeasurements, FastGaussQuadrature
     Random.seed!(100)
 
     # (original Improvement tests can be run with 100 training points, check solve call tests.)
@@ -269,50 +284,60 @@ end
 
     # you could always directly fit model to all data, but it ignores equation, overfits data.
     fh_mcmc_chainlux22, fhsampleslux22,
-    fhstatslux22 = ahmc_bayesian_pinn_ode(
+        fhstatslux22 = ahmc_bayesian_pinn_ode(
         prob, chainlux12,
         dataset = dataset,
         draw_samples = 2500,
         l2std = [0.1],
         phystd = [0.1],
         phynewstd = (p) -> [0.1 / p],
-        priorsNNw = (0.0,
-            1.0),
+        priorsNNw = (
+            0.0,
+            1.0,
+        ),
         param = [
-            Normal(-7, 3)
-        ], estim_collocate = true)
+            Normal(-7, 3),
+        ], estim_collocate = true
+    )
 
     fh_mcmc_chainlux12, fhsampleslux12,
-    fhstatslux12 = ahmc_bayesian_pinn_ode(
+        fhstatslux12 = ahmc_bayesian_pinn_ode(
         prob, chainlux12,
         dataset = dataset,
         draw_samples = 2500,
         l2std = [0.1],
         phystd = [0.1],
-        priorsNNw = (0.0,
-            1.0),
+        priorsNNw = (
+            0.0,
+            1.0,
+        ),
         param = [
-            Normal(-7, 3)
-        ])
+            Normal(-7, 3),
+        ]
+    )
 
     # testing timepoints
     t = sol.t
     #------------------------------ ahmc_bayesian_pinn_ode() call
     # Mean of last 100 sampled parameter's curves(lux chains)[Ensemble predictions]
-    θ = [vector_to_parameters(fhsampleslux12[i][1:(end - 1)], θinit)
-         for i in 2400:length(fhsampleslux12)]
+    θ = [
+        vector_to_parameters(fhsampleslux12[i][1:(end - 1)], θinit)
+            for i in 2400:length(fhsampleslux12)
+    ]
     luxar = [chainlux12(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_1 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-    θ = [vector_to_parameters(fhsampleslux22[i][1:(end - 1)], θinit)
-         for i in 2400:length(fhsampleslux22)]
+    θ = [
+        vector_to_parameters(fhsampleslux22[i][1:(end - 1)], θinit)
+            for i in 2400:length(fhsampleslux22)
+    ]
     luxar = [chainlux12(t', θ[i], st)[1] for i in eachindex(θ)]
     luxmean = [mean(vcat(luxar...)[:, i]) for i in eachindex(t)]
     meanscurve2_2 = prob.u0 .+ (t .- prob.tspan[1]) .* luxmean
 
-    @test mean(abs.(sol.u .- meanscurve2_2)) < 5e-2
-    @test mean(abs.(physsol1 .- meanscurve2_2)) < 5e-2
+    @test mean(abs.(sol.u .- meanscurve2_2)) < 5.0e-2
+    @test mean(abs.(physsol1 .- meanscurve2_2)) < 5.0e-2
     @test mean(abs.(sol.u .- meanscurve2_1)) > mean(abs.(sol.u .- meanscurve2_2))
     @test mean(abs.(physsol1 .- meanscurve2_1)) > mean(abs.(physsol1 .- meanscurve2_2))
 
@@ -324,9 +349,9 @@ end
     @test abs(param2 - p) < abs(param1 - p)
 end
 
-@testitem "BPINN ODE III: Inverse solve Improvement solve call" tags=[:odebpinn] begin
+@testitem "BPINN ODE III: Inverse solve Improvement solve call" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
 
     Random.seed!(100)
 
@@ -353,32 +378,36 @@ end
     chainlux12 = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
     θinit, st = Lux.setup(Random.default_rng(), chainlux12)
 
-    alg = BNNODE(chainlux12,
+    alg = BNNODE(
+        chainlux12,
         dataset = dataset,
         draw_samples = 1000,
         l2std = [0.1],
         phystd = [0.01],
         phynewstd = (p) -> [0.01],
-        priorsNNw = (0.0,
-            1.0),
+        priorsNNw = (
+            0.0,
+            1.0,
+        ),
         param = [
-            Normal(-7, 3)
+            Normal(-7, 3),
         ], numensemble = 200,
-        estim_collocate = true)
+        estim_collocate = true
+    )
 
     sol3lux_pestim = solve(prob, alg)
 
     #-------------------------- solve() call
-    @test mean(abs.(physsol2 .- pmean(sol3lux_pestim.ensemblesol[1]))) < 1e-2
+    @test mean(abs.(physsol2 .- pmean(sol3lux_pestim.ensemblesol[1]))) < 1.0e-2
 
     # estimated parameters
     param3 = sol3lux_pestim.estimated_de_params[1]
     @test abs(param3 - p) < abs(0.05 * p)
 end
 
-@testitem "BPINN ODE IV: Inverse solve Improvement" tags=[:odebpinn] begin
+@testitem "BPINN ODE IV: Inverse solve Improvement" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-          AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
     using FastGaussQuadrature
     Random.seed!(100)
 
@@ -418,10 +447,13 @@ end
     y = u[2, :] + (0.5 .* randn(length(u[2, :])))
     dataset = [x, y, times, W]
 
-    chain = Lux.Chain(Lux.Dense(1, 7, tanh), Lux.Dense(7, 7, tanh),
-        Lux.Dense(7, 2))
+    chain = Lux.Chain(
+        Lux.Dense(1, 7, tanh), Lux.Dense(7, 7, tanh),
+        Lux.Dense(7, 2)
+    )
 
-    alg1 = BNNODE(chain;
+    alg1 = BNNODE(
+        chain;
         dataset = dataset,
         draw_samples = 1000,
         l2std = [0.5, 0.5],
@@ -429,9 +461,12 @@ end
         priorsNNw = (0.0, 1.0),
         param = [
             Normal(-7, 2),
-            Normal(-7, 2)])
+            Normal(-7, 2),
+        ]
+    )
 
-    alg2 = BNNODE(chain;
+    alg2 = BNNODE(
+        chain;
         dataset = dataset,
         draw_samples = 1000,
         l2std = [0.5, 0.5],
@@ -440,7 +475,9 @@ end
         priorsNNw = (0.0, 1.0),
         param = [
             Normal(-7, 2),
-            Normal(-7, 2)], estim_collocate = true)
+            Normal(-7, 2),
+        ], estim_collocate = true
+    )
 
     dt = 0.05
     @time sol_pestim1 = solve(prob, alg1; saveat = dt)
@@ -451,16 +488,16 @@ end
 
     unsafe_comparisons(true)
     bitvec = abs.(p .- sol_pestim1.estimated_de_params) .>
-             abs.(p .- sol_pestim2.estimated_de_params)
+        abs.(p .- sol_pestim2.estimated_de_params)
     @test bitvec == ones(size(bitvec))
 
     @test mean(abs, u[1, :] .- pmean(sol_pestim1.ensemblesol[1])) >
-          mean(abs, u[1, :] .- pmean(sol_pestim2.ensemblesol[1]))
+        mean(abs, u[1, :] .- pmean(sol_pestim2.ensemblesol[1]))
     @test mean(abs, u[2, :] .- pmean(sol_pestim1.ensemblesol[2])) >
-          mean(abs, u[2, :] .- pmean(sol_pestim2.ensemblesol[2]))
+        mean(abs, u[2, :] .- pmean(sol_pestim2.ensemblesol[2]))
 
-    @test mean(abs2, u[1, :] .- pmean(sol_pestim2.ensemblesol[1])) < 5e-2
-    @test mean(abs2, u[2, :] .- pmean(sol_pestim2.ensemblesol[2])) < 2e-2
+    @test mean(abs2, u[1, :] .- pmean(sol_pestim2.ensemblesol[1])) < 5.0e-2
+    @test mean(abs2, u[2, :] .- pmean(sol_pestim2.ensemblesol[2])) < 2.0e-2
 
     @test abs(sol_pestim2.estimated_de_params[1] - p[1]) < 0.05p[1]
     @test abs(sol_pestim2.estimated_de_params[2] - p[2]) < 0.1p[2]

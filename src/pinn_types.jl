@@ -111,7 +111,8 @@ function PhysicsInformedNN(
         chain, strategy; init_params = nothing, init_states = nothing, derivative = nothing,
         param_estim = false, phi::Union{Nothing, Phi, AbstractArray{<:Phi}} = nothing,
         additional_loss = nothing, adaptive_loss = nothing, logger = nothing,
-        log_options = LogOptions(), iteration = nothing, kwargs...)
+        log_options = LogOptions(), iteration = nothing, kwargs...
+    )
     multioutput = chain isa AbstractArray
     if multioutput
         chain = map(chain) do cᵢ
@@ -123,12 +124,16 @@ function PhysicsInformedNN(
     end
 
     phi = phi === nothing ?
-          (multioutput ?
-           (init_states === nothing ?
-            map(x -> Phi(x; init_states), chain) :
-            map(x -> Phi(x[1]; init_states = x[2]), zip(chain, init_states))) :
-           Phi(chain; init_states)) :
-          phi
+        (
+            multioutput ?
+            (
+                init_states === nothing ?
+                map(x -> Phi(x; init_states), chain) :
+                map(x -> Phi(x[1]; init_states = x[2]), zip(chain, init_states))
+            ) :
+            Phi(chain; init_states)
+        ) :
+        phi
 
     derivative = ifelse(derivative === nothing, numeric_derivative, derivative)
 
@@ -143,9 +148,11 @@ function PhysicsInformedNN(
         self_increment = true
     end
 
-    return PhysicsInformedNN(chain, strategy, init_params, init_states, phi, derivative,
+    return PhysicsInformedNN(
+        chain, strategy, init_params, init_states, phi, derivative,
         param_estim, additional_loss, adaptive_loss, logger, log_options, iteration,
-        self_increment, multioutput, kwargs)
+        self_increment, multioutput, kwargs
+    )
 end
 
 """
@@ -374,20 +381,26 @@ function numeric_derivative(phi, u, x, εs, order, θ)
     # if order 1, this is trivially true
 
     if order > 4 || any(x -> x != εs[1], εs)
-        return (numeric_derivative(phi, u, x .+ ε, @view(εs[1:(end - 1)]), order - 1, θ)
+        return (
+            numeric_derivative(phi, u, x .+ ε, @view(εs[1:(end - 1)]), order - 1, θ)
                 .-
-                numeric_derivative(phi, u, x .- ε, @view(εs[1:(end - 1)]), order - 1, θ)) .*
-               _epsilon ./ 2
+                numeric_derivative(phi, u, x .- ε, @view(εs[1:(end - 1)]), order - 1, θ)
+        ) .*
+            _epsilon ./ 2
     elseif order == 4
-        return (u(x .+ 2 .* ε, θ, phi) .- 4 .* u(x .+ ε, θ, phi)
+        return (
+            u(x .+ 2 .* ε, θ, phi) .- 4 .* u(x .+ ε, θ, phi)
                 .+
                 6 .* u(x, θ, phi)
                 .-
-                4 .* u(x .- ε, θ, phi) .+ u(x .- 2 .* ε, θ, phi)) .* _epsilon^4
+                4 .* u(x .- ε, θ, phi) .+ u(x .- 2 .* ε, θ, phi)
+        ) .* _epsilon^4
     elseif order == 3
-        return (u(x .+ 2 .* ε, θ, phi) .- 2 .* u(x .+ ε, θ, phi) .+ 2 .* u(x .- ε, θ, phi)
+        return (
+            u(x .+ 2 .* ε, θ, phi) .- 2 .* u(x .+ ε, θ, phi) .+ 2 .* u(x .- ε, θ, phi)
                 -
-                u(x .- 2 .* ε, θ, phi)) .* _epsilon^3 ./ 2
+                u(x .- 2 .* ε, θ, phi)
+        ) .* _epsilon^3 ./ 2
     elseif order == 2
         return (u(x .+ ε, θ, phi) .+ u(x .- ε, θ, phi) .- 2 .* u(x, θ, phi)) .* _epsilon^2
     elseif order == 1

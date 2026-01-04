@@ -17,11 +17,11 @@ function LogDensityProblems.logdensity(ltd::PDELogTargetDensity, θ)
     # for parameter estimation neccesarry to use multioutput case
     if ltd.L2_loss2 === nothing
         return ltd.full_loglikelihood(setparameters(ltd, θ), ltd.allstd) +
-               priorlogpdf(ltd, θ) + L2LossData(ltd, θ)
+            priorlogpdf(ltd, θ) + L2LossData(ltd, θ)
     else
         return ltd.full_loglikelihood(setparameters(ltd, θ), ltd.allstd) +
-               priorlogpdf(ltd, θ) + L2LossData(ltd, θ) +
-               ltd.L2_loss2(setparameters(ltd, θ), ltd.phynewstd)
+            priorlogpdf(ltd, θ) + L2LossData(ltd, θ) +
+            ltd.L2_loss2(setparameters(ltd, θ), ltd.phynewstd)
     end
 end
 
@@ -38,31 +38,43 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
 
     # for values of all depvars at corresponding indvar values in dataset, create dictionaries {Dict(x(t) => 1.0496435863173237, y(t) => 1.9227770685615337)}
     # In each Dict, num form of depvar is key to its value at certain coords of indvars, n_dicts = n_rows_dataset(or n_indvar_coords_dataset)
-    eq_subs = [Dict(tobe_subs[depvar] => to_subs[depvar][i] for depvar in depvars)
-               for i in 1:size(dataset[1][:, 1])[1]]
+    eq_subs = [
+        Dict(tobe_subs[depvar] => to_subs[depvar][i] for depvar in depvars)
+            for i in 1:size(dataset[1][:, 1])[1]
+    ]
 
     # for each dataset point(eq_sub dictionary), substitute in masked equations
     # n_collocated_equations = n_rows_dataset(or n_indvar_coords_dataset)
-    masked_colloc_equations = [[Symbolics.substitute(eq, eq_sub) for eq in eqs_new]
-                               for eq_sub in eq_subs]
+    masked_colloc_equations = [
+        [Symbolics.substitute(eq, eq_sub) for eq in eqs_new]
+            for eq_sub in eq_subs
+    ]
     # now we have vector of dataset depvar's collocated equations
 
     # reverse dict for re-substituting values of Differential(t)(u(t)) etc
     rev_Dict_differentials = Dict(value => key for (key, value) in Dict_differentials)
 
     # unmask Differential terms in masked_colloc_equations
-    colloc_equations = [Symbolics.substitute.(
-                            masked_colloc_equation, Ref(rev_Dict_differentials))
-                        for masked_colloc_equation in masked_colloc_equations]
+    colloc_equations = [
+        Symbolics.substitute.(
+                masked_colloc_equation, Ref(rev_Dict_differentials)
+            )
+            for masked_colloc_equation in masked_colloc_equations
+    ]
     # nested vector of data_pde_loss_functions (as in discretize.jl)
     # each sub vector has dataset's indvar coord's datafree_colloc_loss_function, n_subvectors = n_rows_dataset(or n_indvar_coords_dataset)
     # zip each colloc equation with args for each build_loss call per equation vector
-    data_colloc_loss_functions = [[build_loss_function(pinnrep, eq, pde_indvar)
-                                   for (eq, pde_indvar, integration_indvar) in zip(
-                                      colloc_equation,
-                                      pinnrep.pde_indvars,
-                                      pinnrep.pde_integration_vars)]
-                                  for colloc_equation in colloc_equations]
+    data_colloc_loss_functions = [
+        [
+                build_loss_function(pinnrep, eq, pde_indvar)
+                for (eq, pde_indvar, integration_indvar) in zip(
+                    colloc_equation,
+                    pinnrep.pde_indvars,
+                    pinnrep.pde_integration_vars
+                )
+            ]
+            for colloc_equation in colloc_equations
+    ]
 
     return data_colloc_loss_functions
 end
@@ -99,8 +111,12 @@ end
     # multioutput case for Lux chains, for each depvar ps would contain Lux ComponentVectors
     # which we use for mapping current ahmc sampled vector of parameters onto NNs
     i = 0
-    Luxparams = [vector_to_parameters(ps_new[((i += length(ps[x])) - length(ps[x]) + 1):i],
-                     ps[x]) for x in names]
+    Luxparams = [
+        vector_to_parameters(
+                ps_new[((i += length(ps[x])) - length(ps[x]) + 1):i],
+                ps[x]
+            ) for x in names
+    ]
 
     a = ComponentArray(NamedTuple{ltd.names}(i for i in Luxparams))
 
@@ -114,7 +130,7 @@ end
 LogDensityProblems.dimension(ltd::PDELogTargetDensity) = ltd.dim
 
 function LogDensityProblems.capabilities(::PDELogTargetDensity)
-    LogDensityProblems.LogDensityOrder{1}()
+    return LogDensityProblems.LogDensityOrder{1}()
 end
 
 # L2 losses loglikelihood(needed mainly for ODE parameter estimation)
@@ -141,11 +157,16 @@ function L2LossData(ltd::PDELogTargetDensity, θ)
     for i in eachindex(Φ)
         sumt += logpdf(
             MvNormal(
-                Φ[i](dataset[i][:, 2:end]',
-                    vector_to_parameters(θ[1:(end - ltd.extraparams)], init_params)[ltd.names[i]])[
-                1, :],
-                Diagonal(abs2.(ones(size(dataset[i])[1]) .* L2stds[i]))),
-            dataset[i][:, 1])
+                Φ[i](
+                    dataset[i][:, 2:end]',
+                    vector_to_parameters(θ[1:(end - ltd.extraparams)], init_params)[ltd.names[i]]
+                )[
+                    1, :,
+                ],
+                Diagonal(abs2.(ones(size(dataset[i])[1]) .* L2stds[i]))
+            ),
+            dataset[i][:, 1]
+        )
     end
     return sumt
 end
@@ -168,7 +189,7 @@ end
 
 function integratorchoice(Integratorkwargs, initial_ϵ)
     Integrator = Integratorkwargs[:Integrator]
-    if Integrator == JitteredLeapfrog
+    return if Integrator == JitteredLeapfrog
         jitter_rate = Integratorkwargs[:jitter_rate]
         Integrator(initial_ϵ, jitter_rate)
     elseif Integrator == TemperedLeapfrog
@@ -180,7 +201,7 @@ function integratorchoice(Integratorkwargs, initial_ϵ)
 end
 
 function adaptorchoice(Adaptor, mma, ssa)
-    if Adaptor != AdvancedHMC.NoAdaptation()
+    return if Adaptor != AdvancedHMC.NoAdaptation()
         Adaptor(mma, ssa)
     else
         AdvancedHMC.NoAdaptation()
@@ -197,28 +218,44 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
     initial_nnθ = ℓπ.init_params
     ninv = ℓπ.extraparams
 
-    ranges = Dict([Symbol(d.variables) => infimum(d.domain):dx:supremum(d.domain)
-                   for (d, dx) in zip(domains, saveats)])
+    ranges = Dict(
+        [
+            Symbol(d.variables) => infimum(d.domain):dx:supremum(d.domain)
+                for (d, dx) in zip(domains, saveats)
+        ]
+    )
     inputs = [dict_depvar_input[i] for i in depvars]
 
     span = [[ranges[indvar] for indvar in input] for input in inputs]
-    timepoints = [hcat(vec(map(points -> collect(points),
-                      Iterators.product(span[i]...)))...)
-                  for i in eachindex(phi)]
+    timepoints = [
+        hcat(
+                vec(
+                    map(
+                        points -> collect(points),
+                        Iterators.product(span[i]...)
+                    )
+                )...
+            )
+            for i in eachindex(phi)
+    ]
 
     # order of range's domains must match chain's inputs and dep_vars
     samples = samples[(end - numensemble):end]
     nnparams = length(samples[1][1:(end - ninv)])
     # get rows-ith param and col-ith sample value
-    estimnnparams = [Particles(reduce(hcat, samples)[i, :])
-                     for i in 1:nnparams]
+    estimnnparams = [
+        Particles(reduce(hcat, samples)[i, :])
+            for i in 1:nnparams
+    ]
 
     #  PDE params
     if ninv == 0
         estimated_params = [nothing]
     else
-        estimated_params = [Particles(reduce(hcat, samples)[i, :])
-                            for i in (nnparams + 1):(nnparams + ninv)]
+        estimated_params = [
+            Particles(reduce(hcat, samples)[i, :])
+                for i in (nnparams + 1):(nnparams + ninv)
+        ]
     end
 
     # getting parameter ranges in case of Lux chains
@@ -231,17 +268,29 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
     end
 
     # convert to format directly usable by lux
-    estimatedLuxparams = [vector_to_parameters(estimnnparams[Luxparams[i]],
-                              initial_nnθ[names[i]]) for i in eachindex(phi)]
+    estimatedLuxparams = [
+        vector_to_parameters(
+                estimnnparams[Luxparams[i]],
+                initial_nnθ[names[i]]
+            ) for i in eachindex(phi)
+    ]
 
     # infer predictions(preds) each row - NN, each col - ith sample
     samplesn = reduce(hcat, samples)
     preds = []
     for j in eachindex(phi)
-        push!(preds,
-            [phi[j](timepoints[j],
-                 vector_to_parameters(samplesn[:, i][Luxparams[j]],
-                     initial_nnθ[names[j]])) for i in 1:numensemble])
+        push!(
+            preds,
+            [
+                phi[j](
+                        timepoints[j],
+                        vector_to_parameters(
+                            samplesn[:, i][Luxparams[j]],
+                            initial_nnθ[names[j]]
+                        )
+                    ) for i in 1:numensemble
+            ]
+        )
     end
 
     # note here no of samples referse to numensemble and points is the no of points in each dep_vars discretization
@@ -308,13 +357,17 @@ end
     AdvancedHMC.jl is still developing convenience structs so might need changes on new
     releases.
 """
-function ahmc_bayesian_pinn_pde(pde_system, discretization;
+function ahmc_bayesian_pinn_pde(
+        pde_system, discretization;
         draw_samples = 1000, bcstd = [0.01], l2std = [0.05], phystd = [0.05],
         phynewstd = [0.05], priorsNNw = (0.0, 2.0), param = [], nchains = 1,
-        Kernel = HMC(0.1, 30), Adaptorkwargs = (Adaptor = StanHMCAdaptor,
-            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8),
+        Kernel = HMC(0.1, 30), Adaptorkwargs = (
+            Adaptor = StanHMCAdaptor,
+            Metric = DiagEuclideanMetric, targetacceptancerate = 0.8,
+        ),
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
-        numensemble = floor(Int, draw_samples / 3), Dict_differentials = nothing, progress = false, verbose = false)
+        numensemble = floor(Int, draw_samples / 3), Dict_differentials = nothing, progress = false, verbose = false
+    )
     pinnrep = symbolic_discretize(pde_system, discretization)
     dataset_pde, dataset_bc = discretization.dataset
 
@@ -325,35 +378,54 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
         # size = number of indvar coords in dataset
         # add case for if parameters present in bcs?
 
-        train_sets_pde = get_dataset_train_points(pde_system.eqs,
+        train_sets_pde = get_dataset_train_points(
+            pde_system.eqs,
             dataset_pde,
-            pinnrep)
+            pinnrep
+        )
         # j is number of indvar coords in dataset, i is number of PDE equations in system
         # -1 is placeholder, removed in merge_strategy_with_loglikelihood_function function call (train_sets[:, 2:end]())
-        colloc_train_sets = [[hcat([-1], train_sets_pde[i][:, j]...)
-                              for i in eachindex(data_colloc_loss_functions[1])]
-                             for j in eachindex(data_colloc_loss_functions)]
+        colloc_train_sets = [
+            [
+                    hcat([-1], train_sets_pde[i][:, j]...)
+                    for i in eachindex(data_colloc_loss_functions[1])
+                ]
+                for j in eachindex(data_colloc_loss_functions)
+        ]
 
         # using dataset's indvar coords as train_sets_pde and indvar coord's datafree_colloc_loss_function, create loss functions
         # placeholder strategy = GridTraining(0.1), datafree_bc_loss_function and train_sets_bc must be nothing
         # order of indvar coords will be same as corresponding depvar coords values in dataset provided in get_lossy() call.
-        pde_loss_function_points = [merge_strategy_with_loglikelihood_function(
-                                        pinnrep,
-                                        GridTraining(0.1),
-                                        data_colloc_loss_functions[i],
-                                        nothing;
-                                        train_sets_pde = colloc_train_sets[i],
-                                        train_sets_bc = nothing)[1]
-                                    for i in eachindex(data_colloc_loss_functions)]
+        pde_loss_function_points = [
+            merge_strategy_with_loglikelihood_function(
+                    pinnrep,
+                    GridTraining(0.1),
+                    data_colloc_loss_functions[i],
+                    nothing;
+                    train_sets_pde = colloc_train_sets[i],
+                    train_sets_bc = nothing
+                )[1]
+                for i in eachindex(data_colloc_loss_functions)
+        ]
 
         function L2_loss2(θ, phynewstd)
             # first sum is over points losses over many equations for the same points
             # second sum is over all points
-            pde_loglikelihoods = sum([sum([pde_loss_function(θ,
-                                               phynewstd[i])
-                                           for (i, pde_loss_function) in
-                                               enumerate(pde_loss_functions)])
-                                      for pde_loss_functions in pde_loss_function_points])
+            return pde_loglikelihoods = sum(
+                [
+                    sum(
+                            [
+                                pde_loss_function(
+                                    θ,
+                                    phynewstd[i]
+                                )
+                                for (i, pde_loss_function) in
+                                enumerate(pde_loss_functions)
+                            ]
+                        )
+                        for pde_loss_functions in pde_loss_function_points
+                ]
+            )
         end
     end
 
@@ -387,7 +459,7 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # NN solutions for loglikelihood which is used for L2lossdata
     Φ = pinnrep.phi
 
-    @assert nchains≥1 "number of chains must be greater than or equal to 1"
+    @assert nchains ≥ 1 "number of chains must be greater than or equal to 1"
 
     # remove inv params take only NN params, AHMC uses Float64
     initial_nnθ = pinnrep.flat_init_params[1:(end - length(param))]
@@ -403,8 +475,10 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     ninv = length(param)
     # add init_params for NN params
     priors = [
-        MvNormal(priorsNNw[1] * ones(nparameters),
-        Diagonal(abs2.(priorsNNw[2] .* ones(nparameters))))
+        MvNormal(
+            priorsNNw[1] * ones(nparameters),
+            Diagonal(abs2.(priorsNNw[2] .* ones(nparameters)))
+        ),
     ]
 
     # append Ode params to all paramvector - initial_θ
@@ -422,26 +496,35 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
     # dimensions would be total no of params,initial_nnθ for Lux namedTuples
     ℓπ = PDELogTargetDensity(
         nparameters, strategy, dataset, priors, [phystd, bcstd, l2std], phynewstd,
-        names, ninv, initial_nnθ, full_weighted_loglikelihood, newloss, Φ)
+        names, ninv, initial_nnθ, full_weighted_loglikelihood, newloss, Φ
+    )
 
     Adaptor, Metric,
-    targetacceptancerate = Adaptorkwargs[:Adaptor],
-    Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
+        targetacceptancerate = Adaptorkwargs[:Adaptor],
+        Adaptorkwargs[:Metric], Adaptorkwargs[:targetacceptancerate]
 
     # Define Hamiltonian system (nparameters ~ dimensionality of the sampling space)
     metric = Metric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
 
     if verbose
-        @printf("Current Physics Log-likelihood : %g\n",
-            ℓπ.full_loglikelihood(setparameters(ℓπ, initial_θ), ℓπ.allstd))
+        @printf(
+            "Current Physics Log-likelihood : %g\n",
+            ℓπ.full_loglikelihood(setparameters(ℓπ, initial_θ), ℓπ.allstd)
+        )
         @printf("Current Prior Log-likelihood : %g\n", priorlogpdf(ℓπ, initial_θ))
-        @printf("Current SSE against dataset Log-likelihood : %g\n",
-            L2LossData(ℓπ, initial_θ))
+        @printf(
+            "Current SSE against dataset Log-likelihood : %g\n",
+            L2LossData(ℓπ, initial_θ)
+        )
         if !(newloss isa Nothing)
-            @printf("Current Data Quadrature loss : %g\n",
-                ℓπ.L2_loss2(setparameters(ℓπ, initial_θ),
-                ℓπ.phynewstd))
+            @printf(
+                "Current Data Quadrature loss : %g\n",
+                ℓπ.L2_loss2(
+                    setparameters(ℓπ, initial_θ),
+                    ℓπ.phynewstd
+                )
+            )
         end
     end
 
@@ -453,16 +536,22 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
         Threads.@threads for i in 1:nchains
             # each chain has different initial NNparameter values(better posterior exploration)
-            initial_θ = vcat(randn(nparameters - ninv),
-                initial_θ[(nparameters - ninv + 1):end])
+            initial_θ = vcat(
+                randn(nparameters - ninv),
+                initial_θ[(nparameters - ninv + 1):end]
+            )
             initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
             integrator = integratorchoice(Integratorkwargs, initial_ϵ)
-            adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
-                StepSizeAdaptor(targetacceptancerate, integrator))
+            adaptor = adaptorchoice(
+                Adaptor, MassMatrixAdaptor(metric),
+                StepSizeAdaptor(targetacceptancerate, integrator)
+            )
             Kernel = AdvancedHMC.make_kernel(Kernel, integrator)
             samples,
-            stats = sample(hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
-                progress = progress, verbose = verbose)
+                stats = sample(
+                hamiltonian, Kernel, initial_θ, draw_samples, adaptor;
+                progress = progress, verbose = verbose
+            )
 
             # return a chain(basic chain),samples and stats
             matrix_samples = hcat(samples...)
@@ -470,24 +559,30 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
             fullsolution = BPINNstats(mcmc_chain, samples, stats)
             ensemblecurves, estimnnparams,
-            estimated_params,
-            timepoints = inference(
-                samples, pinnrep, saveat, numensemble, ℓπ)
+                estimated_params,
+                timepoints = inference(
+                samples, pinnrep, saveat, numensemble, ℓπ
+            )
 
             bpinnsols[i] = BPINNsolution(
-                fullsolution, ensemblecurves, estimnnparams, estimated_params, timepoints)
+                fullsolution, ensemblecurves, estimnnparams, estimated_params, timepoints
+            )
         end
         return bpinnsols
     else
         initial_ϵ = find_good_stepsize(hamiltonian, initial_θ)
         integrator = integratorchoice(Integratorkwargs, initial_ϵ)
-        adaptor = adaptorchoice(Adaptor, MassMatrixAdaptor(metric),
-            StepSizeAdaptor(targetacceptancerate, integrator))
+        adaptor = adaptorchoice(
+            Adaptor, MassMatrixAdaptor(metric),
+            StepSizeAdaptor(targetacceptancerate, integrator)
+        )
 
         Kernel = AdvancedHMC.make_kernel(Kernel, integrator)
         samples,
-        stats = sample(hamiltonian, Kernel, initial_θ, draw_samples,
-            adaptor; progress = progress, verbose = verbose)
+            stats = sample(
+            hamiltonian, Kernel, initial_θ, draw_samples,
+            adaptor; progress = progress, verbose = verbose
+        )
 
         # return a chain(basic chain),samples and stats
         matrix_samples = hcat(samples...)
@@ -495,24 +590,35 @@ function ahmc_bayesian_pinn_pde(pde_system, discretization;
 
         if verbose
             @printf("Sampling Complete.\n")
-            @printf("Final Physics Log-likelihood : %g\n",
-                ℓπ.full_loglikelihood(setparameters(ℓπ, samples[end]), ℓπ.allstd))
+            @printf(
+                "Final Physics Log-likelihood : %g\n",
+                ℓπ.full_loglikelihood(setparameters(ℓπ, samples[end]), ℓπ.allstd)
+            )
             @printf("Final Prior Log-likelihood : %g\n", priorlogpdf(ℓπ, samples[end]))
-            @printf("Final SSE against dataset Log-likelihood : %g\n",
-                L2LossData(ℓπ, samples[end]))
+            @printf(
+                "Final SSE against dataset Log-likelihood : %g\n",
+                L2LossData(ℓπ, samples[end])
+            )
             if !(newloss isa Nothing)
-                @printf("Final Data Quadrature loss : %g\n",
-                    ℓπ.L2_loss2(setparameters(ℓπ, samples[end]),
-                    ℓπ.phynewstd))
+                @printf(
+                    "Final Data Quadrature loss : %g\n",
+                    ℓπ.L2_loss2(
+                        setparameters(ℓπ, samples[end]),
+                        ℓπ.phynewstd
+                    )
+                )
             end
         end
 
         fullsolution = BPINNstats(mcmc_chain, samples, stats)
         ensemblecurves, estimnnparams,
-        estimated_params, timepoints = inference(samples,
-            pinnrep, saveats, numensemble, ℓπ)
+            estimated_params, timepoints = inference(
+            samples,
+            pinnrep, saveats, numensemble, ℓπ
+        )
 
         return BPINNsolution(
-            fullsolution, ensemblecurves, estimnnparams, estimated_params, timepoints)
+            fullsolution, ensemblecurves, estimnnparams, estimated_params, timepoints
+        )
     end
 end
