@@ -1,6 +1,6 @@
-@testitem "Poisson's equation" tags=[:dgm] begin
+@testitem "Poisson's equation" tags = [:dgm] begin
     using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
-          MethodOfLines, OrdinaryDiffEq, LinearAlgebra
+        MethodOfLines, OrdinaryDiffEq, LinearAlgebra
     import DomainSets: Interval, infimum, supremum
 
     @parameters x y
@@ -12,8 +12,10 @@
     eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
 
     # Initial and boundary conditions
-    bcs = [u(0, y) ~ 0.0, u(1, y) ~ -sin(pi * 1) * sin(pi * y),
-        u(x, 0) ~ 0.0, u(x, 1) ~ -sin(pi * x) * sin(pi * 1)]
+    bcs = [
+        u(0, y) ~ 0.0, u(1, y) ~ -sin(pi * 1) * sin(pi * y),
+        u(x, 0) ~ 0.0, u(x, 1) ~ -sin(pi * x) * sin(pi * 1),
+    ]
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
@@ -39,12 +41,12 @@
     u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
     u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
 
-    @test u_real≈u_predict atol=0.4
+    @test u_real ≈ u_predict atol = 0.4
 end
 
-@testitem "Black-Scholes PDE: European Call Option" tags=[:dgm] begin
+@testitem "Black-Scholes PDE: European Call Option" tags = [:dgm] begin
     using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
-          MethodOfLines, OrdinaryDiffEq, LinearAlgebra
+        MethodOfLines, OrdinaryDiffEq, LinearAlgebra
     import DomainSets: Interval, infimum, supremum
 
     K, T, r, σ, S, S_multiplier = 50.0, 1.0, 0.05, 0.25, 130.0, 1.3
@@ -92,12 +94,12 @@ end
 
     u_real = [analytic_sol_func(t, x) for t in ts, x in xs]
     u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
-    @test u_predict≈u_real rtol=0.05
+    @test u_predict ≈ u_real rtol = 0.05
 end
 
-@testitem "Burger's equation" tags=[:dgm] begin
+@testitem "Burger's equation" tags = [:dgm] begin
     using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
-          MethodOfLines, OrdinaryDiffEq, LinearAlgebra
+        MethodOfLines, OrdinaryDiffEq, LinearAlgebra
     import DomainSets: Interval, infimum, supremum
 
     @parameters x t
@@ -112,7 +114,7 @@ end
     bcs = [
         u(0.0, x) ~ -sin(π * x),
         u(t, -1.0) ~ 0.0,
-        u(t, 1.0) ~ 0.0
+        u(t, 1.0) ~ 0.0,
     ]
 
     domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(-1.0, 1.0)]
@@ -147,5 +149,5 @@ end
 
     u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
 
-    @test u_predict≈u_MOL rtol=0.1
+    @test u_predict ≈ u_MOL rtol = 0.1
 end

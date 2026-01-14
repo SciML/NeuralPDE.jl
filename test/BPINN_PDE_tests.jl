@@ -1,7 +1,7 @@
-@testitem "BPINN PDE I: 1D Periodic System" tags=[:pdebpinn] begin
+@testitem "BPINN PDE I: 1D Periodic System" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-          AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
-          ComponentArrays
+        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -22,7 +22,8 @@
 
     sol1 = ahmc_bayesian_pinn_pde(
         pde_system, discretization; draw_samples = 1500, bcstd = [0.01],
-        phystd = [0.01], priorsNNw = (0.0, 1.0), saveats = [1 / 50.0])
+        phystd = [0.01], priorsNNw = (0.0, 1.0), saveats = [1 / 50.0]
+    )
 
     analytic_sol_func(u0, t) = u0 + sinpi(2t) / (2pi)
     ts = vec(sol1.timepoints[1])
@@ -30,13 +31,13 @@
     u_predict = pmean(sol1.ensemblesol[1])
 
     # absol tests
-    @test mean(abs, u_predict .- u_real) < 8e-2
+    @test mean(abs, u_predict .- u_real) < 8.0e-2
 end
 
-@testitem "BPINN PDE II: 1D ODE" tags=[:pdebpinn] begin
+@testitem "BPINN PDE II: 1D ODE" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-          AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
-          ComponentArrays
+        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -47,8 +48,8 @@ end
 
     # 1D ODE
     eq = Dθ(u(θ)) ~
-         θ^3 + 2.0f0 * θ + (θ^2) * ((1.0f0 + 3 * (θ^2)) / (1.0f0 + θ + (θ^3))) -
-         u(θ) * (θ + ((1.0f0 + 3.0f0 * (θ^2)) / (1.0f0 + θ + θ^3)))
+        θ^3 + 2.0f0 * θ + (θ^2) * ((1.0f0 + 3 * (θ^2)) / (1.0f0 + θ + (θ^3))) -
+        u(θ) * (θ + ((1.0f0 + 3.0f0 * (θ^2)) / (1.0f0 + θ + θ^3)))
 
     # Initial and boundary conditions
     bcs = [u(0.0) ~ 1.0f0]
@@ -68,19 +69,20 @@ end
 
     sol1 = ahmc_bayesian_pinn_pde(
         pde_system, discretization; draw_samples = 500, bcstd = [0.1],
-        phystd = [0.05], priorsNNw = (0.0, 10.0), saveats = [1 / 100.0])
+        phystd = [0.05], priorsNNw = (0.0, 10.0), saveats = [1 / 100.0]
+    )
 
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = sol1.timepoints[1]
     u_real = vec([analytic_sol_func(t) for t in ts])
     u_predict = pmean(sol1.ensemblesol[1])
-    @test u_predict≈u_real atol=0.8
+    @test u_predict ≈ u_real atol = 0.8
 end
 
-@testitem "BPINN PDE III: 3rd Degree ODE" tags=[:pdebpinn] begin
+@testitem "BPINN PDE III: 3rd Degree ODE" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-          AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
-          ComponentArrays
+        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -101,7 +103,7 @@ end
         u(1.0) ~ cospi(1.0),
         Dxu(1.0) ~ 1.0,
         Dxu(x) ~ Dx(u(x)) + ep * O1(x),
-        Dxxu(x) ~ Dx(Dxu(x)) + ep * O2(x)
+        Dxxu(x) ~ Dx(Dxu(x)) + ep * O2(x),
     ]
 
     # Space and time domains
@@ -113,30 +115,34 @@ end
         Chain(Dense(1, 10, tanh), Dense(10, 10, tanh), Dense(10, 1)),
         Chain(Dense(1, 10, tanh), Dense(10, 10, tanh), Dense(10, 1)),
         Chain(Dense(1, 4, tanh), Dense(4, 1)),
-        Chain(Dense(1, 4, tanh), Dense(4, 1))
+        Chain(Dense(1, 4, tanh), Dense(4, 1)),
     ]
 
     discretization = BayesianPINN(chain, GridTraining(0.01))
 
-    @named pde_system = PDESystem(eq, bcs, domains, [x],
-        [u(x), Dxu(x), Dxxu(x), O1(x), O2(x)])
+    @named pde_system = PDESystem(
+        eq, bcs, domains, [x],
+        [u(x), Dxu(x), Dxxu(x), O1(x), O2(x)]
+    )
 
-    sol1 = ahmc_bayesian_pinn_pde(pde_system, discretization; draw_samples = 200,
+    sol1 = ahmc_bayesian_pinn_pde(
+        pde_system, discretization; draw_samples = 200,
         bcstd = [0.01, 0.01, 0.01, 0.01, 0.01], phystd = [0.005],
-        priorsNNw = (0.0, 10.0), saveats = [1 / 100.0])
+        priorsNNw = (0.0, 10.0), saveats = [1 / 100.0]
+    )
 
     analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sinpi(x)) / (π^3)
 
     u_predict = pmean(sol1.ensemblesol[1])
     xs = vec(sol1.timepoints[1])
     u_real = [analytic_sol_func(x) for x in xs]
-    @test u_predict≈u_real atol=0.5
+    @test u_predict ≈ u_real atol = 0.5
 end
 
-@testitem "BPINN PDE IV: 2D Poisson" tags=[:pdebpinn] begin
+@testitem "BPINN PDE IV: 2D Poisson" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-          AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
-          ComponentArrays
+        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -154,7 +160,7 @@ end
         u(0, y) ~ 0.0,
         u(1, y) ~ 0.0,
         u(x, 0) ~ 0.0,
-        u(x, 1) ~ 0.0
+        u(x, 1) ~ 0.0,
     ]
 
     # Space and time domains
@@ -171,22 +177,24 @@ end
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
-    sol = ahmc_bayesian_pinn_pde(pde_system, discretization; draw_samples = 200,
+    sol = ahmc_bayesian_pinn_pde(
+        pde_system, discretization; draw_samples = 200,
         bcstd = [0.003, 0.003, 0.003, 0.003], phystd = [0.003],
-        priorsNNw = (0.0, 10.0), saveats = [1 / 100.0, 1 / 100.0])
+        priorsNNw = (0.0, 10.0), saveats = [1 / 100.0, 1 / 100.0]
+    )
 
     xs = sol.timepoints[1]
     analytic_sol_func(x, y) = (sinpi(x) * sinpi(y)) / (2pi^2)
 
     u_predict = pmean(sol.ensemblesol[1])
     u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
-    @test u_predict≈u_real rtol=0.5
+    @test u_predict ≈ u_real rtol = 0.5
 end
 
-@testitem "BPINN PDE: Translating from Flux" tags=[:pdebpinn] begin
+@testitem "BPINN PDE: Translating from Flux" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-          AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
-          ComponentArrays
+        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        ComponentArrays
     import DomainSets: Interval, infimum, supremum
     import Flux
 
@@ -198,8 +206,8 @@ end
 
     # 1D ODE
     eq = Dθ(u(θ)) ~
-         θ^3 + 2.0f0 * θ + (θ^2) * ((1.0f0 + 3 * (θ^2)) / (1.0f0 + θ + (θ^3))) -
-         u(θ) * (θ + ((1.0f0 + 3.0f0 * (θ^2)) / (1.0f0 + θ + θ^3)))
+        θ^3 + 2.0f0 * θ + (θ^2) * ((1.0f0 + 3 * (θ^2)) / (1.0f0 + θ + (θ^3))) -
+        u(θ) * (θ + ((1.0f0 + 3.0f0 * (θ^2)) / (1.0f0 + θ + θ^3)))
 
     # Initial and boundary conditions
     bcs = [u(0.0) ~ 1.0f0]
@@ -215,21 +223,23 @@ end
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
 
-    sol = ahmc_bayesian_pinn_pde(pde_system, discretization; draw_samples = 500,
-        bcstd = [0.1], phystd = [0.05], priorsNNw = (0.0, 10.0), saveats = [1 / 100.0])
+    sol = ahmc_bayesian_pinn_pde(
+        pde_system, discretization; draw_samples = 500,
+        bcstd = [0.1], phystd = [0.05], priorsNNw = (0.0, 10.0), saveats = [1 / 100.0]
+    )
 
     analytic_sol_func(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
     ts = sol.timepoints[1]
     u_real = vec([analytic_sol_func(t) for t in ts])
     u_predict = pmean(sol.ensemblesol[1])
 
-    @test u_predict≈u_real atol=0.8
+    @test u_predict ≈ u_real atol = 0.8
 end
 
-@testitem "BPINN PDE Inv I: 1D Periodic System" tags=[:pdebpinn] begin
+@testitem "BPINN PDE Inv I: 1D Periodic System" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-          AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
-          ComponentArrays
+        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -245,13 +255,15 @@ end
     chainl = Lux.Chain(Lux.Dense(1, 6, tanh), Lux.Dense(6, 6, tanh), Lux.Dense(6, 1))
     initl, st = Lux.setup(Random.default_rng(), chainl)
 
-    @named pde_system = PDESystem(eqs,
+    @named pde_system = PDESystem(
+        eqs,
         bcs,
         domains,
         [t],
         [u(t)],
         [p],
-        defaults = Dict([p => 4.0]))
+        defaults = Dict([p => 4.0])
+    )
 
     analytic_sol_func1(u0, t) = u0 + sinpi(2t) / (2π)
     timepoints = collect(0.0:(1 / 100.0):2.0)
@@ -261,36 +273,40 @@ end
 
     # BPINNs are formulated with a mesh that must stay the same throughout sampling (as of now)
     @testset "$(nameof(typeof(strategy)))" for strategy in [
-    # StochasticTraining(200),
-    # QuasiRandomTraining(200),
-        GridTraining([0.02])
-    ]
-        discretization = BayesianPINN([chainl], strategy; param_estim = true,
-            dataset = [dataset, nothing])
+            # StochasticTraining(200),
+            # QuasiRandomTraining(200),
+            GridTraining([0.02]),
+        ]
+        discretization = BayesianPINN(
+            [chainl], strategy; param_estim = true,
+            dataset = [dataset, nothing]
+        )
 
-        sol1 = ahmc_bayesian_pinn_pde(pde_system,
+        sol1 = ahmc_bayesian_pinn_pde(
+            pde_system,
             discretization;
             draw_samples = 1500,
             bcstd = [0.02],
             phystd = [0.02], l2std = [0.02],
             priorsNNw = (0.0, 1.0),
             saveats = [1 / 50.0],
-            param = [LogNormal(6.0, 0.5)])
+            param = [LogNormal(6.0, 0.5)]
+        )
 
         param = 2 * π
         ts = vec(sol1.timepoints[1])
         u_real = [analytic_sol_func1(0.0, t) for t in ts]
         u_predict = pmean(sol1.ensemblesol[1])
 
-        @test mean(abs, u_predict .- u_real) < 8e-2
-        @test sol1.estimated_de_params[1]≈param rtol=0.1
+        @test mean(abs, u_predict .- u_real) < 8.0e-2
+        @test sol1.estimated_de_params[1] ≈ param rtol = 0.1
     end
 end
 
-@testitem "BPINN PDE Inv II: Lorenz System" tags=[:pdebpinn] begin
+@testitem "BPINN PDE Inv II: Lorenz System" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-          AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
-          ComponentArrays
+        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -301,7 +317,7 @@ end
     eqs = [
         Dt(x(t)) ~ σ_ * (y(t) - x(t)),
         Dt(y(t)) ~ x(t) * (28.0 - z(t)) - y(t),
-        Dt(z(t)) ~ x(t) * y(t) - 8.0 / 3.0 * z(t)
+        Dt(z(t)) ~ x(t) * y(t) - 8.0 / 3.0 * z(t),
     ]
 
     bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
@@ -312,7 +328,7 @@ end
     chain = [
         Chain(Dense(input_, n, tanh), Dense(n, n, tanh), Dense(n, 1)),
         Chain(Dense(input_, n, tanh), Dense(n, n, tanh), Dense(n, 1)),
-        Chain(Dense(input_, n, tanh), Dense(n, n, tanh), Dense(n, 1))
+        Chain(Dense(input_, n, tanh), Dense(n, n, tanh), Dense(n, 1)),
     ]
 
     # Generate Data
@@ -332,13 +348,18 @@ end
     ts_ = hcat(ts...)[1, :]
     dataset = [hcat(us[i, :], ts_) for i in 1:3]
 
-    discretization = BayesianPINN(chain, GridTraining([0.01]); param_estim = true,
-        dataset = [dataset, nothing])
+    discretization = BayesianPINN(
+        chain, GridTraining([0.01]); param_estim = true,
+        dataset = [dataset, nothing]
+    )
 
-    @named pde_system = PDESystem(eqs, bcs, domains,
-        [t], [x(t), y(t), z(t)], [σ_], defaults = Dict([p => 1.0 for p in [σ_]]))
+    @named pde_system = PDESystem(
+        eqs, bcs, domains,
+        [t], [x(t), y(t), z(t)], [σ_], defaults = Dict([p => 1.0 for p in [σ_]])
+    )
 
-    sol1 = ahmc_bayesian_pinn_pde(pde_system,
+    sol1 = ahmc_bayesian_pinn_pde(
+        pde_system,
         discretization;
         draw_samples = 50,
         bcstd = [0.3, 0.3, 0.3],
@@ -346,18 +367,19 @@ end
         l2std = [1, 1, 1],
         priorsNNw = (0.0, 1.0),
         saveats = [0.01],
-        param = [Normal(12.0, 2)])
+        param = [Normal(12.0, 2)]
+    )
 
     idealp = 10.0
     p_ = sol1.estimated_de_params[1]
-    @test sum(abs, pmean(p_) - 10.00) < 0.3 * idealp[1]
+    @test sum(abs, pmean(p_) - 10.0) < 0.3 * idealp[1]
     # @test sum(abs, pmean(p_[2]) - (8 / 3)) < 0.3 * idealp[2]
 end
 
-@testitem "BPINN PDE Inv III: Improved Parametric Kuromo-Sivashinsky Equation solve" tags=[:pdebpinn] begin
+@testitem "BPINN PDE Inv III: Improved Parametric Kuromo-Sivashinsky Equation solve" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-          AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
-          ComponentArrays
+        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -394,20 +416,24 @@ end
     β = 4
     γ = 1
     eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) + α * Dx2(u(x, t)) + β * Dx3(u(x, t)) +
-         γ * Dx4(u(x, t)) ~ 0
+        γ * Dx4(u(x, t)) ~ 0
 
     u_analytic(x, t; z = -x / 2 + t) = 11 + 15 * tanh(z) - 15 * tanh(z)^2 - 15 * tanh(z)^3
     du(x, t; z = -x / 2 + t) = 15 / 2 * (tanh(z) + 1) * (3 * tanh(z) - 1) * sech(z)^2
 
-    bcs = [u(x, 0) ~ u_analytic(x, 0),
+    bcs = [
+        u(x, 0) ~ u_analytic(x, 0),
         u(-10, t) ~ u_analytic(-10, t),
         u(10, t) ~ u_analytic(10, t),
         Dx(u(-10, t)) ~ du(-10, t),
-        Dx(u(10, t)) ~ du(10, t)]
+        Dx(u(10, t)) ~ du(10, t),
+    ]
 
     # Space and time domains
-    domains = [x ∈ Interval(-10.0, 10.0),
-        t ∈ Interval(0.0, 1.0)]
+    domains = [
+        x ∈ Interval(-10.0, 10.0),
+        t ∈ Interval(0.0, 1.0),
+    ]
 
     # Discretization
     dx = 0.4
@@ -442,25 +468,31 @@ end
     # Adding Gaussian noise with a 0.8 std
     noisydataset_new = deepcopy(datasetpde_new)
     noisydataset_new[1][:, 1] = noisydataset_new[1][:, 1] .+
-                                (randn(size(noisydataset_new[1][:, 1])) .* 0.8)
+        (randn(size(noisydataset_new[1][:, 1])) .* 0.8)
 
     # Neural network
-    chain = Lux.Chain(Lux.Dense(2, 8, Lux.tanh),
+    chain = Lux.Chain(
+        Lux.Dense(2, 8, Lux.tanh),
         Lux.Dense(8, 8, Lux.tanh),
-        Lux.Dense(8, 1))
+        Lux.Dense(8, 1)
+    )
 
     # Discretization for old and new models
-    discretization = NeuralPDE.BayesianPINN([chain],
-        GridTraining([dx, dt]), param_estim = true, dataset = [noisydataset_new, nothing])
+    discretization = NeuralPDE.BayesianPINN(
+        [chain],
+        GridTraining([dx, dt]), param_estim = true, dataset = [noisydataset_new, nothing]
+    )
 
     # let α default to 2.0
-    @named pde_system = PDESystem(eq,
+    @named pde_system = PDESystem(
+        eq,
         bcs,
         domains,
         [x, t],
         [u(x, t)],
         [α],
-        defaults = Dict([α => 2.0]))
+        defaults = Dict([α => 2.0])
+    )
 
     # neccesarry for loss function construction (involves Operator masking)
     eqs = pde_system.eqs
@@ -480,43 +512,65 @@ end
     # choice of std for objectives is very important
     # pass in Dict_differentials, phystdnew arguments when using the new model
 
-    sol_new = ahmc_bayesian_pinn_pde(pde_system,
+    sol_new = ahmc_bayesian_pinn_pde(
+        pde_system,
         discretization;
         draw_samples = 150,
         bcstd = [0.1, 0.1, 0.1, 0.1, 0.1], phynewstd = [0.4],
         phystd = [0.2], l2std = [0.8], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
         saveats = [1 / 100.0, 1 / 100.0],
-        Dict_differentials = Dict_differentials)
+        Dict_differentials = Dict_differentials
+    )
 
-    sol_old = ahmc_bayesian_pinn_pde(pde_system,
+    sol_old = ahmc_bayesian_pinn_pde(
+        pde_system,
         discretization;
         draw_samples = 150,
         bcstd = [0.1, 0.1, 0.1, 0.1, 0.1],
         phystd = [0.2], l2std = [0.8], param = [Distributions.Normal(2.0, 2)],
         priorsNNw = (0.0, 1.0),
-        saveats = [1 / 100.0, 1 / 100.0])
+        saveats = [1 / 100.0, 1 / 100.0]
+    )
 
     phi = discretization.phi[1]
     xs,
-    ts = [infimum(d.domain):dx:supremum(d.domain)
-          for (d, dx) in zip(domains, [dx / 10, dt])]
+        ts = [
+        infimum(d.domain):dx:supremum(d.domain)
+            for (d, dx) in zip(domains, [dx / 10, dt])
+    ]
     u_real = [[u_analytic(x, t) for x in xs] for t in ts]
 
-    u_predict_new = [[first(pmean(phi([x, t], sol_new.estimated_nn_params[1]))) for x in xs]
-                     for t in ts]
+    u_predict_new = [
+        [first(pmean(phi([x, t], sol_new.estimated_nn_params[1]))) for x in xs]
+            for t in ts
+    ]
 
-    diff_u_new = [[abs(u_analytic(x, t) -
-                       first(pmean(phi([x, t], sol_new.estimated_nn_params[1]))))
-                   for x in xs]
-                  for t in ts]
+    diff_u_new = [
+        [
+                abs(
+                    u_analytic(x, t) -
+                    first(pmean(phi([x, t], sol_new.estimated_nn_params[1])))
+                )
+                for x in xs
+            ]
+            for t in ts
+    ]
 
-    u_predict_old = [[first(pmean(phi([x, t], sol_old.estimated_nn_params[1]))) for x in xs]
-                     for t in ts]
-    diff_u_old = [[abs(u_analytic(x, t) -
-                       first(pmean(phi([x, t], sol_old.estimated_nn_params[1]))))
-                   for x in xs]
-                  for t in ts]
+    u_predict_old = [
+        [first(pmean(phi([x, t], sol_old.estimated_nn_params[1]))) for x in xs]
+            for t in ts
+    ]
+    diff_u_old = [
+        [
+                abs(
+                    u_analytic(x, t) -
+                    first(pmean(phi([x, t], sol_old.estimated_nn_params[1])))
+                )
+                for x in xs
+            ]
+            for t in ts
+    ]
 
     unsafe_comparisons(true)
     @test all(all, [((diff_u_new[i]) .^ 2 .< 0.8) for i in 1:6]) == true

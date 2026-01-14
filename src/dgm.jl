@@ -7,8 +7,10 @@
     init_bias
 end
 
-function DGMLSTMLayer(in_dims::Int, out_dims::Int, activation1, activation2;
-        init_weight = glorot_uniform, init_bias = zeros32)
+function DGMLSTMLayer(
+        in_dims::Int, out_dims::Int, activation1, activation2;
+        init_weight = glorot_uniform, init_bias = zeros32
+    )
     return DGMLSTMLayer(activation1, activation2, in_dims, out_dims, init_weight, init_bias)
 end
 
@@ -25,7 +27,7 @@ function initialparameters(rng::AbstractRNG, l::DGMLSTMLayer)
         bz = l.init_bias(rng, l.out_dims),
         bg = l.init_bias(rng, l.out_dims),
         br = l.init_bias(rng, l.out_dims),
-        bh = l.init_bias(rng, l.out_dims)
+        bh = l.init_bias(rng, l.out_dims),
     )
 end
 
@@ -92,14 +94,24 @@ f(t, x, \\theta) &= \\sigma_{out}(W S^{L+1} + b).
 - `out_activation`: activation fn used for the output of the network.
 - `kwargs`: additional arguments to be splatted into [`PhysicsInformedNN`](@ref).
 """
-function DGM(in_dims::Int, out_dims::Int, modes::Int, layers::Int,
-        activation1, activation2, out_activation)
-    return DGM(Chain(
-        SkipConnection(
-            Dense(in_dims => modes, activation1),
-            DGMLSTMBlock([DGMLSTMLayer(in_dims, modes, activation1, activation2)
-                          for _ in 1:layers]...)),
-        Dense(modes => out_dims, out_activation)))
+function DGM(
+        in_dims::Int, out_dims::Int, modes::Int, layers::Int,
+        activation1, activation2, out_activation
+    )
+    return DGM(
+        Chain(
+            SkipConnection(
+                Dense(in_dims => modes, activation1),
+                DGMLSTMBlock(
+                    [
+                        DGMLSTMLayer(in_dims, modes, activation1, activation2)
+                            for _ in 1:layers
+                    ]...
+                )
+            ),
+            Dense(modes => out_dims, out_activation)
+        )
+    )
 end
 
 """
@@ -131,7 +143,8 @@ Journal of Computational Physics, Volume 375, 2018, Pages 1339-1364, doi: https:
 function DeepGalerkin(
         in_dims::Int, out_dims::Int, modes::Int, L::Int, activation1::Function,
         activation2::Function, out_activation::Function, strategy::AbstractTrainingStrategy;
-        kwargs...)
+        kwargs...
+    )
     return PhysicsInformedNN(
         DGM(in_dims, out_dims, modes, L, activation1, activation2, out_activation),
         strategy; kwargs...

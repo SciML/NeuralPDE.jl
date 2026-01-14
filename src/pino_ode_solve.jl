@@ -41,17 +41,21 @@ neural operator, which is used as a solver for a parametrized `ODEProblem`.
     kwargs
 end
 
-function PINOODE(chain,
+function PINOODE(
+        chain,
         opt,
         bounds,
         number_of_parameters;
         init_params = nothing,
         strategy = nothing,
         additional_loss = nothing,
-        kwargs...)
+        kwargs...
+    )
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
-    return PINOODE(chain, opt, bounds, number_of_parameters,
-        init_params, strategy, additional_loss, kwargs)
+    return PINOODE(
+        chain, opt, bounds, number_of_parameters,
+        init_params, strategy, additional_loss, kwargs
+    )
 end
 
 @concrete struct PINOPhi
@@ -65,12 +69,12 @@ end
 
 function generate_pino_phi_θ(chain::AbstractLuxLayer, ::Nothing)
     θ, st = LuxCore.setup(Random.default_rng(), chain)
-    PINOPhi(chain, st), θ
+    return PINOPhi(chain, st), θ
 end
 
 function generate_pino_phi_θ(chain::AbstractLuxLayer, init_params)
     st = LuxCore.initialstates(Random.default_rng(), chain)
-    PINOPhi(chain, st), init_params
+    return PINOPhi(chain, st), init_params
 end
 
 function (f::PINOPhi{C, T})(x, θ) where {C <: AbstractLuxLayer, T}
@@ -79,7 +83,7 @@ function (f::PINOPhi{C, T})(x, θ) where {C <: AbstractLuxLayer, T}
 end
 
 function (f::PINOPhi{C, T})(dev, x, θ) where {C <: AbstractLuxLayer, T}
-    f.smodel(dev(x), θ)
+    return f.smodel(dev(x), θ)
 end
 
 function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
@@ -88,37 +92,50 @@ function dfdx(phi::PINOPhi{C, T}, x::Tuple, θ) where {C <: DeepONet, T}
     trunk_left, trunk_right = t .+ sqrt(eps(eltype(t))), t
     x_left = (branch_left, trunk_left)
     x_right = (branch_right, trunk_right)
-    (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
+    return (phi(x_left, θ) .- phi(x_right, θ)) ./ sqrt(eps(eltype(t)))
 end
 
-function dfdx(phi::PINOPhi{C, T}, x::Array,
-        θ) where {C <: Lux.Chain, T}
+function dfdx(
+        phi::PINOPhi{C, T}, x::Array,
+        θ
+    ) where {C <: Lux.Chain, T}
     ε = [zeros(eltype(x), size(x)[1] - 1)..., sqrt(eps(eltype(x)))]
-    (phi(x .+ ε, θ) - phi(x, θ)) ./ sqrt(eps(eltype(x)))
+    return (phi(x .+ ε, θ) - phi(x, θ)) ./ sqrt(eps(eltype(x)))
 end
 
 function physics_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {C <: DeepONet, T}
+        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ
+    ) where {C <: DeepONet, T}
     p, t = x
     f = prob.f
     out = phi(x, θ)
     if size(p, 1) == 1
-        f_vec = reduce(hcat,
-            [reduce(vcat, [f(out[j, i], p[1, i], t[j]) for j in axes(t, 2)])
-             for i in axes(p, 2)])
+        f_vec = reduce(
+            hcat,
+            [
+                reduce(vcat, [f(out[j, i], p[1, i], t[j]) for j in axes(t, 2)])
+                    for i in axes(p, 2)
+            ]
+        )
     else
-        f_vec = reduce(hcat,
-            [reduce(vcat, [f(out[j, i], p[:, i], t[j]) for j in axes(t, 2)])
-             for i in axes(p, 2)])
+        f_vec = reduce(
+            hcat,
+            [
+                reduce(vcat, [f(out[j, i], p[:, i], t[j]) for j in axes(t, 2)])
+                    for i in axes(p, 2)
+            ]
+        )
     end
     du = dfdx(phi, x, θ)
     norm = prod(size(du))
-    sum(abs2, du .- f_vec) / norm
+    return sum(abs2, du .- f_vec) / norm
 end
 
 function physics_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
-        C <: Lux.Chain, T}
+        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ
+    ) where {
+        C <: Lux.Chain, T,
+    }
     p, t = x
     x_ = reduce(vcat, x)
     f = prob.f
@@ -126,106 +143,139 @@ function physics_loss(
     if size(p, 1) == 1 && size(out, 1) == 1
         f_vec = f.(out, p, t)
     elseif size(p, 1) > 1
-        f_vec = reduce(hcat,
-            [reduce(vcat, [f(out[1, i, j], p[:, i, j], t[1, i, j]) for j in axes(t, 3)])
-             for i in axes(p, 2)])
+        f_vec = reduce(
+            hcat,
+            [
+                reduce(vcat, [f(out[1, i, j], p[:, i, j], t[1, i, j]) for j in axes(t, 3)])
+                    for i in axes(p, 2)
+            ]
+        )
     elseif size(out, 1) > 1
-        f_vec = reduce(hcat,
-            [reduce(vcat, [f(out[:, i, j], p[1, i, j], t[1, i, j]) for j in axes(t, 3)])
-             for i in axes(p, 2)])
+        f_vec = reduce(
+            hcat,
+            [
+                reduce(vcat, [f(out[:, i, j], p[1, i, j], t[1, i, j]) for j in axes(t, 3)])
+                    for i in axes(p, 2)
+            ]
+        )
     end
     du = dfdx(phi, x_, θ)
     norm = prod(size(out))
-    sum(abs2, du .- f_vec) / norm
+    return sum(abs2, du .- f_vec) / norm
 end
 
 function initial_condition_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ) where {
-        C <: DeepONet, T}
+        phi::PINOPhi{C, T}, prob::ODEProblem, x, θ
+    ) where {
+        C <: DeepONet, T,
+    }
     p, t = x
     # NeuralOperators 0.6+ requires 2D trunk input
     t0 = reshape([prob.tspan[1]], (1, 1))
     x0 = (p, t0)
     u = phi(x0, θ)
     u0 = size(prob.u0, 1) == 1 ? fill(prob.u0, size(u)) :
-         reduce(vcat, [fill(u0, size(u)) for u0 in prob.u0])
+        reduce(vcat, [fill(u0, size(u)) for u0 in prob.u0])
     norm = prod(size(u0))
-    sum(abs2, u .- u0) / norm
+    return sum(abs2, u .- u0) / norm
 end
 
 function initial_condition_loss(
-        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ) where {
-        C <: Lux.Chain, T}
+        phi::PINOPhi{C, T}, prob::ODEProblem, x::Tuple, θ
+    ) where {
+        C <: Lux.Chain, T,
+    }
     p, t = x
     t0 = fill(prob.tspan[1], size(t))
     x0 = reduce(vcat, (p, t0))
     u = phi(x0, θ)
     u0 = size(prob.u0, 1) == 1 ? fill(prob.u0, size(t)) :
-         reduce(vcat, [fill(u0, size(t)) for u0 in prob.u0])
+        reduce(vcat, [fill(u0, size(t)) for u0 in prob.u0])
     norm = prod(size(u0))
-    sum(abs2, u .- u0) / norm
+    return sum(abs2, u .- u0) / norm
 end
 
 function get_trainset(
-        strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan)
+        strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan
+    )
     dt = strategy.dx
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
     p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
     # NeuralOperators 0.6+ requires 2D trunk input
     t = reshape(t_, 1, size(t_, 1))
-    (p, t)
+    return (p, t)
 end
 
 function get_trainset(
-        strategy::GridTraining, chain::Chain, bounds, number_of_parameters, tspan)
+        strategy::GridTraining, chain::Chain, bounds, number_of_parameters, tspan
+    )
     dt = strategy.dx
     tspan_ = tspan[1]:dt:tspan[2]
-    pspan = [range(start = b[1], length = number_of_parameters, stop = b[2])
-             for b in bounds]
-    x_ = hcat(vec(map(
-        points -> collect(points), Iterators.product([pspan..., tspan_]...)))...)
+    pspan = [
+        range(start = b[1], length = number_of_parameters, stop = b[2])
+            for b in bounds
+    ]
+    x_ = hcat(
+        vec(
+            map(
+                points -> collect(points), Iterators.product([pspan..., tspan_]...)
+            )
+        )...
+    )
     x = reshape(x_, size(bounds, 1) + 1, prod(size.(pspan, 1)), size(tspan_, 1))
     p, t = x[1:(end - 1), :, :], x[[end], :, :]
-    (p, t)
+    return (p, t)
 end
 
 function get_trainset(
         strategy::StochasticTraining, chain::DeepONet,
-        bounds, number_of_parameters, tspan)
-    p = reduce(vcat,
-        [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
-         for bound in bounds])
+        bounds, number_of_parameters, tspan
+    )
+    p = reduce(
+        vcat,
+        [
+            (bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
+                for bound in bounds
+        ]
+    )
     # NeuralOperators 0.6+ requires 2D trunk input
     t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points) .+ tspan[1]
-    (p, t)
+    return (p, t)
 end
 
 function get_trainset(
         strategy::StochasticTraining, chain::Chain,
-        bounds, number_of_parameters, tspan)
+        bounds, number_of_parameters, tspan
+    )
     (number_of_parameters != strategy.points) &&
         throw(error("number_of_parameters should be the same strategy.points for StochasticTraining"))
-    p = reduce(vcat,
-        [(bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
-         for bound in bounds])
+    p = reduce(
+        vcat,
+        [
+            (bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
+                for bound in bounds
+        ]
+    )
     t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points, 1) .+ tspan[1]
-    (p, t)
+    return (p, t)
 end
 
 function generate_loss(
-        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
+        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan
+    )
     x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
-    function loss(θ, _)
-        initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
+    return function loss(θ, _)
+        return initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
 
 function generate_loss(
-        strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan)
-    function loss(θ, _)
+        strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan
+    )
+    return function loss(θ, _)
         x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
-        initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
+        return initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
 
@@ -276,8 +326,9 @@ interp(p, t)
 (f::PINOODEInterpolation)(p, t) = f(t, nothing, Val{0}, p, nothing)
 
 function (f::PINOODEInterpolation)(
-        t::AbstractArray, ::Nothing, ::Type{Val{0}}, p::AbstractArray, continuity)
-    if f.phi.model isa DeepONet
+        t::AbstractArray, ::Nothing, ::Type{Val{0}}, p::AbstractArray, continuity
+    )
+    return if f.phi.model isa DeepONet
         f.phi((p, t), f.θ)
     elseif f.phi.model isa Chain
         if size(p, 2) != size(t, 2)
@@ -290,8 +341,9 @@ function (f::PINOODEInterpolation)(
 end
 
 function (f::PINOODEInterpolation)(
-        t::Number, ::Nothing, ::Type{Val{0}}, p::AbstractArray, continuity)
-    if f.phi.model isa DeepONet
+        t::Number, ::Nothing, ::Type{Val{0}}, p::AbstractArray, continuity
+    )
+    return if f.phi.model isa DeepONet
         # NeuralOperators 0.6+ requires 2D trunk input
         t_ = reshape([t], 1, 1)
         f.phi((p, t_), f.θ)
@@ -308,27 +360,33 @@ SciMLBase.allowscomplex(::PINOODE) = true
 
 function (sol::ODESolution{T, N, U, U2, D, T2, R, D2, P, A})(
         t::AbstractArray, ::Type{deriv}, idxs::Nothing,
-        continuity) where {T, N, U, U2, D, T2, R, D2, P, A <: PINOODE, deriv}
-    sol.interp(t, idxs, deriv, sol.prob.p, continuity)
+        continuity
+    ) where {T, N, U, U2, D, T2, R, D2, P, A <: PINOODE, deriv}
+    return sol.interp(t, idxs, deriv, sol.prob.p, continuity)
 end
 
 function (sol::ODESolution{T, N, U, U2, D, T2, R, D2, P, A})(
         t::AbstractVector{<:Number}, ::Type{deriv}, idxs::Nothing,
-        continuity) where {T, N, U, U2, D, T2, R, D2, P, A <: PINOODE, deriv}
-    sol.interp(t, idxs, deriv, sol.prob.p, continuity)
+        continuity
+    ) where {T, N, U, U2, D, T2, R, D2, P, A <: PINOODE, deriv}
+    return sol.interp(t, idxs, deriv, sol.prob.p, continuity)
 end
 
-function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
+function SciMLBase.__solve(
+        prob::SciMLBase.AbstractODEProblem,
         alg::PINOODE,
         args...;
         abstol = 1.0f-8,
         reltol = 1.0f-3,
         verbose = false,
         saveat = nothing,
-        maxiters = nothing)
+        maxiters = nothing
+    )
     (; tspan, u0, f) = prob
-    (; chain, opt, bounds, number_of_parameters,
-        init_params, strategy, additional_loss) = alg
+    (;
+        chain, opt, bounds, number_of_parameters,
+        init_params, strategy, additional_loss,
+    ) = alg
 
     if !(chain isa AbstractLuxLayer)
         error("Only Lux.AbstractLuxLayer neural networks are supported")
@@ -375,14 +433,15 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     end
 
     inner_f = generate_loss(
-        strategy, prob, phi, bounds, number_of_parameters, tspan)
+        strategy, prob, phi, bounds, number_of_parameters, tspan
+    )
 
     function total_loss(θ, _)
         L2_loss = inner_f(θ, nothing)
         if !(additional_loss isa Nothing)
             L2_loss = L2_loss + additional_loss(phi, θ)
         end
-        L2_loss
+        return L2_loss
     end
 
     # Optimization Algo for Training Strategies
@@ -395,7 +454,7 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     callback = function (p, l)
         iteration += 1
         verbose && println("Current loss is: $l, Iteration: $iteration")
-        l < abstol
+        return l < abstol
     end
 
     optprob = OptimizationProblem(optf, init_params)
@@ -406,15 +465,19 @@ function SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem,
     u = interp(p, t)
     prob_sol = ODEProblem(f.f, u0, tspan, p)
 
-    sol = SciMLBase.build_solution(prob_sol, alg, t, u;
+    sol = SciMLBase.build_solution(
+        prob_sol, alg, t, u;
         k = res, dense = true,
         interp = interp,
         calculate_error = false,
         retcode = ReturnCode.Success,
         original = res,
-        resid = res.objective)
+        resid = res.objective
+    )
     SciMLBase.has_analytic(prob.f) &&
-        SciMLBase.calculate_solution_errors!(sol; timeseries_errors = true,
-            dense_errors = false)
-    sol
+        SciMLBase.calculate_solution_errors!(
+        sol; timeseries_errors = true,
+        dense_errors = false
+    )
+    return sol
 end
