@@ -1,4 +1,4 @@
-@testitem "Test-1 solve & autodiff" tags=[:nnsde] begin
+@testitem "Test-1 solve & autodiff" tags=[:nnsde1] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers
     using OptimizationOptimJL: BFGS
     Random.seed!(100)
@@ -30,7 +30,7 @@
     end
 end
 
-@testitem "Test-2 GBM SDE" tags=[:nnsde] begin
+@testitem "Test-2 GBM SDE" tags=[:nnsde1] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
     using OptimizationOptimJL: BFGS
     using MonteCarloMeasurements: Particles, pmean
@@ -167,7 +167,7 @@ end
 end
 
 # Equation 65 from https://arxiv.org/abs/1804.04344
-@testitem "Test-3 Additive Noise Test Equation" tags=[:nnsde] begin
+@testitem "Test-3 Additive Noise Test Equation" tags=[:nnsde1] begin
     using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
     using OptimizationOptimJL: BFGS
     using MonteCarloMeasurements: Particles, pmean
@@ -305,7 +305,7 @@ end
     @test MSE_2 < 8e-5
 end
 
-@testitem "Test-4 GBM SDE Inverse, weak & strong solving" tags=[:nnsde] begin
+@testitem "Test-4 GBM SDE Inverse, weak & strong solving" tags=[:nnsde1] begin
     # Also works for brownian motion with constant drift.
     using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
     using MonteCarloMeasurements: pmean, Particles
