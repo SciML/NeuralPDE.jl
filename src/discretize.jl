@@ -403,7 +403,14 @@ For more information, see `discretize` and `PINNRepresentation`.
 function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
     (; eqs, bcs, domain) = pde_system
     eq_params = pde_system.ps
-    defaults = pde_system.defaults
+    # Handle MTK 11+ where defaults is replaced by initial_conditions
+    defaults = if hasfield(typeof(pde_system), :defaults)
+        pde_system.defaults
+    elseif hasfield(typeof(pde_system), :initial_conditions)
+        pde_system.initial_conditions
+    else
+        Dict()
+    end
     (;
         chain, param_estim, additional_loss, multioutput, init_params, phi,
         derivative, strategy, logger, iteration, self_increment,

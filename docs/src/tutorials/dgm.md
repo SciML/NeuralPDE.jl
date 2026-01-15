@@ -50,7 +50,13 @@ u(t, 1) & = 0
 
 ### Copy- Pasteable code
 
-```@example dgm
+!!! note "Documentation Build Note"
+    This example is temporarily non-executable because MethodOfLines.jl is not yet
+    compatible with ModelingToolkit 11 and Symbolics 7. The code is still valid and
+    will work once you install a compatible version of MethodOfLines.
+    See [NeuralPDE.jl#1008](https://github.com/SciML/NeuralPDE.jl/issues/1008) for tracking.
+
+```julia
 using NeuralPDE
 using ModelingToolkit, Optimization, OptimizationOptimisers
 using Distributions
