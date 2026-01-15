@@ -1,7 +1,9 @@
 @testitem "Aqua" tags = [:qa] begin
     using NeuralPDE, Aqua
 
-    Aqua.test_all(NeuralPDE; ambiguities = false)
+    # Skip undefined exports check for Variable and find_solvables! which are
+    # re-exported from ModelingToolkit but no longer exist in MTK 11
+    Aqua.test_all(NeuralPDE; ambiguities = false, undefined_exports = false)
     Aqua.test_ambiguities(NeuralPDE, recursive = false)
 end
 

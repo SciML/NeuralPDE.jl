@@ -404,10 +404,10 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     (; eqs, bcs, domain) = pde_system
     eq_params = pde_system.ps
     # Handle MTK 11+ where defaults is replaced by initial_conditions
-    defaults = if hasfield(typeof(pde_system), :defaults)
-        pde_system.defaults
-    elseif hasfield(typeof(pde_system), :initial_conditions)
+    defaults = if hasfield(typeof(pde_system), :initial_conditions)
         pde_system.initial_conditions
+    elseif hasfield(typeof(pde_system), :defaults)
+        pde_system.defaults
     else
         Dict()
     end
