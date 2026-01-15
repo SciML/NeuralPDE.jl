@@ -1,6 +1,6 @@
 # IntegroDiff tests are temporarily skipped due to Cubature/Zygote compatibility issue
 # Error: UndefVarError: `spvals` not defined - related to SparseArrays
-# See https://github.com/SciML/NeuralPDE.jl/issues/XXX
+# See https://github.com/SciML/NeuralPDE.jl/issues/1014
 
 @testsetup module IntegroDiffTestSetup
 

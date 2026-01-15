@@ -1,5 +1,5 @@
 # Skip Fokker-Planck: Zygote doesn't have adjoint rules for IntegralSolution constructor
-# See https://github.com/SciML/NeuralPDE.jl/issues/XXX
+# See https://github.com/SciML/NeuralPDE.jl/issues/1015
 @testitem "Fokker-Planck" tags = [:nnpde2] skip = true begin
     using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, ComponentArrays,
         Integrals, Cubature
