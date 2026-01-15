@@ -3,7 +3,7 @@ module NeuralPDE
 using ADTypes: ADTypes, AutoForwardDiff, AutoZygote
 using Adapt: Adapt
 using ArrayInterface: ArrayInterface
-using ChainRulesCore: ChainRulesCore, @non_differentiable, @ignore_derivatives
+using ChainRulesCore: ChainRulesCore, @ignore_derivatives
 using Cubature: Cubature
 using ComponentArrays: ComponentArrays, ComponentArray, getdata, getaxes
 using ConcreteStructs: @concrete
