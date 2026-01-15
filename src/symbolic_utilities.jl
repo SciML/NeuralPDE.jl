@@ -379,19 +379,20 @@ function get_vars(indvars_, depvars_)
     depvars = Symbol[]
     dict_depvar_input = Dict{Symbol, Vector{Symbol}}()
     for d in depvars_
-        if unwrap(d) isa SymbolicUtils.BasicSymbolic
-            dname = SymbolicIndexingInterface.getname(d)
-            push!(depvars, dname)
+        ud = unwrap(d)
+        dname = SymbolicIndexingInterface.getname(d)
+        push!(depvars, dname)
+        # In SymbolicUtils 4+, we need to check iscall before accessing arguments
+        # Sym types (simple variables) don't have arguments, only Term types (calls) do
+        if ud isa SymbolicUtils.BasicSymbolic && iscall(ud)
             push!(
                 dict_depvar_input,
                 dname => [
                     nameof(unwrap(argument))
-                        for argument in arguments(unwrap(d))
+                        for argument in arguments(ud)
                 ]
             )
         else
-            dname = SymbolicIndexingInterface.getname(d)
-            push!(depvars, dname)
             push!(dict_depvar_input, dname => indvars) # default to all inputs if not given
         end
     end

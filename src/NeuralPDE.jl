@@ -38,7 +38,7 @@ using Zygote: Zygote
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
 using Symbolics: Symbolics, unwrap, arguments, operation, Num,
-    expand_derivatives
+    expand_derivatives, iscall
 
 # Helper function for building expressions (replaces deprecated Symbolics.build_expr)
 build_expr(head, args) = Expr(head, args...)
