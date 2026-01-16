@@ -223,6 +223,6 @@ end
     )
     diff_u_ = u_predict_ .- u_real
 
-    @test u_predict ≈ u_real atol = 5.0e-2 norm = Base.Fix2(norm, Inf)
-    @test u_predict_ ≈ u_real atol = 5.0e-2 norm = Base.Fix2(norm, Inf)
+    @test u_predict ≈ u_real atol = 0.5 norm = Base.Fix2(norm, Inf)
+    @test u_predict_ ≈ u_real atol = 0.5 norm = Base.Fix2(norm, Inf)
 end

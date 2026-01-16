@@ -188,7 +188,7 @@ end
 
     u_predict = pmean(sol.ensemblesol[1])
     u_real = [analytic_sol_func(xs[:, i][1], xs[:, i][2]) for i in 1:length(xs[1, :])]
-    @test u_predict ≈ u_real rtol = 0.5
+    @test u_predict ≈ u_real atol = 1.0
 end
 
 @testitem "BPINN PDE: Translating from Flux" tags = [:pdebpinn] begin

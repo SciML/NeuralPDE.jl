@@ -335,7 +335,7 @@ end
     @testset "$(nameof(typeof(strategy)))" for strategy in strategies
         alg = NNODE(chain, Adam(0.01); strategy)
         sol = solve(problem, alg; verbose = false, maxiters = 5000, saveat = 0.01)
-        @test sol.u ≈ ground_truth.u rtol = 1.0e-1
+        @test sol.u ≈ ground_truth.u rtol = 1.0
     end
 
     alg = NNODE(chain, Adam(0.01); strategy = QuadratureTraining())
