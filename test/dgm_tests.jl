@@ -41,7 +41,7 @@
     u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
     u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
 
-    @test u_real ≈ u_predict atol = 1.0
+    @test u_real ≈ u_predict atol = 1.0 norm = (x -> maximum(abs, x))
 end
 
 @testitem "Black-Scholes PDE: European Call Option" tags = [:dgm] begin

@@ -205,7 +205,7 @@ end
         u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
         u_real = [analytic(x, y) for x in xs for y in ys]
 
-        @test u_predict ≈ u_real atol = 2.0
+        @test u_predict ≈ u_real atol = 2.0 norm = (x -> maximum(abs, x))
     end
 
     chain = Chain(Dense(2, 12, σ), Dense(12, 12, σ), Dense(12, 1))

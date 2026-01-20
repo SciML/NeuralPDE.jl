@@ -418,8 +418,30 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     (; log_frequency) = discretization.log_options
     adaloss = discretization.adaptive_loss
 
-    default_p = eq_params isa SciMLBase.NullParameters ? nothing :
-        Float64[defaults[ep] for ep in eq_params]
+    default_p = if eq_params isa SciMLBase.NullParameters
+        nothing
+    elseif isempty(defaults)
+        ones(Float64, length(eq_params))
+    else
+        # Get numeric values from defaults dictionary
+        # Handle both numeric and symbolic values safely
+        map(eq_params) do ep
+            val = get(defaults, ep, 1.0)
+            # Try to convert to Float64, handling symbolic values
+            if val isa Number
+                Float64(val)
+            else
+                # Try to unwrap symbolic values
+                unwrapped = unwrap(val)
+                if unwrapped isa Number
+                    Float64(unwrapped)
+                else
+                    # Fallback to default
+                    1.0
+                end
+            end
+        end
+    end
 
     depvars, indvars, dict_indvars,
         dict_depvars, dict_depvar_input = get_vars(
