@@ -191,13 +191,21 @@ function _transform_expression(
                 end
                 break
             elseif e isa Symbolics.Integral
-                if _args[1].domain.variables isa Tuple
-                    integrating_variable_ = collect(_args[1].domain.variables)
+                domain_vars = _args[1].domain.variables
+                if domain_vars isa Tuple
+                    integrating_variable_ = collect(domain_vars)
                     integrating_variable = toexpr.(integrating_variable_)
                     integrating_var_id = [dict_indvars[i] for i in integrating_variable]
                 else
-                    integrating_variable = toexpr(_args[1].domain.variables)
-                    integrating_var_id = [dict_indvars[integrating_variable]]
+                    integrating_variable = toexpr(domain_vars)
+                    # Handle case where toexpr returns a tuple expression (Symbolics v7)
+                    if integrating_variable isa Expr && integrating_variable.head == :call &&
+                            integrating_variable.args[1] == :tuple
+                        integrating_variable = integrating_variable.args[2:end]
+                        integrating_var_id = [dict_indvars[i] for i in integrating_variable]
+                    else
+                        integrating_var_id = [dict_indvars[integrating_variable]]
+                    end
                 end
 
                 integrating_depvars = []
