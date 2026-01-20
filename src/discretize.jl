@@ -431,14 +431,9 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
             if val isa Number
                 Float64(val)
             else
-                # Try to unwrap symbolic values
-                unwrapped = unwrap(val)
-                if unwrapped isa Number
-                    Float64(unwrapped)
-                else
-                    # Fallback to default
-                    1.0
-                end
+                # Use Symbolics.value to extract numeric value from symbolic types
+                # This handles MTK 11+ where initial_conditions stores symbolic wrappers
+                Float64(Symbolics.value(val))
             end
         end
     end
