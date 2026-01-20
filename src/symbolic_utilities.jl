@@ -379,14 +379,16 @@ function get_vars(indvars_, depvars_)
     depvars = Symbol[]
     dict_depvar_input = Dict{Symbol, Vector{Symbol}}()
     for d in depvars_
-        if unwrap(d) isa SymbolicUtils.BasicSymbolic
+        ud = unwrap(d)
+        # SymbolicUtils v4: use iscall to check if we can get arguments
+        if SymbolicUtils.iscall(ud)
             dname = SymbolicIndexingInterface.getname(d)
             push!(depvars, dname)
             push!(
                 dict_depvar_input,
                 dname => [
                     nameof(unwrap(argument))
-                        for argument in arguments(unwrap(d))
+                        for argument in arguments(ud)
                 ]
             )
         else
