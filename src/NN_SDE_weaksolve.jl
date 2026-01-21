@@ -19,7 +19,7 @@
     # ::Distributions.Distribution
 
     # solver options
-    strategy <: Union{Nothing, AbstractTrainingStrategy}
+    strategy <: Union{Nothing,AbstractTrainingStrategy}
     autodiff::Bool
     batch::Bool
     param_estim::Bool
@@ -29,31 +29,30 @@
     # tview::AbstractArray
     # phi::Phi
 
-    dataset <: Union{Nothing, Vector, Vector{<:Vector}}
-    additional_loss <: Union{Nothing, Function}
+    dataset <: Union{Nothing,Vector,Vector{<:Vector}}
+    additional_loss <: Union{Nothing,Function}
     kwargs
 end
 
 function SDEPINN(;
-        chain,
-        optimalg = nothing,
-        norm_loss_alg = nothing,
-        # BFGS(linesearch = BackTracking()),
-        x_0,
-        x_end,
-        Nt = 50,
-        dx = 0.01,
-        σ_var_bc = 0.05,
-        λ_ic = 1.0,
-        λ_norm = 1.0,
-        distrib = Normal,
-        strategy = nothing,
-        autodiff = true,
-        batch = false,
-        param_estim = false,
-        dataset = nothing,
-        additional_loss = nothing,
-        kwargs...
+    chain,
+    optimalg=nothing,
+    norm_loss_alg=nothing,
+    x_0,
+    x_end,
+    Nt=50,
+    dx=0.01,
+    σ_var_bc=0.05,
+    λ_ic=1.0,
+    λ_norm=1.0,
+    distrib=Normal,
+    strategy=nothing,
+    autodiff=true,
+    batch=false,
+    param_estim=false,
+    dataset=nothing,
+    additional_loss=nothing,
+    kwargs...
 )
     return SDEPINN(
         chain,
@@ -78,38 +77,26 @@ function SDEPINN(;
 end
 
 function SciMLBase.__solve(
-        prob::SciMLBase.AbstractSDEProblem,
-        alg::SDEPINN,
-        args...;
-        dt = nothing,
-        abtol = 1.0f-6,
-        reltol = 1.0f-3,
-        saveat = nothing,
-        tstops = nothing,
-        maxiters = 200,
-        verbose = false
+    prob::SciMLBase.AbstractSDEProblem,
+    alg::SDEPINN,
+    args...;
+    dt=nothing,
+    abtol=1.0f-6,
+    reltol=1.0f-3,
+    saveat=nothing,
+    tstops=nothing,
+    maxiters=200,
+    verbose=false
 )
     (; u0, tspan, f, g, p) = prob
     P = eltype(u0)
     t₀, t₁ = tspan
 
-    # initial_parameters
-    # σ_var_bc::Float64
-    # strategy <: Union{Nothing, AbstractTrainingStrategy}
-    # autodiff::Bool
-    # batch::Bool
-    # param_estim::Bool
-    # xview::AbstractArray
-    # tview::AbstractArray
-    # phi::Phi
-    # dataset <: Union{Nothing, Vector}
-    # additional_loss <: Union{Nothing, Function}
-
-    absorbing_bc = true
+    absorbing_bc = false
     reflective_bc = true
 
     (; x_0, x_end, Nt, dx, σ_var_bc, λ_ic, λ_norm,
-    distrib, optimalg, norm_loss_alg, chain) = alg
+        distrib, optimalg, norm_loss_alg, chain) = alg
 
     dt = (t₁ - t₀) / Nt
     ts = collect(t₀:dt:t₁)
@@ -163,15 +150,12 @@ function SciMLBase.__solve(
     # The Normalizaiton PDF mass although "conseved inside domain
     # can be forced to spread in different regions.
 
-    # so therefrore-> currenrl resitn for smaller range (pretty good, idential to manyal)
-    # using J formualtion 
-
     bcs = [
-    # No probability enters or leaves the domain
-    # Total mass is conserved
-    # Matches an SDE on a truncated but reflecting domain BC
+        # No probability enters or leaves the domain
+        # Total mass is conserved
+        # Matches an SDE on a truncated but reflecting domain BC
 
-    # IC LOSS (its getting amplified by the number of training points.)
+        # IC LOSS (it's getting amplified by the number of training points.)
         f_icloss...
     ]
 
@@ -196,10 +180,9 @@ function SciMLBase.__solve(
 
     # Additional losses
     # Handle normloss and ICloss for vector NN outputs !!
-    # willneed to adjst x0, x_end, u0 handling for this also !!
+    # will need to adjst x0, x_end, u0 handling for this also !!
 
     σ_var_bc = 0.05 # must be narrow, dirac deltra function centering. (smaller this is, we drop NN from a taller point to learn)
-    # pdf(LogNormal(log(X₀), σ_var_bc), x)  # initial PDF
     function norm_loss(phi, θ)
         loss = P(0)
         for t in ts
@@ -207,7 +190,7 @@ function SciMLBase.__solve(
             # perform ∫ f(x) dx over [x_0, x_end]
             phi_normloss(x, θ) = u0 isa Number ? first(phi([x, t], θ)) : phi([x, t], θ)
             I_est = solve(IntegralProblem(phi_normloss, x_0, x_end, θ), norm_loss_alg,
-                reltol = 1e-8, abstol = 1e-8, maxiters = 10)[1]
+                reltol=1e-8, abstol=1e-8, maxiters=10)[1]
             loss += abs2(I_est - P(1))
         end
         return loss
@@ -215,7 +198,6 @@ function SciMLBase.__solve(
 
     function combined_additional(phi, θ, _)
         λ_norm * norm_loss(phi, θ)
-        #  + λ_ic * ic_loss(phi, θ)
     end
 
     # Discretization
@@ -223,7 +205,7 @@ function SciMLBase.__solve(
         chain,
         # GridTraining only
         GridTraining([dx, dt]),
-        additional_loss = combined_additional
+        additional_loss=combined_additional
     )
 
     @named pdesys = PDESystem(eq, bcs, domains, [X, T], [p̂(X, T)])
@@ -234,24 +216,12 @@ function SciMLBase.__solve(
     pde_losses = sym.loss_functions.pde_loss_functions
     bc_losses = sym.loss_functions.bc_loss_functions
 
-    # function callback_icloss(θ)
-    #     if u0 isa Number
-    #         abs2(first(phi([u0, t₀], θ)) - Distributions.pdf(distrib, u0))
-    #     else
-    #         sum(abs2,
-    #             [phi([u0[i], t₀], θ) .-
-    #              Distributions.pdf(distrib[i], u0[i])
-    #              for i in 1:length(u0)])
-    #     end
-    # end
-
     # make this user inputed only ?!
     cb = function (p, l)
         (!verbose) && return false
         println("loss = ", l)
         println("pde = ", map(f -> f(p.u), pde_losses))
         println("bc  = ", map(f -> f(p.u), bc_losses))
-        # println("ic = ", ic_loss(phi, p.u))
         println("norm = ", norm_loss(phi, p.u))
         return false
     end
@@ -259,8 +229,8 @@ function SciMLBase.__solve(
     res = Optimization.solve(
         opt_prob,
         optimalg;
-        callback = cb,
-        maxiters = maxiters
+        callback=cb,
+        maxiters=maxiters
     )
 
     # postprocessing?
