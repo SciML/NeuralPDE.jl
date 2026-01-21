@@ -386,7 +386,6 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
         return integration_arr
     end
 end
-
 """
     prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
 
