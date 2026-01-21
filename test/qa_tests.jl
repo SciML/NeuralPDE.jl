@@ -4,7 +4,11 @@
     # Skip undefined_exports check because ModelingToolkit has a broken export
     # for AbstractDynamicOptProblem that gets re-exported via @reexport.
     # This is an upstream issue in ModelingToolkit, not NeuralPDE.
-    Aqua.test_all(NeuralPDE; ambiguities = false, undefined_exports = false)
+    # Skip persistent_tasks check because SymbolicsPreallocationToolsExt has
+    # __precompile__(false) which causes Aqua's precompilation check to fail.
+    # This is an upstream issue in Symbolics.jl, not NeuralPDE.
+    Aqua.test_all(NeuralPDE; ambiguities = false, undefined_exports = false,
+        persistent_tasks = false)
     Aqua.test_ambiguities(NeuralPDE, recursive = false)
 end
 
