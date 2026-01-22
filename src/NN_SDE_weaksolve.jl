@@ -120,7 +120,7 @@ function SciMLBase.__solve(
         (p̂(u0[i], t₀) .- Distributions.pdf(distrib[i], u0[i]) ~ P(0) for i in 1:length(u0))
     end
 
-    # # inside optimzation loss
+    # # inside optimization loss
     # # IC loss imposed pointwise only at t₀ and at x = u0, extremes of x domain.
     # ftest_icloss = if u0 isa Number
     #     (phi, θ) -> first(phi([u0, t₀], θ)) - Distributions.pdf(distrib, u0)
