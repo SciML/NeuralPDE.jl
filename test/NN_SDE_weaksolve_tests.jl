@@ -1,4 +1,4 @@
-@testitem "OU process" tags=[:nnsde2] begin
+@testitem "OU process" tags = [:nnsde2] begin
     using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Optimisers
     using OrdinaryDiffEq, Random, Distributions, Integrals, Cubature
     using DifferentialEquations, LineSearches
@@ -26,26 +26,22 @@
     dx = 0.01
     x_0 = -4.0
     x_end = 4.0
+    σ_var_bc = 0.05
 
     alg = SDEPINN(
-        chain = chain,
-        optimalg = BFGS(),
-        norm_loss_alg = HCubatureJL(),
-        x_0 = x_0,
-        x_end = x_end,
-        # Normal(u0, σ_var_bc)
-        distrib = Normal(0.5, 0.05)
+        chain=chain,
+        optimalg=BFGS(),
+        norm_loss_alg=HCubatureJL(),
+        x_0=x_0,
+        x_end=x_end,
+        distrib=Normal(u0, σ_var_bc)
     )
 
     sol_OU, phi = solve(
         prob,
         alg,
-        # verbose=true,
-        maxiters = 400
+        maxiters=500,
     )
-
-    # using Plots
-    # plotly()
 
     # OU analytic solution
     σ² = 0.5      # stationary variance = 1/2 <- # $Var_{\infty} = \frac{\beta^2}{2|\alpha|}$
@@ -58,22 +54,28 @@
     u_real = [[analytic_sol_func(x, t) for x in xs] for t in ts]
     u_predict = [[first(phi([x, t], sol_OU.u)) for x in xs] for t in ts]  # NeuralPDE predictions
 
-    # plots_got=[]
+    # MSE across all x.
+    diff = u_real .- u_predict
+    @test mean(vcat([abs2.(diff_i) for diff_i in diff]...)) < 0.01
+
+    # using Plots
+    # plotly()
+    # plots_got = []
     # for i in 1:length(ts)
     #     plot(xs, u_real[i], label="analytic t=$(ts[i])")
-    #     push!(plots_got,plot!(xs, u_predict[i], label="predict t=$(ts[i])"))
+    #     push!(plots_got, plot!(xs, u_predict[i], label="predict t=$(ts[i])"))
     # end
-    # plot(plots_got...,legend=:outerbottomright)
+    # plot(plots_got..., legend=:outerbottomright)
 end
 
-@testitem "GBM SDE" tags=[:nnsde2] begin
+@testitem "GBM SDE" tags = [:nnsde2] begin
     using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Optimisers
     using OrdinaryDiffEq, Random, Distributions, Integrals, Cubature
     using DifferentialEquations, LineSearches
     using ModelingToolkit: infimum, supremum
     using OptimizationOptimJL: BFGS
     Random.seed!(100)
-    # (results depend on x assumed range)
+
     μ = 0.2
     σ = 0.3
     f(x, p, t) = μ * x
@@ -89,32 +91,29 @@ end
         Dense(inn, 1, Lux.logcosh
         )) |> f64
 
-    # problem setting
+    # problem setting - (results depend on x's assumed range)
+
     dx = 0.01
     x_0 = 0.0
     x_end = 3.0
-
+    σ_var_bc = 0.05
     alg = SDEPINN(
-        chain = chain,
-        optimalg = BFGS(),
-        norm_loss_alg = HCubatureJL(),
-        x_0 = x_0,
-        x_end = x_end,
+        chain=chain,
+        optimalg=BFGS(),
+        norm_loss_alg=HCubatureJL(),
+        x_0=x_0,
+        x_end=x_end,
+
         # pdf(LogNormal(log(X₀), σ_var_bc), x)  # initial PDF
-        # for gbm normal X0 disti also gives good reutls with reflective_bc.
-        distrib = LogNormal(log(u0), 0.05)
+        # for gbm normal X0 disti also gives good results with absorbing_bc.
+        distrib=LogNormal(log(u0), σ_var_bc)
     )
 
     sol_GBM, phi = solve(
         prob,
         alg,
-        verbose = true,
-        maxiters = 500
+        maxiters=500
     )
-
-    # Compare with analytic GBM solution
-    # using Plots
-    # plotly()
 
     analytic_sol_func(x, t) = pdf(LogNormal(log(u0) + (μ - 0.5 * σ^2) * t, sqrt(t) * σ), x)
     xs = collect(x_0:dx:x_end)
@@ -125,6 +124,13 @@ end
     u_real = [[analytic_sol_func(x, t) for x in xs] for t in ts]
     u_predict = [[first(phi([x, t], sol_GBM.u)) for x in xs] for t in ts]
 
+    # MSE across all x.
+    diff = u_real .- u_predict
+    @test mean(vcat([abs2.(diff_i) for diff_i in diff]...)) < 0.01
+
+    # Compare with analytic GBM solution
+    # using Plots
+    # plotly()
     # plots_got = []
     # for i in 1:length(ts)
     #     plot(xs, u_real[i], label="analytic t=$(ts[i])")

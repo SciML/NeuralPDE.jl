@@ -3,7 +3,7 @@
     chain <: AbstractLuxLayer
     optimalg
     norm_loss_alg
-    # initial_parameters
+    initial_parameters
 
     # domain + discretization
     x_0::Float64
@@ -15,8 +15,7 @@
     σ_var_bc::Float64
     λ_ic::Float64
     λ_norm::Float64
-    distrib
-    # ::Distributions.Distribution
+    distrib::Distributions.Distribution
 
     # solver options
     strategy <: Union{Nothing,AbstractTrainingStrategy}
@@ -24,7 +23,7 @@
     batch::Bool
     param_estim::Bool
 
-    # solution handling
+    # For postprocessing - solution handling
     # xview::AbstractArray
     # tview::AbstractArray
     # phi::Phi
@@ -38,6 +37,7 @@ function SDEPINN(;
     chain,
     optimalg=nothing,
     norm_loss_alg=nothing,
+    initial_parameters=nothing,
     x_0,
     x_end,
     Nt=50,
@@ -45,7 +45,7 @@ function SDEPINN(;
     σ_var_bc=0.05,
     λ_ic=1.0,
     λ_norm=1.0,
-    distrib=Normal,
+    distrib=Normal(0.5, 0.01),
     strategy=nothing,
     autodiff=true,
     batch=false,
@@ -58,6 +58,7 @@ function SDEPINN(;
         chain,
         optimalg,
         norm_loss_alg,
+        initial_parameters,
         x_0,
         x_end,
         Nt,
@@ -86,7 +87,8 @@ function SciMLBase.__solve(
     saveat=nothing,
     tstops=nothing,
     maxiters=200,
-    verbose=false
+    verbose=false,
+    kwargs...,
 )
     (; u0, tspan, f, g, p) = prob
     P = eltype(u0)
@@ -96,7 +98,7 @@ function SciMLBase.__solve(
     reflective_bc = true
 
     (; x_0, x_end, Nt, dx, σ_var_bc, λ_ic, λ_norm,
-        distrib, optimalg, norm_loss_alg, chain) = alg
+        distrib, optimalg, norm_loss_alg, initial_parameters, chain) = alg
 
     dt = (t₁ - t₀) / Nt
     ts = collect(t₀:dt:t₁)
@@ -111,7 +113,7 @@ function SciMLBase.__solve(
     J(x, T) = prob.f(x, p, T) * p̂(x, T) -
               P(0.5) * Dx((prob.g(x, p, T))^2 * p̂(x, T))
 
-    #   in symbolic equation form
+    # IC symbolic equation form
     f_icloss = if u0 isa Number
         (p̂(u0, t₀) - Distributions.pdf(distrib, u0) ~ P(0),)
     else
@@ -145,9 +147,9 @@ function SciMLBase.__solve(
     eq = Dt(p̂(X, T)) ~ -Dx(f(X, p, T) * p̂(X, T)) +
                         P(0.5) * Dxx((g(X, p, T))^2 * p̂(X, T))
 
-    # if we try to use p=0 and nromalizaiontg it works
-    # however if we incrase the x domain too much on any side:
-    # The Normalizaiton PDF mass although "conseved inside domain
+    # if we try to use p=0 and normalization it works
+    # however if we increase the x domainby  too much on any side:
+    # The Normalization PDF mass although "conserved" inside domain
     # can be forced to spread in different regions.
 
     bcs = [
@@ -159,7 +161,7 @@ function SciMLBase.__solve(
         f_icloss...
     ]
 
-    # absorbing BcS
+    # absorbing Bcs
     if absorbing_bc
         @info "absorbing BCS used"
 
@@ -179,8 +181,7 @@ function SciMLBase.__solve(
     domains = [X ∈ (x_0, x_end), T ∈ (t₀, t₁)]
 
     # Additional losses
-    # Handle normloss and ICloss for vector NN outputs !!
-    # will need to adjst x0, x_end, u0 handling for this also !!
+    # Handle normloss and ICloss for vector NN outputs !! -> will need to adjst x0, x_end, u0 handling for this also !!
 
     σ_var_bc = 0.05 # must be narrow, dirac deltra function centering. (smaller this is, we drop NN from a taller point to learn)
     function norm_loss(phi, θ)
@@ -200,11 +201,11 @@ function SciMLBase.__solve(
         λ_norm * norm_loss(phi, θ)
     end
 
-    # Discretization
+    # Discretization - GridTraining only
     discretization = PhysicsInformedNN(
         chain,
-        # GridTraining only
-        GridTraining([dx, dt]),
+        GridTraining([dx, dt]);
+        init_params=initial_parameters,
         additional_loss=combined_additional
     )
 
@@ -216,7 +217,6 @@ function SciMLBase.__solve(
     pde_losses = sym.loss_functions.pde_loss_functions
     bc_losses = sym.loss_functions.bc_loss_functions
 
-    # make this user inputed only ?!
     cb = function (p, l)
         (!verbose) && return false
         println("loss = ", l)
@@ -230,7 +230,8 @@ function SciMLBase.__solve(
         opt_prob,
         optimalg;
         callback=cb,
-        maxiters=maxiters
+        maxiters=maxiters,
+        kwargs...
     )
 
     # postprocessing?
