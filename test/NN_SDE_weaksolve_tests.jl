@@ -1,8 +1,6 @@
 @testitem "OU process" tags = [:nnsde2] begin
     using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Optimisers
     using OrdinaryDiffEq, Random, Distributions, Integrals, Cubature
-    using DifferentialEquations, LineSearches
-    using ModelingToolkit: infimum, supremum
     using OptimizationOptimJL: BFGS
     Random.seed!(100)
 
@@ -71,8 +69,6 @@ end
 @testitem "GBM SDE" tags = [:nnsde2] begin
     using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Optimisers
     using OrdinaryDiffEq, Random, Distributions, Integrals, Cubature
-    using DifferentialEquations, LineSearches
-    using ModelingToolkit: infimum, supremum
     using OptimizationOptimJL: BFGS
     Random.seed!(100)
 
