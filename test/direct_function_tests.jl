@@ -138,7 +138,7 @@ end
 end
 
 @testitem "Empty boundary condition [] fails in solve phase" begin
-    using NeuralPDE, Optimization, OptimizationOptimisers, Lux
+    using NeuralPDE, Optimization, OptimizationOptimisers, Lux, Integrals
     @parameters x
     @variables u(..)
 
@@ -151,7 +151,8 @@ end
             GridTraining(0.01),
             StochasticTraining(1000),
             QuasiRandomTraining(1000),
-            QuadratureTraining(),
+            # Use HCubatureJL explicitly to avoid Julia base bug with @cfunction
+            QuadratureTraining(quadrature_alg = HCubatureJL()),
         )
         discretization = PhysicsInformedNN(chain, strategy)
         @named pde_system = PDESystem(eq, bc, domain, [x], [u(x)])

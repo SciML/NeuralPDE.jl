@@ -12,7 +12,7 @@ end
 
 @testitem "Neural Adapter: 2D Poisson" tags = [:neuraladapter] setup = [NeuralAdapterTestSetup] begin
     using Optimization, Lux, OptimizationOptimisers, Statistics, ComponentArrays, Random,
-        LinearAlgebra
+        LinearAlgebra, Integrals
     import DomainSets: Interval, infimum, supremum
 
     Random.seed!(100)
@@ -34,7 +34,9 @@ end
     ]
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
+    # Use HCubatureJL explicitly to avoid Julia base bug with @cfunction
     quadrature_strategy = QuadratureTraining(
+        quadrature_alg = HCubatureJL(),
         reltol = 1.0e-3, abstol = 1.0e-6, maxiters = 50, batch = 100
     )
     chain1 = Chain(Dense(2, 8, tanh), Dense(8, 8, tanh), Dense(8, 1))
@@ -60,7 +62,9 @@ end
     loss(cord, θ) = first(chain2(cord, θ, st)) .- phi(cord, res.u)
 
     grid_strategy = GridTraining(0.05)
+    # Use HCubatureJL explicitly to avoid Julia base bug with @cfunction
     quadrature_strategy = QuadratureTraining(
+        quadrature_alg = HCubatureJL(),
         reltol = 1.0e-3, abstol = 1.0e-6, maxiters = 50, batch = 100
     )
     stochastic_strategy = StochasticTraining(1000)

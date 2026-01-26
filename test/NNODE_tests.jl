@@ -294,7 +294,7 @@ end
 end
 
 @testitem "ODE Complex Numbers" tags = [:nnode] begin
-    using OrdinaryDiffEq, Random, Lux, Optimisers
+    using OrdinaryDiffEq, Random, Lux, Optimisers, Integrals
 
     Random.seed!(100)
 
@@ -338,7 +338,8 @@ end
         @test sol.u ≈ ground_truth.u rtol = 1.0e-1
     end
 
-    alg = NNODE(chain, Adam(0.01); strategy = QuadratureTraining())
+    # Use HCubatureJL explicitly to avoid Julia base bug with @cfunction
+    alg = NNODE(chain, Adam(0.01); strategy = QuadratureTraining(quadrature_alg = HCubatureJL()))
     @test_throws ErrorException solve(
         problem, alg; verbose = false, maxiters = 5000, saveat = 0.01
     )

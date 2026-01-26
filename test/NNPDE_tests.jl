@@ -1,6 +1,6 @@
 @testsetup module NNPDE1TestSetup
 
-using NeuralPDE, Cubature, Integrals, QuasiMonteCarlo
+using NeuralPDE, Integrals, QuasiMonteCarlo
 
 # DataGen is Real: https://github.com/SciML/NeuralPDE.jl/issues/906
 @parameters x
@@ -18,8 +18,10 @@ function callback(p, l)
 end
 
 grid_strategy = GridTraining(0.1)
+# Use HCubatureJL (pure Julia) instead of CubatureJLh to avoid Julia base bug
+# with @cfunction type parameters (spvals typo in base/meta.jl partially_inline!)
 quadrature_strategy = QuadratureTraining(
-    quadrature_alg = CubatureJLh(),
+    quadrature_alg = HCubatureJL(),
     reltol = 1.0e3, abstol = 1.0e-3, maxiters = 50, batch = 100
 )
 stochastic_strategy = StochasticTraining(100; bcs_points = 50)
@@ -45,7 +47,7 @@ export callback, strategies
 end
 
 @testitem "Test Heterogeneous ODE" tags = [:nnpde1] setup = [NNPDE1TestSetup] begin
-    using Cubature, Integrals, QuasiMonteCarlo, DomainSets, Lux, Random, Optimisers
+    using Integrals, QuasiMonteCarlo, DomainSets, Lux, Random, Optimisers
 
     function simple_1d_ode(strategy)
         @parameters θ
@@ -118,8 +120,10 @@ end
     ]
 
     grid_strategy = GridTraining(0.1)
+    # Note: quadrature_strategy defined but not used in this test
+    # Using HCubatureJL instead of CubatureJLh to avoid Julia base bug
     quadrature_strategy = QuadratureTraining(
-        quadrature_alg = CubatureJLh(),
+        quadrature_alg = HCubatureJL(),
         reltol = 1.0e-3, abstol = 1.0e-3, maxiters = 50, batch = 100
     )
 
@@ -168,7 +172,7 @@ end
 end
 
 @testitem "PDE II: 2D Poisson" tags = [:nnpde1] setup = [NNPDE1TestSetup] begin
-    using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
+    using Lux, Random, Optimisers, DomainSets, QuasiMonteCarlo, Integrals
     import DomainSets: Interval, infimum, supremum
 
     function test_2d_poisson_equation(chain, strategy)
@@ -214,7 +218,9 @@ end
         test_2d_poisson_equation(chain, strategy)
     end
 
-    algs = [CubatureJLp()]
+    # Use HCubatureJL instead of CubatureJLp to avoid Julia base bug
+    # with @cfunction type parameters (spvals typo in base/meta.jl)
+    algs = [HCubatureJL()]
     @testset "$(nameof(typeof(alg)))" for alg in algs
         strategy = QuadratureTraining(
             quadrature_alg = alg, reltol = 1.0e-4,
@@ -225,7 +231,7 @@ end
 end
 
 @testitem "PDE III: 3rd-order ODE" tags = [:nnpde1] setup = [NNPDE1TestSetup] begin
-    using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
+    using Lux, Random, Optimisers, DomainSets, QuasiMonteCarlo, Integrals
     import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
@@ -297,7 +303,7 @@ end
 end
 
 @testitem "PDE IV: System of PDEs" tags = [:nnpde1] setup = [NNPDE1TestSetup] begin
-    using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
+    using Lux, Random, Optimisers, DomainSets, QuasiMonteCarlo, Integrals
     import DomainSets: Interval, infimum, supremum
 
     @parameters x, y
@@ -324,8 +330,10 @@ end
     chain1 = Chain(Dense(2, 15, tanh), Dense(15, 1))
     chain2 = Chain(Dense(2, 15, tanh), Dense(15, 1))
 
+    # Use HCubatureJL instead of CubatureJLh to avoid Julia base bug
+    # with @cfunction type parameters (spvals typo in base/meta.jl)
     quadrature_strategy = QuadratureTraining(
-        quadrature_alg = CubatureJLh(),
+        quadrature_alg = HCubatureJL(),
         reltol = 1.0e-3, abstol = 1.0e-3, maxiters = 50, batch = 100
     )
     chain = [chain1, chain2]
@@ -354,7 +362,7 @@ end
 end
 
 @testitem "PDE V: 2D Wave Equation" tags = [:nnpde1] setup = [NNPDE1TestSetup] begin
-    using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals,
+    using Lux, Random, Optimisers, DomainSets, QuasiMonteCarlo, Integrals,
         LineSearches, Integrals
     import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
@@ -389,8 +397,10 @@ end
     phi = NeuralPDE.Phi(chain)
     derivative = NeuralPDE.numeric_derivative
 
+    # Use HCubatureJL instead of CubatureJLh to avoid Julia base bug
+    # with @cfunction type parameters (spvals typo in base/meta.jl)
     quadrature_strategy = QuadratureTraining(
-        quadrature_alg = CubatureJLh(),
+        quadrature_alg = HCubatureJL(),
         reltol = 1.0e-3, abstol = 1.0e-3, maxiters = 50, batch = 100
     )
 
@@ -423,7 +433,7 @@ end
 end
 
 @testitem "PDE VI: PDE with mixed derivative" tags = [:nnpde1] setup = [NNPDE1TestSetup] begin
-    using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
+    using Lux, Random, Optimisers, DomainSets, QuasiMonteCarlo, Integrals
     import DomainSets: Interval, infimum, supremum
     using OptimizationOptimJL: BFGS
     using LineSearches: BackTracking
@@ -467,7 +477,7 @@ end
 end
 
 @testitem "NNPDE: Translating from Flux" tags = [:nnpde1] setup = [NNPDE1TestSetup] begin
-    using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
+    using Lux, Random, Optimisers, DomainSets, QuasiMonteCarlo, Integrals
     import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
     import Flux
@@ -481,7 +491,8 @@ end
     domains = [θ ∈ Interval(0.0, 1.0)]
 
     chain = Flux.Chain(Flux.Dense(1, 12, Flux.σ), Flux.Dense(12, 1))
-    discretization = PhysicsInformedNN(chain, QuadratureTraining())
+    # Use HCubatureJL explicitly to avoid Julia base bug with @cfunction
+    discretization = PhysicsInformedNN(chain, QuadratureTraining(quadrature_alg = HCubatureJL()))
     @test discretization.chain isa Lux.AbstractLuxLayer
 
     @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
