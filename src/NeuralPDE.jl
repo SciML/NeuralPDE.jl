@@ -75,6 +75,8 @@ include("eltype_matching.jl")
 
 include("pinn_types.jl")
 include("symbolic_utilities.jl")
+include("gpu_utils.jl")
+using .GPUUtils: transform_power_ops, should_apply_gpu_transform
 include("training_strategies.jl")
 include("adaptive_losses.jl")
 
