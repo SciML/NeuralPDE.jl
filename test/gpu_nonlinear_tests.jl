@@ -69,6 +69,7 @@ end
 end
 
 @testitem "Nonlinear PDE u^2 - CUDA" tags = [:cuda, :gpu_nonlinear] setup = [GPUNonlinearTestSetup] begin
+    using CUDA
     import DomainSets: Interval
     
     CUDA.functional() || return  # Skip if CUDA not available
@@ -106,6 +107,7 @@ end
 end
 
 @testitem "Nonlinear PDE Dx(u^3) - CUDA" tags = [:cuda, :gpu_nonlinear] setup = [GPUNonlinearTestSetup] begin
+    using CUDA
     import DomainSets: Interval
     
     CUDA.functional() || return  # Skip if CUDA not available
