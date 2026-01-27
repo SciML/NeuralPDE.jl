@@ -5,8 +5,6 @@ using MLDataDevices: get_device, AbstractGPUDevice
 
 export transform_power_ops, should_apply_gpu_transform
 
-# Symbolic Expression Transformation
-
 """
     transform_power_ops(expr)
 
@@ -27,17 +25,17 @@ function transform_power_ops(expr)
     count = Ref(0)
 
     # Extract base expression from ModelingToolkit wrapper if present
-
-    was_num = Symbolics.istype(Symbolics.Num, expr)
+    was_num = expr isa Symbolics.Num
     base_expr = was_num ? Symbolics.unwrap(expr) : expr
 
-    transformed = SymbolicUtils.postwalk(base_expr) do node
-        # Process SymbolicUtils.Term nodes (symbolic expression terms)
-        if node isa SymbolicUtils.Term
-            f = node.f
-            args = node.args
-            # Match power operations: either direct (:^) or call form
-            if f === :^ || (f === :call && length(args) >= 2 && args[1] === :^)
+    transformed = Symbolics.postwalk(base_expr) do node
+        # Process BasicSymbolic nodes (symbolic expressions in Symbolics v6+)
+        if node isa SymbolicUtils.BasicSymbolic
+            op = Symbolics.operation(node)
+            args = Symbolics.arguments(node)
+            
+            # Match power operations
+            if op === ^
                 base = args[1]
                 exponent = args[2]
                 
@@ -51,47 +49,14 @@ function transform_power_ops(expr)
                     elseif n == 1
                         return base
                     elseif n == 2
-                        # u^2 → u * u
-                        return SymbolicUtils.Term(:call, :*, base, base)
+                        # Use SymbolicUtils.term to prevent auto-simplification
+                        return SymbolicUtils.term(*, base, base)
                     elseif n == 3
-                        # u^3 → u * u * u
-                        return SymbolicUtils.Term(:call, :*, base, base, base)
+                        return SymbolicUtils.term(*, base, base, base)
                     else
                         # Unroll arbitrary exponents: u^n → u * u * ... * u (n factors)
-                        y = base
-                        for i in 2:n
-                            y = SymbolicUtils.Term(:call, :*, y, base)
-                        end
-                        return y
-                    end
-                end
-            end
-        
-        # Process Expr nodes (unevaluated expressions)
-        elseif node isa Expr
-            if node.head === :call && length(node.args) >= 3 && node.args[1] === :^
-                base = node.args[2]
-                exponent = node.args[3]
-                
-                if exponent isa Integer || (exponent isa Number && exponent == floor(exponent))
-                    n = Int(exponent)
-                    count[] += 1
-                    
-                    if n == 0
-                        return :(1)
-                    elseif n == 1
-                        return base
-                    elseif n == 2
-                        return :($base * $base)
-                    elseif n == 3
-                        return :($base * $base * $base)
-                    else
-                        # Expand via nested multiplication Expr nodes
-                        expr_mul = base
-                        for i in 2:n
-                            expr_mul = Expr(:call, :*, expr_mul, base)
-                        end
-                        return expr_mul
+                        factors = [base for _ in 1:n]
+                        return SymbolicUtils.term(*, factors...)
                     end
                 end
             end
@@ -106,11 +71,8 @@ function transform_power_ops(expr)
     end
 
     # Re-attach ModelingToolkit wrapper if the input was wrapped
-
     return was_num ? Symbolics.Num(transformed) : transformed
 end
-
-# GPU Device Detection
 
 """
     should_apply_gpu_transform(init_params)
@@ -145,4 +107,5 @@ function should_apply_gpu_transform(init_params)
         return false
     end
 end
+
 end # module GPUUtils
