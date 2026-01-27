@@ -19,7 +19,7 @@ end
 @testitem "Symbolic Power Transformation" tags = [:gpu_nonlinear] setup = [GPUNonlinearTestSetup] begin
     using Symbolics
     
-    @variables x u(x)
+    @variables x u(..)
     Dx = Differential(x)
     
     # Test basic transformation: u^2 → u * u
