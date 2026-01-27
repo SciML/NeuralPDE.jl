@@ -18,6 +18,7 @@ end
 
 @testitem "Symbolic Power Transformation" tags = [:gpu_nonlinear] setup = [GPUNonlinearTestSetup] begin
     using Symbolics
+    using ModelingToolkit
     
     @variables x u(..)
     Dx = Differential(x)
@@ -53,6 +54,7 @@ end
 
 @testitem "GPU Device Detection" tags = [:gpu_nonlinear] setup = [GPUNonlinearTestSetup] begin
     using ComponentArrays
+    using CUDA
     
     # Test with nothing: should return false
     @test should_apply_gpu_transform(nothing) == false
@@ -70,7 +72,14 @@ end
 
 @testitem "Nonlinear PDE u^2 - CUDA" tags = [:cuda, :gpu_nonlinear] setup = [GPUNonlinearTestSetup] begin
     using CUDA
+    using Random
     import DomainSets: Interval
+    using ModelingToolkit
+    using Lux
+    using ComponentArrays
+    using NeuralPDE
+    using Optimization
+    using OptimizationOptimisers
     
     CUDA.functional() || return  # Skip if CUDA not available
     
@@ -108,8 +117,15 @@ end
 
 @testitem "Nonlinear PDE Dx(u^3) - CUDA" tags = [:cuda, :gpu_nonlinear] setup = [GPUNonlinearTestSetup] begin
     using CUDA
+    using Random
     import DomainSets: Interval
-    
+    using ModelingToolkit
+    using Lux
+    using ComponentArrays
+    using NeuralPDE
+    using Optimization
+    using OptimizationOptimisers
+
     CUDA.functional() || return  # Skip if CUDA not available
     
     Random.seed!(200)

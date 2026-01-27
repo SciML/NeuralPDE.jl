@@ -8,19 +8,13 @@ export transform_power_ops, should_apply_gpu_transform
 """
     transform_power_ops(expr)
 
-Transform integer power operations into explicit multiplication chains 
-compatible with symbolic differentiation.
+Rewrite integer powers (e.g. `u^2`, `u^3`) into explicit multiplication.
 
-This function rewrites expressions of the form `u^n` (where `n` is a positive 
-integer) into equivalent multiplication expressions `u * u * ... * u` (n times).
-This transformation enables automatic differentiation through the Symbolics.jl
-chain rule without requiring special-cased derivative rules for power operations.
-
-Example:
-- `u^2` → `u * u`
-- `u^3` → `u * u * u`
-- `u^4` → `u * u * u * u`
+This exists to avoid NaNs observed on GPU during training for expressions
+like `u(x)^2` and `Dx(u(x)^3)` (see #914). It is not intended as a
+performance optimization.
 """
+
 function transform_power_ops(expr)
     count = Ref(0)
 
@@ -77,20 +71,11 @@ end
 """
     should_apply_gpu_transform(init_params)
 
-Determine whether symbolic power operation transformation should be applied
-based on the target computational device.
+Return `true` when GPU-specific symbolic rewrites should be applied
 
-This function detects if `init_params` corresponds to GPU device parameters.
-When GPU device is detected, power operations are expanded into multiplication
-chains to enable efficient automatic differentiation on GPU accelerators.
-
-Arguments:
-- `init_params`: Model initialization parameters, typically from a Lux neural network
-
-Returns:
-- `true` if parameters are allocated on a GPU device
-- `false` otherwise, or if `init_params` is `nothing`
+This gates the power-rewriting logic to GPU code paths only (see #914)
 """
+
 function should_apply_gpu_transform(init_params)
     init_params === nothing && return false
 
