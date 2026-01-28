@@ -120,30 +120,6 @@ function SciMLBase.__solve(
         (p̂(u0[i], t₀) .- Distributions.pdf(distrib[i], u0[i]) ~ P(0) for i in 1:length(u0))
     end
 
-    # # inside optimization loss
-    # # IC loss imposed pointwise only at t₀ and at x = u0, extremes of x domain.
-    # ftest_icloss = if u0 isa Number
-    #     (phi, θ) -> first(phi([u0, t₀], θ)) - Distributions.pdf(distrib, u0)
-    # else
-    #     (phi, θ) -> [phi([u0[i], t₀], θ) .-
-    #                  Distributions.pdf(distrib[i], u0[i])
-    #                  for i in 1:length(u0)]
-    # end
-
-    # function ic_loss(phi, θ)
-    #     # println("inside ic : ", θ)
-    #     #  insdie ic phi : 0.697219487224398
-    #     # if integrated then optimization ends up focusing on mostly
-    #     # non X₀ points (as they are more) and misses the peak properly.
-    #     # (although a lognormal shape is still learnt)
-
-    #     # I_ic = solve(IntegralProblem(f_ic, x_0, x_end, θ), norm_loss_alg,
-    #     # HCubatureJL(),
-    #     # reltol = 1e-8, abstol = 1e-8, maxiters = 10)[1]
-    #     # return abs(I_ic) # I_ic loss AUC = 0?
-    #     return sum(abs2, ftest_icloss(phi, θ)) # I_ic pointwise
-    # end
-
     eq = Dt(p̂(X, T)) ~ -Dx(f(X, p, T) * p̂(X, T)) +
                         P(0.5) * Dxx((g(X, p, T))^2 * p̂(X, T))
 
