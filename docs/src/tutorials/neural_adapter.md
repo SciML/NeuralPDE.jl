@@ -77,7 +77,7 @@ res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callbac
 
 phi_ = PhysicsInformedNN(chain2, strategy; init_params = res_.u).phi
 
-xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+xs, ys = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 analytic_sol_func(x, y) = (sinpi(x) * sinpi(y)) / (2pi^2)
 
 u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
@@ -107,7 +107,8 @@ And then using the method neural_adapter, we retrain the batch of 10 predictions
 
 ```@example neural_adapter
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers
-using ModelingToolkit: Interval, infimum, supremum
+using ModelingToolkit: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters x y
 @variables u(..)
@@ -137,7 +138,7 @@ af = tanh
 inner = 10
 chain = Chain(Dense(2, inner, af), Dense(inner, inner, af), Dense(inner, 1))
 
-xs_ = infimum(x_domain):(1 / count_decomp):supremum(x_domain)
+xs_ = leftendpoint(x_domain):(1 / count_decomp):rightendpoint(x_domain)
 xs_domain = [(xs_[i], xs_[i + 1]) for i in 1:(length(xs_) - 1)]
 domains_map = map(xs_domain) do (xs_dom)
     x_domain_ = Interval(xs_dom...)
@@ -190,8 +191,8 @@ end
 function compose_result(dx)
     u_predict_array = Float64[]
     diff_u_array = Float64[]
-    ys = infimum(domains[2].domain):dx:supremum(domains[2].domain)
-    xs_ = infimum(x_domain):dx:supremum(x_domain)
+    ys = leftendpoint(domains[2].domain):dx:rightendpoint(domains[2].domain)
+    xs_ = leftendpoint(x_domain):dx:rightendpoint(x_domain)
     xs = collect(xs_)
     function index_of_interval(x_)
         for (i, x_domain) in enumerate(xs_domain)
@@ -208,7 +209,7 @@ function compose_result(dx)
         append!(u_predict_array, u_predict_sub)
         append!(diff_u_array, diff_u_sub)
     end
-    xs, ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+    xs, ys = [leftendpoint(d.domain):dx:rightendpoint(d.domain) for d in domains]
     u_predict = reshape(u_predict_array, (length(xs), length(ys)))
     diff_u = reshape(diff_u_array, (length(xs), length(ys)))
     u_predict, diff_u
@@ -245,7 +246,7 @@ res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000, callback
 
 phi_ = PhysicsInformedNN(chain2, strategy; init_params = res_.u).phi
 
-xs, ys = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+xs, ys = [leftendpoint(d.domain):dx:rightendpoint(d.domain) for d in domains]
 u_predict_ = reshape([first(phi_([x, y], res_.u)) for x in xs for y in ys],
     (length(xs), length(ys)))
 u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
