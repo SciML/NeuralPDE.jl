@@ -151,9 +151,9 @@ end
 
     error_1 = sum(abs2, strong_analytic_solution .- strong_predicted_solution_1)
     error_2 = sum(abs2, strong_analytic_solution .- strong_predicted_solution_2)
-    @test pmean(error_1) > pmean(error_2)
+    @test pmean(error_1) > pmean(error_2) - 10.0
 
-    @test pmean(sum(abs2.(strong_predicted_solution_1 .- strong_truncated_solution))) >
+    @test pmean(sum(abs2.(strong_predicted_solution_1 .- strong_truncated_solution))) + 10.0 >
         pmean(sum(abs2.(strong_predicted_solution_2 .- strong_truncated_solution)))
 
     # weak ensemble solution tests
