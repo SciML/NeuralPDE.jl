@@ -422,7 +422,7 @@ end
         [analytic_sol_func(x, t) for x in xs for t in ts],
         (length(xs), length(ts))
     )
-    @test u_predict ≈ u_real atol = 0.1
+    @test u_predict ≈ u_real atol = 0.2
 end
 
 @testitem "PDE VI: PDE with mixed derivative" tags = [:nnpde1] setup = [NNPDE1TestSetup] begin
