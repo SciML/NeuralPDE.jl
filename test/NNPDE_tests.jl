@@ -403,7 +403,10 @@ end
         return false
     end
 
-    res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 500, callback)
+    # Adam warmup for robustness, then BFGS for convergence
+    res = solve(prob, Adam(0.01); maxiters = 500)
+    prob = remake(prob, u0 = res.u)
+    res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 500)
 
     dx = 0.1
     xs, ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
@@ -419,7 +422,7 @@ end
         [analytic_sol_func(x, t) for x in xs for t in ts],
         (length(xs), length(ts))
     )
-    @test u_predict ≈ u_real atol = 0.5
+    @test u_predict ≈ u_real atol = 0.1
 end
 
 @testitem "PDE VI: PDE with mixed derivative" tags = [:nnpde1] setup = [NNPDE1TestSetup] begin
