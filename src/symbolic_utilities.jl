@@ -208,7 +208,7 @@ function _transform_expression(
                     # Expr(:call, :tuple, :x, :y) instead of a Julia Tuple
                     if integrating_variable isa Expr &&
                             integrating_variable.head == :call &&
-                            integrating_variable.args[1] == :tuple
+                            integrating_variable.args[1] === tuple
                         integrating_variable = integrating_variable.args[2:end]
                         integrating_var_id = [
                             dict_indvars[i]

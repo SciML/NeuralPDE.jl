@@ -417,7 +417,7 @@ function get_loss_function(
             x = x |> dev |> EltypeAdaptor{eltypeθ}()
             l = loss_(x, θ)
             if l isa Number
-                return abs2(l)
+                return [abs2(l)]
             end
             return sum(abs2, view(l, 1, :), dims = 2) #./ size_x
         end
