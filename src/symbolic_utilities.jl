@@ -204,7 +204,17 @@ function _transform_expression(
                     integrating_var_id = [dict_indvars[i] for i in integrating_variable]
                 else
                     integrating_variable = toexpr(_args[1].domain.variables)
-                    integrating_var_id = [dict_indvars[integrating_variable]]
+                    # In SymbolicUtils v4, a symbolic tuple may produce
+                    # Expr(:call, :tuple, :x, :y) instead of a Julia Tuple
+                    if integrating_variable isa Expr &&
+                       integrating_variable.head == :call &&
+                       integrating_variable.args[1] == :tuple
+                        integrating_variable = integrating_variable.args[2:end]
+                        integrating_var_id = [dict_indvars[i]
+                                              for i in integrating_variable]
+                    else
+                        integrating_var_id = [dict_indvars[integrating_variable]]
+                    end
                 end
 
                 integrating_depvars = []

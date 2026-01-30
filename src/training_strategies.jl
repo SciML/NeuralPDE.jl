@@ -415,7 +415,11 @@ function get_loss_function(
     ) -> begin
         function integrand(x, θ)
             x = x |> dev |> EltypeAdaptor{eltypeθ}()
-            return sum(abs2, view(loss_(x, θ), 1, :), dims = 2) #./ size_x
+            l = loss_(x, θ)
+            if l isa Number
+                return abs2(l)
+            end
+            return sum(abs2, view(l, 1, :), dims = 2) #./ size_x
         end
         integral_function = BatchIntegralFunction(integrand, max_batch = strategy.batch)
         prob = IntegralProblem(integral_function, (lb, ub), θ)

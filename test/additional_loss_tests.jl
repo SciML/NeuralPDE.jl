@@ -174,7 +174,7 @@ end
     @named pde_system = PDESystem(
         eqs, bcs, domains,
         [t], [x(t), y(t), z(t)], [σ_, ρ, β],
-        defaults = Dict([p => 1.0 for p in [σ_, ρ, β]])
+        initial_conditions = Dict([p => 1.0 for p in [σ_, ρ, β]])
     )
 
     prob = discretize(pde_system, discretization)
@@ -182,7 +182,7 @@ end
 
     res = solve(prob, BFGS(); maxiters = 6000)
     p_ = res.u[(end - 2):end]
-    @test sum(abs2, p_[1] - 10.0) < 1e5
+    @test sum(abs2, p_[1] - 10.0) < 1.0e5
     @test sum(abs2, p_[2] - 28.0) < 1.0
     @test sum(abs2, p_[3] - (8 / 3)) < 1.0
 
@@ -193,7 +193,7 @@ end
     @named pde_system = PDESystem(
         eqs, bcs, domains,
         [t], [x(t), y(t), z(t)], [σ_, ρ, β],
-        defaults = Dict([p => 1.0 for p in [σ_, ρ, β]])
+        initial_conditions = Dict([p => 1.0 for p in [σ_, ρ, β]])
     )
 
     prob = discretize(pde_system, discretization)
