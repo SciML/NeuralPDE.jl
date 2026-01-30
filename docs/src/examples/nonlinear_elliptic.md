@@ -29,7 +29,8 @@ This is done using a derivative neural network approximation.
 ```@example nonlinear_elliptic
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots
 using Plots
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters x, y
 Dx = Differential(x)
@@ -106,7 +107,7 @@ res = solve(prob, BFGS(); maxiters = 100, callback)
 phi = discretization.phi
 
 # Analysis
-xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+xs, ys = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 depvars = [:u, :w]
 minimizers_ = [res.u.depvar[depvars[i]] for i in 1:2]
 
