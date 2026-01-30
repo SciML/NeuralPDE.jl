@@ -17,7 +17,8 @@ We start by defining the problem,
 ```@example param_estim
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, OrdinaryDiffEq,
       Plots, LineSearches
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 @parameters t, σ_, β, ρ
 @variables x(..), y(..), z(..)
 Dt = Differential(t)
@@ -58,7 +59,7 @@ u0 = [1.0; 0.0; 0.0]
 tspan = (0.0, 1.0)
 prob = ODEProblem(lorenz!, u0, tspan)
 sol = solve(prob, Tsit5(), dt = 0.1)
-ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+ts = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains][1]
 function getData(sol)
     data = []
     us = hcat(sol(ts).u...)
@@ -111,7 +112,7 @@ And then finally some analysis by plotting.
 
 ```@example param_estim
 minimizers = [res.u.depvar[depvars[i]] for i in 1:3]
-ts = [infimum(d.domain):(0.001):supremum(d.domain) for d in domains][1]
+ts = [leftendpoint(d.domain):(0.001):rightendpoint(d.domain) for d in domains][1]
 u_predict = [[discretization.phi[i]([t], minimizers[i])[1] for t in ts] for i in 1:3]
 plot(sol)
 plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])

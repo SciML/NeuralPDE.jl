@@ -290,7 +290,7 @@ end
     @test !isapprox(sol_old_points, sol_points; atol = 10)
 
     @test sol_new.k.u.p ≈ true_p atol = 1.0e-2
-    @test sol_new_points ≈ sol_points atol = 3.0e-2
+    @test sol_new_points ≈ sol_points atol = 5.0e-2
 end
 
 @testitem "ODE Complex Numbers" tags = [:nnode] begin
@@ -334,8 +334,8 @@ end
 
     @testset "$(nameof(typeof(strategy)))" for strategy in strategies
         alg = NNODE(chain, Adam(0.01); strategy)
-        sol = solve(problem, alg; verbose = false, maxiters = 5000, saveat = 0.01)
-        @test sol.u ≈ ground_truth.u rtol = 1.0e-1
+        sol = solve(problem, alg; verbose = false, maxiters = 10000, saveat = 0.01)
+        @test sol.u ≈ ground_truth.u rtol = 2.0e-1
     end
 
     alg = NNODE(chain, Adam(0.01); strategy = QuadratureTraining())

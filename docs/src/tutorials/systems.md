@@ -37,7 +37,8 @@ with physics-informed neural networks.
 ```@example system
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches,
       OptimizationOptimisers
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u1(..), u2(..), u3(..)
@@ -124,7 +125,7 @@ Now let's perform some analysis for both the `symbolic_discretize` and `discreti
 using Plots
 
 phi = discretization.phi
-ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 
 minimizers_ = [res.u.depvar[sym_prob.depvars[i]] for i in 1:3]
 

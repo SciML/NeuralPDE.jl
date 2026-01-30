@@ -23,7 +23,8 @@ with Physics-Informed Neural Networks.
 ```@example fokkerplank
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
 using Integrals, Cubature
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 # the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x
 @variables p(..)
@@ -95,7 +96,7 @@ using Plots
 C = 142.88418699042 #fitting param
 analytic_sol_func(x) = C * exp((1 / (2 * _σ^2)) * (2 * α * x^2 - β * x^4))
 
-xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains][1]
 u_real = [analytic_sol_func(x) for x in xs]
 u_predict = [first(phi(x, res.u)) for x in xs]
 
