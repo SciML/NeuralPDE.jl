@@ -29,7 +29,7 @@ We use physics-informed neural networks.
 ```@example ks
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 import DomainSets: Interval
-import ModelingToolkit: infimum, supremum
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters x, t
 @variables u(..)
@@ -83,7 +83,7 @@ And some analysis:
 using Plots
 
 xs,
-ts = [infimum(d.domain):dx:supremum(d.domain)
+ts = [leftendpoint(d.domain):dx:rightendpoint(d.domain)
       for (d, dx) in zip(domains, [dx / 10, dt])]
 
 u_predict = [[first(phi([x, t], res.u)) for x in xs] for t in ts]

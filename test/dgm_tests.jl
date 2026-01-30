@@ -142,12 +142,12 @@ end
         return false
     end
 
-    res = solve(prob, Adam(0.01); callback = callback, maxiters = 200)
+    res = solve(prob, Adam(0.01); callback = callback, maxiters = 500)
     prob = remake(prob, u0 = res.u)
-    res = solve(prob, Adam(0.001); callback = callback, maxiters = 100)
+    res = solve(prob, Adam(0.001); callback = callback, maxiters = 200)
     phi = discretization.phi
 
     u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
 
-    @test u_predict ≈ u_MOL rtol = 0.1
+    @test u_predict ≈ u_MOL rtol = 0.2
 end

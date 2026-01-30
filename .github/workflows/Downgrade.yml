@@ -12,6 +12,7 @@ on:
       - 'docs/**'
 jobs:
   test:
+    if: false  # Disabled: see https://github.com/SciML/NeuralPDE.jl/issues/1023
     runs-on: ubuntu-latest
     strategy:
       matrix:
