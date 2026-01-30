@@ -85,18 +85,29 @@ function get_symbols(dataset, depvars, eqs)
     # order of pinnrep.depvars, depvar_vals, BayesianPINN.dataset must be same
     to_subs = Dict(depvars .=> depvar_vals)
 
-    numform_vars = Symbolics.get_variables.(eqs)
-    Eq_vars = unique(reduce(vcat, numform_vars))
-    # got equation's depvar num format {x(t)} for use in substitute()
-
+    # Find callable depvar terms (e.g., u(x,t)) by searching the equation tree.
+    # In SymbolicUtils v4, get_variables may decompose u(x,t) into bare u, x, t,
+    # so we search directly for callable terms whose operation matches a depvar name.
+    depvar_set = Set(depvars)
     tobe_subs = Dict()
-    for a in depvars
-        for i in Eq_vars
-            expr = toexpr(i)
-            if (expr isa Expr) && (expr.args[1] == a)
-                tobe_subs[a] = i
+    function _search(term)
+        t = Symbolics.unwrap(term)
+        if SymbolicUtils.iscall(t)
+            op = SymbolicUtils.operation(t)
+            if !SymbolicUtils.iscall(op) && !(op isa Differential)
+                name = toexpr(op)
+                if name isa Symbol && name in depvar_set
+                    tobe_subs[name] = t
+                end
+            end
+            for arg in SymbolicUtils.arguments(t)
+                _search(arg)
             end
         end
+    end
+    for eq in eqs
+        _search(eq.lhs)
+        _search(eq.rhs)
     end
     # depvar symbolic and num format got, tobe_subs : Dict{Any, Any}(:y => y(t), :x => x(t))
 

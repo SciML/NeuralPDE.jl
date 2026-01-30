@@ -412,7 +412,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     adaloss = discretization.adaptive_loss
 
     default_p = eq_params isa SciMLBase.NullParameters ? nothing :
-        [ModelingToolkit.value(defaults[ep]) for ep in eq_params]
+        [Symbolics.value(defaults[ep]) for ep in eq_params]
 
     depvars, indvars, dict_indvars,
         dict_depvars, dict_depvar_input = get_vars(
