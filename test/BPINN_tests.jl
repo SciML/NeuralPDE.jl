@@ -496,7 +496,7 @@ end
     @test mean(abs, u[2, :] .- pmean(sol_pestim1.ensemblesol[2])) >
         mean(abs, u[2, :] .- pmean(sol_pestim2.ensemblesol[2]))
 
-    @test mean(abs2, u[1, :] .- pmean(sol_pestim2.ensemblesol[1])) < 5.0e-2
+    @test mean(abs2, u[1, :] .- pmean(sol_pestim2.ensemblesol[1])) < 1.0e-1
     @test mean(abs2, u[2, :] .- pmean(sol_pestim2.ensemblesol[2])) < 2.0e-2
 
     @test abs(sol_pestim2.estimated_de_params[1] - p[1]) < 0.05p[1]

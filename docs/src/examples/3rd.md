@@ -17,7 +17,8 @@ We will use physics-informed neural networks.
 ```@example 3rdDerivative
 using NeuralPDE, Lux, ModelingToolkit
 using Optimization, OptimizationOptimJL, OptimizationOptimisers
-import DomainSets: Interval, infimum, supremum
+import DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters x
 @variables u(..)
@@ -59,7 +60,7 @@ using Plots
 analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)
 
 dx = 0.05
-xs = [infimum(d.domain):(dx / 10):supremum(d.domain) for d in domains][1]
+xs = [leftendpoint(d.domain):(dx / 10):rightendpoint(d.domain) for d in domains][1]
 u_real = [analytic_sol_func(x) for x in xs]
 u_predict = [first(phi(x, res.u)) for x in xs]
 

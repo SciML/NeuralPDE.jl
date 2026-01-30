@@ -28,7 +28,8 @@ with a physics-informed neural network.
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers,
       OptimizationOptimJL, LineSearches
 using Plots
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..), w(..)
@@ -98,7 +99,7 @@ res = solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 5000, callback)
 phi = discretization.phi
 
 # Analysis
-ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 depvars = [:u, :w]
 minimizers_ = [res.u.depvar[depvars[i]] for i in 1:length(chain)]
 

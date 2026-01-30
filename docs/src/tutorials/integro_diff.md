@@ -45,7 +45,8 @@ u(0) = 0
 
 ```@example integro
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, DomainSets
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 using Plots
 
 @parameters t
@@ -72,7 +73,7 @@ res = Optimization.solve(prob, BFGS(); maxiters = 100)
 Plotting the final solution and analytical solution
 
 ```@example integro
-ts = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
+ts = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains][1]
 phi = discretization.phi
 u_predict = [first(phi([t], res.u)) for t in ts]
 
