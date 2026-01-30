@@ -1,5 +1,12 @@
 using Base.Broadcast
 
+# build_expr was removed from Symbolics.jl v7; define locally
+function build_expr(head::Symbol, args)
+    ex = Expr(head)
+    append!(ex.args, args)
+    return ex
+end
+
 """
 Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
 
