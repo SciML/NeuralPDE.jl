@@ -1,6 +1,6 @@
 @testitem "Poisson's equation" tags = [:dgm] begin
     using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
-        MethodOfLines, OrdinaryDiffEq, LinearAlgebra
+        LinearAlgebra
     import DomainSets: Interval, infimum, supremum
 
     @parameters x y
@@ -46,7 +46,7 @@ end
 
 @testitem "Black-Scholes PDE: European Call Option" tags = [:dgm] begin
     using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
-        MethodOfLines, OrdinaryDiffEq, LinearAlgebra
+        LinearAlgebra
     import DomainSets: Interval, infimum, supremum
 
     K, T, r, σ, S, S_multiplier = 50.0, 1.0, 0.05, 0.25, 130.0, 1.3
@@ -99,8 +99,11 @@ end
 
 @testitem "Burger's equation" tags = [:dgm] begin
     using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
-        MethodOfLines, OrdinaryDiffEq, LinearAlgebra
+        LinearAlgebra
     import DomainSets: Interval, infimum, supremum
+
+    # Reference solution from MethodOfLines.jl (precomputed)
+    include("burger_reference_data.jl")
 
     @parameters x t
     @variables u(..)
@@ -119,18 +122,6 @@ end
 
     domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(-1.0, 1.0)]
 
-    # MethodOfLines
-    dx = 0.01
-    order = 2
-    discretization = MOLFiniteDifference([x => dx], t, saveat = 0.01)
-    @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
-    prob = discretize(pde_system, discretization)
-    sol = solve(prob, Tsit5())
-    ts = sol[t]
-    xs = sol[x]
-
-    u_MOL = sol[u(t, x)]
-
     # NeuralPDE
     strategy = QuasiRandomTraining(256, minibatch = 32)
     discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
@@ -147,7 +138,7 @@ end
     res = solve(prob, Adam(0.001); callback = callback, maxiters = 200)
     phi = discretization.phi
 
-    u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
+    u_predict = [first(phi([t, x], res.u)) for t in BURGER_REF_TS, x in BURGER_REF_XS]
 
-    @test u_predict ≈ u_MOL rtol = 0.2
+    @test u_predict ≈ BURGER_REF_U rtol = 0.2
 end
