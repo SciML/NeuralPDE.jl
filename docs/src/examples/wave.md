@@ -18,6 +18,7 @@ Further, the solution of this equation with the given boundary conditions is pre
 ```@example wave
 using NeuralPDE, Lux, Optimization, OptimizationOptimJL
 using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..)
@@ -64,7 +65,7 @@ We can plot the predicted solution of the PDE and compare it with the analytical
 ```@example wave
 using Plots
 
-ts, xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):dx:rightendpoint(d.domain) for d in domains]
 function analytic_sol_func(t, x)
     sum([(8 / (k^3 * pi^3)) * sin(k * pi * x) * cos(C * k * pi * t) for k in 1:2:50000])
 end
@@ -99,7 +100,8 @@ with grid discretization `dx = 0.05` and physics-informed neural networks. Here,
 ```@example wave2
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using Plots, Printf
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..) Dxu(..) Dtu(..) O1(..) O2(..)
@@ -169,7 +171,7 @@ res = Optimization.solve(prob, BFGS(); maxiters = 2000)
 phi = discretization.phi[1]
 
 # Analysis
-ts, xs = [infimum(d.domain):0.05:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):0.05:rightendpoint(d.domain) for d in domains]
 
 μ_n(k) = (v * sqrt(4 * k^2 * π^2 - b^2 * L^2 * v^2)) / (2 * L)
 function b_n(k)
@@ -200,7 +202,7 @@ end
 gif(anim, "1Dwave_damped_adaptive.gif", fps = 200)
 
 # Surface plot
-ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 u_predict = reshape(
     [first(phi([t, x], res.u.depvar.u)) for
      t in ts for x in xs], (length(ts), length(xs)))

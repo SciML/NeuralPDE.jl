@@ -46,6 +46,7 @@ using NeuralPDE, Lux, LuxCUDA, Random, ComponentArrays
 using Optimization
 using OptimizationOptimisers
 import DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 using Plots
 using Printf
 
@@ -111,7 +112,7 @@ Finally, we inspect the solution:
 
 ```@example gpu
 phi = discretization.phi
-ts, xs, ys = [infimum(d.domain):0.1:supremum(d.domain) for d in domains]
+ts, xs, ys = [leftendpoint(d.domain):0.1:rightendpoint(d.domain) for d in domains]
 u_real = [analytic_sol_func(t, x, y) for t in ts for x in xs for y in ys]
 u_predict = [first(Array(phi([t, x, y], res.u))) for t in ts for x in xs for y in ys]
 

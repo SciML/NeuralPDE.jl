@@ -15,7 +15,8 @@ Using the example of 2D Poisson equation, it is shown how, using the method neur
 
 ```@example neural_adapter
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 using Random, ComponentArrays
 
 @parameters x y

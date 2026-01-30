@@ -30,6 +30,7 @@ Using physics-informed neural networks.
 ```@example poisson
 using NeuralPDE, Lux, Optimization, OptimizationOptimJL, LineSearches, Plots
 using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters x y
 @variables u(..)
@@ -70,7 +71,7 @@ res = solve(prob, opt, maxiters = 1000)
 phi = discretization.phi
 
 dx = 0.05
-xs, ys = [infimum(d.domain):(dx / 10):supremum(d.domain) for d in domains]
+xs, ys = [leftendpoint(d.domain):(dx / 10):rightendpoint(d.domain) for d in domains]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
 u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],
@@ -92,6 +93,7 @@ The ModelingToolkit PDE interface for this example looks like this:
 ```@example poisson
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 using Plots
 
 @parameters x y
@@ -155,7 +157,7 @@ We can plot the predicted solution of the PDE and compare it with the analytical
 
 ```@example poisson
 dx = 0.05
-xs, ys = [infimum(d.domain):(dx / 10):supremum(d.domain) for d in domains]
+xs, ys = [leftendpoint(d.domain):(dx / 10):rightendpoint(d.domain) for d in domains]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
 u_predict = reshape([first(phi([x, y], res.u)) for x in xs for y in ys],

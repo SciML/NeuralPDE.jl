@@ -29,7 +29,8 @@ With Bayesian Physics-Informed Neural Networks, here is an example of using `Bay
 ```@example low_level_2
 using NeuralPDE, Lux, ModelingToolkit, LinearAlgebra, AdvancedHMC
 import ModelingToolkit: Distributions
-import DomainSets: Interval, infimum, supremum
+import DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 using Plots, MonteCarloMeasurements
 
 @parameters x, t, α
@@ -131,7 +132,7 @@ And some analysis:
 ```@example low_level_2
 phi = discretization.phi[1]
 xs,
-ts = [infimum(d.domain):dx:supremum(d.domain)
+ts = [leftendpoint(d.domain):dx:rightendpoint(d.domain)
       for (d, dx) in zip(domains, [dx / 10, dt])]
 u_predict = [[first(pmean(phi([x, t], sol1.estimated_nn_params[1]))) for x in xs]
              for t in ts]

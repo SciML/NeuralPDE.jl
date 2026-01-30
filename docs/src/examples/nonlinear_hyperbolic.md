@@ -37,7 +37,8 @@ using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots,
       LineSearches
 using SpecialFunctions
 using Plots
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..), w(..)
@@ -105,7 +106,7 @@ res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 200
 phi = discretization.phi
 
 # Analysis
-ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 depvars = [:u, :w]
 minimizers_ = [res.u.depvar[depvars[i]] for i in 1:length(chain)]
 

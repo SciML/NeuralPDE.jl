@@ -14,7 +14,8 @@ with Physics-Informed Neural Networks. Here is an example of using the low-level
 
 ```@example low_level
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..)
@@ -73,7 +74,7 @@ And some analysis:
 ```@example low_level
 using Plots
 
-ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 u_predict_contourf = reshape([first(phi([t, x], res.u)) for t in ts for x in xs],
     length(xs), length(ts))
 plot(ts, xs, u_predict_contourf, linetype = :contourf, title = "predict")

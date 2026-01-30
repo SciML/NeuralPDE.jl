@@ -54,7 +54,8 @@ using the second numeric derivative `Dt(Dtu1(t,x))`.
 ```@example derivativenn
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers,
       OptimizationOptimJL, LineSearches, Plots
-using DomainSets: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 Dt = Differential(t)
@@ -127,7 +128,7 @@ And some analysis:
 ```@example derivativenn
 using Plots
 
-ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 minimizers_ = [res.u.depvar[sym_prob.depvars[i]] for i in 1:length(chain)]
 
 u1_real(t, x) = exp(-t) * sinpi(x)
