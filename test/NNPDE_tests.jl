@@ -404,9 +404,9 @@ end
     end
 
     # Adam warmup for robustness, then BFGS for convergence
-    res = solve(prob, Adam(0.01); maxiters = 500)
+    res = solve(prob, Adam(0.01); maxiters = 1000)
     prob = remake(prob, u0 = res.u)
-    res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 500)
+    res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 1000)
 
     dx = 0.1
     xs, ts = [infimum(d.domain):dx:supremum(d.domain) for d in domains]

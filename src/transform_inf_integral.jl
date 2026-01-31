@@ -87,11 +87,11 @@ function transform_inf_integral(
     # Convert bounds to plain Julia numbers where possible to avoid Symbolics
     # arithmetic in boolean mask operations (e.g., false * Num(Inf) gives NaN)
     lb = map(
-        (l, ls) -> ls === -Inf ? -Inf : ls === Inf ? Inf : (l isa Num ? Symbolics.unwrap(l) : l),
+        (l, ls) -> ls === -Inf ? -Inf : ls === Inf ? Inf : (l isa Num ? SymbolicUtils.unwrap(l) : l),
         lb, lb_
     )
     ub = map(
-        (u, us) -> us === Inf ? Inf : us === -Inf ? -Inf : (u isa Num ? Symbolics.unwrap(u) : u),
+        (u, us) -> us === Inf ? Inf : us === -Inf ? -Inf : (u isa Num ? SymbolicUtils.unwrap(u) : u),
         ub, ub_
     )
 
