@@ -43,7 +43,7 @@ function v_inf(t)
 end
 
 function v_semiinf(t, a, upto_inf)
-    if a isa Num
+    if a isa Num || a isa SymbolicUtils.BasicSymbolic
         if upto_inf == true
             return :($t ./ (1 .- $t))
         else
@@ -84,6 +84,16 @@ function transform_inf_integral(
     )
     lb_ = Symbolics.tosymbol.(lb)
     ub_ = Symbolics.tosymbol.(ub)
+    # Convert bounds to plain Julia numbers where possible to avoid Symbolics
+    # arithmetic in boolean mask operations (e.g., false * Num(Inf) gives NaN)
+    lb = map(
+        (l, ls) -> ls === -Inf ? -Inf : ls === Inf ? Inf : (l isa Num ? Symbolics.unwrap(l) : l),
+        lb, lb_
+    )
+    ub = map(
+        (u, us) -> us === Inf ? Inf : us === -Inf ? -Inf : (u isa Num ? Symbolics.unwrap(u) : u),
+        ub, ub_
+    )
 
     if -Inf in lb_ || Inf in ub_
         if !(integrating_variable isa Array)
@@ -118,10 +128,42 @@ function transform_inf_integral(
 
         ϵ = 1 / 20 #cbrt(eps(eltypeθ))
 
-        lb = 0.0 .* _semiup + (-1.0 + ϵ) .* _inf + (-1.0 + ϵ) .* _semilw + _none .* lb +
-            lb ./ (1 .+ lb) .* _num_semiup + (-1.0 + ϵ) .* _num_semilw
-        ub = (1.0 - ϵ) .* _semiup + (1.0 - ϵ) .* _inf + 0.0 .* _semilw + _none .* ub +
-            (1.0 - ϵ) .* _num_semiup + ub ./ (1 .+ ub) .* _num_semilw
+        # Use conditional logic instead of boolean mask multiplication to avoid
+        # NaN from 0.0 * Inf (IEEE754 behavior) with symbolic infinity bounds
+        lb = map(eachindex(lb)) do i
+            if _none[i]
+                lb[i]
+            elseif _inf[i]
+                -1.0 + ϵ
+            elseif _semiup[i]
+                0.0
+            elseif _semilw[i]
+                -1.0 + ϵ
+            elseif _num_semiup[i]
+                lb[i] / (1 + lb[i])
+            elseif _num_semilw[i]
+                -1.0 + ϵ
+            else
+                lb[i]
+            end
+        end
+        ub = map(eachindex(ub)) do i
+            if _none[i]
+                ub[i]
+            elseif _inf[i]
+                1.0 - ϵ
+            elseif _semiup[i]
+                1.0 - ϵ
+            elseif _semilw[i]
+                0.0
+            elseif _num_semiup[i]
+                1.0 - ϵ
+            elseif _num_semilw[i]
+                ub[i] / (1 + ub[i])
+            else
+                ub[i]
+            end
+        end
 
         j = get_inf_transformation_jacobian(
             integrating_var_transformation, _inf, _semiup,
