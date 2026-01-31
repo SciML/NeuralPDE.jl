@@ -403,7 +403,7 @@ For more information, see `discretize` and `PINNRepresentation`.
 function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
     (; eqs, bcs, domain) = pde_system
     eq_params = pde_system.ps
-    defaults = pde_system.defaults
+    defaults = pde_system.initial_conditions
     (;
         chain, param_estim, additional_loss, multioutput, init_params, phi,
         derivative, strategy, logger, iteration, self_increment,
@@ -412,7 +412,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     adaloss = discretization.adaptive_loss
 
     default_p = eq_params isa SciMLBase.NullParameters ? nothing :
-        [defaults[ep] for ep in eq_params]
+        [Symbolics.value(defaults[ep]) for ep in eq_params]
 
     depvars, indvars, dict_indvars,
         dict_depvars, dict_depvar_input = get_vars(

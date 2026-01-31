@@ -22,7 +22,6 @@ with Physics-Informed Neural Networks.
 
 ```@example fokkerplank
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
-using Integrals, Cubature
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 # the example is taken from this article https://arxiv.org/abs/1910.10503
@@ -52,15 +51,19 @@ chain = Lux.Chain(Dense(1, inn, Lux.σ),
     Dense(inn, inn, Lux.σ),
     Dense(inn, 1))
 
-lb = [x_0]
-ub = [x_end]
+lb = x_0
+ub = x_end
+# Use a simple trapezoidal rule for the normalization constraint.
+# This avoids AD issues with Integrals.jl's C-based quadrature solvers.
+norm_xs = collect(range(lb, ub, length = 200))
+norm_dx = Float64(norm_xs[2] - norm_xs[1])
 function norm_loss_function(phi, θ, p)
-    function inner_f(x, θ)
-        0.01 * phi(x, θ) .- 1
+    # Evaluate phi at quadrature points (each point as a 1-element vector)
+    s = sum(1:length(norm_xs)) do i
+        first(phi([norm_xs[i]], θ))
     end
-    prob = IntegralProblem(inner_f, lb, ub, θ)
-    norm2 = solve(prob, HCubatureJL(), reltol = 1e-8, abstol = 1e-8, maxiters = 10)
-    abs(norm2[1])
+    norm_val = 0.01 * s * norm_dx
+    abs(norm_val - 1)
 end
 
 discretization = PhysicsInformedNN(chain,

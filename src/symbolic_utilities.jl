@@ -1,5 +1,12 @@
 using Base.Broadcast
 
+# build_expr was removed from Symbolics.jl v7; define locally
+function build_expr(head::Symbol, args)
+    ex = Expr(head)
+    append!(ex.args, args)
+    return ex
+end
+
 """
 Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
 
@@ -155,8 +162,11 @@ function _transform_expression(
                 derivative_variables = Symbol[]
                 order = 0
                 while (_args[1] isa Differential)
-                    order += 1
-                    push!(derivative_variables, toexpr(_args[1].x))
+                    d_order = _args[1].order
+                    order += d_order
+                    for _ in 1:d_order
+                        push!(derivative_variables, toexpr(_args[1].x))
+                    end
                     _args = _args[2].args
                 end
                 depvar = _args[1]
@@ -197,7 +207,19 @@ function _transform_expression(
                     integrating_var_id = [dict_indvars[i] for i in integrating_variable]
                 else
                     integrating_variable = toexpr(_args[1].domain.variables)
-                    integrating_var_id = [dict_indvars[integrating_variable]]
+                    # In SymbolicUtils v4, a symbolic tuple may produce
+                    # Expr(:call, :tuple, :x, :y) instead of a Julia Tuple
+                    if integrating_variable isa Expr &&
+                            integrating_variable.head == :call &&
+                            integrating_variable.args[1] === tuple
+                        integrating_variable = integrating_variable.args[2:end]
+                        integrating_var_id = [
+                            dict_indvars[i]
+                                for i in integrating_variable
+                        ]
+                    else
+                        integrating_var_id = [dict_indvars[integrating_variable]]
+                    end
                 end
 
                 integrating_depvars = []
@@ -336,8 +358,10 @@ Parse ModelingToolkit equation form to the inner representation.
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 function parse_equation(pinnrep::PINNRepresentation, eq)
-    eq_lhs = isequal(expand_derivatives(eq.lhs), 0) ? eq.lhs : expand_derivatives(eq.lhs)
-    eq_rhs = isequal(expand_derivatives(eq.rhs), 0) ? eq.rhs : expand_derivatives(eq.rhs)
+    eq_lhs = SymbolicUtils._iszero(expand_derivatives(eq.lhs)) ? eq.lhs :
+        expand_derivatives(eq.lhs)
+    eq_rhs = SymbolicUtils._iszero(expand_derivatives(eq.rhs)) ? eq.rhs :
+        expand_derivatives(eq.rhs)
     left_expr = transform_expression(pinnrep, toexpr(eq_lhs))
     right_expr = transform_expression(pinnrep, toexpr(eq_rhs))
     left_expr = _dot_(left_expr)
@@ -379,7 +403,7 @@ function get_vars(indvars_, depvars_)
     depvars = Symbol[]
     dict_depvar_input = Dict{Symbol, Vector{Symbol}}()
     for d in depvars_
-        if unwrap(d) isa SymbolicUtils.BasicSymbolic
+        if SymbolicUtils.iscall(unwrap(d))
             dname = SymbolicIndexingInterface.getname(d)
             push!(depvars, dname)
             push!(

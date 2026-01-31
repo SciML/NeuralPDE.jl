@@ -262,7 +262,7 @@ end
         [t],
         [u(t)],
         [p],
-        defaults = Dict([p => 4.0])
+        initial_conditions = Dict([p => 4.0])
     )
 
     analytic_sol_func1(u0, t) = u0 + sinpi(2t) / (2π)
@@ -355,7 +355,7 @@ end
 
     @named pde_system = PDESystem(
         eqs, bcs, domains,
-        [t], [x(t), y(t), z(t)], [σ_], defaults = Dict([p => 1.0 for p in [σ_]])
+        [t], [x(t), y(t), z(t)], [σ_], initial_conditions = Dict([p => 1.0 for p in [σ_]])
     )
 
     sol1 = ahmc_bayesian_pinn_pde(
@@ -491,7 +491,7 @@ end
         [x, t],
         [u(x, t)],
         [α],
-        defaults = Dict([α => 2.0])
+        initial_conditions = Dict([α => 2.0])
     )
 
     # neccesarry for loss function construction (involves Operator masking)

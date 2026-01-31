@@ -422,7 +422,7 @@ function get_loss_function(
         return solve(
             prob, strategy.quadrature_alg; strategy.reltol, strategy.abstol,
             strategy.maxiters
-        )[1]
+        ).u
     end
     return (θ) -> f_(lb, ub, loss_function, θ) / area
 end

@@ -36,8 +36,8 @@ using WeightInitializers: glorot_uniform, zeros32
 using Zygote: Zygote
 
 # Symbolic Stuff
-using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr, defaults
-using Symbolics: Symbolics, unwrap, arguments, operation, build_expr, Num,
+using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
+using Symbolics: Symbolics, unwrap, arguments, operation, Num,
     expand_derivatives
 using SymbolicUtils: SymbolicUtils
 using SymbolicIndexingInterface: SymbolicIndexingInterface
