@@ -108,7 +108,7 @@ And then using the method neural_adapter, we retrain the batch of 10 predictions
 
 ```@example neural_adapter
 using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers
-using ModelingToolkit: Interval
+using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 
 @parameters x y
