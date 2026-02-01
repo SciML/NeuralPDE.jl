@@ -58,7 +58,7 @@ alg = NNODE(chain, opt, init_params = ps)
 Once these pieces are together, we call `solve` just like with any other `ODEProblem`. Let's turn on `verbose` so we can see the loss over time during the training process:
 
 ```@example nnode1
-sol = solve(prob, alg, verbose = true, maxiters = 2000, saveat = 0.01)
+sol = solve(prob, alg, verbose = true, maxiters = 500, saveat = 0.01)
 ```
 
 Now let's compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the ODE.

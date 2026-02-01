@@ -97,7 +97,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 2500)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 500)
 ```
 
 We then use the `remake` function to rebuild the PDE problem to start a new optimization at the optimized parameters, and continue with a lower learning rate:
@@ -105,7 +105,7 @@ We then use the `remake` function to rebuild the PDE problem to start a new opti
 ```@example gpu
 prob = remake(prob, u0 = res.u)
 res = Optimization.solve(
-    prob, OptimizationOptimisers.Adam(1e-3); callback = callback, maxiters = 2500)
+    prob, OptimizationOptimisers.Adam(1e-3); callback = callback, maxiters = 500)
 ```
 
 Finally, we inspect the solution:

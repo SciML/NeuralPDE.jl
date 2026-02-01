@@ -78,7 +78,7 @@ The dataset we generated can be passed for doing parameter estimation using prov
 ```@example bpinn
 alg = BNNODE(chain;
     dataset = dataset,
-    draw_samples = 1000,
+    draw_samples = 200,
     l2std = [0.1, 0.1],
     phystd = [0.1, 0.1],
     priorsNNw = (0.0, 3.0),

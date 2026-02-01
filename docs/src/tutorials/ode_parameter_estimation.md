@@ -60,7 +60,7 @@ alg = NNODE(chain, opt, ps; strategy = WeightedIntervalTraining([0.7, 0.2, 0.1],
 Now we have all the pieces to solve the optimization problem.
 
 ```@example param_estim_lv
-sol = solve(prob, alg, verbose = true, abstol = 1e-8, maxiters = 5000, saveat = t_)
+sol = solve(prob, alg, verbose = true, abstol = 1e-8, maxiters = 500, saveat = t_)
 @test sol.k.u.p≈true_p rtol=1e-2 norm=Base.Fix1(maximum, abs) # hide
 ```
 

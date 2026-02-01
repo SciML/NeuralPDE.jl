@@ -91,10 +91,10 @@ Now we have all the pieces to solve the optimization problem.
 
 ```@example improv_param_estim
 sol_old = solve(
-    prob, alg_old; verbose = true, abstol = 1e-12, maxiters = 5000, saveat = 0.01)
+    prob, alg_old; verbose = true, abstol = 1e-12, maxiters = 500, saveat = 0.01)
 
 sol_new = solve(
-    prob, alg_new; verbose = true, abstol = 1e-12, maxiters = 5000, saveat = 0.01)
+    prob, alg_new; verbose = true, abstol = 1e-12, maxiters = 500, saveat = 0.01)
 
 sol = solve(prob_data, Tsit5(); saveat = 0.01)
 sol_points = hcat(sol.u...)

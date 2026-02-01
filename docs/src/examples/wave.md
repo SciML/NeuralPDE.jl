@@ -56,7 +56,7 @@ end
 
 # optimizer
 opt = OptimizationOptimJL.BFGS()
-res = Optimization.solve(prob, opt; callback, maxiters = 1200)
+res = Optimization.solve(prob, opt; callback, maxiters = 250)
 phi = discretization.phi
 ```
 
@@ -164,9 +164,9 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); maxiters = 2000)
+res = Optimization.solve(prob, BFGS(); maxiters = 500)
 prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, BFGS(); maxiters = 2000)
+res = Optimization.solve(prob, BFGS(); maxiters = 500)
 
 phi = discretization.phi[1]
 
