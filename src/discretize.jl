@@ -167,6 +167,13 @@ function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
         pinnrep, eqs; bc_indvars, eq_params,
         param_estim, default_p
     )
+    
+    # GPU-only rewrite of integer powers to multiplication
+    # to ensure stable symbolic differentiation and GPU AD (Issue #914).
+    if should_apply_gpu_transform(pinnrep.init_params)
+        expr_loss_function = transform_power_ops(expr_loss_function)
+    end
+    
     u = get_u()
     _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
     return (cord, θ) -> _loss_function(cord, θ, phi, derivative, integral, u, default_p)
