@@ -89,7 +89,7 @@ cb_ = function (p, l)
 end
 
 res = Optimization.solve(
-    prob, BFGS(linesearch = BackTracking()), callback = cb_, maxiters = 600)
+    prob, BFGS(linesearch = BackTracking()), callback = cb_, maxiters = 300)
 ```
 
 And some analysis:

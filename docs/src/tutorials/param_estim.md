@@ -104,7 +104,7 @@ callback = function (p, l)
     println("Current loss is: $l")
     return false
 end
-res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 500)
+res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 250)
 p_ = res.u[(end - 2):end] # p_ = [9.93, 28.002, 2.667]
 ```
 

@@ -67,7 +67,7 @@ end
 
 # Optimizer
 opt = LBFGS(linesearch = BackTracking())
-res = solve(prob, opt, maxiters = 1000)
+res = solve(prob, opt, maxiters = 500)
 phi = discretization.phi
 
 dx = 0.05
@@ -137,7 +137,7 @@ prob = discretize(pde_system, discretization)
 ```
 
 Here, we define the callback function and the optimizer. And now we can solve the PDE using PINNs
-(with the number of epochs `maxiters=1000`).
+(with the number of epochs `maxiters=500`).
 
 ```@example poisson
 #Optimizer
@@ -149,7 +149,7 @@ callback = function (p, l)
 end
 
 # We can pass the callback function in the solve. Not doing here as the output would be very long.
-res = Optimization.solve(prob, opt, maxiters = 1000)
+res = Optimization.solve(prob, opt, maxiters = 500)
 phi = discretization.phi
 ```
 

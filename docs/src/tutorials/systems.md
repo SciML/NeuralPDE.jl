@@ -89,9 +89,9 @@ callback = function (p, l)
     return false
 end
 
-res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000, callback)
+res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 500, callback)
 prob = remake(prob, u0 = res.u)
-res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
+res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 100, callback)
 phi = discretization.phi
 ```
 
@@ -112,9 +112,9 @@ loss_function(θ, _) = sum(l -> l(θ), loss_functions)
 f_ = OptimizationFunction(loss_function, AutoZygote())
 prob = OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000, callback)
+res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 500, callback)
 prob = remake(prob, u0 = res.u)
-res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
+res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 100, callback)
 ```
 
 ## Solution Representation
