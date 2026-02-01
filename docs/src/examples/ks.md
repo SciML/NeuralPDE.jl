@@ -73,7 +73,7 @@ callback = function (p, l)
 end
 
 opt = OptimizationOptimJL.BFGS()
-res = Optimization.solve(prob, opt; maxiters = 2000, callback)
+res = Optimization.solve(prob, opt; maxiters = 1000, callback)
 phi = discretization.phi
 ```
 

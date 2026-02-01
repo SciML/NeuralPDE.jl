@@ -66,7 +66,7 @@ loss_function(θ, p) = sum(map(l -> l(θ), loss_functions))
 f_ = OptimizationFunction(loss_function, AutoZygote())
 prob = OptimizationProblem(f_, sym_prob.flat_init_params)
 
-res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 3000)
+res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 1500)
 ```
 
 And some analysis:

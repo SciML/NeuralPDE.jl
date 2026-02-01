@@ -31,7 +31,7 @@ prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_
 chain = Lux.Chain(Lux.Dense(1, 15, cos), Lux.Dense(15, 15, sin), Lux.Dense(15, 2))
 opt = OptimizationOptimisers.Adam(0.1)
 alg = NNDAE(chain, opt; autodiff = false)
-sol = solve(prob, alg, verbose = true, dt = 1 / 100.0, maxiters = 3000, abstol = 1e-10)
+sol = solve(prob, alg, verbose = true, dt = 1 / 100.0, maxiters = 1500, abstol = 1e-10)
 ```
 
 Now let's compare the predictions from the learned network with the ground truth which we can obtain by numerically solving the DAE.

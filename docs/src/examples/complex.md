@@ -36,7 +36,7 @@ ps, st = Lux.setup(rng, chain)
 opt = OptimizationOptimisers.Adam(0.01)
 ground_truth = solve(problem, Tsit5(), saveat = 0.01)
 alg = NNODE(chain, opt, ps; strategy = StochasticTraining(500))
-sol = solve(problem, alg, verbose = false, maxiters = 5000, saveat = 0.01)
+sol = solve(problem, alg, verbose = false, maxiters = 1500, saveat = 0.01)
 ```
 
 Now, let's plot the predictions.

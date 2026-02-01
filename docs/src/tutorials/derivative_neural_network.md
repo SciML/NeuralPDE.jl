@@ -116,7 +116,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000, callback)
+res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000, callback)
 prob = remake(prob, u0 = res.u)
 res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
 

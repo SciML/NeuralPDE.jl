@@ -48,7 +48,7 @@ callback = function (p, l)
     return false
 end
 
-res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000, callback)
+res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000, callback)
 phi = discretization.phi
 ```
 
