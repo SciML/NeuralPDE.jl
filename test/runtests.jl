@@ -1,27 +1,69 @@
-using ReTestItems, InteractiveUtils, Hwloc
+using Test, InteractiveUtils
 
 @info sprint(versioninfo)
 
 const GROUP = lowercase(get(ENV, "GROUP", "all"))
 
-const RETESTITEMS_NWORKERS = parse(
-    Int, get(ENV, "RETESTITEMS_NWORKERS", string(min(Hwloc.num_physical_cores(), 4)))
-)
-const RETESTITEMS_NWORKER_THREADS = parse(
-    Int,
-    get(
-        ENV, "RETESTITEMS_NWORKER_THREADS",
-        string(max(Hwloc.num_virtual_cores() ÷ RETESTITEMS_NWORKERS, 1))
-    )
-)
+# Ensure relative includes (e.g., burger_reference_data.jl inside dgm_tests.jl)
+# resolve correctly when test bodies are @eval-ed into fresh modules.
+cd(@__DIR__)
+
+include("testitem_compat.jl")
 
 using NeuralPDE
 
-@info "Running tests with $(RETESTITEMS_NWORKERS) workers and \
-       $(RETESTITEMS_NWORKER_THREADS) threads for group $(GROUP)"
+@info "Running tests for group $(GROUP)"
 
-ReTestItems.runtests(
-    NeuralPDE; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
-    nworkers = RETESTITEMS_NWORKERS,
-    nworker_threads = RETESTITEMS_NWORKER_THREADS, testitem_timeout = 3600
-)
+if GROUP == "all" || GROUP == "qa"
+    include("qa_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "odebpinn"
+    include("BPINN_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "pdebpinn"
+    include("BPINN_PDE_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "nnsde"
+    include("NN_SDE_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "nnpde1"
+    include("NNPDE_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "nnpde2"
+    include("direct_function_tests.jl")
+    include("additional_loss_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "adaptiveloss"
+    include("adaptive_loss_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "forward"
+    include("forward_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "dgm"
+    include("dgm_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "nnode"
+    include("NNODE_tests.jl")
+    include("NNDAE_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "pinoode"
+    include("PINO_ode_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "neuraladapter"
+    include("neural_adapter_tests.jl")
+end
+
+if GROUP == "all" || GROUP == "integrodiff"
+    include("IDE_tests.jl")
+end
