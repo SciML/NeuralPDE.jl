@@ -227,3 +227,66 @@ end
 
     @test u_predict ≈ u_real rtol = 0.2
 end
+
+@testitem "Nonlinear PDE u^2 - CUDA" tags = [:cuda] setup = [CUDATestSetup] begin
+    using Lux, Optimization, OptimizationOptimisers, Random, ComponentArrays
+    import DomainSets: Interval
+
+    Random.seed!(100)
+
+    @parameters x
+    @variables u(..)
+
+    # Simple nonlinear PDE: u^2 = 0 with boundary condition u(0) = 0
+    # Without power rewriting fix, produces NaN on GPU due to CUDA pow gradients
+    # Solution should be u(x) = 0 everywhere
+    eq = u(x)^2 ~ 0.0
+    bcs = [u(0.0) ~ 0.0]
+    domains = [x ∈ Interval(0.0, 1.0)]
+
+    inner = 10
+    chain = Chain(Dense(1, inner, tanh), Dense(inner, inner, tanh), Dense(inner, 1))
+
+    strategy = GridTraining(0.1)
+    ps = Lux.initialparameters(Random.default_rng(), chain) |> ComponentArray |> gpud |> f64
+
+    discretization = PhysicsInformedNN(chain, strategy; init_params = ps)
+    @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
+    prob = discretize(pde_system, discretization)
+    res = solve(prob, Adam(0.01); maxiters = 200, callback = callback)
+
+    @test !any(isnan, res.u)
+    @test all(isfinite, res.u)
+end
+
+@testitem "Nonlinear PDE Dx(u^3) - CUDA" tags = [:cuda] setup = [CUDATestSetup] begin
+    using Lux, Optimization, OptimizationOptimisers, Random, ComponentArrays
+    import DomainSets: Interval
+
+    Random.seed!(200)
+
+    @parameters x
+    @variables u(..)
+    Dx = Differential(x)
+
+    # PDE with derivative of cubic power: Dx(u^3) = 0 with boundary u(0) = 0
+    # Tests that power rewriting works inside derivatives (expand_derivatives case)
+    # Without fix, produces NaN on GPU from CUDA pow gradient near u ≈ 0
+    eq = Dx(u(x)^3) ~ 0.0
+    bcs = [u(0.0) ~ 0.0]
+    domains = [x ∈ Interval(0.0, 1.0)]
+
+    inner = 10
+    chain = Chain(Dense(1, inner, tanh), Dense(inner, inner, tanh), Dense(inner, 1))
+
+    strategy = QuasiRandomTraining(1000)
+    ps = Lux.initialparameters(Random.default_rng(), chain) |> ComponentArray |> gpud |> f64
+
+    discretization = PhysicsInformedNN(chain, strategy; init_params = ps)
+    @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
+    prob = discretize(pde_system, discretization)
+    res = solve(prob, Adam(0.01); maxiters = 200, callback = callback)
+
+    @test !any(isnan, res.u)
+    @test all(isfinite, res.u)
+end
