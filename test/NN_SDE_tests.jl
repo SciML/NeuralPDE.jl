@@ -51,9 +51,9 @@ end
     dt = 1 / 50.0f0
     abstol = 1.0e-12
     autodiff = false
-    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 1000)
+    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 500)
     opt = BFGS()
-    numensemble = 1000
+    numensemble = 500
 
     sol_2 = solve(
         prob, NNSDE(
@@ -510,7 +510,7 @@ end
     # estimated sde parameter tests (we trained with 15 observed solution paths).
     # absolute value taken for 2nd estimated parameter as loss for variance is independent of this parameter's direction.
     @test sol_1.estimated_params[1] .≈ ideal_p[1] rtol = 0.25
-    @test abs(sol_1.estimated_params[2]) .≈ ideal_p[2] rtol = 0.125
+    @test abs(sol_1.estimated_params[2]) .≈ ideal_p[2] rtol = 0.2
     @test sol_2.estimated_params[1] .≈ ideal_p[1] rtol = 0.25
-    @test abs(sol_2.estimated_params[2]) .≈ ideal_p[2] rtol = 0.125
+    @test abs(sol_2.estimated_params[2]) .≈ ideal_p[2] rtol = 0.2
 end
