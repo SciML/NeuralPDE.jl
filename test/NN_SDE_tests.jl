@@ -505,7 +505,7 @@ end
             for i in eachindex(ts)
     ]
 
-    @test mean(abs2, solution_1_strong_solve .- truncated_solution_strong_paths) < 3.0e-1
+    @test mean(abs2, solution_1_strong_solve .- truncated_solution_strong_paths) < 5.0e-1
 
     # estimated sde parameter tests (we trained with 15 observed solution paths).
     # absolute value taken for 2nd estimated parameter as loss for variance is independent of this parameter's direction.

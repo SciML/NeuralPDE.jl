@@ -31,6 +31,7 @@ jobs:
       - uses: julia-actions/julia-runtest@v1
         env:
           GROUP: "CUDA"
+          RETESTITEMS_NWORKERS: 1
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v5
         with:

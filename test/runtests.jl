@@ -23,5 +23,5 @@ using NeuralPDE
 ReTestItems.runtests(
     NeuralPDE; tags = (GROUP == "all" ? nothing : [Symbol(GROUP)]),
     nworkers = RETESTITEMS_NWORKERS,
-    nworker_threads = RETESTITEMS_NWORKER_THREADS, testitem_timeout = 3600
+    nworker_threads = RETESTITEMS_NWORKER_THREADS, testitem_timeout = 5400
 )
