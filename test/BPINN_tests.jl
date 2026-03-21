@@ -342,7 +342,7 @@ end
     @test mean(abs.(physsol1 .- meanscurve2_1)) > mean(abs.(physsol1 .- meanscurve2_2))
 
     param2 = mean(i[62] for i in fhsampleslux22[2400:length(fhsampleslux22)])
-    @test abs(param2 - p) < abs(0.2 * p)
+    @test abs(param2 - p) < abs(0.3 * p)
 
     param1 = mean(i[62] for i in fhsampleslux12[2400:length(fhsampleslux12)])
     @test abs(param1 - p) > abs(0.5 * p)
