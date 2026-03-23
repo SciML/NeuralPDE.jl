@@ -22,5 +22,8 @@ end
         skip = (Base, Core, ModelingToolkit)
     ) === nothing
     @test check_no_stale_explicit_imports(NeuralPDE) === nothing
-    @test check_all_qualified_accesses_via_owners(NeuralPDE) === nothing
+    # Ignore get_ivs/get_dvs: owned by ModelingToolkitBase but accessed via ModelingToolkit.
+    @test check_all_qualified_accesses_via_owners(
+        NeuralPDE; ignore = (:get_ivs, :get_dvs)
+    ) === nothing
 end
