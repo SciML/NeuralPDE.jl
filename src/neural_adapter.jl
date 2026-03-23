@@ -40,7 +40,8 @@ function get_loss_function_neural_adapter(
     eqs isa Array || (eqs = [eqs])
     domains = pde_system.domain
 
-    _, _, dict_indvars, dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
+    _, _, dict_indvars, dict_depvars = get_vars(
+        ModelingToolkit.get_ivs(pde_system), ModelingToolkit.get_dvs(pde_system))
 
     eltypeθ = recursive_eltype(init_params)
     bound = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
@@ -54,7 +55,8 @@ function get_loss_function_neural_adapter(
     eqs isa Array || (eqs = [eqs])
     domains = pde_system.domain
 
-    _, _, dict_indvars, dict_depvars = get_vars(pde_system.indvars, pde_system.depvars)
+    _, _, dict_indvars, dict_depvars = get_vars(
+        ModelingToolkit.get_ivs(pde_system), ModelingToolkit.get_dvs(pde_system))
 
     eltypeθ = recursive_eltype(init_params)
     lb, ub = get_bounds_(domains, eqs, eltypeθ, dict_indvars, dict_depvars, strategy)
