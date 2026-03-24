@@ -53,10 +53,7 @@ using MonteCarloMeasurements: Particles
 
 import LuxCore: initialparameters, initialstates, parameterlength
 
-@reexport using SciMLBase
-@reexport using ModelingToolkit: ModelingToolkit, PDESystem, Differential
-@reexport using ModelingToolkitBase: @named, @parameters
-@reexport using Symbolics: @variables
+@reexport using SciMLBase, ModelingToolkit
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
