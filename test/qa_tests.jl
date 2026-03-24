@@ -15,12 +15,7 @@ end
 @testitem "ExplicitImports" tags = [:qa] begin
     using NeuralPDE, ExplicitImports
 
-    # Skip ModelingToolkit — NeuralPDE intentionally @reexport's it, so macros like
-    # @named, @parameters, @variables are used via implicit import by design.
-    @test check_no_implicit_imports(
-        NeuralPDE;
-        skip = (Base, Core, ModelingToolkit)
-    ) === nothing
+    @test check_no_implicit_imports(NeuralPDE) === nothing
     @test check_no_stale_explicit_imports(NeuralPDE) === nothing
     # Ignore get_ivs/get_dvs: owned by ModelingToolkitBase but accessed via ModelingToolkit.
     @test check_all_qualified_accesses_via_owners(

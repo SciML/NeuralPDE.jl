@@ -36,9 +36,9 @@ using WeightInitializers: glorot_uniform, zeros32
 using Zygote: Zygote
 
 # Symbolic Stuff
-using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
-using Symbolics: Symbolics, unwrap, arguments, operation, Num,
-    expand_derivatives
+using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr,
+    @named, @parameters, @variables
+using Symbolics: Symbolics, unwrap, arguments, Num, expand_derivatives
 using SymbolicUtils: SymbolicUtils
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
@@ -53,7 +53,9 @@ using MonteCarloMeasurements: Particles
 
 import LuxCore: initialparameters, initialstates, parameterlength
 
-@reexport using SciMLBase, ModelingToolkit
+@reexport using SciMLBase
+@reexport using ModelingToolkit: ModelingToolkit, PDESystem, Differential,
+    @named, @parameters, @variables
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
