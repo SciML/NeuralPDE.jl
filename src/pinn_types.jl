@@ -83,9 +83,13 @@ methodology.
   the vector.
 * `param_estim`: whether the parameters of the differential equation should be included in
   the values sent to the `additional_loss` function. Defaults to `false`.
-* `logger`: ?? needs docs
-* `log_options`: ?? why is this separate from the logger?
-* `iteration`: used to control the iteration counter???
+* `logger`: a logger object (e.g. from TensorBoardLogger.jl) for recording training
+  metrics. Defaults to `nothing` (no logging).
+* `log_options`: a `LogOptions` struct controlling logging behavior such as
+  `log_frequency`. Separate from `logger` to allow configuring logging behavior
+  independently of the logging backend.
+* `iteration`: a `Ref{Int}` or `Vector{Int}` for controlling the iteration counter.
+  If `nothing` (default), an internal counter is used with self-incrementing enabled.
 * `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on
   `solve`.
 """
@@ -190,182 +194,126 @@ function BayesianPINN(args...; dataset = nothing, kwargs...)
 end
 
 """
-`PINNRepresentation``
+    AbstractAdaptiveLoss
+
+An abstract type for adaptive loss weighting strategies used in PINN training.
+Concrete subtypes dynamically adjust the relative importance of different loss
+components (PDE, boundary conditions, additional) during optimization.
+
+See also: [`NonAdaptiveLoss`](@ref), [`GradientScaleAdaptiveLoss`](@ref),
+[`MiniMaxAdaptiveLoss`](@ref).
+"""
+abstract type AbstractAdaptiveLoss end
+
+"""
+    PINNRepresentation
 
 An internal representation of a physics-informed neural network (PINN). This is the struct
 used internally and returned for introspection by `symbolic_discretize`.
 
 ## Fields
 
-$(FIELDS)
+- `eqs`: The equations of the PDE.
+- `bcs`: The boundary condition equations.
+- `domains`: The domains for each of the independent variables.
+- `eq_params`: The symbolic parameters of the PDE system, or `SciMLBase.NullParameters()` if none.
+- `defaults`: The default values (initial conditions) dictionary from the PDESystem.
+- `default_p`: The numeric values of the PDE parameters extracted from `defaults`, or `nothing`
+  if there are no parameters.
+- `param_estim`: Whether parameters of the differential equation are estimated alongside the
+  neural network weights.
+- `additional_loss`: The `additional_loss` function as provided by the user.
+- `adaloss`: The adaptive loss function, an `AbstractAdaptiveLoss`.
+- `depvars`: The dependent variables of the system as a `Vector{Symbol}`.
+- `indvars`: The independent variables of the system as a `Vector{Symbol}`.
+- `dict_indvars`: A `Dict{Symbol, Int}` mapping independent variable symbols to their integer indices.
+- `dict_depvars`: A `Dict{Symbol, Int}` mapping dependent variable symbols to their integer indices.
+- `dict_depvar_input`: A `Dict{Symbol, Vector{Symbol}}` mapping each dependent variable symbol to
+  the vector of independent variable symbols that it depends on.
+- `logger`: The logger as provided by the user (e.g. from TensorBoardLogger.jl), or `nothing`.
+- `multioutput`: Whether there are multiple outputs, i.e. a system of PDEs.
+- `iteration`: The iteration counter used inside the cost function.
+- `init_params`: The initial parameters as provided by the user. If the PDE is a system of PDEs, this
+  will be an array of arrays. If Lux.jl is used, then this is an array of ComponentArrays.
+- `flat_init_params`: The initial parameters as a flattened array. This is the array that is used in the
+  construction of the OptimizationProblem. If a Lux.jl neural network is used, then this
+  flattened form is a `ComponentArray`. If the equation is a system of equations, then
+  `flat_init_params.depvar.x` are the parameters for the neural network corresponding
+  to the dependent variable `x`, and i.e. if `depvar[i] == :x` then for `phi[i]`.
+  If `param_estim = true`, then `flat_init_params.p` are the parameters and
+  `flat_init_params.depvar.x` are the neural network parameters, so
+  `flat_init_params.depvar.x` would be the parameters of the neural network for the
+  dependent variable `x` if it's a system.
+- `phi`: The representation of the test function of the PDE solution.
+- `derivative`: The function used for computing the derivative.
+- `strategy`: The training strategy as provided by the user, an `AbstractTrainingStrategy`.
+- `pde_indvars`: The independent variables used in each PDE equation. For `QuadratureTraining`,
+  these are the arguments; for other strategies, these are the variables.
+- `bc_indvars`: The independent variables used in each boundary condition. For `QuadratureTraining`,
+  these are the arguments; for other strategies, these are the variables.
+- `pde_integration_vars`: The integration variables found in each PDE equation (for integral terms).
+- `bc_integration_vars`: The integration variables found in each boundary condition (for integral terms).
+- `integral`: The numeric integration function used for integral terms in the PDE, or `nothing`
+  before initialization.
+- `symbolic_pde_loss_functions`: The PDE loss functions as represented in Julia AST.
+- `symbolic_bc_loss_functions`: The boundary condition loss functions as represented in Julia AST.
+- `loss_functions`: The `PINNLossFunctions`, i.e. the generated loss functions.
 """
 mutable struct PINNRepresentation
-    """
-    The equations of the PDE
-    """
     eqs::Any
-    """
-    The boundary condition equations
-    """
     bcs::Any
-    """
-    The domains for each of the independent variables
-    """
     domains::Any
-    """
-    ???
-    """
     eq_params::Any
-    """
-    ???
-    """
     defaults::Any
-    """
-    ???
-    """
     default_p::Any
-    """
-    Whether parameters are to be appended to the `additional_loss`
-    """
-    param_estim::Any
-    """
-    The `additional_loss` function as provided by the user
-    """
+    param_estim::Bool
     additional_loss::Any
-    """
-    The adaptive loss function
-    """
-    adaloss::Any
-    """
-    The dependent variables of the system
-    """
-    depvars::Any
-    """
-    The independent variables of the system
-    """
-    indvars::Any
-    """
-    A dictionary form of the independent variables. Define the structure ???
-    """
-    dict_indvars::Any
-    """
-    A dictionary form of the dependent variables. Define the structure ???
-    """
-    dict_depvars::Any
-    """
-    ???
-    """
-    dict_depvar_input::Any
-    """
-    The logger as provided by the user
-    """
+    adaloss::AbstractAdaptiveLoss
+    depvars::Vector{Symbol}
+    indvars::Vector{Symbol}
+    dict_indvars::Dict{Symbol, Int}
+    dict_depvars::Dict{Symbol, Int}
+    dict_depvar_input::Dict{Symbol, Vector{Symbol}}
     logger::Any
-    """
-    Whether there are multiple outputs, i.e. a system of PDEs
-    """
     multioutput::Bool
-    """
-    The iteration counter used inside the cost function
-    """
     iteration::Any
-    """
-    The initial parameters as provided by the user. If the PDE is a system of PDEs, this
-    will be an array of arrays. If Lux.jl is used, then this is an array of ComponentArrays.
-    """
     init_params::Any
-    """
-    The initial parameters as a flattened array. This is the array that is used in the
-    construction of the OptimizationProblem. If a Lux.jl neural network is used, then this
-    flattened form is a `ComponentArray`. If the equation is a system of equations, then
-    `flat_init_params.depvar.x` are the parameters for the neural network corresponding
-    to the dependent variable `x`, and i.e. if `depvar[i] == :x` then for `phi[i]`.
-    If `param_estim = true`, then `flat_init_params.p` are the parameters and
-    `flat_init_params.depvar.x` are the neural network parameters, so
-    `flat_init_params.depvar.x` would be the parameters of the neural network for the
-    dependent variable `x` if it's a system.
-    """
     flat_init_params::Any
-    """
-    The representation of the test function of the PDE solution
-    """
     phi::Any
-    """
-    The function used for computing the derivative
-    """
     derivative::Any
-    """
-    The training strategy as provided by the user
-    """
     strategy::AbstractTrainingStrategy
-    """
-    ???
-    """
     pde_indvars::Any
-    """
-    ???
-    """
     bc_indvars::Any
-    """
-    ???
-    """
     pde_integration_vars::Any
-    """
-    ???
-    """
     bc_integration_vars::Any
-    """
-    ???
-    """
     integral::Any
-    """
-    The PDE loss functions as represented in Julia AST
-    """
     symbolic_pde_loss_functions::Any
-    """
-    The boundary condition loss functions as represented in Julia AST
-    """
     symbolic_bc_loss_functions::Any
-    """
-    The PINNLossFunctions, i.e. the generated loss functions
-    """
     loss_functions::Any
 end
 
 """
-`PINNLossFunctions``
+    PINNLossFunctions
 
-The generated functions from the PINNRepresentation
+The generated functions from the `PINNRepresentation`.
 
 ## Fields
 
-$(FIELDS)
+- `bc_loss_functions`: The boundary condition loss functions.
+- `pde_loss_functions`: The PDE loss functions.
+- `full_loss_function`: The full loss function, combining the PDE and boundary condition loss
+  functions. This is the loss function that is used by the optimizer.
+- `additional_loss_function`: The wrapped `additional_loss`, as pieced together for the optimizer.
+- `datafree_pde_loss_functions`: The pre-data version of the PDE loss function.
+- `datafree_bc_loss_functions`: The pre-data version of the BC loss function.
 """
-struct PINNLossFunctions
-    """
-    The boundary condition loss functions
-    """
-    bc_loss_functions::Any
-    """
-    The PDE loss functions
-    """
-    pde_loss_functions::Any
-    """
-    The full loss function, combining the PDE and boundary condition loss functions.
-    This is the loss function that is used by the optimizer.
-    """
-    full_loss_function::Any
-    """
-    The wrapped `additional_loss`, as pieced together for the optimizer.
-    """
-    additional_loss_function::Any
-    """
-    The pre-data version of the PDE loss function
-    """
-    datafree_pde_loss_functions::Any
-    """
-    The pre-data version of the BC loss function
-    """
-    datafree_bc_loss_functions::Any
+@concrete struct PINNLossFunctions
+    bc_loss_functions
+    pde_loss_functions
+    full_loss_function
+    additional_loss_function
+    datafree_pde_loss_functions
+    datafree_bc_loss_functions
 end
 
 get_u() = (cord, θ, phi) -> phi(cord, θ)

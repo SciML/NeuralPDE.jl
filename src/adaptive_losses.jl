@@ -1,4 +1,4 @@
-abstract type AbstractAdaptiveLoss end
+# AbstractAdaptiveLoss is defined in pinn_types.jl
 
 # Utils
 vectorify(x::Vector, ::Type{T}) where {T <: Real} = T.(x)
