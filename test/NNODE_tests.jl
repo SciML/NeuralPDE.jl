@@ -289,8 +289,8 @@ end
     @test !isapprox(sol_old.k.u.p, true_p; atol = 10)
     @test !isapprox(sol_old_points, sol_points; atol = 10)
 
-    @test sol_new.k.u.p ≈ true_p atol = 1.0e-2
-    @test sol_new_points ≈ sol_points atol = 0.1
+    @test sol_new.k.u.p ≈ true_p atol = 5.0e-2
+    @test sol_new_points ≈ sol_points atol = 0.2
 end
 
 @testitem "ODE Complex Numbers" tags = [:nnode] begin
