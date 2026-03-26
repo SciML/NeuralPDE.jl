@@ -1,0 +1,11 @@
+# Compact symbolic PINN loss template
+# NN_j(...) are registered neural outputs (not expanded layer-by-layer).
+
+PDE residual terms:
+(Differential(t, 1)(NN_1(t, x)) + Differential(x, 1)(NN_1(t, x)))^2
+
+Boundary residual terms:
+(NN_1(t, x) - sin(6.283185307179586x))^2 + (NN_1(t, x) - sin(-6.283185307179586t))^2 + (-sin(6.283185307179586(1.0 - t)) + NN_1(t, x))^2
+
+Loss template:
+sum_over_10_point_grid(PDE residual terms) + 15.0 * (Boundary residual terms)
