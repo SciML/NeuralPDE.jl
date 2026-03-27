@@ -49,14 +49,14 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
-      - run: |
-          julia --project=docs -e '
-            println("--- Instantiating project")
-            using Pkg
-            Pkg.develop(PackageSpec(path=pwd()))
-            Pkg.instantiate()
-            println("+++ Building documentation")
-            include("docs/make.jl")'
+      - name: Instantiating project
+        shell: julia --color=yes --project=docs {0}
+        run: |
+          using Pkg
+          Pkg.develop(PackageSpec(path=pwd()))
+          Pkg.instantiate()
+      - name: Building documentation
+        run: julia --color=yes --project=docs docs/make.jl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
