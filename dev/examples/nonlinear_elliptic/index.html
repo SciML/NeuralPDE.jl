@@ -11,7 +11,8 @@ u(1,y) &amp;= k[\cosh(\sqrt[]{f(k)}) + \sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
 u(x,0) &amp;= k[\cosh(\sqrt[]{f(k)}) + \sinh(\sqrt[]{f(k)})] \\
 \end{aligned}\]</p><p>where k is a root of the algebraic (transcendental) equation f(k) = g(k).</p><p>This is done using a derivative neural network approximation.</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots
 using Plots
-using ModelingToolkit: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters x, y
 Dx = Differential(x)
@@ -33,8 +34,9 @@ u_analytic(x, y) = k * w_analytic(x, y)
 
 # Nonlinear Steady-State Systems of Two Reaction-Diffusion Equations with 3 arbitrary function f, g, h
 eqs_ = [
-    Dx(Dxu(x, y)) + Dy(Dyu(x, y)) ~ u(x, y) * f(u(x, y) / w(x, y)) +
-                                    u(x, y) / w(x, y) * h(u(x, y) / w(x, y)),
+    Dx(Dxu(x, y)) + Dy(Dyu(x, y)) ~
+    u(x, y) * f(u(x, y) / w(x, y)) +
+    u(x, y) / w(x, y) * h(u(x, y) / w(x, y)),
     Dx(Dxw(x, y)) + Dy(Dyw(x, y)) ~ w(x, y) * g(u(x, y) / w(x, y)) + h(u(x, y) / w(x, y))]
 
 # Boundary conditions
@@ -87,7 +89,7 @@ res = solve(prob, BFGS(); maxiters = 100, callback)
 phi = discretization.phi
 
 # Analysis
-xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+xs, ys = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 depvars = [:u, :w]
 minimizers_ = [res.u.depvar[depvars[i]] for i in 1:2]
 
@@ -101,47 +103,43 @@ for i in 1:2
     p2 = plot(xs, ys, u_predict[i], linetype = :contourf, title = &quot;predict&quot;)
     p3 = plot(xs, ys, diff_u[i], linetype = :contourf, title = &quot;error&quot;)
     push!(ps, plot(p1, p2, p3))
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">loss: 7.964455546599065
-pde_losses: [0.09456092773810654, 1.5278662964839276]
-bcs_losses: [0.053590253344409325, 2.6205956859419475, 0.09419525111625969, 0.31169646529892847, 2.6587479428245655, 0.3361955625740608]
-der_losses: [0.022326615772320736, 0.031961477841070944, 0.005541688605176259, 0.20717737905829156]
-loss: 2.0918365758138076
-pde_losses: [0.16388107408317265, 0.2641205167981561]
-bcs_losses: [0.06406084530785108, 0.7735739391768419, 0.09860390744833769, 0.046391020829693534, 0.23769429537951228, 0.1539025886683835]
-der_losses: [0.00823152688865449, 0.11350832992359058, 0.0265225862054522, 0.14134594510416174]
-loss: 1.033118515187256
-pde_losses: [0.2154094339983379, 0.2705645011485058]
-bcs_losses: [0.020458447868296856, 0.12352019439933315, 0.02206550286307987, 0.02139663734845508, 0.0465942771530311, 0.0428488589984824]
-der_losses: [0.03357936554081804, 0.07931127269284038, 0.09547945201171389, 0.06189057116436144]
-loss: 0.6861309306779912
-pde_losses: [0.09108548466464678, 0.15140252308871463]
-bcs_losses: [0.01348918838935601, 0.08931653318767571, 0.028261984074557486, 0.009896927606467902, 0.05876276175679301, 0.01866329779432452]
-der_losses: [0.031855432178832854, 0.052675365867472276, 0.09129783847535068, 0.04942359359379946]
-loss: 0.4377541032255472
-pde_losses: [0.10811155196506117, 0.05144162277702473]
-bcs_losses: [0.005969631389722684, 0.061946752727388164, 0.03326129393027355, 0.005262654011418557, 0.035608568879674715, 0.007180902570080027]
-der_losses: [0.04238868775757121, 0.0184785664242419, 0.053495733510817677, 0.014608137282272825]
-loss: 0.26056086405678053
-pde_losses: [0.03907444752877687, 0.02232514099991089]
-bcs_losses: [0.005282269273820356, 0.06030951842871602, 0.019787320837177498, 0.004434417771092251, 0.0033576677738608148, 0.008360576610215076]
-der_losses: [0.04601268914859409, 0.023387387821421322, 0.020258748580062914, 0.00797067928313244]
-loss: 0.18553612928283586
-pde_losses: [0.06768912827829418, 0.010303269332647537]
-bcs_losses: [0.003776004775033352, 0.0371471266986153, 0.008657591026221661, 0.003941906873592612, 0.0027065963993660896, 0.006711704212636146]
-der_losses: [0.018251480275424458, 0.012056767064059953, 0.005691325530498652, 0.008603228816445936]
-loss: 0.11809321940334075
-pde_losses: [0.024166735801855473, 0.0052848260519647436]
-bcs_losses: [0.002483596640342322, 0.01546856276907252, 0.012607791235355156, 0.0024572147419907324, 0.0020752626148572884, 0.002428897666966379]
-der_losses: [0.007387424652282897, 0.01865422179560543, 0.012120395135990622, 0.012958290297057161]
-loss: 0.07084468345774037
-pde_losses: [0.006814271103036366, 0.004748018817677722]
-bcs_losses: [0.0019554086446022514, 0.009518368010332581, 0.013020823339281479, 0.0016247985722549318, 0.004633405791332967, 0.0035469175788277484]
-der_losses: [0.002881418761818275, 0.01047146118964521, 0.00513055511969303, 0.006499236529237803]
-loss: 0.052297419928712605
-pde_losses: [0.0026744587451543174, 0.0012476418273926185]
-bcs_losses: [0.00308322714865252, 0.008186602467899907, 0.009436295253149294, 0.0047098009045736825, 0.0033368269776272784, 0.004136647189230145]
-der_losses: [0.0018684032722154852, 0.008403595098790101, 0.0020550313386161955, 0.0031588897054110644]
-loss: 0.038840570347191405
-pde_losses: [0.0021141541131729806, 0.0011961298483566724]
-bcs_losses: [0.003789398802024242, 0.0030991698716349536, 0.006106015063747031, 0.003060080807012735, 0.002430466124912393, 0.0023936429257477116]
-der_losses: [0.0017068745074623425, 0.006209739535651947, 0.0023039216985677805, 0.004430977048900615]</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="e669f10b.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="29507998.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../linear_parabolic/">« Linear parabolic system of PDEs</a><a class="docs-footer-nextpage" href="../nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Thursday 29 May 2025 19:59">Thursday 29 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">loss: 3.7112024918111697
+pde_losses: [0.14104410042162774, 0.1436451181930165]
+bcs_losses: [0.1730106776003898, 1.2749202218627107, 0.20700224928726008, 0.2882179279144713, 0.6505121291511782, 0.35774112986298084]
+der_losses: [0.17932522841211704, 0.10462443866035225, 0.04771238813678825, 0.14344688230827693]
+loss: 1.501054746739348
+pde_losses: [0.29474264440741754, 0.28823326309068886]
+bcs_losses: [0.0020344341816237767, 0.2002509373592204, 0.1219649322360673, 0.03312861414656543, 0.1502052354258786, 0.08988116239996251]
+der_losses: [0.046912140520698364, 0.06913399517907486, 0.1113752741686876, 0.0931921136234629]
+loss: 0.8751942106904196
+pde_losses: [0.10351056481199512, 0.17832664420519673]
+bcs_losses: [0.027980967003521116, 0.12489988662825258, 0.026838567691742633, 0.0075550919892798515, 0.16147384045483312, 0.019108895350721827]
+der_losses: [0.06080530487153342, 0.04934244350756015, 0.054735409213667124, 0.06061659496211588]
+loss: 0.32598825112112023
+pde_losses: [0.03895951765513956, 0.027001369537130792]
+bcs_losses: [0.0036550198472056314, 0.05214396922778901, 0.026122016568153904, 0.001820621421719065, 0.03129470929558137, 0.018475946611776345]
+der_losses: [0.027642411038616727, 0.06364605149166935, 0.018998168446753907, 0.01622844997958457]
+loss: 0.16665600286903187
+pde_losses: [0.018882071279506817, 0.012687181402563178]
+bcs_losses: [0.018937947918689843, 0.0344126172931111, 0.011743649648265655, 0.02882977488977046, 0.0024294767480382267, 0.00506360692270232]
+der_losses: [0.008742290208631882, 0.009861598183362895, 0.0032902709917421217, 0.011775517382647361]
+loss: 0.0862686470682999
+pde_losses: [0.007478818138988957, 0.0032474133585276553]
+bcs_losses: [0.005192537188339587, 0.009190504497947649, 0.009357899865724184, 0.0026150587012216805, 0.008721299261311545, 0.003250035667621551]
+der_losses: [0.0037747173496150994, 0.020899048682114698, 0.0031584516760891092, 0.009382862680798193]
+loss: 0.057413752133431396
+pde_losses: [0.0035462629333717654, 0.003240186025465884]
+bcs_losses: [0.0035667696859627337, 0.004368211817213553, 0.005999044995080804, 0.005292112415774677, 0.005433525002444647, 0.0031756986303185853]
+der_losses: [0.0015734287997882723, 0.0056873286234851664, 0.002780193646183897, 0.012750989558341414]
+loss: 0.03948062655339962
+pde_losses: [0.00148630151982839, 0.0021893631518194352]
+bcs_losses: [0.003216796316669018, 0.001048796338910346, 0.0026773802216137656, 0.005330266017564984, 0.0041601574130230735, 0.004781815139738422]
+der_losses: [0.0008470627080889564, 0.0038913880641088575, 0.0036050477606650263, 0.006246251901369351]
+loss: 0.02983748012063122
+pde_losses: [0.0010024226808791033, 0.004599836042835068]
+bcs_losses: [0.002074164655446723, 0.0008742854969735121, 0.0018939211737148223, 0.003733326701235049, 0.001968129915882045, 0.004404953623974432]
+der_losses: [0.0010409472498695124, 0.0020772272664989107, 0.0032292466149251705, 0.002939018698396874]
+loss: 0.016350532901906717
+pde_losses: [0.00033692086501973053, 0.0021615583117246453]
+bcs_losses: [0.001118081686297608, 0.00044069368385752793, 0.0019580231208759314, 0.0015410896212295717, 0.0004109533755493097, 0.0024748956743001044]
+der_losses: [0.0008814149104771575, 0.0022548012344491804, 0.0017151131049401116, 0.001056987313185838]</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="049bea08.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="49dad3cf.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../linear_parabolic/">« Linear parabolic system of PDEs</a><a class="docs-footer-nextpage" href="../nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 27 March 2026 23:51">Friday 27 March 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

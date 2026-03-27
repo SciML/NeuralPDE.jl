@@ -12,7 +12,8 @@ w(t, 1) &amp;= \frac{e^{\lambda_1} \cos(\frac{x}{a})-e^{\lambda_2} \cos(\frac{x}
 \end{aligned}\]</p><p>with a physics-informed neural network.</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers,
       OptimizationOptimJL, LineSearches
 using Plots
-using ModelingToolkit: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..), w(..)
@@ -82,7 +83,7 @@ res = solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 5000, callback)
 phi = discretization.phi
 
 # Analysis
-ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 depvars = [:u, :w]
 minimizers_ = [res.u.depvar[depvars[i]] for i in 1:length(chain)]
 
@@ -97,46 +98,46 @@ for i in 1:2
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = &quot;error&quot;)
     push!(ps, plot(p1, p2, p3))
 end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">iter: 500
-loss: 1.7167671221769436
-pde_losses: [0.35955257144058506, 0.13022429671159852]
-bcs_losses: [0.011055790343847058, 0.0005433573109808677, 0.569451349441112, 0.19704164555117307, 0.18797390193510027, 0.056034532213962734]
+loss: 13.283154673327504
+pde_losses: [1.1101036313037216, 0.2634039969792587]
+bcs_losses: [0.06072130302937153, 0.009619032200011507, 4.7778447944956355, 2.2793789288299457, 2.639542243823676, 1.2569804914952833]
 iter: 1000
-loss: 0.18692367522782471
-pde_losses: [0.08606397325364208, 0.01951037659450489]
-bcs_losses: [0.006445291690481083, 0.0016813031450510995, 0.02685426553712979, 0.011871819966290045, 0.022909847568795706, 0.009567551187314177]
+loss: 0.5441983187297148
+pde_losses: [0.22281570193228223, 0.026487928330832133]
+bcs_losses: [0.006134272443289203, 0.00016150304656412415, 0.13001218151443023, 0.030351745038346728, 0.17996654151171676, 0.03735182028482027]
 iter: 1500
-loss: 0.07168562289706792
-pde_losses: [0.029639557600507387, 0.01016453520629952]
-bcs_losses: [0.0024327716065268147, 0.00043874961550646166, 0.007433986455374967, 0.004488887324721494, 0.010286438911272682, 0.005027863621170717]
+loss: 0.15829958633210858
+pde_losses: [0.05863977196551797, 0.010322541939769605]
+bcs_losses: [0.0007356799283408988, 0.000146939936299967, 0.013009142923616051, 0.0040638553283016245, 0.06889528140426307, 0.01642629297372281]
 iter: 2000
-loss: 0.03639350179215006
-pde_losses: [0.014039495378085545, 0.00645134444324304]
-bcs_losses: [0.0010133335925061016, 0.0003135000195673327, 0.002091931612152612, 0.0017006011719617076, 0.006965335227274094, 0.00302041669199628]
+loss: 0.0792966311018617
+pde_losses: [0.03452893560241548, 0.004179735542922449]
+bcs_losses: [0.0007670275933000074, 3.151603966064018e-5, 0.006535977694828363, 0.0014476701774704713, 0.034527276306775274, 0.009137379511619382]
 iter: 2500
-loss: 0.02696918620319554
-pde_losses: [0.012685984312105448, 0.003978030687715619]
-bcs_losses: [0.0003940189654414142, 4.48255530463332e-5, 0.0011140547559155454, 0.000990623471999216, 0.005248331437906526, 0.001876426807840671]
+loss: 0.056861319998259344
+pde_losses: [0.024339930520579547, 0.0033385078034684477]
+bcs_losses: [0.00040067280556567816, 7.772525365867592e-5, 0.005285511777665865, 0.0005390592242470957, 0.017463445482402303, 0.004888123847490373]
 iter: 3000
-loss: 0.01444819804723309
-pde_losses: [0.007012071610050898, 0.0024326128342307698]
-bcs_losses: [0.00022486563798978723, 1.7695308120258917e-5, 0.000639318315435444, 0.0009233701755863071, 0.003533581653208711, 0.0011689183671796629]
+loss: 0.03791803957677668
+pde_losses: [0.015209685777000924, 0.0038284119430007004]
+bcs_losses: [0.00041051849548485124, 0.00012106638273711919, 0.003506516364554817, 0.0004126459946824166, 0.011437899110800936, 0.0035233914850689558]
 iter: 3500
-loss: 0.015518082468218387
-pde_losses: [0.006096947301853994, 0.0037376167498057197]
-bcs_losses: [0.00011038475456107152, 3.435406428126275e-5, 0.0005690792211963005, 0.0005354942930674767, 0.003201742116680345, 0.0009425568284614059]
+loss: 0.028148307028015337
+pde_losses: [0.010261819131539292, 0.0019257626363866737]
+bcs_losses: [0.00024809189596442145, 0.00015966300298491702, 0.0025845074023270456, 0.0003381562837522987, 0.011077852120244631, 0.002348525023785131]
 iter: 4000
-loss: 0.011558913746885528
-pde_losses: [0.005742030035309972, 0.001569468150585766]
-bcs_losses: [0.0001286123489053328, 2.7296150237732625e-5, 0.00040654121817287534, 0.00041031407827816173, 0.0018106504257582746, 0.000774361199997924]
+loss: 0.023089240590149385
+pde_losses: [0.011816438731825394, 0.0019796735335995503]
+bcs_losses: [0.00024833534741912827, 0.00017658327611201234, 0.0017838056045811662, 0.0002914374800611908, 0.00831502847502783, 0.0018273342507727454]
 iter: 4500
-loss: 0.008593244876890626
-pde_losses: [0.002777628199684725, 0.0016725633944506403]
-bcs_losses: [3.9164805691471554e-5, 3.2697439437220684e-7, 0.00037312308685235273, 0.0003306916036623714, 0.0018255445920676012, 0.0006599144619675411]
+loss: 0.03536790237167595
+pde_losses: [0.026006887209134962, 0.0017394913386576027]
+bcs_losses: [9.92554532684798e-5, 0.00015571411612082129, 0.0015015042028978492, 0.0001656735219783601, 0.005873918005427626, 0.0012410570594140454]
 iter: 5000
-loss: 0.008944989174796938
-pde_losses: [0.006170243721448381, 0.0023806396047505018]
-bcs_losses: [2.8782516221149686e-5, 0.00010716255866999601, 0.0003559635623837615, 0.00039736596141239945, 0.0013709204807985675, 0.00043197828156926206]
+loss: 0.015646847982304323
+pde_losses: [0.0062352965404908235, 0.0010121419420031984]
+bcs_losses: [9.11579534478643e-5, 0.00017229466446398698, 0.0010144640997764112, 0.0001881306984015227, 0.004968426494985367, 0.0012483612828415797]
 iter: 5000
-loss: 0.006303144386988414
-pde_losses: [0.0024478100879705557, 0.00139045425197305]
-bcs_losses: [5.827184885935512e-5, 1.1199526795857598e-6, 0.0003048440074957438, 0.00030702084218067917, 0.0018349514362775014, 0.0005206888182025267]</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="e397ee74.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="a682882c.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../heterogeneous/">« PDEs with Dependent Variables on Heterogeneous Domains</a><a class="docs-footer-nextpage" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Thursday 29 May 2025 19:59">Thursday 29 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+loss: 0.012893457179149213
+pde_losses: [0.005144073868892938, 0.0011854364238837408]
+bcs_losses: [8.521892070995958e-5, 0.00014069193651657945, 0.0009346026900133812, 0.00015742070161782996, 0.0048500960913518115, 0.001174694663009839]</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="4f6d5106.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="669f53cd.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../heterogeneous/">« PDEs with Dependent Variables on Heterogeneous Domains</a><a class="docs-footer-nextpage" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 27 March 2026 23:51">Friday 27 March 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

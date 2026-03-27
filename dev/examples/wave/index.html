@@ -5,7 +5,8 @@ u(0, t) = u(1, t) = 0 \quad &amp; \textsf{for all } t &gt; 0 \, , \\
 u(x, 0) = x (1-x)     \quad &amp; \textsf{for all } 0 &lt; x &lt; 1 \, , \\
 ∂_t u(x, 0) = 0       \quad &amp; \textsf{for all } 0 &lt; x &lt; 1 \, , \\
 \end{align*}\]</p><p>with grid discretization <code>dx = 0.1</code> and physics-informed neural networks.</p><p>Further, the solution of this equation with the given boundary conditions is presented.</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, Optimization, OptimizationOptimJL
-using ModelingToolkit: Interval
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..)
@@ -44,9 +45,9 @@ end
 # optimizer
 opt = OptimizationOptimJL.BFGS()
 res = Optimization.solve(prob, opt; callback, maxiters = 1200)
-phi = discretization.phi</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NeuralPDE.Phi{Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}}(Lux.StatefulLuxLayer{Static.True, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}(Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}((layer_1 = Dense(2 =&gt; 16, σ), layer_2 = Dense(16 =&gt; 16, σ), layer_3 = Dense(16 =&gt; 1)), nothing), nothing, (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()), nothing, static(true)))</code></pre><p>We can plot the predicted solution of the PDE and compare it with the analytical solution to plot the relative error.</p><pre><code class="language-julia hljs">using Plots
+phi = discretization.phi</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NeuralPDE.Phi{LuxCore.StatefulLuxLayerImpl.StatefulLuxLayer{Val{true}, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}}(LuxCore.StatefulLuxLayerImpl.StatefulLuxLayer{Val{true}, Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}, Nothing, @NamedTuple{layer_1::@NamedTuple{}, layer_2::@NamedTuple{}, layer_3::@NamedTuple{}}}(Lux.Chain{@NamedTuple{layer_1::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_2::Lux.Dense{typeof(NNlib.σ), Int64, Int64, Nothing, Nothing, Static.True}, layer_3::Lux.Dense{typeof(identity), Int64, Int64, Nothing, Nothing, Static.True}}, Nothing}((layer_1 = Dense(2 =&gt; 16, σ), layer_2 = Dense(16 =&gt; 16, σ), layer_3 = Dense(16 =&gt; 1)), nothing), nothing, (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple()), nothing, Val{true}()))</code></pre><p>We can plot the predicted solution of the PDE and compare it with the analytical solution to plot the relative error.</p><pre><code class="language-julia hljs">using Plots
 
-ts, xs = [infimum(d.domain):dx:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):dx:rightendpoint(d.domain) for d in domains]
 function analytic_sol_func(t, x)
     sum([(8 / (k^3 * pi^3)) * sin(k * pi * x) * cos(C * k * pi * t) for k in 1:2:50000])
 end
@@ -60,14 +61,15 @@ diff_u = abs.(u_predict .- u_real)
 p1 = plot(ts, xs, u_real, linetype = :contourf, title = &quot;analytic&quot;);
 p2 = plot(ts, xs, u_predict, linetype = :contourf, title = &quot;predict&quot;);
 p3 = plot(ts, xs, diff_u, linetype = :contourf, title = &quot;error&quot;);
-plot(p1, p2, p3)</code></pre><img src="ff611ad4.svg" alt="Example block output"/><h2 id="1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions"><a class="docs-heading-anchor" href="#1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions">1D Damped Wave Equation with Dirichlet boundary conditions</a><a id="1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions-1"></a><a class="docs-heading-anchor-permalink" href="#1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions" title="Permalink"></a></h2><p>Now let&#39;s solve the 1-dimensional wave equation with damping.</p><p class="math-container">\[\begin{aligned}
+plot(p1, p2, p3)</code></pre><img src="dbdc3427.svg" alt="Example block output"/><h2 id="1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions"><a class="docs-heading-anchor" href="#1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions">1D Damped Wave Equation with Dirichlet boundary conditions</a><a id="1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions-1"></a><a class="docs-heading-anchor-permalink" href="#1D-Damped-Wave-Equation-with-Dirichlet-boundary-conditions" title="Permalink"></a></h2><p>Now let&#39;s solve the 1-dimensional wave equation with damping.</p><p class="math-container">\[\begin{aligned}
 \frac{\partial^2 u(t,x)}{\partial x^2} = \frac{1}{c^2} \frac{\partial^2 u(t,x)}{\partial t^2} + v \frac{\partial u(t,x)}{\partial t} \\
 u(t, 0) = u(t, L) = 0 \\
 u(0, x) = x(1-x) \\
 u_t(0, x) = 1 - 2x \\
 \end{aligned}\]</p><p>with grid discretization <code>dx = 0.05</code> and physics-informed neural networks. Here, we take advantage of adaptive derivative to increase accuracy.</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
 using Plots, Printf
-using ModelingToolkit: Interval, infimum, supremum
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..) Dxu(..) Dtu(..) O1(..) O2(..)
@@ -137,7 +139,7 @@ res = Optimization.solve(prob, BFGS(); maxiters = 2000)
 phi = discretization.phi[1]
 
 # Analysis
-ts, xs = [infimum(d.domain):0.05:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):0.05:rightendpoint(d.domain) for d in domains]
 
 μ_n(k) = (v * sqrt(4 * k^2 * π^2 - b^2 * L^2 * v^2)) / (2 * L)
 function b_n(k)
@@ -168,7 +170,7 @@ end
 gif(anim, &quot;1Dwave_damped_adaptive.gif&quot;, fps = 200)
 
 # Surface plot
-ts, xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
+ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
 u_predict = reshape(
     [first(phi([t, x], res.u.depvar.u)) for
      t in ts for x in xs], (length(ts), length(xs)))
@@ -179,4 +181,4 @@ diff_u = abs.(u_predict .- u_real)
 p1 = plot(ts, xs, u_real, linetype = :contourf, title = &quot;analytic&quot;);
 p2 = plot(ts, xs, u_predict, linetype = :contourf, title = &quot;predict&quot;);
 p3 = plot(ts, xs, diff_u, linetype = :contourf, title = &quot;error&quot;);
-plot(p1, p2, p3)</code></pre><img src="33f9f1aa.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../tutorials/derivative_neural_network/">« The Derivative Neural Network Approximation</a><a class="docs-footer-nextpage" href="../3rd/">ODE with a 3rd-Order Derivative »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Thursday 29 May 2025 19:59">Thursday 29 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(p1, p2, p3)</code></pre><img src="001747a2.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../tutorials/derivative_neural_network/">« The Derivative Neural Network Approximation</a><a class="docs-footer-nextpage" href="../3rd/">ODE with a 3rd-Order Derivative »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 27 March 2026 23:51">Friday 27 March 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

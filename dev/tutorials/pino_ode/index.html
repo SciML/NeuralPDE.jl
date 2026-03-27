@@ -38,36 +38,35 @@ alg = PINOODE(deeponet, opt, bounds, num_params; strategy = strategy)
 # Solve the ODE problem using the PINOODE algorithm
 sol = solve(prob, alg, verbose = false, maxiters = 4000)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">retcode: Success
 Interpolation: Trained neural network interpolation
-t: 1×20×1 Array{Float64, 3}:
-[:, :, 1] =
- 0.304311  0.828689  0.973667  0.831179  …  0.307964  0.431287  0.0340639
-u: 20×3 Matrix{Float64}:
- 2.4408   2.17469  2.4306
- 4.60305  3.81871  4.28785
- 5.07459  4.15705  4.61846
- 4.61165  3.82494  4.29417
- 1.09643  1.10913  1.15224
- 1.86848  1.72296  1.88849
- 1.32673  1.29272  1.37222
- 4.52731  3.76371  4.23176
- 3.43619  2.94852  3.34196
- 4.92126  4.04774  4.5146
- 3.49238  2.9915   3.39116
- 2.27703  2.04577  2.27608
- 3.10527  2.6936   3.04634
- 5.10911  4.18157  4.64135
- 1.34973  1.31103  1.39417
- 5.14001  4.2035   4.66167
- 2.65075  2.33945  2.62746
- 2.4574   2.18774  2.44622
- 3.01078  2.62032  2.96032
- 1.16696  1.16539  1.21963</code></pre><p>Now let&#39;s compare the prediction from the learned operator with the ground truth solution which is obtained by analytic solution of the parametric ODE.</p><pre><code class="language-julia hljs">using Plots
+t: 1×20 Matrix{Float64}:
+ 0.606217  0.353352  0.570592  0.461907  …  0.52859  0.672403  0.446255
+u: 20×3 adjoint(::Matrix{Float64}) with eltype Float64:
+ 3.59857  3.09224  3.8863
+ 2.58123  2.29155  2.73499
+ 3.46171  2.98388  3.72972
+ 3.03046  2.644    3.23948
+ 4.58388  3.8807   5.02346
+ 2.10634  1.91859  2.21016
+ 1.73588  1.62565  1.80772
+ 2.8567   2.50757  3.04351
+ 3.36565  2.90798  3.62009
+ 3.79071  3.24484  4.10679
+ 2.16807  1.96719  2.27783
+ 1.3454   1.31358  1.39068
+ 4.41041  3.74085  4.82227
+ 2.86281  2.51237  3.05039
+ 2.75432  2.42726  2.92852
+ 3.41535  2.94723  3.67678
+ 3.35458  2.89924  3.60748
+ 3.29741  2.85413  3.54235
+ 3.84626  3.28906  4.17067
+ 2.96678  2.59397  3.16754</code></pre><p>Now let&#39;s compare the prediction from the learned operator with the ground truth solution which is obtained by analytic solution of the parametric ODE.</p><pre><code class="language-julia hljs">using Plots
 
 function get_trainset(bounds, tspan, number_of_parameters, dt)
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
     p = vcat([collect(reshape(p_i, 1, size(p_i, 1))) for p_i in p_]...)
     t_ = collect(tspan[1]:dt:tspan[2])
-    t = collect(reshape(t_, 1, size(t_, 1), 1))
+    t = reshape(t_, 1, size(t_, 1))
     (p, t)
 end
 
@@ -107,9 +106,9 @@ std_error = std(errors)
 # Plot the predicted solution and the ground truth solution as a filled contour plot
 # predict, represents the predicted solution for each parameter value and time
 plot(predict, linetype = :contourf)
-plot!(ground_solution_, linetype = :contourf)</code></pre><img src="e4e1f01b.svg" alt="Example block output"/><pre><code class="language-julia hljs"># &#39;i&#39; is the index of the parameter &#39;p&#39; in the dataset
+plot!(ground_solution_, linetype = :contourf)</code></pre><img src="548df61c.svg" alt="Example block output"/><pre><code class="language-julia hljs"># &#39;i&#39; is the index of the parameter &#39;p&#39; in the dataset
 i = 20
 # &#39;predict&#39; is the predicted solution from the PINO model
 plot(predict[:, i], label = &quot;Predicted&quot;)
 # &#39;ground&#39; is the ground truth solution
-plot!(ground_solution_[:, i], label = &quot;Ground truth&quot;)</code></pre><img src="ebe7da2d.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../data_collocation_Inverse/">« Improved PINNs for Inverse problems in ODEs</a><a class="docs-footer-nextpage" href="../dgm/">Deep Galerkin Method »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Thursday 29 May 2025 19:59">Thursday 29 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(ground_solution_[:, i], label = &quot;Ground truth&quot;)</code></pre><img src="7c3fc1c7.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../data_collocation_Inverse/">« Improved PINNs for Inverse problems in ODEs</a><a class="docs-footer-nextpage" href="../dgm/">Deep Galerkin Method »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 27 March 2026 23:51">Friday 27 March 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
