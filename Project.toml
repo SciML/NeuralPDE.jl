@@ -1,6 +1,6 @@
 name = "NeuralPDE"
 uuid = "315f7962-48a3-4962-8226-d0f33b1235f0"
-version = "5.23.0"
+version = "5.24.0"
 authors = ["Chris Rackauckas <accounts@chrisrackauckas.com>"]
 
 [deps]
@@ -99,7 +99,7 @@ Printf = "1.10"
 QuasiMonteCarlo = "0.3.2"
 Random = "1"
 ReTestItems = "1.29.0"
-RecursiveArrayTools = "3.27.0"
+RecursiveArrayTools = "3.27.0, 4"
 Reexport = "1.2"
 RuntimeGeneratedFunctions = "0.5.12"
 SciMLBase = "2.56"
