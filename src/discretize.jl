@@ -423,7 +423,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
 
     depvars, indvars, dict_indvars,
         dict_depvars, dict_depvar_input = get_vars(
-        pde_system.indvars, pde_system.depvars
+        ModelingToolkit.get_ivs(pde_system), ModelingToolkit.get_dvs(pde_system)
     )
 
     if init_params === nothing

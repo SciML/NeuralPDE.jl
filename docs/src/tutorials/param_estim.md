@@ -80,7 +80,7 @@ three arguments:
   - the hyperparameters `p` .
 
 For a Lux neural network, the composed function will present itself as having θ as a
-[`ComponentArray`](https://github.com/jonniedie/ComponentArrays.jl)
+[`ComponentArray`](https://github.com/SciML/ComponentArrays.jl)
 subsets `θ.x`, which can also be dereferenced like `θ[:x]`. Thus, the additional
 loss looks like:
 
@@ -98,7 +98,7 @@ discretization = NeuralPDE.PhysicsInformedNN([chain1, chain2, chain3],
     NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200), param_estim = true,
     additional_loss = additional_loss)
 @named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β],
-    defaults = Dict([p .=> 1.0 for p in [σ_, ρ, β]]))
+    initial_conditions = Dict([p => 1.0 for p in [σ_, ρ, β]]))
 prob = NeuralPDE.discretize(pde_system, discretization)
 callback = function (p, l)
     println("Current loss is: $l")
