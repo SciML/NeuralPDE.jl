@@ -33,7 +33,7 @@ where ``k`` is a root of the algebraic (transcendental) equation ``f(k) = g(k)``
 We solve this with Neural:
 
 ```@example nonlinear_hyperbolic
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots,
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, NonlinearSolve,
       LineSearches
 using SpecialFunctions
 using Plots
@@ -54,10 +54,10 @@ n = 0
 # Arbitrary functions
 f(x) = x^2
 g(x) = 4 * cos(π * x)
-root(x) = g(x) - f(x)
+root(x, p) = g(x) - f(x)
 
 # Analytic solution
-k = find_zero(root, (0, 1), Roots.Bisection())                # k is a root of the algebraic (transcendental) equation f(x) = g(x)
+k = solve(IntervalNonlinearProblem(root, (0.0, 1.0)), ITP()).u  # k is a root of the algebraic (transcendental) equation f(x) = g(x)
 ξ(t, x) = sqrt(f(k)) / sqrt(a) * sqrt(a * (t + 1)^2 - (x + 1)^2)
 θ(t, x) = besselj0(ξ(t, x)) + bessely0(ξ(t, x))                     # Analytical solution to Klein-Gordon equation
 w_analytic(t, x) = θ(t, x)
