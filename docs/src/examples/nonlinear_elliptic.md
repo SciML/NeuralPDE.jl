@@ -27,7 +27,7 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k).
 This is done using a derivative neural network approximation.
 
 ```@example nonlinear_elliptic
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots
+using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, NonlinearSolve
 using Plots
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
@@ -42,10 +42,10 @@ Dy = Differential(y)
 f(x) = sin(x)
 g(x) = cos(x)
 h(x) = x
-root(x) = f(x) - g(x)
+root(x, p) = f(x) - g(x)
 
 # Analytic solution
-k = find_zero(root, (0, 1), Bisection())                            # k is a root of the algebraic (transcendental) equation f(x) = g(x)
+k = solve(IntervalNonlinearProblem(root, (0.0, 1.0)), ITP()).u      # k is a root of the algebraic (transcendental) equation f(x) = g(x)
 θ(x, y) = (cosh(sqrt(f(k)) * x) + sinh(sqrt(f(k)) * x)) * (y + 1)   # Analytical solution to Helmholtz equation
 w_analytic(x, y) = θ(x, y) - h(k) / f(k)
 u_analytic(x, y) = k * w_analytic(x, y)
