@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v6
-      - uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v3
         with:
           version: "1"
       - uses: julia-actions/julia-buildpkg@v1
@@ -46,7 +46,7 @@ jobs:
     if: github.event_name == 'push' || !github.event.pull_request.draft
     steps:
       - uses: actions/checkout@v6
-      - uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v3
         with:
           version: "1"
       - name: Instantiating project
