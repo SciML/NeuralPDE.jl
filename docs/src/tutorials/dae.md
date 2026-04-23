@@ -45,7 +45,7 @@ end
 M = [1.0 0.0; 0.0 0.0]
 f = ODEFunction(example1, mass_matrix = M)
 prob_mm = ODEProblem(f, u₀, tspan)
-ground_sol = solve(prob_mm, Rodas5(), reltol = 1e-8, abstol = 1e-8)
+ground_sol = solve(prob_mm, Rodas5P(), reltol = 1e-8, abstol = 1e-8)
 ```
 
 ```@example dae

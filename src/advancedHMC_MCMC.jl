@@ -191,9 +191,7 @@ function getlogpdf(
     )
     # integrand is shape of NN output
     integrand(t::Number, θ) = innerdiff(ltd, f, autodiff, [t], θ, ode_params)
-    intprob = IntegralProblem(
-        integrand, (tspan[1], tspan[2]), θ; nout = length(ltd.prob.u0)
-    )
+    intprob = IntegralProblem(integrand, (tspan[1], tspan[2]), θ)
     sol = solve(intprob, QuadGKJL(); strategy.abstol, strategy.reltol)
     # sum over losses for all NN outputs
     return sum(sol.u)
