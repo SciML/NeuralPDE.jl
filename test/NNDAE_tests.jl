@@ -19,7 +19,7 @@
     tspan = (0.0f0, 1.0f0)
 
     prob_mm = ODEProblem(f, u₀, tspan)
-    ground_sol = solve(prob_mm, Rodas5(), reltol = 1.0e-8, abstol = 1.0e-8)
+    ground_sol = solve(prob_mm, Rodas5P(), reltol = 1.0e-8, abstol = 1.0e-8)
 
     example = (du, u, p, t) -> [cos(2pi * t) - du[1], u[2] + cos(2pi * t) - du[2]]
     prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = [true, false])
@@ -53,7 +53,7 @@ end
     tspan = (0.0f0, pi / 2.0f0)
     f = ODEFunction(example2, mass_matrix = M)
     prob_mm = ODEProblem(f, u₀, tspan)
-    ground_sol = solve(prob_mm, Rodas5(), reltol = 1.0e-8, abstol = 1.0e-8)
+    ground_sol = solve(prob_mm, Rodas5P(), reltol = 1.0e-8, abstol = 1.0e-8)
 
     example = (du, u, p, t) -> [u[1] - t - du[1], u[2] - t - du[2]]
     differential_vars = [false, true]
