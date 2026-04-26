@@ -358,20 +358,6 @@ end
 SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::PINOODE) = true
 
-function (sol::ODESolution{T, N, U, U2, D, T2, R, D2, P, A})(
-        t::AbstractArray, ::Type{deriv}, idxs::Nothing,
-        continuity
-    ) where {T, N, U, U2, D, T2, R, D2, P, A <: PINOODE, deriv}
-    return sol.interp(t, idxs, deriv, sol.prob.p, continuity)
-end
-
-function (sol::ODESolution{T, N, U, U2, D, T2, R, D2, P, A})(
-        t::AbstractVector{<:Number}, ::Type{deriv}, idxs::Nothing,
-        continuity
-    ) where {T, N, U, U2, D, T2, R, D2, P, A <: PINOODE, deriv}
-    return sol.interp(t, idxs, deriv, sol.prob.p, continuity)
-end
-
 function SciMLBase.__solve(
         prob::SciMLBase.AbstractODEProblem,
         alg::PINOODE,
