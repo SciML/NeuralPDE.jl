@@ -92,6 +92,7 @@ include("PDE_BPINN.jl")
 include("dgm.jl")
 include("NN_SDE_solve.jl")
 include("NN_SDE_weaksolve.jl")
+include("symbolic_pinn_parser.jl")
 
 export PINOODE
 export NNODE, NNDAE
@@ -99,6 +100,7 @@ export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
 export NNSDE
 export SDEPINN
 export PhysicsInformedNN, discretize
+export build_pinn_loss
 export BPINNsolution, BayesianPINN
 export DeepGalerkin
 
