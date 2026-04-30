@@ -129,3 +129,51 @@ end
     exact_u = 0
     @test inner_loss(ones(1, 1), init_params)[1] ≈ exact_u atol = 1.0e-13
 end
+
+@testitem "GPU power Expr rewriting" tags = [:forward] begin
+    using NeuralPDE.GPUUtils: transform_power_ops, should_apply_gpu_transform
+    using ComponentArrays
+
+    # Broadcasted power: (^).(u, 2) → (*).(u, u)
+    @test transform_power_ops(Expr(:., :^, Expr(:tuple, :u, 2))) ==
+          Expr(:., :*, Expr(:tuple, :u, :u))
+
+    # Broadcasted cube: (^).(u, 3) → (*).(u, u, u)
+    @test transform_power_ops(Expr(:., :^, Expr(:tuple, :u, 3))) ==
+          Expr(:., :*, Expr(:tuple, :u, :u, :u))
+
+    # Non-broadcasted power: (^)(u, 2) → (*)(u, u)
+    @test transform_power_ops(Expr(:call, :^, :u, 2)) == Expr(:call, :*, :u, :u)
+
+    # Edge cases
+    @test transform_power_ops(Expr(:., :^, Expr(:tuple, :u, 1))) == :u
+    @test transform_power_ops(Expr(:., :^, Expr(:tuple, :u, 0))) == 1
+
+    # Non-integer exponents are left unchanged (only transform integer powers)
+    expr_float = Expr(:., :^, Expr(:tuple, :u, 2.5))
+    @test transform_power_ops(expr_float) == expr_float
+
+    expr_float_func = Expr(:., ^, Expr(:tuple, :u, 2.5))
+    @test transform_power_ops(expr_float_func) == expr_float_func
+
+    # Nested: (*).(3, (^).(u, 2)) → (*).(3, (*).(u, u))
+    # This is the pattern from expand_derivatives of Dx(u^3)
+    nested = Expr(:., :*, Expr(:tuple, 3, Expr(:., :^, Expr(:tuple, :u, 2))))
+    @test transform_power_ops(nested) ==
+          Expr(:., :*, Expr(:tuple, 3, Expr(:., :*, Expr(:tuple, :u, :u))))
+
+    # Full generated expression: verify ^ is eliminated
+    full = :((cord, θ, phi, derivative, integral, u, p) -> begin
+        let (x,) = (cord[[1], :],)
+            cord1 = vcat(x)
+            (^).(u(cord1, θ, phi), 2) .- 0.0
+        end
+    end)
+    result_str = string(transform_power_ops(full))
+    @test !occursin("(^)", result_str)
+    @test occursin("(*)", result_str)
+
+    # should_apply_gpu_transform: CPU params → false, nothing → false
+    @test should_apply_gpu_transform(nothing) == false
+    @test should_apply_gpu_transform(ComponentArray(a = [1.0, 2.0])) == false
+end
