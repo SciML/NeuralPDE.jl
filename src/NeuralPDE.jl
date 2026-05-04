@@ -112,7 +112,7 @@ export build_loss_function, get_loss_function,
     get_numeric_integral, symbolic_discretize, vector_to_parameters
 
 export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
-    MiniMaxAdaptiveLoss
+    MiniMaxAdaptiveLoss, SoftAdaptAdaptiveLoss, ReLoBRaLoAdaptiveLoss
 
 export LogOptions
 
