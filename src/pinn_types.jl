@@ -83,9 +83,14 @@ methodology.
   the vector.
 * `param_estim`: whether the parameters of the differential equation should be included in
   the values sent to the `additional_loss` function. Defaults to `false`.
-* `logger`: ?? needs docs
-* `log_options`: ?? why is this separate from the logger?
-* `iteration`: used to control the iteration counter???
+* `logger`: a logging object (e.g. a TensorBoardLogger) used for recording loss values and
+  adaptive weights during training. Defaults to `nothing` (no logging).
+* `log_options`: a `LogOptions` struct controlling logging frequency (e.g. how often to write
+  loss values to the logger). Separate from `logger` to allow configuring log frequency
+  independently of the logger type.
+* `iteration`: an optional external iteration counter (a `Ref{Int}` or `Vector{Int}` of
+  length 1) shared with the caller so the caller can read or control the training step count.
+  If not provided, an internal counter is created and auto-incremented.
 * `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on
   `solve`.
 """
@@ -213,15 +218,20 @@ mutable struct PINNRepresentation
     """
     domains::Any
     """
-    ???
+    The symbolic parameters of the PDE system (e.g. physical constants to be estimated).
+    Corresponds to `pde_system.ps`. Set to `SciMLBase.NullParameters()` when there are no
+    parameters.
     """
     eq_params::Any
     """
-    ???
+    The default values of PDE parameters as a dictionary mapping each parameter symbol to its
+    numeric value. Corresponds to `pde_system.initial_conditions`.
     """
     defaults::Any
     """
-    ???
+    The numeric default values of the PDE parameters as a plain `Vector`, extracted from
+    `defaults` for use inside the loss function. `nothing` when `eq_params` is
+    `NullParameters`.
     """
     default_p::Any
     """
@@ -245,15 +255,20 @@ mutable struct PINNRepresentation
     """
     indvars::Any
     """
-    A dictionary form of the independent variables. Define the structure ???
+    A `Dict{Symbol, Int}` mapping each independent variable name (e.g. `:x`, `:t`) to its
+    positional index in the coordinate vector. Used to build collocation point expressions.
     """
     dict_indvars::Any
     """
-    A dictionary form of the dependent variables. Define the structure ???
+    A `Dict{Symbol, Int}` mapping each dependent variable name (e.g. `:u`, `:v`) to its
+    positional index among the outputs. Used to index into `phi` and `θ` for multi-output
+    systems.
     """
     dict_depvars::Any
     """
-    ???
+    A `Dict{Symbol, Vector{Symbol}}` mapping each dependent variable name to the list of
+    independent variable names it depends on. For example, `u(x, t)` maps `:u => [:x, :t]`.
+    Used to build the correct coordinate slices for each network input.
     """
     dict_depvar_input::Any
     """
@@ -298,23 +313,29 @@ mutable struct PINNRepresentation
     """
     strategy::AbstractTrainingStrategy
     """
-    ???
+    For each PDE equation, the list of independent variables that appear in it. Used to build
+    the correct collocation point layout for each loss term. For `QuadratureTraining` this
+    holds the full argument list; for other strategies it holds only the variable symbols.
     """
     pde_indvars::Any
     """
-    ???
+    For each boundary condition equation, the list of independent variables that appear in
+    it. Analogous to `pde_indvars` but for boundary loss terms.
     """
     bc_indvars::Any
     """
-    ???
+    For each PDE equation, the list of independent variables that are being integrated over
+    (non-empty only when the equation contains a `Symbolics.Integral` term).
     """
     pde_integration_vars::Any
     """
-    ???
+    For each boundary condition equation, the list of independent variables that are being
+    integrated over (non-empty only when the BC contains a `Symbolics.Integral` term).
     """
     bc_integration_vars::Any
     """
-    ???
+    The compiled numeric integral function, built by `get_numeric_integral`. Evaluates
+    `Symbolics.Integral` terms at runtime using `Integrals.jl` quadrature.
     """
     integral::Any
     """
