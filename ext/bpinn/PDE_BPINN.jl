@@ -368,7 +368,7 @@ end
     AdvancedHMC.jl is still developing convenience structs so might need changes on new
     releases.
 """
-function ahmc_bayesian_pinn_pde(
+function NeuralPDE.ahmc_bayesian_pinn_pde(
         pde_system, discretization;
         draw_samples = 1000, bcstd = [0.01], l2std = [0.05], phystd = [0.05],
         phynewstd = [0.05], priorsNNw = (0.0, 2.0), param = [], nchains = 1,
@@ -379,7 +379,7 @@ function ahmc_bayesian_pinn_pde(
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
         numensemble = floor(Int, draw_samples / 3), Dict_differentials = nothing, progress = false, verbose = false
     )
-    pinnrep = symbolic_discretize(pde_system, discretization)
+    pinnrep = SciMLBase.symbolic_discretize(pde_system, discretization)
     dataset_pde, dataset_bc = discretization.dataset
 
     newloss = if Dict_differentials isa Nothing

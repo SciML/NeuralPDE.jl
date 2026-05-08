@@ -40,23 +40,6 @@ function ode_dfdx(phi::LogTargetDensity, t::AbstractVector, θ, autodiff::Bool)
     end
 end
 
-"""
-Function needed for converting vector of sampled parameters into ComponentVector in case of Lux chain output, derivatives
-the sampled parameters are of exotic type `Dual` due to ForwardDiff's autodiff tagging.
-"""
-function vector_to_parameters(ps_new::AbstractVector, ps::Union{NamedTuple, ComponentArray})
-    @assert length(ps_new) == LuxCore.parameterlength(ps)
-    i = 1
-    function get_ps(x)
-        z = reshape(view(ps_new, i:(i + length(x) - 1)), size(x))
-        i += length(x)
-        return z
-    end
-    return fmap(get_ps, ps)
-end
-
-vector_to_parameters(ps_new::AbstractVector, _::AbstractVector) = ps_new
-
 function LogDensityProblems.logdensity(ltd::LogTargetDensity, θ)
     return physloglikelihood(ltd, θ) + priorweights(ltd, θ) + L2LossData(ltd, θ) +
         L2loss2(ltd, θ)
@@ -404,7 +387,7 @@ unless you additionally choose to use the Data L2 loss against `dataset` for som
     AdvancedHMC.jl is still developing convenience structs so might need changes on new
     releases.
 """
-function ahmc_bayesian_pinn_ode(
+function NeuralPDE.ahmc_bayesian_pinn_ode(
         prob::SciMLBase.ODEProblem, chain; strategy = GridTraining, dataset = [],
         init_params = nothing, draw_samples = 1000, physdt = 1 / 20.0, l2std = [0.05],
         phystd = [0.05], phynewstd = (ode_params) -> [0.05],
