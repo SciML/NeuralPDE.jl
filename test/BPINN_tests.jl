@@ -1,6 +1,6 @@
 @testitem "BPINN ODE I: Without Param Estimation" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
 
     Random.seed!(100)
 
@@ -55,7 +55,7 @@ end
 
 @testitem "BPINN ODE II: With Parameter Estimation" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
 
     Random.seed!(100)
 
@@ -128,7 +128,7 @@ end
 
 @testitem "BPINN ODE III" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
 
     Random.seed!(100)
 
@@ -206,7 +206,7 @@ end
 
 @testitem "BPINN ODE: Translating from Flux" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
     import Flux
 
     Random.seed!(100)
@@ -242,7 +242,7 @@ end
 
 @testitem "BPINN ODE III: Inverse solve Improvement" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-        AdvancedHMC, Statistics, Random, Functors, ComponentArrays,
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, ComponentArrays,
         MonteCarloMeasurements, FastGaussQuadrature
     Random.seed!(100)
 
@@ -351,7 +351,7 @@ end
 
 @testitem "BPINN ODE III: Inverse solve Improvement solve call" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
 
     Random.seed!(100)
 
@@ -407,7 +407,7 @@ end
 
 @testitem "BPINN ODE IV: Inverse solve Improvement" tags = [:odebpinn] begin
     using MCMCChains, Distributions, OrdinaryDiffEq, OptimizationOptimisers, Lux,
-        AdvancedHMC, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, ComponentArrays, MonteCarloMeasurements
     using FastGaussQuadrature
     Random.seed!(100)
 

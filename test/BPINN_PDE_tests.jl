@@ -1,6 +1,6 @@
 @testitem "BPINN PDE I: 1D Periodic System" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
         ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
@@ -36,7 +36,7 @@ end
 
 @testitem "BPINN PDE II: 1D ODE" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
         ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
@@ -81,7 +81,7 @@ end
 
 @testitem "BPINN PDE III: 3rd Degree ODE" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
         ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
@@ -141,7 +141,7 @@ end
 
 @testitem "BPINN PDE IV: 2D Poisson" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
         ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
@@ -193,7 +193,7 @@ end
 
 @testitem "BPINN PDE: Translating from Flux" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
         ComponentArrays
     import DomainSets: Interval, infimum, supremum
     import Flux
@@ -238,7 +238,7 @@ end
 
 @testitem "BPINN PDE Inv I: 1D Periodic System" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
         ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
@@ -305,7 +305,7 @@ end
 
 @testitem "BPINN PDE Inv II: Lorenz System" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
         ComponentArrays
     import DomainSets: Interval, infimum, supremum
 
@@ -378,7 +378,7 @@ end
 
 @testitem "BPINN PDE Inv III: Improved Parametric Kuromo-Sivashinsky Equation solve" tags = [:pdebpinn] begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
-        AdvancedHMC, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
+        AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
         ComponentArrays
     import DomainSets: Interval, infimum, supremum
 

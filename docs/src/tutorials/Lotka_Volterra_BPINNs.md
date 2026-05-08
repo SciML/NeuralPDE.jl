@@ -2,6 +2,15 @@
 
 Bayesian inference for PINNs provides an approach to ODE solution finding and parameter estimation with quantified uncertainty.
 
+!!! note "Loading the Bayesian PINN extension"
+
+    `BNNODE` is provided by the `NeuralPDEBPINNExt` package extension. To use it,
+    load `AdvancedHMC`, `MCMCChains` and `LogDensityProblems` alongside `NeuralPDE`:
+
+    ```julia
+    using NeuralPDE, AdvancedHMC, MCMCChains, LogDensityProblems
+    ```
+
 ## The Lotka-Volterra Model
 
 The Lotka–Volterra equations, also known as the predator–prey equations, are a pair of first-order nonlinear differential equations. These differential equations are frequently used to describe the dynamics of biological systems in which two species interact, one as a predator and the other as prey. The populations change through time according to the pair of equations:
@@ -20,7 +29,8 @@ We implement the Lotka-Volterra model and simulate it with ideal parameters $\al
 We then solve the equations and estimate the parameters of the model with priors for $\alpha$, $\beta$, $\gamma$ and $\delta$ as  `Normal(1,2)`, `Normal(2,2)`, `Normal(2,2)` and `Normal(0,2)` using a neural network.
 
 ```@example bpinn
-using NeuralPDE, Lux, Plots, OrdinaryDiffEq, Distributions, Random
+using NeuralPDE, AdvancedHMC, MCMCChains, LogDensityProblems,
+    Lux, Plots, OrdinaryDiffEq, Distributions, Random
 
 function lotka_volterra(u, p, t)
     # Model parameters.
