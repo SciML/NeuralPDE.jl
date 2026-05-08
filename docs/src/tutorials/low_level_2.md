@@ -26,8 +26,19 @@ where $\theta = t - x/2$ and with initial and boundary conditions:
 
 With Bayesian Physics-Informed Neural Networks, here is an example of using `BayesianPINN` discretization with `ahmc_bayesian_pinn_pde` :
 
+!!! note "Loading the Bayesian PINN extension"
+
+    `ahmc_bayesian_pinn_pde` is provided by the `NeuralPDEBPINNExt` package
+    extension. To use it, load `AdvancedHMC`, `MCMCChains` and
+    `LogDensityProblems` alongside `NeuralPDE`:
+
+    ```julia
+    using NeuralPDE, AdvancedHMC, MCMCChains, LogDensityProblems
+    ```
+
 ```@example low_level_2
-using NeuralPDE, Lux, ModelingToolkit, LinearAlgebra, AdvancedHMC
+using NeuralPDE, AdvancedHMC, MCMCChains, LogDensityProblems,
+    Lux, ModelingToolkit, LinearAlgebra
 using Distributions
 import DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint

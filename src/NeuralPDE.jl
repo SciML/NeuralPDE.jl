@@ -43,12 +43,7 @@ using SymbolicUtils: SymbolicUtils
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
 # Needed for the Bayesian Stuff
-using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
-    JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
-    StepSizeAdaptor, TemperedLeapfrog, find_good_stepsize
 using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
-using LogDensityProblems: LogDensityProblems
-using MCMCChains: MCMCChains, Chains, sample
 using MonteCarloMeasurements: Particles
 
 import LuxCore: initialparameters, initialstates, parameterlength
@@ -85,9 +80,7 @@ include("transform_inf_integral.jl")
 include("discretize.jl")
 
 include("neural_adapter.jl")
-include("advancedHMC_MCMC.jl")
-include("BPINN_ode.jl")
-include("PDE_BPINN.jl")
+include("bpinn_types.jl")
 
 include("dgm.jl")
 include("NN_SDE_solve.jl")
