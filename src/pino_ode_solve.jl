@@ -358,6 +358,24 @@ end
 SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::PINOODE) = true
 
+# SciMLBase only defines `(sol::AbstractODESolution)(t, ...)` for `t::Number` and
+# `t::AbstractVector{<:Number}`. PINO solutions are queried with parameter-and-time
+# arrays (e.g. `Matrix`), so add dispatches that forward to `sol.interp` for any
+# `AbstractArray` input when the solution was produced by `PINOODE`.
+function (sol::ODESolution{T, N, U, U2, D, T2, R, D2, P, A})(
+        t::AbstractArray, ::Type{deriv}, idxs::Nothing,
+        continuity
+    ) where {T, N, U, U2, D, T2, R, D2, P, A <: PINOODE, deriv}
+    return sol.interp(t, idxs, deriv, sol.prob.p, continuity)
+end
+
+function (sol::ODESolution{T, N, U, U2, D, T2, R, D2, P, A})(
+        t::AbstractVector{<:Number}, ::Type{deriv}, idxs::Nothing,
+        continuity
+    ) where {T, N, U, U2, D, T2, R, D2, P, A <: PINOODE, deriv}
+    return sol.interp(t, idxs, deriv, sol.prob.p, continuity)
+end
+
 function SciMLBase.__solve(
         prob::SciMLBase.AbstractODEProblem,
         alg::PINOODE,
