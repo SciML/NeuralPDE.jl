@@ -43,7 +43,10 @@ opt = OptimizationOptimisers.Adam(0.03)
 # Define `PINNODE`
 alg = PINOODE(deeponet, opt, bounds, num_params; strategy = strategy)
 
-# Solve the ODE problem using the PINOODE algorithm
+# Solve the ODE problem using the PINOODE algorithm.
+# `sol` is a `PDETimeSeriesSolution` (the parameters are extra PDE
+# dimensions on top of `t`), not an `ODESolution`. The natural query
+# is `sol(p, t)` with `p` and `t` as arrays — see below.
 sol = solve(prob, alg, verbose = false, maxiters = 4000)
 ```
 

@@ -358,6 +358,73 @@ end
 SciMLBase.interp_summary(::PINOODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::PINOODE) = true
 
+"""
+    PINOODEMetadata(p_train)
+
+Discretization metadata for a `PINOODE` solve. Tags a
+`SciMLBase.PDETimeSeriesSolution` so the metadata-driven call dispatch
+forwards `(sol)(p, t)` and friends to the trained operator.
+
+Conceptually a `PINOODE` solve is a PDE solve whose independent
+variables are `(p_1, …, p_n, t)` — the parameters of the original ODE
+become extra PDE dimensions — so reusing `PDETimeSeriesSolution` with a
+PINO-specific metadata type is the natural fit. `hasTime` is `Val{true}`
+because `t` is one of the iv axes.
+"""
+struct PINOODEMetadata{P} <: SciMLBase.AbstractDiscretizationMetadata{Val{true}}
+    p_train::P
+end
+
+# Metadata-dispatched call: `(sol)(p, t)` is the natural PDE-style query.
+function (sol::SciMLBase.PDETimeSeriesSolution{T, N, S, <:PINOODEMetadata})(
+        p, t
+    ) where {T, N, S}
+    return sol.interp(p, t)
+end
+
+# Convenience: re-use the training-set `p` when only `t` is given.
+function (sol::SciMLBase.PDETimeSeriesSolution{T, N, S, <:PINOODEMetadata})(
+        t::AbstractArray
+    ) where {T, N, S}
+    return sol.interp(getfield(sol, :disc_data).p_train, t)
+end
+
+function (sol::SciMLBase.PDETimeSeriesSolution{T, N, S, <:PINOODEMetadata})(
+        t::Number
+    ) where {T, N, S}
+    return sol.interp(t, nothing, Val{0}, getfield(sol, :disc_data).p_train, nothing)
+end
+
+# `sol.p` -> training-set parameter tensor (was `sol.prob.p` in the old
+# `ODESolution` shim, where a fake `ODEProblem` had its `p` field
+# overridden with the sample tensor). `sol.original` -> the underlying
+# OptimizationSolution from training (PDETimeSeriesSolution stores it as
+# `original_sol`; the alias keeps the legacy `ODESolution`-style name
+# usable so call sites needn't churn).
+function Base.getproperty(
+        sol::SciMLBase.PDETimeSeriesSolution{T, N, S, <:PINOODEMetadata}, name::Symbol
+    ) where {T, N, S}
+    name === :p && return getfield(sol, :disc_data).p_train
+    name === :original && return getfield(sol, :original_sol)
+    return getfield(sol, name)
+end
+
+# Construct a PDETimeSeriesSolution tagged with PINOODEMetadata. Keeps
+# the explicit type-parameter splat out of `__solve`.
+function build_pinoode_solution(
+        u, original_sol, t, ivdomain, metadata::PINOODEMetadata,
+        prob, alg, interp, retcode
+    )
+    return SciMLBase.PDETimeSeriesSolution{
+        eltype(u), ndims(u), typeof(u), typeof(metadata), typeof(original_sol),
+        Nothing, typeof(t), typeof(ivdomain), Nothing, Nothing,
+        typeof(prob), typeof(alg), typeof(interp), Nothing,
+    }(
+        u, original_sol, nothing, t, ivdomain, nothing, nothing, metadata,
+        prob, alg, interp, true, 0, retcode, nothing
+    )
+end
+
 function SciMLBase.__solve(
         prob::SciMLBase.AbstractODEProblem,
         alg::PINOODE,
@@ -449,21 +516,10 @@ function SciMLBase.__solve(
     (p, t) = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
     interp = PINOODEInterpolation(phi, res.u)
     u = interp(p, t)
-    prob_sol = ODEProblem(f.f, u0, tspan, p)
+    metadata = PINOODEMetadata(p)
+    ivdomain = (bounds..., tspan)
 
-    sol = SciMLBase.build_solution(
-        prob_sol, alg, t, u;
-        k = res, dense = true,
-        interp = interp,
-        calculate_error = false,
-        retcode = ReturnCode.Success,
-        original = res,
-        resid = res.objective
+    return build_pinoode_solution(
+        u, res, t, ivdomain, metadata, prob, alg, interp, ReturnCode.Success
     )
-    SciMLBase.has_analytic(prob.f) &&
-        SciMLBase.calculate_solution_errors!(
-        sol; timeseries_errors = true,
-        dense_errors = false
-    )
-    return sol
 end
