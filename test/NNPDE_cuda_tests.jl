@@ -227,3 +227,43 @@ end
 
     @test u_predict ≈ u_real rtol = 0.2
 end
+
+@testitem "Enzyme reverse-mode gradient - CUDA" tags = [:cuda] setup = [CUDATestSetup] begin
+    using Lux, Random, ComponentArrays, SciMLBase
+    import DomainSets: Interval
+    import DifferentiationInterface as DI
+    import Enzyme
+
+    Random.seed!(100)
+
+    @parameters t x
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq = Dt(u(t, x)) ~ Dxx(u(t, x))
+    bcs = [u(0, x) ~ cos(x), u(t, 0) ~ exp(-t), u(t, 2π) ~ exp(-t)]
+    domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 2π)]
+    @named pdesys = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
+
+    inner = 16
+    chain = Chain(
+        Dense(2, inner, σ), Dense(inner, inner, σ),
+        Dense(inner, inner, σ), Dense(inner, 1)
+    )
+    strategy = StochasticTraining(64)
+    ps, st = Lux.setup(Random.default_rng(), chain)
+    ps = ps |> ComponentArray |> gpud |> f64
+    st = st |> gpud |> f64
+
+    discretization = PhysicsInformedNN(chain, strategy; init_params = ps, init_states = st)
+    prob = discretize(pdesys, discretization)
+
+    f = Base.Fix2(prob.f.f, SciMLBase.NullParameters())
+    @test f(prob.u0) isa Real
+
+    backend = DI.AutoEnzyme(; function_annotation = Enzyme.Const)
+    g = DI.gradient(f, backend, prob.u0)
+    @test size(g) == size(prob.u0)
+    @test all(isfinite, Array(g))
+end
