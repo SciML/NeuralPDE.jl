@@ -38,6 +38,7 @@ using Zygote: Zygote
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
 using ModelingToolkitBase: @named, @parameters
+using ModelingToolkitNeuralNets: SymbolicNeuralNetwork
 using Symbolics: Symbolics, unwrap, arguments, Num, expand_derivatives, @variables
 using SymbolicUtils: SymbolicUtils
 using SymbolicIndexingInterface: SymbolicIndexingInterface
@@ -70,6 +71,7 @@ include("eltype_matching.jl")
 
 include("pinn_types.jl")
 include("symbolic_utilities.jl")
+include("symbolic_pinn_parser.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
 
