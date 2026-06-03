@@ -294,7 +294,7 @@ function SoftAdaptAdaptiveLoss{T}(
         additional_loss_weights = 1.0
     ) where {T <: Real}
     pde_w = vectorify(pde_loss_weights, T)
-    bc_w  = vectorify(bc_loss_weights, T)
+    bc_w = vectorify(bc_loss_weights, T)
     return SoftAdaptAdaptiveLoss{T}(
         reweight_every, T(α),
         pde_w, bc_w, vectorify(additional_loss_weights, T),
@@ -310,14 +310,14 @@ function generate_adaptive_loss_function(
     )
     iteration = pinnrep.iteration
     T = eltype(adaloss.pde_loss_weights)
-    ε = T(1e-8)
+    ε = T(1.0e-8)
     initialized = Ref(false)
 
     return (θ, pde_losses, bc_losses) -> begin
         # Seed previous losses on the very first call
         if !initialized[]
             adaloss.prev_pde_losses .= pde_losses
-            adaloss.prev_bc_losses  .= bc_losses
+            adaloss.prev_bc_losses .= bc_losses
             initialized[] = true
         end
 
@@ -331,23 +331,27 @@ function generate_adaptive_loss_function(
             end
 
             all_losses = vcat(T.(pde_losses), T.(bc_losses))
-            all_prev   = vcat(adaloss.prev_pde_losses, adaloss.prev_bc_losses)
-            N          = length(all_losses)
+            all_prev = vcat(adaloss.prev_pde_losses, adaloss.prev_bc_losses)
+            N = length(all_losses)
 
-            rates   = (all_losses .- all_prev) ./ (all_prev .+ ε)
+            rates = (all_losses .- all_prev) ./ (all_prev .+ ε)
             weights = _softmax(adaloss.α .* rates) .* T(N)
 
             n_pde = length(pde_losses)
             adaloss.pde_loss_weights .= weights[1:n_pde]
-            adaloss.bc_loss_weights  .= weights[(n_pde + 1):end]
+            adaloss.bc_loss_weights .= weights[(n_pde + 1):end]
 
             adaloss.prev_pde_losses .= T.(pde_losses)
-            adaloss.prev_bc_losses  .= T.(bc_losses)
+            adaloss.prev_bc_losses .= T.(bc_losses)
 
-            logvector(pinnrep.logger, adaloss.pde_loss_weights,
-                "adaptive_loss/pde_loss_weights", iteration[])
-            logvector(pinnrep.logger, adaloss.bc_loss_weights,
-                "adaptive_loss/bc_loss_weights", iteration[])
+            logvector(
+                pinnrep.logger, adaloss.pde_loss_weights,
+                "adaptive_loss/pde_loss_weights", iteration[]
+            )
+            logvector(
+                pinnrep.logger, adaloss.bc_loss_weights,
+                "adaptive_loss/bc_loss_weights", iteration[]
+            )
         end
         return nothing
     end
@@ -418,7 +422,7 @@ function ReLoBRaLoAdaptiveLoss{T}(
         additional_loss_weights = 1.0
     ) where {T <: Real}
     pde_w = vectorify(pde_loss_weights, T)
-    bc_w  = vectorify(bc_loss_weights, T)
+    bc_w = vectorify(bc_loss_weights, T)
     return ReLoBRaLoAdaptiveLoss{T}(
         reweight_every, T(α), T(β),
         pde_w, bc_w, vectorify(additional_loss_weights, T),
@@ -433,44 +437,48 @@ function generate_adaptive_loss_function(
         pinnrep::PINNRepresentation,
         adaloss::ReLoBRaLoAdaptiveLoss, _, __
     )
-    iteration  = pinnrep.iteration
-    T          = eltype(adaloss.pde_loss_weights)
-    ε          = T(1e-8)
+    iteration = pinnrep.iteration
+    T = eltype(adaloss.pde_loss_weights)
+    ε = T(1.0e-8)
     initialized = Ref(false)
 
     return (θ, pde_losses, bc_losses) -> begin
         # Record initial losses on the very first call
         if !initialized[]
             adaloss.init_pde_losses .= T.(pde_losses)
-            adaloss.init_bc_losses  .= T.(bc_losses)
+            adaloss.init_bc_losses .= T.(bc_losses)
             adaloss.prev_pde_losses .= T.(pde_losses)
-            adaloss.prev_bc_losses  .= T.(bc_losses)
+            adaloss.prev_bc_losses .= T.(bc_losses)
             initialized[] = true
         end
 
         if iteration[] % adaloss.reweight_every == 0
             use_prev = rand() < adaloss.β
-            ref_pde  = use_prev ? adaloss.prev_pde_losses : adaloss.init_pde_losses
-            ref_bc   = use_prev ? adaloss.prev_bc_losses  : adaloss.init_bc_losses
+            ref_pde = use_prev ? adaloss.prev_pde_losses : adaloss.init_pde_losses
+            ref_bc = use_prev ? adaloss.prev_bc_losses : adaloss.init_bc_losses
 
             all_losses = vcat(T.(pde_losses), T.(bc_losses))
-            all_ref    = vcat(ref_pde, ref_bc)
-            N          = length(all_losses)
+            all_ref = vcat(ref_pde, ref_bc)
+            N = length(all_losses)
 
-            ratios  = all_losses ./ (all_ref .+ ε)
+            ratios = all_losses ./ (all_ref .+ ε)
             weights = _softmax(adaloss.α .* ratios) .* T(N)
 
             n_pde = length(pde_losses)
             adaloss.pde_loss_weights .= weights[1:n_pde]
-            adaloss.bc_loss_weights  .= weights[(n_pde + 1):end]
+            adaloss.bc_loss_weights .= weights[(n_pde + 1):end]
 
             adaloss.prev_pde_losses .= T.(pde_losses)
-            adaloss.prev_bc_losses  .= T.(bc_losses)
+            adaloss.prev_bc_losses .= T.(bc_losses)
 
-            logvector(pinnrep.logger, adaloss.pde_loss_weights,
-                "adaptive_loss/pde_loss_weights", iteration[])
-            logvector(pinnrep.logger, adaloss.bc_loss_weights,
-                "adaptive_loss/bc_loss_weights", iteration[])
+            logvector(
+                pinnrep.logger, adaloss.pde_loss_weights,
+                "adaptive_loss/pde_loss_weights", iteration[]
+            )
+            logvector(
+                pinnrep.logger, adaloss.bc_loss_weights,
+                "adaptive_loss/bc_loss_weights", iteration[]
+            )
         end
         return nothing
     end
