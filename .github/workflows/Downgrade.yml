@@ -12,19 +12,9 @@ on:
       - 'docs/**'
 jobs:
   downgrade:
-    # Disabled (floor-unfixable): the test sandbox cannot resolve with
-    # allow-reresolve disabled. In the main env, StatsFuns is pulled in only by
-    # Distributions, and every Distributions >= 0.25.126 (the floor and all newer
-    # releases) permits StatsFuns "2.0.1 - 2", so the resolver pins the latest
-    # StatsFuns 2.0.1 in the main Manifest. Pkg.test then sandboxes from that
-    # Manifest with StatsFuns 2.0.1 as a fixed requirement, but every MCMCChains
-    # release (including 7.7.0, the latest) caps StatsFuns to "[0.8-0.9, 1]", so the
-    # sandbox is Unsatisfiable. No direct-dep floor RAISE fixes this: only
-    # Distributions constrains StatsFuns, and no Distributions >= 0.25.126 caps it
-    # to <=1 (that cap only exists in 0.25.124-0.25.125, below our floor). Re-resolve
-    # would silently downgrade StatsFuns to 1.5.2 (consistent, but reresolve is off).
-    # Re-enable once an MCMCChains release allows StatsFuns 2.x. See SciML/NeuralPDE.jl#1023.
-    if: false
+    # Runs strict (allow_reresolve=false); expected RED until MCMCChains upstream
+    # allows StatsFuns 2.x (StatsFuns 2.0.1 vs MCMCChains; NOT fixed by ForwardDiff).
+    # Auto-greens on the upstream release. See SciML/NeuralPDE.jl#1023.
     strategy:
       matrix:
         group:
