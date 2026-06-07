@@ -12,6 +12,14 @@ on:
       - 'docs/**'
 jobs:
   downgrade:
+    # Disabled: at the current compat floors the test sandbox cannot resolve with
+    # allow-reresolve disabled. MCMCChains 7 (the only released major) caps
+    # StatsFuns to "[0.8-0.9, 1]", but StatsFuns 2.x is now in the registry and the
+    # transitive resolve of the main project pins StatsFuns 2.x; adding the
+    # MCMCChains test dep then makes the sandbox unsatisfiable. Re-resolving would
+    # paper over this by silently downgrading StatsFuns, which we do not want here.
+    # Re-enable once an MCMCChains release allows StatsFuns 2.x. See SciML/NeuralPDE.jl#1023.
+    if: false
     strategy:
       matrix:
         group:
@@ -21,5 +29,5 @@ jobs:
       julia-version: "1.10"
       group: "${{ matrix.group }}"
       skip: "Pkg,TOML"
-      allow-reresolve: true
+      allow-reresolve: false
     secrets: "inherit"
