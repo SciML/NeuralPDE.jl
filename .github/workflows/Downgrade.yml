@@ -12,7 +12,9 @@ on:
       - 'docs/**'
 jobs:
   downgrade:
-    if: false  # Disabled: see https://github.com/SciML/NeuralPDE.jl/issues/1023
+    # Runs strict (allow_reresolve=false); expected RED until MCMCChains upstream
+    # allows StatsFuns 2.x (StatsFuns 2.0.1 vs MCMCChains; NOT fixed by ForwardDiff).
+    # Auto-greens on the upstream release. See SciML/NeuralPDE.jl#1023.
     strategy:
       matrix:
         group:
@@ -22,5 +24,4 @@ jobs:
       julia-version: "1.10"
       group: "${{ matrix.group }}"
       skip: "Pkg,TOML"
-      allow-reresolve: false
     secrets: "inherit"
