@@ -42,21 +42,21 @@ function _replace_index(x::AbstractVector, i::Integer, val)
     return x_
 end
 
-function _same_direction_derivative(f, x::AbstractVector, direction::Integer, order::Integer)
-    order == 0 && return f(x)
+function _multi_direction_derivative(f, x::AbstractVector, directions::AbstractVector{<:Integer})
+    isempty(directions) && return f(x)
+    dir = first(directions)
     return ForwardDiff.derivative(
-        a -> _same_direction_derivative(
-            f, _replace_index(x, direction, a), direction, order - 1
+        a -> _multi_direction_derivative(
+            f, _replace_index(x, dir, a), @view(directions[2:end])
         ),
-        x[direction]
+        x[dir]
     )
 end
 
-function (f::SymbolicPINNDerivativeWrapper)(input::AbstractVector, p, direction, order)
+function (f::SymbolicPINNDerivativeWrapper)(input::AbstractVector, p, directions)
     x = collect(input)
-    dir = Int(direction)
-    ord = Int(order)
-    val = _same_direction_derivative(z -> first(f.nn(z, p)), x, dir, ord)
+    dirs = Int.(directions)
+    val = _multi_direction_derivative(z -> first(f.nn(z, p)), x, dirs)
     return [val]
 end
 
@@ -153,19 +153,14 @@ function _find_derivative_dv_calls!(calls, expr, dv_ops)
     return calls
 end
 
-function _derivative_direction_and_order(derivative_vars, ivs)
+function _derivative_directions(derivative_vars, ivs)
     iv_terms = Symbolics.unwrap.(ivs)
-    directions = map(derivative_vars) do var
+    return map(derivative_vars) do var
         idx = findfirst(iv -> isequal(iv, var), iv_terms)
         idx === nothing &&
             throw(ArgumentError("Derivative variable $var is not an independent variable."))
         idx
     end
-
-    first_direction = first(directions)
-    all(==(first_direction), directions) ||
-        throw(ArgumentError("The symbolic PINN MVP currently supports same-direction derivatives only."))
-    return first_direction, length(directions)
 end
 
 function _substitute_residual(raw, substitutions)
@@ -193,8 +188,8 @@ function symbolic_pinn_residual(eq, ivs, dvs, neural_specs)
     for call in derivative_calls
         spec = neural_specs[call.dv_index]
         args = collect(SymbolicUtils.arguments(call.call))
-        direction, order = _derivative_direction_and_order(call.derivative_vars, ivs)
-        substitutions[call.term] = spec.derivative(args, spec.parameters, direction, order)[1]
+        directions = _derivative_directions(call.derivative_vars, ivs)
+        substitutions[call.term] = spec.derivative(args, spec.parameters, directions)[1]
     end
 
     for (dv_index, call) in value_calls
@@ -230,6 +225,18 @@ function _theta0(spec::SymbolicPINNNeuralSpec)
     return Vector(Symbolics.getdefaultval(spec.parameters))
 end
 
+function _theta0(specs::AbstractVector{<:SymbolicPINNNeuralSpec})
+    return vcat([_theta0(spec) for spec in specs]...)
+end
+
+function _split_theta(theta, param_lengths)
+    offsets = cumsum(param_lengths)
+    return ntuple(length(param_lengths)) do i
+        lo = i == 1 ? 1 : offsets[i - 1] + 1
+        @view(theta[lo:offsets[i]])
+    end
+end
+
 function _runtime_args(neural_specs)
     nn_defaults = map(spec -> Symbolics.getdefaultval(spec.value), neural_specs)
     dnn_defaults = map(spec -> Symbolics.getdefaultval(spec.derivative), neural_specs)
@@ -246,9 +253,11 @@ function _compiled_residual(residual, ivs, neural_specs)
         expression = Val(false)
     )
     runtime_args = _runtime_args(neural_specs)
+    param_lengths = [length(Symbolics.getdefaultval(spec.parameters)) for spec in neural_specs]
 
     return function (point, theta)
-        return compiled(point..., runtime_args..., theta)
+        param_views = _split_theta(theta, param_lengths)
+        return compiled(point..., runtime_args..., param_views...)
     end
 end
 
@@ -306,18 +315,17 @@ end
 """
     build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior = 64, n_bc = 64)
 
-Build an experimental symbolic PINN loss for the heat-equation MVP. The returned object is
+Build a symbolic PINN loss for a `PDESystem`. Supports single and multiple dependent
+variables, same-direction and mixed/cross-direction derivatives. The returned object is
 a named tuple containing symbolic residuals, lowered residual functions, sampled points,
 initial parameters, and simple mean-squared PDE/BC/full loss functions.
 """
 function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 64,
         n_bc::Integer = 64)
     parsed = parse_pde_system(sys)
-    length(parsed.dvs) == 1 ||
-        throw(ArgumentError("The symbolic PINN MVP currently supports one dependent variable."))
 
     neural_specs = _symbolic_pinn_neural_specs(chain, length(parsed.ivs), length(parsed.dvs))
-    theta0 = _theta0(only(neural_specs))
+    theta0 = _theta0(neural_specs)
 
     pde_residuals = [
         symbolic_pinn_residual(eq, parsed.ivs, parsed.dvs, neural_specs)

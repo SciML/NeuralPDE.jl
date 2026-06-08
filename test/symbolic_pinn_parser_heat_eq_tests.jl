@@ -169,3 +169,127 @@ end
     @test length(grad) == 1
     @test all(isfinite, grad[1])
 end
+
+@testitem "Symbolic PINN parser mixed derivatives" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Zygote
+    using Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dx = Differential(x)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    # PDE with a mixed derivative: ∂²u/∂x∂t + ∂²u/∂x² ~ 0
+    eq = Dx(Dt(u(x, t))) + Dxx(u(x, t)) ~ 0
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named mixed_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    symbolic_loss = NeuralPDE.build_symbolic_pinn_loss(
+        mixed_sys, chain; n_interior = 3, n_bc = 3
+    )
+
+    theta0 = symbolic_loss.theta0
+    @test !isempty(theta0)
+
+    # Verify no DV calls remain in the residuals
+    parsed = NeuralPDE.parse_pde_system(mixed_sys)
+    @test all(
+        residual -> !NeuralPDE._contains_dv_call(residual, parsed.dvs),
+        symbolic_loss.pde_residuals
+    )
+
+    # Verify loss is finite
+    pde_loss = symbolic_loss.pde_loss(theta0)
+    bc_loss = symbolic_loss.bc_loss(theta0)
+    full_loss = symbolic_loss.loss(theta0)
+    @test isfinite(pde_loss)
+    @test isfinite(bc_loss)
+    @test isfinite(full_loss)
+    @test pde_loss >= 0
+    @test bc_loss >= 0
+    @test full_loss == pde_loss + bc_loss
+
+    # Verify Zygote gradient works through mixed derivatives
+    grad = Zygote.gradient(symbolic_loss.loss, theta0)
+    @test grad !== nothing
+    @test length(grad) == 1
+    @test all(isfinite, grad[1])
+end
+
+@testitem "Symbolic PINN parser multiple dependent variables" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Zygote
+    using Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..) v(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    # Coupled system: two dependent variables
+    eq1 = Dt(u(x, t)) ~ Dxx(u(x, t)) + v(x, t)
+    eq2 = Dt(v(x, t)) ~ Dxx(v(x, t)) - u(x, t)
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        v(0.0, t) ~ 0.0,
+        v(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+        v(x, 0.0) ~ 0.0,
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named coupled_sys = PDESystem(
+        [eq1, eq2], bcs, domains, [x, t], [u(x, t), v(x, t)]
+    )
+
+    chain1 = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+    chain2 = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    symbolic_loss = NeuralPDE.build_symbolic_pinn_loss(
+        coupled_sys, [chain1, chain2]; n_interior = 3, n_bc = 3
+    )
+
+    theta0 = symbolic_loss.theta0
+
+    # Verify theta0 contains params from both networks
+    spec1_len = length(NeuralPDE._theta0(symbolic_loss.neural_specs[1]))
+    spec2_len = length(NeuralPDE._theta0(symbolic_loss.neural_specs[2]))
+    @test length(theta0) == spec1_len + spec2_len
+
+    # Verify no DV calls remain in any residuals
+    parsed = NeuralPDE.parse_pde_system(coupled_sys)
+    @test all(
+        residual -> !NeuralPDE._contains_dv_call(residual, parsed.dvs),
+        symbolic_loss.pde_residuals
+    )
+    @test all(
+        residual -> !NeuralPDE._contains_dv_call(residual, parsed.dvs),
+        symbolic_loss.bc_residuals
+    )
+
+    # Verify loss is finite
+    pde_loss = symbolic_loss.pde_loss(theta0)
+    bc_loss = symbolic_loss.bc_loss(theta0)
+    full_loss = symbolic_loss.loss(theta0)
+    @test isfinite(pde_loss)
+    @test isfinite(bc_loss)
+    @test isfinite(full_loss)
+    @test pde_loss >= 0
+    @test bc_loss >= 0
+    @test full_loss == pde_loss + bc_loss
+
+    # Verify Zygote gradient works through multi-DV system
+    grad = Zygote.gradient(symbolic_loss.loss, theta0)
+    @test grad !== nothing
+    @test length(grad) == 1
+    @test all(isfinite, grad[1])
+end
