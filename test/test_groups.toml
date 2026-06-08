@@ -1,0 +1,41 @@
+[QA]
+versions = ["1.11", "lts"]
+
+[ODEBPINN]
+versions = ["1.11", "lts"]
+
+[PDEBPINN]
+versions = ["1.11", "lts"]
+
+[NNSDE1]
+versions = ["1.11", "lts"]
+
+[NNSDE2]
+versions = ["1.11", "lts"]
+
+[NNPDE1]
+versions = ["1.11", "lts"]
+
+[NNPDE2]
+versions = ["1.11", "lts"]
+
+[AdaptiveLoss]
+versions = ["1.11", "lts"]
+
+[Forward]
+versions = ["1.11", "lts"]
+
+[DGM]
+versions = ["1.11", "lts"]
+
+[NNODE]
+versions = ["1.11", "lts"]
+
+[PINOODE]
+versions = ["1.11", "lts"]
+
+[NeuralAdapter]
+versions = ["1.11", "lts"]
+
+[IntegroDiff]
+versions = ["1.11", "lts"]
