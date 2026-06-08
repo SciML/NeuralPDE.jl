@@ -269,7 +269,8 @@ end
 
 function _collocation_points(domains, n::Integer; interior::Bool)
     axes = [_axis_points(lo, hi, n; interior) for (lo, hi) in _domain_bounds(domains)]
-    return [collect(point) for point in Iterators.product(axes...)]
+    grid = vec([collect(Float64, point) for point in Iterators.product(axes...)])
+    return reduce(hcat, grid)  # (D, N) matrix
 end
 
 _scalar_residual_value(x::Number) = x
@@ -289,21 +290,17 @@ function _wrap_as_datafree(compiled_residual_fn)
     return function (cord, theta)
         N = size(cord, 2)
         out = map(1:N) do j
-            _scalar_residual_value(compiled_residual_fn(cord[:, j], theta))
+            _scalar_residual_value(compiled_residual_fn(@view(cord[:, j]), theta))
         end
         return reshape(out, 1, :)
     end
 end
 
-function _mean_square(functions, points, theta)
-    isempty(functions) && return zero(eltype(theta))
-    total = zero(eltype(theta))
-    count = 0
-    for f in functions, point in points
-        total += abs2(_scalar_residual_value(f(point, theta)))
-        count += 1
-    end
-    return total / count
+function _mean_square(datafree_fns, points_matrix, theta)
+    isempty(datafree_fns) && return zero(eltype(theta))
+    return sum(datafree_fns) do f
+        mean(abs2, f(points_matrix, theta))
+    end / length(datafree_fns)
 end
 
 """
@@ -340,8 +337,8 @@ function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 6
     pde_points = _collocation_points(parsed.domains, n_interior; interior = true)
     bc_points = _collocation_points(parsed.domains, n_bc; interior = false)
 
-    pde_loss = theta -> _mean_square(pde_functions, pde_points, theta)
-    bc_loss = theta -> _mean_square(bc_functions, bc_points, theta)
+    pde_loss = theta -> _mean_square(datafree_pde_loss_functions, pde_points, theta)
+    bc_loss = theta -> _mean_square(datafree_bc_loss_functions, bc_points, theta)
     loss = theta -> pde_loss(theta) + bc_loss(theta)
 
     return (

@@ -73,6 +73,18 @@
     @test bc_loss >= 0
     @test full_loss >= 0
     @test full_loss == pde_loss + bc_loss
+
+    # Verify collocation points are stored as (D, N) matrices
+    @test symbolic_loss.points.pde isa Matrix{Float64}
+    @test symbolic_loss.points.bc isa Matrix{Float64}
+    @test size(symbolic_loss.points.pde, 1) == 2  # D = 2 (x, t)
+    @test size(symbolic_loss.points.bc, 1) == 2
+
+    # Verify batched loss matches manual point-by-point evaluation
+    pde_fn = symbolic_loss.datafree_pde_loss_functions[1]
+    pde_pts = symbolic_loss.points.pde
+    manual_loss = sum(abs2, pde_fn(pde_pts, theta0)) / size(pde_pts, 2)
+    @test pde_loss ≈ manual_loss
 end
 
 @testitem "Symbolic PINN parser datafree loss function format" tags = [:symbolicpinn] begin
