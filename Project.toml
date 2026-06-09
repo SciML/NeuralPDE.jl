@@ -121,6 +121,8 @@ Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Boltz = "4544d5e4-abc5-4dea-817f-29e4c205d9c8"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 DiffEqNoiseProcess = "77a26b50-5914-5dd7-bc55-306e6241c503"
+DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
@@ -140,4 +142,4 @@ TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["AdvancedHMC", "Aqua", "Boltz", "CUDA", "DiffEqNoiseProcess", "ExplicitImports", "FastGaussQuadrature", "Flux", "Hwloc", "InteractiveUtils", "LineSearches", "LogDensityProblems", "LuxCUDA", "LuxCore", "LuxLib", "MCMCChains", "OptimizationOptimJL", "OrdinaryDiffEq", "ReTestItems", "StochasticDiffEq", "TensorBoardLogger", "Test"]
+test = ["AdvancedHMC", "Aqua", "Boltz", "CUDA", "DiffEqNoiseProcess", "DifferentiationInterface", "Enzyme", "ExplicitImports", "FastGaussQuadrature", "Flux", "Hwloc", "InteractiveUtils", "LineSearches", "LogDensityProblems", "LuxCUDA", "LuxCore", "LuxLib", "MCMCChains", "OptimizationOptimJL", "OrdinaryDiffEq", "ReTestItems", "StochasticDiffEq", "TensorBoardLogger", "Test"]
