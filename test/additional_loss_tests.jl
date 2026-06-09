@@ -112,6 +112,8 @@ end
     import DomainSets: Interval, infimum, supremum
     using OptimizationOptimJL: BFGS
 
+    Random.seed!(100)
+
     @parameters t, σ_, β, ρ
     @variables x(..), y(..), z(..)
     Dt = Differential(t)
