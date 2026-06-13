@@ -1,5 +1,5 @@
 [QA]
-versions = ["1.11", "lts"]
+versions = ["lts", "1"]
 
 [ODEBPINN]
 versions = ["1.11", "lts"]
