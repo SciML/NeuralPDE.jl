@@ -39,3 +39,9 @@ versions = ["1.11", "lts"]
 
 [IntegroDiff]
 versions = ["1.11", "lts"]
+
+[CUDA]
+versions = ["1"]
+runner = ["self-hosted", "gpu-v100"]
+timeout = 240
+in_all = false
