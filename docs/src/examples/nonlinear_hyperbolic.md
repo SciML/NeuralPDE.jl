@@ -101,7 +101,8 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 200, callback)
+res = Optimization.solve(
+    prob, BFGS(linesearch = LineSearches.BackTracking()); maxiters = 200, callback)
 
 phi = discretization.phi
 
