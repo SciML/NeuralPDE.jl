@@ -492,41 +492,85 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
 
     integral = get_numeric_integral(pinnrep)
 
-    symbolic_pde_loss_functions = [
-        build_symbolic_loss_function(
-                pinnrep, eq;
-                bc_indvars = pde_indvar
-            )
-            for (eq, pde_indvar) in zip(
-                eqs, pde_indvars,
-                pde_integration_vars
-            )
-    ]
+    symbolic_pde_loss_functions = nothing
+    symbolic_bc_loss_functions = nothing
 
-    symbolic_bc_loss_functions = [
-        build_symbolic_loss_function(
-                pinnrep, bc;
-                bc_indvars = bc_indvar
-            )
-            for (bc, bc_indvar) in zip(
-                bcs, bc_indvars,
-                bc_integration_vars
-            )
-    ]
+    use_symbolic_parser = discretization isa PhysicsInformedNN &&
+        discretization.symbolic_parser
+
+    if use_symbolic_parser
+        # --- Symbolic PINN parser path ---
+        # Build symbolic neural network specs and compile residuals using
+        # Symbolics.build_function instead of RuntimeGeneratedFunctions.
+        parsed_ivs = ModelingToolkit.get_ivs(pde_system)
+        parsed_dvs = ModelingToolkit.get_dvs(pde_system)
+        n_ivs = length(parsed_ivs)
+        n_dvs = length(parsed_dvs)
+
+        neural_specs = _symbolic_pinn_neural_specs(chain, n_ivs, n_dvs)
+        sym_theta0 = _theta0(neural_specs)
+
+        pde_residuals = [
+            symbolic_pinn_residual(eq, parsed_ivs, parsed_dvs, neural_specs)
+                for eq in eqs
+        ]
+        bc_residuals = [
+            symbolic_pinn_residual(bc, parsed_ivs, parsed_dvs, neural_specs)
+                for bc in bcs
+        ]
+
+        pde_compiled = [
+            _compiled_residual(res, parsed_ivs, neural_specs) for res in pde_residuals
+        ]
+        bc_compiled = [
+            _compiled_residual(res, parsed_ivs, neural_specs) for res in bc_residuals
+        ]
+
+        datafree_pde_loss_functions = [_wrap_as_datafree(f) for f in pde_compiled]
+        datafree_bc_loss_functions = [_wrap_as_datafree(f) for f in bc_compiled]
+
+        # Override flat_init_params with the symbolic parser's initial parameters.
+        flat_init_params = sym_theta0
+        pinnrep.flat_init_params = flat_init_params
+    else
+        # --- Legacy RGF path ---
+        symbolic_pde_loss_functions = [
+            build_symbolic_loss_function(
+                    pinnrep, eq;
+                    bc_indvars = pde_indvar
+                )
+                for (eq, pde_indvar) in zip(
+                    eqs, pde_indvars,
+                    pde_integration_vars
+                )
+        ]
+
+        symbolic_bc_loss_functions = [
+            build_symbolic_loss_function(
+                    pinnrep, bc;
+                    bc_indvars = bc_indvar
+                )
+                for (bc, bc_indvar) in zip(
+                    bcs, bc_indvars,
+                    bc_integration_vars
+                )
+        ]
+
+        datafree_pde_loss_functions = [
+            build_loss_function(pinnrep, eq, pde_indvar)
+                for (eq, pde_indvar) in zip(eqs, pde_indvars)
+        ]
+
+        datafree_bc_loss_functions = [
+            build_loss_function(pinnrep, bc, bc_indvar)
+                for (bc, bc_indvar) in zip(bcs, bc_indvars)
+        ]
+    end
+
 
     pinnrep.integral = integral
     pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
     pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
-
-    datafree_pde_loss_functions = [
-        build_loss_function(pinnrep, eq, pde_indvar)
-            for (eq, pde_indvar) in zip(eqs, pde_indvars)
-    ]
-
-    datafree_bc_loss_functions = [
-        build_loss_function(pinnrep, bc, bc_indvar)
-            for (bc, bc_indvar) in zip(bcs, bc_indvars)
-    ]
 
     pde_loss_functions,
         bc_loss_functions = merge_strategy_with_loss_function(

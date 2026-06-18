@@ -87,6 +87,115 @@
     @test pde_loss ≈ manual_loss
 end
 
+@testitem "Symbolic PINN parser residual correctness" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Symbolics
+    using Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    symbolic_loss = NeuralPDE.build_symbolic_pinn_loss(
+        heat_sys, chain; n_interior = 3, n_bc = 3
+    )
+
+    parsed = symbolic_loss.parsed
+    spec = symbolic_loss.neural_specs[1]
+
+    # Helper function to count calls in a Symbolic expression
+    function count_calls(expr, op)
+        count = Ref(0)
+        function walk(ex)
+            SymbolicUtils.iscall(ex) || return
+            if isequal(SymbolicUtils.operation(ex), op)
+                count[] += 1
+            end
+            for arg in SymbolicUtils.arguments(ex)
+                walk(arg)
+            end
+        end
+        walk(Symbolics.unwrap(expr))
+        return count[]
+    end
+
+    # 1. Verify symbolic structure (NN and DNN call counts)
+    pde_res = symbolic_loss.pde_residuals[1]
+    bc_res1 = symbolic_loss.bc_residuals[1]
+    bc_res2 = symbolic_loss.bc_residuals[2]
+    bc_res3 = symbolic_loss.bc_residuals[3]
+
+    @test count_calls(pde_res, spec.derivative) == 2
+    @test count_calls(pde_res, spec.value) == 0
+
+    @test count_calls(bc_res1, spec.derivative) == 0
+    @test count_calls(bc_res1, spec.value) == 1
+
+    @test count_calls(bc_res2, spec.derivative) == 0
+    @test count_calls(bc_res2, spec.value) == 1
+
+    @test count_calls(bc_res3, spec.derivative) == 0
+    @test count_calls(bc_res3, spec.value) == 1
+
+    # 2. Evaluate residual at analytical solution
+    analytical_nn(input, p) = [exp(-pi^2 * input[2]) * sin(pi * input[1])]
+    function analytical_dnn(input, p, directions)
+        x_val, t_val = input[1], input[2]
+        if directions == [2]
+            return [-pi^2 * exp(-pi^2 * t_val) * sin(pi * x_val)]
+        elseif directions == [1, 1]
+            return [-pi^2 * exp(-pi^2 * t_val) * sin(pi * x_val)]
+        else
+            error("Unexpected directions: $directions")
+        end
+    end
+
+    iv_args = Symbolics.unwrap.(parsed.ivs)
+    nn_args = [spec.value]
+    dnn_args = [spec.derivative]
+    p_args = [spec.parameters]
+
+    compiled_pde = Symbolics.build_function(
+        pde_res, iv_args..., nn_args..., dnn_args..., p_args...;
+        expression = Val(false)
+    )
+
+    compiled_bcs = [
+        Symbolics.build_function(
+            res, iv_args..., nn_args..., dnn_args..., p_args...;
+            expression = Val(false)
+        ) for res in symbolic_loss.bc_residuals
+    ]
+
+    theta0 = symbolic_loss.theta0
+    test_points = [[0.25, 0.5], [0.5, 0.25], [0.75, 0.1]]
+
+    for pt in test_points
+        x_val, t_val = pt[1], pt[2]
+        pde_val = compiled_pde(x_val, t_val, analytical_nn, analytical_dnn, theta0)[1]
+        bc1_val = compiled_bcs[1](0.0, t_val, analytical_nn, analytical_dnn, theta0)[1]
+        bc2_val = compiled_bcs[2](1.0, t_val, analytical_nn, analytical_dnn, theta0)[1]
+        bc3_val = compiled_bcs[3](x_val, 0.0, analytical_nn, analytical_dnn, theta0)[1]
+
+        @test pde_val ≈ 0.0 atol = 1e-12
+        @test bc1_val ≈ 0.0 atol = 1e-12
+        @test bc2_val ≈ 0.0 atol = 1e-12
+        @test bc3_val ≈ 0.0 atol = 1e-12
+    end
+end
+
 @testitem "Symbolic PINN parser datafree loss function format" tags = [:symbolicpinn] begin
     using NeuralPDE, ModelingToolkit, DomainSets, Lux, Statistics
     import DomainSets: Interval
@@ -225,6 +334,191 @@ end
     @test all(isfinite, grad[1])
 end
 
+@testitem "Symbolic PINN parser single-pass prewalk substitution" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Symbolics, SymbolicUtils
+    using Test
+    import DomainSets: Interval
+
+    # -----------------------------------------------------------------------
+    # Setup: heat equation system
+    # -----------------------------------------------------------------------
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dx = Differential(x)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    symbolic_loss = NeuralPDE.build_symbolic_pinn_loss(
+        heat_sys, chain; n_interior = 3, n_bc = 3
+    )
+    parsed = symbolic_loss.parsed
+    spec   = symbolic_loss.neural_specs[1]
+
+    # Helper: count nodes visited during a tree walk (to verify single-pass)
+    function count_nodes(expr)
+        n = Ref(0)
+        function walk(ex)
+            n[] += 1
+            SymbolicUtils.iscall(ex) || return
+            for arg in SymbolicUtils.arguments(ex)
+                walk(arg)
+            end
+        end
+        walk(Symbolics.unwrap(expr))
+        return n[]
+    end
+
+    # -----------------------------------------------------------------------
+    # Test 1: No raw DV calls survive in any residual (correctness)
+    # -----------------------------------------------------------------------
+    @test all(
+        residual -> !NeuralPDE._contains_dv_call(residual, parsed.dvs),
+        symbolic_loss.pde_residuals
+    )
+    @test all(
+        residual -> !NeuralPDE._contains_dv_call(residual, parsed.dvs),
+        symbolic_loss.bc_residuals
+    )
+
+    # -----------------------------------------------------------------------
+    # Test 2: PDE residual has derivative (DNN) ops, not value (NN) ops
+    # -----------------------------------------------------------------------
+    function count_op_calls(expr, target_op)
+        n = Ref(0)
+        function walk(ex)
+            # Skip non-symbolic types (e.g. concrete Int/Vector args inside DNN calls)
+            ex isa SymbolicUtils.BasicSymbolic || return
+            SymbolicUtils.iscall(ex) || return
+            if isequal(SymbolicUtils.operation(ex), target_op)
+                n[] += 1
+            end
+            for arg in SymbolicUtils.arguments(ex)
+                walk(arg)
+            end
+        end
+        walk(Symbolics.unwrap(expr))
+        return n[]
+    end
+
+    pde_res = symbolic_loss.pde_residuals[1]
+    # heat equation residual: ∂ₜu - ∂ₓₓu → two DNN calls, zero NN calls
+    @test count_op_calls(pde_res, spec.derivative) == 2
+    @test count_op_calls(pde_res, spec.value)      == 0
+
+    # -----------------------------------------------------------------------
+    # Test 3: Each BC residual has exactly one NN call, zero DNN calls
+    # -----------------------------------------------------------------------
+    for bc_res in symbolic_loss.bc_residuals
+        @test count_op_calls(bc_res, spec.value)      == 1
+        @test count_op_calls(bc_res, spec.derivative) == 0
+    end
+
+    # -----------------------------------------------------------------------
+    # Test 4: Single-pass property – prewalk does NOT descend into a subtree
+    # it has already substituted. We verify this by checking that the output
+    # residuals contain no nested/redundant DNN-inside-DNN or NN-inside-DNN
+    # structure (which a naïve double-pass could generate).
+    # Concretely: every DNN call argument must NOT contain another DNN call.
+    # -----------------------------------------------------------------------
+    function dnn_args_clean(expr, dnn_op)
+        # Non-symbolic values (e.g. concrete Int, Vector{Int}) cannot contain DNN calls
+        expr isa SymbolicUtils.BasicSymbolic || return true
+        SymbolicUtils.iscall(expr) || return true
+        op = SymbolicUtils.operation(expr)
+        if isequal(op, dnn_op)
+            # None of the arguments of this DNN call should themselves
+            # contain a DNN call (that would indicate a nested/double
+            # substitution artefact). Skip non-symbolic args like direction vectors.
+            for arg in SymbolicUtils.arguments(expr)
+                arg isa SymbolicUtils.BasicSymbolic || continue
+                count_op_calls(arg, dnn_op) == 0 || return false
+            end
+            return true  # stop here; don't recurse into already-substituted subtree
+        end
+        return all(arg -> dnn_args_clean(arg, dnn_op), SymbolicUtils.arguments(expr))
+    end
+
+    for res in symbolic_loss.pde_residuals
+        @test dnn_args_clean(Symbolics.unwrap(res), spec.derivative)
+    end
+
+    # -----------------------------------------------------------------------
+    # Test 5: Non-DV subexpressions are left structurally unchanged.
+    # The sin(pi*x) term in the IC residual should still be present.
+    # -----------------------------------------------------------------------
+    ic_res = symbolic_loss.bc_residuals[3]  # u(x, 0) ~ sin(pi*x)
+    ic_expr = Symbolics.unwrap(ic_res)
+
+    function contains_sin(ex)
+        SymbolicUtils.iscall(ex) || return false
+        isequal(SymbolicUtils.operation(ex), sin) && return true
+        return any(contains_sin, SymbolicUtils.arguments(ex))
+    end
+
+    @test contains_sin(ic_expr)
+
+    # -----------------------------------------------------------------------
+    # Test 6: All residuals produce finite values after lowering (smoke test)
+    # -----------------------------------------------------------------------
+    theta0 = symbolic_loss.theta0
+    for f in symbolic_loss.residual_functions.pde
+        val = f([0.3, 0.4], theta0)
+        @test isfinite(first(val))
+    end
+    for f in symbolic_loss.residual_functions.bc
+        val = f([0.3, 0.4], theta0)
+        @test isfinite(first(val))
+    end
+
+    # -----------------------------------------------------------------------
+    # Test 7: Mixed-derivative PDE residual (∂ₓ∂ₜu) is handled in one pass
+    # -----------------------------------------------------------------------
+    @parameters x2 t2
+    @variables v(..)
+    Dt2  = Differential(t2)
+    Dx2  = Differential(x2)
+    Dxx2 = Differential(x2)^2
+
+    eq_mixed = Dx2(Dt2(v(x2, t2))) + Dxx2(v(x2, t2)) ~ 0
+    bcs_mixed = [
+        v(0.0, t2) ~ 0.0,
+        v(1.0, t2) ~ 0.0,
+        v(x2, 0.0) ~ sin(pi * x2),
+    ]
+    domains_mixed = [x2 in Interval(0.0, 1.0), t2 in Interval(0.0, 1.0)]
+    @named mixed_sys = PDESystem(eq_mixed, bcs_mixed, domains_mixed, [x2, t2], [v(x2, t2)])
+
+    chain_m = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+    sym_loss_m = NeuralPDE.build_symbolic_pinn_loss(
+        mixed_sys, chain_m; n_interior = 3, n_bc = 3
+    )
+    parsed_m = NeuralPDE.parse_pde_system(mixed_sys)
+
+    @test all(
+        r -> !NeuralPDE._contains_dv_call(r, parsed_m.dvs),
+        sym_loss_m.pde_residuals
+    )
+    @test all(
+        r -> !NeuralPDE._contains_dv_call(r, parsed_m.dvs),
+        sym_loss_m.bc_residuals
+    )
+
+    theta0_m = sym_loss_m.theta0
+    @test isfinite(sym_loss_m.pde_loss(theta0_m))
+    @test isfinite(sym_loss_m.bc_loss(theta0_m))
+end
+
 @testitem "Symbolic PINN parser multiple dependent variables" tags = [:symbolicpinn] begin
     using NeuralPDE, ModelingToolkit, DomainSets, Lux, Zygote
     using Test
@@ -292,4 +586,210 @@ end
     @test grad !== nothing
     @test length(grad) == 1
     @test all(isfinite, grad[1])
+end
+
+# ===================================================================
+# Tier 2 Integration Tests
+# ===================================================================
+
+@testitem "Symbolic PINN parser discretize integration" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers
+    using Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    # --- Test 1: discretize returns a valid OptimizationProblem ---
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(0.1); symbolic_parser = true
+    )
+    prob = discretize(heat_sys, discretization)
+    @test prob isa Optimization.OptimizationProblem
+
+    # --- Test 2: The loss function evaluates to a finite value ---
+    loss_val = prob.f(prob.u0, nothing)
+    @test isfinite(loss_val)
+    @test loss_val >= 0
+
+    # --- Test 3: Short optimization loop converges (loss decreases) ---
+    initial_loss = prob.f(prob.u0, nothing)
+    sol = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 20)
+    final_loss = prob.f(sol.u, nothing)
+    @test isfinite(final_loss)
+    @test final_loss <= initial_loss
+end
+
+@testitem "Symbolic PINN parser training strategies" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization
+    using Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    # --- Test 1: GridTraining ---
+    disc_grid = PhysicsInformedNN(
+        chain, GridTraining(0.25); symbolic_parser = true
+    )
+    prob_grid = discretize(heat_sys, disc_grid)
+    @test prob_grid isa Optimization.OptimizationProblem
+    loss_grid = prob_grid.f(prob_grid.u0, nothing)
+    @test isfinite(loss_grid)
+    @test loss_grid >= 0
+
+    # --- Test 2: StochasticTraining ---
+    disc_stoch = PhysicsInformedNN(
+        chain, StochasticTraining(50); symbolic_parser = true
+    )
+    prob_stoch = discretize(heat_sys, disc_stoch)
+    @test prob_stoch isa Optimization.OptimizationProblem
+    loss_stoch = prob_stoch.f(prob_stoch.u0, nothing)
+    @test isfinite(loss_stoch)
+    @test loss_stoch >= 0
+
+    # --- Test 3: QuasiRandomTraining ---
+    disc_quasi = PhysicsInformedNN(
+        chain, QuasiRandomTraining(50); symbolic_parser = true
+    )
+    prob_quasi = discretize(heat_sys, disc_quasi)
+    @test prob_quasi isa Optimization.OptimizationProblem
+    loss_quasi = prob_quasi.f(prob_quasi.u0, nothing)
+    @test isfinite(loss_quasi)
+    @test loss_quasi >= 0
+end
+
+@testitem "Symbolic PINN parser adaptive loss" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization
+    using Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    # --- Test 1: NonAdaptiveLoss with custom weights ---
+    disc = PhysicsInformedNN(
+        chain, GridTraining(0.25);
+        symbolic_parser = true,
+        adaptive_loss = NonAdaptiveLoss(; pde_loss_weights = 2.0, bc_loss_weights = 1.0)
+    )
+    prob = discretize(heat_sys, disc)
+    @test prob isa Optimization.OptimizationProblem
+    loss_val = prob.f(prob.u0, nothing)
+    @test isfinite(loss_val)
+    @test loss_val >= 0
+end
+
+@testitem "Symbolic PINN parser discretize Zygote gradient" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, Zygote
+    using Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(0.25); symbolic_parser = true
+    )
+    prob = discretize(heat_sys, discretization)
+
+    # Verify Zygote can differentiate through the full discretize-generated loss
+    grad = Zygote.gradient(θ -> prob.f(θ, nothing), prob.u0)
+    @test grad !== nothing
+    @test length(grad) == 1
+    @test length(grad[1]) == length(prob.u0)
+    @test all(isfinite, grad[1])
+end
+
+@testitem "Symbolic PINN parser MiniMaxAdaptiveLoss" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers
+    using Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    # Use MiniMaxAdaptiveLoss — requires gradient evaluation to reweight
+    disc = PhysicsInformedNN(
+        chain, GridTraining(0.25);
+        symbolic_parser = true,
+        adaptive_loss = MiniMaxAdaptiveLoss(10; pde_max_optimiser = OptimizationOptimisers.Adam(0.01),
+                                              bc_max_optimiser = OptimizationOptimisers.Adam(0.01))
+    )
+    prob = discretize(heat_sys, disc)
+    @test prob isa Optimization.OptimizationProblem
+
+    # Evaluate loss multiple times to trigger adaptive reweighting
+    loss_val = prob.f(prob.u0, nothing)
+    @test isfinite(loss_val)
+    @test loss_val >= 0
+
+    # Run a few iterations to exercise the adaptive loss machinery
+    sol = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 10)
+    @test isfinite(prob.f(sol.u, nothing))
 end

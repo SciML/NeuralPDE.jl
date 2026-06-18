@@ -36,22 +36,86 @@ function parse_pde_system(sys::PDESystem)
     )
 end
 
+using ChainRulesCore: ChainRulesCore, NoTangent
+
 function _replace_index(x::AbstractVector, i::Integer, val)
-    x_ = Vector{promote_type(eltype(x), typeof(val))}(x)
-    x_[i] = val
-    return x_
+    return [j == i ? val : x[j] for j in eachindex(x)]
+end
+
+function ChainRulesCore.rrule(::typeof(_replace_index), x::AbstractVector, i::Integer, val)
+    y = _replace_index(x, i, val)
+    function _replace_index_pullback(Δ)
+        dx = [j == i ? zero(Δ[j]) : Δ[j] for j in eachindex(x)]
+        dval = Δ[i]
+        return NoTangent(), dx, NoTangent(), dval
+    end
+    return y, _replace_index_pullback
+end
+
+function _perturbed_vector(x::AbstractVector, dir::Integer, h)
+    return [j == dir ? x[j] + h : x[j] for j in eachindex(x)]
+end
+
+function ChainRulesCore.rrule(::typeof(_perturbed_vector), x::AbstractVector, dir::Integer, h)
+    y = _perturbed_vector(x, dir, h)
+    function _perturbed_vector_pullback(Δ)
+        return NoTangent(), Δ, NoTangent(), Δ[dir]
+    end
+    return y, _perturbed_vector_pullback
+end
+
+function _perturbed_vector(x::AbstractVector, dir1::Integer, h1, dir2::Integer, h2)
+    if dir1 == dir2
+        return _perturbed_vector(x, dir1, h1 + h2)
+    else
+        return [j == dir1 ? x[j] + h1 : (j == dir2 ? x[j] + h2 : x[j]) for j in eachindex(x)]
+    end
+end
+
+function ChainRulesCore.rrule(::typeof(_perturbed_vector), x::AbstractVector, dir1::Integer, h1, dir2::Integer, h2)
+    y = _perturbed_vector(x, dir1, h1, dir2, h2)
+    function _perturbed_vector_pullback(Δ)
+        return NoTangent(), Δ, NoTangent(), Δ[dir1], NoTangent(), Δ[dir2]
+    end
+    return y, _perturbed_vector_pullback
 end
 
 function _multi_direction_derivative(f, x::AbstractVector, directions::AbstractVector{<:Integer})
-    isempty(directions) && return f(x)
-    dir = first(directions)
-    return ForwardDiff.derivative(
-        a -> _multi_direction_derivative(
+    ndirs = length(directions)
+    T = eltype(x)
+    h = T(1e-4)
+
+    if ndirs == 0
+        return f(x)
+    elseif ndirs == 1
+        dir = directions[1]
+        x_p = _perturbed_vector(x, dir, h)
+        x_m = _perturbed_vector(x, dir, -h)
+        return (f(x_p) - f(x_m)) / (2h)
+    elseif ndirs == 2
+        dir1, dir2 = directions[1], directions[2]
+        if dir1 == dir2
+            x_p = _perturbed_vector(x, dir1, h)
+            x_m = _perturbed_vector(x, dir1, -h)
+            return (f(x_p) - 2 * f(x) + f(x_m)) / (h^2)
+        else
+            x_pp = _perturbed_vector(x, dir1, h, dir2, h)
+            x_pm = _perturbed_vector(x, dir1, h, dir2, -h)
+            x_mp = _perturbed_vector(x, dir1, -h, dir2, h)
+            x_mm = _perturbed_vector(x, dir1, -h, dir2, -h)
+            return (f(x_pp) - f(x_pm) - f(x_mp) + f(x_mm)) / (4h^2)
+        end
+    else
+        # Fallback for 3rd order or higher
+        dir = first(directions)
+        g = a -> _multi_direction_derivative(
             f, _replace_index(x, dir, a), @view(directions[2:end])
-        ),
-        x[dir]
-    )
+        )
+        return (g(x[dir] + h) - g(x[dir] - h)) / (2h)
+    end
 end
+
+
 
 function (f::SymbolicPINNDerivativeWrapper)(input::AbstractVector, p, directions)
     x = collect(input)
@@ -70,7 +134,7 @@ function _chain_vector(chain)
     return chain isa AbstractVector ? collect(chain) : [chain]
 end
 
-function _symbolic_pinn_neural_specs(chains, n_input, n_dvs)
+function _symbolic_pinn_neural_specs(chains, n_input, n_dvs; init_params = nothing)
     chain_vec = _chain_vector(chains)
     length(chain_vec) == n_dvs ||
         throw(ArgumentError("Expected one neural network chain per dependent variable."))
@@ -79,10 +143,16 @@ function _symbolic_pinn_neural_specs(chains, n_input, n_dvs)
         nn_name = n_dvs == 1 ? :NN : Symbol(:NN_, i)
         p_name = n_dvs == 1 ? :p : Symbol(:p_, i)
         dnn_name = n_dvs == 1 ? :DNN : Symbol(:DNN_, i)
-        nn, p = SymbolicNeuralNetwork(;
+        snn_kwargs = (;
             chain = ch, n_input = n_input, n_output = 1,
             nn_name = nn_name, nn_p_name = p_name
         )
+        if init_params !== nothing
+            # init_params can be a vector (one per DV) or a single ComponentArray
+            p_init = init_params isa AbstractVector{<:AbstractArray} ? init_params[i] : init_params
+            snn_kwargs = (; snn_kwargs..., init_params = p_init)
+        end
+        nn, p = SymbolicNeuralNetwork(; snn_kwargs...)
         SymbolicPINNNeuralSpec(nn, _symbolic_pinn_derivative_operator(nn; name = dnn_name), p)
     end
 end
@@ -122,37 +192,6 @@ function _as_dv_derivative(expr, dv_ops)
     return (dv_index = dv_index, term = expr, call = current, derivative_vars = derivative_vars)
 end
 
-function _find_dv_calls!(calls, expr, dv_ops)
-    SymbolicUtils.iscall(expr) || return calls
-    _as_dv_derivative(expr, dv_ops) !== nothing && return calls
-
-    dv_index = _matching_dv_index(expr, dv_ops)
-    if dv_index !== nothing
-        push!(calls, (dv_index, expr))
-        return calls
-    end
-
-    for arg in SymbolicUtils.arguments(expr)
-        _find_dv_calls!(calls, arg, dv_ops)
-    end
-    return calls
-end
-
-function _find_derivative_dv_calls!(calls, expr, dv_ops)
-    SymbolicUtils.iscall(expr) || return calls
-
-    derivative_call = _as_dv_derivative(expr, dv_ops)
-    if derivative_call !== nothing
-        push!(calls, derivative_call)
-        return calls
-    end
-
-    for arg in SymbolicUtils.arguments(expr)
-        _find_derivative_dv_calls!(calls, arg, dv_ops)
-    end
-    return calls
-end
-
 function _derivative_directions(derivative_vars, ivs)
     iv_terms = Symbolics.unwrap.(ivs)
     return map(derivative_vars) do var
@@ -163,42 +202,61 @@ function _derivative_directions(derivative_vars, ivs)
     end
 end
 
-function _substitute_residual(raw, substitutions)
-    return Symbolics.substitute_in_deriv_and_depvar(raw, substitutions)
+"""
+    _prewalk_substitute(expr, dv_ops, ivs, neural_specs)
+
+Single-pass prewalk substitution of dependent-variable calls in a symbolic expression.
+
+Uses `SymbolicUtils.Rewriters.Prewalk` to traverse the expression tree top-down (preorder).
+At each node, a nested matcher function checks:
+- If the node is a chain of `Differential` applications wrapping a DV call, it is
+  immediately replaced by the symbolic derivative neural-network call.
+- If the node is a bare DV call (no Differential wrapper), it is immediately replaced
+  by the symbolic value neural-network call.
+- Otherwise, the node is returned unchanged, and `Prewalk` recursively traverses its children.
+"""
+function _prewalk_substitute(expr, dv_ops, ivs, neural_specs)
+    matcher = function (node)
+        # --- Prewalk priority 1: Differential-wrapped DV chain ---
+        deriv_info = _as_dv_derivative(node, dv_ops)
+        if deriv_info !== nothing
+            spec = neural_specs[deriv_info.dv_index]
+            args = collect(SymbolicUtils.arguments(deriv_info.call))
+            directions = _derivative_directions(deriv_info.derivative_vars, ivs)
+            replacement = spec.derivative(args, spec.parameters, directions)[1]
+            return Symbolics.unwrap(replacement)
+        end
+
+        # --- Prewalk priority 2: Bare DV call (no Differential wrapper) ---
+        dv_index = _matching_dv_index(node, dv_ops)
+        if dv_index !== nothing
+            spec = neural_specs[dv_index]
+            args = collect(SymbolicUtils.arguments(node))
+            replacement = spec.value(args, spec.parameters)[1]
+            return Symbolics.unwrap(replacement)
+        end
+
+        return node
+    end
+
+    inbuilt_rewriter = SymbolicUtils.Rewriters.Prewalk(matcher)
+    return inbuilt_rewriter(expr)
 end
+
 
 """
     symbolic_pinn_residual(eq, ivs, dvs, neural_specs)
 
 Create a symbolic PINN residual for one ModelingToolkit equation by replacing dependent
-variable calls and same-direction derivative calls with symbolic neural-network calls.
+variable calls and derivative calls with symbolic neural-network calls using a
+single-pass prewalk substitution.
 """
 function symbolic_pinn_residual(eq, ivs, dvs, neural_specs)
     raw = _equation_residual(eq)
     expr = Symbolics.unwrap(raw)
     dv_ops = _dv_operation.(dvs)
-
-    derivative_calls = Any[]
-    _find_derivative_dv_calls!(derivative_calls, expr, dv_ops)
-
-    value_calls = Tuple{Int, Any}[]
-    _find_dv_calls!(value_calls, expr, dv_ops)
-
-    substitutions = Dict{Any, Any}()
-    for call in derivative_calls
-        spec = neural_specs[call.dv_index]
-        args = collect(SymbolicUtils.arguments(call.call))
-        directions = _derivative_directions(call.derivative_vars, ivs)
-        substitutions[call.term] = spec.derivative(args, spec.parameters, directions)[1]
-    end
-
-    for (dv_index, call) in value_calls
-        spec = neural_specs[dv_index]
-        args = collect(SymbolicUtils.arguments(call))
-        substitutions[call] = spec.value(args, spec.parameters)[1]
-    end
-
-    return _substitute_residual(raw, substitutions)
+    substituted = _prewalk_substitute(expr, dv_ops, ivs, neural_specs)
+    return Num(substituted)
 end
 
 function _contains_dv_call(expr, dvs)
