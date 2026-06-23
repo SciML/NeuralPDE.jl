@@ -29,8 +29,12 @@ using Test
     chain = Chain(Dense(1, 15, cos), Dense(15, 15, sin), Dense(15, 2))
     alg = NNDAE(chain, Adam(0.01); autodiff = false)
 
+    # Adam(0.01) on this problem is under-trained at 3000 iters: the algebraic variable
+    # u[2] = -cos(2pi t) is still ~0.13 off, leaving the full-grid norm error at ~0.55
+    # (above the 0.4 tolerance). The fit converges deterministically with more steps
+    # (norm ~0.26 at 10000), so train long enough to land comfortably under tolerance.
     sol = solve(
-        prob, alg; verbose = false, dt = 1 / 100.0f0, maxiters = 3000, abstol = 1.0f-10
+        prob, alg; verbose = false, dt = 1 / 100.0f0, maxiters = 10000, abstol = 1.0f-10
     )
 
     @test ground_sol(0:(1 / 100):1) ≈ sol atol = 0.4
