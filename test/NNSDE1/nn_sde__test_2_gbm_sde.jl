@@ -67,7 +67,11 @@ using Test
     W_samples = Array{Float64}(undef, num_time_steps, num_samples)
     for i in 1:num_samples
         W = WienerProcess(0.0, 0.0)
-        probtemp = NoiseProblem(W, (0.0, 1.0))
+        # Solve the noise over the actual `ts` grid (which a Float32 `dt` ends just
+        # short of `1.0`) so the path is sampled at exactly `ts`. Using `(0.0, 1.0)`
+        # makes the solver land an extra point on `1.0` (DiffEqNoiseProcess#278), which
+        # no longer matches `length(ts)`.
+        probtemp = NoiseProblem(W, (0.0, ts[end]))
         Np_sol = solve(probtemp; dt = dt)
         W_samples[:, i] = Np_sol.u
     end
