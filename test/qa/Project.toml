@@ -1,7 +1,7 @@
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
-ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 NeuralPDE = "315f7962-48a3-4962-8226-d0f33b1235f0"
+SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -9,6 +9,6 @@ NeuralPDE = {path = "../.."}
 
 [compat]
 Aqua = "0.8.9"
-ExplicitImports = "1.10.1"
+SciMLTesting = "1.6"
 Test = "1.10"
 julia = "1.10"
