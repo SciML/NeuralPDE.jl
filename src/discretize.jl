@@ -511,12 +511,16 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
         sym_theta0 = _theta0(neural_specs)
 
         pde_residuals = [
-            symbolic_pinn_residual(eq, parsed_ivs, parsed_dvs, neural_specs)
-                for eq in eqs
+            symbolic_pinn_residual(
+                eq, parsed_ivs, parsed_dvs, neural_specs;
+                epsilon = discretization.epsilon
+            ) for eq in eqs
         ]
         bc_residuals = [
-            symbolic_pinn_residual(bc, parsed_ivs, parsed_dvs, neural_specs)
-                for bc in bcs
+            symbolic_pinn_residual(
+                bc, parsed_ivs, parsed_dvs, neural_specs;
+                epsilon = discretization.epsilon
+            ) for bc in bcs
         ]
 
         pde_compiled = [

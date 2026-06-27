@@ -114,6 +114,7 @@ methodology.
     self_increment::Bool
     multioutput::Bool
     symbolic_parser::Bool
+    epsilon::Union{Nothing, Real}
     kwargs
 end
 
@@ -121,7 +122,8 @@ function PhysicsInformedNN(
         chain, strategy; init_params = nothing, init_states = nothing, derivative = nothing,
         param_estim = false, phi::Union{Nothing, Phi, AbstractArray{<:Phi}} = nothing,
         additional_loss = nothing, adaptive_loss = nothing, logger = nothing,
-        log_options = LogOptions(), iteration = nothing, symbolic_parser::Bool = false, kwargs...
+        log_options = LogOptions(), iteration = nothing, symbolic_parser::Bool = false,
+        epsilon::Union{Nothing, Real} = nothing, kwargs...
     )
     multioutput = chain isa AbstractArray
     if multioutput
@@ -132,6 +134,7 @@ function PhysicsInformedNN(
     else
         chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     end
+
 
     phi = phi === nothing ?
         (
@@ -161,7 +164,7 @@ function PhysicsInformedNN(
     return PhysicsInformedNN(
         chain, strategy, init_params, init_states, phi, derivative,
         param_estim, additional_loss, adaptive_loss, logger, log_options, iteration,
-        self_increment, multioutput, symbolic_parser, kwargs
+        self_increment, multioutput, symbolic_parser, epsilon, kwargs
     )
 end
 

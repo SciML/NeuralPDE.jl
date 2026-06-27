@@ -74,11 +74,12 @@
     @test full_loss >= 0
     @test full_loss == pde_loss + bc_loss
 
-    # Verify collocation points are stored as (D, N) matrices
+    # Verify collocation points are stored as matrices
     @test symbolic_loss.points.pde isa Matrix{Float64}
-    @test symbolic_loss.points.bc isa Matrix{Float64}
+    @test symbolic_loss.points.bc isa AbstractVector{<:Matrix{Float64}}
     @test size(symbolic_loss.points.pde, 1) == 2  # D = 2 (x, t)
-    @test size(symbolic_loss.points.bc, 1) == 2
+    @test all(m -> size(m, 1) == 2, symbolic_loss.points.bc)
+
 
     # Verify batched loss matches manual point-by-point evaluation
     pde_fn = symbolic_loss.datafree_pde_loss_functions[1]
@@ -131,50 +132,33 @@ end
         return count[]
     end
 
-    # 1. Verify symbolic structure (NN and DNN call counts)
+    # 1. Verify symbolic structure (NN call counts)
     pde_res = symbolic_loss.pde_residuals[1]
     bc_res1 = symbolic_loss.bc_residuals[1]
     bc_res2 = symbolic_loss.bc_residuals[2]
     bc_res3 = symbolic_loss.bc_residuals[3]
 
-    @test count_calls(pde_res, spec.derivative) == 2
-    @test count_calls(pde_res, spec.value) == 0
+    @test count_calls(pde_res, spec.value) == 5
 
-    @test count_calls(bc_res1, spec.derivative) == 0
     @test count_calls(bc_res1, spec.value) == 1
-
-    @test count_calls(bc_res2, spec.derivative) == 0
     @test count_calls(bc_res2, spec.value) == 1
-
-    @test count_calls(bc_res3, spec.derivative) == 0
     @test count_calls(bc_res3, spec.value) == 1
 
     # 2. Evaluate residual at analytical solution
     analytical_nn(input, p) = [exp(-pi^2 * input[2]) * sin(pi * input[1])]
-    function analytical_dnn(input, p, directions)
-        x_val, t_val = input[1], input[2]
-        if directions == [2]
-            return [-pi^2 * exp(-pi^2 * t_val) * sin(pi * x_val)]
-        elseif directions == [1, 1]
-            return [-pi^2 * exp(-pi^2 * t_val) * sin(pi * x_val)]
-        else
-            error("Unexpected directions: $directions")
-        end
-    end
 
     iv_args = Symbolics.unwrap.(parsed.ivs)
     nn_args = [spec.value]
-    dnn_args = [spec.derivative]
     p_args = [spec.parameters]
 
     compiled_pde = Symbolics.build_function(
-        pde_res, iv_args..., nn_args..., dnn_args..., p_args...;
+        pde_res, iv_args..., nn_args..., p_args...;
         expression = Val(false)
     )
 
     compiled_bcs = [
         Symbolics.build_function(
-            res, iv_args..., nn_args..., dnn_args..., p_args...;
+            res, iv_args..., nn_args..., p_args...;
             expression = Val(false)
         ) for res in symbolic_loss.bc_residuals
     ]
@@ -184,15 +168,15 @@ end
 
     for pt in test_points
         x_val, t_val = pt[1], pt[2]
-        pde_val = compiled_pde(x_val, t_val, analytical_nn, analytical_dnn, theta0)[1]
-        bc1_val = compiled_bcs[1](0.0, t_val, analytical_nn, analytical_dnn, theta0)[1]
-        bc2_val = compiled_bcs[2](1.0, t_val, analytical_nn, analytical_dnn, theta0)[1]
-        bc3_val = compiled_bcs[3](x_val, 0.0, analytical_nn, analytical_dnn, theta0)[1]
+        pde_val = compiled_pde(x_val, t_val, analytical_nn, theta0)[1]
+        bc1_val = compiled_bcs[1](0.0, t_val, analytical_nn, theta0)[1]
+        bc2_val = compiled_bcs[2](1.0, t_val, analytical_nn, theta0)[1]
+        bc3_val = compiled_bcs[3](x_val, 0.0, analytical_nn, theta0)[1]
 
-        @test pde_val ≈ 0.0 atol = 1e-12
-        @test bc1_val ≈ 0.0 atol = 1e-12
-        @test bc2_val ≈ 0.0 atol = 1e-12
-        @test bc3_val ≈ 0.0 atol = 1e-12
+        @test pde_val ≈ 0.0 atol = 1e-6
+        @test bc1_val ≈ 0.0 atol = 1e-6
+        @test bc2_val ≈ 0.0 atol = 1e-6
+        @test bc3_val ≈ 0.0 atol = 1e-6
     end
 end
 
@@ -412,45 +396,40 @@ end
     end
 
     pde_res = symbolic_loss.pde_residuals[1]
-    # heat equation residual: ∂ₜu - ∂ₓₓu → two DNN calls, zero NN calls
-    @test count_op_calls(pde_res, spec.derivative) == 2
-    @test count_op_calls(pde_res, spec.value)      == 0
+    # heat equation residual: ∂ₜu - ∂ₓₓu → 5 NN calls
+    @test count_op_calls(pde_res, spec.value) == 5
 
     # -----------------------------------------------------------------------
-    # Test 3: Each BC residual has exactly one NN call, zero DNN calls
+    # Test 3: Each BC residual has exactly one NN call
     # -----------------------------------------------------------------------
     for bc_res in symbolic_loss.bc_residuals
-        @test count_op_calls(bc_res, spec.value)      == 1
-        @test count_op_calls(bc_res, spec.derivative) == 0
+        @test count_op_calls(bc_res, spec.value) == 1
     end
 
     # -----------------------------------------------------------------------
     # Test 4: Single-pass property – prewalk does NOT descend into a subtree
     # it has already substituted. We verify this by checking that the output
-    # residuals contain no nested/redundant DNN-inside-DNN or NN-inside-DNN
-    # structure (which a naïve double-pass could generate).
-    # Concretely: every DNN call argument must NOT contain another DNN call.
+    # residuals contain no nested/redundant NN-inside-NN structure.
+    # Concretely: every NN call argument must NOT contain another NN call.
     # -----------------------------------------------------------------------
-    function dnn_args_clean(expr, dnn_op)
-        # Non-symbolic values (e.g. concrete Int, Vector{Int}) cannot contain DNN calls
+    function nn_args_clean(expr, nn_op)
         expr isa SymbolicUtils.BasicSymbolic || return true
         SymbolicUtils.iscall(expr) || return true
         op = SymbolicUtils.operation(expr)
-        if isequal(op, dnn_op)
-            # None of the arguments of this DNN call should themselves
-            # contain a DNN call (that would indicate a nested/double
-            # substitution artefact). Skip non-symbolic args like direction vectors.
+        if isequal(op, nn_op)
+            # None of the arguments of this NN call should themselves
+            # contain an NN call (that would indicate nested substitution).
             for arg in SymbolicUtils.arguments(expr)
                 arg isa SymbolicUtils.BasicSymbolic || continue
-                count_op_calls(arg, dnn_op) == 0 || return false
+                count_op_calls(arg, nn_op) == 0 || return false
             end
             return true  # stop here; don't recurse into already-substituted subtree
         end
-        return all(arg -> dnn_args_clean(arg, dnn_op), SymbolicUtils.arguments(expr))
+        return all(arg -> nn_args_clean(arg, nn_op), SymbolicUtils.arguments(expr))
     end
 
     for res in symbolic_loss.pde_residuals
-        @test dnn_args_clean(Symbolics.unwrap(res), spec.derivative)
+        @test nn_args_clean(Symbolics.unwrap(res), spec.value)
     end
 
     # -----------------------------------------------------------------------
@@ -792,4 +771,51 @@ end
     # Run a few iterations to exercise the adaptive loss machinery
     sol = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 10)
     @test isfinite(prob.f(sol.u, nothing))
+end
+
+@testitem "Symbolic PINN parser (Finite Differences)" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, Zygote
+    using Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    # Test build_symbolic_pinn_loss
+    symbolic_loss = NeuralPDE.build_symbolic_pinn_loss(
+        heat_sys, chain; n_interior = 3, n_bc = 3
+    )
+    theta0 = symbolic_loss.theta0
+    @test isfinite(symbolic_loss.loss(theta0))
+    grad = Zygote.gradient(symbolic_loss.loss, theta0)
+    @test grad !== nothing
+    @test all(isfinite, grad[1])
+
+    # Test PhysicsInformedNN discretization
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(0.25); symbolic_parser = true
+    )
+    prob = discretize(heat_sys, discretization)
+    @test prob isa Optimization.OptimizationProblem
+    
+    loss_val = prob.f(prob.u0, nothing)
+    @test isfinite(loss_val)
+
+    # Differentiate through the loss function
+    grad2 = Zygote.gradient(θ -> prob.f(θ, nothing), prob.u0)
+    @test grad2 !== nothing
+    @test all(isfinite, grad2[1])
 end

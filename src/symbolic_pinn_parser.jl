@@ -8,13 +8,8 @@ struct SymbolicPINNSystem
     ps
 end
 
-struct SymbolicPINNDerivativeWrapper{F}
-    nn::F
-end
-
 struct SymbolicPINNNeuralSpec
     value
-    derivative
     parameters
 end
 
@@ -38,96 +33,201 @@ end
 
 using ChainRulesCore: ChainRulesCore, NoTangent
 
+struct BatchVector{T}
+    data::Vector{T}
+end
+Base.getindex(x::BatchVector, i::Integer) = x.data
+
+function ChainRulesCore.rrule(::typeof(Base.getindex), x::BatchVector, i::Integer)
+    val = x.data
+    function getindex_pullback(Δ)
+        return NoTangent(), ChainRulesCore.Tangent{BatchVector}(data = Δ), NoTangent()
+    end
+    return val, getindex_pullback
+end
+
+function ChainRulesCore.rrule(::Type{BatchVector}, data::AbstractVector)
+    val = BatchVector(data)
+    function BatchVector_pullback(Δ)
+        Δ_data = if Δ isa ChainRulesCore.Tangent
+            Δ.data isa NoTangent ? zero(data) : Δ.data
+        elseif hasproperty(Δ, :data)
+            Δ.data
+        else
+            Δ
+        end
+        return NoTangent(), Δ_data
+    end
+    return val, BatchVector_pullback
+end
+
+struct SymbolicPINNValueWrapper{F}
+    nn::F
+end
+
+function (f::SymbolicPINNValueWrapper)(input::AbstractVector, p)
+    if any(x -> x isa AbstractVector, input)
+        # Batch evaluation
+        idx = findfirst(x -> x isa AbstractVector, input)
+        N = length(input[idx])
+        D = length(input)
+        T = eltype(p)
+        for x in input
+            T = promote_type(T, x isa AbstractVector ? eltype(x) : typeof(x))
+        end
+        mat = Matrix{T}(undef, D, N)
+        for i in 1:D
+            mat[i, :] .= input[i]
+        end
+        out = f.nn(mat, p)
+        return BatchVector(vec(out))
+    else
+        return f.nn(input, p)
+    end
+end
+
+function ChainRulesCore.rrule(f::SymbolicPINNValueWrapper, input::AbstractVector, p)
+    if any(x -> x isa AbstractVector, input)
+        # Batch evaluation
+        idx = findfirst(x -> x isa AbstractVector, input)
+        N = length(input[idx])
+        D = length(input)
+        T = eltype(p)
+        for x in input
+            T = promote_type(T, x isa AbstractVector ? eltype(x) : typeof(x))
+        end
+        mat = Matrix{T}(undef, D, N)
+        for i in 1:D
+            mat[i, :] .= input[i]
+        end
+        out, nn_pullback = Zygote.pullback(p_ -> f.nn(mat, p_), p)
+        val = BatchVector(vec(out))
+        
+        function SymbolicPINNValueWrapper_pullback(Δ)
+            Δ_data = if Δ isa ChainRulesCore.Tangent
+                Δ.data isa NoTangent ? zero(vec(out)) : Δ.data
+            elseif hasproperty(Δ, :data)
+                Δ.data
+            else
+                Δ
+            end
+            Δ_mat = reshape(Δ_data, 1, N)
+            d_p = only(nn_pullback(Δ_mat))
+            return NoTangent(), NoTangent(), d_p
+        end
+        return val, SymbolicPINNValueWrapper_pullback
+    else
+        val = f.nn(input, p)
+        function SymbolicPINNValueWrapper_pullback_scalar(Δ)
+            _, nn_pullback = Zygote.pullback(p_ -> f.nn(input, p_), p)
+            d_p = only(nn_pullback(Δ))
+            return NoTangent(), NoTangent(), d_p
+        end
+        return val, SymbolicPINNValueWrapper_pullback_scalar
+    end
+end
+
 function _replace_index(x::AbstractVector, i::Integer, val)
-    return [j == i ? val : x[j] for j in eachindex(x)]
+    T = promote_type(typeof(val), eltype(x))
+    return T[j == i ? val : x[j] for j in eachindex(x)]
 end
 
 function ChainRulesCore.rrule(::typeof(_replace_index), x::AbstractVector, i::Integer, val)
     y = _replace_index(x, i, val)
     function _replace_index_pullback(Δ)
-        dx = [j == i ? zero(Δ[j]) : Δ[j] for j in eachindex(x)]
+        T = promote_type(eltype(Δ), typeof(zero(val)))
+        dx = T[j == i ? zero(Δ[j]) : Δ[j] for j in eachindex(x)]
         dval = Δ[i]
         return NoTangent(), dx, NoTangent(), dval
     end
     return y, _replace_index_pullback
 end
 
-function _perturbed_vector(x::AbstractVector, dir::Integer, h)
-    return [j == dir ? x[j] + h : x[j] for j in eachindex(x)]
+function _replace_index_matrix(X::AbstractMatrix, col::Integer, z::AbstractVector)
+    T = promote_type(eltype(z), eltype(X))
+    out = Matrix{T}(undef, size(X)...)
+    copyto!(out, X)
+    out[:, col] .= z
+    return out
 end
 
-function ChainRulesCore.rrule(::typeof(_perturbed_vector), x::AbstractVector, dir::Integer, h)
-    y = _perturbed_vector(x, dir, h)
-    function _perturbed_vector_pullback(Δ)
-        return NoTangent(), Δ, NoTangent(), Δ[dir]
-    end
-    return y, _perturbed_vector_pullback
-end
+# ---------- Broadcasting transformation for batched evaluation ----------
 
-function _perturbed_vector(x::AbstractVector, dir1::Integer, h1, dir2::Integer, h2)
-    if dir1 == dir2
-        return _perturbed_vector(x, dir1, h1 + h2)
+"""
+    _is_pinn_dottable(fn_expr, skip_set::Set{Symbol})
+
+Check whether a function call in the compiled PINN expression should be broadcasted.
+Returns `false` for NN/DNN wrapper calls, `getindex`, and array constructors.
+Returns `true` for arithmetic and math functions (`+`, `-`, `sin`, etc.).
+"""
+function _is_pinn_dottable(fn_expr, skip_set::Set{Symbol})
+    name = if fn_expr isa Symbol
+        fn_expr
+    elseif fn_expr isa Function
+        nameof(fn_expr)
+    elseif fn_expr isa GlobalRef
+        fn_expr.name
+    elseif fn_expr isa Expr && fn_expr.head === :. && length(fn_expr.args) == 2
+        # Module-qualified name, e.g. NaNMath.sin → extract :sin
+        fn_expr.args[2] isa QuoteNode ? fn_expr.args[2].value : nothing
     else
-        return [j == dir1 ? x[j] + h1 : (j == dir2 ? x[j] + h2 : x[j]) for j in eachindex(x)]
+        nothing
     end
+    name === nothing && return false
+    name === :getindex && return false
+    name === :vect && return false
+    name === :array_literal && return false
+    name in skip_set && return false
+    return true
 end
 
-function ChainRulesCore.rrule(::typeof(_perturbed_vector), x::AbstractVector, dir1::Integer, h1, dir2::Integer, h2)
-    y = _perturbed_vector(x, dir1, h1, dir2, h2)
-    function _perturbed_vector_pullback(Δ)
-        return NoTangent(), Δ, NoTangent(), Δ[dir1], NoTangent(), Δ[dir2]
+"""
+    _dot_pinn(x::Expr, skip_set::Set{Symbol})
+
+Walk a Julia `Expr` tree and broadcast scalar function calls (`.+`, `sin.()`, etc.),
+while skipping NN/DNN wrapper calls, `getindex`, and array constructors.
+This allows the compiled residual function to operate on batched row-vector inputs.
+"""
+function _dot_pinn(x::Expr, skip_set::Set{Symbol})
+    dotargs = Any[_dot_pinn(a, skip_set) for a in x.args]
+    if x.head === :call && _is_pinn_dottable(x.args[1], skip_set)
+        return Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
     end
-    return y, _perturbed_vector_pullback
+    return Expr(x.head, dotargs...)
 end
+_dot_pinn(x, ::Set{Symbol}) = x
 
-function _multi_direction_derivative(f, x::AbstractVector, directions::AbstractVector{<:Integer})
-    ndirs = length(directions)
-    T = eltype(x)
-    h = T(1e-4)
+"""
+    _extract_arg_names(fn_expr::Expr)
 
-    if ndirs == 0
-        return f(x)
-    elseif ndirs == 1
-        dir = directions[1]
-        x_p = _perturbed_vector(x, dir, h)
-        x_m = _perturbed_vector(x, dir, -h)
-        return (f(x_p) - f(x_m)) / (2h)
-    elseif ndirs == 2
-        dir1, dir2 = directions[1], directions[2]
-        if dir1 == dir2
-            x_p = _perturbed_vector(x, dir1, h)
-            x_m = _perturbed_vector(x, dir1, -h)
-            return (f(x_p) - 2 * f(x) + f(x_m)) / (h^2)
-        else
-            x_pp = _perturbed_vector(x, dir1, h, dir2, h)
-            x_pm = _perturbed_vector(x, dir1, h, dir2, -h)
-            x_mp = _perturbed_vector(x, dir1, -h, dir2, h)
-            x_mm = _perturbed_vector(x, dir1, -h, dir2, -h)
-            return (f(x_pp) - f(x_pm) - f(x_mp) + f(x_mm)) / (4h^2)
+Extract argument symbol names from a function `Expr` returned by
+`Symbolics.build_function(expression = Val(true))`.
+"""
+function _extract_arg_names(fn_expr::Expr)
+    if fn_expr.head === :function
+        sig = fn_expr.args[1]
+        if sig isa Expr && sig.head === :call
+            return Symbol[_arg_name(a) for a in sig.args[2:end]]
+        elseif sig isa Expr && sig.head === :tuple
+            return Symbol[_arg_name(a) for a in sig.args]
         end
-    else
-        # Fallback for 3rd order or higher
-        dir = first(directions)
-        g = a -> _multi_direction_derivative(
-            f, _replace_index(x, dir, a), @view(directions[2:end])
-        )
-        return (g(x[dir] + h) - g(x[dir] - h)) / (2h)
+    elseif fn_expr.head === :->
+        lhs = fn_expr.args[1]
+        if lhs isa Expr && lhs.head === :tuple
+            return Symbol[_arg_name(a) for a in lhs.args]
+        elseif lhs isa Symbol
+            return Symbol[lhs]
+        end
     end
+    return Symbol[]
 end
 
-
-
-function (f::SymbolicPINNDerivativeWrapper)(input::AbstractVector, p, directions)
-    x = collect(input)
-    dirs = Int.(directions)
-    val = _multi_direction_derivative(z -> first(f.nn(z, p)), x, dirs)
-    return [val]
-end
-
-function _symbolic_pinn_derivative_operator(nn; name = :DNN)
-    wrapper = SymbolicPINNDerivativeWrapper(Symbolics.getdefaultval(nn))
-    DNN = @parameters ($(name)::typeof(wrapper))(..)[1:1] = wrapper [tunable = false]
-    return only(DNN)
+function _arg_name(a)
+    a isa Symbol && return a
+    if a isa Expr && a.head === :(::)
+        return _arg_name(a.args[1])
+    end
+    return :_unknown_arg
 end
 
 function _chain_vector(chain)
@@ -142,7 +242,6 @@ function _symbolic_pinn_neural_specs(chains, n_input, n_dvs; init_params = nothi
     return map(enumerate(chain_vec)) do (i, ch)
         nn_name = n_dvs == 1 ? :NN : Symbol(:NN_, i)
         p_name = n_dvs == 1 ? :p : Symbol(:p_, i)
-        dnn_name = n_dvs == 1 ? :DNN : Symbol(:DNN_, i)
         snn_kwargs = (;
             chain = ch, n_input = n_input, n_output = 1,
             nn_name = nn_name, nn_p_name = p_name
@@ -153,7 +252,7 @@ function _symbolic_pinn_neural_specs(chains, n_input, n_dvs; init_params = nothi
             snn_kwargs = (; snn_kwargs..., init_params = p_init)
         end
         nn, p = SymbolicNeuralNetwork(; snn_kwargs...)
-        SymbolicPINNNeuralSpec(nn, _symbolic_pinn_derivative_operator(nn; name = dnn_name), p)
+        SymbolicPINNNeuralSpec(nn, p)
     end
 end
 
@@ -202,20 +301,55 @@ function _derivative_directions(derivative_vars, ivs)
     end
 end
 
+function _symbolic_derivative_fd(spec, args, directions, ivs; ε = nothing)
+    order = length(directions)
+    step_size = if ε isa Nothing || ε === 1e-8
+        eps(Float64) ^ (1 / (2 + order))
+    else
+        ε
+    end
+    
+    # Use explicit stencils for same-direction derivatives up to order 4
+    if !isempty(directions) && all(d -> d == directions[1], directions)
+        dir = directions[1]
+        shift(k) = [j == dir ? args[j] + k * step_size : args[j] for j in eachindex(args)]
+        eval_at(k) = spec.value(shift(k), spec.parameters)[1]
+        
+        if order == 1
+            return (eval_at(1) - eval_at(-1)) / (2 * step_size)
+        elseif order == 2
+            return (eval_at(1) + eval_at(-1) - 2 * eval_at(0)) / (step_size^2)
+        elseif order == 3
+            return (eval_at(2) - 2 * eval_at(1) + 2 * eval_at(-1) - eval_at(-2)) / (2 * step_size^3)
+        elseif order == 4
+            return (eval_at(2) - 4 * eval_at(1) + 6 * eval_at(0) - 4 * eval_at(-1) + eval_at(-2)) / (step_size^4)
+        end
+    end
+    
+    # Fallback to recursive central differences for mixed or higher-order derivatives
+    if isempty(directions)
+        return spec.value(args, spec.parameters)[1]
+    else
+        dir = first(directions)
+        rest = directions[2:end]
+        
+        args_plus = [j == dir ? args[j] + step_size : args[j] for j in eachindex(args)]
+        args_minus = [j == dir ? args[j] - step_size : args[j] for j in eachindex(args)]
+        
+        val_plus = _symbolic_derivative_fd(spec, args_plus, rest, ivs; ε = step_size)
+        val_minus = _symbolic_derivative_fd(spec, args_minus, rest, ivs; ε = step_size)
+        
+        return (val_plus - val_minus) / (2 * step_size)
+    end
+end
+
 """
-    _prewalk_substitute(expr, dv_ops, ivs, neural_specs)
+    _prewalk_substitute(expr, dv_ops, ivs, neural_specs; epsilon = nothing)
 
 Single-pass prewalk substitution of dependent-variable calls in a symbolic expression.
-
-Uses `SymbolicUtils.Rewriters.Prewalk` to traverse the expression tree top-down (preorder).
-At each node, a nested matcher function checks:
-- If the node is a chain of `Differential` applications wrapping a DV call, it is
-  immediately replaced by the symbolic derivative neural-network call.
-- If the node is a bare DV call (no Differential wrapper), it is immediately replaced
-  by the symbolic value neural-network call.
-- Otherwise, the node is returned unchanged, and `Prewalk` recursively traverses its children.
+Uses symbolic Finite Differences (via stencils) for all derivatives.
 """
-function _prewalk_substitute(expr, dv_ops, ivs, neural_specs)
+function _prewalk_substitute(expr, dv_ops, ivs, neural_specs; epsilon::Union{Nothing, Real} = nothing)
     matcher = function (node)
         # --- Prewalk priority 1: Differential-wrapped DV chain ---
         deriv_info = _as_dv_derivative(node, dv_ops)
@@ -223,7 +357,7 @@ function _prewalk_substitute(expr, dv_ops, ivs, neural_specs)
             spec = neural_specs[deriv_info.dv_index]
             args = collect(SymbolicUtils.arguments(deriv_info.call))
             directions = _derivative_directions(deriv_info.derivative_vars, ivs)
-            replacement = spec.derivative(args, spec.parameters, directions)[1]
+            replacement = _symbolic_derivative_fd(spec, args, directions, ivs; ε = epsilon)
             return Symbolics.unwrap(replacement)
         end
 
@@ -245,17 +379,17 @@ end
 
 
 """
-    symbolic_pinn_residual(eq, ivs, dvs, neural_specs)
+    symbolic_pinn_residual(eq, ivs, dvs, neural_specs; epsilon = nothing)
 
 Create a symbolic PINN residual for one ModelingToolkit equation by replacing dependent
 variable calls and derivative calls with symbolic neural-network calls using a
-single-pass prewalk substitution.
+single-pass prewalk substitution. Supports finite differences.
 """
-function symbolic_pinn_residual(eq, ivs, dvs, neural_specs)
+function symbolic_pinn_residual(eq, ivs, dvs, neural_specs; epsilon::Union{Nothing, Real} = nothing)
     raw = _equation_residual(eq)
     expr = Symbolics.unwrap(raw)
     dv_ops = _dv_operation.(dvs)
-    substituted = _prewalk_substitute(expr, dv_ops, ivs, neural_specs)
+    substituted = _prewalk_substitute(expr, dv_ops, ivs, neural_specs; epsilon)
     return Num(substituted)
 end
 
@@ -296,27 +430,68 @@ function _split_theta(theta, param_lengths)
 end
 
 function _runtime_args(neural_specs)
-    nn_defaults = map(spec -> Symbolics.getdefaultval(spec.value), neural_specs)
-    dnn_defaults = map(spec -> Symbolics.getdefaultval(spec.derivative), neural_specs)
-    return (nn_defaults..., dnn_defaults...)
+    nn_defaults = map(spec -> SymbolicPINNValueWrapper(Symbolics.getdefaultval(spec.value)), neural_specs)
+    return (nn_defaults...,)
 end
 
+struct SymbolicPINNResidualFunction{F, R, L}
+    compiled::F
+    runtime_args::R
+    param_lengths::L
+end
+
+# Scalar evaluation: point is a vector
+function (f::SymbolicPINNResidualFunction)(point::AbstractVector, theta)
+    param_views = _split_theta(theta, f.param_lengths)
+    return f.compiled(point..., f.runtime_args..., param_views...)
+end
+
+# Batched evaluation: cord is a (D, N) matrix.
+# Splits the coordinate matrix into row vectors and passes them to the
+# broadcasted compiled function, so that dotted arithmetic and batched
+# NN wrappers operate on the full batch in a single call.
+function (f::SymbolicPINNResidualFunction)(cord::AbstractMatrix, theta)
+    param_views = _split_theta(theta, f.param_lengths)
+    D = size(cord, 1)
+    row_inputs = ntuple(d -> cord[d, :], D)
+    return f.compiled(row_inputs..., f.runtime_args..., param_views...)
+end
+
+"""
+    _compiled_residual(residual, ivs, neural_specs)
+
+Lower a symbolic residual expression into an executable function using
+`Symbolics.build_function`. The generated expression is transformed with
+`_dot_pinn` to broadcast arithmetic operations (`.+`, `sin.()`, etc.)
+while preserving NN wrapper calls, then compiled with
+`@RuntimeGeneratedFunction`. This enables batched evaluation on row-vector
+inputs from the `(D, N)` coordinate matrix.
+"""
 function _compiled_residual(residual, ivs, neural_specs)
     iv_args = Symbolics.unwrap.(ivs)
     nn_args = map(spec -> spec.value, neural_specs)
-    dnn_args = map(spec -> spec.derivative, neural_specs)
     p_args = map(spec -> spec.parameters, neural_specs)
-    compiled = Symbolics.build_function(
-        residual, iv_args..., nn_args..., dnn_args..., p_args...;
-        expression = Val(false)
+
+    # Get expression form for broadcasting transformation
+    fn_expr = Symbolics.build_function(
+        residual, iv_args..., nn_args..., p_args...;
+        expression = Val{true}
     )
+
+    # Build skip set: all argument names after the independent variables
+    # (NN wrappers and parameter vectors must not be broadcasted)
+    arg_names = _extract_arg_names(fn_expr)
+    n_iv = length(iv_args)
+    skip_set = Set{Symbol}(arg_names[(n_iv + 1):end])
+
+    # Apply broadcasting transformation and compile
+    dotted_fn = _dot_pinn(fn_expr, skip_set)
+    compiled = @RuntimeGeneratedFunction(dotted_fn)
+
     runtime_args = _runtime_args(neural_specs)
     param_lengths = [length(Symbolics.getdefaultval(spec.parameters)) for spec in neural_specs]
 
-    return function (point, theta)
-        param_views = _split_theta(theta, param_lengths)
-        return compiled(point..., runtime_args..., param_views...)
-    end
+    return SymbolicPINNResidualFunction(compiled, runtime_args, param_lengths)
 end
 
 function _domain_bounds(domains)
@@ -340,27 +515,81 @@ function _collocation_points(domains, n::Integer; interior::Bool)
     return reduce(hcat, grid)  # (D, N) matrix
 end
 
-_scalar_residual_value(x::Number) = x
-_scalar_residual_value(x) = first(x)
+function _find_dv_call(expr, dv_ops)
+    found = Ref{Any}(nothing)
+    function walk(ex)
+        SymbolicUtils.iscall(ex) || return
+        op = SymbolicUtils.operation(ex)
+        if any(dv_op -> isequal(op, dv_op), dv_ops)
+            found[] = ex
+            return
+        end
+        for arg in SymbolicUtils.arguments(ex)
+            walk(arg)
+            found[] !== nothing && return
+        end
+    end
+    walk(Symbolics.unwrap(expr))
+    return found[]
+end
+
+function _bc_collocation_points(bc, ivs, dvs, domains, n_bc::Integer)
+    dv_ops = _dv_operation.(dvs)
+    dv_call = _find_dv_call(bc.lhs, dv_ops)
+    if dv_call === nothing
+        dv_call = _find_dv_call(bc.rhs, dv_ops)
+    end
+    
+    if dv_call === nothing
+        return _collocation_points(domains, n_bc; interior = false)
+    end
+    
+    args = SymbolicUtils.arguments(Symbolics.unwrap(dv_call))
+    axes_points = []
+    for (i, iv) in enumerate(ivs)
+        arg = args[i]
+        domain = domains[i].domain
+        lo, hi = infimum(domain), supremum(domain)
+        
+        if isequal(arg, iv)
+            pts = _axis_points(lo, hi, n_bc; interior = false)
+            push!(axes_points, pts)
+        else
+            val = Float64(Symbolics.value(arg))
+            push!(axes_points, [val])
+        end
+    end
+    
+    grid = vec([collect(Float64, point) for point in Iterators.product(axes_points...)])
+    return reduce(hcat, grid)  # (D, N) matrix
+end
+
+# Helper to extract a plain vector from batched compiled function output.
+_to_residual_vector(x::AbstractVector) = x
+_to_residual_vector(x::AbstractMatrix) = vec(x)
+_to_residual_vector(x::Number) = [x]
 
 """
     _wrap_as_datafree(compiled_residual_fn)
 
-Wrap a compiled scalar residual function into the `(cord::Matrix, θ) -> Matrix` format
+Wrap a compiled residual function into the `(cord::Matrix, θ) -> Matrix` format
 expected by NeuralPDE's training strategies (`GridTraining`, `StochasticTraining`, etc.).
 
 The returned function accepts a `(D, N)` coordinate matrix and a parameter vector,
 and returns a `(1, N)` matrix of residual values, compatible with
 `merge_strategy_with_loss_function` and `get_loss_function`.
 """
+struct SymbolicPINNDatafreeLoss{F}
+    res_fn::F
+end
+
+function (f::SymbolicPINNDatafreeLoss)(cord, theta)
+    result = f.res_fn(cord, theta)
+    return reshape(_to_residual_vector(result), 1, :)
+end
+
 function _wrap_as_datafree(compiled_residual_fn)
-    return function (cord, theta)
-        N = size(cord, 2)
-        out = map(1:N) do j
-            _scalar_residual_value(compiled_residual_fn(@view(cord[:, j]), theta))
-        end
-        return reshape(out, 1, :)
-    end
+    return SymbolicPINNDatafreeLoss(compiled_residual_fn)
 end
 
 function _mean_square(datafree_fns, points_matrix, theta)
@@ -379,18 +608,18 @@ a named tuple containing symbolic residuals, lowered residual functions, sampled
 initial parameters, and simple mean-squared PDE/BC/full loss functions.
 """
 function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 64,
-        n_bc::Integer = 64)
+        n_bc::Integer = 64, epsilon::Union{Nothing, Real} = nothing)
     parsed = parse_pde_system(sys)
 
     neural_specs = _symbolic_pinn_neural_specs(chain, length(parsed.ivs), length(parsed.dvs))
     theta0 = _theta0(neural_specs)
 
     pde_residuals = [
-        symbolic_pinn_residual(eq, parsed.ivs, parsed.dvs, neural_specs)
+        symbolic_pinn_residual(eq, parsed.ivs, parsed.dvs, neural_specs; epsilon)
             for eq in parsed.eqs
     ]
     bc_residuals = [
-        symbolic_pinn_residual(bc, parsed.ivs, parsed.dvs, neural_specs)
+        symbolic_pinn_residual(bc, parsed.ivs, parsed.dvs, neural_specs; epsilon)
             for bc in parsed.bcs
     ]
 
@@ -401,10 +630,15 @@ function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 6
     datafree_bc_loss_functions = [_wrap_as_datafree(f) for f in bc_functions]
 
     pde_points = _collocation_points(parsed.domains, n_interior; interior = true)
-    bc_points = _collocation_points(parsed.domains, n_bc; interior = false)
+    bc_points_list = [
+        _bc_collocation_points(bc, parsed.ivs, parsed.dvs, parsed.domains, n_bc)
+            for bc in parsed.bcs
+    ]
 
     pde_loss = theta -> _mean_square(datafree_pde_loss_functions, pde_points, theta)
-    bc_loss = theta -> _mean_square(datafree_bc_loss_functions, bc_points, theta)
+    bc_loss = theta -> sum(zip(datafree_bc_loss_functions, bc_points_list)) do (f, pts)
+        mean(abs2, f(pts, theta))
+    end / length(datafree_bc_loss_functions)
     loss = theta -> pde_loss(theta) + bc_loss(theta)
 
     return (
@@ -416,9 +650,10 @@ function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 6
         residual_functions = (pde = pde_functions, bc = bc_functions),
         datafree_pde_loss_functions = datafree_pde_loss_functions,
         datafree_bc_loss_functions = datafree_bc_loss_functions,
-        points = (pde = pde_points, bc = bc_points),
+        points = (pde = pde_points, bc = bc_points_list),
         pde_loss = pde_loss,
         bc_loss = bc_loss,
         loss = loss
     )
+
 end
