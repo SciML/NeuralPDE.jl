@@ -23,10 +23,11 @@ run_qa(
         # get_dvs/get_ivs are owned by ModelingToolkitBase but accessed via the
         # @reexport'd ModelingToolkit (which re-exports them).
         all_qualified_accesses_via_owners = (; ignore = (:get_ivs, :get_dvs)),
-        # Non-public names accessed via qualification, by source package:
-        #   SciMLBase: AbstractDAEAlgorithm, AbstractDAEProblem,
-        #     AbstractDiscretizationMetadata, AbstractSDEProblem, __solve,
-        #     allowscomplex, calculate_solution_errors!, has_analytic, interp_summary
+        # Non-public names still accessed via qualification (verified non-public
+        # against the released make-public versions via `Base.ispublic`), by
+        # source package:
+        #   SciMLBase: AbstractDiscretizationMetadata, __solve, has_analytic,
+        #     interp_summary, calculate_solution_errors!
         #   SymbolicUtils: _iszero
         #   Symbolics: variables
         #   ForwardDiff: derivative, jacobian
@@ -34,10 +35,8 @@ run_qa(
         #   Base: mapany; Base.Broadcast: dottable
         all_qualified_accesses_are_public = (;
             ignore = (
-                :AbstractDAEAlgorithm, :AbstractDAEProblem,
-                :AbstractDiscretizationMetadata, :AbstractSDEProblem,
-                :__solve, :allowscomplex, :calculate_solution_errors!,
-                :has_analytic, :interp_summary,
+                :AbstractDiscretizationMetadata, :__solve, :has_analytic,
+                :interp_summary, :calculate_solution_errors!,
                 :_iszero, :variables, :derivative, :jacobian,
                 :generate_design_matrices, :sample, :mapany, :dottable,
             ),
