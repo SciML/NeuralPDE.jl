@@ -504,11 +504,29 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
         # Symbolics.build_function instead of RuntimeGeneratedFunctions.
         parsed_ivs = ModelingToolkit.get_ivs(pde_system)
         parsed_dvs = ModelingToolkit.get_dvs(pde_system)
+        parsed_ps = eq_params isa SciMLBase.NullParameters ? Any[] : collect(eq_params)
+        parsed_default_p = default_p === nothing ? nothing : collect(default_p)
         n_ivs = length(parsed_ivs)
         n_dvs = length(parsed_dvs)
 
-        neural_specs = _symbolic_pinn_neural_specs(chain, n_ivs, n_dvs)
+        depvar_theta_template = hasproperty(flat_init_params, :depvar) ?
+            flat_init_params.depvar : flat_init_params
+        symbolic_init_params = if multioutput
+            [depvar_theta_template[dv] for dv in depvars]
+        else
+            depvar_theta_template
+        end
+
+        neural_specs = _symbolic_pinn_neural_specs(
+            chain, n_ivs, n_dvs; init_params = symbolic_init_params
+        )
         sym_theta0 = _theta0(neural_specs)
+
+        depvar_theta0 = if depvar_theta_template isa ComponentArray
+            ComponentArray(sym_theta0, getaxes(depvar_theta_template))
+        else
+            sym_theta0
+        end
 
         pde_residuals = [
             symbolic_pinn_residual(
@@ -524,17 +542,34 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
         ]
 
         pde_compiled = [
-            _compiled_residual(res, parsed_ivs, neural_specs) for res in pde_residuals
+            _compiled_residual(
+                res,
+                parsed_ivs,
+                neural_specs;
+                eq_params = parsed_ps,
+                default_eq_params = parsed_default_p,
+            ) for res in pde_residuals
         ]
         bc_compiled = [
-            _compiled_residual(res, parsed_ivs, neural_specs) for res in bc_residuals
+            _compiled_residual(
+                res,
+                parsed_ivs,
+                neural_specs;
+                eq_params = parsed_ps,
+                default_eq_params = parsed_default_p,
+            ) for res in bc_residuals
         ]
 
         datafree_pde_loss_functions = [_wrap_as_datafree(f) for f in pde_compiled]
         datafree_bc_loss_functions = [_wrap_as_datafree(f) for f in bc_compiled]
 
-        # Override flat_init_params with the symbolic parser's initial parameters.
-        flat_init_params = sym_theta0
+        # Override flat_init_params with symbolic parser initialization while
+        # preserving the existing container contract (depvar / p).
+        flat_init_params = if !param_estim
+            multioutput ? ComponentArray(; depvar = depvar_theta0) : depvar_theta0
+        else
+            ComponentArray(; depvar = depvar_theta0, p = default_p)
+        end
         pinnrep.flat_init_params = flat_init_params
     else
         # --- Legacy RGF path ---

@@ -773,6 +773,71 @@ end
     @test isfinite(prob.f(sol.u, nothing))
 end
 
+@testitem "Symbolic PINN parser equation parameter support" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, Zygote
+    using Test
+    import DomainSets: Interval
+
+    @parameters x t α
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ α * Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_param_sys = PDESystem(
+        eq,
+        bcs,
+        domains,
+        [x, t],
+        [u(x, t)],
+        [α],
+        initial_conditions = Dict([α => 1.0])
+    )
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    # Fixed-parameter mode: uses defaults from initial_conditions.
+    disc_fixed = PhysicsInformedNN(chain, GridTraining(0.25); symbolic_parser = true)
+    prob_fixed = discretize(heat_param_sys, disc_fixed)
+    @test prob_fixed isa Optimization.OptimizationProblem
+    @test isfinite(prob_fixed.f(prob_fixed.u0, nothing))
+
+    grad_fixed = Zygote.gradient(θ -> prob_fixed.f(θ, nothing), prob_fixed.u0)
+    @test grad_fixed !== nothing
+    @test all(isfinite, grad_fixed[1])
+
+    # Parameter-estimation mode: α is carried in theta.p and participates in AD.
+    disc_estim = PhysicsInformedNN(
+        chain,
+        GridTraining(0.25);
+        symbolic_parser = true,
+        param_estim = true,
+    )
+    prob_estim = discretize(heat_param_sys, disc_estim)
+    @test prob_estim isa Optimization.OptimizationProblem
+    @test hasproperty(prob_estim.u0, :p)
+    @test length(prob_estim.u0.p) == 1
+
+    loss_a = prob_estim.f(prob_estim.u0, nothing)
+    @test isfinite(loss_a)
+
+    θ2 = deepcopy(prob_estim.u0)
+    θ2.p .= θ2.p .* 2
+    loss_b = prob_estim.f(θ2, nothing)
+    @test isfinite(loss_b)
+
+    grad_estim = Zygote.gradient(θ -> prob_estim.f(θ, nothing), prob_estim.u0)
+    @test grad_estim !== nothing
+    @test all(isfinite, grad_estim[1].depvar)
+    @test all(isfinite, grad_estim[1].p)
+end
+
 @testitem "Symbolic PINN parser (Finite Differences)" tags = [:symbolicpinn] begin
     using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, Zygote
     using Test

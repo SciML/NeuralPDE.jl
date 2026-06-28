@@ -438,12 +438,31 @@ struct SymbolicPINNResidualFunction{F, R, L}
     compiled::F
     runtime_args::R
     param_lengths::L
+    eq_param_count::Int
+    default_eq_params
+end
+
+_depvar_theta(theta) = hasproperty(theta, :depvar) ? theta.depvar : theta
+
+function _eq_param_values(theta, eq_param_count::Int, default_eq_params)
+    eq_param_count == 0 && return ()
+
+    if hasproperty(theta, :p)
+        values = ntuple(i -> theta.p[i], eq_param_count)
+    elseif default_eq_params !== nothing
+        values = ntuple(i -> default_eq_params[i], eq_param_count)
+    else
+        throw(ArgumentError("Equation parameters are required but neither `theta.p` nor defaults were provided."))
+    end
+    return Tuple(values)
 end
 
 # Scalar evaluation: point is a vector
 function (f::SymbolicPINNResidualFunction)(point::AbstractVector, theta)
-    param_views = _split_theta(theta, f.param_lengths)
-    return f.compiled(point..., f.runtime_args..., param_views...)
+    depvar_theta = _depvar_theta(theta)
+    param_views = _split_theta(depvar_theta, f.param_lengths)
+    eq_values = _eq_param_values(theta, f.eq_param_count, f.default_eq_params)
+    return f.compiled(point..., f.runtime_args..., param_views..., eq_values...)
 end
 
 # Batched evaluation: cord is a (D, N) matrix.
@@ -451,10 +470,12 @@ end
 # broadcasted compiled function, so that dotted arithmetic and batched
 # NN wrappers operate on the full batch in a single call.
 function (f::SymbolicPINNResidualFunction)(cord::AbstractMatrix, theta)
-    param_views = _split_theta(theta, f.param_lengths)
+    depvar_theta = _depvar_theta(theta)
+    param_views = _split_theta(depvar_theta, f.param_lengths)
+    eq_values = _eq_param_values(theta, f.eq_param_count, f.default_eq_params)
     D = size(cord, 1)
     row_inputs = ntuple(d -> cord[d, :], D)
-    return f.compiled(row_inputs..., f.runtime_args..., param_views...)
+    return f.compiled(row_inputs..., f.runtime_args..., param_views..., eq_values...)
 end
 
 """
@@ -467,14 +488,16 @@ while preserving NN wrapper calls, then compiled with
 `@RuntimeGeneratedFunction`. This enables batched evaluation on row-vector
 inputs from the `(D, N)` coordinate matrix.
 """
-function _compiled_residual(residual, ivs, neural_specs)
+function _compiled_residual(residual, ivs, neural_specs;
+        eq_params = (), default_eq_params = nothing)
     iv_args = Symbolics.unwrap.(ivs)
     nn_args = map(spec -> spec.value, neural_specs)
     p_args = map(spec -> spec.parameters, neural_specs)
+    eq_args = Symbolics.unwrap.(collect(eq_params))
 
     # Get expression form for broadcasting transformation
     fn_expr = Symbolics.build_function(
-        residual, iv_args..., nn_args..., p_args...;
+        residual, iv_args..., nn_args..., p_args..., eq_args...;
         expression = Val{true}
     )
 
@@ -491,7 +514,13 @@ function _compiled_residual(residual, ivs, neural_specs)
     runtime_args = _runtime_args(neural_specs)
     param_lengths = [length(Symbolics.getdefaultval(spec.parameters)) for spec in neural_specs]
 
-    return SymbolicPINNResidualFunction(compiled, runtime_args, param_lengths)
+    return SymbolicPINNResidualFunction(
+        compiled,
+        runtime_args,
+        param_lengths,
+        length(eq_args),
+        default_eq_params,
+    )
 end
 
 function _domain_bounds(domains)
