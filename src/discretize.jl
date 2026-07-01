@@ -491,6 +491,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     )
 
     integral = get_numeric_integral(pinnrep)
+    pinnrep.integral = integral
 
     symbolic_pde_loss_functions = nothing
     symbolic_bc_loss_functions = nothing
@@ -528,36 +529,47 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
             sym_theta0
         end
 
-        pde_residuals = [
+        pde_res_data = [
             symbolic_pinn_residual(
-                eq, parsed_ivs, parsed_dvs, neural_specs;
+                eq, parsed_ivs, parsed_dvs, neural_specs, parsed_ps;
                 epsilon = discretization.epsilon
             ) for eq in eqs
         ]
-        bc_residuals = [
+        pde_residuals = [x[1] for x in pde_res_data]
+        pde_integrand_syms = [x[2] for x in pde_res_data]
+        pde_integrand_fns = [x[3] for x in pde_res_data]
+
+        bc_res_data = [
             symbolic_pinn_residual(
-                bc, parsed_ivs, parsed_dvs, neural_specs;
+                bc, parsed_ivs, parsed_dvs, neural_specs, parsed_ps;
                 epsilon = discretization.epsilon
             ) for bc in bcs
         ]
+        bc_residuals = [x[1] for x in bc_res_data]
+        bc_integrand_syms = [x[2] for x in bc_res_data]
+        bc_integrand_fns = [x[3] for x in bc_res_data]
 
         pde_compiled = [
             _compiled_residual(
-                res,
+                pde_residuals[i],
                 parsed_ivs,
-                neural_specs;
+                neural_specs,
+                pde_integrand_syms[i],
+                pde_integrand_fns[i];
                 eq_params = parsed_ps,
                 default_eq_params = parsed_default_p,
-            ) for res in pde_residuals
+            ) for i in 1:length(eqs)
         ]
         bc_compiled = [
             _compiled_residual(
-                res,
+                bc_residuals[i],
                 parsed_ivs,
-                neural_specs;
+                neural_specs,
+                bc_integrand_syms[i],
+                bc_integrand_fns[i];
                 eq_params = parsed_ps,
                 default_eq_params = parsed_default_p,
-            ) for res in bc_residuals
+            ) for i in 1:length(bcs)
         ]
 
         datafree_pde_loss_functions = [_wrap_as_datafree(f) for f in pde_compiled]

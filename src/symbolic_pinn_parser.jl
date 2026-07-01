@@ -32,7 +32,9 @@ function parse_pde_system(sys::PDESystem)
 end
 
 using ChainRulesCore: ChainRulesCore, NoTangent
-
+using Symbolics: Symbolics, Differential, Integral
+import DomainSets
+using Integrals: Integrals, CubatureJLh
 struct BatchVector{T}
     data::Vector{T}
 end
@@ -45,6 +47,10 @@ function ChainRulesCore.rrule(::typeof(Base.getindex), x::BatchVector, i::Intege
     end
     return val, getindex_pullback
 end
+
+Base.length(x::BatchVector) = length(x.data)
+Base.size(x::BatchVector) = size(x.data)
+Base.Broadcast.broadcastable(x::BatchVector) = x.data
 
 function ChainRulesCore.rrule(::Type{BatchVector}, data::AbstractVector)
     val = BatchVector(data)
@@ -61,9 +67,120 @@ function ChainRulesCore.rrule(::Type{BatchVector}, data::AbstractVector)
     return val, BatchVector_pullback
 end
 
+function _get_limits(domain)
+    if domain isa DomainSets.AbstractInterval
+        return [DomainSets.leftendpoint(domain)], [DomainSets.rightendpoint(domain)]
+    elseif domain isa DomainSets.ProductDomain
+        return collect(map(DomainSets.leftendpoint, DomainSets.components(domain))),
+            collect(map(DomainSets.rightendpoint, DomainSets.components(domain)))
+    end
+    throw(ArgumentError("Unsupported integration domain: $domain"))
+end
+
+function _integrating_variables(op_domain_variables, ivs)
+    unwrapped_vars = Symbolics.unwrap(op_domain_variables)
+    vars = if unwrapped_vars isa Tuple
+        collect(unwrapped_vars)
+    elseif unwrapped_vars isa AbstractVector
+        collect(unwrapped_vars)
+    elseif SymbolicUtils.iscall(unwrapped_vars) && (SymbolicUtils.operation(unwrapped_vars) === tuple || SymbolicUtils.operation(unwrapped_vars) === Symbolics.tuple)
+        SymbolicUtils.arguments(unwrapped_vars)
+    else
+        [unwrapped_vars]
+    end
+    unwrapped_ivs = Symbolics.unwrap.(ivs)
+    
+    return map(vars) do v
+        unwrapped_v = Symbolics.unwrap(v)
+        idx = findfirst(iv -> isequal(iv, unwrapped_v), unwrapped_ivs)
+        idx === nothing && throw(ArgumentError("Integrating variable $v (unwrapped: $unwrapped_v) is not an independent variable of the system."))
+        idx
+    end
+end
+
+function SymbolicPINNIntegralPlaceholder(args...)
+    # Dummy placeholder function used in symbolic tree before compilation
+end
+
+function _get_value_at(x::AbstractVector, i)
+    return x[i]
+end
+function _get_value_at(x::BatchVector, i)
+    return x.data[i]
+end
+function _get_value_at(x, i)
+    return x
+end
+
+function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
+    idx_num_ivs = 2 * num_bounds + 1
+    num_ivs = rest[idx_num_ivs]
+    args = rest[(idx_num_ivs + 1):end]
+
+    is_batch = false
+    N = 1
+    for j in 1:num_ivs
+        val = args[j]
+        if val isa AbstractVector
+            is_batch = true
+            N = length(val)
+            break
+        end
+    end
+    for j in 1:(2*num_bounds)
+        val = rest[j]
+        if val isa AbstractVector && length(val) > 1
+            is_batch = true
+            N = length(val)
+            break
+        end
+    end
+
+    if is_batch
+        results = map(1:N) do i
+            point_i = ntuple(j -> j <= num_ivs ? _get_value_at(args[j], i) : args[j], length(args))
+            if num_bounds == 1
+                lb_val = _get_value_at(rest[1], i)
+                ub_val = _get_value_at(rest[2], i)
+            else
+                lb_val = [_get_value_at(rest[j], i) for j in 1:num_bounds]
+                ub_val = [_get_value_at(rest[num_bounds + j], i) for j in 1:num_bounds]
+            end
+            
+            integrand = if num_bounds > 1
+                (τ, p_) -> integrand_fn(τ..., point_i...)
+            else
+                (τ, p_) -> integrand_fn(τ, point_i...)
+            end
+            prob = Integrals.IntegralProblem(integrand, (lb_val, ub_val))
+            sol = Integrals.solve(prob, Integrals.CubatureJLh(), reltol = 1e-3, abstol = 1e-3)
+            sol.u
+        end
+        return BatchVector(results)
+    else
+        if num_bounds == 1
+            lb_val = rest[1]
+            ub_val = rest[2]
+        else
+            lb_val = [rest[j] for j in 1:num_bounds]
+            ub_val = [rest[num_bounds + j] for j in 1:num_bounds]
+        end
+        
+        integrand = if num_bounds > 1
+            (τ, p_) -> integrand_fn(τ..., args...)
+        else
+            (τ, p_) -> integrand_fn(τ, args...)
+        end
+        prob = Integrals.IntegralProblem(integrand, (lb_val, ub_val))
+        sol = Integrals.solve(prob, Integrals.CubatureJLh(), reltol = 1e-3, abstol = 1e-3)
+        return [sol.u]
+    end
+end
+
 struct SymbolicPINNValueWrapper{F}
     nn::F
 end
+Base.Broadcast.broadcastable(x::SymbolicPINNValueWrapper) = Ref(x)
 
 function (f::SymbolicPINNValueWrapper)(input::AbstractVector, p)
     if any(x -> x isa AbstractVector, input)
@@ -117,9 +234,8 @@ function ChainRulesCore.rrule(f::SymbolicPINNValueWrapper, input::AbstractVector
         end
         return val, SymbolicPINNValueWrapper_pullback
     else
-        val = f.nn(input, p)
+        val, nn_pullback = Zygote.pullback(p_ -> f.nn(input, p_), p)
         function SymbolicPINNValueWrapper_pullback_scalar(Δ)
-            _, nn_pullback = Zygote.pullback(p_ -> f.nn(input, p_), p)
             d_p = only(nn_pullback(Δ))
             return NoTangent(), NoTangent(), d_p
         end
@@ -177,6 +293,7 @@ function _is_pinn_dottable(fn_expr, skip_set::Set{Symbol})
     name === :getindex && return false
     name === :vect && return false
     name === :array_literal && return false
+    name === :_solve_pinn_integral && return false
     name in skip_set && return false
     return true
 end
@@ -349,7 +466,7 @@ end
 Single-pass prewalk substitution of dependent-variable calls in a symbolic expression.
 Uses symbolic Finite Differences (via stencils) for all derivatives.
 """
-function _prewalk_substitute(expr, dv_ops, ivs, neural_specs; epsilon::Union{Nothing, Real} = nothing)
+function _prewalk_substitute(expr, dv_ops, ivs, neural_specs, integrand_info; epsilon::Union{Nothing, Real} = nothing)
     matcher = function (node)
         # --- Prewalk priority 1: Differential-wrapped DV chain ---
         deriv_info = _as_dv_derivative(node, dv_ops)
@@ -370,6 +487,28 @@ function _prewalk_substitute(expr, dv_ops, ivs, neural_specs; epsilon::Union{Not
             return Symbolics.unwrap(replacement)
         end
 
+        # --- Prewalk priority 3: Symbolics.Integral call ---
+        if SymbolicUtils.iscall(node) && SymbolicUtils.operation(node) isa Symbolics.Integral
+            op = SymbolicUtils.operation(node)
+            integrand_expr = SymbolicUtils.arguments(node)[1]
+            
+            integrating_var_indices = _integrating_variables(op.domain.variables, ivs)
+            lb, ub = _get_limits(op.domain.domain)
+            
+            num_int_vars = length(integrating_var_indices)
+            τs = collect(Symbolics.variables(:τ, 1:num_int_vars))
+            sub_dict = Dict(ivs[integrating_var_indices[j]] => τs[j] for j in 1:num_int_vars)
+            integrand_substituted = Symbolics.substitute(integrand_expr, sub_dict)
+            
+            # Recursively run _prewalk_substitute on the τ-renamed integrand before storing
+            integrand_substituted = _prewalk_substitute(integrand_substituted, dv_ops, ivs, neural_specs, integrand_info; epsilon)
+            
+            id = length(integrand_info) + 1
+            push!(integrand_info, (; integrand_substituted, τs, lb, ub, integrating_var_indices))
+            
+            return Symbolics.unwrap(Num(SymbolicUtils.term(SymbolicPINNIntegralPlaceholder, id; type = Real)))
+        end
+
         return node
     end
 
@@ -385,12 +524,74 @@ Create a symbolic PINN residual for one ModelingToolkit equation by replacing de
 variable calls and derivative calls with symbolic neural-network calls using a
 single-pass prewalk substitution. Supports finite differences.
 """
-function symbolic_pinn_residual(eq, ivs, dvs, neural_specs; epsilon::Union{Nothing, Real} = nothing)
+function symbolic_pinn_residual(eq, ivs, dvs, neural_specs, eq_params = []; epsilon::Union{Nothing, Real} = nothing)
     raw = _equation_residual(eq)
     expr = Symbolics.unwrap(raw)
     dv_ops = _dv_operation.(dvs)
-    substituted = _prewalk_substitute(expr, dv_ops, ivs, neural_specs; epsilon)
-    return Num(substituted)
+    
+    clean_eq_params = (eq_params isa SciMLBase.NullParameters) ? () : eq_params
+    
+    integrand_info = []
+    substituted = _prewalk_substitute(expr, dv_ops, ivs, neural_specs, integrand_info; epsilon)
+    
+    integrand_syms = []
+    integrand_fns = []
+    if !isempty(integrand_info)
+        num_integrals = length(integrand_info)
+        integrand_syms = collect(Symbolics.variables(:integrand_fn, 1:num_integrals))
+        integrand_fn_args = Symbolics.unwrap.(integrand_syms)
+        
+        iv_args = Symbolics.unwrap.(ivs)
+        nn_args = map(spec -> spec.value, neural_specs)
+        p_args = map(spec -> spec.parameters, neural_specs)
+        eq_args = Symbolics.unwrap.(collect(clean_eq_params))
+        
+        for info in integrand_info
+            integrand_fn_expr = Symbolics.build_function(
+                info.integrand_substituted,
+                info.τs...,
+                iv_args...,
+                nn_args...,
+                integrand_fn_args...,
+                p_args...,
+                eq_args...;
+                expression = Val{true}
+            )
+            push!(integrand_fns, @RuntimeGeneratedFunction(integrand_fn_expr))
+        end
+        
+        replace_matcher = function (node)
+            if SymbolicUtils.iscall(node) && SymbolicUtils.operation(node) === SymbolicPINNIntegralPlaceholder
+                id = SymbolicUtils.arguments(node)[1]
+                idx = Int(Symbolics.value(id))
+                info = integrand_info[idx]
+                
+                lb_args = Symbolics.unwrap.(info.lb)
+                ub_args = Symbolics.unwrap.(info.ub)
+                num_bounds = length(lb_args)
+                
+                call_args = Any[
+                    integrand_syms[idx],
+                    num_bounds,
+                    lb_args...,
+                    ub_args...,
+                    length(ivs),
+                    iv_args...,
+                    nn_args...,
+                    integrand_fn_args...,
+                    p_args...,
+                    eq_args...
+                ]
+                return SymbolicUtils.term(_solve_pinn_integral, call_args...; type = Real)
+            end
+            return node
+        end
+        
+        postwalk_rewriter = SymbolicUtils.Rewriters.Postwalk(replace_matcher)
+        substituted = postwalk_rewriter(substituted)
+    end
+    
+    return Num(substituted), integrand_syms, integrand_fns
 end
 
 function _contains_dv_call(expr, dvs)
@@ -488,21 +689,24 @@ while preserving NN wrapper calls, then compiled with
 `@RuntimeGeneratedFunction`. This enables batched evaluation on row-vector
 inputs from the `(D, N)` coordinate matrix.
 """
-function _compiled_residual(residual, ivs, neural_specs;
+function _compiled_residual(residual, ivs, neural_specs, integrand_syms = [], integrand_fns = [];
         eq_params = (), default_eq_params = nothing)
     iv_args = Symbolics.unwrap.(ivs)
     nn_args = map(spec -> spec.value, neural_specs)
     p_args = map(spec -> spec.parameters, neural_specs)
-    eq_args = Symbolics.unwrap.(collect(eq_params))
+    clean_eq_params = (eq_params isa SciMLBase.NullParameters) ? () : eq_params
+    eq_args = Symbolics.unwrap.(collect(clean_eq_params))
+    integrand_fn_args = Symbolics.unwrap.(integrand_syms)
 
     # Get expression form for broadcasting transformation
+    # We include integrand_fn_args in the build_function arguments!
     fn_expr = Symbolics.build_function(
-        residual, iv_args..., nn_args..., p_args..., eq_args...;
+        residual, iv_args..., nn_args..., integrand_fn_args..., p_args..., eq_args...;
         expression = Val{true}
     )
 
     # Build skip set: all argument names after the independent variables
-    # (NN wrappers and parameter vectors must not be broadcasted)
+    # (NN wrappers, integrand functions, and parameter vectors must not be broadcasted)
     arg_names = _extract_arg_names(fn_expr)
     n_iv = length(iv_args)
     skip_set = Set{Symbol}(arg_names[(n_iv + 1):end])
@@ -511,7 +715,9 @@ function _compiled_residual(residual, ivs, neural_specs;
     dotted_fn = _dot_pinn(fn_expr, skip_set)
     compiled = @RuntimeGeneratedFunction(dotted_fn)
 
-    runtime_args = _runtime_args(neural_specs)
+    nn_defaults = map(spec -> SymbolicPINNValueWrapper(Symbolics.getdefaultval(spec.value)), neural_specs)
+    runtime_args = (nn_defaults..., integrand_fns...)
+    
     param_lengths = [length(Symbolics.getdefaultval(spec.parameters)) for spec in neural_specs]
 
     return SymbolicPINNResidualFunction(
@@ -643,17 +849,30 @@ function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 6
     neural_specs = _symbolic_pinn_neural_specs(chain, length(parsed.ivs), length(parsed.dvs))
     theta0 = _theta0(neural_specs)
 
-    pde_residuals = [
-        symbolic_pinn_residual(eq, parsed.ivs, parsed.dvs, neural_specs; epsilon)
+    pde_res_data = [
+        symbolic_pinn_residual(eq, parsed.ivs, parsed.dvs, neural_specs, parsed.ps; epsilon)
             for eq in parsed.eqs
     ]
-    bc_residuals = [
-        symbolic_pinn_residual(bc, parsed.ivs, parsed.dvs, neural_specs; epsilon)
+    pde_residuals = [x[1] for x in pde_res_data]
+    pde_integrand_syms = [x[2] for x in pde_res_data]
+    pde_integrand_fns = [x[3] for x in pde_res_data]
+
+    bc_res_data = [
+        symbolic_pinn_residual(bc, parsed.ivs, parsed.dvs, neural_specs, parsed.ps; epsilon)
             for bc in parsed.bcs
     ]
+    bc_residuals = [x[1] for x in bc_res_data]
+    bc_integrand_syms = [x[2] for x in bc_res_data]
+    bc_integrand_fns = [x[3] for x in bc_res_data]
 
-    pde_functions = [_compiled_residual(res, parsed.ivs, neural_specs) for res in pde_residuals]
-    bc_functions = [_compiled_residual(res, parsed.ivs, neural_specs) for res in bc_residuals]
+    pde_functions = [
+        _compiled_residual(pde_residuals[i], parsed.ivs, neural_specs, pde_integrand_syms[i], pde_integrand_fns[i]; eq_params = parsed.ps)
+            for i in 1:length(pde_residuals)
+    ]
+    bc_functions = [
+        _compiled_residual(bc_residuals[i], parsed.ivs, neural_specs, bc_integrand_syms[i], bc_integrand_fns[i]; eq_params = parsed.ps)
+            for i in 1:length(bc_residuals)
+    ]
 
     datafree_pde_loss_functions = [_wrap_as_datafree(f) for f in pde_functions]
     datafree_bc_loss_functions = [_wrap_as_datafree(f) for f in bc_functions]
