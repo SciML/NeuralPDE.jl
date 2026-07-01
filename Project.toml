@@ -1,6 +1,6 @@
 name = "NeuralPDE"
 uuid = "315f7962-48a3-4962-8226-d0f33b1235f0"
-version = "6.1.1"
+version = "6.1.2"
 authors = ["Chris Rackauckas <accounts@chrisrackauckas.com>"]
 
 [deps]
@@ -59,7 +59,7 @@ Adapt = "4.6.0"
 AdvancedHMC = "0.8"
 ArrayInterface = "7.25.0"
 Boltz = "1"
-CUDA = "5.5.2"
+CUDA = "6"
 ChainRulesCore = "1.26.1"
 ComponentArrays = "0.15.39"
 ConcreteStructs = "0.2.3"
