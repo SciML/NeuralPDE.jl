@@ -38,8 +38,8 @@ using Zygote: Zygote
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
 using ModelingToolkitBase: @named, @parameters
-using Symbolics: Symbolics, unwrap, arguments, Num, expand_derivatives, @variables
-using SymbolicUtils: SymbolicUtils
+using Symbolics: Symbolics, arguments, Num, expand_derivatives, @variables
+using SymbolicUtils: SymbolicUtils, unwrap
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
 # Needed for the Bayesian Stuff
