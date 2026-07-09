@@ -3,12 +3,13 @@ using Test
 
 @testset "Empty boundary condition [] fails in solve phase" begin
     using NeuralPDE, Optimization, OptimizationOptimisers, Lux
+    import DomainSets: Interval
     @parameters x
     @variables u(..)
 
     eq = [u(x) ~ 2 + abs(x - 0.5)]
     bc = []
-    domain = [x ∈ IntervalDomain(0.0, 2.0)]
+    domain = [x ∈ Interval(0.0, 2.0)]
     chain = Chain(Dense(1, 10, tanh), Dense(10, 10, tanh), Dense(10, 1))
 
     for strategy in (
