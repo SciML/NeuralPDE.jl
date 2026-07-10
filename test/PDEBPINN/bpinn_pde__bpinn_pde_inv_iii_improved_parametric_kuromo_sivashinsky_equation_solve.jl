@@ -4,28 +4,25 @@ using Test
 @testset "BPINN PDE Inv III: Improved Parametric Kuromo-Sivashinsky Equation solve" begin
     using MCMCChains, Lux, ModelingToolkit, Distributions, OrdinaryDiffEq,
         AdvancedHMC, LogDensityProblems, Statistics, Random, Functors, NeuralPDE, MonteCarloMeasurements,
-        ComponentArrays
+        ComponentArrays, SymbolicUtils
     import DomainSets: Interval, infimum, supremum
 
     Random.seed!(100)
 
-    function recur_expression(exp, Dict_differentials)
-        for in_exp in exp.args
-            if !(in_exp isa Expr)
-                # skip +,== symbols, characters etc
-                continue
+    function recur_expression(term, Dict_differentials)
+        term = SymbolicUtils.unwrap(term)
+        SymbolicUtils.iscall(term) || return nothing
 
-            elseif in_exp.args[1] isa ModelingToolkit.Differential
-                # first symbol of differential term
-                # Dict_differentials for masking differential terms
-                # and resubstituting differentials in equations after putting in interpolations
-                # temp = in_exp.args[end]
-                Dict_differentials[eval(in_exp)] = Symbolics.variable("diff_$(length(Dict_differentials) + 1)")
-                return
-            else
-                recur_expression(in_exp, Dict_differentials)
-            end
+        op = SymbolicUtils.operation(term)
+        if op isa ModelingToolkit.Differential
+            Dict_differentials[term] = Symbolics.variable("diff_$(length(Dict_differentials) + 1)")
+            return nothing
         end
+
+        for arg in SymbolicUtils.arguments(term)
+            recur_expression(arg, Dict_differentials)
+        end
+        return nothing
     end
 
     @parameters α
@@ -122,8 +119,10 @@ using Test
     # neccesarry for loss function construction (involves Operator masking)
     eqs = pde_system.eqs
     Dict_differentials = Dict()
-    exps = toexpr.(eqs)
-    nullobj = [recur_expression(exp, Dict_differentials) for exp in exps]
+    for eq in eqs
+        recur_expression(eq.lhs, Dict_differentials)
+        recur_expression(eq.rhs, Dict_differentials)
+    end
 
     # Dict_differentials is now ;
     # Dict{Any, Any} with 5 entries:
