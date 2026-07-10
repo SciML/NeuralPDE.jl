@@ -30,7 +30,6 @@ using Test
         Dense(1, 16, tanh; init_weight = kaiming_normal(ComplexF64)),
         Dense(16, 4; init_weight = kaiming_normal(ComplexF64))
     )
-    ps, st = Lux.setup(Random.default_rng(), chain)
 
     ground_truth = solve(problem, Tsit5(), saveat = 0.01)
 
@@ -41,7 +40,11 @@ using Test
     ]
 
     @testset "$(nameof(typeof(strategy)))" for strategy in strategies
-        alg = NNODE(chain, Adam(0.01); strategy)
+        Random.seed!(100)
+        # Inner @testset scopes reset RNG state; match the direct solve initialization path.
+        Lux.setup(Random.default_rng(), chain)
+        init_params, _ = Lux.setup(Random.default_rng(), chain)
+        alg = NNODE(chain, Adam(0.01), init_params; strategy)
         sol = solve(problem, alg; verbose = false, maxiters = 10000, saveat = 0.01)
         @test sol.u ≈ ground_truth.u rtol = 2.0e-1
     end
