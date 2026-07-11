@@ -4,11 +4,8 @@ NeuralPDE = "315f7962-48a3-4962-8226-d0f33b1235f0"
 SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
-[sources]
-NeuralPDE = {path = "../.."}
-
 [compat]
 Aqua = "0.8.9"
-SciMLTesting = "1.7"
+SciMLTesting = "2.1"
 Test = "1.10"
 julia = "1.10"

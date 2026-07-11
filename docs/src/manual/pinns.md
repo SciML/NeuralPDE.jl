@@ -40,3 +40,10 @@ SciMLBase.symbolic_discretize(::PDESystem, ::NeuralPDE.AbstractPINN)
 NeuralPDE.PINNRepresentation
 NeuralPDE.PINNLossFunctions
 ```
+
+## SDE Solvers
+
+```@docs
+NeuralPDE.NNSDE
+NeuralPDE.SDEPINN
+```

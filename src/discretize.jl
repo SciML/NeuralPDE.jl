@@ -321,6 +321,14 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
     return pde_bounds, bcs_bounds
 end
 
+"""
+    get_numeric_integral(pinnrep::PINNRepresentation)
+
+Build the numeric integral callback used by generated NeuralPDE loss functions for
+integral terms.
+"""
+function get_numeric_integral end
+
 function get_numeric_integral(pinnrep::PINNRepresentation)
     (;
         strategy, indvars, depvars, derivative, depvars,
