@@ -24,6 +24,12 @@ f(t, x; \theta) &= \sigma_\text{out}(W S^{L+1} + b).
 
 where $\vec{x}$ is the concatenated vector of $(t, x)$ and $L$ is the number of LSTM type layers in the network.
 
+### API
+
+```@docs
+DeepGalerkin
+```
+
 ### Example
 
 Let's try to solve the following Burger's equation using Deep Galerkin Method for $\alpha = 0.05$ and compare our solution with a finite difference reference solution:

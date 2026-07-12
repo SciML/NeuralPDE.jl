@@ -1,5 +1,19 @@
 using SciMLTesting, NeuralPDE, Test
 
+function _is_reexported_api(pkg::Module, name::Symbol)
+    isdefined(pkg, name) || return false
+    value = getfield(pkg, name)
+    return try
+        parentmodule(value) !== pkg
+    catch
+        true
+    end
+end
+
+const REEXPORTED_API = Tuple(
+    filter(name -> _is_reexported_api(NeuralPDE, name), SciMLTesting.public_api_names(NeuralPDE))
+)
+
 run_qa(
     NeuralPDE;
     explicit_imports = true,
@@ -10,6 +24,23 @@ run_qa(
     aqua_kwargs = (;
         undefined_exports = false,
         persistent_tasks = false,
+    ),
+    api_docs_kwargs = (;
+        rendered = true,
+        # NeuralPDE reexports ModelingToolkit and SciMLBase. Their docstrings count
+        # when they exist, but NeuralPDE's manual should only render NeuralPDE-owned API.
+        rendered_ignore = REEXPORTED_API,
+        # Upstream reexported names which do not currently have source docstrings.
+        ignore = (
+            Symbol("@brownian"), Symbol("@mtkbuild"), Symbol("@symbolic_wrap"),
+            Symbol("@wrapped"), :AbstractCollocation, :DiscreteSystem,
+            :DynamicOptSolution, :ImplicitDiscreteSystem, :ODESystem, :RuleSet,
+            :alias_elimination, :but_ordered_incidence, :get_canonical_expr,
+            :highest_order_variable_mask, :independent_variable, :infimum,
+            :irreducibles, :is_derivative, :istree, :lowest_order_variable_mask,
+            :maybe_zeros, :mtkcompile!, :pantelides_reassemble, :setnominal,
+            :solve_for, :structural_simplify, :supremum, :tearing_substitution,
+        ),
     ),
     # ambiguities: PINOODE's `PDETimeSeriesSolution{...,<:PINOODEMetadata}(p, t)`
     # callable is ambiguous with the RecursiveArrayTools/SciMLBase

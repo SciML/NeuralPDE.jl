@@ -71,6 +71,17 @@ function SDEPINN(;
     )
 end
 
+@doc raw"""
+    SDEPINN(; chain, x_0, x_end, optimalg = nothing, norm_loss_alg = nothing, kwargs...)
+
+Solve an `SDEProblem` by training a physics-informed neural network on the
+associated Fokker-Planck equation over the domain from `x_0` to `x_end`.
+
+Keyword arguments configure the spatial and temporal discretization, initial
+condition and normalization weights, training strategy, automatic differentiation,
+parameter estimation, observed data, and additional losses.
+""" SDEPINN
+
 function SciMLBase.__solve(
         prob::SciMLBase.AbstractSDEProblem,
         alg::SDEPINN,
