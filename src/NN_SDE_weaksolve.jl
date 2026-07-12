@@ -203,7 +203,8 @@ function SciMLBase.__solve(
     bc_losses = sym.loss_functions.bc_loss_functions
 
     cb = function (p, l)
-        (!verbose) && return false
+        # DiffEqBase now passes DEVerbosity by default; keep these debug prints opt-in.
+        verbose === true || return false
         println("loss = ", l)
         println("pde = ", map(f -> f(p.u), pde_losses))
         println("bc  = ", map(f -> f(p.u), bc_losses))
