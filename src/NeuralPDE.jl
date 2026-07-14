@@ -104,7 +104,8 @@ export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
 
 export build_loss_function, get_loss_function,
     generate_training_sets, get_variables, get_argument, get_bounds,
-    get_numeric_integral, symbolic_discretize, vector_to_parameters
+    get_numeric_integral, symbolic_discretize, vector_to_parameters,
+    build_symbolic_pinn_loss, symbolic_pinn_loss_expression
 
 export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
     MiniMaxAdaptiveLoss, SoftAdaptAdaptiveLoss, ReLoBRaLoAdaptiveLoss

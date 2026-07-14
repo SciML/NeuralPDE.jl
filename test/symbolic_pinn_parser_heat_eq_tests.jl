@@ -80,12 +80,60 @@
     @test size(symbolic_loss.points.pde, 1) == 2  # D = 2 (x, t)
     @test all(m -> size(m, 1) == 2, symbolic_loss.points.bc)
 
-
     # Verify batched loss matches manual point-by-point evaluation
     pde_fn = symbolic_loss.datafree_pde_loss_functions[1]
     pde_pts = symbolic_loss.points.pde
     manual_loss = sum(abs2, pde_fn(pde_pts, theta0)) / size(pde_pts, 2)
     @test pde_loss ≈ manual_loss
+end
+
+@testitem "Symbolic PINN parser coordinate dynamism" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [u(0.0, t) ~ 0.0, u(1.0, t) ~ 0.0, u(x, 0.0) ~ sin(pi * x)]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+
+    sym_loss = NeuralPDE.build_symbolic_pinn_loss(heat_sys, chain; n_interior = 4, n_bc = 4)
+    theta0 = sym_loss.theta0
+    f = sym_loss.datafree_pde_loss_functions[1]
+
+    # -----------------------------------------------------------------------
+    # Test 1: same compiled fn, different coordinate matrices → different residuals.
+    # Proves coordinates are NOT baked into the compiled expression.
+    # -----------------------------------------------------------------------
+    cord_a = rand(2, 8)
+    cord_b = rand(2, 8)
+    @test f(cord_a, theta0) != f(cord_b, theta0)
+
+    # -----------------------------------------------------------------------
+    # Test 2: StochasticTraining resamples on each call →
+    # consecutive evaluations at the SAME theta give DIFFERENT loss values.
+    # -----------------------------------------------------------------------
+    disc_stoch = PhysicsInformedNN(
+        chain, StochasticTraining(30); symbolic_parser = true
+    )
+    prob_stoch = discretize(heat_sys, disc_stoch)
+    loss1 = prob_stoch.f(prob_stoch.u0, nothing)
+    loss2 = prob_stoch.f(prob_stoch.u0, nothing)
+    # Probability of exact equality for random Float64 coords is essentially zero
+    @test loss1 != loss2
+
+    # -----------------------------------------------------------------------
+    # Test 3: GridTraining uses fixed points → identical loss on every call.
+    # -----------------------------------------------------------------------
+    disc_grid = PhysicsInformedNN(
+        chain, GridTraining(0.25); symbolic_parser = true
+    )
+    prob_grid = discretize(heat_sys, disc_grid)
+    @test prob_grid.f(prob_grid.u0, nothing) == prob_grid.f(prob_grid.u0, nothing)
 end
 
 @testitem "Symbolic PINN parser residual correctness" tags = [:symbolicpinn] begin
@@ -884,3 +932,87 @@ end
     @test grad2 !== nothing
     @test all(isfinite, grad2[1])
 end
+
+@testitem "Symbolic PINN parser training strategies gradients" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, Zygote, QuasiMonteCarlo, Integrals
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 4, tanh), Lux.Dense(4, 1))
+
+    # 1. StochasticTraining
+    discr_stoch = PhysicsInformedNN(
+        chain, StochasticTraining(16); symbolic_parser = true
+    )
+    prob_stoch = discretize(heat_sys, discr_stoch)
+    @test isfinite(prob_stoch.f(prob_stoch.u0, nothing))
+    grad_stoch = Zygote.gradient(θ -> prob_stoch.f(θ, nothing), prob_stoch.u0)
+    @test grad_stoch !== nothing
+    @test all(isfinite, grad_stoch[1])
+
+    # 2. QuasiRandomTraining
+    discr_quasi = PhysicsInformedNN(
+        chain, QuasiRandomTraining(16; sampling_alg = LatinHypercubeSample(), resampling = true);
+        symbolic_parser = true
+    )
+    prob_quasi = discretize(heat_sys, discr_quasi)
+    @test isfinite(prob_quasi.f(prob_quasi.u0, nothing))
+    grad_quasi = Zygote.gradient(θ -> prob_quasi.f(θ, nothing), prob_quasi.u0)
+    @test grad_quasi !== nothing
+    @test all(isfinite, grad_quasi[1])
+
+    # 3. QuadratureTraining
+    discr_quad = PhysicsInformedNN(
+        chain, QuadratureTraining(; reltol = 1e-2, abstol = 1e-2, maxiters = 100);
+        symbolic_parser = true
+    )
+    prob_quad = discretize(heat_sys, discr_quad)
+    @test isfinite(prob_quad.f(prob_quad.u0, nothing))
+    grad_quad = Zygote.gradient(θ -> prob_quad.f(θ, nothing), prob_quad.u0)
+    @test grad_quad !== nothing
+    @test all(isfinite, grad_quad[1])
+end
+
+
+@testitem "Symbolic PINN parser loss expression helper" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 4, tanh), Lux.Dense(4, 1))
+
+    # Test the exposed helper
+    exprs = symbolic_pinn_loss_expression(heat_sys, chain)
+
+    @test length(exprs.pde) == 1
+    @test length(exprs.bc) == 3
+    @test isequal(exprs.ivs, [x, t])
+    @test isequal(exprs.dvs, [u(x, t)])
+end
+

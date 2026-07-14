@@ -1,16 +1,16 @@
 struct SymbolicPINNSystem
-    sys
-    eqs
-    bcs
-    domains
-    ivs
-    dvs
-    ps
+    sys::ModelingToolkit.PDESystem
+    eqs::Vector{Symbolics.Equation}
+    bcs::Vector{Symbolics.Equation}
+    domains::Vector{Symbolics.VarDomainPairing}
+    ivs::Vector{Symbolics.Num}
+    dvs::Vector{Symbolics.Num}
+    ps::Vector{Symbolics.Num}
 end
 
-struct SymbolicPINNNeuralSpec
-    value
-    parameters
+struct SymbolicPINNNeuralSpec{V, P}
+    value::V
+    parameters::P
 end
 
 """
@@ -20,6 +20,8 @@ Collect the ModelingToolkit `PDESystem` pieces needed by the experimental symbol
 parser. This intentionally uses ModelingToolkit accessors instead of direct field access.
 """
 function parse_pde_system(sys::PDESystem)
+    raw_ps = ModelingToolkit.get_ps(sys)
+    ps_vec = raw_ps isa SciMLBase.NullParameters ? Symbolics.Num[] : collect(Symbolics.Num, raw_ps)
     return SymbolicPINNSystem(
         sys,
         ModelingToolkit.get_eqs(sys),
@@ -27,7 +29,7 @@ function parse_pde_system(sys::PDESystem)
         ModelingToolkit.get_domain(sys),
         ModelingToolkit.get_ivs(sys),
         ModelingToolkit.get_dvs(sys),
-        ModelingToolkit.get_ps(sys)
+        ps_vec
     )
 end
 
@@ -391,7 +393,7 @@ end
 function _as_dv_derivative(expr, dv_ops)
     SymbolicUtils.iscall(expr) || return nothing
     current = expr
-    derivative_vars = Any[]
+    derivative_vars = Symbolics.SymbolicT[]
 
     while SymbolicUtils.iscall(current) &&
             SymbolicUtils.operation(current) isa Differential
@@ -472,7 +474,7 @@ function _prewalk_substitute(expr, dv_ops, ivs, neural_specs, integrand_info; ep
         deriv_info = _as_dv_derivative(node, dv_ops)
         if deriv_info !== nothing
             spec = neural_specs[deriv_info.dv_index]
-            args = collect(SymbolicUtils.arguments(deriv_info.call))
+            args = SymbolicUtils.arguments(deriv_info.call)
             directions = _derivative_directions(deriv_info.derivative_vars, ivs)
             replacement = _symbolic_derivative_fd(spec, args, directions, ivs; ε = epsilon)
             return Symbolics.unwrap(replacement)
@@ -482,7 +484,7 @@ function _prewalk_substitute(expr, dv_ops, ivs, neural_specs, integrand_info; ep
         dv_index = _matching_dv_index(node, dv_ops)
         if dv_index !== nothing
             spec = neural_specs[dv_index]
-            args = collect(SymbolicUtils.arguments(node))
+            args = SymbolicUtils.arguments(node)
             replacement = spec.value(args, spec.parameters)[1]
             return Symbolics.unwrap(replacement)
         end
@@ -506,7 +508,7 @@ function _prewalk_substitute(expr, dv_ops, ivs, neural_specs, integrand_info; ep
             id = length(integrand_info) + 1
             push!(integrand_info, (; integrand_substituted, τs, lb, ub, integrating_var_indices))
             
-            return Symbolics.unwrap(Num(SymbolicUtils.term(SymbolicPINNIntegralPlaceholder, id; type = Real)))
+            return SymbolicUtils.term(SymbolicPINNIntegralPlaceholder, id; type = Real, shape = SymbolicUtils.ShapeVecT())
         end
 
         return node
@@ -534,8 +536,8 @@ function symbolic_pinn_residual(eq, ivs, dvs, neural_specs, eq_params = []; epsi
     integrand_info = []
     substituted = _prewalk_substitute(expr, dv_ops, ivs, neural_specs, integrand_info; epsilon)
     
-    integrand_syms = []
-    integrand_fns = []
+    integrand_syms = Symbolics.SymbolicT[]
+    integrand_fns = Function[]
     if !isempty(integrand_info)
         num_integrals = length(integrand_info)
         integrand_syms = collect(Symbolics.variables(:integrand_fn, 1:num_integrals))
@@ -582,7 +584,7 @@ function symbolic_pinn_residual(eq, ivs, dvs, neural_specs, eq_params = []; epsi
                     p_args...,
                     eq_args...
                 ]
-                return SymbolicUtils.term(_solve_pinn_integral, call_args...; type = Real)
+                return SymbolicUtils.term(_solve_pinn_integral, call_args...; type = Real, shape = SymbolicUtils.ShapeVecT())
             end
             return node
         end
@@ -596,22 +598,7 @@ end
 
 function _contains_dv_call(expr, dvs)
     dv_ops = _dv_operation.(dvs)
-    found = Ref(false)
-
-    function walk(ex)
-        SymbolicUtils.iscall(ex) || return
-        if _matching_dv_index(ex, dv_ops) !== nothing
-            found[] = true
-            return
-        end
-        for arg in SymbolicUtils.arguments(ex)
-            walk(arg)
-            found[] && return
-        end
-    end
-
-    walk(Symbolics.unwrap(expr))
-    return found[]
+    return SymbolicUtils.query(ex -> _matching_dv_index(ex, dv_ops) !== nothing, Symbolics.unwrap(expr))
 end
 
 function _theta0(spec::SymbolicPINNNeuralSpec)
@@ -619,7 +606,7 @@ function _theta0(spec::SymbolicPINNNeuralSpec)
 end
 
 function _theta0(specs::AbstractVector{<:SymbolicPINNNeuralSpec})
-    return vcat([_theta0(spec) for spec in specs]...)
+    return reduce(vcat, [_theta0(spec) for spec in specs])
 end
 
 function _split_theta(theta, param_lengths)
@@ -635,47 +622,55 @@ function _runtime_args(neural_specs)
     return (nn_defaults...,)
 end
 
-struct SymbolicPINNResidualFunction{F, R, L}
+struct SymbolicPINNResidualFunction{F, R, L, D, C, N_IV}
     compiled::F
     runtime_args::R
     param_lengths::L
-    eq_param_count::Int
-    default_eq_params
+    eq_param_count::Val{C}
+    default_eq_params::D
+end
+
+function SymbolicPINNResidualFunction(compiled::F, runtime_args::R, param_lengths::L, eq_param_count::Val{C}, default_eq_params::D, ::Val{N_IV}) where {F, R, L, C, D, N_IV}
+    return SymbolicPINNResidualFunction{F, R, L, D, C, N_IV}(compiled, runtime_args, param_lengths, eq_param_count, default_eq_params)
 end
 
 _depvar_theta(theta) = hasproperty(theta, :depvar) ? theta.depvar : theta
 
-function _eq_param_values(theta, eq_param_count::Int, default_eq_params)
-    eq_param_count == 0 && return ()
+function _eq_param_values(theta, ::Val{0}, default_eq_params)
+    return ()
+end
 
+function _eq_param_values(theta, ::Val{C}, default_eq_params) where C
     if hasproperty(theta, :p)
-        values = ntuple(i -> theta.p[i], eq_param_count)
+        values = ntuple(i -> theta.p[i], Val(C))
     elseif default_eq_params !== nothing
-        values = ntuple(i -> default_eq_params[i], eq_param_count)
+        values = ntuple(i -> default_eq_params[i], Val(C))
     else
         throw(ArgumentError("Equation parameters are required but neither `theta.p` nor defaults were provided."))
     end
-    return Tuple(values)
+    return values
 end
 
 # Scalar evaluation: point is a vector
-function (f::SymbolicPINNResidualFunction)(point::AbstractVector, theta)
+function (f::SymbolicPINNResidualFunction{F, R, L, D, C, N_IV})(point::AbstractVector, theta) where {F, R, L, D, C, N_IV}
     depvar_theta = _depvar_theta(theta)
     param_views = _split_theta(depvar_theta, f.param_lengths)
     eq_values = _eq_param_values(theta, f.eq_param_count, f.default_eq_params)
-    return f.compiled(point..., f.runtime_args..., param_views..., eq_values...)
+    point_tuple = ntuple(d -> point[d], Val(N_IV))
+    return f.compiled(point_tuple..., f.runtime_args..., param_views..., eq_values...)
 end
 
 # Batched evaluation: cord is a (D, N) matrix.
 # Splits the coordinate matrix into row vectors and passes them to the
 # broadcasted compiled function, so that dotted arithmetic and batched
 # NN wrappers operate on the full batch in a single call.
-function (f::SymbolicPINNResidualFunction)(cord::AbstractMatrix, theta)
+function (f::SymbolicPINNResidualFunction{F, R, L, D, C, N_IV})(cord::AbstractMatrix, theta) where {F, R, L, D, C, N_IV}
+    isempty(cord) && return similar(cord, eltype(cord), 1, 0)
     depvar_theta = _depvar_theta(theta)
     param_views = _split_theta(depvar_theta, f.param_lengths)
     eq_values = _eq_param_values(theta, f.eq_param_count, f.default_eq_params)
-    D = size(cord, 1)
-    row_inputs = ntuple(d -> cord[d, :], D)
+    n_points = size(cord, 2)
+    row_inputs = ntuple(d -> d <= size(cord, 1) ? cord[d, :] : fill(zero(eltype(cord)), n_points), Val(N_IV))
     return f.compiled(row_inputs..., f.runtime_args..., param_views..., eq_values...)
 end
 
@@ -718,14 +713,15 @@ function _compiled_residual(residual, ivs, neural_specs, integrand_syms = [], in
     nn_defaults = map(spec -> SymbolicPINNValueWrapper(Symbolics.getdefaultval(spec.value)), neural_specs)
     runtime_args = (nn_defaults..., integrand_fns...)
     
-    param_lengths = [length(Symbolics.getdefaultval(spec.parameters)) for spec in neural_specs]
+    param_lengths = Tuple(length(Symbolics.getdefaultval(spec.parameters)) for spec in neural_specs)
 
     return SymbolicPINNResidualFunction(
         compiled,
         runtime_args,
         param_lengths,
-        length(eq_args),
+        Val(length(eq_args)),
         default_eq_params,
+        Val(length(ivs))
     )
 end
 
@@ -745,26 +741,20 @@ function _axis_points(lo, hi, n::Integer; interior::Bool)
 end
 
 function _collocation_points(domains, n::Integer; interior::Bool)
-    axes = [_axis_points(lo, hi, n; interior) for (lo, hi) in _domain_bounds(domains)]
+    axes = Tuple(_axis_points(lo, hi, n; interior) for (lo, hi) in _domain_bounds(domains))
     grid = vec([collect(Float64, point) for point in Iterators.product(axes...)])
     return reduce(hcat, grid)  # (D, N) matrix
 end
 
 function _find_dv_call(expr, dv_ops)
     found = Ref{Any}(nothing)
-    function walk(ex)
-        SymbolicUtils.iscall(ex) || return
-        op = SymbolicUtils.operation(ex)
-        if any(dv_op -> isequal(op, dv_op), dv_ops)
+    SymbolicUtils.query(Symbolics.unwrap(expr)) do ex
+        if SymbolicUtils.iscall(ex) && any(dv_op -> isequal(SymbolicUtils.operation(ex), dv_op), dv_ops)
             found[] = ex
-            return
+            return true
         end
-        for arg in SymbolicUtils.arguments(ex)
-            walk(arg)
-            found[] !== nothing && return
-        end
+        return false
     end
-    walk(Symbolics.unwrap(expr))
     return found[]
 end
 
@@ -780,7 +770,7 @@ function _bc_collocation_points(bc, ivs, dvs, domains, n_bc::Integer)
     end
     
     args = SymbolicUtils.arguments(Symbolics.unwrap(dv_call))
-    axes_points = []
+    axes_points = Vector{Float64}[]
     for (i, iv) in enumerate(ivs)
         arg = args[i]
         domain = domains[i].domain
@@ -795,7 +785,8 @@ function _bc_collocation_points(bc, ivs, dvs, domains, n_bc::Integer)
         end
     end
     
-    grid = vec([collect(Float64, point) for point in Iterators.product(axes_points...)])
+    axes_points_tuple = Tuple(axes_points)
+    grid = vec([collect(Float64, point) for point in Iterators.product(axes_points_tuple...)])
     return reduce(hcat, grid)  # (D, N) matrix
 end
 
@@ -803,6 +794,7 @@ end
 _to_residual_vector(x::AbstractVector) = x
 _to_residual_vector(x::AbstractMatrix) = vec(x)
 _to_residual_vector(x::Number) = [x]
+_to_residual_vector(x::BatchVector) = x.data
 
 """
     _wrap_as_datafree(compiled_residual_fn)
@@ -903,5 +895,20 @@ function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 6
         bc_loss = bc_loss,
         loss = loss
     )
+end
 
+"""
+    symbolic_pinn_loss_expression(sys::PDESystem, chain; epsilon = nothing)
+
+Return the symbolic residual expressions for the PDE and boundary conditions, keeping
+independent variables and network weights as symbols (no coordinates hardcoded).
+"""
+function symbolic_pinn_loss_expression(sys::PDESystem, chain; epsilon::Union{Nothing, Real} = nothing)
+    loss_info = build_symbolic_pinn_loss(sys, chain; epsilon)
+    return (
+        pde = loss_info.pde_residuals,
+        bc = loss_info.bc_residuals,
+        ivs = loss_info.parsed.ivs,
+        dvs = loss_info.parsed.dvs
+    )
 end
