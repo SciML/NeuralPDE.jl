@@ -747,7 +747,7 @@ function _collocation_points(domains, n::Integer; interior::Bool)
 end
 
 function _find_dv_call(expr, dv_ops)
-    found = Ref{Any}(nothing)
+    found = Ref{Union{Symbolics.SymbolicT, Nothing}}(nothing)
     SymbolicUtils.query(Symbolics.unwrap(expr)) do ex
         if SymbolicUtils.iscall(ex) && any(dv_op -> isequal(SymbolicUtils.operation(ex), dv_op), dv_ops)
             found[] = ex
