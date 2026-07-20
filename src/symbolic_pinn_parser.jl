@@ -611,7 +611,7 @@ end
 
 function _split_theta(theta, param_lengths)
     offsets = cumsum(param_lengths)
-    return ntuple(length(param_lengths)) do i
+    return ntuple(Val(length(param_lengths))) do i
         lo = i == 1 ? 1 : offsets[i - 1] + 1
         @view(theta[lo:offsets[i]])
     end
