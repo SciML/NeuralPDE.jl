@@ -85,7 +85,7 @@ function _integrating_variables(op_domain_variables, ivs)
         collect(unwrapped_vars)
     elseif unwrapped_vars isa AbstractVector
         collect(unwrapped_vars)
-    elseif SymbolicUtils.iscall(unwrapped_vars) && (SymbolicUtils.operation(unwrapped_vars) === tuple || SymbolicUtils.operation(unwrapped_vars) === Symbolics.tuple)
+    elseif SymbolicUtils.iscall(unwrapped_vars) && SymbolicUtils.operation(unwrapped_vars) === tuple
         SymbolicUtils.arguments(unwrapped_vars)
     else
         [unwrapped_vars]
