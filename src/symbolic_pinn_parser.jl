@@ -491,7 +491,7 @@ function _prewalk_substitute(expr, dv_ops, ivs, neural_specs, integrand_info; ep
 
         # --- Prewalk priority 3: Symbolics.Integral call ---
         if SymbolicUtils.iscall(node) && SymbolicUtils.operation(node) isa Symbolics.Integral
-            op = SymbolicUtils.operation(node)
+            op = SymbolicUtils.operation(node)::Symbolics.Integral
             integrand_expr = SymbolicUtils.arguments(node)[1]
             
             integrating_var_indices = _integrating_variables(op.domain.variables, ivs)
