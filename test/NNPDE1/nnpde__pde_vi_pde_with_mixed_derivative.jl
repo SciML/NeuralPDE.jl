@@ -74,11 +74,15 @@ using Test
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
-    strategy = StochasticTraining(2048)
+    # BFGS requires the objective to stay fixed between evaluations.
+    strategy = QuasiRandomTraining(
+        2048; sampling_alg = SobolSample(), resampling = false, minibatch = 1
+    )
     inner = 32
     chain = Chain(Dense(2, inner, sigmoid), Dense(inner, inner, sigmoid), Dense(inner, 1))
+    init_params, _ = Lux.setup(Xoshiro(100), chain)
 
-    discretization = PhysicsInformedNN(chain, strategy)
+    discretization = PhysicsInformedNN(chain, strategy; init_params)
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
 
     prob = discretize(pde_system, discretization)
