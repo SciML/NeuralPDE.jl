@@ -13,6 +13,14 @@ struct SymbolicPINNNeuralSpec{V, P}
     parameters::P
 end
 
+struct SymbolicPINNIntegrandInfo{S, T, L, U, I}
+    integrand_substituted::S
+    τs::T
+    lb::L
+    ub::U
+    integrating_var_indices::I
+end
+
 """
     parse_pde_system(sys::PDESystem)
 
@@ -117,12 +125,13 @@ end
 function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
     idx_num_ivs = 2 * num_bounds + 1
     num_ivs = rest[idx_num_ivs]
-    args = rest[(idx_num_ivs + 1):end]
+    args_raw = rest[(idx_num_ivs + 1):end]
+    args_tuple = Tuple(args_raw)
 
     is_batch = false
     N = 1
     for j in 1:num_ivs
-        val = args[j]
+        val = args_raw[j]
         if val isa AbstractVector
             is_batch = true
             N = length(val)
@@ -140,7 +149,7 @@ function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
 
     if is_batch
         results = map(1:N) do i
-            point_i = ntuple(j -> j <= num_ivs ? _get_value_at(args[j], i) : args[j], length(args))
+            point_i = ntuple(j -> j <= num_ivs ? _get_value_at(args_raw[j], i) : args_raw[j], length(args_raw))
             if num_bounds == 1
                 lb_val = _get_value_at(rest[1], i)
                 ub_val = _get_value_at(rest[2], i)
@@ -150,7 +159,7 @@ function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
             end
             
             integrand = if num_bounds > 1
-                (τ, p_) -> integrand_fn(τ..., point_i...)
+                (τ, p_) -> integrand_fn(ntuple(k -> τ[k], Val(num_bounds))..., point_i...)
             else
                 (τ, p_) -> integrand_fn(τ, point_i...)
             end
@@ -169,9 +178,9 @@ function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
         end
         
         integrand = if num_bounds > 1
-            (τ, p_) -> integrand_fn(τ..., args...)
+            (τ, p_) -> integrand_fn(ntuple(k -> τ[k], Val(num_bounds))..., args_tuple...)
         else
-            (τ, p_) -> integrand_fn(τ, args...)
+            (τ, p_) -> integrand_fn(τ, args_tuple...)
         end
         prob = Integrals.IntegralProblem(integrand, (lb_val, ub_val))
         sol = Integrals.solve(prob, Integrals.CubatureJLh(), reltol = 1e-3, abstol = 1e-3)
@@ -387,7 +396,10 @@ end
 function _matching_dv_index(expr, dv_ops)
     SymbolicUtils.iscall(expr) || return nothing
     op = SymbolicUtils.operation(expr)
-    return findfirst(dv_op -> isequal(op, dv_op), dv_ops)
+    for (i, dv_op) in enumerate(dv_ops)
+        isequal(op, dv_op)::Bool && return i
+    end
+    return nothing
 end
 
 function _as_dv_derivative(expr, dv_ops)
@@ -506,7 +518,7 @@ function _prewalk_substitute(expr, dv_ops, ivs, neural_specs, integrand_info; ep
             integrand_substituted = _prewalk_substitute(integrand_substituted, dv_ops, ivs, neural_specs, integrand_info; epsilon)
             
             id = length(integrand_info) + 1
-            push!(integrand_info, (; integrand_substituted, τs, lb, ub, integrating_var_indices))
+            push!(integrand_info, SymbolicPINNIntegrandInfo(integrand_substituted, τs, lb, ub, integrating_var_indices))
             
             return SymbolicUtils.term(SymbolicPINNIntegralPlaceholder, id; type = Real, shape = SymbolicUtils.ShapeVecT())
         end
@@ -533,7 +545,7 @@ function symbolic_pinn_residual(eq, ivs, dvs, neural_specs, eq_params = []; epsi
     
     clean_eq_params = (eq_params isa SciMLBase.NullParameters) ? () : eq_params
     
-    integrand_info = []
+    integrand_info = SymbolicPINNIntegrandInfo[]
     substituted = _prewalk_substitute(expr, dv_ops, ivs, neural_specs, integrand_info; epsilon)
     
     integrand_syms = Symbolics.SymbolicT[]
@@ -549,14 +561,17 @@ function symbolic_pinn_residual(eq, ivs, dvs, neural_specs, eq_params = []; epsi
         eq_args = Symbolics.unwrap.(collect(clean_eq_params))
         
         for info in integrand_info
+            all_integrand_build_args = vcat(
+                info.τs,
+                iv_args,
+                nn_args,
+                integrand_fn_args,
+                p_args,
+                eq_args
+            )
             integrand_fn_expr = Symbolics.build_function(
                 info.integrand_substituted,
-                info.τs...,
-                iv_args...,
-                nn_args...,
-                integrand_fn_args...,
-                p_args...,
-                eq_args...;
+                all_integrand_build_args...;
                 expression = Val{true}
             )
             push!(integrand_fns, @RuntimeGeneratedFunction(integrand_fn_expr))
@@ -572,18 +587,17 @@ function symbolic_pinn_residual(eq, ivs, dvs, neural_specs, eq_params = []; epsi
                 ub_args = Symbolics.unwrap.(info.ub)
                 num_bounds = length(lb_args)
                 
-                call_args = Any[
-                    integrand_syms[idx],
-                    num_bounds,
-                    lb_args...,
-                    ub_args...,
-                    length(ivs),
-                    iv_args...,
-                    nn_args...,
-                    integrand_fn_args...,
-                    p_args...,
-                    eq_args...
-                ]
+                call_args = vcat(
+                    Any[integrand_syms[idx], num_bounds],
+                    lb_args,
+                    ub_args,
+                    Any[length(ivs)],
+                    iv_args,
+                    nn_args,
+                    integrand_fn_args,
+                    p_args,
+                    eq_args
+                )
                 return SymbolicUtils.term(_solve_pinn_integral, call_args...; type = Real, shape = SymbolicUtils.ShapeVecT())
             end
             return node
@@ -695,8 +709,9 @@ function _compiled_residual(residual, ivs, neural_specs, integrand_syms = [], in
 
     # Get expression form for broadcasting transformation
     # We include integrand_fn_args in the build_function arguments!
+    all_build_args = vcat(iv_args, nn_args, integrand_fn_args, p_args, eq_args)
     fn_expr = Symbolics.build_function(
-        residual, iv_args..., nn_args..., integrand_fn_args..., p_args..., eq_args...;
+        residual, all_build_args...;
         expression = Val{true}
     )
 
@@ -749,7 +764,7 @@ end
 function _find_dv_call(expr, dv_ops)
     found = Ref{Union{Symbolics.SymbolicT, Nothing}}(nothing)
     SymbolicUtils.query(Symbolics.unwrap(expr)) do ex
-        if SymbolicUtils.iscall(ex) && any(dv_op -> isequal(SymbolicUtils.operation(ex), dv_op), dv_ops)
+        if SymbolicUtils.iscall(ex) && any(dv_op -> isequal(SymbolicUtils.operation(ex), dv_op)::Bool, dv_ops)::Bool
             found[] = ex
             return true
         end
@@ -819,23 +834,22 @@ function _wrap_as_datafree(compiled_residual_fn)
     return SymbolicPINNDatafreeLoss(compiled_residual_fn)
 end
 
-function _mean_square(datafree_fns, points_matrix, theta)
-    isempty(datafree_fns) && return zero(eltype(theta))
-    return sum(datafree_fns) do f
-        mean(abs2, f(points_matrix, theta))
-    end / length(datafree_fns)
-end
+_weight_at(w::Number, i::Int) = w
+_weight_at(w::Union{AbstractVector, Tuple}, i::Int) = w[i]
 
 """
-    build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior = 64, n_bc = 64)
+    build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior = 64, n_bc = 64,
+                              pde_loss_weights = 1.0, bc_loss_weights = 1.0)
 
 Build a symbolic PINN loss for a `PDESystem`. Supports single and multiple dependent
-variables, same-direction and mixed/cross-direction derivatives. The returned object is
-a named tuple containing symbolic residuals, lowered residual functions, sampled points,
-initial parameters, and simple mean-squared PDE/BC/full loss functions.
+variables, same-direction and mixed/cross-direction derivatives. Supports optional fixed
+or vector weights (`pde_loss_weights`, `bc_loss_weights`) for balancing loss terms.
+The returned object is a named tuple containing symbolic residuals, lowered residual functions,
+sampled points, initial parameters, and mean-squared PDE/BC/full loss functions.
 """
 function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 64,
-        n_bc::Integer = 64, epsilon::Union{Nothing, Real} = nothing)
+        n_bc::Integer = 64, epsilon::Union{Nothing, Real} = nothing,
+        pde_loss_weights = 1.0, bc_loss_weights = 1.0)
     parsed = parse_pde_system(sys)
 
     neural_specs = _symbolic_pinn_neural_specs(chain, length(parsed.ivs), length(parsed.dvs))
@@ -875,10 +889,16 @@ function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 6
             for bc in parsed.bcs
     ]
 
-    pde_loss = theta -> _mean_square(datafree_pde_loss_functions, pde_points, theta)
-    bc_loss = theta -> sum(zip(datafree_bc_loss_functions, bc_points_list)) do (f, pts)
-        mean(abs2, f(pts, theta))
-    end / length(datafree_bc_loss_functions)
+    pde_loss = theta -> isempty(datafree_pde_loss_functions) ? zero(eltype(theta)) :
+        sum(enumerate(datafree_pde_loss_functions)) do (i, f)
+            _weight_at(pde_loss_weights, i) * mean(abs2, f(pde_points, theta))
+        end / length(datafree_pde_loss_functions)
+
+    bc_loss = theta -> isempty(datafree_bc_loss_functions) ? zero(eltype(theta)) :
+        sum(enumerate(zip(datafree_bc_loss_functions, bc_points_list))) do (j, (f, pts))
+            _weight_at(bc_loss_weights, j) * mean(abs2, f(pts, theta))
+        end / length(datafree_bc_loss_functions)
+
     loss = theta -> pde_loss(theta) + bc_loss(theta)
 
     return (
@@ -896,6 +916,7 @@ function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 6
         loss = loss
     )
 end
+
 
 """
     symbolic_pinn_loss_expression(sys::PDESystem, chain; epsilon = nothing)

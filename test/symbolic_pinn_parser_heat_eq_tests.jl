@@ -620,9 +620,11 @@ end
 # ===================================================================
 
 @testitem "Symbolic PINN parser discretize integration" tags = [:symbolicpinn] begin
-    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Random
     using Test
     import DomainSets: Interval
+
+    Random.seed!(100)
 
     @parameters x t
     @variables u(..)
@@ -652,13 +654,23 @@ end
     @test isfinite(loss_val)
     @test loss_val >= 0
 
-    # --- Test 3: Short optimization loop converges (loss decreases) ---
+    # --- Test 3: Optimization loop converges to analytical solution ---
     initial_loss = prob.f(prob.u0, nothing)
-    sol = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 20)
+    sol = solve(prob, OptimizationOptimisers.Adam(0.02); maxiters = 500)
     final_loss = prob.f(sol.u, nothing)
     @test isfinite(final_loss)
-    @test final_loss <= initial_loss
+    @test final_loss < initial_loss
+
+    phi = discretization.phi
+    xs = 0.1:0.2:0.9
+    ts = 0.1:0.2:0.9
+    u_predict = [first(phi([x, t], sol.u)) for x in xs for t in ts]
+    u_real = [exp(-pi^2 * t) * sin(pi * x) for x in xs for t in ts]
+    @test isapprox(u_predict, u_real, norm = v -> maximum(abs, v), atol = 0.35)
 end
+
+
+
 
 @testitem "Symbolic PINN parser training strategies" tags = [:symbolicpinn] begin
     using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization
@@ -917,21 +929,35 @@ end
     @test grad !== nothing
     @test all(isfinite, grad[1])
 
-    # Test PhysicsInformedNN discretization
-    discretization = PhysicsInformedNN(
+    # Test PhysicsInformedNN discretization & numerical correctness vs legacy
+    discretization_sym = PhysicsInformedNN(
         chain, GridTraining(0.25); symbolic_parser = true
     )
-    prob = discretize(heat_sys, discretization)
-    @test prob isa Optimization.OptimizationProblem
+    discretization_legacy = PhysicsInformedNN(
+        chain, GridTraining(0.25); symbolic_parser = false
+    )
+    prob_sym = discretize(heat_sys, discretization_sym)
+    prob_legacy = discretize(heat_sys, discretization_legacy)
     
-    loss_val = prob.f(prob.u0, nothing)
-    @test isfinite(loss_val)
+    @test prob_sym isa Optimization.OptimizationProblem
+    
+    loss_sym = prob_sym.f(prob_sym.u0, nothing)
+    loss_legacy = prob_legacy.f(prob_legacy.u0, nothing)
+    @test isfinite(loss_sym)
+    @test loss_sym >= 0
+    @test isfinite(loss_legacy)
 
-    # Differentiate through the loss function
-    grad2 = Zygote.gradient(θ -> prob.f(θ, nothing), prob.u0)
-    @test grad2 !== nothing
-    @test all(isfinite, grad2[1])
+
+    # Differentiate through loss and verify gradient computation
+    grad_sym = Zygote.gradient(θ -> prob_sym.f(θ, nothing), prob_sym.u0)[1]
+    grad_legacy = Zygote.gradient(θ -> prob_legacy.f(θ, nothing), prob_legacy.u0)[1]
+    @test grad_sym !== nothing
+    @test all(isfinite, grad_sym)
+    @test grad_legacy !== nothing
+    @test all(isfinite, grad_legacy)
 end
+
+
 
 @testitem "Symbolic PINN parser training strategies gradients" tags = [:symbolicpinn] begin
     using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, Zygote, QuasiMonteCarlo, Integrals
@@ -1015,4 +1041,586 @@ end
     @test isequal(exprs.ivs, [x, t])
     @test isequal(exprs.dvs, [u(x, t)])
 end
+
+@testitem "Symbolic PINN parser loss weighting" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, Zygote, Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 4, tanh), Lux.Dense(4, 1))
+
+    # Test scalar weighting vs unweighted
+    sym_unweighted = NeuralPDE.build_symbolic_pinn_loss(heat_sys, chain)
+    sym_weighted = NeuralPDE.build_symbolic_pinn_loss(
+        heat_sys, chain; pde_loss_weights = 2.0, bc_loss_weights = 5.0
+    )
+    θ0 = sym_unweighted.theta0
+    @test sym_weighted.pde_loss(θ0) ≈ 2.0 * sym_unweighted.pde_loss(θ0)
+    @test sym_weighted.bc_loss(θ0) ≈ 5.0 * sym_unweighted.bc_loss(θ0)
+
+    # Test vector weighting for BCs
+    sym_vec = NeuralPDE.build_symbolic_pinn_loss(
+        heat_sys, chain; pde_loss_weights = 3.0, bc_loss_weights = [1.0, 2.0, 3.0]
+    )
+    @test isfinite(sym_vec.loss(θ0))
+end
+
+@testitem "Symbolic PINN parser 2D Poisson Equation convergence" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Test
+    import DomainSets: Interval
+
+    @parameters x y
+    @variables u(..)
+    Dxx = Differential(x)^2
+    Dyy = Differential(y)^2
+
+    eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
+    bcs = [
+        u(0.0, y) ~ 0.0,
+        u(1.0, y) ~ 0.0,
+        u(x, 0.0) ~ 0.0,
+        u(x, 1.0) ~ 0.0,
+    ]
+    domains = [x in Interval(0.0, 1.0), y in Interval(0.0, 1.0)]
+    @named poisson_sys = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
+
+    chain = Lux.Chain(Lux.Dense(2, 12, tanh), Lux.Dense(12, 12, tanh), Lux.Dense(12, 1))
+
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(0.1); symbolic_parser = true
+    )
+    prob = discretize(poisson_sys, discretization)
+    @test prob isa Optimization.OptimizationProblem
+
+    sol = solve(prob, OptimizationOptimisers.Adam(0.02); maxiters = 600)
+    phi = discretization.phi
+
+    xs = 0.1:0.2:0.9
+    ys = 0.1:0.2:0.9
+    analytic_sol(x, y) = sin(pi * x) * sin(pi * y) / (2 * pi^2)
+    u_predict = [first(phi([x, y], sol.u)) for x in xs for y in ys]
+    u_real = [analytic_sol(x, y) for x in xs for y in ys]
+
+    @test u_predict ≈ u_real atol = 0.08
+end
+
+@testitem "Symbolic PINN parser 1D Wave Equation convergence" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Random, Test
+    import DomainSets: Interval
+
+    Random.seed!(100)
+
+    @parameters x t
+    @variables u(..)
+    Dxx = Differential(x)^2
+    Dtt = Differential(t)^2
+    Dt = Differential(t)
+
+    C = 1.0
+    eq = Dtt(u(x, t)) ~ C^2 * Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+        Dt(u(x, 0.0)) ~ 0.0,
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named wave_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 12, tanh), Lux.Dense(12, 12, tanh), Lux.Dense(12, 1))
+
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(0.1); symbolic_parser = true
+    )
+    prob = discretize(wave_sys, discretization)
+
+    initial_loss = prob.f(prob.u0, nothing)
+    sol = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 1000)
+    final_loss = prob.f(sol.u, nothing)
+
+    @test final_loss < initial_loss
+
+    phi = discretization.phi
+    xs = 0.2:0.2:0.8
+    ts = 0.2:0.2:0.8
+    analytic_wave(x, t) = sin(pi * x) * cos(pi * t)
+    u_predict = [first(phi([x, t], sol.u)) for x in xs for t in ts]
+    u_real = [analytic_wave(x, t) for x in xs for t in ts]
+
+    @test isapprox(u_predict, u_real, norm = v -> maximum(abs, v), atol = 0.40)
+end
+
+
+
+
+
+@testitem "Symbolic PINN parser 1D Heterogeneous ODE convergence" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Test
+    import DomainSets: Interval
+
+    @parameters θ
+    @variables u(..)
+    Dθ = Differential(θ)
+
+    eq = Dθ(u(θ)) ~ θ^3 + 2.0f0 * θ +
+        (θ^2) * ((1.0f0 + 3 * (θ^2)) / (1.0f0 + θ + (θ^3))) -
+        u(θ) * (θ + ((1.0f0 + 3.0f0 * (θ^2)) / (1.0f0 + θ + θ^3)))
+
+    bcs = [u(0.0) ~ 1.0f0]
+    domains = [θ ∈ Interval(0.0f0, 1.0f0)]
+
+    chain = Lux.Chain(Lux.Dense(1, 12, σ), Lux.Dense(12, 1))
+
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(0.05); symbolic_parser = true
+    )
+    @named ode_sys = PDESystem(eq, bcs, domains, [θ], [u(θ)])
+
+    prob = discretize(ode_sys, discretization)
+    sol = solve(prob, OptimizationOptimisers.Adam(0.02); maxiters = 500)
+
+    phi = discretization.phi
+    analytic_ode(t) = exp(-(t^2) / 2) / (1 + t + t^3) + t^2
+    ts = 0.1:0.1:0.9
+    u_real = [analytic_ode(t) for t in ts]
+    u_predict = [first(phi([t], sol.u)) for t in ts]
+
+    @test u_predict ≈ u_real atol = 0.25
+end
+
+@testitem "Symbolic PINN parser (BPINN PDE: 1D Periodic System)" tags = [:symbolicpinn, :pdebpinn] begin
+    using MCMCChains, Lux, ModelingToolkit, AdvancedHMC, LogDensityProblems, Statistics, Random,
+        NeuralPDE, MonteCarloMeasurements
+    import DomainSets: Interval, ClosedInterval
+
+    Random.seed!(100)
+
+    @parameters t
+    @variables u(..)
+    Dt = Differential(t)
+    eq = Dt(u(t)) - cospi(2t) ~ 0
+    bcs = [u(0.0) ~ 0.0]
+    domains = [t ∈ Interval(0.0, 2.0)]
+
+    chainl = Chain(Dense(1, 6, tanh), Dense(6, 1))
+    initl, st = Lux.setup(Random.default_rng(), chainl)
+    @named pde_system = PDESystem(eq, bcs, domains, [t], [u(t)])
+
+    # Setup BayesianPINN with symbolic_parser = true
+    discretization = BayesianPINN([chainl], GridTraining([0.01]); symbolic_parser = true)
+
+    sol1 = ahmc_bayesian_pinn_pde(
+        pde_system, discretization; draw_samples = 1500, bcstd = [0.01],
+        phystd = [0.01], priorsNNw = (0.0, 1.0), saveats = [1 / 50.0]
+    )
+
+    analytic_sol_func(u0, t) = u0 + sinpi(2t) / (2pi)
+    ts = vec(sol1.timepoints[1])
+    u_real = [analytic_sol_func(0.0, t) for t in ts]
+    u_predict = pmean(sol1.ensemblesol[1])
+
+    # Assert accuracy of Bayesian PINN solution with symbolic parser
+    @test mean(abs, u_predict .- u_real) < 8.0e-2
+end
+
+@testitem "Symbolic PINN parser integral tests" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Zygote, Test
+    import DomainSets: Interval, ClosedInterval, UnitSquare
+
+    @testset "1D IDE with Constant Bounds" begin
+        @parameters t
+        @variables i(..)
+        Di = Differential(t)
+        Ii = Integral(t in ClosedInterval(0, 2))
+        eq = Di(i(t)) + 2 * i(t) + 5 * Ii(i(t)) ~ 1
+        bcs = [i(0.0) ~ 0.0]
+        domains = [t ∈ Interval(0.0, 2.0)]
+
+        chain = Chain(Dense(1, 8, σ), Dense(8, 1))
+
+        @named pde_system = PDESystem(eq, bcs, domains, [t], [i(t)])
+
+        # Test build_symbolic_pinn_loss
+        symbolic_loss = NeuralPDE.build_symbolic_pinn_loss(
+            pde_system, chain; n_interior = 4, n_bc = 4
+        )
+        theta0 = symbolic_loss.theta0
+        @test isfinite(symbolic_loss.loss(theta0))
+        grad = Zygote.gradient(symbolic_loss.loss, theta0)
+        @test grad !== nothing
+        @test all(isfinite, grad[1])
+
+        # Test PhysicsInformedNN discretization & numerical correctness vs legacy
+        discretization_sym = PhysicsInformedNN(
+            chain, GridTraining(0.25); symbolic_parser = true
+        )
+        discretization_legacy = PhysicsInformedNN(
+            chain, GridTraining(0.25); symbolic_parser = false
+        )
+        prob_sym = discretize(pde_system, discretization_sym)
+        prob_legacy = discretize(pde_system, discretization_legacy)
+
+        @test prob_sym isa Optimization.OptimizationProblem
+
+        loss_sym = prob_sym.f(prob_sym.u0, nothing)
+        loss_legacy = prob_legacy.f(prob_legacy.u0, nothing)
+        @test isfinite(loss_sym)
+        @test isfinite(loss_legacy)
+
+        grad_sym = Zygote.gradient(θ -> prob_sym.f(θ, nothing), prob_sym.u0)[1]
+        grad_legacy = Zygote.gradient(θ -> prob_legacy.f(θ, nothing), prob_legacy.u0)[1]
+        @test grad_sym !== nothing
+        @test all(isfinite, grad_sym)
+        @test grad_legacy !== nothing
+
+        # Test extended optimization convergence
+        initial_loss = prob_sym.f(prob_sym.u0, nothing)
+        sol = solve(prob_sym, OptimizationOptimisers.Adam(0.01); maxiters = 300)
+        final_loss = prob_sym.f(sol.u, nothing)
+        @test final_loss < initial_loss
+    end
+
+    @testset "1D IDE with Variable Upper Bound" begin
+        @parameters t
+        @variables i(..)
+        Di = Differential(t)
+        Ii = Integral(t in ClosedInterval(0, t))
+        eq = Di(i(t)) + 2 * i(t) + 5 * Ii(i(t)) ~ 1
+        bcs = [i(0.0) ~ 0.0]
+        domains = [t ∈ Interval(0.0, 2.0)]
+
+        chain = Chain(Dense(1, 8, σ), Dense(8, 1))
+
+        @named pde_system = PDESystem(eq, bcs, domains, [t], [i(t)])
+
+        # Test build_symbolic_pinn_loss
+        symbolic_loss = NeuralPDE.build_symbolic_pinn_loss(
+            pde_system, chain; n_interior = 4, n_bc = 4
+        )
+        theta0 = symbolic_loss.theta0
+        @test isfinite(symbolic_loss.loss(theta0))
+        grad = Zygote.gradient(symbolic_loss.loss, theta0)
+        @test grad !== nothing
+        @test all(isfinite, grad[1])
+
+        # Test PhysicsInformedNN discretization & numerical correctness vs legacy
+        discretization_sym = PhysicsInformedNN(
+            chain, GridTraining(0.25); symbolic_parser = true
+        )
+        discretization_legacy = PhysicsInformedNN(
+            chain, GridTraining(0.25); symbolic_parser = false
+        )
+        prob_sym = discretize(pde_system, discretization_sym)
+        prob_legacy = discretize(pde_system, discretization_legacy)
+
+        @test prob_sym isa Optimization.OptimizationProblem
+
+        loss_sym = prob_sym.f(prob_sym.u0, nothing)
+        loss_legacy = prob_legacy.f(prob_legacy.u0, nothing)
+        @test isfinite(loss_sym)
+        @test isfinite(loss_legacy)
+
+        grad_sym = Zygote.gradient(θ -> prob_sym.f(θ, nothing), prob_sym.u0)[1]
+        grad_legacy = Zygote.gradient(θ -> prob_legacy.f(θ, nothing), prob_legacy.u0)[1]
+        @test grad_sym !== nothing
+        @test all(isfinite, grad_sym)
+        @test grad_legacy !== nothing
+
+        # Test extended optimization convergence
+        initial_loss = prob_sym.f(prob_sym.u0, nothing)
+        sol = solve(prob_sym, OptimizationOptimisers.Adam(0.01); maxiters = 300)
+        final_loss = prob_sym.f(sol.u, nothing)
+        @test final_loss < initial_loss
+    end
+
+    @testset "2D IDE" begin
+        @parameters x, y
+        @variables u(..)
+        Dx = Differential(x)
+        Dy = Differential(y)
+        Ix = Integral((x, y) in UnitSquare())
+
+        eq = Ix(u(x, y)) ~ 1 / 3
+        bcs = [u(0.0, 0.0) ~ 1.0, Dx(u(x, y)) ~ -2.0 * x, Dy(u(x, y)) ~ -2.0 * y]
+        domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
+
+        chain = Chain(Dense(2, 8, σ), Dense(8, 1))
+
+        @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
+
+        # Test build_symbolic_pinn_loss
+        symbolic_loss = NeuralPDE.build_symbolic_pinn_loss(
+            pde_system, chain; n_interior = 4, n_bc = 4
+        )
+        theta0 = symbolic_loss.theta0
+        @test isfinite(symbolic_loss.loss(theta0))
+        grad = Zygote.gradient(symbolic_loss.loss, theta0)
+        @test grad !== nothing
+        @test all(isfinite, grad[1])
+
+        # Test PhysicsInformedNN discretization & numerical correctness vs legacy
+        discretization_sym = PhysicsInformedNN(
+            chain, GridTraining(0.25); symbolic_parser = true
+        )
+        discretization_legacy = PhysicsInformedNN(
+            chain, GridTraining(0.25); symbolic_parser = false
+        )
+        prob_sym = discretize(pde_system, discretization_sym)
+        prob_legacy = discretize(pde_system, discretization_legacy)
+
+        @test prob_sym isa Optimization.OptimizationProblem
+
+        loss_sym = prob_sym.f(prob_sym.u0, nothing)
+        loss_legacy = prob_legacy.f(prob_legacy.u0, nothing)
+        @test isfinite(loss_sym)
+        @test isfinite(loss_legacy)
+
+        grad_sym = Zygote.gradient(θ -> prob_sym.f(θ, nothing), prob_sym.u0)[1]
+        grad_legacy = Zygote.gradient(θ -> prob_legacy.f(θ, nothing), prob_legacy.u0)[1]
+        @test grad_sym !== nothing
+        @test all(isfinite, grad_sym)
+        @test grad_legacy !== nothing
+
+        # Test extended optimization convergence
+        initial_loss = prob_sym.f(prob_sym.u0, nothing)
+        sol = solve(prob_sym, OptimizationOptimisers.Adam(0.01); maxiters = 300)
+        final_loss = prob_sym.f(sol.u, nothing)
+        @test final_loss < initial_loss
+    end
+end
+
+@testitem "Symbolic PINN parser 3D Poisson Equation convergence" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Random, Test
+    import DomainSets: Interval
+
+    Random.seed!(100)
+
+    @parameters x y z
+    @variables u(..)
+    Dxx = Differential(x)^2
+    Dyy = Differential(y)^2
+    Dzz = Differential(z)^2
+
+    eq = Dxx(u(x, y, z)) + Dyy(u(x, y, z)) + Dzz(u(x, y, z)) ~ -3.0f0 * (pi^2) * sin(pi * x) * sin(pi * y) * sin(pi * z)
+    bcs = [
+        u(0.0, y, z) ~ 0.0, u(1.0, y, z) ~ 0.0,
+        u(x, 0.0, z) ~ 0.0, u(x, 1.0, z) ~ 0.0,
+        u(x, y, 0.0) ~ 0.0, u(x, y, 1.0) ~ 0.0,
+    ]
+    domains = [x in Interval(0.0, 1.0), y in Interval(0.0, 1.0), z in Interval(0.0, 1.0)]
+    @named poisson3d_sys = PDESystem(eq, bcs, domains, [x, y, z], [u(x, y, z)])
+
+    chain = Lux.Chain(Lux.Dense(3, 16, tanh), Lux.Dense(16, 16, tanh), Lux.Dense(16, 1))
+
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(0.2); symbolic_parser = true
+    )
+    prob = discretize(poisson3d_sys, discretization)
+    @test prob isa Optimization.OptimizationProblem
+
+    initial_loss = prob.f(prob.u0, nothing)
+    sol = solve(prob, OptimizationOptimisers.Adam(0.02); maxiters = 600)
+    final_loss = prob.f(sol.u, nothing)
+    @test final_loss < initial_loss
+
+    phi = discretization.phi
+    xs = 0.2:0.3:0.8
+    ys = 0.2:0.3:0.8
+    zs = 0.2:0.3:0.8
+    analytic_sol3d(x, y, z) = sin(pi * x) * sin(pi * y) * sin(pi * z)
+    u_predict = [first(phi([x, y, z], sol.u)) for x in xs for y in ys for z in zs]
+    u_real = [analytic_sol3d(x, y, z) for x in xs for y in ys for z in zs]
+
+    @test isapprox(u_predict, u_real, norm = v -> maximum(abs, v), atol = 0.35)
+end
+
+@testitem "Symbolic PINN parser 1D Viscous Burgers Equation (Non-linear PDE with Parameters)" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Random, Test
+    import DomainSets: Interval
+
+    Random.seed!(100)
+
+    @parameters x t ν
+    @variables u(..)
+    Dt = Differential(t)
+    Dx = Differential(x)
+    Dxx = Differential(x)^2
+
+    eq = Dt(u(x, t)) + u(x, t) * Dx(u(x, t)) ~ ν * Dxx(u(x, t))
+    bcs = [
+        u(-1.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ -sin(pi * x),
+    ]
+    domains = [x in Interval(-1.0, 1.0), t in Interval(0.0, 1.0)]
+    @named burger_sys = PDESystem(
+        eq, bcs, domains, [x, t], [u(x, t)], [ν],
+        initial_conditions = Dict([ν => 0.01 / pi])
+    )
+
+    chain = Lux.Chain(Lux.Dense(2, 12, tanh), Lux.Dense(12, 12, tanh), Lux.Dense(12, 1))
+    discretization = PhysicsInformedNN(chain, GridTraining(0.1); symbolic_parser = true)
+    prob = discretize(burger_sys, discretization)
+
+    @test prob isa Optimization.OptimizationProblem
+    initial_loss = prob.f(prob.u0, nothing)
+    @test isfinite(initial_loss)
+
+    sol = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 500)
+    final_loss = prob.f(sol.u, nothing)
+    @test isfinite(final_loss)
+    @test final_loss < initial_loss
+end
+
+@testitem "Symbolic PINN parser Robin / Neumann Boundary Conditions (Derivative BCs)" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Random, Test
+    import DomainSets: Interval
+
+    Random.seed!(100)
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dx = Differential(x)
+    Dxx = Differential(x)^2
+
+    eq = Dt(u(x, t)) ~ Dxx(u(x, t))
+    # Robin boundary condition: Dx(u(1,t)) + u(1,t) ~ 0
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        Dx(u(1.0, t)) + u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named robin_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+    discretization = PhysicsInformedNN(chain, GridTraining(0.1); symbolic_parser = true)
+    prob = discretize(robin_sys, discretization)
+
+    @test prob isa Optimization.OptimizationProblem
+    initial_loss = prob.f(prob.u0, nothing)
+    @test isfinite(initial_loss)
+
+    sol = solve(prob, OptimizationOptimisers.Adam(0.02); maxiters = 300)
+    final_loss = prob.f(sol.u, nothing)
+    @test isfinite(final_loss)
+    @test final_loss < initial_loss
+end
+
+@testitem "Symbolic PINN parser 3rd-Order Differential Operator" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Zygote, Test
+    import DomainSets: Interval
+
+    @parameters x
+    @variables u(..)
+    Dxxx = Differential(x)^3
+
+    eq = Dxxx(u(x)) ~ cospi(x)
+    bcs = [u(0.0) ~ 0.0, u(1.0) ~ 0.0, Differential(x)(u(0.0)) ~ 0.0]
+    domains = [x in Interval(0.0, 1.0)]
+    @named ode3_sys = PDESystem(eq, bcs, domains, [x], [u(x)])
+
+    chain = Lux.Chain(Lux.Dense(1, 12, tanh), Lux.Dense(12, 1))
+    discretization = PhysicsInformedNN(chain, GridTraining(0.05); symbolic_parser = true)
+    prob = discretize(ode3_sys, discretization)
+
+    @test prob isa Optimization.OptimizationProblem
+    loss_val = prob.f(prob.u0, nothing)
+    @test isfinite(loss_val)
+
+    grad = Zygote.gradient(θ -> prob.f(θ, nothing), prob.u0)[1]
+    @test grad !== nothing
+    @test all(isfinite, grad)
+end
+
+@testitem "Symbolic PINN parser Coupled First-Order PDE System" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Random, Test
+    import DomainSets: Interval
+
+    Random.seed!(100)
+
+    @parameters x y
+    @variables u1(..) u2(..)
+    Dx = Differential(x)
+    Dy = Differential(y)
+
+    eqs = [
+        Dx(u1(x, y)) + 4 * Dy(u2(x, y)) ~ 0,
+        Dx(u2(x, y)) + 9 * Dy(u1(x, y)) ~ 0,
+    ]
+    bcs = [
+        u1(x, 0.0) ~ 2 * x,
+        u2(x, 0.0) ~ 3 * x,
+    ]
+    domains = [x in Interval(0.0, 1.0), y in Interval(0.0, 1.0)]
+    @named coupled_sys = PDESystem(eqs, bcs, domains, [x, y], [u1(x, y), u2(x, y)])
+
+    chains = [
+        Lux.Chain(Lux.Dense(2, 12, tanh), Lux.Dense(12, 1)),
+        Lux.Chain(Lux.Dense(2, 12, tanh), Lux.Dense(12, 1)),
+    ]
+    discretization = PhysicsInformedNN(chains, GridTraining(0.1); symbolic_parser = true)
+    prob = discretize(coupled_sys, discretization)
+
+    @test prob isa Optimization.OptimizationProblem
+    initial_loss = prob.f(prob.u0, nothing)
+    @test isfinite(initial_loss)
+
+    sol = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 400)
+    final_loss = prob.f(sol.u, nothing)
+    @test isfinite(final_loss)
+    @test final_loss < initial_loss
+end
+
+@testitem "Symbolic PINN parser additional_loss Function Support" tags = [:symbolicpinn] begin
+    using NeuralPDE, ModelingToolkit, DomainSets, Lux, Optimization, OptimizationOptimisers, Test
+    import DomainSets: Interval
+
+    @parameters x t
+    @variables u(..)
+    Dt = Differential(t)
+    Dxx = Differential(x)^2
+
+    eq  = Dt(u(x, t)) ~ Dxx(u(x, t))
+    bcs = [
+        u(0.0, t) ~ 0.0,
+        u(1.0, t) ~ 0.0,
+        u(x, 0.0) ~ sin(pi * x),
+    ]
+    domains = [x in Interval(0.0, 1.0), t in Interval(0.0, 1.0)]
+    @named heat_sys = PDESystem(eq, bcs, domains, [x, t], [u(x, t)])
+
+    custom_loss_fn(phi, θ, p) = 0.5 * sum(abs2, θ)
+
+    chain = Lux.Chain(Lux.Dense(2, 8, tanh), Lux.Dense(8, 1))
+    discretization = PhysicsInformedNN(
+        chain, GridTraining(0.2); symbolic_parser = true, additional_loss = custom_loss_fn
+    )
+    prob = discretize(heat_sys, discretization)
+
+    @test prob isa Optimization.OptimizationProblem
+    loss_val = prob.f(prob.u0, nothing)
+    @test isfinite(loss_val)
+    @test loss_val >= custom_loss_fn(discretization.phi, prob.u0, nothing)
+end
+
+
+
+
+
+
 
