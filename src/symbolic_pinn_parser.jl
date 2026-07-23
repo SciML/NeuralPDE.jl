@@ -124,7 +124,7 @@ end
 
 function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
     idx_num_ivs = 2 * num_bounds + 1
-    num_ivs = rest[idx_num_ivs]
+    num_ivs::Int = rest[idx_num_ivs]
     args_raw = rest[(idx_num_ivs + 1):end]
     args_tuple = Tuple(args_raw)
 
@@ -252,30 +252,6 @@ function ChainRulesCore.rrule(f::SymbolicPINNValueWrapper, input::AbstractVector
         end
         return val, SymbolicPINNValueWrapper_pullback_scalar
     end
-end
-
-function _replace_index(x::AbstractVector, i::Integer, val)
-    T = promote_type(typeof(val), eltype(x))
-    return T[j == i ? val : x[j] for j in eachindex(x)]
-end
-
-function ChainRulesCore.rrule(::typeof(_replace_index), x::AbstractVector, i::Integer, val)
-    y = _replace_index(x, i, val)
-    function _replace_index_pullback(Δ)
-        T = promote_type(eltype(Δ), typeof(zero(val)))
-        dx = T[j == i ? zero(Δ[j]) : Δ[j] for j in eachindex(x)]
-        dval = Δ[i]
-        return NoTangent(), dx, NoTangent(), dval
-    end
-    return y, _replace_index_pullback
-end
-
-function _replace_index_matrix(X::AbstractMatrix, col::Integer, z::AbstractVector)
-    T = promote_type(eltype(z), eltype(X))
-    out = Matrix{T}(undef, size(X)...)
-    copyto!(out, X)
-    out[:, col] .= z
-    return out
 end
 
 # ---------- Broadcasting transformation for batched evaluation ----------
@@ -629,11 +605,6 @@ function _split_theta(theta, param_lengths)
         lo = i == 1 ? 1 : offsets[i - 1] + 1
         @view(theta[lo:offsets[i]])
     end
-end
-
-function _runtime_args(neural_specs)
-    nn_defaults = map(spec -> SymbolicPINNValueWrapper(Symbolics.getdefaultval(spec.value)), neural_specs)
-    return (nn_defaults...,)
 end
 
 struct SymbolicPINNResidualFunction{F, R, L, D, C, N_IV}
