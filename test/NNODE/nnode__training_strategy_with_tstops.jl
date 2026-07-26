@@ -27,6 +27,7 @@ using Test
         Dense(1 => N, σ), Dense(N => N, σ), Dense(N => N, σ), Dense(N => N, σ),
         Dense(N => length(u0))
     )
+    init_params, _ = Lux.setup(Xoshiro(100), chain)
 
     threshold = 0.2
 
@@ -35,19 +36,25 @@ using Test
             WeightedIntervalTraining([0.3, 0.3, 0.4], 3),
             StochasticTraining(3),
         ]
-        alg = NNODE(chain, Adam(0.01); strategy, tstops = addedPoints)
+        Random.seed!(100)
+        alg = NNODE(chain, Adam(0.01), deepcopy(init_params); strategy)
+        sol = solve(prob_oop, alg; verbose = false, maxiters = 1000, saveat)
+        error_without_points = abs(mean(sol) - mean(true_sol))
+
+        Random.seed!(100)
+        alg = NNODE(chain, Adam(0.01), deepcopy(init_params); strategy)
+        sol = solve(
+            prob_oop, alg; verbose = false,
+            maxiters = 10000, saveat, tstops = addedPoints
+        )
+        error_with_points = abs(mean(sol) - mean(true_sol))
 
         @testset "Without added points" begin
-            sol = solve(prob_oop, alg; verbose = false, maxiters = 10000, saveat)
-            @test abs(mean(sol) - mean(true_sol)) ≥ threshold
+            @test error_without_points ≥ threshold
         end
 
         @testset "With added points" begin
-            sol = solve(
-                prob_oop, alg; verbose = false,
-                maxiters = 10000, saveat, tstops = addedPoints
-            )
-            @test abs(mean(sol) - mean(true_sol)) < threshold
+            @test error_with_points < threshold
         end
     end
 end
