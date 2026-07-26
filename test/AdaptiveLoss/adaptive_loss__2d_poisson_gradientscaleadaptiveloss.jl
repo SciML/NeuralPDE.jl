@@ -10,7 +10,7 @@ module AdaptiveLossTestSetup
         logger = haslogger ? TBLogger(logdir) : nothing
 
         Random.seed!(60)
-        hid = 40
+        hid = 32
         chain = Chain(Dense(2, hid, tanh), Dense(hid, hid, tanh), Dense(hid, 1))
         strategy = StochasticTraining(256)
 
@@ -86,18 +86,20 @@ using NeuralPDE
 using Test
 
 @testset "2D Poisson: GradientScaleAdaptiveLoss" begin
-    loss = GradientScaleAdaptiveLoss(100, pde_loss_weights = 1.0e3, bc_loss_weights = 1)
-
     tmpdir = mktempdir()
 
     total_diff_rel = solve_with_adaptive_loss(
-        loss; haslogger = false, outdir = tmpdir, run = 1
+        GradientScaleAdaptiveLoss(
+            100; pde_loss_weights = 1.0e3, bc_loss_weights = 1
+        ); haslogger = false, outdir = tmpdir, run = 1
     )
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 0
 
     total_diff_rel = solve_with_adaptive_loss(
-        loss; haslogger = true, outdir = tmpdir, run = 2
+        GradientScaleAdaptiveLoss(
+            100; pde_loss_weights = 1.0e3, bc_loss_weights = 1
+        ); haslogger = true, outdir = tmpdir, run = 2
     )
     @test total_diff_rel < 0.4
     @test length(readdir(tmpdir)) == 1
