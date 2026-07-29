@@ -78,7 +78,6 @@ include("adaptive_losses.jl")
 include("ode_solve.jl")
 include("dae_solve.jl")
 include("pino_ode_solve.jl")
-include("transform_inf_integral.jl")
 include("discretize.jl")
 
 include("neural_adapter.jl")

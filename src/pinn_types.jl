@@ -122,7 +122,7 @@ function PhysicsInformedNN(
         chain, strategy; init_params = nothing, init_states = nothing, derivative = nothing,
         param_estim = false, phi::Union{Nothing, Phi, AbstractArray{<:Phi}} = nothing,
         additional_loss = nothing, adaptive_loss = nothing, logger = nothing,
-        log_options = LogOptions(), iteration = nothing, symbolic_parser::Bool = false,
+        log_options = LogOptions(), iteration = nothing, symbolic_parser::Bool = true,
         epsilon::Union{Nothing, Real} = nothing, kwargs...
     )
     multioutput = chain isa AbstractArray

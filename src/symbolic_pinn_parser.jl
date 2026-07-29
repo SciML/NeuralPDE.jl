@@ -112,6 +112,9 @@ function SymbolicPINNIntegralPlaceholder(args...)
     # Dummy placeholder function used in symbolic tree before compilation
 end
 
+function _get_value_at(x::AbstractMatrix, i)
+    return size(x, 1) == 1 ? x[1, i] : x[:, i]
+end
 function _get_value_at(x::AbstractVector, i)
     return x[i]
 end
@@ -132,7 +135,11 @@ function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
     N = 1
     for j in 1:num_ivs
         val = args_raw[j]
-        if val isa AbstractVector
+        if val isa AbstractMatrix
+            is_batch = true
+            N = size(val, 2)
+            break
+        elseif val isa AbstractVector
             is_batch = true
             N = length(val)
             break
@@ -140,7 +147,11 @@ function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
     end
     for j in 1:(2*num_bounds)
         val = rest[j]
-        if val isa AbstractVector && length(val) > 1
+        if val isa AbstractMatrix && size(val, 2) > 1
+            is_batch = true
+            N = size(val, 2)
+            break
+        elseif val isa AbstractVector && length(val) > 1
             is_batch = true
             N = length(val)
             break
@@ -153,37 +164,61 @@ function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
             if num_bounds == 1
                 lb_val = _get_value_at(rest[1], i)
                 ub_val = _get_value_at(rest[2], i)
+                lb_val = lb_val isa AbstractVector ? lb_val[1] : lb_val
+                ub_val = ub_val isa AbstractVector ? ub_val[1] : ub_val
             else
                 lb_val = [_get_value_at(rest[j], i) for j in 1:num_bounds]
                 ub_val = [_get_value_at(rest[num_bounds + j], i) for j in 1:num_bounds]
             end
+            has_inf = (lb_val isa Number ? (isinf(lb_val) || isinf(ub_val)) : (any(isinf, lb_val) || any(isinf, ub_val)))
+            lb_clean = has_inf ? (lb_val isa Number ? (isinf(lb_val) ? (lb_val > 0 ? 100.0 : -100.0) : lb_val) : map(b -> isinf(b) ? (b > 0 ? 100.0 : -100.0) : b, lb_val)) : lb_val
+            ub_clean = has_inf ? (ub_val isa Number ? (isinf(ub_val) ? (ub_val > 0 ? 100.0 : -100.0) : ub_val) : map(b -> isinf(b) ? (b > 0 ? 100.0 : -100.0) : b, ub_val)) : ub_val
             
             integrand = if num_bounds > 1
-                (τ, p_) -> integrand_fn(ntuple(k -> τ[k], Val(num_bounds))..., point_i...)
+                (τ, p_) -> begin
+                    val = first(integrand_fn(ntuple(k -> τ[k], Val(num_bounds))..., point_i...))
+                    isnan(val) ? 0.0 : val
+                end
             else
-                (τ, p_) -> integrand_fn(τ, point_i...)
+                (τ, p_) -> begin
+                    val = first(integrand_fn(τ, point_i...))
+                    isnan(val) ? 0.0 : val
+                end
             end
-            prob = Integrals.IntegralProblem(integrand, (lb_val, ub_val))
-            sol = Integrals.solve(prob, Integrals.CubatureJLh(), reltol = 1e-3, abstol = 1e-3)
+            prob = Integrals.IntegralProblem(integrand, (lb_clean, ub_clean))
+            alg = has_inf ? Integrals.QuadGKJL() : Integrals.CubatureJLh()
+            sol = Integrals.solve(prob, alg, reltol = 1e-3, abstol = 1e-3)
             sol.u
         end
         return BatchVector(results)
     else
         if num_bounds == 1
-            lb_val = rest[1]
-            ub_val = rest[2]
+            lb_val = rest[1] isa AbstractVector ? rest[1][1] : rest[1]
+            ub_val = rest[2] isa AbstractVector ? rest[2][1] : rest[2]
         else
             lb_val = [rest[j] for j in 1:num_bounds]
             ub_val = [rest[num_bounds + j] for j in 1:num_bounds]
         end
         
+        has_inf = (lb_val isa Number ? (isinf(lb_val) || isinf(ub_val)) : (any(isinf, lb_val) || any(isinf, ub_val)))
+        lb_clean = has_inf ? (lb_val isa Number ? (isinf(lb_val) ? (lb_val > 0 ? 100.0 : -100.0) : lb_val) : map(b -> isinf(b) ? (b > 0 ? 100.0 : -100.0) : b, lb_val)) : lb_val
+        ub_clean = has_inf ? (ub_val isa Number ? (isinf(ub_val) ? (ub_val > 0 ? 100.0 : -100.0) : ub_val) : map(b -> isinf(b) ? (b > 0 ? 100.0 : -100.0) : b, ub_val)) : ub_val
+        
+        args_scalar = ntuple(j -> _get_value_at(args_raw[j], 1), length(args_raw))
         integrand = if num_bounds > 1
-            (τ, p_) -> integrand_fn(ntuple(k -> τ[k], Val(num_bounds))..., args_tuple...)
+            (τ, p_) -> begin
+                val = first(integrand_fn(ntuple(k -> τ[k], Val(num_bounds))..., args_scalar...))
+                isnan(val) ? 0.0 : val
+            end
         else
-            (τ, p_) -> integrand_fn(τ, args_tuple...)
+            (τ, p_) -> begin
+                val = first(integrand_fn(τ, args_scalar...))
+                isnan(val) ? 0.0 : val
+            end
         end
-        prob = Integrals.IntegralProblem(integrand, (lb_val, ub_val))
-        sol = Integrals.solve(prob, Integrals.CubatureJLh(), reltol = 1e-3, abstol = 1e-3)
+        prob = Integrals.IntegralProblem(integrand, (lb_clean, ub_clean))
+        alg = has_inf ? Integrals.QuadGKJL() : Integrals.CubatureJLh()
+        sol = Integrals.solve(prob, alg, reltol = 1e-3, abstol = 1e-3)
         return [sol.u]
     end
 end
@@ -214,7 +249,7 @@ function (f::SymbolicPINNValueWrapper)(input::AbstractVector, p)
     end
 end
 
-function ChainRulesCore.rrule(f::SymbolicPINNValueWrapper, input::AbstractVector, p)
+function ChainRulesCore.rrule(f::SymbolicPINNValueWrapper, input, p)
     if any(x -> x isa AbstractVector, input)
         # Batch evaluation
         idx = findfirst(x -> x isa AbstractVector, input)
@@ -346,8 +381,9 @@ function _symbolic_pinn_neural_specs(chains, n_input, n_dvs; init_params = nothi
     return map(enumerate(chain_vec)) do (i, ch)
         nn_name = n_dvs == 1 ? :NN : Symbol(:NN_, i)
         p_name = n_dvs == 1 ? :p : Symbol(:p_, i)
+        in_dim = n_input isa AbstractVector ? n_input[i] : n_input
         snn_kwargs = (;
-            chain = ch, n_input = n_input, n_output = 1,
+            chain = ch, n_input = in_dim, n_output = 1,
             nn_name = nn_name, nn_p_name = p_name
         )
         if init_params !== nothing
@@ -823,7 +859,8 @@ function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 6
         pde_loss_weights = 1.0, bc_loss_weights = 1.0)
     parsed = parse_pde_system(sys)
 
-    neural_specs = _symbolic_pinn_neural_specs(chain, length(parsed.ivs), length(parsed.dvs))
+    n_inputs = [length(SymbolicUtils.arguments(Symbolics.unwrap(dv))) for dv in parsed.dvs]
+    neural_specs = _symbolic_pinn_neural_specs(chain, n_inputs, length(parsed.dvs))
     theta0 = _theta0(neural_specs)
 
     pde_res_data = [

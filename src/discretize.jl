@@ -25,152 +25,7 @@ to
 
 for Lux.AbstractLuxLayer.
 """
-function build_symbolic_loss_function(
-        pinnrep::PINNRepresentation, eqs;
-        eq_params = SciMLBase.NullParameters(), param_estim = false, default_p = nothing,
-        bc_indvars = pinnrep.indvars, integrand = nothing,
-        dict_transformation_vars = nothing, transformation_vars = nothing,
-        integrating_depvars = pinnrep.depvars
-    )
-    (;
-        depvars, dict_depvars, dict_depvar_input, phi, derivative, integral,
-        multioutput, init_params, strategy, eq_params, param_estim, default_p,
-    ) = pinnrep
 
-    if integrand isa Nothing
-        loss_function = parse_equation(pinnrep, eqs)
-        this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
-        this_eq_indvars = unique(vcat(values(this_eq_pair)...))
-    else
-        this_eq_pair = Dict(
-            map(
-                intvars -> dict_depvars[intvars] => dict_depvar_input[intvars],
-                integrating_depvars
-            )
-        )
-        this_eq_indvars = transformation_vars isa Nothing ?
-            unique(vcat(values(this_eq_pair)...)) : transformation_vars
-        loss_function = integrand
-    end
-
-    vars = :(cord, $θ, phi, derivative, integral, u, p)
-    ex = Expr(:block)
-    if multioutput
-        θ_nums = Symbol[]
-        phi_nums = Symbol[]
-        for v in depvars
-            num = dict_depvars[v]
-            push!(θ_nums, :($(Symbol(:($θ), num))))
-            push!(phi_nums, :($(Symbol(:phi, num))))
-        end
-
-        expr_θ = Expr[]
-        expr_phi = Expr[]
-
-        for i in eachindex(depvars)
-            push!(expr_θ, :($θ.depvar.$(depvars[i])))
-            push!(expr_phi, :(phi[$i]))
-        end
-
-        vars_θ = Expr(:(=), build_expr(:tuple, θ_nums), build_expr(:tuple, expr_θ))
-        push!(ex.args, vars_θ)
-
-        vars_phi = Expr(:(=), build_expr(:tuple, phi_nums), build_expr(:tuple, expr_phi))
-        push!(ex.args, vars_phi)
-    end
-
-    #Add an expression for parameter symbols
-    if param_estim == true && eq_params != SciMLBase.NullParameters()
-        params_symbols = Symbol[]
-        expr_params = Expr[]
-        for (i, eq_param) in enumerate(eq_params)
-            push!(expr_params, :($θ.p[$((i):(i))]))
-            push!(params_symbols, Symbol(:($eq_param)))
-        end
-        params_eq = Expr(
-            :(=), build_expr(:tuple, params_symbols),
-            build_expr(:tuple, expr_params)
-        )
-        push!(ex.args, params_eq)
-    end
-
-    if eq_params != SciMLBase.NullParameters() && param_estim == false
-        params_symbols = Symbol[]
-        expr_params = Expr[]
-        for (i, eq_param) in enumerate(eq_params)
-            push!(expr_params, :(ArrayInterface.allowed_getindex(p, ($i))))
-            push!(params_symbols, Symbol(:($eq_param)))
-        end
-        params_eq = Expr(
-            :(=), build_expr(:tuple, params_symbols),
-            build_expr(:tuple, expr_params)
-        )
-        push!(ex.args, params_eq)
-    end
-
-    eq_pair_expr = Expr[]
-    for i in keys(this_eq_pair)
-        push!(eq_pair_expr, :($(Symbol(:cord, :($i))) = vcat($(this_eq_pair[i]...))))
-    end
-    vcat_expr = Expr(:block, :($(eq_pair_expr...)))
-    vcat_expr_loss_functions = Expr(:block, vcat_expr, loss_function) # TODO rename
-
-    if strategy isa QuadratureTraining
-        indvars_ex = get_indvars_ex(bc_indvars)
-        left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-        vars_eq = Expr(
-            :(=), build_expr(:tuple, left_arg_pairs),
-            build_expr(:tuple, right_arg_pairs)
-        )
-    else
-        indvars_ex = [:($:cord[[$i], :]) for (i, x) in enumerate(this_eq_indvars)]
-        left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-        vars_eq = Expr(
-            :(=), build_expr(:tuple, left_arg_pairs),
-            build_expr(:tuple, right_arg_pairs)
-        )
-    end
-
-    if !(dict_transformation_vars isa Nothing)
-        transformation_expr_ = Expr[]
-        for (i, u) in dict_transformation_vars
-            push!(transformation_expr_, :($i = $u))
-        end
-        transformation_expr = Expr(:block, :($(transformation_expr_...)))
-        vcat_expr_loss_functions = Expr(
-            :block, transformation_expr, vcat_expr,
-            loss_function
-        )
-    end
-    let_ex = Expr(:let, vars_eq, vcat_expr_loss_functions)
-    push!(ex.args, let_ex)
-    return :(
-        ($vars) -> begin
-            $ex
-        end
-    )
-end
-
-"""
-    build_loss_function(eqs, indvars, depvars, phi, derivative, init_params;
-        bc_indvars=nothing)
-
-Returns the body of loss function, which is the executable Julia function, for the main
-equation or boundary condition.
-"""
-function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
-    (; eq_params, param_estim, default_p, phi, derivative, integral) = pinnrep
-
-    bc_indvars = bc_indvars === nothing ? pinnrep.indvars : bc_indvars
-
-    expr_loss_function = build_symbolic_loss_function(
-        pinnrep, eqs; bc_indvars, eq_params,
-        param_estim, default_p
-    )
-    u = get_u()
-    _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
-    return (cord, θ) -> _loss_function(cord, θ, phi, derivative, integral, u, default_p)
-end
 
 """
     generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
@@ -321,71 +176,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
     return pde_bounds, bcs_bounds
 end
 
-function get_numeric_integral(pinnrep::PINNRepresentation)
-    (;
-        strategy, indvars, depvars, derivative, depvars,
-        indvars, dict_indvars, dict_depvars,
-    ) = pinnrep
 
-    return (
-        u,
-        cord,
-        phi,
-        integrating_var_id,
-        integrand_func,
-        lb,
-        ub,
-        θ;
-        strategy = strategy,
-        indvars = indvars,
-        depvars = depvars,
-        dict_indvars = dict_indvars,
-        dict_depvars = dict_depvars,
-    ) -> begin
-        function integration_(cord, lb, ub, θ)
-            cord_ = cord
-            function integrand_(x, p)
-                @ignore_derivatives cord_[integrating_var_id] .= x
-                return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)
-            end
-            prob_ = IntegralProblem(integrand_, (lb, ub), θ)
-            sol = solve(prob_, CubatureJLh(), reltol = 1.0e-3, abstol = 1.0e-3)[1]
-
-            return sol
-        end
-
-        T = eltype(cord)
-        lb_ = zeros(T, size(lb)[1], size(cord)[2])
-        ub_ = zeros(T, size(ub)[1], size(cord)[2])
-        for (i, l) in enumerate(lb)
-            if l isa Number
-                @ignore_derivatives lb_[i, :] .= l
-            else
-                @ignore_derivatives lb_[i, :] = l(
-                    cord, θ, phi, derivative, nothing, u, nothing
-                )
-            end
-        end
-        for (i, u_) in enumerate(ub)
-            if u_ isa Number
-                @ignore_derivatives ub_[i, :] .= u_
-            else
-                @ignore_derivatives ub_[i, :] = u_(
-                    cord, θ, phi, derivative,
-                    nothing, u, nothing
-                )
-            end
-        end
-        integration_arr = Matrix{T}(undef, 1, 0)
-        for i in 1:size(cord, 2)
-            integration_arr = hcat(
-                integration_arr,
-                integration_(cord[:, i], lb_[:, i], ub_[:, i], θ)
-            )
-        end
-        return integration_arr
-    end
-end
 
 """
     prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
@@ -490,134 +281,93 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
         bc_integration_vars, nothing, nothing, nothing, nothing
     )
 
-    integral = get_numeric_integral(pinnrep)
+    integral = nothing
     pinnrep.integral = integral
 
     symbolic_pde_loss_functions = nothing
     symbolic_bc_loss_functions = nothing
 
-    use_symbolic_parser = discretization isa PhysicsInformedNN &&
-        discretization.symbolic_parser
+    # Symbolic PINN parser path (default & single engine)
+    parsed_ivs = ModelingToolkit.get_ivs(pde_system)
+    parsed_dvs = ModelingToolkit.get_dvs(pde_system)
+    parsed_ps = eq_params isa SciMLBase.NullParameters ? Any[] : collect(eq_params)
+    parsed_default_p = default_p === nothing ? nothing : collect(default_p)
+    n_ivs = length(parsed_ivs)
+    n_dvs = length(parsed_dvs)
 
-    if use_symbolic_parser
-        # --- Symbolic PINN parser path ---
-        # Build symbolic neural network specs and compile residuals using
-        # Symbolics.build_function instead of RuntimeGeneratedFunctions.
-        parsed_ivs = ModelingToolkit.get_ivs(pde_system)
-        parsed_dvs = ModelingToolkit.get_dvs(pde_system)
-        parsed_ps = eq_params isa SciMLBase.NullParameters ? Any[] : collect(eq_params)
-        parsed_default_p = default_p === nothing ? nothing : collect(default_p)
-        n_ivs = length(parsed_ivs)
-        n_dvs = length(parsed_dvs)
-
-        depvar_theta_template = hasproperty(flat_init_params, :depvar) ?
-            flat_init_params.depvar : flat_init_params
-        symbolic_init_params = if multioutput
-            [depvar_theta_template[dv] for dv in depvars]
-        else
-            depvar_theta_template
-        end
-
-        neural_specs = _symbolic_pinn_neural_specs(
-            chain, n_ivs, n_dvs; init_params = symbolic_init_params
-        )
-        sym_theta0 = _theta0(neural_specs)
-
-        depvar_theta0 = if depvar_theta_template isa ComponentArray
-            ComponentArray(sym_theta0, getaxes(depvar_theta_template))
-        else
-            sym_theta0
-        end
-
-        pde_res_data = [
-            symbolic_pinn_residual(
-                eq, parsed_ivs, parsed_dvs, neural_specs, parsed_ps;
-                epsilon = discretization.epsilon
-            ) for eq in eqs
-        ]
-        pde_residuals = [x[1] for x in pde_res_data]
-        pde_integrand_syms = [x[2] for x in pde_res_data]
-        pde_integrand_fns = [x[3] for x in pde_res_data]
-
-        bc_res_data = [
-            symbolic_pinn_residual(
-                bc, parsed_ivs, parsed_dvs, neural_specs, parsed_ps;
-                epsilon = discretization.epsilon
-            ) for bc in bcs
-        ]
-        bc_residuals = [x[1] for x in bc_res_data]
-        bc_integrand_syms = [x[2] for x in bc_res_data]
-        bc_integrand_fns = [x[3] for x in bc_res_data]
-
-        pde_compiled = [
-            _compiled_residual(
-                pde_residuals[i],
-                parsed_ivs,
-                neural_specs,
-                pde_integrand_syms[i],
-                pde_integrand_fns[i];
-                eq_params = parsed_ps,
-                default_eq_params = parsed_default_p,
-            ) for i in 1:length(eqs)
-        ]
-        bc_compiled = [
-            _compiled_residual(
-                bc_residuals[i],
-                parsed_ivs,
-                neural_specs,
-                bc_integrand_syms[i],
-                bc_integrand_fns[i];
-                eq_params = parsed_ps,
-                default_eq_params = parsed_default_p,
-            ) for i in 1:length(bcs)
-        ]
-
-        datafree_pde_loss_functions = [_wrap_as_datafree(f) for f in pde_compiled]
-        datafree_bc_loss_functions = [_wrap_as_datafree(f) for f in bc_compiled]
-
-        # Override flat_init_params with symbolic parser initialization while
-        # preserving the existing container contract (depvar / p).
-        flat_init_params = if !param_estim
-            multioutput ? ComponentArray(; depvar = depvar_theta0) : depvar_theta0
-        else
-            ComponentArray(; depvar = depvar_theta0, p = default_p)
-        end
-        pinnrep.flat_init_params = flat_init_params
+    depvar_theta_template = hasproperty(flat_init_params, :depvar) ?
+        flat_init_params.depvar : flat_init_params
+    symbolic_init_params = if multioutput
+        [depvar_theta_template[dv] for dv in depvars]
     else
-        # --- Legacy RGF path ---
-        symbolic_pde_loss_functions = [
-            build_symbolic_loss_function(
-                    pinnrep, eq;
-                    bc_indvars = pde_indvar
-                )
-                for (eq, pde_indvar) in zip(
-                    eqs, pde_indvars,
-                    pde_integration_vars
-                )
-        ]
-
-        symbolic_bc_loss_functions = [
-            build_symbolic_loss_function(
-                    pinnrep, bc;
-                    bc_indvars = bc_indvar
-                )
-                for (bc, bc_indvar) in zip(
-                    bcs, bc_indvars,
-                    bc_integration_vars
-                )
-        ]
-
-        datafree_pde_loss_functions = [
-            build_loss_function(pinnrep, eq, pde_indvar)
-                for (eq, pde_indvar) in zip(eqs, pde_indvars)
-        ]
-
-        datafree_bc_loss_functions = [
-            build_loss_function(pinnrep, bc, bc_indvar)
-                for (bc, bc_indvar) in zip(bcs, bc_indvars)
-        ]
+        depvar_theta_template
     end
 
+    neural_specs = _symbolic_pinn_neural_specs(
+        chain, n_ivs, n_dvs; init_params = symbolic_init_params
+    )
+    sym_theta0 = _theta0(neural_specs)
+
+    depvar_theta0 = if depvar_theta_template isa ComponentArray
+        ComponentArray(sym_theta0, getaxes(depvar_theta_template))
+    else
+        sym_theta0
+    end
+
+    pde_res_data = [
+        symbolic_pinn_residual(
+            eq, parsed_ivs, parsed_dvs, neural_specs, parsed_ps;
+            epsilon = discretization.epsilon
+        ) for eq in eqs
+    ]
+    pde_residuals = [x[1] for x in pde_res_data]
+    pde_integrand_syms = [x[2] for x in pde_res_data]
+    pde_integrand_fns = [x[3] for x in pde_res_data]
+
+    bc_res_data = [
+        symbolic_pinn_residual(
+            bc, parsed_ivs, parsed_dvs, neural_specs, parsed_ps;
+            epsilon = discretization.epsilon
+        ) for bc in bcs
+    ]
+    bc_residuals = [x[1] for x in bc_res_data]
+    bc_integrand_syms = [x[2] for x in bc_res_data]
+    bc_integrand_fns = [x[3] for x in bc_res_data]
+
+    pde_compiled = [
+        _compiled_residual(
+            pde_residuals[i],
+            parsed_ivs,
+            neural_specs,
+            pde_integrand_syms[i],
+            pde_integrand_fns[i];
+            eq_params = parsed_ps,
+            default_eq_params = parsed_default_p,
+        ) for i in 1:length(eqs)
+    ]
+    bc_compiled = [
+        _compiled_residual(
+            bc_residuals[i],
+            parsed_ivs,
+            neural_specs,
+            bc_integrand_syms[i],
+            bc_integrand_fns[i];
+            eq_params = parsed_ps,
+            default_eq_params = parsed_default_p,
+        ) for i in 1:length(bcs)
+    ]
+
+    datafree_pde_loss_functions = [_wrap_as_datafree(f) for f in pde_compiled]
+    datafree_bc_loss_functions = [_wrap_as_datafree(f) for f in bc_compiled]
+
+    # Override flat_init_params with symbolic parser initialization while
+    # preserving the existing container contract (depvar / p).
+    flat_init_params = if !param_estim
+        multioutput ? ComponentArray(; depvar = depvar_theta0) : depvar_theta0
+    else
+        ComponentArray(; depvar = depvar_theta0, p = default_p)
+    end
+    pinnrep.flat_init_params = flat_init_params
 
     pinnrep.integral = integral
     pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
