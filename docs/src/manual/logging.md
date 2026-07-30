@@ -2,4 +2,5 @@
 
 ```@docs
 LogOptions
+NeuralPDE.logscalar
 ```

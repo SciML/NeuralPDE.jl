@@ -30,6 +30,7 @@ using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFun
 using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem, NoiseProblem,
     OptimizationFunction, OptimizationProblem, ReturnCode, discretize,
     isinplace, solve, symbolic_discretize, ODEProblem, ODESolution
+using SciMLPublic: @public
 using Statistics: Statistics, mean
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
 using WeightInitializers: glorot_uniform, zeros32
@@ -108,5 +109,10 @@ export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
     MiniMaxAdaptiveLoss, SoftAdaptAdaptiveLoss, ReLoBRaLoAdaptiveLoss
 
 export LogOptions
+
+# Logging hook: `logscalar` has only a no-op fallback here, with concrete methods supplied
+# by package extensions (see `ext/NeuralPDETensorBoardLoggerExt.jl`). Downstream packages
+# implement it to plug their own logger backend into `discretize`, so it is public API.
+@public logscalar
 
 end # module
