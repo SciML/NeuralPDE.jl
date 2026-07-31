@@ -338,8 +338,8 @@ mutable struct PINNRepresentation
     """
     bc_integration_vars::Any
     """
-    The compiled numeric integral function, built by `get_numeric_integral`. Evaluates
-    `Symbolics.Integral` terms at runtime using `Integrals.jl` quadrature.
+    The compiled numeric integral function. Evaluates `Symbolics.Integral` terms at runtime
+    using `Integrals.jl` quadrature.
     """
     integral::Any
     """

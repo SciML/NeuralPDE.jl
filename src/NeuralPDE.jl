@@ -39,8 +39,9 @@ using Zygote: Zygote
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
 using ModelingToolkitBase: @named, @parameters
 using ModelingToolkitNeuralNets: SymbolicNeuralNetwork
-using Symbolics: Symbolics, unwrap, arguments, Num, expand_derivatives, @variables
-using SymbolicUtils: SymbolicUtils
+using Symbolics: Symbolics, arguments, Num, expand_derivatives, @variables
+using SymbolicUtils: SymbolicUtils, unwrap
+using SymbolicIndexingInterface: SymbolicIndexingInterface
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
 # Needed for the Bayesian Stuff
@@ -103,7 +104,7 @@ export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
 
 export build_loss_function, get_loss_function,
     generate_training_sets, get_variables, get_argument, get_bounds,
-    get_numeric_integral, symbolic_discretize, vector_to_parameters,
+    symbolic_discretize, vector_to_parameters,
     build_symbolic_pinn_loss, symbolic_pinn_loss_expression
 
 export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
