@@ -1,0 +1,10 @@
+name: "Doc Preview Cleanup"
+on:
+  pull_request:
+    types: [closed]
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    uses: "SciML/.github/.github/workflows/docs-preview-cleanup.yml@v1"
+    secrets: "inherit"
