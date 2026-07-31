@@ -71,7 +71,7 @@ include("eltype_matching.jl")
 
 include("pinn_types.jl")
 include("symbolic_utilities.jl")
-include("symbolic_pinn_parser.jl")
+include("pinn_parser.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
 

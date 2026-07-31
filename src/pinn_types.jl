@@ -45,7 +45,7 @@ end
     PhysicsInformedNN(chain, strategy; init_params = nothing, init_states = nothing,
                       phi = nothing, param_estim = false, additional_loss = nothing,
                       adaptive_loss = nothing, logger = nothing, log_options = LogOptions(),
-                      iteration = nothing, symbolic_parser = false, kwargs...)
+                      iteration = nothing, kwargs...)
 
 A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
 `PDESystem` into an `OptimizationProblem` using the Physics-Informed Neural Networks (PINN)
@@ -91,10 +91,7 @@ methodology.
 * `iteration`: an optional external iteration counter (a `Ref{Int}` or `Vector{Int}` of
   length 1) shared with the caller so the caller can read or control the training step count.
   If not provided, an internal counter is created and auto-incremented.
-* `symbolic_parser`: whether to use the experimental symbolic Prewalk-based PINN parser
-  instead of the default RuntimeGeneratedFunction-based parser. When `true`, equation parsing
-  and compilation are routed through the symbolic parser, which uses ForwardDiff for
-  derivatives. Defaults to `false`.
+* `epsilon`: optional finite difference step size used during symbolic derivative substitution. Defaults to `nothing` (uses optimal stencil step size).
 * `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on
   `solve`.
 """
@@ -113,7 +110,6 @@ methodology.
     iteration
     self_increment::Bool
     multioutput::Bool
-    symbolic_parser::Bool
     epsilon::Union{Nothing, Real}
     kwargs
 end
@@ -122,7 +118,7 @@ function PhysicsInformedNN(
         chain, strategy; init_params = nothing, init_states = nothing, derivative = nothing,
         param_estim = false, phi::Union{Nothing, Phi, AbstractArray{<:Phi}} = nothing,
         additional_loss = nothing, adaptive_loss = nothing, logger = nothing,
-        log_options = LogOptions(), iteration = nothing, symbolic_parser::Bool = true,
+        log_options = LogOptions(), iteration = nothing,
         epsilon::Union{Nothing, Real} = nothing, kwargs...
     )
     multioutput = chain isa AbstractArray
@@ -164,7 +160,7 @@ function PhysicsInformedNN(
     return PhysicsInformedNN(
         chain, strategy, init_params, init_states, phi, derivative,
         param_estim, additional_loss, adaptive_loss, logger, log_options, iteration,
-        self_increment, multioutput, symbolic_parser, epsilon, kwargs
+        self_increment, multioutput, epsilon, kwargs
     )
 end
 

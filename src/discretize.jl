@@ -417,8 +417,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
             weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
             weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
 
-            sum_weighted_pde_losses = sum(weighted_pde_losses)
-            sum_weighted_bc_losses = sum(weighted_bc_losses)
+            sum_weighted_pde_losses = isempty(weighted_pde_losses) ? 0.0 : sum(weighted_pde_losses)
+            sum_weighted_bc_losses = isempty(weighted_bc_losses) ? 0.0 : sum(weighted_bc_losses)
             weighted_loss_before_additional = sum_weighted_pde_losses +
                 sum_weighted_bc_losses
 
