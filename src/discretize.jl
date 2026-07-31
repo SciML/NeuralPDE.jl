@@ -176,8 +176,6 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
     return pde_bounds, bcs_bounds
 end
 
-
-
 """
     prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
 

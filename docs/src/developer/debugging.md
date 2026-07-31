@@ -5,6 +5,19 @@
 Let's walk through debugging functions for the physics-informed neural network
 PDE solvers.
 
+## Helper API
+
+```@docs
+NeuralPDE.build_loss_function
+NeuralPDE.generate_training_sets
+NeuralPDE.get_argument
+NeuralPDE.get_bounds
+NeuralPDE.get_loss_function
+NeuralPDE.get_numeric_integral
+NeuralPDE.get_variables
+NeuralPDE.vector_to_parameters
+```
+
 ```julia
 using NeuralPDE, ModelingToolkit, Flux, Zygote
 import DomainSets: Interval

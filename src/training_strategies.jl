@@ -159,6 +159,14 @@ function merge_strategy_with_loss_function(
     return pde_loss_functions, bc_loss_functions
 end
 
+"""
+    get_loss_function(init_params, loss_function, training_data, eltype, strategy; kwargs...)
+
+Wrap a residual `loss_function` and strategy-specific training data into the scalar
+objective used by NeuralPDE's training strategies.
+"""
+function get_loss_function end
+
 function get_loss_function(
         init_params, loss_function, train_set, eltype0, ::GridTraining; τ = nothing
     )

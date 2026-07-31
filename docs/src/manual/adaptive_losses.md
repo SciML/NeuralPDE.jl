@@ -12,6 +12,7 @@ to apply at each step.
 The following are the options for the `adaptive_loss` keyword argument:
 
 ```@docs
+NeuralPDE.AbstractAdaptiveLoss
 NeuralPDE.NonAdaptiveLoss
 NeuralPDE.GradientScaleAdaptiveLoss
 NeuralPDE.MiniMaxAdaptiveLoss

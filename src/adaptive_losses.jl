@@ -1,3 +1,9 @@
+"""
+    AbstractAdaptiveLoss
+
+Abstract supertype for adaptive loss-weighting strategies used by
+[`PhysicsInformedNN`](@ref).
+"""
 abstract type AbstractAdaptiveLoss end
 
 # Utils

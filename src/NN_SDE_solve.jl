@@ -159,6 +159,18 @@ function NNSDE(
     )
 end
 
+@doc raw"""
+    NNSDE(chain, opt, init_params = nothing; kwargs...)
+
+Solve an out-of-place `SDEProblem` with a stochastic physics-informed neural
+network. The network may be a `Lux.AbstractLuxLayer` or a Flux chain, and `opt`
+is passed to the Optimization.jl solve step.
+
+Keyword arguments control the training strategy, automatic differentiation,
+batching, strong or weak loss construction, moment matching, parameter estimation,
+and extra loss terms.
+""" NNSDE
+
 """
     SDEPhi(chain::Lux.AbstractLuxLayer, t, u0, st)
 

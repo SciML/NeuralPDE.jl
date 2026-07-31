@@ -17,6 +17,32 @@ end
 LogOptions(; log_frequency = 50) = LogOptions(log_frequency)
 
 logvector(logger, v::AbstractVector{<:Real}, name::AbstractString, step::Integer) = nothing
+
+"""
+    logscalar(logger, s::Real, name::AbstractString, step::Integer)
+
+Log the scalar `s` under the key `name` at iteration `step` to `logger`.
+
+This is the hook NeuralPDE uses to report scalar training diagnostics (for example
+`"weighted_loss/full_weighted_loss"`) while `discretize` runs. The method defined here is a
+no-op fallback, so any `logger` that does not implement `logscalar` is silently ignored;
+the frequency of the calls is controlled by [`LogOptions`](@ref).
+
+Logger backends provide the behavior by adding a method. NeuralPDE ships one for
+`TensorBoardLogger.TBLogger` in a package extension, and downstream packages extend it the
+same way:
+
+```julia
+function NeuralPDE.logscalar(
+        logger::MyLogger, scalar::Real, name::AbstractString, step::Integer
+    )
+    # record `scalar` however you like
+    return nothing
+end
+```
+
+Pass the resulting logger to `PhysicsInformedNN` via its `logger` keyword argument.
+"""
 logscalar(logger, s::Real, name::AbstractString, step::Integer) = nothing
 
 """

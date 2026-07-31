@@ -71,6 +71,17 @@ function SDEPINN(;
     )
 end
 
+@doc raw"""
+    SDEPINN(; chain, x_0, x_end, optimalg = nothing, norm_loss_alg = nothing, kwargs...)
+
+Solve an `SDEProblem` by training a physics-informed neural network on the
+associated Fokker-Planck equation over the domain from `x_0` to `x_end`.
+
+Keyword arguments configure the spatial and temporal discretization, initial
+condition and normalization weights, training strategy, automatic differentiation,
+parameter estimation, observed data, and additional losses.
+""" SDEPINN
+
 function SciMLBase.__solve(
         prob::SciMLBase.AbstractSDEProblem,
         alg::SDEPINN,
@@ -203,7 +214,8 @@ function SciMLBase.__solve(
     bc_losses = sym.loss_functions.bc_loss_functions
 
     cb = function (p, l)
-        (!verbose) && return false
+        # DiffEqBase now passes DEVerbosity by default; keep these debug prints opt-in.
+        verbose === true || return false
         println("loss = ", l)
         println("pde = ", map(f -> f(p.u), pde_losses))
         println("bc  = ", map(f -> f(p.u), bc_losses))
