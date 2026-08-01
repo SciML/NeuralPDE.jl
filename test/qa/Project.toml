@@ -1,11 +1,19 @@
 [deps]
+AdvancedHMC = "0bf59076-c3b1-5ca4-86bd-e02cd72cde3d"
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+LogDensityProblems = "6fdf6af0-433a-55f7-b3ed-c6c6e0b8df7c"
+MCMCChains = "c7f686f2-ff18-58e9-bc7b-31028e88f75d"
 NeuralPDE = "315f7962-48a3-4962-8226-d0f33b1235f0"
 SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
+TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
+AdvancedHMC = "0.8"
 Aqua = "0.8.9"
+LogDensityProblems = "2"
+MCMCChains = "7"
 SciMLTesting = "2.1"
+TensorBoardLogger = "0.1.24"
 Test = "1.10"
 julia = "1.10"

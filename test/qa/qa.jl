@@ -1,5 +1,10 @@
 using SciMLTesting, NeuralPDE, Test
 
+# ExplicitImports only sees an extension once its trigger packages are loaded, so
+# load every weakdep here to bring NeuralPDEBPINNExt and
+# NeuralPDETensorBoardLoggerExt into the set of modules run_qa scans.
+using AdvancedHMC, LogDensityProblems, MCMCChains, TensorBoardLogger
+
 function _is_reexported_api(pkg::Module, name::Symbol)
     isdefined(pkg, name) || return false
     value = getfield(pkg, name)
@@ -54,12 +59,30 @@ run_qa(
         #   ForwardDiff: derivative, jacobian
         #   QuasiMonteCarlo: generate_design_matrices, sample
         #   Base: mapany; Base.Broadcast: dottable
+        #   NeuralPDE: logvector, the vector counterpart of the public `logscalar`
+        #     logging hook that NeuralPDETensorBoardLoggerExt implements. Promoting it
+        #     to public API needs a docstring, a docs entry and a version bump, so it
+        #     is a separate change.
+        #   AdvancedHMC: make_kernel, the sampler-to-kernel constructor
+        #     NeuralPDEBPINNExt needs to turn an HMC/NUTS/HMCDA spec into a kernel.
+        #     AdvancedHMC exports no equivalent.
         all_qualified_accesses_are_public = (;
             ignore = (
                 :AbstractDiscretizationMetadata, :__solve, :has_analytic,
                 :interp_summary, :calculate_solution_errors!,
                 :_iszero, :variables, :derivative, :jacobian,
                 :generate_design_matrices, :sample, :mapany, :dottable,
+                :logvector, :make_kernel,
+            ),
+        ),
+        # NeuralPDEBPINNExt is part of NeuralPDE, but ExplicitImports sees it as a
+        # separate module, so NeuralPDE's own non-public helpers look like external
+        # internals. There is no public spelling for any of these.
+        all_explicit_imports_are_public = (;
+            ignore = (
+                :AbstractTrainingStrategy, :BPINNstats, :get_dataset_train_points,
+                :merge_strategy_with_loglikelihood_function, :safe_expand,
+                :safe_get_device,
             ),
         ),
     ),

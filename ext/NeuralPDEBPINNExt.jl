@@ -10,12 +10,10 @@ using NeuralPDE: NeuralPDE, AbstractTrainingStrategy, GridTraining, StochasticTr
 using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
     JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
     StepSizeAdaptor, TemperedLeapfrog, find_good_stepsize
-using ChainRulesCore: @ignore_derivatives
-using ComponentArrays: ComponentArrays, ComponentArray, getdata, getaxes
+using ComponentArrays: ComponentArrays, ComponentArray, getdata
 using ConcreteStructs: @concrete
-using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
+using Distributions: Distributions, Distribution, MvNormal, logpdf
 using ForwardDiff: ForwardDiff
-using Functors: fmap
 using IntervalSets: infimum, supremum
 using LinearAlgebra: Diagonal
 using LogDensityProblems: LogDensityProblems
@@ -27,7 +25,7 @@ using MonteCarloMeasurements: Particles
 using Printf: @printf
 using Random: Random
 using Integrals: IntegralProblem, QuadGKJL
-using SciMLBase: SciMLBase, isinplace, solve, symbolic_discretize
+using SciMLBase: SciMLBase, isinplace, solve
 using SymbolicUtils: SymbolicUtils
 using Symbolics: Symbolics
 
