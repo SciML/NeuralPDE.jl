@@ -50,7 +50,8 @@ using NeuralPDE
 using Test
 
 @testset "PDE III: 3rd-order ODE" begin
-    using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals
+    using Lux, Random, Optimisers, DomainSets, Cubature, QuasiMonteCarlo, Integrals,
+        ComponentArrays
     import DomainSets: Interval, infimum, supremum
     import OptimizationOptimJL: BFGS
 
@@ -85,9 +86,17 @@ using Test
         [Chain(Dense(1, 12, tanh), Dense(12, 12, tanh), Dense(12, 1)) for _ in 1:3]
         [Chain(Dense(1, 4, tanh), Dense(4, 1)) for _ in 1:2]
     ]
-    quasirandom_strategy = QuasiRandomTraining(100; sampling_alg = LatinHypercubeSample())
+    # BFGS requires the objective to stay fixed between evaluations, and Sobol sampling
+    # keeps the collocation set independent of the global RNG.
+    quasirandom_strategy = QuasiRandomTraining(
+        100; sampling_alg = SobolSample(), resampling = false, minibatch = 1
+    )
 
-    discretization = PhysicsInformedNN(chain, quasirandom_strategy)
+    init_params = let rng = Xoshiro(100)
+        [ComponentArray{Float64}(Lux.initialparameters(rng, c)) for c in chain]
+    end
+
+    discretization = PhysicsInformedNN(chain, quasirandom_strategy; init_params)
 
     @named pde_system = PDESystem(
         eq, bcs, domains, [x],
@@ -100,17 +109,24 @@ using Test
     pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
     bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
+    # Stop on the loss level the accuracy assertion needs instead of on a fixed iteration
+    # count. BFGS is still descending at 1000 iterations here, so a truncated run lands
+    # wherever floating-point differences (code coverage, BLAS, hardware) put it.
+    training_tol = 1.0e-9
+
     callback = function (p, l)
         if p.iter % 100 == 0||p.iter == 1
             println("loss: ", l)
             println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
             println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
         end
-        return false
+        return l < training_tol
     end
 
-    res = solve(prob, BFGS(); maxiters = 1000, callback)
+    res = solve(prob, BFGS(); maxiters = 5000, callback)
     phi = discretization.phi[1]
+
+    @test res.objective < training_tol
 
     analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)
 
