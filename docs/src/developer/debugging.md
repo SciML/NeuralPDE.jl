@@ -93,11 +93,8 @@ julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
 ```
 
 ```julia
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc, indvars, depvars,
-                          phi, derivative, integral, multioutput,
-                          init_params, strategy,
-                          bc_indvars = bc_indvar)
-                      for (bc, bc_indvar) in zip(bcs, bc_indvars)]
+sym_loss_data = NeuralPDE.build_symbolic_pinn_loss(pde_sys, chain)
+_bc_loss_functions = sym_loss_data.datafree_bc_loss_functions
 ```
 
 ```

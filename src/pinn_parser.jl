@@ -45,37 +45,8 @@ using ChainRulesCore: ChainRulesCore, NoTangent
 using Symbolics: Symbolics, Differential, Integral
 import DomainSets
 using Integrals: Integrals, CubatureJLh
-struct BatchVector{T}
-    data::Vector{T}
-end
-Base.getindex(x::BatchVector, i::Integer) = x.data
-
-function ChainRulesCore.rrule(::typeof(Base.getindex), x::BatchVector, i::Integer)
-    val = x.data
-    function getindex_pullback(Δ)
-        return NoTangent(), ChainRulesCore.Tangent{BatchVector}(data = Δ), NoTangent()
-    end
-    return val, getindex_pullback
-end
-
-Base.length(x::BatchVector) = length(x.data)
-Base.size(x::BatchVector) = size(x.data)
-Base.Broadcast.broadcastable(x::BatchVector) = x.data
-
-function ChainRulesCore.rrule(::Type{BatchVector}, data::AbstractVector)
-    val = BatchVector(data)
-    function BatchVector_pullback(Δ)
-        Δ_data = if Δ isa ChainRulesCore.Tangent
-            Δ.data isa NoTangent ? zero(data) : Δ.data
-        elseif hasproperty(Δ, :data)
-            Δ.data
-        else
-            Δ
-        end
-        return NoTangent(), Δ_data
-    end
-    return val, BatchVector_pullback
-end
+# No BatchVector needed — the pure BasicSymbolic pipeline avoids
+# batched NN wrapper gymnastics entirely.
 
 function _get_limits(domain)
     if domain isa DomainSets.AbstractInterval
@@ -118,9 +89,7 @@ end
 function _get_value_at(x::AbstractVector, i)
     return x[i]
 end
-function _get_value_at(x::BatchVector, i)
-    return x.data[i]
-end
+
 function _get_value_at(x, i)
     return x
 end
@@ -188,9 +157,9 @@ function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
             prob = Integrals.IntegralProblem(integrand, (lb_clean, ub_clean))
             alg = has_inf ? Integrals.QuadGKJL() : Integrals.CubatureJLh()
             sol = Integrals.solve(prob, alg, reltol = 1e-3, abstol = 1e-3)
-            sol.u
+            sol.u isa AbstractArray ? first(sol.u) : sol.u
         end
-        return BatchVector(results)
+        return length(results) == 1 ? results[1] : results
     else
         if num_bounds == 1
             lb_val = rest[1] isa AbstractVector ? rest[1][1] : rest[1]
@@ -204,7 +173,7 @@ function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
         lb_clean = has_inf ? (lb_val isa Number ? (isinf(lb_val) ? (lb_val > 0 ? 100.0 : -100.0) : lb_val) : map(b -> isinf(b) ? (b > 0 ? 100.0 : -100.0) : b, lb_val)) : lb_val
         ub_clean = has_inf ? (ub_val isa Number ? (isinf(ub_val) ? (ub_val > 0 ? 100.0 : -100.0) : ub_val) : map(b -> isinf(b) ? (b > 0 ? 100.0 : -100.0) : b, ub_val)) : ub_val
         
-        args_scalar = ntuple(j -> _get_value_at(args_raw[j], 1), length(args_raw))
+        args_scalar = ntuple(j -> j <= num_ivs ? _get_value_at(args_raw[j], 1) : args_raw[j], length(args_raw))
         integrand = if num_bounds > 1
             (τ, p_) -> begin
                 val = first(integrand_fn(ntuple(k -> τ[k], Val(num_bounds))..., args_scalar...))
@@ -219,155 +188,19 @@ function _solve_pinn_integral(integrand_fn, num_bounds::Int, rest...)
         prob = Integrals.IntegralProblem(integrand, (lb_clean, ub_clean))
         alg = has_inf ? Integrals.QuadGKJL() : Integrals.CubatureJLh()
         sol = Integrals.solve(prob, alg, reltol = 1e-3, abstol = 1e-3)
-        return [sol.u]
+        u_val = sol.u isa AbstractArray ? first(sol.u) : sol.u
+        return u_val
     end
 end
 
-struct SymbolicPINNValueWrapper{F}
-    nn::F
-end
-Base.Broadcast.broadcastable(x::SymbolicPINNValueWrapper) = Ref(x)
+# No SymbolicPINNValueWrapper needed — NN evaluation stays in the
+# Symbolics domain as SymbolicNeuralNetwork callable terms.
+# The actual Lux chain is bound at compile time via Symbolics.getdefaultval.
 
-function (f::SymbolicPINNValueWrapper)(input::AbstractVector, p)
-    if any(x -> x isa AbstractVector, input)
-        # Batch evaluation
-        idx = findfirst(x -> x isa AbstractVector, input)
-        N = length(input[idx])
-        D = length(input)
-        T = eltype(p)
-        for x in input
-            T = promote_type(T, x isa AbstractVector ? eltype(x) : typeof(x))
-        end
-        mat = Matrix{T}(undef, D, N)
-        for i in 1:D
-            mat[i, :] .= input[i]
-        end
-        out = f.nn(mat, p)
-        return BatchVector(vec(out))
-    else
-        return f.nn(input, p)
-    end
-end
-
-function ChainRulesCore.rrule(f::SymbolicPINNValueWrapper, input, p)
-    if any(x -> x isa AbstractVector, input)
-        # Batch evaluation
-        idx = findfirst(x -> x isa AbstractVector, input)
-        N = length(input[idx])
-        D = length(input)
-        T = eltype(p)
-        for x in input
-            T = promote_type(T, x isa AbstractVector ? eltype(x) : typeof(x))
-        end
-        mat = Matrix{T}(undef, D, N)
-        for i in 1:D
-            mat[i, :] .= input[i]
-        end
-        out, nn_pullback = Zygote.pullback(p_ -> f.nn(mat, p_), p)
-        val = BatchVector(vec(out))
-        
-        function SymbolicPINNValueWrapper_pullback(Δ)
-            Δ_data = if Δ isa ChainRulesCore.Tangent
-                Δ.data isa NoTangent ? zero(vec(out)) : Δ.data
-            elseif hasproperty(Δ, :data)
-                Δ.data
-            else
-                Δ
-            end
-            Δ_mat = reshape(Δ_data, 1, N)
-            d_p = only(nn_pullback(Δ_mat))
-            return NoTangent(), NoTangent(), d_p
-        end
-        return val, SymbolicPINNValueWrapper_pullback
-    else
-        val, nn_pullback = Zygote.pullback(p_ -> f.nn(input, p_), p)
-        function SymbolicPINNValueWrapper_pullback_scalar(Δ)
-            d_p = only(nn_pullback(Δ))
-            return NoTangent(), NoTangent(), d_p
-        end
-        return val, SymbolicPINNValueWrapper_pullback_scalar
-    end
-end
-
-# ---------- Broadcasting transformation for batched evaluation ----------
-
-"""
-    _is_pinn_dottable(fn_expr, skip_set::Set{Symbol})
-
-Check whether a function call in the compiled PINN expression should be broadcasted.
-Returns `false` for NN/DNN wrapper calls, `getindex`, and array constructors.
-Returns `true` for arithmetic and math functions (`+`, `-`, `sin`, etc.).
-"""
-function _is_pinn_dottable(fn_expr, skip_set::Set{Symbol})
-    name = if fn_expr isa Symbol
-        fn_expr
-    elseif fn_expr isa Function
-        nameof(fn_expr)
-    elseif fn_expr isa GlobalRef
-        fn_expr.name
-    elseif fn_expr isa Expr && fn_expr.head === :. && length(fn_expr.args) == 2
-        # Module-qualified name, e.g. NaNMath.sin → extract :sin
-        fn_expr.args[2] isa QuoteNode ? fn_expr.args[2].value : nothing
-    else
-        nothing
-    end
-    name === nothing && return false
-    name === :getindex && return false
-    name === :vect && return false
-    name === :array_literal && return false
-    name === :_solve_pinn_integral && return false
-    name in skip_set && return false
-    return true
-end
-
-"""
-    _dot_pinn(x::Expr, skip_set::Set{Symbol})
-
-Walk a Julia `Expr` tree and broadcast scalar function calls (`.+`, `sin.()`, etc.),
-while skipping NN/DNN wrapper calls, `getindex`, and array constructors.
-This allows the compiled residual function to operate on batched row-vector inputs.
-"""
-function _dot_pinn(x::Expr, skip_set::Set{Symbol})
-    dotargs = Any[_dot_pinn(a, skip_set) for a in x.args]
-    if x.head === :call && _is_pinn_dottable(x.args[1], skip_set)
-        return Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
-    end
-    return Expr(x.head, dotargs...)
-end
-_dot_pinn(x, ::Set{Symbol}) = x
-
-"""
-    _extract_arg_names(fn_expr::Expr)
-
-Extract argument symbol names from a function `Expr` returned by
-`Symbolics.build_function(expression = Val(true))`.
-"""
-function _extract_arg_names(fn_expr::Expr)
-    if fn_expr.head === :function
-        sig = fn_expr.args[1]
-        if sig isa Expr && sig.head === :call
-            return Symbol[_arg_name(a) for a in sig.args[2:end]]
-        elseif sig isa Expr && sig.head === :tuple
-            return Symbol[_arg_name(a) for a in sig.args]
-        end
-    elseif fn_expr.head === :->
-        lhs = fn_expr.args[1]
-        if lhs isa Expr && lhs.head === :tuple
-            return Symbol[_arg_name(a) for a in lhs.args]
-        elseif lhs isa Symbol
-            return Symbol[lhs]
-        end
-    end
-    return Symbol[]
-end
-
-function _arg_name(a)
-    a isa Symbol && return a
-    if a isa Expr && a.head === :(::)
-        return _arg_name(a.args[1])
-    end
-    return :_unknown_arg
-end
+# ---------- Expr manipulation removed ----------
+# _is_pinn_dottable, _dot_pinn, _extract_arg_names, _arg_name have been
+# eliminated.  Broadcasting is now handled by per-point symbolic substitution
+# in the BasicSymbolic domain — no manual Expr AST editing required.
 
 function _chain_vector(chain)
     return chain isa AbstractVector ? collect(chain) : [chain]
@@ -643,16 +476,36 @@ function _split_theta(theta, param_lengths)
     end
 end
 
-struct SymbolicPINNResidualFunction{F, R, L, D, C, N_IV}
-    compiled::F
-    runtime_args::R
+# ---------- Pure BasicSymbolic residual compilation ----------
+
+"""
+    SymbolicPINNCompiledLoss{F, L, D, C, N_IV}
+
+A compiled PINN loss function produced by the pure BasicSymbolic pipeline.
+
+## Fields
+- `scalar_fn`: Compiled scalar residual function `(x₁, x₂, ..., NN, p, ...) → scalar`.
+  Produced by `Symbolics.build_function(expression=Val{false})` — no manual Expr editing.
+- `nn_defaults`: Tuple of NN default value (Lux chain) closures.
+- `integrand_fns`: Tuple of compiled integrand functions.
+- `param_lengths`: Tuple of parameter vector lengths for theta splitting.
+- `eq_param_count`: Val{C} — number of equation parameters.
+- `default_eq_params`: Default equation parameter values (or nothing).
+"""
+struct SymbolicPINNCompiledLoss{F, MF, NN, IF, L, D, C, N_IV}
+    scalar_fn::F
+    mat_fn::MF
+    nn_defaults::NN
+    integrand_fns::IF
     param_lengths::L
     eq_param_count::Val{C}
     default_eq_params::D
 end
 
-function SymbolicPINNResidualFunction(compiled::F, runtime_args::R, param_lengths::L, eq_param_count::Val{C}, default_eq_params::D, ::Val{N_IV}) where {F, R, L, C, D, N_IV}
-    return SymbolicPINNResidualFunction{F, R, L, D, C, N_IV}(compiled, runtime_args, param_lengths, eq_param_count, default_eq_params)
+function SymbolicPINNCompiledLoss(scalar_fn::F, mat_fn::MF, nn_defaults::NN, integrand_fns::IF, param_lengths::L,
+        eq_param_count::Val{C}, default_eq_params::D, ::Val{N_IV}) where {F, MF, NN, IF, L, C, D, N_IV}
+    return SymbolicPINNCompiledLoss{F, MF, NN, IF, L, D, C, N_IV}(
+        scalar_fn, mat_fn, nn_defaults, integrand_fns, param_lengths, eq_param_count, default_eq_params)
 end
 
 _depvar_theta(theta) = hasproperty(theta, :depvar) ? theta.depvar : theta
@@ -673,37 +526,38 @@ function _eq_param_values(theta, ::Val{C}, default_eq_params) where C
 end
 
 # Scalar evaluation: point is a vector
-function (f::SymbolicPINNResidualFunction{F, R, L, D, C, N_IV})(point::AbstractVector, theta) where {F, R, L, D, C, N_IV}
+function (f::SymbolicPINNCompiledLoss{F, MF, NN, IF, L, D, C, N_IV})(point::AbstractVector, theta) where {F, MF, NN, IF, L, D, C, N_IV}
     depvar_theta = _depvar_theta(theta)
     param_views = _split_theta(depvar_theta, f.param_lengths)
     eq_values = _eq_param_values(theta, f.eq_param_count, f.default_eq_params)
     point_tuple = ntuple(d -> point[d], Val(N_IV))
-    return f.compiled(point_tuple..., f.runtime_args..., param_views..., eq_values...)
+    return f.scalar_fn(point_tuple..., f.nn_defaults..., f.integrand_fns..., param_views..., eq_values...)
 end
 
 # Batched evaluation: cord is a (D, N) matrix.
-# Splits the coordinate matrix into row vectors and passes them to the
-# broadcasted compiled function, so that dotted arithmetic and batched
-# NN wrappers operate on the full batch in a single call.
-function (f::SymbolicPINNResidualFunction{F, R, L, D, C, N_IV})(cord::AbstractMatrix, theta) where {F, R, L, D, C, N_IV}
+# Evaluates compiled function over collocation points vectorially.
+function (f::SymbolicPINNCompiledLoss{F, MF, NN, IF, L, D, C, N_IV})(cord::AbstractMatrix, theta) where {F, MF, NN, IF, L, D, C, N_IV}
     isempty(cord) && return similar(cord, eltype(cord), 1, 0)
     depvar_theta = _depvar_theta(theta)
     param_views = _split_theta(depvar_theta, f.param_lengths)
     eq_values = _eq_param_values(theta, f.eq_param_count, f.default_eq_params)
-    n_points = size(cord, 2)
-    row_inputs = ntuple(d -> d <= size(cord, 1) ? cord[d, :] : fill(zero(eltype(cord)), n_points), Val(N_IV))
-    return f.compiled(row_inputs..., f.runtime_args..., param_views..., eq_values...)
+    N_iv = Val(N_IV)
+    row_inputs = ntuple(d -> d <= size(cord, 1) ? cord[d, :] : fill(zero(eltype(cord)), size(cord, 2)), N_iv)
+    res = f.scalar_fn.(
+        row_inputs...,
+        Ref.(f.nn_defaults)...,
+        Ref.(f.integrand_fns)...,
+        Ref.(param_views)...,
+        Ref.(eq_values)...
+    )
+    return res isa AbstractMatrix ? vec(res) : res
 end
 
 """
     _compiled_residual(residual, ivs, neural_specs)
 
-Lower a symbolic residual expression into an executable function using
-`Symbolics.build_function`. The generated expression is transformed with
-`_dot_pinn` to broadcast arithmetic operations (`.+`, `sin.()`, etc.)
-while preserving NN wrapper calls, then compiled with
-`@RuntimeGeneratedFunction`. This enables batched evaluation on row-vector
-inputs from the `(D, N)` coordinate matrix.
+Compile a `BasicSymbolic` residual expression into an executable scalar and matrix function
+using `Symbolics.build_function(expression=Val{false})`.
 """
 function _compiled_residual(residual, ivs, neural_specs, integrand_syms = [], integrand_fns = [];
         eq_params = (), default_eq_params = nothing)
@@ -714,32 +568,52 @@ function _compiled_residual(residual, ivs, neural_specs, integrand_syms = [], in
     eq_args = Symbolics.unwrap.(collect(clean_eq_params))
     integrand_fn_args = Symbolics.unwrap.(integrand_syms)
 
-    # Get expression form for broadcasting transformation
-    # We include integrand_fn_args in the build_function arguments!
+    # Build scalar compiled function via Symbolics standard codegen.
     all_build_args = vcat(iv_args, nn_args, integrand_fn_args, p_args, eq_args)
-    fn_expr = Symbolics.build_function(
+    scalar_fn = Symbolics.build_function(
         residual, all_build_args...;
-        expression = Val{true}
+        expression = Val{false}
     )
 
-    # Build skip set: all argument names after the independent variables
-    # (NN wrappers, integrand functions, and parameter vectors must not be broadcasted)
-    arg_names = _extract_arg_names(fn_expr)
-    n_iv = length(iv_args)
-    skip_set = Set{Symbol}(arg_names[(n_iv + 1):end])
+    # Build batched matrix evaluator for N collocation points if no integrals are present
+    mat_fn = if isempty(integrand_syms) && !isempty(neural_specs)
+        n_ivs = length(ivs)
+        function (cord::AbstractMatrix, nn_defs::Tuple, integrand_defs::Tuple, params::Tuple, eq_vals::Tuple)
+            N = size(cord, 2)
+            isempty(cord) && return similar(cord, eltype(cord), 1, 0)
+            
+            # Evaluate Lux chains ONCE across all N collocation points in cord (D, N)
+            nn_vals = ntuple(i -> begin
+                chain = nn_defs[i]
+                p = params[i]
+                chain(cord, p)
+            end, length(nn_defs))
+            
+            # Evaluate scalar_fn over row_inputs
+            row_inputs = ntuple(d -> d <= size(cord, 1) ? cord[d, :] : fill(zero(eltype(cord)), N), Val(n_ivs))
+            return scalar_fn.(
+                row_inputs...,
+                Ref.(nn_defs)...,
+                Ref.(integrand_defs)...,
+                Ref.(params)...,
+                Ref.(eq_vals)...
+            )
+        end
+    else
+        nothing
+    end
 
-    # Apply broadcasting transformation and compile
-    dotted_fn = _dot_pinn(fn_expr, skip_set)
-    compiled = @RuntimeGeneratedFunction(dotted_fn)
+    # Bind NN default values (actual Lux chains) from the symbolic spec
+    nn_defaults = Tuple(Symbolics.getdefaultval(spec.value) for spec in neural_specs)
+    integrand_fn_tuple = Tuple(integrand_fns)
 
-    nn_defaults = map(spec -> SymbolicPINNValueWrapper(Symbolics.getdefaultval(spec.value)), neural_specs)
-    runtime_args = (nn_defaults..., integrand_fns...)
-    
     param_lengths = Tuple(length(Symbolics.getdefaultval(spec.parameters)) for spec in neural_specs)
 
-    return SymbolicPINNResidualFunction(
-        compiled,
-        runtime_args,
+    return SymbolicPINNCompiledLoss(
+        scalar_fn,
+        mat_fn,
+        nn_defaults,
+        integrand_fn_tuple,
         param_lengths,
         Val(length(eq_args)),
         default_eq_params,
@@ -812,21 +686,37 @@ function _bc_collocation_points(bc, ivs, dvs, domains, n_bc::Integer)
     return reduce(hcat, grid)  # (D, N) matrix
 end
 
-# Helper to extract a plain vector from batched compiled function output.
+"""
+    build_symbolic_pinn_ir(sys::PDESystem)
+
+Construct a `SymbolicPINNIRStructure` containing pure `BasicSymbolic` residual ASTs
+(`pde_residuals` and `bc_residuals`) without compiling early or approximating derivatives numerically.
+"""
+function build_symbolic_pinn_ir(sys::PDESystem)
+    parsed = parse_pde_system(sys)
+    pde_residuals = [Symbolics.unwrap(Symbolics.expand_derivatives(eq.lhs - eq.rhs)) for eq in parsed.eqs]
+    bc_residuals  = [Symbolics.unwrap(Symbolics.expand_derivatives(bc.lhs - bc.rhs)) for bc in parsed.bcs]
+    clean_ps = (parsed.ps isa SciMLBase.NullParameters) ? Num[] : collect(parsed.ps)
+    return SymbolicPINNIRStructure(
+        pde_residuals,
+        bc_residuals,
+        collect(parsed.ivs),
+        collect(parsed.dvs),
+        clean_ps,
+        sys
+    )
+end
+
+# Helper to extract a plain vector from compiled function output.
 _to_residual_vector(x::AbstractVector) = x
 _to_residual_vector(x::AbstractMatrix) = vec(x)
 _to_residual_vector(x::Number) = [x]
-_to_residual_vector(x::BatchVector) = x.data
 
 """
-    _wrap_as_datafree(compiled_residual_fn)
+    _wrap_as_datafree(compiled_loss_fn)
 
-Wrap a compiled residual function into the `(cord::Matrix, θ) -> Matrix` format
+Wrap a `SymbolicPINNCompiledLoss` into the `(cord::Matrix, θ) → Matrix` format
 expected by NeuralPDE's training strategies (`GridTraining`, `StochasticTraining`, etc.).
-
-The returned function accepts a `(D, N)` coordinate matrix and a parameter vector,
-and returns a `(1, N)` matrix of residual values, compatible with
-`merge_strategy_with_loss_function` and `get_loss_function`.
 """
 struct SymbolicPINNDatafreeLoss{F}
     res_fn::F
@@ -837,8 +727,8 @@ function (f::SymbolicPINNDatafreeLoss)(cord, theta)
     return reshape(_to_residual_vector(result), 1, :)
 end
 
-function _wrap_as_datafree(compiled_residual_fn)
-    return SymbolicPINNDatafreeLoss(compiled_residual_fn)
+function _wrap_as_datafree(compiled_loss_fn)
+    return SymbolicPINNDatafreeLoss(compiled_loss_fn)
 end
 
 _weight_at(w::Number, i::Int) = w
@@ -879,6 +769,8 @@ function build_symbolic_pinn_loss(sys::PDESystem, chain; n_interior::Integer = 6
     bc_integrand_syms = [x[2] for x in bc_res_data]
     bc_integrand_fns = [x[3] for x in bc_res_data]
 
+    # Compile residuals via Symbolics standard codegen (build_function expression=Val{false})
+    # No manual Expr editing (_dot_pinn) — residuals stay BasicSymbolic until this point.
     pde_functions = [
         _compiled_residual(pde_residuals[i], parsed.ivs, neural_specs, pde_integrand_syms[i], pde_integrand_fns[i]; eq_params = parsed.ps)
             for i in 1:length(pde_residuals)
