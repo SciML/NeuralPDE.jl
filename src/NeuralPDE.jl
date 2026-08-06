@@ -39,6 +39,7 @@ using Zygote: Zygote
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
 using ModelingToolkitBase: @named, @parameters
+using ModelingToolkitNeuralNets: SymbolicNeuralNetwork
 using Symbolics: Symbolics, arguments, Num, expand_derivatives, @variables
 using SymbolicUtils: SymbolicUtils, unwrap
 using SymbolicIndexingInterface: SymbolicIndexingInterface
@@ -70,14 +71,18 @@ const cdev = CPUDevice()
 include("eltype_matching.jl")
 
 include("pinn_types.jl")
+include("pinn_parser.jl")
 include("symbolic_utilities.jl")
+include("pinn_ir_structure.jl")
+
+export SymbolicPINNIRStructure
+
 include("training_strategies.jl")
 include("adaptive_losses.jl")
 
 include("ode_solve.jl")
 include("dae_solve.jl")
 include("pino_ode_solve.jl")
-include("transform_inf_integral.jl")
 include("discretize.jl")
 
 include("neural_adapter.jl")
@@ -101,9 +106,10 @@ export neural_adapter
 export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
     WeightedIntervalTraining
 
-export build_loss_function, get_loss_function,
+export get_loss_function,
     generate_training_sets, get_variables, get_argument, get_bounds,
-    get_numeric_integral, symbolic_discretize, vector_to_parameters
+    symbolic_discretize, vector_to_parameters,
+    build_symbolic_pinn_loss, build_symbolic_pinn_ir, symbolic_pinn_loss_expression
 
 export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
     MiniMaxAdaptiveLoss, SoftAdaptAdaptiveLoss, ReLoBRaLoAdaptiveLoss
