@@ -10,7 +10,7 @@ module AdaptiveLossTestSetup
         logger = haslogger ? TBLogger(logdir) : nothing
 
         Random.seed!(60)
-        hid = 32
+        hid = 40
         chain = Chain(Dense(2, hid, tanh), Dense(hid, hid, tanh), Dense(hid, 1))
         strategy = StochasticTraining(256)
 
