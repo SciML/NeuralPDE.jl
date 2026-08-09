@@ -30,7 +30,7 @@ function undot_(x::Expr)
     return if x.head === :.=
         Expr(:(=), x.args...)
     elseif x.head === :block
-        Expr(:block, map(undot_, x.args)...)
+        Expr(:block, Any[undot_(arg) for arg in x.args]...)
     else
         x
     end
@@ -38,7 +38,7 @@ end
 
 _dot_(x) = x
 function _dot_(x::Expr)
-    dotargs = map(_dot_, x.args)
+    dotargs = Any[_dot_(arg) for arg in x.args]
     return if x.head === :call && dottable_(x.args[1])
         Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
     elseif x.head === :comparison
@@ -69,6 +69,11 @@ function _dot_(x::Expr)
             Expr(x.head, dotargs...)
         end
     end
+end
+
+function is_literal_zero(x)
+    value = unwrap_const(unwrap(x))
+    return value isa Number && iszero(value)
 end
 
 """
@@ -368,10 +373,10 @@ Parse ModelingToolkit equation form to the inner representation.
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 function parse_equation(pinnrep::PINNRepresentation, eq)
-    eq_lhs = iszero(unwrap(expand_derivatives(eq.lhs))) === true ? eq.lhs :
-        expand_derivatives(eq.lhs)
-    eq_rhs = iszero(unwrap(expand_derivatives(eq.rhs))) === true ? eq.rhs :
-        expand_derivatives(eq.rhs)
+    expanded_lhs = expand_derivatives(eq.lhs)
+    expanded_rhs = expand_derivatives(eq.rhs)
+    eq_lhs = is_literal_zero(expanded_lhs) ? eq.lhs : expanded_lhs
+    eq_rhs = is_literal_zero(expanded_rhs) ? eq.rhs : expanded_rhs
     left_expr = transform_expression(pinnrep, toexpr(eq_lhs))
     right_expr = transform_expression(pinnrep, toexpr(eq_rhs))
     left_expr = _dot_(left_expr)
