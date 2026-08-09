@@ -117,6 +117,7 @@ methodology.
 * `iteration`: an optional external iteration counter (a `Ref{Int}` or `Vector{Int}` of
   length 1) shared with the caller so the caller can read or control the training step count.
   If not provided, an internal counter is created and auto-incremented.
+* `epsilon`: optional finite difference step size used during symbolic derivative substitution. Defaults to `nothing` (uses optimal stencil step size).
 * `kwargs`: Extra keyword arguments which are splatted to the `OptimizationProblem` on
   `solve`.
 """
@@ -135,6 +136,7 @@ methodology.
     iteration
     self_increment::Bool
     multioutput::Bool
+    epsilon::Union{Nothing, Real}
     kwargs
 end
 
@@ -142,7 +144,8 @@ function PhysicsInformedNN(
         chain, strategy; init_params = nothing, init_states = nothing, derivative = nothing,
         param_estim = false, phi::Union{Nothing, Phi, AbstractArray{<:Phi}} = nothing,
         additional_loss = nothing, adaptive_loss = nothing, logger = nothing,
-        log_options = LogOptions(), iteration = nothing, kwargs...
+        log_options = LogOptions(), iteration = nothing,
+        epsilon::Union{Nothing, Real} = nothing, kwargs...
     )
     multioutput = chain isa AbstractArray
     if multioutput
@@ -153,6 +156,7 @@ function PhysicsInformedNN(
     else
         chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     end
+
 
     phi = phi === nothing ?
         (
@@ -182,7 +186,7 @@ function PhysicsInformedNN(
     return PhysicsInformedNN(
         chain, strategy, init_params, init_states, phi, derivative,
         param_estim, additional_loss, adaptive_loss, logger, log_options, iteration,
-        self_increment, multioutput, kwargs
+        self_increment, multioutput, epsilon, kwargs
     )
 end
 
@@ -360,8 +364,8 @@ mutable struct PINNRepresentation
     """
     bc_integration_vars::Any
     """
-    The compiled numeric integral function, built by `get_numeric_integral`. Evaluates
-    `Symbolics.Integral` terms at runtime using `Integrals.jl` quadrature.
+    The compiled numeric integral function. Evaluates `Symbolics.Integral` terms at runtime
+    using `Integrals.jl` quadrature.
     """
     integral::Any
     """

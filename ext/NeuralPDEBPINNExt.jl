@@ -3,7 +3,7 @@ module NeuralPDEBPINNExt
 using NeuralPDE
 using NeuralPDE: NeuralPDE, AbstractTrainingStrategy, GridTraining, StochasticTraining,
     QuadratureTraining, WeightedIntervalTraining, BNNODE, BPINNstats,
-    BPINNsolution, vector_to_parameters, build_loss_function,
+    BPINNsolution, vector_to_parameters, build_symbolic_pinn_loss,
     get_dataset_train_points, merge_strategy_with_loglikelihood_function,
     safe_get_device, safe_expand
 

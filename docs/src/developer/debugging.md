@@ -69,11 +69,8 @@ dim = length(domains)
 dx = 0.1
 multioutput = chain isa AbstractArray
 strategy = NeuralPDE.GridTraining(dx)
-integral = NeuralPDE.get_numeric_integral(strategy, indvars, multioutput, chain, derivative)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq, indvars, depvars, phi, derivative,
-    integral, multioutput, init_params,
-    strategy)
+sym_loss_data = NeuralPDE.build_symbolic_pinn_loss(pde_sys, chain)
 ```
 
 ```
@@ -96,11 +93,8 @@ julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
 ```
 
 ```julia
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc, indvars, depvars,
-                          phi, derivative, integral, multioutput,
-                          init_params, strategy,
-                          bc_indvars = bc_indvar)
-                      for (bc, bc_indvar) in zip(bcs, bc_indvars)]
+sym_loss_data = NeuralPDE.build_symbolic_pinn_loss(pde_sys, chain)
+_bc_loss_functions = sym_loss_data.datafree_bc_loss_functions
 ```
 
 ```

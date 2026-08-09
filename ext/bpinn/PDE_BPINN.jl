@@ -64,9 +64,15 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
     # nested vector of data_pde_loss_functions (as in discretize.jl)
     # each sub vector has dataset's indvar coord's datafree_colloc_loss_function, n_subvectors = n_rows_dataset(or n_indvar_coords_dataset)
     # zip each colloc equation with args for each build_loss call per equation vector
+function _build_loss_function(pinnrep, eq, pde_indvar)
+    pde_sys = PDESystem([eq], pinnrep.bcs, pinnrep.domains, pinnrep.ivs, pinnrep.dvs)
+    loss_data = build_symbolic_pinn_loss(pde_sys, pinnrep.chain)
+    return first(loss_data.datafree_pde_loss_functions)
+end
+
     data_colloc_loss_functions = [
         [
-                build_loss_function(pinnrep, eq, pde_indvar)
+                _build_loss_function(pinnrep, eq, pde_indvar)
                 for (eq, pde_indvar, integration_indvar) in zip(
                     colloc_equation,
                     pinnrep.pde_indvars,
