@@ -1,4 +1,4 @@
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "BPINN PDE Inv III: Improved Parametric Kuromo-Sivashinsky Equation solve" begin

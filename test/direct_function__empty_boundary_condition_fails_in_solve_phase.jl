@@ -1,8 +1,8 @@
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "Empty boundary condition [] fails in solve phase" begin
-    using NeuralPDE, Optimization, OptimizationOptimisers, Lux
+    using ModelingToolkit, NeuralPDE, SciMLBase, Optimization, OptimizationOptimisers, Lux
     import DomainSets: Interval
     @parameters x
     @variables u(..)

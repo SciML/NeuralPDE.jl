@@ -12,7 +12,7 @@ using OptimizationOptimisers
 using Lux
 using Statistics, Random
 using NeuralOperators
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 
 # Define the parametric ODE equation
 equation = (u, p, t) -> p[1] * cos(p[2] * t) + p[3]

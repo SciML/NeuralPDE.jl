@@ -1,5 +1,3 @@
-using Base.Broadcast
-
 # build_expr was removed from Symbolics.jl v7; define locally
 function build_expr(head::Symbol, args)
     ex = Expr(head)
@@ -8,7 +6,8 @@ function build_expr(head::Symbol, args)
 end
 
 """
-Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
+Add broadcast dots to an expression, including calls whose function was spliced into the
+expression.
 
 ## Example
 
@@ -16,35 +15,46 @@ Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
 julia> e = :(1 + $sin(x))
 :(1 + (sin)(x))
 
-julia> Broadcast.__dot__(e)
-:((+).(1, (sin)(x)))
-
 julia> _dot_(e)
 :((+).(1, (sin).(x)))
 ```
 """
-dottable_(x) = Broadcast.dottable(x)
+dottable_(x) = false
+dottable_(x::Symbol) =
+    (!Base.isoperator(x) || first(string(x)) != '.' || x === :..) && x !== :(:)
+dottable_(x::Expr) = x.head !== :$
 dottable_(x::Function) = true
+
+undot_(x) = x
+function undot_(x::Expr)
+    return if x.head === :.=
+        Expr(:(=), x.args...)
+    elseif x.head === :block
+        Expr(:block, map(undot_, x.args)...)
+    else
+        x
+    end
+end
 
 _dot_(x) = x
 function _dot_(x::Expr)
-    dotargs = Base.mapany(_dot_, x.args)
+    dotargs = map(_dot_, x.args)
     return if x.head === :call && dottable_(x.args[1])
         Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
     elseif x.head === :comparison
         Expr(
             :comparison,
             (
-                iseven(i) && dottable_(arg) && arg isa Symbol && isoperator(arg) ?
+                iseven(i) && dottable_(arg) && arg isa Symbol && Base.isoperator(arg) ?
                     Symbol('.', arg) : arg for (i, arg) in pairs(dotargs)
             )...
         )
     elseif x.head === :$
         x.args[1]
     elseif x.head === :let # don't add dots to `let x=...` assignments
-        Expr(:let, undot(dotargs[1]), dotargs[2])
+        Expr(:let, undot_(dotargs[1]), dotargs[2])
     elseif x.head === :for # don't add dots to for x=... assignments
-        Expr(:for, undot(dotargs[1]), dotargs[2])
+        Expr(:for, undot_(dotargs[1]), dotargs[2])
     elseif (x.head === :(=) || x.head === :function || x.head === :macro) &&
             Meta.isexpr(x.args[1], :call) # function or macro definition
         Expr(x.head, x.args[1], dotargs[2])
@@ -358,9 +368,9 @@ Parse ModelingToolkit equation form to the inner representation.
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 function parse_equation(pinnrep::PINNRepresentation, eq)
-    eq_lhs = SymbolicUtils._iszero(expand_derivatives(eq.lhs)) ? eq.lhs :
+    eq_lhs = iszero(unwrap(expand_derivatives(eq.lhs))) === true ? eq.lhs :
         expand_derivatives(eq.lhs)
-    eq_rhs = SymbolicUtils._iszero(expand_derivatives(eq.rhs)) ? eq.rhs :
+    eq_rhs = iszero(unwrap(expand_derivatives(eq.rhs))) === true ? eq.rhs :
         expand_derivatives(eq.rhs)
     left_expr = transform_expression(pinnrep, toexpr(eq_lhs))
     right_expr = transform_expression(pinnrep, toexpr(eq_rhs))
@@ -447,7 +457,7 @@ function get_integration_variables(eqs, dict_indvars, dict_depvars)
 end
 
 """
-    get_variables(eqs,_indvars,_depvars)
+    get_variables(eqs, _indvars, _depvars)
 
 Returns all variables that are used in each equations or boundary condition.
 """
@@ -488,7 +498,7 @@ function find_thing_in_expr(ex::Expr, thing; ans = [])
 end
 
 """
-    get_argument(eqs,_indvars::Array,_depvars::Array)
+    get_argument(eqs, _indvars::Array, _depvars::Array)
 
 Returns all arguments that are used in each equations or boundary condition.
 """

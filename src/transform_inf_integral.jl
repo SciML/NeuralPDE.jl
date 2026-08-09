@@ -2,7 +2,7 @@ function transform_inf_expr(
         integrating_depvars, dict_depvar_input, dict_depvars,
         integrating_variables, transform
     )
-    τs = Symbolics.variables(:τ, 1:length(integrating_variables))
+    τs = [variable(:τ, i) for i in 1:length(integrating_variables)]
     τs = Symbol.(τs)
     dict_transformation_vars = Dict()
     dict_depvar_input_ = Dict()

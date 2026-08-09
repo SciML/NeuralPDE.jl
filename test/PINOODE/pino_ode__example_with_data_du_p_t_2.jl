@@ -33,11 +33,11 @@ end
 
 using .PINOODETestSetup
 
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "Example with data du = p*t^2" begin
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
+    using ModelingToolkit, NeuralPDE, SciMLBase, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> p * t^2
     tspan = (0.0, 1.0)
     u0 = 0.0

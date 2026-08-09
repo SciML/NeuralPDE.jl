@@ -27,7 +27,7 @@ u' = \cos(2\pi t)
 for ``t \in (0,1)`` and ``u_0 = 0`` with [`NNODE`](@ref). First, we define an `ODEProblem` as we would for defining an ODE using DifferentialEquations.jl interface. This looks like:
 
 ```@example nnode1
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 
 linear(u, p, t) = cos(t * 2 * pi)
 tspan = (0.0, 1.0)

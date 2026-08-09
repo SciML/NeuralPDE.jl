@@ -1,6 +1,6 @@
 module NNPDE1TestSetup
 
-    using NeuralPDE, Cubature, Integrals, QuasiMonteCarlo
+    using ModelingToolkit, NeuralPDE, SciMLBase, Cubature, Integrals, QuasiMonteCarlo
 
     # DataGen is Real: https://github.com/SciML/NeuralPDE.jl/issues/906
     @parameters x
@@ -46,7 +46,7 @@ end
 
 using .NNPDE1TestSetup
 
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "PDE I: Heterogeneous system" begin

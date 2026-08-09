@@ -6,7 +6,7 @@ PINNs are especially useful in these types of problems and are preferred over co
 We start by defining the problem, with a random and non informative initialization for parameters:
 
 ```@example improv_param_estim
-using NeuralPDE, OrdinaryDiffEq, Lux, Random, OptimizationOptimJL, LineSearches,
+using ModelingToolkit, NeuralPDE, SciMLBase, OrdinaryDiffEq, Lux, Random, OptimizationOptimJL, LineSearches,
       Distributions, Plots
 using FastGaussQuadrature
 using Test # hide

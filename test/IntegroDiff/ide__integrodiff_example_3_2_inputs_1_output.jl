@@ -13,7 +13,7 @@ end
 
 using .IntegroDiffTestSetup
 
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "IntegroDiff Example 3 -- 2 Inputs, 1 Output" begin

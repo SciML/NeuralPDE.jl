@@ -33,7 +33,7 @@ where ``k`` is a root of the algebraic (transcendental) equation ``f(k) = g(k)``
 We solve this with Neural:
 
 ```@example nonlinear_hyperbolic
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, NonlinearSolve,
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, NonlinearSolve,
       LineSearches
 using SpecialFunctions
 using Plots

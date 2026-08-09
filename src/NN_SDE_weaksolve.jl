@@ -1,3 +1,50 @@
+"""
+    SDEPINN(;
+        chain, x_0, x_end, optimalg = nothing, norm_loss_alg = nothing,
+        initial_parameters = nothing, Nt = 20, dx = 0.05, σ_var_bc = 0.05,
+        λ_ic = 1.0, λ_norm = 1.0, distrib = Normal(0.5, 0.01), strategy = nothing,
+        autodiff = true, batch = false, param_estim = false, dataset = nothing,
+        additional_loss = nothing, kwargs...
+    )
+
+Solve an `SDEProblem` by training a physics-informed neural network on its associated
+Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
+
+## Keyword Arguments
+
+- `chain`: Neural network used to represent the probability density.
+- `x_0`, `x_end`: Lower and upper endpoints of the spatial domain.
+- `optimalg`: Optimizer used to train the network.
+- `norm_loss_alg`: Integration algorithm used by the normalization loss.
+- `initial_parameters`: Initial network parameters. NeuralPDE initializes them when omitted.
+- `Nt`: Number of temporal training points.
+- `dx`: Spatial grid spacing used to evaluate the solution.
+- `σ_var_bc`: Width of the Gaussian approximation to the initial condition.
+- `λ_ic`, `λ_norm`: Initial-condition and normalization loss weights.
+- `distrib`: Initial probability distribution.
+- `strategy`: Optional training strategy.
+- `autodiff`: Whether to use automatic differentiation for temporal derivatives.
+- `batch`: Whether to batch training points.
+- `param_estim`: Whether to estimate equation parameters with the network parameters.
+- `dataset`: Optional observed data used during training.
+- `additional_loss`: Optional function that contributes an additional training loss.
+- `kwargs`: Additional keyword arguments forwarded to the Optimization.jl solve.
+
+## Example
+
+```julia
+using Integrals, Lux, NeuralPDE, OptimizationOptimJL
+
+chain = Chain(Dense(2, 16, tanh), Dense(16, 1))
+alg = SDEPINN(
+    chain = chain,
+    optimalg = BFGS(),
+    norm_loss_alg = HCubatureJL(),
+    x_0 = -4.0,
+    x_end = 4.0,
+)
+```
+"""
 @concrete struct SDEPINN
     chain <: AbstractLuxLayer
     optimalg
@@ -70,17 +117,6 @@ function SDEPINN(;
         kwargs
     )
 end
-
-@doc raw"""
-    SDEPINN(; chain, x_0, x_end, optimalg = nothing, norm_loss_alg = nothing, kwargs...)
-
-Solve an `SDEProblem` by training a physics-informed neural network on the
-associated Fokker-Planck equation over the domain from `x_0` to `x_end`.
-
-Keyword arguments configure the spatial and temporal discretization, initial
-condition and normalization weights, training strategy, automatic differentiation,
-parameter estimation, observed data, and additional losses.
-""" SDEPINN
 
 function SciMLBase.__solve(
         prob::SciMLBase.AbstractSDEProblem,

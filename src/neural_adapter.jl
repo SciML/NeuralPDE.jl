@@ -41,7 +41,7 @@ function get_loss_function_neural_adapter(
     domains = pde_system.domain
 
     _, _, dict_indvars, dict_depvars = get_vars(
-        ModelingToolkit.get_ivs(pde_system), ModelingToolkit.get_dvs(pde_system)
+        get_ivs(pde_system), get_dvs(pde_system)
     )
 
     eltypeθ = recursive_eltype(init_params)
@@ -57,7 +57,7 @@ function get_loss_function_neural_adapter(
     domains = pde_system.domain
 
     _, _, dict_indvars, dict_depvars = get_vars(
-        ModelingToolkit.get_ivs(pde_system), ModelingToolkit.get_dvs(pde_system)
+        get_ivs(pde_system), get_dvs(pde_system)
     )
 
     eltypeθ = recursive_eltype(init_params)

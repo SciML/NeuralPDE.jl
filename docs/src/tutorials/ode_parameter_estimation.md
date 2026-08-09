@@ -7,7 +7,7 @@ with Physics-Informed Neural Networks. Now we would consider the case where we w
 We start by defining the problem:
 
 ```@example param_estim_lv
-using NeuralPDE, OrdinaryDiffEq, Lux, Random, OptimizationOptimJL, LineSearches, Plots
+using ModelingToolkit, NeuralPDE, SciMLBase, OrdinaryDiffEq, Lux, Random, OptimizationOptimJL, LineSearches, Plots
 using Test # hide
 
 function lv(u, p, t)

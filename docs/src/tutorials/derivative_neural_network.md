@@ -52,7 +52,7 @@ We approximate the derivative of the neural network with another neural network
 using the second numeric derivative `Dt(Dtu1(t,x))`.
 
 ```@example derivativenn
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers,
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimisers,
       OptimizationOptimJL, LineSearches, Plots
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint

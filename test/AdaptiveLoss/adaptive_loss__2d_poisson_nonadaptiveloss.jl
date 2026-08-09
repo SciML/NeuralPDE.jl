@@ -1,5 +1,5 @@
 module AdaptiveLossTestSetup
-    using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, NeuralPDE, Test,
+    using Optimization, OptimizationOptimisers, Random, DomainSets, Lux, ModelingToolkit, NeuralPDE, SciMLBase, Test,
         TensorBoardLogger
     import DomainSets: Interval, infimum, supremum
 
@@ -82,7 +82,7 @@ end
 
 using .AdaptiveLossTestSetup
 
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "2D Poisson: NonAdaptiveLoss" begin

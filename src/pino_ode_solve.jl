@@ -302,9 +302,18 @@ Override interpolation method for PINOODEInterpolation
 ## Example
 
 ```jldoctest
-interp = PINOODEInterpolation(phi, θ)
-x = rand(2, 50, 10)
-interp(x)
+julia> using Lux, NeuralPDE, Random
+
+julia> chain = Chain(Dense(2 => 1));
+
+julia> ps, st = Lux.setup(MersenneTwister(1), chain);
+
+julia> phi = NeuralPDE.PINOPhi(chain, st);
+
+julia> interp = NeuralPDE.PINOODEInterpolation(phi, ps);
+
+julia> size(interp(ones(Float32, 2, 3)))
+(1, 3)
 ```
 """
 (f::PINOODEInterpolation)(x::AbstractArray) = f.phi(x, f.θ)
@@ -313,17 +322,29 @@ interp(x)
 Override interpolation method for PINOODEInterpolation
 
 ## Arguments
-# * `p`: The parameters points on which the solution is to be interpolated.
-# * `t`: The time points on which the solution is to be interpolated.
+* `p`: Array of parameter points on which the solution is interpolated.
+* `t`: A time point or array of time points on which the solution is interpolated.
 
 ## Example
 ```jldoctest
-interp = PINOODEInterpolation(phi, θ)
-p,t = rand(1, 50, 10), rand(1, 50, 10)
-interp(p, t)
+julia> using Lux, NeuralPDE, Random
+
+julia> chain = Chain(Dense(2 => 1));
+
+julia> ps, st = Lux.setup(MersenneTwister(1), chain);
+
+julia> phi = NeuralPDE.PINOPhi(chain, st);
+
+julia> interp = NeuralPDE.PINOODEInterpolation(phi, ps);
+
+julia> p, t = ones(Float32, 1, 3), ones(Float32, 1, 3);
+
+julia> size(interp(p, t))
+(1, 3)
 ```
 """
-(f::PINOODEInterpolation)(p, t) = f(t, nothing, Val{0}, p, nothing)
+(f::PINOODEInterpolation)(p::AbstractArray, t::Union{Number, AbstractArray}) =
+    f(t, nothing, Val{0}, p, nothing)
 
 function (f::PINOODEInterpolation)(
         t::AbstractArray, ::Nothing, ::Type{Val{0}}, p::AbstractArray, continuity
@@ -377,7 +398,7 @@ end
 
 # Metadata-dispatched call: `(sol)(p, t)` is the natural PDE-style query.
 function (sol::SciMLBase.PDETimeSeriesSolution{T, N, S, <:PINOODEMetadata})(
-        p, t
+        p::AbstractArray, t::Union{Number, AbstractArray}
     ) where {T, N, S}
     return sol.interp(p, t)
 end

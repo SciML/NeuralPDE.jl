@@ -15,7 +15,7 @@ with Physics-Informed Neural Networks. Now we would consider the case where we w
 We start by defining the problem,
 
 ```@example param_estim
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, OrdinaryDiffEq,
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, OrdinaryDiffEq,
       Plots, LineSearches
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint

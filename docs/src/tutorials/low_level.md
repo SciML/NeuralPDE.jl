@@ -13,7 +13,7 @@ u(t, -1) = u(t, 1) = 0 \, ,
 with Physics-Informed Neural Networks. Here is an example of using the low-level API:
 
 ```@example low_level
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, LineSearches
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 

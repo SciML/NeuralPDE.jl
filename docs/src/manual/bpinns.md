@@ -10,7 +10,7 @@ Using the Bayesian PINN solvers, we can solve general nonlinear PDEs, ODEs and a
     `NeuralPDE`:
 
     ```julia
-    using NeuralPDE, AdvancedHMC, MCMCChains, LogDensityProblems
+    using ModelingToolkit, NeuralPDE, SciMLBase, AdvancedHMC, MCMCChains, LogDensityProblems
     ```
 
     Without those packages loaded, calling `BNNODE(...)` /

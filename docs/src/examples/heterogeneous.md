@@ -10,7 +10,7 @@ u(x) + w(x, v) = \frac{\partial w(x, v)}{\partial w}
 Here, we write an arbitrary heterogeneous system:
 
 ```@example heterogeneous
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
 import DomainSets: Interval
 
 @parameters x y

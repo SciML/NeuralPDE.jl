@@ -1,9 +1,10 @@
 """
-
-    NNSDE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
+    NNSDE(
+        chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         batch = true, sub_batch = 1, strong_loss = false,
         moment_loss = false, param_estim = false, dataset = [],
-        data_sub_batch = 1, numensemble = 10, additional_loss = nothing, kwargs...)
+        data_sub_batch = 1, numensemble = 10, additional_loss = nothing, kwargs...
+    )
 
 This is an algorithm for solving stochastic ordinary differential equations using a specialization of physics-informed neural networks (PINNs).
 Allows users to solve standard `SDEProblem`s using a Stochastic PINN (SPINN) solver.
@@ -110,7 +111,7 @@ n_z = 3
 dim = 1 + n_z
 luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1))
 opt = BFGS()
-sol = solve(prob, NNSDE(luxchain, opt), verbose = true, dt = 1 / 50.0f0, abstol = 1e-10, maxiters = 200)
+sol = solve(prob, NNSDE(luxchain, opt), verbose = true, dt = 1 / 50.0f0, abstol = 1.0e-10, maxiters = 200)
 ```
 
 ## Solution Notes
@@ -127,7 +128,6 @@ Stochastic Physics-Informed Neural Ordinary Differential Equations : https://arx
 Stochastic PDE Functionality #531 : https://github.com/SciML/NeuralPDE.jl/issues/531
 
 """
-
 @concrete struct NNSDE
     chain <: AbstractLuxLayer
     opt
@@ -158,18 +158,6 @@ function NNSDE(
         param_estim, dataset, data_sub_batch, numensemble, additional_loss, kwargs
     )
 end
-
-@doc raw"""
-    NNSDE(chain, opt, init_params = nothing; kwargs...)
-
-Solve an out-of-place `SDEProblem` with a stochastic physics-informed neural
-network. The network may be a `Lux.AbstractLuxLayer` or a Flux chain, and `opt`
-is passed to the Optimization.jl solve step.
-
-Keyword arguments control the training strategy, automatic differentiation,
-batching, strong or weak loss construction, moment matching, parameter estimation,
-and extra loss terms.
-""" NNSDE
 
 """
     SDEPhi(chain::Lux.AbstractLuxLayer, t, u0, st)

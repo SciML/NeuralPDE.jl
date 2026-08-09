@@ -35,7 +35,7 @@ with physics-informed neural networks.
 ## Solution
 
 ```@example system
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches,
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, LineSearches,
       OptimizationOptimisers
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
@@ -174,7 +174,7 @@ Subsetting the array also works, but is inelegant.
 Also, in addition to vector systems, we can use the matrix form of PDEs:
 
 ```julia
-using ModelingToolkit, NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 @parameters x y
 @variables (u(..))[1:2, 1:2]
 Dxx = Differential(x)^2

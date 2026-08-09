@@ -1,8 +1,8 @@
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "OU process" begin
-    using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Optimisers
+    using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, Optimisers
     using OrdinaryDiffEq, Random, Distributions, Integrals, Cubature
     using OptimizationOptimJL: BFGS
     Random.seed!(100)

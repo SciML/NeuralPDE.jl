@@ -33,11 +33,11 @@ With Bayesian Physics-Informed Neural Networks, here is an example of using `Bay
     `LogDensityProblems` alongside `NeuralPDE`:
 
     ```julia
-    using NeuralPDE, AdvancedHMC, MCMCChains, LogDensityProblems
+    using ModelingToolkit, NeuralPDE, SciMLBase, AdvancedHMC, MCMCChains, LogDensityProblems
     ```
 
 ```@example low_level_2
-using NeuralPDE, AdvancedHMC, MCMCChains, LogDensityProblems,
+using ModelingToolkit, NeuralPDE, SciMLBase, AdvancedHMC, MCMCChains, LogDensityProblems,
     Lux, ModelingToolkit, LinearAlgebra
 using Distributions
 import DomainSets: Interval
