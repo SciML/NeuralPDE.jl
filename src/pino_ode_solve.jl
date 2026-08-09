@@ -343,8 +343,7 @@ julia> size(interp(p, t))
 (1, 3)
 ```
 """
-(f::PINOODEInterpolation)(p::AbstractArray, t::Union{Number, AbstractArray}) =
-    f(t, nothing, Val{0}, p, nothing)
+(f::PINOODEInterpolation)(p, t) = f(t, nothing, Val{0}, p, nothing)
 
 function (f::PINOODEInterpolation)(
         t::AbstractArray, ::Nothing, ::Type{Val{0}}, p::AbstractArray, continuity
@@ -398,7 +397,7 @@ end
 
 # Metadata-dispatched call: `(sol)(p, t)` is the natural PDE-style query.
 function (sol::SciMLBase.PDETimeSeriesSolution{T, N, S, <:PINOODEMetadata})(
-        p::AbstractArray, t::Union{Number, AbstractArray}
+        p, t
     ) where {T, N, S}
     return sol.interp(p, t)
 end

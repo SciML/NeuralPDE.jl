@@ -39,7 +39,7 @@ using Zygote: Zygote
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
 using ModelingToolkitBase: @named, @parameters, get_dvs, get_ivs
 using Symbolics: Symbolics, arguments, Num, expand_derivatives, variable, @variables
-using SymbolicUtils: SymbolicUtils, unwrap, unwrap_const
+using SymbolicUtils: SymbolicUtils, unwrap
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
 # Needed for the Bayesian Stuff

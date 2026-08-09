@@ -50,8 +50,7 @@ using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "Test Heterogeneous ODE" begin
-    using Cubature, Integrals, QuasiMonteCarlo, Lux, Random, Optimisers
-    using DomainSets: Interval, infimum, supremum
+    using Cubature, Integrals, QuasiMonteCarlo, DomainSets, Lux, Random, Optimisers
 
     function simple_1d_ode(strategy)
         @parameters θ
