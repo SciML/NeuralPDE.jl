@@ -7,11 +7,15 @@ run_qa(
     NeuralPDE;
     reexports_allow = (:discretize, :symbolic_discretize),
     ei_kwargs = (;
-        # ForwardDiff does not declare its derivative entry points public, and
-        # AdvancedHMC has no public equivalent for constructing a kernel from its
-        # public sampler specifications.
+        # Retain the reviewed Base.mapany, Base.Broadcast.dottable,
+        # SymbolicUtils._iszero, and Symbolics.variables calls. ForwardDiff does not
+        # declare its derivative entry points public, and AdvancedHMC has no public
+        # equivalent for constructing a kernel from its public sampler specifications.
         all_qualified_accesses_are_public = (;
-            ignore = (:derivative, :jacobian, :make_kernel),
+            ignore = (
+                :_iszero, :derivative, :dottable, :jacobian, :make_kernel, :mapany,
+                :variables,
+            ),
         ),
         # ExplicitImports scans extensions as separate modules, although these
         # helpers remain internal to the NeuralPDE package boundary.

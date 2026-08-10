@@ -38,7 +38,7 @@ using Zygote: Zygote
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
 using ModelingToolkitBase: @named, @parameters, get_dvs, get_ivs
-using Symbolics: Symbolics, arguments, Num, expand_derivatives, variable, @variables
+using Symbolics: Symbolics, arguments, Num, expand_derivatives, @variables
 using SymbolicUtils: SymbolicUtils, unwrap
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
