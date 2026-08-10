@@ -17,7 +17,7 @@ end
 
 using .CUDATestSetup
 
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "1D PDE Dirichlet BC - CUDA" begin

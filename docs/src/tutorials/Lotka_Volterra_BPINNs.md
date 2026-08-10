@@ -8,7 +8,7 @@ Bayesian inference for PINNs provides an approach to ODE solution finding and pa
     load `AdvancedHMC`, `MCMCChains` and `LogDensityProblems` alongside `NeuralPDE`:
 
     ```julia
-    using NeuralPDE, AdvancedHMC, MCMCChains, LogDensityProblems
+    using ModelingToolkit, NeuralPDE, SciMLBase, AdvancedHMC, MCMCChains, LogDensityProblems
     ```
 
 ## The Lotka-Volterra Model
@@ -29,7 +29,7 @@ We implement the Lotka-Volterra model and simulate it with ideal parameters $\al
 We then solve the equations and estimate the parameters of the model with priors for $\alpha$, $\beta$, $\gamma$ and $\delta$ as  `Normal(1,2)`, `Normal(2,2)`, `Normal(2,2)` and `Normal(0,2)` using a neural network.
 
 ```@example bpinn
-using NeuralPDE, AdvancedHMC, MCMCChains, LogDensityProblems,
+using ModelingToolkit, NeuralPDE, SciMLBase, AdvancedHMC, MCMCChains, LogDensityProblems,
     Lux, Plots, OrdinaryDiffEq, Distributions, Random
 
 function lotka_volterra(u, p, t)

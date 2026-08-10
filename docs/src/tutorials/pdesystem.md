@@ -28,7 +28,7 @@ Using physics-informed neural networks.
 ## Copy-Pasteable Code
 
 ```@example poisson
-using NeuralPDE, Lux, Optimization, OptimizationOptimJL, LineSearches, Plots
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, LineSearches, Plots
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 
@@ -91,7 +91,7 @@ plot(p1, p2, p3)
 The ModelingToolkit PDE interface for this example looks like this:
 
 ```@example poisson
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 using Plots

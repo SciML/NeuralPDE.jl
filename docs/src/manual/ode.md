@@ -12,7 +12,7 @@ NNODE
     load `AdvancedHMC`, `MCMCChains` and `LogDensityProblems` alongside `NeuralPDE`:
 
     ```julia
-    using NeuralPDE, AdvancedHMC, MCMCChains, LogDensityProblems
+    using ModelingToolkit, NeuralPDE, SciMLBase, AdvancedHMC, MCMCChains, LogDensityProblems
     ```
 
 ```@docs

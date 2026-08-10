@@ -12,7 +12,7 @@ end
 
 using .NeuralAdapterTestSetup
 
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "Neural Adapter: 2D Poisson" begin

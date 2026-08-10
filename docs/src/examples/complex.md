@@ -5,7 +5,7 @@ NeuralPDE supports training PINNs with complex differential equations. This exam
 As the input to this neural network is time which is real, we need to initialize the parameters of the neural network with complex values for it to output and train with complex values.
 
 ```@example complex
-using Random, NeuralPDE, OrdinaryDiffEq, Lux, OptimizationOptimisers, Plots
+using Random, ModelingToolkit, NeuralPDE, SciMLBase, OrdinaryDiffEq, Lux, OptimizationOptimisers, Plots
 rng = Random.default_rng()
 Random.seed!(100)
 

@@ -42,7 +42,7 @@ ps = ps |> ComponentArray |> gpud .|> Float64
 In total, this looks like:
 
 ```@example gpu
-using NeuralPDE, Lux, LuxCUDA, Random, ComponentArrays
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, LuxCUDA, Random, ComponentArrays
 using Optimization
 using OptimizationOptimisers
 import DomainSets: Interval

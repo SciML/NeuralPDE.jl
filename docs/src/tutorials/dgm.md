@@ -57,8 +57,8 @@ u(t, 1) & = 0
 ### Copy- Pasteable code
 
 ```@example dgm
-using NeuralPDE
-using ModelingToolkit, Optimization, OptimizationOptimisers
+using ModelingToolkit, NeuralPDE, SciMLBase
+using Optimization, OptimizationOptimisers
 using Distributions
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
@@ -116,7 +116,7 @@ prob = remake(prob, u0 = res.u)
 res = solve(prob, Adam(0.01); maxiters = 500)
 phi = discretization.phi
 
-u_predict = [first(phi([t, x], res.minimizer)) for t in ts, x in xs]
+u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
 
 diff_u = abs.(u_predict .- u_MOL)
 tgrid = collect(ts)

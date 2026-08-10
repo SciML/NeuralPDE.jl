@@ -25,11 +25,10 @@ using OptimizationOptimisers: OptimizationOptimisers
 using Printf: @printf
 using Random: Random, AbstractRNG
 using RecursiveArrayTools: DiffEqArray
-using Reexport: @reexport
 using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
-using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem, NoiseProblem,
+using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem,
     OptimizationFunction, OptimizationProblem, ReturnCode, discretize,
-    isinplace, solve, symbolic_discretize, ODEProblem, ODESolution
+    isinplace, solve, symbolic_discretize, ODEProblem
 using SciMLPublic: @public
 using Statistics: Statistics, mean
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
@@ -38,7 +37,7 @@ using Zygote: Zygote
 
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
-using ModelingToolkitBase: @named, @parameters
+using ModelingToolkitBase: @named, @parameters, get_dvs, get_ivs
 using Symbolics: Symbolics, arguments, Num, expand_derivatives, @variables
 using SymbolicUtils: SymbolicUtils, unwrap
 using SymbolicIndexingInterface: SymbolicIndexingInterface
@@ -48,8 +47,6 @@ using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
 using MonteCarloMeasurements: Particles
 
 import LuxCore: initialparameters, initialstates, parameterlength
-
-@reexport using SciMLBase, ModelingToolkit
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -110,9 +107,6 @@ export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
 
 export LogOptions
 
-# Logging hook: `logscalar` has only a no-op fallback here, with concrete methods supplied
-# by package extensions (see `ext/NeuralPDETensorBoardLoggerExt.jl`). Downstream packages
-# implement it to plug their own logger backend into `discretize`, so it is public API.
-@public logscalar
+@public logscalar, logvector
 
 end # module

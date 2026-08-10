@@ -33,11 +33,11 @@ end
 
 using .PINOODETestSetup
 
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "Example DeepONet du = cos(p * t)" begin
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
+    using ModelingToolkit, NeuralPDE, SciMLBase, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0, 1.0)
     u0 = 1.0

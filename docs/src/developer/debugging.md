@@ -19,7 +19,7 @@ NeuralPDE.vector_to_parameters
 ```
 
 ```julia
-using NeuralPDE, ModelingToolkit, Flux, Zygote
+using ModelingToolkit, NeuralPDE, SciMLBase, Flux, Zygote
 import DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 # 2d wave equation, neumann boundary condition
@@ -33,14 +33,18 @@ C = 1
 eq = Dtt(u(x, t)) ~ C^2 * Dxx(u(x, t))
 
 # Initial and boundary conditions
-bcs = [u(0, t) ~ 0.0,
+bcs = [
+    u(0, t) ~ 0.0,
     u(1, t) ~ 0.0,
     u(x, 0) ~ x * (1.0 - x),
-    Dt(u(x, 0)) ~ 0.0]
+    Dt(u(x, 0)) ~ 0.0,
+]
 
 # Space and time domains
-domains = [x ∈ Interval(0.0, 1.0),
-    t ∈ Interval(0.0, 1.0)]
+domains = [
+    x ∈ Interval(0.0, 1.0),
+    t ∈ Interval(0.0, 1.0),
+]
 
 # Neural network
 chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))
@@ -59,8 +63,8 @@ dphi = Zygote.gradient(phi_, [1.0, 2.0])
 
 dphi1 = derivative(phi, u_, [1.0, 2.0], [[0.0049215667, 0.0]], 1, init_params)
 dphi2 = derivative(phi, u_, [1.0, 2.0], [[0.0, 0.0049215667]], 1, init_params)
-isapprox(dphi[1][1], dphi1, atol = 1e-8)
-isapprox(dphi[1][2], dphi2, atol = 1e-8)
+isapprox(dphi[1][1], dphi1, atol = 1.0e-8)
+isapprox(dphi[1][2], dphi2, atol = 1.0e-8)
 
 indvars = [x, t]
 depvars = [u(x, t)]
@@ -71,9 +75,11 @@ multioutput = chain isa AbstractArray
 strategy = NeuralPDE.GridTraining(dx)
 integral = NeuralPDE.get_numeric_integral(strategy, indvars, multioutput, chain, derivative)
 
-_pde_loss_function = NeuralPDE.build_loss_function(eq, indvars, depvars, phi, derivative,
+_pde_loss_function = NeuralPDE.build_loss_function(
+    eq, indvars, depvars, phi, derivative,
     integral, multioutput, init_params,
-    strategy)
+    strategy
+)
 ```
 
 ```
@@ -96,11 +102,15 @@ julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
 ```
 
 ```julia
-_bc_loss_functions = [NeuralPDE.build_loss_function(bc, indvars, depvars,
-                          phi, derivative, integral, multioutput,
-                          init_params, strategy,
-                          bc_indvars = bc_indvar)
-                      for (bc, bc_indvar) in zip(bcs, bc_indvars)]
+_bc_loss_functions = [
+    NeuralPDE.build_loss_function(
+            bc, indvars, depvars,
+            phi, derivative, integral, multioutput,
+            init_params, strategy,
+            bc_indvars = bc_indvar
+        )
+        for (bc, bc_indvar) in zip(bcs, bc_indvars)
+]
 ```
 
 ```
@@ -139,8 +149,10 @@ julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indva
 ```
 
 ```julia
-train_sets = NeuralPDE.generate_training_sets(domains, dx, [eq], bcs, eltypeθ, indvars,
-    depvars)
+train_sets = NeuralPDE.generate_training_sets(
+    domains, dx, [eq], bcs, eltypeθ, indvars,
+    depvars
+)
 pde_train_set, bcs_train_set = train_sets
 ```
 
@@ -160,9 +172,10 @@ julia> bcs_train_set
 
 ```julia
 pde_bounds,
-bcs_bounds = NeuralPDE.get_bounds(
+    bcs_bounds = NeuralPDE.get_bounds(
     domains, [eq], bcs, eltypeθ, indvars, depvars,
-    NeuralPDE.StochasticTraining(100))
+    NeuralPDE.StochasticTraining(100)
+)
 ```
 
 ```

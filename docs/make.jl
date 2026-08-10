@@ -1,4 +1,4 @@
-using Documenter, NeuralPDE
+using Documenter, ModelingToolkit, NeuralPDE, SciMLBase
 
 cp("./docs/Manifest.toml", "./docs/src/assets/Manifest.toml", force = true)
 cp("./docs/Project.toml", "./docs/src/assets/Project.toml", force = true)
@@ -13,8 +13,7 @@ makedocs(
     sitename = "NeuralPDE.jl",
     authors = "#",
     modules = [NeuralPDE],
-    clean = true, doctest = false, linkcheck = true,
-    warnonly = [:missing_docs],
+    clean = true, doctest = true, checkdocs = :exports, linkcheck = true,
     format = Documenter.HTML(
         assets = ["assets/favicon.ico"],
         canonical = "https://docs.sciml.ai/NeuralPDE/stable/"

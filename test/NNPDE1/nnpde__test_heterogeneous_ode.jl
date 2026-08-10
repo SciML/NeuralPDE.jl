@@ -1,6 +1,6 @@
 module NNPDE1TestSetup
 
-    using NeuralPDE, Cubature, Integrals, QuasiMonteCarlo
+    using ModelingToolkit, NeuralPDE, SciMLBase, Cubature, Integrals, QuasiMonteCarlo
 
     # DataGen is Real: https://github.com/SciML/NeuralPDE.jl/issues/906
     @parameters x
@@ -46,11 +46,12 @@ end
 
 using .NNPDE1TestSetup
 
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "Test Heterogeneous ODE" begin
-    using Cubature, Integrals, QuasiMonteCarlo, DomainSets, Lux, Random, Optimisers
+    using Cubature, Integrals, QuasiMonteCarlo, Lux, Random, Optimisers
+    using IntervalSets: Interval, infimum, supremum
 
     function simple_1d_ode(strategy)
         @parameters θ

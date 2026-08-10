@@ -1,4 +1,4 @@
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "BPINN PDE III: 3rd Degree ODE" begin

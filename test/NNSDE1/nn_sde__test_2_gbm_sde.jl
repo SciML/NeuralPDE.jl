@@ -1,4 +1,4 @@
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "Test-2 GBM SDE" begin

@@ -16,7 +16,7 @@ with grid discretization `dx = 0.1` and physics-informed neural networks.
 Further, the solution of this equation with the given boundary conditions is presented.
 
 ```@example wave
-using NeuralPDE, Lux, Optimization, OptimizationOptimJL
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 
@@ -98,7 +98,7 @@ u_t(0, x) = 1 - 2x \\
 with grid discretization `dx = 0.05` and physics-informed neural networks. Here, we take advantage of adaptive derivative to increase accuracy.
 
 ```@example wave2
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
 using Plots, Printf
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint

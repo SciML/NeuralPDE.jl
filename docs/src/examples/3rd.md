@@ -15,7 +15,7 @@ x &\in [0, 1] \, ,
 We will use physics-informed neural networks.
 
 ```@example 3rdDerivative
-using NeuralPDE, Lux, ModelingToolkit
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux
 using Optimization, OptimizationOptimJL, OptimizationOptimisers
 import DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint

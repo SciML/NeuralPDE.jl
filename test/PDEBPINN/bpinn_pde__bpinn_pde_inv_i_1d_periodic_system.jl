@@ -1,4 +1,4 @@
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "BPINN PDE Inv I: 1D Periodic System" begin

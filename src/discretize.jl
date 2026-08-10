@@ -152,8 +152,10 @@ function build_symbolic_loss_function(
 end
 
 """
-    build_loss_function(eqs, indvars, depvars, phi, derivative, init_params;
-        bc_indvars=nothing)
+    build_loss_function(
+        eqs, indvars, depvars, phi, derivative, init_params;
+        bc_indvars = nothing
+    )
 
 Returns the body of loss function, which is the executable Julia function, for the main
 equation or boundary condition.
@@ -173,7 +175,7 @@ function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
 end
 
 """
-    generate_training_sets(domains,dx,bcs,_indvars::Array,_depvars::Array)
+    generate_training_sets(domains, dx, bcs, _indvars::Array, _depvars::Array)
 
 Returns training sets for equations and boundary condition, that is used for GridTraining
 strategy.
@@ -239,7 +241,7 @@ function generate_training_sets(
 end
 
 """
-    get_bounds(domains,bcs,_indvars::Array,_depvars::Array)
+    get_bounds(domains, bcs, _indvars::Array, _depvars::Array)
 
 Returns pairs with lower and upper bounds for all domains. It is used for all non-grid
 training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
@@ -424,7 +426,7 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
 
     depvars, indvars, dict_indvars,
         dict_depvars, dict_depvar_input = get_vars(
-        ModelingToolkit.get_ivs(pde_system), ModelingToolkit.get_dvs(pde_system)
+        get_ivs(pde_system), get_dvs(pde_system)
     )
 
     if init_params === nothing

@@ -33,11 +33,11 @@ end
 
 using .PINOODETestSetup
 
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "Example multiple parameters Сhain du = p1 * cos(p2 * t)" begin
-    using NeuralPDE, Lux, OptimizationOptimisers, NeuralOperators, Random
+    using ModelingToolkit, NeuralPDE, SciMLBase, Lux, OptimizationOptimisers, NeuralOperators, Random
     equation = (u, p, t) -> p[1] * cos(p[2] * t) #+ p[3]
     tspan = (0.0, 1.0)
     u0 = 1.0

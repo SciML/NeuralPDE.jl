@@ -46,7 +46,7 @@ the documentation, which contains the unreleased features.
 ## Example: Solving 2D Poisson Equation via Physics-Informed Neural Networks
 
 ```julia
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimisers
 import DomainSets: Interval, infimum, supremum
 
 @parameters x y
@@ -58,11 +58,15 @@ Dyy = Differential(y)^2
 eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sin(pi * x) * sin(pi * y)
 
 # Boundary conditions
-bcs = [u(0, y) ~ 0.0, u(1, y) ~ 0,
-    u(x, 0) ~ 0.0, u(x, 1) ~ 0]
+bcs = [
+    u(0, y) ~ 0.0, u(1, y) ~ 0,
+    u(x, 0) ~ 0.0, u(x, 1) ~ 0,
+]
 # Space and time domains
-domains = [x ∈ Interval(0.0, 1.0),
-    y ∈ Interval(0.0, 1.0)]
+domains = [
+    x ∈ Interval(0.0, 1.0),
+    y ∈ Interval(0.0, 1.0),
+]
 # Discretization
 dx = 0.1
 
@@ -81,7 +85,7 @@ callback = function (p, l)
 end
 
 res = Optimization.solve(prob, ADAM(0.1); callback = callback, maxiters = 4000)
-prob = remake(prob, u0 = res.minimizer)
+prob = remake(prob, u0 = res.u)
 res = Optimization.solve(prob, ADAM(0.01); callback = callback, maxiters = 2000)
 phi = discretization.phi
 ```
@@ -92,10 +96,14 @@ And some analysis:
 xs, ys = [infimum(d.domain):(dx / 10):supremum(d.domain) for d in domains]
 analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
-u_predict = reshape([first(phi([x, y], res.minimizer)) for x in xs for y in ys],
-    (length(xs), length(ys)))
-u_real = reshape([analytic_sol_func(x, y) for x in xs for y in ys],
-    (length(xs), length(ys)))
+u_predict = reshape(
+    [first(phi([x, y], res.u)) for x in xs for y in ys],
+    (length(xs), length(ys))
+)
+u_real = reshape(
+    [analytic_sol_func(x, y) for x in xs for y in ys],
+    (length(xs), length(ys))
+)
 diff_u = abs.(u_predict .- u_real)
 
 using Plots

@@ -14,7 +14,7 @@ Using the example of 2D Poisson equation, it is shown how, using the method neur
 ![image](https://user-images.githubusercontent.com/12683885/127149639-c2a8066f-9a25-4889-b313-5d4403567300.png)
 
 ```@example neural_adapter
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimisers
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 using Random, ComponentArrays
@@ -107,7 +107,7 @@ And then using the method neural_adapter, we retrain the batch of 10 predictions
 ![domain_decomposition](https://user-images.githubusercontent.com/12683885/127149752-a4ecea50-2984-45d8-b0d4-d2eadecf58e7.png)
 
 ```@example neural_adapter
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimisers
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimisers
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 

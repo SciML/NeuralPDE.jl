@@ -16,7 +16,29 @@ end
 
 LogOptions(; log_frequency = 50) = LogOptions(log_frequency)
 
-logvector(logger, v::AbstractVector{<:Real}, name::AbstractString, step::Integer) = nothing
+"""
+    logvector(logger, values::AbstractVector{<:Real}, name::AbstractString, step::Integer)
+
+Log the entries in `values` under the key `name` at iteration `step`.
+
+NeuralPDE calls this hook for vector-valued training diagnostics. The fallback method is a
+no-op, so logger backends can opt in by defining a more specific method. For example:
+
+```julia
+function NeuralPDE.logvector(
+        logger::MyLogger, values::AbstractVector{<:Real}, name::AbstractString,
+        step::Integer
+    )
+    logger.vectors[(name, step)] = collect(values)
+    return nothing
+end
+```
+
+Pass the logger to [`PhysicsInformedNN`](@ref) with the `logger` keyword. Call frequency is
+controlled by [`LogOptions`](@ref).
+"""
+logvector(logger, values::AbstractVector{<:Real}, name::AbstractString, step::Integer) =
+    nothing
 
 """
     logscalar(logger, s::Real, name::AbstractString, step::Integer)
@@ -68,10 +90,12 @@ end
 (f::Phi)(x::AbstractArray, θ) = f.smodel(safe_get_device(θ)(x), θ)
 
 """
-    PhysicsInformedNN(chain, strategy; init_params = nothing, init_states = nothing,
-                      phi = nothing, param_estim = false, additional_loss = nothing,
-                      adaptive_loss = nothing, logger = nothing, log_options = LogOptions(),
-                      iteration = nothing, kwargs...)
+    PhysicsInformedNN(
+        chain, strategy; init_params = nothing, init_states = nothing,
+        phi = nothing, param_estim = false, additional_loss = nothing,
+        adaptive_loss = nothing, logger = nothing, log_options = LogOptions(),
+        iteration = nothing, kwargs...
+    )
 
 A `discretize` algorithm for the ModelingToolkit PDESystem interface, which transforms a
 `PDESystem` into an `OptimizationProblem` using the Physics-Informed Neural Networks (PINN)

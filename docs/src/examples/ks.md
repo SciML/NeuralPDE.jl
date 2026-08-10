@@ -27,7 +27,7 @@ where $\theta = t - x/2$ and with initial and boundary conditions:
 We use physics-informed neural networks.
 
 ```@example ks
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
 import DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 

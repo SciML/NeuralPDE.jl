@@ -21,7 +21,7 @@ p(-2.2) = p(2.2) = 0
 with Physics-Informed Neural Networks.
 
 ```@example fokkerplank
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, LineSearches
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, LineSearches
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 # the example is taken from this article https://arxiv.org/abs/1910.10503

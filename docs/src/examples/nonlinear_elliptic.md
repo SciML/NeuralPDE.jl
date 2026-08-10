@@ -27,7 +27,7 @@ where k is a root of the algebraic (transcendental) equation f(k) = g(k).
 This is done using a derivative neural network approximation.
 
 ```@example nonlinear_elliptic
-using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, NonlinearSolve
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, NonlinearSolve
 using Plots
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint

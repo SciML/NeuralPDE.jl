@@ -3,4 +3,5 @@
 ```@docs
 LogOptions
 NeuralPDE.logscalar
+NeuralPDE.logvector
 ```

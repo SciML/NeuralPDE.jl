@@ -17,7 +17,7 @@ end
 
 using .CUDATestSetup
 
-using NeuralPDE
+using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "2D PDE - CUDA" begin
