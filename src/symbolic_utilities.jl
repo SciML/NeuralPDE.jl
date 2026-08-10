@@ -368,9 +368,9 @@ Parse ModelingToolkit equation form to the inner representation.
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
 function parse_equation(pinnrep::PINNRepresentation, eq)
-    eq_lhs = iszero(unwrap(expand_derivatives(eq.lhs))) === true ? eq.lhs :
+    eq_lhs = iszero(Num(expand_derivatives(eq.lhs))) ? eq.lhs :
         expand_derivatives(eq.lhs)
-    eq_rhs = iszero(unwrap(expand_derivatives(eq.rhs))) === true ? eq.rhs :
+    eq_rhs = iszero(Num(expand_derivatives(eq.rhs))) ? eq.rhs :
         expand_derivatives(eq.rhs)
     left_expr = transform_expression(pinnrep, toexpr(eq_lhs))
     right_expr = transform_expression(pinnrep, toexpr(eq_rhs))
