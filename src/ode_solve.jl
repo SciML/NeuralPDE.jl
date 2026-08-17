@@ -1,3 +1,31 @@
+"""
+    NeuralPDEAlgorithm
+
+Abstract supertype for NeuralPDE's ODE algorithms. A concrete subtype must
+provide the corresponding `SciMLBase.__solve` method for an
+`SciMLBase.AbstractODEProblem` and return a solution supporting the SciMLBase
+callable-solution interface.
+
+## Extension Rules
+
+Implement `SciMLBase.__solve(prob::SciMLBase.AbstractODEProblem, alg::MyAlgorithm;
+kwargs...)` and return a SciMLBase solution. Define
+`SciMLBase.allowscomplex(::MyAlgorithm)` when the algorithm supports complex-valued
+training and interpolation. This is a developer interface; users should select a
+concrete algorithm such as [`NNODE`](@ref) or [`PINOODE`](@ref).
+
+## Example
+
+```julia
+struct MyAlgorithm <: NeuralPDE.NeuralPDEAlgorithm end
+
+function SciMLBase.__solve(
+        prob::SciMLBase.AbstractODEProblem, ::MyAlgorithm; kwargs...
+    )
+    return solve_with_my_neural_algorithm(prob; kwargs...)
+end
+```
+"""
 abstract type NeuralPDEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
 
 """

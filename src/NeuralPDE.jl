@@ -50,8 +50,75 @@ import LuxCore: initialparameters, initialstates, parameterlength
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
+"""
+    AbstractPINN
+
+Abstract supertype for PDE discretizations that use a physics-informed neural
+network.
+
+## Extension Rules
+
+A concrete subtype must add a method for
+`SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::MyPINN)`.
+The method must translate the symbolic `PDESystem` and the discretization into
+the symbolic representation consumed by the package's training workflow. Callers
+should use the generic `SciMLBase.symbolic_discretize` entry point; the concrete
+type is the dispatch extension point.
+
+This is a developer interface. Application code should normally use one of the
+concrete discretizations exported by NeuralPDE.
+
+## Example
+
+```julia
+struct MyPINN <: NeuralPDE.AbstractPINN end
+
+function SciMLBase.symbolic_discretize(
+        pde_system::PDESystem, discretization::MyPINN
+    )
+    return build_my_symbolic_representation(pde_system, discretization)
+end
+```
+"""
 abstract type AbstractPINN end
 
+"""
+    AbstractTrainingStrategy
+
+Abstract supertype for the sampling and loss-construction strategies used by
+NeuralPDE discretizations.
+
+## Extension Rules
+
+A custom strategy must implement the generic
+`get_loss_function(init_params, loss_function, training_data, T, strategy;
+kwargs...)` interface. For an interval-based strategy, the training data may
+instead be passed as lower and upper bounds:
+`get_loss_function(init_params, loss_function, lower_bounds, upper_bounds, T,
+strategy; kwargs...)`. In either form, the method must return a callable scalar
+objective whose first argument is the optimization parameter container.
+
+`loss_function` receives the strategy's training data and that parameter
+container and returns the residuals to aggregate. `T` is the element type used
+for generated training data. Keyword arguments are strategy-specific and are
+forwarded by the generic training workflow. Implement `generate_training_sets`
+or `get_bounds` only when the strategy needs those representations.
+
+This is a developer interface. User code should generally use the built-in
+training strategies.
+
+## Example
+
+```julia
+struct MyTraining <: NeuralPDE.AbstractTrainingStrategy end
+
+function NeuralPDE.get_loss_function(
+        init_params, loss_function, training_data, T, ::MyTraining; scale = 1
+    )
+    return θ -> scale * sum(abs2, loss_function(training_data, θ))
+end
+```
+"""
 abstract type AbstractTrainingStrategy end
 
 const cdev = CPUDevice()

@@ -1,6 +1,9 @@
 [QA]
 versions = ["lts", "1"]
 
+[Interface]
+versions = ["1.11", "lts"]
+
 [ODEBPINN]
 versions = ["1.11", "lts"]
 
