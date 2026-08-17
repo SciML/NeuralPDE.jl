@@ -42,5 +42,8 @@ pages = [
         "manual/neural_adapters.md",
         "manual/pino_ode.md",
     ],
-    "Developer Documentation" => Any["developer/debugging.md"],
+    "Developer Documentation" => Any[
+        "developer/debugging.md",
+        "developer/interfaces.md",
+    ],
 ]

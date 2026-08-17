@@ -161,9 +161,54 @@ end
 
 """
     get_loss_function(init_params, loss_function, training_data, eltype, strategy; kwargs...)
+    get_loss_function(
+        init_params, loss_function, lower_bounds, upper_bounds, eltype, strategy;
+        kwargs...
+    )
 
-Wrap a residual `loss_function` and strategy-specific training data into the scalar
-objective used by NeuralPDE's training strategies.
+Construct the scalar objective used by a NeuralPDE training strategy from a residual
+function and strategy-specific training data.
+
+# Arguments
+
+* `init_params`: the initial parameter container, or a `PINNRepresentation` containing
+  it. The strategy uses this to choose a device when needed.
+* `loss_function`: a function called as `loss_function(training_data, θ)` that returns
+  the residuals for the current optimization parameters `θ`.
+* `training_data`: the grid, sampled points, or bounds consumed by the strategy.
+* `lower_bounds`, `upper_bounds`: the lower and upper integration bounds for strategies
+  that use the interval form of the interface.
+* `eltype`: the element type used for generated training data.
+* `strategy`: an `AbstractTrainingStrategy` selecting the extension method.
+
+# Keyword Arguments
+
+* `kwargs`: strategy-specific options. They are forwarded to the selected extension
+  method.
+
+# Returns
+
+A callable `objective(θ)` that returns the scalar training objective for `θ`.
+
+# Extension Rules
+
+Custom strategies extend this generic function with a method specialized on their
+strategy type. The method must return a callable whose first argument is the
+optimization parameter container. `generate_training_sets` and `get_bounds` are
+separate optional extension points used only when the strategy needs to construct
+its own training data.
+
+# Examples
+
+```julia
+struct MyTraining <: AbstractTrainingStrategy end
+
+function get_loss_function(
+        init_params, loss_function, training_data, T, ::MyTraining; scale = one(T)
+    )
+    return θ -> scale * sum(abs2, loss_function(training_data, θ))
+end
+```
 """
 function get_loss_function end
 
