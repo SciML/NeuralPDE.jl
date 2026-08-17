@@ -36,6 +36,7 @@ end
 
 @testset "Developer interface contracts" begin
     @testset "AbstractPINN" begin
+        @test Docs.doc(NeuralPDE.AbstractPINN) !== nothing
         @parameters x
         @variables u(..)
         @named pde_system = PDESystem(
@@ -50,6 +51,8 @@ end
     end
 
     @testset "AbstractTrainingStrategy" begin
+        @test Docs.doc(NeuralPDE.AbstractTrainingStrategy) !== nothing
+        @test Docs.doc(NeuralPDE.get_loss_function) !== nothing
         strategy = MinimalTrainingStrategy()
         loss = NeuralPDE.get_loss_function(
             nothing, (data, θ) -> data .- θ, [1.0, 2.0], Float64, strategy;
@@ -61,6 +64,7 @@ end
     end
 
     @testset "NeuralPDEAlgorithm" begin
+        @test Docs.doc(NeuralPDE.NeuralPDEAlgorithm) !== nothing
         prob = SciMLBase.ODEProblem((u, p, t) -> zero(u), 1.0, (0.0, 1.0))
         alg = MinimalAlgorithm()
         sol = SciMLBase.solve(prob, alg)

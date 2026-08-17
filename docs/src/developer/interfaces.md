@@ -31,6 +31,8 @@ bounds as separate arguments. `NeuralPDE.generate_training_sets` and
 grid or bound-based data.
 
 ```julia
+using Statistics: mean
+
 struct MyTraining <: NeuralPDE.AbstractTrainingStrategy
     points::Int
 end

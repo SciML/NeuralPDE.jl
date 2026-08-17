@@ -169,7 +169,7 @@ end
 Construct the scalar objective used by a NeuralPDE training strategy from a residual
 function and strategy-specific training data.
 
-## Arguments
+# Arguments
 
 * `init_params`: the initial parameter container, or a `PINNRepresentation` containing
   it. The strategy uses this to choose a device when needed.
@@ -181,16 +181,16 @@ function and strategy-specific training data.
 * `eltype`: the element type used for generated training data.
 * `strategy`: an `AbstractTrainingStrategy` selecting the extension method.
 
-## Keyword Arguments
+# Keyword Arguments
 
 * `kwargs`: strategy-specific options. They are forwarded to the selected extension
   method.
 
-## Returns
+# Returns
 
 A callable `objective(θ)` that returns the scalar training objective for `θ`.
 
-## Extension Rules
+# Extension Rules
 
 Custom strategies extend this generic function with a method specialized on their
 strategy type. The method must return a callable whose first argument is the
@@ -198,7 +198,7 @@ optimization parameter container. `generate_training_sets` and `get_bounds` are
 separate optional extension points used only when the strategy needs to construct
 its own training data.
 
-## Examples
+# Examples
 
 ```julia
 struct MyTraining <: AbstractTrainingStrategy end

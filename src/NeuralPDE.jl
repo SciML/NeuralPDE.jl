@@ -56,7 +56,12 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 Abstract supertype for PDE discretizations that use a physics-informed neural
 network.
 
-## Extension Rules
+# Fields
+
+This abstract type has no fields. Concrete discretizations define the state
+needed by their `symbolic_discretize` method.
+
+# Extension Rules
 
 A concrete subtype must add a method for
 `SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::MyPINN)`.
@@ -68,15 +73,17 @@ type is the dispatch extension point.
 This is a developer interface. Application code should normally use one of the
 concrete discretizations exported by NeuralPDE.
 
-## Example
+# Example
 
 ```julia
+using ModelingToolkit: PDESystem
+
 struct MyPINN <: NeuralPDE.AbstractPINN end
 
 function SciMLBase.symbolic_discretize(
         pde_system::PDESystem, discretization::MyPINN
     )
-    return build_my_symbolic_representation(pde_system, discretization)
+    return (; pde_system, discretization)
 end
 ```
 """
@@ -88,7 +95,12 @@ abstract type AbstractPINN end
 Abstract supertype for the sampling and loss-construction strategies used by
 NeuralPDE discretizations.
 
-## Extension Rules
+# Fields
+
+This abstract type has no fields. Concrete strategies define the configuration
+needed by their training-data and loss-construction methods.
+
+# Extension Rules
 
 A custom strategy must implement the generic
 `get_loss_function(init_params, loss_function, training_data, T, strategy;
@@ -107,7 +119,7 @@ or `get_bounds` only when the strategy needs those representations.
 This is a developer interface. User code should generally use the built-in
 training strategies.
 
-## Example
+# Example
 
 ```julia
 struct MyTraining <: NeuralPDE.AbstractTrainingStrategy end
