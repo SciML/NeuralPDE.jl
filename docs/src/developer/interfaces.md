@@ -7,6 +7,10 @@ training strategies in the manual.
 
 ## PDE Discretizations
 
+```@docs
+NeuralPDE.AbstractPINN
+```
+
 The concrete subtype is the dispatch extension point for
 `SciMLBase.symbolic_discretize`. Its method should translate the symbolic
 `PDESystem` into the representation consumed by its training workflow. The
