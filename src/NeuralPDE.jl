@@ -163,6 +163,8 @@ include("dgm.jl")
 include("NN_SDE_solve.jl")
 include("NN_SDE_weaksolve.jl")
 
+include("precompilation.jl")
+
 export PINOODE
 export NNODE, NNDAE
 export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
