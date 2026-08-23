@@ -29,6 +29,11 @@ using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFun
 using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem,
     OptimizationFunction, OptimizationProblem, ReturnCode, discretize,
     isinplace, solve, symbolic_discretize, ODEProblem
+# Part of the SciML common interface that NeuralPDE reexports (see the second `export`
+# block below) so that `using NeuralPDE` on its own is enough to follow the tutorials:
+# build a problem, solve it and inspect the result.
+using SciMLBase: DAEProblem, NoiseProblem, ODEFunction, ODEInputFunction, ODESolution,
+    PDETimeSeriesSolution, SDEProblem, init, remake
 using SciMLPublic: @public
 using Statistics: Statistics, mean
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
@@ -39,6 +44,10 @@ using Zygote: Zygote
 using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
 using ModelingToolkitBase: @named, @parameters, get_dvs, get_ivs
 using Symbolics: Symbolics, arguments, Num, expand_derivatives, @variables
+# Part of the symbolic front end that NeuralPDE reexports (see the second `export` block
+# below) so that `using NeuralPDE` on its own is enough to write down a `PDESystem`.
+using ModelingToolkitBase: @mtkcompile, mtkcompile, unknowns
+using Symbolics: Integral, @register_symbolic
 using SymbolicUtils: SymbolicUtils, unwrap
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
@@ -187,6 +196,19 @@ export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
     MiniMaxAdaptiveLoss, SoftAdaptAdaptiveLoss, ReLoBRaLoAdaptiveLoss
 
 export LogOptions
+
+# Reexported public API of the SciML common interface and the ModelingToolkit/Symbolics
+# symbolic front end. `using NeuralPDE` used to supply these through
+# `@reexport using SciMLBase, ModelingToolkit`, which was removed in c9400f12 and took
+# the documented surface with it. These are the names NeuralPDE's own documentation,
+# README and tests use, plus the ones downstream SciML packages were relying on; every
+# one of them stays owned and documented upstream. Kept in sync with `REEXPORTS` in
+# `test/qa/qa.jl`.
+export SciMLBase, DAEProblem, NoiseProblem, ODEFunction, ODEInputFunction, ODEProblem,
+    ODESolution, OptimizationFunction, OptimizationProblem, PDETimeSeriesSolution,
+    ReturnCode, SDEProblem, init, remake, solve
+export ModelingToolkit, Differential, Integral, PDESystem, infimum, mtkcompile, supremum,
+    unknowns, @mtkcompile, @named, @parameters, @register_symbolic, @variables
 
 @public logscalar, logvector
 
