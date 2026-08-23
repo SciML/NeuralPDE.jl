@@ -45,7 +45,7 @@ alg = SDEPINN(
 )
 ```
 """
-@concrete struct SDEPINN
+@concrete struct SDEPINN <: SciMLBase.AbstractSDEAlgorithm
     chain <: AbstractLuxLayer
     optimalg
     norm_loss_alg

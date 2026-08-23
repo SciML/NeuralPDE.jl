@@ -22,6 +22,11 @@ using Test
 
     alg = NNODE(fluxchain, opt)
     @test alg.chain isa Lux.AbstractLuxLayer
+    # `NNODE` must be recognized as a SciML algorithm, otherwise `solve` silently
+    # falls back to the default ODE algorithm (see the `DiffEqBase.extract_alg`
+    # path exercised whenever OrdinaryDiffEq is loaded alongside NeuralPDE).
+    @test alg isa SciMLBase.AbstractODEAlgorithm
     sol = solve(prob, alg; verbose = false, abstol = 1.0e-10, maxiters = 200)
+    @test sol.alg isa NNODE
     @test sol.errors[:l2] < 0.5
 end

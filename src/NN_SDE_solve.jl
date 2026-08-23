@@ -128,7 +128,7 @@ Stochastic Physics-Informed Neural Ordinary Differential Equations : https://arx
 Stochastic PDE Functionality #531 : https://github.com/SciML/NeuralPDE.jl/issues/531
 
 """
-@concrete struct NNSDE
+@concrete struct NNSDE <: SciMLBase.AbstractSDEAlgorithm
     chain <: AbstractLuxLayer
     opt
     init_params
