@@ -40,7 +40,7 @@ abstract type NeuralPDEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
 
 """
     NNODE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-        batch = true, param_estim = false, additional_loss = nothing,
+        batch = true, ode_batch_eval = true, param_estim = false, additional_loss = nothing,
         dataset = [], estim_collocate = false, kwargs...)
 
 Algorithm for solving ordinary differential equations using a neural network. This is a
@@ -132,6 +132,7 @@ Networks 9, no. 5 (1998): 987-1000.
     init_params
     autodiff::Bool
     batch
+    ode_batch_eval::Bool
     strategy <: Union{Nothing, AbstractTrainingStrategy}
     param_estim
     additional_loss <: Union{Nothing, Function}
@@ -142,12 +143,12 @@ end
 
 function NNODE(
         chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-        batch = true, param_estim = false, additional_loss = nothing,
+        batch = true, ode_batch_eval = true, param_estim = false, additional_loss = nothing,
         dataset = [], estim_collocate = false, kwargs...
     )
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return NNODE(
-        chain, opt, init_params, autodiff, batch,
+        chain, opt, init_params, autodiff, batch, ode_batch_eval,
         strategy, param_estim, additional_loss, dataset, estim_collocate, kwargs
     )
 end
@@ -194,8 +195,9 @@ end
 
 (f::ODEPhi)(dev, t::Number, θ) = dev(f.u0) .+ (t .- f.t0) .* f.smodel(dev([t]), θ.depvar)
 
-(f::ODEPhi)(dev, t::AbstractVector, θ) = dev(f.u0) .+ (t' .- f.t0) .* f.smodel(t', θ.depvar)
-
+function (f::ODEPhi)(dev, t::AbstractVector, θ) 
+   return dev(f.u0) .+ (t' .- f.t0) .* f.smodel(t', θ.depvar)
+end
 """
     ode_dfdx(phi, t, θ, autodiff)
 
@@ -212,12 +214,72 @@ function ode_dfdx(phi::ODEPhi, t, θ, autodiff::Bool)
     return (phi(t .+ ϵ, θ) .- phi(t, θ)) ./ ϵ
 end
 
+abstract type AbstractBatchedRHS end
+
+struct BatchedRHS{F} <: AbstractBatchedRHS
+    f::F
+end
+
+@inline (rhs::BatchedRHS)(u, p, t) = rhs.f(u, p, t)
+
 """
     inner_loss(phi, f, autodiff, t, θ, p, param_estim)
 
 Simple L2 inner loss at a time `t` with parameters `θ` of the neural network.
 """
 function inner_loss end
+
+function inner_loss(
+        phi::ODEPhi{<:Number}, f::AbstractBatchedRHS, autodiff::Bool,
+        ts::AbstractVector, θ, p, param_estim::Bool
+    )
+    p_ = param_estim ? θ.p : p
+    dev = safe_get_device(θ)
+
+    out_matrix = phi(dev, ts, θ)
+    out = vec(out_matrix)
+    fs = vec(f(out, p_, ts))
+
+    dxdtguess = if autodiff
+        vec(ode_dfdx(phi, ts, θ, true))
+    else
+        ϵ = sqrt(eps(eltype(ts)))
+        vec((phi(dev, ts .+ ϵ, θ) .- out_matrix) ./ ϵ)
+    end
+
+    length(fs) == length(dxdtguess) ||
+        throw(DimensionMismatch(
+            "Batched scalar RHS returned $(length(fs)) values; " *
+            "expected $(length(dxdtguess))."
+        ))
+
+    return sum(abs2, fs .- dxdtguess) / length(ts)
+end
+
+function inner_loss(
+        phi::ODEPhi, f::AbstractBatchedRHS, autodiff::Bool,
+        ts::AbstractVector, θ, p, param_estim::Bool
+    )
+    p_ = param_estim ? θ.p : p
+    dev = safe_get_device(θ)
+
+    out = phi(dev, ts, θ)
+    fs = f(out, p_, ts)
+
+    dxdtguess = if autodiff
+        ode_dfdx(phi, ts, θ, true)
+    else
+        ϵ = sqrt(eps(eltype(ts)))
+        (phi(dev, ts .+ ϵ, θ) .- out) ./ ϵ
+    end
+
+    size(fs) == size(dxdtguess) ||
+        throw(DimensionMismatch(
+            "Batched RHS returned size $(size(fs)); expected $(size(dxdtguess))."
+        ))
+    return sum(abs2, fs .- dxdtguess) / length(ts)
+end
+
 
 function inner_loss(phi::ODEPhi, f, autodiff::Bool, t::Number, θ, p, param_estim::Bool)
     p_ = param_estim ? θ.p : p
@@ -245,7 +307,7 @@ Representation of the loss function, parametric on the training strategy `strate
 """
 function generate_loss(
         strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim::Bool
+        batch, ode_batch_eval, param_estim::Bool
     )
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
 
@@ -267,17 +329,23 @@ function generate_loss(
 end
 
 function generate_loss(
-        strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool
+        strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, ode_batch_eval, param_estim::Bool
     )
-    ts = tspan[1]:(strategy.dx):tspan[2]
+    ts = collect(tspan[1]:(strategy.dx):tspan[2])
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
-    batch && return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
-    return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+    if batch
+        dev = safe_get_device(phi)
+        ts = safe_expand(dev, ts) 
+        f = ode_batch_eval || not(dev == cdev) ? BatchedRHS(f) : f  # forces vectorized computation on gpu
+        return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
+    else
+        return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+    end
 end
 
 function generate_loss(
         strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim::Bool
+        batch, ode_batch_eval, param_estim::Bool
     )
     autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
     return (
@@ -287,6 +355,9 @@ function generate_loss(
         T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
         ts = (tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1]
         if batch
+            dev = safe_get_device(phi)
+            ts = safe_expand(dev, ts) 
+            f = ode_batch_eval || not(dev == cdev) ? BatchedRHS(f) : f  # forces vectorized computation on gpu
             inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
         else
             sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
@@ -296,7 +367,7 @@ end
 
 function generate_loss(
         strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, param_estim::Bool
+        batch, ode_batch_eval, param_estim::Bool
     )
     autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT, maxT = tspan
@@ -311,8 +382,14 @@ function generate_loss(
         append!(ts, temp_data)
     end
 
-    batch && return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
-    return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+    if batch
+        dev = safe_get_device(phi)
+        ts = safe_expand(dev, ts) 
+        f = ode_batch_eval || not(dev == cdev) ? BatchedRHS(f) : f  # forces vectorized computation on gpu
+        return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
+    else
+        return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
+    end
 end
 
 function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim::Bool)
@@ -420,7 +497,7 @@ function SciMLBase.__solve(
     # add estim_collocate, dataset (or nothing) in NNODE
     (;
         param_estim, estim_collocate, dataset, chain, opt, autodiff,
-        init_params, batch, additional_loss, estim_collocate,
+        init_params, batch, ode_batch_eval, additional_loss, estim_collocate,
     ) = alg
 
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
@@ -450,7 +527,7 @@ function SciMLBase.__solve(
         alg.strategy
     end
 
-    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
+    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, ode_batch_eval, param_estim)
 
     if !isempty(dataset) &&
             (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
@@ -520,13 +597,13 @@ function SciMLBase.__solve(
 
     #solutions at timepoints
     if saveat isa Number
-        ts = tspan[1]:saveat:tspan[2]
+        ts = collect(tspan[1]:saveat:tspan[2])
     elseif saveat isa AbstractArray
         ts = saveat
     elseif dt !== nothing
-        ts = tspan[1]:dt:tspan[2]
+        ts = collect(tspan[1]:dt:tspan[2])
     elseif save_everystep
-        ts = range(tspan[1], tspan[2], length = 100)
+        ts = collect(range(tspan[1], tspan[2], length = 100))
     else
         ts = [tspan[1], tspan[2]]
     end
