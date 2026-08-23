@@ -30,7 +30,7 @@ Anything else from ModelingToolkit or Symbolics must be imported from that packa
 directly — for example `System`, `equations`, `parameters` and `observed` are
 system-manipulation API that NeuralPDE does not use in its own documented workflow, so
 they are deliberately not reexported. Interval domains still come from
-[DomainSets](https://juliaapproximation.github.io/DomainSets.jl/stable/)
+[DomainSets](https://github.com/JuliaApproximation/DomainSets.jl)
 (`using DomainSets: Interval`), which NeuralPDE does not reexport.
 
 ## Reexported SciML common interface
