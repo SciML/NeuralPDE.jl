@@ -126,7 +126,7 @@ Lagaris, Isaac E., Aristidis Likas, and Dimitrios I. Fotiadis. "Artificial neura
 for solving ordinary and partial differential equations." IEEE Transactions on Neural
 Networks 9, no. 5 (1998): 987-1000.
 """
-@concrete struct NNODE
+@concrete struct NNODE <: NeuralPDEAlgorithm
     chain <: AbstractLuxLayer
     opt
     init_params

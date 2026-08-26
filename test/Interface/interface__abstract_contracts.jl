@@ -73,4 +73,20 @@ end
         @test sol.u == [1.0, 1.0]
         @test sol.retcode == SciMLBase.ReturnCode.Success
     end
+
+    # `DiffEqBase.extract_alg` only picks up the algorithm passed to `solve` when it
+    # is a `SciMLBase.AbstractSciMLAlgorithm`. Anything else is treated as "no
+    # algorithm given" and is silently replaced by the default solver of the loaded
+    # solver package, so the NeuralPDE solver would never run.
+    @testset "Solver algorithms subtype the SciMLBase algorithm hierarchy" begin
+        for T in (NeuralPDE.NNODE, NeuralPDE.PINOODE, NeuralPDE.BNNODE)
+            @test T <: SciMLBase.AbstractODEAlgorithm
+        end
+
+        @test NeuralPDE.NNDAE <: SciMLBase.AbstractDAEAlgorithm
+
+        for T in (NeuralPDE.NNSDE, NeuralPDE.SDEPINN)
+            @test T <: SciMLBase.AbstractSDEAlgorithm
+        end
+    end
 end

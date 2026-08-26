@@ -30,7 +30,7 @@ neural operator, which is used as a solver for a parametrized `ODEProblem`.
 * Sifan Wang "Learning the solution operator of parametric partial differential equations with physics-informed DeepOnets"
 * Zongyi Li "Physics-Informed Neural Operator for Learning Partial Differential Equations"
 """
-@concrete struct PINOODE
+@concrete struct PINOODE <: NeuralPDEAlgorithm
     chain
     opt
     bounds
