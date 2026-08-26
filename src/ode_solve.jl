@@ -339,7 +339,7 @@ function generate_loss(
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     if batch
         dev = safe_get_device(phi)
-        ts = safe_expand(dev, ts) 
+        ts = safe_expand(dev, ts)
         f = ode_batch_eval || not(dev == cdev) ? BatchedRHS(f) : f  # forces vectorized computation on gpu
         return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
     else
@@ -360,7 +360,7 @@ function generate_loss(
         ts = (tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1]
         if batch
             dev = safe_get_device(phi)
-            ts = safe_expand(dev, ts) 
+            ts = safe_expand(dev, ts)
             f = ode_batch_eval || not(dev == cdev) ? BatchedRHS(f) : f  # forces vectorized computation on gpu
             inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
         else
@@ -388,7 +388,7 @@ function generate_loss(
 
     if batch
         dev = safe_get_device(phi)
-        ts = safe_expand(dev, ts) 
+        ts = safe_expand(dev, ts)
         f = ode_batch_eval || not(dev == cdev) ? BatchedRHS(f) : f  # forces vectorized computation on gpu
         return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
     else
