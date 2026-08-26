@@ -8,6 +8,7 @@ We start by defining the problem, with a random and non informative initializati
 ```@example improv_param_estim
 using ModelingToolkit, NeuralPDE, SciMLBase, OrdinaryDiffEq, Lux, Random, OptimizationOptimJL, LineSearches,
       Distributions, Plots
+using Optim: LBFGS
 using FastGaussQuadrature
 using Test # hide
 

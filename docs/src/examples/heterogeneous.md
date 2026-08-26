@@ -11,6 +11,7 @@ Here, we write an arbitrary heterogeneous system:
 
 ```@example heterogeneous
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
+using Optim: BFGS
 import DomainSets: Interval
 
 @parameters x y

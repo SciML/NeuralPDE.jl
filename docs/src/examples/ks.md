@@ -28,6 +28,7 @@ We use physics-informed neural networks.
 
 ```@example ks
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
+using Optim: BFGS
 import DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 
@@ -72,7 +73,7 @@ callback = function (p, l)
     return false
 end
 
-opt = OptimizationOptimJL.BFGS()
+opt = BFGS()
 res = Optimization.solve(prob, opt; maxiters = 2000, callback)
 phi = discretization.phi
 ```

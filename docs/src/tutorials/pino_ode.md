@@ -9,6 +9,7 @@ In this section, we will define a parametric ODE and then learn it with a PINO u
 ```@example pino
 using Test
 using OptimizationOptimisers
+using Optimisers: Adam
 using Lux
 using Statistics, Random
 using NeuralOperators
@@ -38,7 +39,7 @@ number_of_parameter_samples = 50
 strategy = StochasticTraining(20)
 
 # Define the optimizer
-opt = OptimizationOptimisers.Adam(0.03)
+opt = Adam(0.03)
 
 # Define `PINNODE`
 alg = PINOODE(deeponet, opt, bounds, num_params; strategy = strategy)

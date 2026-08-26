@@ -17,6 +17,7 @@ Further, the solution of this equation with the given boundary conditions is pre
 
 ```@example wave
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
+using Optim: BFGS
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 
@@ -55,7 +56,7 @@ callback = function (p, l)
 end
 
 # optimizer
-opt = OptimizationOptimJL.BFGS()
+opt = BFGS()
 res = Optimization.solve(prob, opt; callback, maxiters = 1200)
 phi = discretization.phi
 ```
@@ -99,6 +100,7 @@ with grid discretization `dx = 0.05` and physics-informed neural networks. Here,
 
 ```@example wave2
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
+using Optim: BFGS
 using Plots, Printf
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint

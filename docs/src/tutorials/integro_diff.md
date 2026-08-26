@@ -48,6 +48,7 @@ u(0) = 0
 
 ```@example integro
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, DomainSets
+using Optim: BFGS
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 using Plots

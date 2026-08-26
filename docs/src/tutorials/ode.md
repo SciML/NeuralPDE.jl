@@ -46,10 +46,11 @@ chain = Chain(Dense(1, 5, σ), Dense(5, 1))
 ps, st = Lux.setup(rng, chain) |> Lux.f64
 ```
 
-Now we must choose an optimizer to define the [`NNODE`](@ref) solver. A common choice is `Adam`, with a tunable rate, which we will set to `0.1`. In general, this rate parameter should be decreased if the solver's loss tends to be unsteady (sometimes rise “too much”), but should be as large as possible for efficiency. We use `Adam` from [OptimizationOptimisers](https://docs.sciml.ai/Optimization/stable/optimization_packages/optimisers/). Thus, the definition of the [`NNODE`](@ref) solver is as follows:
+Now we must choose an optimizer to define the [`NNODE`](@ref) solver. A common choice is `Adam`, with a tunable rate, which we will set to `0.1`. In general, this rate parameter should be decreased if the solver's loss tends to be unsteady (sometimes rise “too much”), but should be as large as possible for efficiency. We use `Adam` from Optimisers.jl through the [OptimizationOptimisers adapter](https://docs.sciml.ai/Optimization/stable/optimization_packages/optimisers/). Thus, the definition of the [`NNODE`](@ref) solver is as follows:
 
 ```@example nnode1
 using OptimizationOptimisers
+using Optimisers: Adam
 
 opt = Adam(0.1)
 alg = NNODE(chain, opt, init_params = ps)

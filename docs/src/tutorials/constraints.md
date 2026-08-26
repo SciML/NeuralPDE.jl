@@ -22,6 +22,7 @@ with Physics-Informed Neural Networks.
 
 ```@example fokkerplank
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, LineSearches
+using Optim: BFGS
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 # the example is taken from this article https://arxiv.org/abs/1910.10503

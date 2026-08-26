@@ -54,6 +54,8 @@ using the second numeric derivative `Dt(Dtu1(t,x))`.
 ```@example derivativenn
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimisers,
       OptimizationOptimJL, LineSearches, Plots
+using Optim: LBFGS
+using Optimisers: Adam
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 
@@ -116,7 +118,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000, callback)
+res = Optimization.solve(prob, Adam(0.01); maxiters = 2000, callback)
 prob = remake(prob, u0 = res.u)
 res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
 

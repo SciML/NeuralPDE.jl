@@ -29,6 +29,7 @@ Using physics-informed neural networks.
 
 ```@example poisson
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, LineSearches, Plots
+using Optim: LBFGS
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 
@@ -141,7 +142,7 @@ Here, we define the callback function and the optimizer. And now we can solve th
 
 ```@example poisson
 #Optimizer
-opt = OptimizationOptimJL.LBFGS(linesearch = BackTracking())
+opt = LBFGS(linesearch = BackTracking())
 
 callback = function (p, l)
     println("Current loss is: $l")

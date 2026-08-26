@@ -15,6 +15,7 @@ Using the example of 2D Poisson equation, it is shown how, using the method neur
 
 ```@example neural_adapter
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimisers
+using Optimisers: Adam
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 using Random, ComponentArrays
@@ -53,7 +54,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000,
+res = Optimization.solve(prob, Adam(5e-3); maxiters = 10000,
     callback)
 phi = discretization.phi
 
@@ -74,7 +75,7 @@ end
 strategy = GridTraining(0.1)
 
 prob_ = neural_adapter(loss, init_params2, pde_system, strategy)
-res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
+res_ = solve(prob_, Adam(5e-3); maxiters = 10000, callback)
 
 phi_ = PhysicsInformedNN(chain2, strategy; init_params = res_.u).phi
 
@@ -183,7 +184,7 @@ for i in 1:count_decomp
 
     prob = discretize(pde_system_, discretization)
     symprob = symbolic_discretize(pde_system_, discretization)
-    res_ = solve(prob, OptimizationOptimisers.Adam(5e-3); maxiters = 10000, callback)
+    res_ = solve(prob, Adam(5e-3); maxiters = 10000, callback)
     phi = discretization.phi
     push!(reses, res_)
     push!(phis, phi)
@@ -243,7 +244,7 @@ callback = function (p, l)
 end
 
 prob_ = neural_adapter(losses, init_params2, pde_system_map, StochasticTraining(1024))
-res_ = solve(prob_, OptimizationOptimisers.Adam(5e-3); maxiters = 5000, callback)
+res_ = solve(prob_, Adam(5e-3); maxiters = 5000, callback)
 
 phi_ = PhysicsInformedNN(chain2, strategy; init_params = res_.u).phi
 

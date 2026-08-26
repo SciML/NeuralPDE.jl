@@ -28,6 +28,7 @@ This is done using a derivative neural network approximation.
 
 ```@example nonlinear_elliptic
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, NonlinearSolve
+using Optim: BFGS
 using Plots
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint

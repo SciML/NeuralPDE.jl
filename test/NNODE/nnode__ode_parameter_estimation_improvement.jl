@@ -3,6 +3,7 @@ using Test
 
 @testset "ODE Parameter Estimation Improvement" begin
     using OrdinaryDiffEq, Random, Lux, OptimizationOptimJL, LineSearches
+    using Optim: BFGS
     using FastGaussQuadrature
     Random.seed!(100)
 

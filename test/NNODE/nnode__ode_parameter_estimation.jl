@@ -3,6 +3,7 @@ using Test
 
 @testset "ODE Parameter Estimation" begin
     using OrdinaryDiffEq, Random, Lux, OptimizationOptimJL, LineSearches
+    using Optim: BFGS
     Random.seed!(100)
 
     function lorenz(u, p, t)

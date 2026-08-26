@@ -27,6 +27,7 @@ with a physics-informed neural network.
 ```@example linear_parabolic
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimisers,
       OptimizationOptimJL, LineSearches
+using Optimisers: Adam
 using Plots
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
@@ -94,7 +95,7 @@ callback = function (p, l)
     return false
 end
 
-res = solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 5000, callback)
+res = solve(prob, Adam(1e-2); maxiters = 5000, callback)
 
 phi = discretization.phi
 
