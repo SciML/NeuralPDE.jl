@@ -30,6 +30,7 @@ using Test
         Dense(1, 16, tanh; init_weight = kaiming_normal(ComplexF64)),
         Dense(16, 4; init_weight = kaiming_normal(ComplexF64))
     )
+    @test !NNODE(chain, Adam(0.01)).ode_batch_eval
 
     ground_truth = solve(problem, Tsit5(), saveat = 0.01)
 
