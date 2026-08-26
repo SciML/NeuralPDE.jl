@@ -3,9 +3,29 @@ using SciMLTesting, NeuralPDE, Test
 # Load every weak dependency so run_qa also scans NeuralPDE's package extensions.
 using AdvancedHMC, LogDensityProblems, MCMCChains, TensorBoardLogger
 
+# Kept in sync with the reexport `export` blocks in src/NeuralPDE.jl.
+const REEXPORTS = (
+    # SciML common interface (SciMLBase)
+    :SciMLBase, :DAEProblem, :NoiseProblem, :ODEFunction, :ODEInputFunction, :ODEProblem,
+    :ODESolution, :OptimizationFunction, :OptimizationProblem, :PDETimeSeriesSolution,
+    :ReturnCode, :SDEProblem, :discretize, :init, :remake, :solve, :symbolic_discretize,
+    # Symbolic front end (ModelingToolkit / ModelingToolkitBase / Symbolics)
+    :ModelingToolkit, :Differential, :Integral, :PDESystem, :mtkcompile, :unknowns,
+    Symbol("@mtkcompile"), Symbol("@named"), Symbol("@parameters"),
+    Symbol("@register_symbolic"), Symbol("@variables"),
+)
+
+@testset "Reexported public API stays in scope" begin
+    exported = Set(names(NeuralPDE))
+    for name in REEXPORTS
+        @test name in exported
+        @test isdefined(NeuralPDE, name)
+    end
+end
+
 run_qa(
     NeuralPDE;
-    reexports_allow = (:discretize, :symbolic_discretize),
+    reexports_allow = REEXPORTS,
     ei_kwargs = (;
         # Retain the reviewed Base.mapany, Base.Broadcast.dottable,
         # SymbolicUtils._iszero, and Symbolics.variables calls. ForwardDiff does not

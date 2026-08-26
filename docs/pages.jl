@@ -46,4 +46,5 @@ pages = [
         "developer/debugging.md",
         "developer/interfaces.md",
     ],
+    "API" => "api.md",
 ]
