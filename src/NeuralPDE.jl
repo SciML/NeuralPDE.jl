@@ -26,9 +26,10 @@ using Printf: @printf
 using Random: Random, AbstractRNG
 using RecursiveArrayTools: DiffEqArray
 using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
-using SciMLBase: SciMLBase, BatchIntegralFunction, IntegralProblem,
-    OptimizationFunction, OptimizationProblem, ReturnCode, discretize,
-    isinplace, solve, symbolic_discretize, ODEProblem
+using SciMLBase: SciMLBase, BatchIntegralFunction, DAEProblem, IntegralProblem,
+    NoiseProblem, ODEFunction, ODEInputFunction, ODEProblem, ODESolution,
+    OptimizationFunction, OptimizationProblem, PDETimeSeriesSolution, ReturnCode,
+    SDEProblem, discretize, init, isinplace, remake, solve, symbolic_discretize
 using SciMLPublic: @public
 using Statistics: Statistics, mean
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
@@ -36,9 +37,11 @@ using WeightInitializers: glorot_uniform, zeros32
 using Zygote: Zygote
 
 # Symbolic Stuff
-using ModelingToolkit: ModelingToolkit, PDESystem, Differential, toexpr
-using ModelingToolkitBase: @named, @parameters, get_dvs, get_ivs
-using Symbolics: Symbolics, arguments, Num, expand_derivatives, @variables
+using ModelingToolkit: ModelingToolkit, toexpr
+using ModelingToolkitBase: @mtkcompile, @named, @parameters, PDESystem, get_dvs, get_ivs,
+    mtkcompile, unknowns
+using Symbolics: Symbolics, Differential, Integral, arguments, Num, expand_derivatives,
+    @register_symbolic, @variables
 using SymbolicUtils: SymbolicUtils, unwrap
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
@@ -170,7 +173,7 @@ export NNODE, NNDAE
 export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
 export NNSDE
 export SDEPINN
-export PhysicsInformedNN, discretize
+export PhysicsInformedNN
 export BPINNsolution, BayesianPINN
 export DeepGalerkin
 
@@ -181,12 +184,18 @@ export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
 
 export build_loss_function, get_loss_function,
     generate_training_sets, get_variables, get_argument, get_bounds,
-    get_numeric_integral, symbolic_discretize, vector_to_parameters
+    get_numeric_integral, vector_to_parameters
 
 export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
     MiniMaxAdaptiveLoss, SoftAdaptAdaptiveLoss, ReLoBRaLoAdaptiveLoss
 
 export LogOptions
+
+export SciMLBase, DAEProblem, NoiseProblem, ODEFunction, ODEInputFunction, ODEProblem,
+    ODESolution, OptimizationFunction, OptimizationProblem, PDETimeSeriesSolution,
+    ReturnCode, SDEProblem, discretize, init, remake, solve, symbolic_discretize
+export ModelingToolkit, Differential, Integral, PDESystem, mtkcompile, unknowns,
+    @mtkcompile, @named, @parameters, @register_symbolic, @variables
 
 @public logscalar, logvector
 

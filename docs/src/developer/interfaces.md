@@ -15,7 +15,7 @@ The concrete subtype is the dispatch extension point for
 `SciMLBase.symbolic_discretize`. Its method should translate the symbolic
 `PDESystem` into the representation consumed by its training workflow. The
 abstract type and application-facing examples are documented on the
-[PINN manual page](@ref).
+[PINN manual page](@ref "`PhysicsInformedNN` Discretizer for PDESystems").
 
 ## Training Strategies
 
@@ -24,11 +24,11 @@ NeuralPDE.AbstractTrainingStrategy
 ```
 
 A custom training strategy implements the generic `NeuralPDE.get_loss_function`
-interface, which is documented on the [developer debugging page](@ref). It
-returns a callable scalar objective. The interval form receives lower and upper
-bounds as separate arguments. `NeuralPDE.generate_training_sets` and
-`NeuralPDE.get_bounds` are optional extension points for strategies that construct
-grid or bound-based data.
+interface, which is documented on the
+[developer debugging page](@ref "Debugging PINN Solutions"). It returns a callable
+scalar objective. The interval form receives lower and upper bounds as separate
+arguments. `NeuralPDE.generate_training_sets` and `NeuralPDE.get_bounds` are optional
+extension points for strategies that construct grid or bound-based data.
 
 ```julia
 using Statistics: mean

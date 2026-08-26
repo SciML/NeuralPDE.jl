@@ -397,7 +397,7 @@ end
 
 # Metadata-dispatched call: `(sol)(p, t)` is the natural PDE-style query.
 function (sol::SciMLBase.PDETimeSeriesSolution{T, N, S, <:PINOODEMetadata})(
-        p, t
+        p, t::Union{Number, AbstractArray}
     ) where {T, N, S}
     return sol.interp(p, t)
 end
