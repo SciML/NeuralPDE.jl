@@ -54,7 +54,7 @@ reexported: NeuralPDE's solvers train a network rather than step an integrator, 
 those names are not part of its documented use.
 
 !!! note
-    
+
     This list is kept in sync in three places: the reexport `export` blocks in
     `src/NeuralPDE.jl`, the `REEXPORTS` tuple in `test/qa/qa.jl` (which is what
     `run_qa`'s `reexports_allow` is given, and which a test checks against
