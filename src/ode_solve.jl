@@ -195,8 +195,8 @@ end
 
 (f::ODEPhi)(dev, t::Number, θ) = dev(f.u0) .+ (t .- f.t0) .* f.smodel(dev([t]), θ.depvar)
 
-function (f::ODEPhi)(dev, t::AbstractVector, θ) 
-   return dev(f.u0) .+ (t' .- f.t0) .* f.smodel(t', θ.depvar)
+function (f::ODEPhi)(dev, t::AbstractVector, θ)
+    return dev(f.u0) .+ (t' .- f.t0) .* f.smodel(t', θ.depvar)
 end
 """
     ode_dfdx(phi, t, θ, autodiff)
@@ -248,10 +248,12 @@ function inner_loss(
     end
 
     length(fs) == length(dxdtguess) ||
-        throw(DimensionMismatch(
+        throw(
+        DimensionMismatch(
             "Batched scalar RHS returned $(length(fs)) values; " *
-            "expected $(length(dxdtguess))."
-        ))
+                "expected $(length(dxdtguess))."
+        )
+    )
 
     return sum(abs2, fs .- dxdtguess) / length(ts)
 end
@@ -274,9 +276,11 @@ function inner_loss(
     end
 
     size(fs) == size(dxdtguess) ||
-        throw(DimensionMismatch(
+        throw(
+        DimensionMismatch(
             "Batched RHS returned size $(size(fs)); expected $(size(dxdtguess))."
-        ))
+        )
+    )
     return sum(abs2, fs .- dxdtguess) / length(ts)
 end
 
