@@ -59,6 +59,7 @@ u(t, 1) & = 0
 ```@example dgm
 using ModelingToolkit, NeuralPDE, SciMLBase
 using Optimization, OptimizationOptimisers
+using Optimisers: Adam
 using Distributions
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint

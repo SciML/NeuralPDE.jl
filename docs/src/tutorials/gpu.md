@@ -45,6 +45,7 @@ In total, this looks like:
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, LuxCUDA, Random, ComponentArrays
 using Optimization
 using OptimizationOptimisers
+using Optimisers: Adam
 import DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 using Plots
@@ -97,7 +98,7 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, OptimizationOptimisers.Adam(1e-2); maxiters = 2500)
+res = Optimization.solve(prob, Adam(1e-2); maxiters = 2500)
 ```
 
 We then use the `remake` function to rebuild the PDE problem to start a new optimization at the optimized parameters, and continue with a lower learning rate:
@@ -105,7 +106,7 @@ We then use the `remake` function to rebuild the PDE problem to start a new opti
 ```@example gpu
 prob = remake(prob, u0 = res.u)
 res = Optimization.solve(
-    prob, OptimizationOptimisers.Adam(1e-3); callback = callback, maxiters = 2500)
+    prob, Adam(1e-3); callback = callback, maxiters = 2500)
 ```
 
 Finally, we inspect the solution:

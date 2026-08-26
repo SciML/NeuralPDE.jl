@@ -35,6 +35,7 @@ We solve this with Neural:
 ```@example nonlinear_hyperbolic
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, NonlinearSolve,
       LineSearches
+using Optim: BFGS
 using SpecialFunctions
 using Plots
 using DomainSets: Interval

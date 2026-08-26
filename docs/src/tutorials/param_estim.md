@@ -17,6 +17,7 @@ We start by defining the problem,
 ```@example param_estim
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, OrdinaryDiffEq,
       Plots, LineSearches
+using Optim: BFGS
 using DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 @parameters t, σ_, β, ρ

@@ -13,6 +13,7 @@ Let's solve a simple DAE system:
 
 ```@example dae
 using ModelingToolkit, NeuralPDE, SciMLBase, Random, OrdinaryDiffEq, Statistics, Lux, OptimizationOptimisers
+using Optimisers: Adam
 
 example = (du, u, p, t) -> [cos(2pi * t) - du[1], u[2] + cos(2pi * t) - du[2]]
 u₀ = [1.0, -1.0]
@@ -29,7 +30,7 @@ differential_vars = [true, false]
 ```@example dae
 prob = DAEProblem(example, du₀, u₀, tspan; differential_vars = differential_vars)
 chain = Lux.Chain(Lux.Dense(1, 15, cos), Lux.Dense(15, 15, sin), Lux.Dense(15, 2))
-opt = OptimizationOptimisers.Adam(0.1)
+opt = Adam(0.1)
 alg = NNDAE(chain, opt; autodiff = false)
 sol = solve(prob, alg, verbose = true, dt = 1 / 100.0, maxiters = 3000, abstol = 1e-10)
 ```

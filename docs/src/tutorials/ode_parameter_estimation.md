@@ -8,6 +8,7 @@ We start by defining the problem:
 
 ```@example param_estim_lv
 using ModelingToolkit, NeuralPDE, SciMLBase, OrdinaryDiffEq, Lux, Random, OptimizationOptimJL, LineSearches, Plots
+using Optim: LBFGS
 using Test # hide
 
 function lv(u, p, t)

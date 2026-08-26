@@ -6,6 +6,7 @@ As the input to this neural network is time which is real, we need to initialize
 
 ```@example complex
 using Random, ModelingToolkit, NeuralPDE, SciMLBase, OrdinaryDiffEq, Lux, OptimizationOptimisers, Plots
+using Optimisers: Adam
 rng = Random.default_rng()
 Random.seed!(100)
 
@@ -33,7 +34,7 @@ chain = Chain(
 )
 ps, st = Lux.setup(rng, chain)
 
-opt = OptimizationOptimisers.Adam(0.01)
+opt = Adam(0.01)
 ground_truth = solve(problem, Tsit5(), saveat = 0.01)
 alg = NNODE(chain, opt, ps; strategy = StochasticTraining(500))
 sol = solve(problem, alg, verbose = false, maxiters = 5000, saveat = 0.01)

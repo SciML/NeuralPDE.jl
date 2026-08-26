@@ -17,6 +17,7 @@ We will use physics-informed neural networks.
 ```@example 3rdDerivative
 using ModelingToolkit, NeuralPDE, SciMLBase, Lux
 using Optimization, OptimizationOptimJL, OptimizationOptimisers
+using Optimisers: Adam
 import DomainSets: Interval
 using IntervalSets: leftendpoint, rightendpoint
 
@@ -48,7 +49,7 @@ callback = function (p, l)
     return false
 end
 
-res = solve(prob, OptimizationOptimisers.Adam(0.01); maxiters = 2000, callback)
+res = solve(prob, Adam(0.01); maxiters = 2000, callback)
 phi = discretization.phi
 ```
 
