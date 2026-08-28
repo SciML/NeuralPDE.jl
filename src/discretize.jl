@@ -398,6 +398,30 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
 end
 
 """
+    __check_nontrivial(eqs, dict_indvars, dict_depvars, kind)
+
+Throw an `ArgumentError` for an equation or boundary condition with no dependent
+variable, such as `0 ~ 0`. Its argument list is empty, which `get_bounds` would
+otherwise reduce over and fail.
+"""
+function __check_nontrivial(eqs, dict_indvars, dict_depvars, kind)
+    args = get_argument(eqs, dict_indvars, dict_depvars)
+    depvars = collect(keys(dict_depvars))
+    for (eq, arg) in zip(eqs, args)
+        isempty(arg) || continue
+        throw(
+            ArgumentError(
+                "the $(kind) `$(eq)` does not depend on any of the dependent " *
+                    "variables $(depvars), so no training points can be generated " *
+                    "for it. Remove trivially satisfied entries such as `0 ~ 0` " *
+                    "from the `PDESystem`."
+            )
+        )
+    end
+    return nothing
+end
+
+"""
     prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
 
 `symbolic_discretize` is the lower level interface to `discretize` for inspecting internals.
@@ -474,6 +498,9 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
     adaloss === nothing && (adaloss = NonAdaptiveLoss{eltype(flat_init_params)}())
 
     eqs isa Array || (eqs = [eqs])
+
+    __check_nontrivial(eqs, dict_indvars, dict_depvars, "equation")
+    __check_nontrivial(bcs, dict_indvars, dict_depvars, "boundary condition")
 
     pde_indvars = if strategy isa QuadratureTraining
         get_argument(eqs, dict_indvars, dict_depvars)
