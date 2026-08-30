@@ -224,6 +224,7 @@ function generate_training_sets(
     dict_var_span_ = Dict([Symbol(d.variables) => bc for (d, bc) in zip(domains, bc_data)])
 
     bcs_train_sets = map(bound_args) do bt
+        isempty(bt) && return _zero_dimensional_coordinates(eltypeθ)
         span = get.((dict_var_span,), bt, bt)
         return reduce(hcat, vec(map(collect, Iterators.product(span...)))) |>
             EltypeAdaptor{eltypeθ}()
@@ -232,6 +233,7 @@ function generate_training_sets(
     pde_args = get_argument(eqs, dict_indvars, dict_depvars)
 
     pde_train_sets = map(pde_args) do bt
+        isempty(bt) && return _zero_dimensional_coordinates(eltypeθ)
         span = get.((dict_var_span_,), bt, bt)
         return reduce(hcat, vec(map(collect, Iterators.product(span...)))) |>
             EltypeAdaptor{eltypeθ}()
@@ -308,6 +310,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
 
     pde_args = get_argument(eqs, dict_indvars, dict_depvars)
     pde_bounds = map(pde_args) do pde_arg
+        isempty(pde_arg) && return (eltypeθ[], eltypeθ[])
         bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, pde_arg)
         bds = eltypeθ.(bds)
         return bds[1, :], bds[2, :]
@@ -315,6 +318,7 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
 
     bound_args = get_argument(bcs, dict_indvars, dict_depvars)
     bcs_bounds = map(bound_args) do bound_arg
+        isempty(bound_arg) && return (eltypeθ[], eltypeθ[])
         bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, bound_arg)
         bds = eltypeθ.(bds)
         return bds[1, :], bds[2, :]
@@ -583,7 +587,8 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
             weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
 
             sum_weighted_pde_losses = sum(weighted_pde_losses)
-            sum_weighted_bc_losses = sum(weighted_bc_losses)
+            sum_weighted_bc_losses = isempty(weighted_bc_losses) ?
+                zero(sum_weighted_pde_losses) : sum(weighted_bc_losses)
             weighted_loss_before_additional = sum_weighted_pde_losses +
                 sum_weighted_bc_losses
 
