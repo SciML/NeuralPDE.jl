@@ -14,6 +14,8 @@ corresponding to the grid spacing in each dimension.
     dx
 end
 
+_zero_dimensional_coordinates(::Type{T}) where {T} = Matrix{T}(undef, 0, 1)
+
 # dataset must have depvar values for same values of indvars
 function get_dataset_train_points(eqs, train_sets, pinnrep)
     dict_depvar_input = pinnrep.dict_depvar_input
@@ -241,6 +243,7 @@ StochasticTraining(points; bcs_points = points) = StochasticTraining(points, bcs
 
 function generate_random_points(points, bound, eltypeθ)
     lb, ub = bound
+    isempty(lb) && return _zero_dimensional_coordinates(eltypeθ)
     return rand(eltypeθ, length(lb), points) .* (ub .- lb) .+ lb
 end
 
@@ -371,6 +374,11 @@ function get_loss_function(
     init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
     dev = safe_get_device(init_params)
 
+    if isempty(bound[1])
+        coordinates = dev(_zero_dimensional_coordinates(eltypeθ))
+        return θ -> mean(abs2, loss_function(coordinates, θ))
+    end
+
     return if resampling
         θ -> begin
             sets = @ignore_derivatives QuasiMonteCarlo.sample(
@@ -456,7 +464,9 @@ function get_loss_function(
     dev = safe_get_device(init_params)
 
     if length(lb) == 0
-        return (θ) -> mean(abs2, loss_function(dev(rand(eltypeθ, 1, 10)), θ))
+        # Fixed numeric arguments use the first row to inherit the batch shape.
+        coordinates = dev(zeros(eltypeθ, 1, 1))
+        return θ -> mean(abs2, loss_function(coordinates, θ))
     end
 
     area = eltypeθ(prod(abs.(ub .- lb)))
