@@ -153,8 +153,8 @@ using Test
     truncatedsol_data_inputs = reduce(hcat, sol_1.training_sets)
     truncated_solution_strong_paths = [
         truncated_sol(
-                u₀, ideal_p, truncatedsol_data_inputs[:, i]...
-            )
+            u₀, ideal_p, truncatedsol_data_inputs[:, i]...
+        )
             for i in eachindex(ts)
     ]
 

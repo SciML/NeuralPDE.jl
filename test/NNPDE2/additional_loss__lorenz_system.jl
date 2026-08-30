@@ -42,10 +42,10 @@ using Test
 
     init_params = [
         ComponentArray{Float64}(
-                Lux.initialparameters(
-                    Random.default_rng(), chain[i]
-                )
+            Lux.initialparameters(
+                Random.default_rng(), chain[i]
             )
+        )
             for i in 1:3
     ]
 

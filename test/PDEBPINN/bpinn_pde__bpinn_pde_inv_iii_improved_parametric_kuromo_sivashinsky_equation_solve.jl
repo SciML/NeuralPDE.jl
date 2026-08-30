@@ -172,12 +172,12 @@ using Test
 
     diff_u_new = [
         [
-                abs(
-                    u_analytic(x, t) -
+            abs(
+                u_analytic(x, t) -
                     first(pmean(phi([x, t], sol_new.estimated_nn_params[1])))
-                )
+            )
                 for x in xs
-            ]
+        ]
             for t in ts
     ]
 
@@ -187,12 +187,12 @@ using Test
     ]
     diff_u_old = [
         [
-                abs(
-                    u_analytic(x, t) -
+            abs(
+                u_analytic(x, t) -
                     first(pmean(phi([x, t], sol_old.estimated_nn_params[1])))
-                )
+            )
                 for x in xs
-            ]
+        ]
             for t in ts
     ]
 

@@ -228,12 +228,12 @@ MvNormal likelihood at each `ti` in time `t` for ODE collocation residue with NN
     # of dependant variables)
     return [
         logpdf(
-                MvNormal(
-                    (nnsol[i, :] .- physsol[i, :]),
-                    Diagonal(abs2.(T(ltd.phystd[i]) .* ones(T, length(t))))
-                ),
-                zeros(T, length(t))
-            ) for i in 1:length(ltd.prob.u0)
+            MvNormal(
+                (nnsol[i, :] .- physsol[i, :]),
+                Diagonal(abs2.(T(ltd.phystd[i]) .* ones(T, length(t))))
+            ),
+            zeros(T, length(t))
+        ) for i in 1:length(ltd.prob.u0)
     ]
 end
 
