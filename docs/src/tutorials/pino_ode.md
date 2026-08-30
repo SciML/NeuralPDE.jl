@@ -42,7 +42,10 @@ strategy = StochasticTraining(20)
 opt = Adam(0.03)
 
 # Define `PINNODE`
-alg = PINOODE(deeponet, opt, bounds, num_params; strategy = strategy)
+alg = PINOODE(
+    deeponet, opt, bounds, num_params;
+    strategy = strategy, rng = MersenneTwister(1)
+)
 
 # Solve the ODE problem using the PINOODE algorithm.
 # `sol` is a `PDETimeSeriesSolution` (the parameters are extra PDE
