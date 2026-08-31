@@ -1,6 +1,6 @@
 name = "NeuralPDE"
 uuid = "315f7962-48a3-4962-8226-d0f33b1235f0"
-version = "6.2.4"
+version = "6.2.5"
 authors = ["Chris Rackauckas <accounts@chrisrackauckas.com>"]
 
 [deps]
