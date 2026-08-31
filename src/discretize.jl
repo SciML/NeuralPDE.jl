@@ -303,8 +303,8 @@ function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, str
     dict_span = Dict(
         [
             Symbol(d.variables) => [
-                    infimum(d.domain) + dx, supremum(d.domain) - dx,
-                ] for d in domains
+                infimum(d.domain) + dx, supremum(d.domain) - dx,
+            ] for d in domains
         ]
     )
 
@@ -508,9 +508,9 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
 
     symbolic_pde_loss_functions = [
         build_symbolic_loss_function(
-                pinnrep, eq;
-                bc_indvars = pde_indvar
-            )
+            pinnrep, eq;
+            bc_indvars = pde_indvar
+        )
             for (eq, pde_indvar) in zip(
                 eqs, pde_indvars,
                 pde_integration_vars
@@ -519,9 +519,9 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
 
     symbolic_bc_loss_functions = [
         build_symbolic_loss_function(
-                pinnrep, bc;
-                bc_indvars = bc_indvar
-            )
+            pinnrep, bc;
+            bc_indvars = bc_indvar
+        )
             for (bc, bc_indvar) in zip(
                 bcs, bc_indvars,
                 bc_integration_vars

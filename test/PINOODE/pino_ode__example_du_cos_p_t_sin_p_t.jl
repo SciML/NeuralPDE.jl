@@ -63,9 +63,9 @@ using Test
             hcat,
             [
                 reduce(
-                        vcat,
-                        [ground_solution(u0, p[1, i, 1], t[1, 1, j])[1] for i in axes(p, 2)]
-                    )
+                    vcat,
+                    [ground_solution(u0, p[1, i, 1], t[1, 1, j])[1] for i in axes(p, 2)]
+                )
                     for j in axes(t, 3)
             ]
         )
@@ -73,9 +73,9 @@ using Test
             hcat,
             [
                 reduce(
-                        vcat,
-                        [ground_solution(u0, p[1, i, 1], t[1, 1, j])[2] for i in axes(p, 2)]
-                    )
+                    vcat,
+                    [ground_solution(u0, p[1, i, 1], t[1, 1, j])[2] for i in axes(p, 2)]
+                )
                     for j in axes(t, 3)
             ]
         )

@@ -57,8 +57,8 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
     # unmask Differential terms in masked_colloc_equations
     colloc_equations = [
         Symbolics.substitute.(
-                masked_colloc_equation, Ref(rev_Dict_differentials)
-            )
+            masked_colloc_equation, Ref(rev_Dict_differentials)
+        )
             for masked_colloc_equation in masked_colloc_equations
     ]
     # nested vector of data_pde_loss_functions (as in discretize.jl)
@@ -66,13 +66,13 @@ function get_lossy(pinnrep, dataset, Dict_differentials)
     # zip each colloc equation with args for each build_loss call per equation vector
     data_colloc_loss_functions = [
         [
-                build_loss_function(pinnrep, eq, pde_indvar)
+            build_loss_function(pinnrep, eq, pde_indvar)
                 for (eq, pde_indvar, integration_indvar) in zip(
                     colloc_equation,
                     pinnrep.pde_indvars,
                     pinnrep.pde_integration_vars
                 )
-            ]
+        ]
             for colloc_equation in colloc_equations
     ]
 
@@ -124,9 +124,9 @@ end
     i = 0
     Luxparams = [
         vector_to_parameters(
-                ps_new[((i += length(ps[x])) - length(ps[x]) + 1):i],
-                ps[x]
-            ) for x in names
+            ps_new[((i += length(ps[x])) - length(ps[x]) + 1):i],
+            ps[x]
+        ) for x in names
     ]
 
     a = ComponentArray(NamedTuple{ltd.names}(i for i in Luxparams))
@@ -240,13 +240,13 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
     span = [[ranges[indvar] for indvar in input] for input in inputs]
     timepoints = [
         hcat(
-                vec(
-                    map(
-                        points -> collect(points),
-                        Iterators.product(span[i]...)
-                    )
-                )...
-            )
+            vec(
+                map(
+                    points -> collect(points),
+                    Iterators.product(span[i]...)
+                )
+            )...
+        )
             for i in eachindex(phi)
     ]
 
@@ -281,9 +281,9 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
     # convert to format directly usable by lux
     estimatedLuxparams = [
         vector_to_parameters(
-                estimnnparams[Luxparams[i]],
-                initial_nnθ[names[i]]
-            ) for i in eachindex(phi)
+            estimnnparams[Luxparams[i]],
+            initial_nnθ[names[i]]
+        ) for i in eachindex(phi)
     ]
 
     # infer predictions(preds) each row - NN, each col - ith sample
@@ -294,12 +294,12 @@ function inference(samples, pinnrep, saveats, numensemble, ℓπ)
             preds,
             [
                 phi[j](
-                        timepoints[j],
-                        vector_to_parameters(
-                            samplesn[:, i][Luxparams[j]],
-                            initial_nnθ[names[j]]
-                        )
-                    ) for i in 1:numensemble
+                    timepoints[j],
+                    vector_to_parameters(
+                        samplesn[:, i][Luxparams[j]],
+                        initial_nnθ[names[j]]
+                    )
+                ) for i in 1:numensemble
             ]
         )
     end
@@ -398,9 +398,9 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         # -1 is placeholder, removed in merge_strategy_with_loglikelihood_function function call (train_sets[:, 2:end]())
         colloc_train_sets = [
             [
-                    hcat([-1], train_sets_pde[i][:, j]...)
+                hcat([-1], train_sets_pde[i][:, j]...)
                     for i in eachindex(data_colloc_loss_functions[1])
-                ]
+            ]
                 for j in eachindex(data_colloc_loss_functions)
         ]
 
@@ -409,13 +409,13 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         # order of indvar coords will be same as corresponding depvar coords values in dataset provided in get_lossy() call.
         pde_loss_function_points = [
             merge_strategy_with_loglikelihood_function(
-                    pinnrep,
-                    GridTraining(0.1),
-                    data_colloc_loss_functions[i],
-                    nothing;
-                    train_sets_pde = colloc_train_sets[i],
-                    train_sets_bc = nothing
-                )[1]
+                pinnrep,
+                GridTraining(0.1),
+                data_colloc_loss_functions[i],
+                nothing;
+                train_sets_pde = colloc_train_sets[i],
+                train_sets_bc = nothing
+            )[1]
                 for i in eachindex(data_colloc_loss_functions)
         ]
 
@@ -425,15 +425,15 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
             return pde_loglikelihoods = sum(
                 [
                     sum(
-                            [
-                                pde_loss_function(
-                                    θ,
-                                    phynewstd[i]
-                                )
+                        [
+                            pde_loss_function(
+                                θ,
+                                phynewstd[i]
+                            )
                                 for (i, pde_loss_function) in
                                 enumerate(pde_loss_functions)
-                            ]
-                        )
+                        ]
+                    )
                         for pde_loss_functions in pde_loss_function_points
                 ]
             )

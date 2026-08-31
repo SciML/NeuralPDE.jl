@@ -304,31 +304,31 @@ function inner_sde_loss(
     fs = if phi.u0 isa Number
         [
             reduce(
-                    hcat,
-                    [
-                        f(u[k][:, i][1], p_, inputs[k][1, i]) +
+                hcat,
+                [
+                    f(u[k][:, i][1], p_, inputs[k][1, i]) +
                         g(u[k][:, i][1], p_, inputs[k][1, i]) * √2 *
                         sum(
-                            inputs[k][1 + j, i] * cos((j - 1 / 2)pi * inputs[k][1, i])
+                        inputs[k][1 + j, i] * cos((j - 1 / 2)pi * inputs[k][1, i])
                             for j in 1:n_inp
-                        ) for i in 1:n_samples
-                    ]
-                ) for k in eachindex(inputs)
+                    ) for i in 1:n_samples
+                ]
+            ) for k in eachindex(inputs)
         ]
     else
         # multioutput case
         [
             reduce(
-                    hcat,
-                    [
-                        f(u[k][:, i], p_, inputs[k][1, i]) +
+                hcat,
+                [
+                    f(u[k][:, i], p_, inputs[k][1, i]) +
                         g(u[k][:, i], p_, inputs[k][1, i]) * √2 *
                         sum(
-                            inputs[k][1 + j, i] * cos((j - 1 / 2)pi * inputs[k][1, i])
+                        inputs[k][1 + j, i] * cos((j - 1 / 2)pi * inputs[k][1, i])
                             for j in 1:n_inp
-                        ) for i in 1:n_samples
-                    ]
-                ) for k in eachindex(inputs)
+                    ) for i in 1:n_samples
+                ]
+            ) for k in eachindex(inputs)
         ]
     end
 
@@ -512,10 +512,10 @@ function generate_loss(
             add_rand_coeff(ts, n_z, sub_batch)
         return [
             abs2(
-                    inner_sde_loss(
-                        phi, f, g, autodiff, input, θ, p, param_estim, train_type
-                    )
+                inner_sde_loss(
+                    phi, f, g, autodiff, input, θ, p, param_estim, train_type
                 )
+            )
                 for input in inputs
         ]
     end
