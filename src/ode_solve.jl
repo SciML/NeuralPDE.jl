@@ -586,7 +586,7 @@ function SciMLBase.__solve(
 
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
     callback = function (p, l)
-        if verbose
+        if verbose === true
             if maxiters === nothing
                 @printf("[NNODE]\tIter: [%*d]\tLoss: %g\n", plen, p.iter, l)
             else
