@@ -6,7 +6,7 @@ using Test
 
     Random.seed!(100)
 
-    function bloch_equations(u, p, t)
+    function bloch_equations(u::AbstractVector, p, t)
         Ω, Δ, Γ = p
         γ = Γ / 2
         ρ₁₁, ρ₂₂, ρ₁₂, ρ₂₁ = u
