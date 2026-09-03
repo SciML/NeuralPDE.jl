@@ -90,7 +90,6 @@ The most focused parser checks live in:
 - `test/Forward/forward__ode.jl`
 - `test/Forward/forward__integral.jl`
 - `test/Forward/forward__derivatives.jl`
-- `test/Forward/forward__symbolic_parser_scope.jl`
 
 These tests exercise direct generated residual evaluation before the cost of full
 training examples is introduced.
