@@ -34,7 +34,7 @@ using Test
     discretization = PhysicsInformedNN(chain, GridTraining(0.1))
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
     prob = discretize(pde_system, discretization)
-    res = solve(prob, BFGS(); callback, maxiters = 300)
+    res = solve(prob, BFGS(); callback, maxiters = 100)
     xs = [infimum(d.domain):0.01:supremum(d.domain) for d in domains][1]
     phi = discretization.phi
     u_predict = [first(phi([x], res.u)) for x in xs]

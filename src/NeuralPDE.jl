@@ -150,13 +150,14 @@ include("eltype_matching.jl")
 
 include("pinn_types.jl")
 include("symbolic_utilities.jl")
+include("transform_inf_integral.jl")
+include("symbolic_parser.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
 
 include("ode_solve.jl")
 include("dae_solve.jl")
 include("pino_ode_solve.jl")
-include("transform_inf_integral.jl")
 include("discretize.jl")
 
 include("neural_adapter.jl")
@@ -198,5 +199,12 @@ export ModelingToolkit, Differential, Integral, PDESystem, mtkcompile, unknowns,
     @mtkcompile, @named, @parameters, @register_symbolic, @variables
 
 @public logscalar, logvector
+
+# Compatibility for OptimizationOptimJL versions that pass `Symbol(true/false)`
+# retcodes into SciMLBase.OptimizationSolution.
+Base.convert(::Type{SciMLBase.ReturnCode.T}, s::Symbol) =
+    hasproperty(SciMLBase.ReturnCode, s) ?
+    getproperty(SciMLBase.ReturnCode, s) :
+    SciMLBase.ReturnCode.Default
 
 end # module

@@ -1,99 +1,17 @@
-using Base.Broadcast
-
-# build_expr was removed from Symbolics.jl v7; define locally
-function build_expr(head::Symbol, args)
-    ex = Expr(head)
-    append!(ex.args, args)
-    return ex
-end
-
 """
-Override `Broadcast.__dot__` with `Broadcast.dottable(x::Function) = true`
-
-## Example
-
-```julia
-julia> e = :(1 + $sin(x))
-:(1 + (sin)(x))
-
-julia> Broadcast.__dot__(e)
-:((+).(1, (sin)(x)))
-
-julia> _dot_(e)
-:((+).(1, (sin).(x)))
-```
+Variable extraction, domain decomposition, and symbolic inspection utilities for NeuralPDE.
 """
-dottable_(x) = Broadcast.dottable(x)
-dottable_(x::Function) = true
-
-_dot_(x) = x
-function _dot_(x::Expr)
-    dotargs = Base.mapany(_dot_, x.args)
-    return if x.head === :call && dottable_(x.args[1])
-        Expr(:., dotargs[1], Expr(:tuple, dotargs[2:end]...))
-    elseif x.head === :comparison
-        Expr(
-            :comparison,
-            (
-                iseven(i) && dottable_(arg) && arg isa Symbol && isoperator(arg) ?
-                    Symbol('.', arg) : arg for (i, arg) in pairs(dotargs)
-            )...
-        )
-    elseif x.head === :$
-        x.args[1]
-    elseif x.head === :let # don't add dots to `let x=...` assignments
-        Expr(:let, undot(dotargs[1]), dotargs[2])
-    elseif x.head === :for # don't add dots to for x=... assignments
-        Expr(:for, undot(dotargs[1]), dotargs[2])
-    elseif (x.head === :(=) || x.head === :function || x.head === :macro) &&
-            Meta.isexpr(x.args[1], :call) # function or macro definition
-        Expr(x.head, x.args[1], dotargs[2])
-    elseif x.head === :(<:) || x.head === :(>:)
-        tmp = x.head === :(<:) ? :.<: : :.>:
-        Expr(:call, tmp, dotargs...)
-    else
-        head = String(x.head)::String
-        if last(head) == '=' && first(head) != '.' || head == "&&" || head == "||"
-            Expr(Symbol('.', head), dotargs...)
-        else
-            Expr(x.head, dotargs...)
-        end
-    end
-end
 
 """
 Create dictionary: variable => unique number for variable
 
-## Example 1
-
+## Example
 Dict{Symbol,Int64} with 3 entries:
+  :x => 1
   :y => 2
   :t => 3
-  :x => 1
-
-## Example 2
-
- Dict{Symbol,Int64} with 2 entries:
-  :u1 => 1
-  :u2 => 2
 """
 get_dict_vars(vars) = Dict([Symbol(v) .=> i for (i, v) in enumerate(vars)])
-
-# Wrapper for _transform_expression
-function transform_expression(
-        pinnrep::PINNRepresentation, ex; is_integral = false,
-        dict_transformation_vars = nothing,
-        transformation_vars = nothing
-    )
-    if ex isa Expr
-        ex = _transform_expression(
-            pinnrep, ex; is_integral = is_integral,
-            dict_transformation_vars = dict_transformation_vars,
-            transformation_vars = transformation_vars
-        )
-    end
-    return ex
-end
 
 function get_ε(dim::Int, der_num::Int, ::Type{eltypeθ}, order) where {eltypeθ}
     epsilon = ^(eps(eltypeθ), one(eltypeθ) / (2 + order))
@@ -109,293 +27,6 @@ function get_limits(domain)
         return collect(map(leftendpoint, DomainSets.components(domain))),
             collect(map(rightendpoint, DomainSets.components(domain)))
     end
-end
-
-θ = gensym("θ")
-
-"""
-Transform the derivative expression to inner representation
-
-## Examples
-
-1. First compute the derivative of function 'u(x,y)' with respect to x.
-
-Take expressions in the form: `derivative(u(x,y), x)` to `derivative(phi, u, [x, y], εs, order, θ)`,
-where
-- phi - trial solution.
-- u - function.
-- x,y - coordinates of point.
-- εs - epsilon mask.
-- order - order of derivative.
-- θ - weights in neural network.
-"""
-function _transform_expression(
-        pinnrep::PINNRepresentation, ex; is_integral = false,
-        dict_transformation_vars = nothing, transformation_vars = nothing
-    )
-    (;
-        indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input, multioutput,
-        strategy, phi, derivative, integral, flat_init_params, init_params,
-    ) = pinnrep
-    eltypeθ = eltype(flat_init_params)
-
-    _args = ex.args
-    for (i, e) in enumerate(_args)
-        if !(e isa Expr)
-            if e in keys(dict_depvars)
-                depvar = _args[1]
-                num_depvar = dict_depvars[depvar]
-                indvars = _args[2:end]
-                var_ = is_integral ? :(u) : :($(Expr(:$, :u)))
-                ex.args = if !multioutput
-                    [var_, Symbol(:cord, num_depvar), :($θ), :phi]
-                else
-                    [
-                        var_,
-                        Symbol(:cord, num_depvar),
-                        Symbol(:($θ), num_depvar),
-                        Symbol(:phi, num_depvar),
-                    ]
-                end
-                break
-            elseif e isa Differential
-                derivative_variables = Symbol[]
-                order = 0
-                while (_args[1] isa Differential)
-                    d_order = _args[1].order
-                    order += d_order
-                    for _ in 1:d_order
-                        push!(derivative_variables, toexpr(_args[1].x))
-                    end
-                    _args = _args[2].args
-                end
-                depvar = _args[1]
-                num_depvar = dict_depvars[depvar]
-                indvars = _args[2:end]
-                dict_interior_indvars = Dict(
-                    [
-                        indvar .=> j
-                            for (j, indvar) in
-                            enumerate(dict_depvar_input[depvar])
-                    ]
-                )
-                dim_l = length(dict_interior_indvars)
-
-                var_ = is_integral ? :(derivative) : :($(Expr(:$, :derivative)))
-                εs = [get_ε(dim_l, d, eltypeθ, order) for d in 1:dim_l]
-                undv = [dict_interior_indvars[d_p] for d_p in derivative_variables]
-                εs_dnv = [εs[d] for d in undv]
-
-                ex.args = if !multioutput
-                    [var_, :phi, :u, Symbol(:cord, num_depvar), εs_dnv, order, :($θ)]
-                else
-                    [
-                        var_,
-                        Symbol(:phi, num_depvar),
-                        :u,
-                        Symbol(:cord, num_depvar),
-                        εs_dnv,
-                        order,
-                        Symbol(:($θ), num_depvar),
-                    ]
-                end
-                break
-            elseif e isa Symbolics.Integral
-                if _args[1].domain.variables isa Tuple
-                    integrating_variable_ = collect(_args[1].domain.variables)
-                    integrating_variable = toexpr.(integrating_variable_)
-                    integrating_var_id = [dict_indvars[i] for i in integrating_variable]
-                else
-                    integrating_variable = toexpr(_args[1].domain.variables)
-                    # In SymbolicUtils v4, a symbolic tuple may produce
-                    # Expr(:call, :tuple, :x, :y) instead of a Julia Tuple
-                    if integrating_variable isa Expr &&
-                            integrating_variable.head == :call &&
-                            integrating_variable.args[1] === tuple
-                        integrating_variable = integrating_variable.args[2:end]
-                        integrating_var_id = [
-                            dict_indvars[i]
-                                for i in integrating_variable
-                        ]
-                    else
-                        integrating_var_id = [dict_indvars[integrating_variable]]
-                    end
-                end
-
-                integrating_depvars = []
-                integrand_expr = _args[2]
-                for d in depvars
-                    d_ex = find_thing_in_expr(integrand_expr, d)
-                    if !isempty(d_ex)
-                        push!(integrating_depvars, d_ex[1].args[1])
-                    end
-                end
-
-                lb, ub = get_limits(_args[1].domain.domain)
-                lb, ub,
-                    _args[2],
-                    dict_transformation_vars,
-                    transformation_vars = transform_inf_integral(
-                    lb,
-                    ub,
-                    _args[2],
-                    integrating_depvars,
-                    dict_depvar_input,
-                    dict_depvars,
-                    integrating_variable,
-                    eltypeθ
-                )
-
-                num_depvar = map(
-                    int_depvar -> dict_depvars[int_depvar],
-                    integrating_depvars
-                )
-                integrand_ = transform_expression(
-                    pinnrep, _args[2];
-                    is_integral = false,
-                    dict_transformation_vars = dict_transformation_vars,
-                    transformation_vars = transformation_vars
-                )
-                integrand__ = _dot_(integrand_)
-
-                integrand = build_symbolic_loss_function(
-                    pinnrep, nothing;
-                    integrand = integrand__,
-                    integrating_depvars = integrating_depvars,
-                    eq_params = SciMLBase.NullParameters(),
-                    dict_transformation_vars = dict_transformation_vars,
-                    transformation_vars = transformation_vars,
-                    param_estim = false,
-                    default_p = nothing
-                )
-                # integrand = repr(integrand)
-                lb = toexpr.(lb)
-                ub = toexpr.(ub)
-                ub_ = []
-                lb_ = []
-                for l in lb
-                    if l isa Number
-                        push!(lb_, l)
-                    else
-                        l_expr = build_symbolic_loss_function(
-                            pinnrep, nothing;
-                            integrand = _dot_(l),
-                            integrating_depvars = integrating_depvars,
-                            param_estim = false,
-                            default_p = nothing
-                        )
-                        l_f = @RuntimeGeneratedFunction(l_expr)
-                        push!(lb_, l_f)
-                    end
-                end
-                for u_ in ub
-                    if u_ isa Number
-                        push!(ub_, u_)
-                    else
-                        u_expr = build_symbolic_loss_function(
-                            pinnrep, nothing;
-                            integrand = _dot_(u_),
-                            integrating_depvars = integrating_depvars,
-                            param_estim = false,
-                            default_p = nothing
-                        )
-                        u_f = @RuntimeGeneratedFunction(u_expr)
-                        push!(ub_, u_f)
-                    end
-                end
-
-                integrand_func = @RuntimeGeneratedFunction(integrand)
-                ex.args = [
-                    :($(Expr(:$, :integral))),
-                    :u,
-                    Symbol(:cord, num_depvar[1]),
-                    :phi,
-                    integrating_var_id,
-                    integrand_func,
-                    lb_,
-                    ub_,
-                    :($θ),
-                ]
-                break
-            end
-        else
-            ex.args[i] = _transform_expression(
-                pinnrep, ex.args[i];
-                is_integral = is_integral,
-                dict_transformation_vars = dict_transformation_vars,
-                transformation_vars = transformation_vars
-            )
-        end
-    end
-    return ex
-end
-
-"""
-Parse ModelingToolkit equation form to the inner representation.
-
-## Examples:
-
-1)  1-D ODE: Dt(u(t)) ~ t +1
-
-    Take expressions in the form: 'Equation(derivative(u(t), t), t + 1)' to 'derivative(phi, u_d, [t], [[ε]], 1, θ) - (t + 1)'
-
-2)  2-D PDE: Dxx(u(x,y)) + Dyy(u(x,y)) ~ -sin(pi*x)*sin(pi*y)
-
-    Take expressions in the form:
-     Equation(derivative(derivative(u(x, y), x), x) + derivative(derivative(u(x, y), y), y), -(sin(πx)) * sin(πy))
-    to
-     (derivative(phi,u, [x, y], [[ε,0],[ε,0]], 2, θ) + derivative(phi, u, [x, y], [[0,ε],[0,ε]], 2, θ)) - -(sin(πx)) * sin(πy)
-
-3)  System of PDEs: [Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
-                    Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0]
-
-    Take expressions in the form:
-    2-element Array{Equation,1}:
-        Equation(derivative(u1(x, y), x) + 4 * derivative(u2(x, y), y), ModelingToolkit.Constant(0))
-        Equation(derivative(u2(x, y), x) + 9 * derivative(u1(x, y), y), ModelingToolkit.Constant(0))
-    to
-      [(derivative(phi1, u1, [x, y], [[ε,0]], 1, θ1) + 4 * derivative(phi2, u, [x, y], [[0,ε]], 1, θ2)) - 0,
-       (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
-"""
-function parse_equation(pinnrep::PINNRepresentation, eq)
-    eq_lhs = SymbolicUtils._iszero(expand_derivatives(eq.lhs)) ? eq.lhs :
-        expand_derivatives(eq.lhs)
-    eq_rhs = SymbolicUtils._iszero(expand_derivatives(eq.rhs)) ? eq.rhs :
-        expand_derivatives(eq.rhs)
-    left_expr = transform_expression(pinnrep, toexpr(eq_lhs))
-    right_expr = transform_expression(pinnrep, toexpr(eq_rhs))
-    left_expr = _dot_(left_expr)
-    right_expr = _dot_(right_expr)
-    return loss_func = :($left_expr .- $right_expr)
-end
-
-function get_indvars_ex(bc_indvars) # , dict_this_eq_indvars)
-    i_ = 1
-    indvars_ex = map(bc_indvars) do u
-        if u isa Symbol
-            # i = dict_this_eq_indvars[u]
-            # ex = :($:cord[[$i],:])
-            ex = :($:cord[[$i_], :])
-            i_ += 1
-            ex
-        else
-            :(fill($u, size($:cord[[1], :])))
-        end
-    end
-    return indvars_ex
-end
-
-"""
-Finds which dependent variables are being used in an equation.
-"""
-function pair(eq, depvars, dict_depvars, dict_depvar_input)
-    expr = toexpr(eq)
-    pair_ = map(depvars) do depvar
-        if !isempty(find_thing_in_expr(expr, depvar))
-            dict_depvars[depvar] => dict_depvar_input[depvar]
-        end
-    end
-    return Dict(filter(p -> p !== nothing, pair_))
 end
 
 function get_vars(indvars_, depvars_)
@@ -494,11 +125,11 @@ Returns all arguments that are used in each equations or boundary condition.
 """
 function get_argument end
 
-# Get arguments from boundary condition functions
 function get_argument(eqs, _indvars::Array, _depvars::Array)
     _, _, dict_indvars, dict_depvars, _ = get_vars(_indvars, _depvars)
     return get_argument(eqs, dict_indvars, dict_depvars)
 end
+
 function get_argument(eqs, dict_indvars, dict_depvars)
     exprs = toexpr.(eqs)
     vars = map(exprs) do expr
@@ -522,5 +153,139 @@ function get_argument(eqs, dict_indvars, dict_depvars)
             end
         end
     end
-    return args_ # TODO for all arguments
+    return args_
+end
+
+const NON_DOTTABLE_SYMBOLS = Set(
+    [
+        :cord_slice, :cord_slice_rows, :construct_bc_cord, :phi_eval, :deriv_fd, :eval_numeric_integral,
+        :get_pinn_theta, :pde_param_value, :vector_to_parameters, :Pair, :Dict, :tuple, :(:),
+        :size, :length, :zeros, :ones, :fill, :reshape, :copy, :Array, :Vector, :Matrix,
+    ]
+)
+
+function get_op_symbol(fn)
+    if fn isa QuoteNode
+        return get_op_symbol(fn.value)
+    elseif fn isa Function
+        return nameof(fn)
+    elseif fn isa Symbol
+        return fn
+    elseif fn isa GlobalRef
+        return fn.name
+    elseif fn isa Expr
+        if fn.head === :$ && length(fn.args) == 1
+            return get_op_symbol(fn.args[1])
+        end
+        if (fn.head === :. || fn.head === :('.')) && length(fn.args) >= 2
+            second = fn.args[2]
+            return second isa QuoteNode ? second.value : (second isa Symbol ? second : nothing)
+        end
+    end
+    return nothing
+end
+
+function dottable_(x)
+    sym = get_op_symbol(x)
+    if sym !== nothing
+        return !(sym in NON_DOTTABLE_SYMBOLS) && Base.Broadcast.dottable(sym)
+    end
+    return false
+end
+
+function integer_power_exponent(x, const_env = Dict{Any, Any}())
+    x isa QuoteNode && return integer_power_exponent(x.value, const_env)
+    if haskey(const_env, x)
+        return integer_power_exponent(const_env[x], const_env)
+    end
+    x isa Integer && return x
+    if x isa AbstractFloat && isfinite(x) && isinteger(x)
+        return Int(x)
+    end
+    return nothing
+end
+
+is_power_operator(x) = get_op_symbol(x) in (:^, :pow)
+
+function dotted_literal_power(base, exponent, const_env = Dict{Any, Any}())
+    return Expr(
+        :.,
+        Expr(:., :Base, QuoteNode(:literal_pow)),
+        Expr(:tuple, :^, _dot_(base, const_env), Expr(:call, :Val, exponent))
+    )
+end
+
+function dotted_power_rewrite(x::Expr, const_env = Dict{Any, Any}())
+    if x.head === :call && length(x.args) == 3 && is_power_operator(x.args[1])
+        exponent = integer_power_exponent(x.args[3], const_env)
+        exponent !== nothing && return dotted_literal_power(x.args[2], exponent, const_env)
+    elseif x.head === :. && length(x.args) == 2 && is_power_operator(x.args[1]) &&
+            Meta.isexpr(x.args[2], :tuple) && length(x.args[2].args) == 2
+        exponent = integer_power_exponent(x.args[2].args[2], const_env)
+        exponent !== nothing && return dotted_literal_power(x.args[2].args[1], exponent, const_env)
+    end
+    return nothing
+end
+
+"""
+    _dot_(ex)
+
+Recursively transforms function calls in Julia `Expr` ASTs into dot-broadcasted calls (e.g. `.+`, `.*`, `sin.`)
+while preserving matrix runtime kernels (such as `cord_slice`, `deriv_fd`, `eval_numeric_integral`) and `:let` blocks.
+"""
+_dot_(x) = x
+function _dot_(x, const_env::Dict{Any, Any})
+    return x
+end
+
+function _dot_(x::Expr)
+    return _dot_(x, Dict{Any, Any}())
+end
+
+function _dot_(x::Expr, const_env::Dict{Any, Any})
+    power_rewrite = dotted_power_rewrite(x, const_env)
+    if power_rewrite !== nothing
+        return power_rewrite
+    elseif x.head === :call && dottable_(x.args[1])
+        dotargs = Base.mapany(arg -> _dot_(arg, const_env), x.args[2:end])
+        return Expr(:., x.args[1], Expr(:tuple, dotargs...))
+    elseif x.head === :call
+        dotargs = Base.mapany(arg -> _dot_(arg, const_env), x.args[2:end])
+        return Expr(:call, x.args[1], dotargs...)
+    elseif x.head === :comparison
+        dotargs = Base.mapany(arg -> _dot_(arg, const_env), x.args)
+        return Expr(
+            :comparison,
+            (
+                iseven(i) && dottable_(arg) && arg isa Symbol ?
+                    Symbol('.', arg) : arg for (i, arg) in pairs(dotargs)
+            )...
+        )
+    elseif x.head === :$
+        return x.args[1]
+    elseif x.head === :(=) && Meta.isexpr(x.args[1], :call) # function definition
+        return Expr(x.head, x.args[1], _dot_(x.args[2], const_env))
+    elseif x.head === :(=) # assignment (e.g. let binding)
+        rhs = _dot_(x.args[2], const_env)
+        if x.args[1] isa Symbol
+            exponent = integer_power_exponent(rhs, const_env)
+            if exponent === nothing
+                delete!(const_env, x.args[1])
+            else
+                const_env[x.args[1]] = exponent
+            end
+        end
+        return Expr(:(=), x.args[1], rhs)
+    elseif x.head === :let # let bindings block
+        local_env = copy(const_env)
+        return Expr(:let, _dot_(x.args[1], local_env), _dot_(x.args[2], local_env))
+    elseif x.head === :for
+        return Expr(:for, x.args[1], _dot_(x.args[2], copy(const_env)))
+    elseif x.head === :block
+        local_env = copy(const_env)
+        return Expr(:block, Base.mapany(arg -> _dot_(arg, local_env), x.args)...)
+    else
+        dotargs = Base.mapany(arg -> _dot_(arg, const_env), x.args)
+        return Expr(x.head, dotargs...)
+    end
 end

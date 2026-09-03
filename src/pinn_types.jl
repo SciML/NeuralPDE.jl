@@ -89,6 +89,9 @@ end
 
 (f::Phi)(x::AbstractArray, θ) = f.smodel(safe_get_device(θ)(x), θ)
 
+Base.Broadcast.broadcastable(f::Phi) = Ref(f)
+Base.length(::Phi) = 1
+
 """
     PhysicsInformedNN(
         chain, strategy; init_params = nothing, init_states = nothing,
@@ -389,11 +392,11 @@ mutable struct PINNRepresentation
     """
     integral::Any
     """
-    The PDE loss functions as represented in Julia AST
+    The generated data-free PDE residual kernels.
     """
     symbolic_pde_loss_functions::Any
     """
-    The boundary condition loss functions as represented in Julia AST
+    The generated data-free boundary-condition residual kernels.
     """
     symbolic_bc_loss_functions::Any
     """

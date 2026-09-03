@@ -1,9 +1,7 @@
 # Debugging PINN Solutions
 
-#### Note this is all not current right now!
-
-Let's walk through debugging functions for the physics-informed neural network
-PDE solvers.
+This page collects developer-facing hooks for inspecting NeuralPDE's
+`PhysicsInformedNN` discretization path.
 
 ## Helper API
 
@@ -18,185 +16,81 @@ NeuralPDE.get_variables
 NeuralPDE.vector_to_parameters
 ```
 
+## Inspecting a Discretization
+
+Use `symbolic_discretize` when you want to inspect the pieces generated from a
+`PDESystem` without immediately constructing an `OptimizationProblem`.
+
 ```julia
-using ModelingToolkit, NeuralPDE, SciMLBase, Flux, Zygote
+using DomainSets, Lux, ModelingToolkit, NeuralPDE, SciMLBase
 import DomainSets: Interval
-using IntervalSets: leftendpoint, rightendpoint
-# 2d wave equation, neumann boundary condition
-@parameters x, t
+
+@parameters x
 @variables u(..)
-Dxx = Differential(x)^2
-Dtt = Differential(t)^2
-Dt = Differential(t)
-#2D PDE
-C = 1
-eq = Dtt(u(x, t)) ~ C^2 * Dxx(u(x, t))
+Dx = Differential(x)
 
-# Initial and boundary conditions
-bcs = [
-    u(0, t) ~ 0.0,
-    u(1, t) ~ 0.0,
-    u(x, 0) ~ x * (1.0 - x),
-    Dt(u(x, 0)) ~ 0.0,
-]
+eqs = [Dx(u(x)) ~ 0.0]
+bcs = [u(0.0) ~ 0.0]
+domains = [x in Interval(0.0, 1.0)]
 
-# Space and time domains
-domains = [
-    x ∈ Interval(0.0, 1.0),
-    t ∈ Interval(0.0, 1.0),
-]
+chain = Chain(Dense(1, 8, tanh), Dense(8, 1))
+discretization = PhysicsInformedNN(chain, GridTraining(0.1))
 
-# Neural network
-chain = FastChain(FastDense(2, 16, Flux.σ), FastDense(16, 16, Flux.σ), FastDense(16, 1))
-init_params = DiffEqFlux.initial_params(chain)
-
-eltypeθ = eltype(init_params)
-phi = NeuralPDE.get_phi(chain)
-derivative = NeuralPDE.get_numeric_derivative()
-
-u_ = (cord, θ, phi) -> sum(phi(cord, θ))
-
-phi([1, 2], init_params)
-
-phi_ = (p) -> phi(p, init_params)[1]
-dphi = Zygote.gradient(phi_, [1.0, 2.0])
-
-dphi1 = derivative(phi, u_, [1.0, 2.0], [[0.0049215667, 0.0]], 1, init_params)
-dphi2 = derivative(phi, u_, [1.0, 2.0], [[0.0, 0.0049215667]], 1, init_params)
-isapprox(dphi[1][1], dphi1, atol = 1.0e-8)
-isapprox(dphi[1][2], dphi2, atol = 1.0e-8)
-
-indvars = [x, t]
-depvars = [u(x, t)]
-dict_depvars_input = Dict(:u => [:x, :t])
-dim = length(domains)
-dx = 0.1
-multioutput = chain isa AbstractArray
-strategy = NeuralPDE.GridTraining(dx)
-integral = NeuralPDE.get_numeric_integral(strategy, indvars, multioutput, chain, derivative)
-
-_pde_loss_function = NeuralPDE.build_loss_function(
-    eq, indvars, depvars, phi, derivative,
-    integral, multioutput, init_params,
-    strategy
-)
+@named pde_system = PDESystem(eqs, bcs, domains, [x], [u(x)])
+pinnrep = symbolic_discretize(pde_system, discretization)
 ```
 
-```
-julia> expr_pde_loss_function = NeuralPDE.build_symbolic_loss_function(eq,indvars,depvars,dict_depvars_input,phi,derivative,integral,multioutput,init_params,strategy)
+The returned `PINNRepresentation` stores:
 
-:((cord, var"##θ#529", phi, derivative, integral, u)->begin
-          begin
-              let (x, t) = (cord[[1], :], cord[[2], :])
-                  derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667], [0.0, 0.0049215667]], 2, var"##θ#529") .- derivative.(phi, u, cord, Array{Float32,1}[[0.0049215667, 0.0], [0.0049215667, 0.0]], 2, var"##θ#529")
-              end
-          end
-      end)
+- `pde_indvars` and `bc_indvars`, the coordinate layouts used for each residual.
+- `symbolic_pde_loss_functions` and `symbolic_bc_loss_functions`, the generated
+  data-free residual kernels.
+- `loss_functions`, the strategy-wrapped scalar objectives consumed by
+  `Optimization.jl`.
 
-julia> bc_indvars = NeuralPDE.get_variables(bcs,indvars,depvars)
-4-element Array{Array{Any,1},1}:
- [:t]
- [:t]
- [:x]
- [:x]
-```
+## Inspecting Residual Kernels
+
+The generated residual kernels are callable as:
 
 ```julia
-_bc_loss_functions = [
-    NeuralPDE.build_loss_function(
-            bc, indvars, depvars,
-            phi, derivative, integral, multioutput,
-            init_params, strategy,
-            bc_indvars = bc_indvar
-        )
-        for (bc, bc_indvar) in zip(bcs, bc_indvars)
-]
+residual = pinnrep.loss_functions.datafree_pde_loss_functions[1]
+coords = reshape(collect(0.1:0.1:0.9), 1, :)
+values = residual(coords, pinnrep.flat_init_params)
 ```
 
-```
-julia> expr_bc_loss_functions = [NeuralPDE.build_symbolic_loss_function(bc,indvars,depvars,dict_depvars_input,
-                                                                        phi,derivative,integral,multioutput,init_params,strategy,
-                                                                        bc_indvars = bc_indvar) for (bc,bc_indvar) in zip(bcs,bc_indvars)]
-4-element Array{Expr,1}:
- :((cord, var"##θ#529", phi, derivative, integral, u)->begin
-          begin
-              let (x, t) = (cord[[1], :], cord[[2], :])
-                  u.(cord, var"##θ#529", phi) .- 0.0
-              end
-          end
-      end)
- :((cord, var"##θ#529", phi, derivative, integral, u)->begin
-          begin
-              let (x, t) = (cord[[1], :], cord[[2], :])
-                  u.(cord, var"##θ#529", phi) .- 0.0
-              end
-          end
-      end)
- :((cord, var"##θ#529", phi, derivative, integral, u)->begin
-          begin
-              let (x, t) = (cord[[1], :], cord[[2], :])
-                  u.(cord, var"##θ#529", phi) .- (*).(x, (+).(1.0, (*).(-1, x)))
-              end
-          end
-      end)
- :((cord, var"##θ#529", phi, derivative, integral, u)->begin
-          begin
-              let (x, t) = (cord[[1], :], cord[[2], :])
-                  derivative.(phi, u, cord, Array{Float32,1}[[0.0, 0.0049215667]], 1, var"##θ#529") .- 0.0
-              end
-          end
-      end)
-```
+For grid, stochastic, and quasi-random training, `coords` is a `(D, N)` matrix:
+rows are independent variables and columns are collocation points. For boundary
+conditions under quadrature training, the coordinate matrix may contain only the
+free boundary variables; fixed boundary coordinates are reconstructed by the
+symbolic parser.
 
-```julia
-train_sets = NeuralPDE.generate_training_sets(
-    domains, dx, [eq], bcs, eltypeθ, indvars,
-    depvars
-)
-pde_train_set, bcs_train_set = train_sets
-```
+## Symbolic Parser Pipeline
 
-```
-julia> pde_train_set
-1-element Array{Array{Float32,2},1}:
- [0.1 0.2 … 0.8 0.9; 0.1 0.1 … 1.0 1.0]
+`build_loss_function(pinnrep, eq, bc_indvars)` lowers one ModelingToolkit
+equation into a batched residual kernel:
 
+1. Build the residual as `expand_derivatives(eq.lhs - eq.rhs)`.
+2. Walk the Symbolics/SymbolicUtils term tree.
+3. Replace dependent-variable calls with `phi_eval`.
+4. Replace derivatives of dependent variables with `deriv_fd`.
+5. Replace PDE parameters with runtime parameter access or default values.
+6. Replace integral terms with numeric quadrature callbacks.
+7. Generate Julia code with `Symbolics.build_function(..., cse = true)`.
+8. Dot-vectorize scalar arithmetic while preserving matrix-valued runtime calls.
+9. Compile the result with `RuntimeGeneratedFunctions`.
 
-julia> bcs_train_set
-4-element Array{Array{Float32,2},1}:
- [0.0 0.0 … 0.0 0.0; 0.0 0.1 … 0.9 1.0]
- [1.0 1.0 … 1.0 1.0; 0.0 0.1 … 0.9 1.0]
- [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]
- [0.0 0.1 … 0.9 1.0; 0.0 0.0 … 0.0 0.0]
-```
+The resulting residual values remain differentiable with respect to neural
+network parameters through the network evaluations used inside the finite
+difference stencil.
 
-```julia
-pde_bounds,
-    bcs_bounds = NeuralPDE.get_bounds(
-    domains, [eq], bcs, eltypeθ, indvars, depvars,
-    NeuralPDE.StochasticTraining(100)
-)
-```
+## Fast Regression Checks
 
-```
-julia> pde_bounds
-1-element Vector{Vector{Any}}:
- [Float32[0.01, 0.99], Float32[0.01, 0.99]]
+The most focused parser checks live in:
 
-julia> bcs_bounds
-4-element Vector{Vector{Any}}:
- [0, Float32[0.0, 1.0]]
- [1, Float32[0.0, 1.0]]
- [Float32[0.0, 1.0], 0]
- [Float32[0.0, 1.0], 0]
-```
+- `test/Forward/forward__ode.jl`
+- `test/Forward/forward__integral.jl`
+- `test/Forward/forward__derivatives.jl`
+- `test/Forward/forward__symbolic_parser_scope.jl`
 
-```julia
-discretization = NeuralPDE.PhysicsInformedNN(chain, strategy)
-
-@named pde_system = PDESystem(eq, bcs, domains, indvars, depvars)
-prob = NeuralPDE.discretize(pde_system, discretization)
-
-expr_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
-expr_pde_loss_function, expr_bc_loss_functions = expr_prob
-```
+These tests exercise direct generated residual evaluation before the cost of full
+training examples is introduced.
