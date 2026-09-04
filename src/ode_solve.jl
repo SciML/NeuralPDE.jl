@@ -82,6 +82,10 @@ standard `ODEProblem`.
            neural network is done at individual time points one at a time. This is not
            applicable to `QuadratureTraining` where `batch` is passed in the `strategy`
            which is the number of points it can parallelly compute the integrand.
+* `ode_batch_eval`: Whether the ODE right-hand side accepts a batch of states and a vector
+                    of times. Defaults to `true`; GPU-backed batched losses always use this
+                    mode. Set this to `false` for an ordinary pointwise ODE right-hand side
+                    on a CPU.
 * `param_estim`: Boolean to indicate whether parameters of the differential equations are
                  learnt along with parameters of the neural network.
 * `strategy`: The training strategy used to choose the points for the evaluations.
@@ -400,15 +404,19 @@ function generate_loss(
     end
 end
 
-function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim::Bool)
-    batch && return (θ, _) -> inner_loss(phi, f, autodiff, tstops, θ, p, param_estim)
-    return (
-        θ, _,
-    ) -> sum(
-        [
-            inner_loss(phi, f, autodiff, t, θ, p, param_estim)
-                for t in tstops
-        ]
+function evaluate_tstops_loss(
+        phi, f, autodiff::Bool, tstops, p, batch, ode_batch_eval, param_estim::Bool
+    )
+    if batch
+        return function (θ, _)
+            dev = safe_get_device(θ)
+            tstops_ = safe_expand(dev, tstops)
+            rhs = ode_batch_eval || !(dev isa CPUDevice) ? BatchedRHS(f) : f
+            return inner_loss(phi, rhs, autodiff, tstops_, θ, p, param_estim)
+        end
+    end
+    return (θ, _) -> sum(
+        [inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in tstops]
     )
 end
 
@@ -567,7 +575,7 @@ function SciMLBase.__solve(
         if tstops !== nothing
             num_tstops_points = length(tstops)
             tstops_loss_func = evaluate_tstops_loss(
-                phi, f, autodiff, tstops, p, batch, param_estim
+                phi, f, autodiff, tstops, p, batch, ode_batch_eval, param_estim
             )
             tstops_loss = tstops_loss_func(θ, phi)
             if strategy isa GridTraining

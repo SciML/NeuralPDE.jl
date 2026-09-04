@@ -45,7 +45,7 @@ using Test
     alg_old = NNODE(
         luxchain, BFGS(linesearch = BackTracking());
         strategy = GridTraining(0.01), dataset = dataset,
-        param_estim = true
+        param_estim = true, ode_batch_eval = false
     )
     sol_old = solve(
         prob, alg_old; verbose = false, abstol = 1.0e-12, maxiters = 2000, saveat = 0.01
@@ -53,7 +53,8 @@ using Test
 
     alg_new = NNODE(
         luxchain, BFGS(linesearch = BackTracking()); strategy = GridTraining(0.01),
-        param_estim = true, dataset = dataset, estim_collocate = true
+        param_estim = true, dataset = dataset, estim_collocate = true,
+        ode_batch_eval = false
     )
     sol_new = solve(
         prob, alg_new; verbose = false, abstol = 1.0e-12, maxiters = 2000, saveat = 0.01

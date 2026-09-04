@@ -82,10 +82,11 @@ This optimizer and respective algorithms are plugged into the `solve` calls for 
 opt = LBFGS(linesearch = BackTracking())
 
 alg_old = NNODE(
-    chain, opt; strategy = GridTraining(0.01), dataset = dataset, param_estim = true)
+    chain, opt; strategy = GridTraining(0.01), dataset = dataset, param_estim = true,
+    ode_batch_eval = false)
 
 alg_new = NNODE(chain, opt; strategy = GridTraining(0.01), param_estim = true,
-    dataset = dataset, estim_collocate = true)
+    dataset = dataset, estim_collocate = true, ode_batch_eval = false)
 ```
 
 Now we have all the pieces to solve the optimization problem.
