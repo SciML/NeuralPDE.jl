@@ -222,6 +222,18 @@ end
 
 @inline (rhs::BatchedRHS)(u, p, t) = rhs.f(u, p, t)
 
+_explicit_batched_rhs(::Any) = nothing
+_explicit_batched_rhs(rhs::AbstractBatchedRHS) = rhs
+_explicit_batched_rhs(f::ODEFunction) = _explicit_batched_rhs(f.f)
+
+function _loss_rhs(f, ode_batch_eval, dev)
+    if ode_batch_eval
+        rhs = _explicit_batched_rhs(f)
+        rhs === nothing || return rhs
+    end
+    return dev isa CPUDevice ? f : BatchedRHS(f)
+end
+
 """
     inner_loss(phi, f, autodiff, t, θ, p, param_estim)
 
@@ -338,10 +350,12 @@ function generate_loss(
     ts = collect(tspan[1]:(strategy.dx):tspan[2])
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     if batch
-        dev = safe_get_device(phi)
-        ts = safe_expand(dev, ts)
-        f = ode_batch_eval || not(dev == cdev) ? BatchedRHS(f) : f  # forces vectorized computation on gpu
-        return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
+        return function (θ, _)
+            dev = safe_get_device(θ)
+            ts_ = safe_expand(dev, ts)
+            rhs = _loss_rhs(f, ode_batch_eval, dev)
+            return inner_loss(phi, rhs, autodiff, ts_, θ, p, param_estim)
+        end
     else
         return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
     end
@@ -359,10 +373,10 @@ function generate_loss(
         T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
         ts = (tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1]
         if batch
-            dev = safe_get_device(phi)
+            dev = safe_get_device(θ)
             ts = safe_expand(dev, ts)
-            f = ode_batch_eval || not(dev == cdev) ? BatchedRHS(f) : f  # forces vectorized computation on gpu
-            inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
+            rhs = _loss_rhs(f, ode_batch_eval, dev)
+            inner_loss(phi, rhs, autodiff, ts, θ, p, param_estim)
         else
             sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
         end
@@ -387,10 +401,12 @@ function generate_loss(
     end
 
     if batch
-        dev = safe_get_device(phi)
-        ts = safe_expand(dev, ts)
-        f = ode_batch_eval || not(dev == cdev) ? BatchedRHS(f) : f  # forces vectorized computation on gpu
-        return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
+        return function (θ, _)
+            dev = safe_get_device(θ)
+            ts_ = safe_expand(dev, ts)
+            rhs = _loss_rhs(f, ode_batch_eval, dev)
+            return inner_loss(phi, rhs, autodiff, ts_, θ, p, param_estim)
+        end
     else
         return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
     end
