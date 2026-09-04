@@ -6,7 +6,7 @@ using Test
 
     Random.seed!(100)
 
-    linear = (u, p, t) -> -u / 5 + exp(-t / 5) .* cos(t)
+    linear = (u, p, t) -> @. -u / 5 + exp(-t / 5) * cos(t)
     linear_analytic = (u0, p, t) -> exp(-t / 5) * (u0 + sin(t))
     prob = ODEProblem(
         ODEFunction(linear; analytic = linear_analytic), 0.0f0, (0.0f0, 1.0f0)

@@ -37,12 +37,16 @@ using Test
             StochasticTraining(3),
         ]
         Random.seed!(100)
-        alg = NNODE(chain, Adam(0.01), deepcopy(init_params); strategy)
+        alg = NNODE(
+            chain, Adam(0.01), deepcopy(init_params); strategy, ode_batch_eval = false
+        )
         sol = solve(prob_oop, alg; verbose = false, maxiters = 1000, saveat)
         error_without_points = abs(mean(sol) - mean(true_sol))
 
         Random.seed!(100)
-        alg = NNODE(chain, Adam(0.01), deepcopy(init_params); strategy)
+        alg = NNODE(
+            chain, Adam(0.01), deepcopy(init_params); strategy, ode_batch_eval = false
+        )
         sol = solve(
             prob_oop, alg; verbose = false,
             maxiters = 10000, saveat, tstops = addedPoints

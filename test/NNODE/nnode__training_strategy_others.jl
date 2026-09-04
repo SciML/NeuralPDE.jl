@@ -6,7 +6,7 @@ using Test
 
     Random.seed!(100)
 
-    linear = (u, p, t) -> cospi(2t)
+    linear = (u, p, t) -> @. cospi(2t)
     linear_analytic = (u, p, t) -> (1 / (2pi)) * sinpi(2t)
     tspan = (0.0, 1.0)
     dt = (tspan[2] - tspan[1]) / 99
