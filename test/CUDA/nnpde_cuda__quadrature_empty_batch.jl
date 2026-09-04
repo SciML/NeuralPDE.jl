@@ -1,35 +1,29 @@
-using CUDA, ComponentArrays, Lux, LuxCUDA, ModelingToolkit, NeuralPDE, Random, Test
-using DomainSets: Interval
+using CUDA, NeuralPDE, SciMLBase, Test
 
-@testset "QuadratureTraining with Float64 CUDA parameters" begin
-    @parameters x y
-    @variables u(..)
-    Dxx = Differential(x)^2
-    Dyy = Differential(y)^2
-    equation = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sinpi(x) * sinpi(y)
-    boundary_conditions = [
-        u(0, y) ~ 0.0,
-        u(1, y) ~ 0.0,
-        u(x, 0) ~ 0.0,
-        u(x, 1) ~ 0.0,
-    ]
-    domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
-    chain = Chain(
-        Dense(2 => 18, tanh),
-        Dense(18 => 18, tanh),
-        Dense(18 => 1)
-    )
-    parameters = Lux.initialparameters(Random.default_rng(), chain) |>
-        ComponentArray |> gpu_device() .|> Float64
-    discretization = PhysicsInformedNN(
-        chain, QuadratureTraining(); init_params = parameters
-    )
-    @named pde_system = PDESystem(
-        equation, boundary_conditions, domains, [x, y], [u(x, y)]
-    )
-    problem = discretize(pde_system, discretization)
-    loss = problem.f(problem.u0, problem.p)
-    CUDA.synchronize()
+mutable struct EmptyBatchProbe <: SciMLBase.AbstractIntegralAlgorithm
+    prototype::Any
+end
 
-    @test isfinite(loss)
+function SciMLBase.solve(
+        prob::SciMLBase.IntegralProblem, alg::EmptyBatchProbe; kwargs...
+    )
+    alg.prototype = prob.f(CUDA.zeros(Float64, 1, 0), prob.p)
+    return (; u = CUDA.ones(Float64, 1))
+end
+
+@testset "QuadratureTraining skips CUDA empty prototype batches" begin
+    probe = EmptyBatchProbe(nothing)
+    residuals = function (x, θ)
+        isempty(x) && error("residual cannot evaluate an empty CUDA batch")
+        return θ .* x
+    end
+    parameters = CUDA.fill(2.0, 1)
+    strategy = QuadratureTraining(quadrature_alg = probe)
+    loss = NeuralPDE.get_loss_function(
+        parameters, residuals, [0.0], [1.0], Float64, strategy
+    )
+
+    @test only(Array(loss(parameters))) == 1.0
+    @test probe.prototype isa CuArray{Float64, 1}
+    @test isempty(probe.prototype)
 end
