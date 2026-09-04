@@ -3,7 +3,6 @@ using Test
 
 @testset "Test-2 GBM SDE" begin
     using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
-    using OptimizationOptimJL: BFGS
     using MonteCarloMeasurements: Particles, pmean
     Random.seed!(100)
 
@@ -21,8 +20,8 @@ using Test
     dt = 1 / 50.0f0
     abstol = 1.0e-12
     autodiff = false
-    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 500)
-    opt = BFGS()
+    kwargs = (; verbose = true, dt = dt, abstol, maxiters = 2000)
+    opt = Adam(0.01)
     numensemble = 500
 
     sol_2 = solve(
