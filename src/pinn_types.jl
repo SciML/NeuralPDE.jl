@@ -403,6 +403,37 @@ mutable struct PINNRepresentation
     The PINNLossFunctions, i.e. the generated loss functions
     """
     loss_functions::Any
+    """
+    Symbolic array residuals for the PDE equations. These are populated when the
+    equations can be represented by the native ModelingToolkit array lowering.
+    """
+    symbolic_pde_residuals::Any
+    """
+    Symbolic array residuals for the boundary conditions.
+    """
+    symbolic_bc_residuals::Any
+    """
+    Symbolic scalar MSE terms corresponding to `symbolic_pde_residuals`.
+    """
+    symbolic_pde_losses::Any
+    """
+    Symbolic scalar MSE terms corresponding to `symbolic_bc_residuals`.
+    """
+    symbolic_bc_losses::Any
+    """
+    Symbolic scalar objective assembled from the array residuals.
+    """
+    symbolic_cost::Any
+    """
+    Native array-form `ModelingToolkit.OptimizationSystem` for the PINN objective, before
+    `mtkcompile` scalarizes its array unknowns and parameters.
+    """
+    optimization_system::Any
+    """
+    Symbols, operating-point values, and execution metadata associated with
+    `optimization_system`.
+    """
+    optimization_system_data::Any
 end
 
 """
