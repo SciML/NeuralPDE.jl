@@ -37,7 +37,8 @@ using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "Example Chain du = cos(p * t)" begin
-    using ModelingToolkit, NeuralPDE, SciMLBase, Lux, OptimizationOptimisers, NeuralOperators, Random
+    using ModelingToolkit, NeuralPDE, SciMLBase, Lux, OptimizationOptimisers, NeuralOperators, Random,
+        StableRNGs
     using SciMLBase: SciMLBase, PDETimeSeriesSolution
     equation = (u, p, t) -> cos(p * t)
     tspan = (0.0, 1.0)
@@ -46,15 +47,19 @@ using Test
     chain = Chain(
         Dense(2 => 10, Lux.tanh_fast), Dense(10 => 10, Lux.tanh_fast), Dense(10 => 1)
     )
-    x = rand(2, 50, 10)
-    θ, st = Lux.setup(Random.default_rng(), chain)
-    b = chain(x, θ, st)[1]
-
     bounds = [(pi, 2pi)]
     number_of_parameters = 300
     strategy = StochasticTraining(300)
     opt = OptimizationOptimisers.Adam(0.01)
-    alg = PINOODE(chain, opt, bounds, number_of_parameters; strategy = strategy)
+    alg = PINOODE(
+        chain, opt, bounds, number_of_parameters;
+        strategy, rng = StableRNG(1)
+    )
+    legacy_alg = PINOODE(
+        chain, opt, bounds, number_of_parameters,
+        nothing, strategy, nothing, (;)
+    )
+    @test legacy_alg isa PINOODE
     sol = solve(prob, alg, verbose = false, maxiters = 3000)
 
     # Solution type contract: a `PINOODE` solve is a PDE solve where the
@@ -79,19 +84,39 @@ using Test
     predict_sol = sol.interp(p, t)
     @test ground_solution ≈ predict_sol rtol = 0.08
 
-    p = sol.p
-    ground_solution = ground_analytic.(u0, p, [1.0])
-    predict_sol = sol(1.0)
-    @test ground_solution ≈ predict_sol rtol = 0.08
-
-    p = sol.p
-    t = rand(size(p)...)
+    p = reshape(collect(range(pi, 2pi; length = 100)), 1, :)
+    t = fill(1.0, size(p))
     ground_solution = ground_analytic.(u0, p, t)
-    predict_sol = sol(t)
+    predict_sol = sol(p, t)
+    @test ground_solution ≈ predict_sol rtol = 0.08
+    @test sol(1.0) == sol.interp(sol.p, fill(1.0, size(sol.p)))
+
+    t = reshape(collect(range(0.0, 1.0; length = length(p))), size(p))
+    ground_solution = ground_analytic.(u0, p, t)
+    predict_sol = sol.interp(p, t)
     @test ground_solution ≈ predict_sol rtol = 0.08
 
     # Explicit PDE-style (p, t) call form.
     @test sol(p, t) == predict_sol
+    training_t = reshape(collect(range(0.0, 1.0; length = length(sol.p))), size(sol.p))
+    @test sol(training_t) == sol(sol.p, training_t)
+
+    function short_solve(ambient_seed, algorithm_seed)
+        Random.seed!(ambient_seed)
+        short_chain = Chain(Dense(2 => 3, tanh), Dense(3 => 1))
+        short_alg = PINOODE(
+            short_chain, opt, bounds, 4;
+            strategy = StochasticTraining(4), rng = StableRNG(algorithm_seed)
+        )
+        return solve(prob, short_alg, verbose = false, maxiters = 1)
+    end
+
+    first_sol = short_solve(1, 7)
+    second_sol = short_solve(2, 7)
+    different_sol = short_solve(1, 8)
+    @test first_sol.p == second_sol.p
+    @test first_sol.u == second_sol.u
+    @test first_sol.p != different_sol.p
 end
 
 #Test DeepONet
