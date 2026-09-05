@@ -25,7 +25,6 @@ using OptimizationOptimisers: OptimizationOptimisers
 using Printf: @printf
 using Random: Random, AbstractRNG
 using RecursiveArrayTools: DiffEqArray
-using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
 using SciMLBase: SciMLBase, BatchIntegralFunction, DAEProblem, IntegralProblem,
     NoiseProblem, ODEFunction, ODEInputFunction, ODEProblem, ODESolution,
     OptimizationFunction, OptimizationProblem, PDETimeSeriesSolution, ReturnCode,
@@ -41,7 +40,7 @@ using ModelingToolkit: ModelingToolkit, toexpr
 using ModelingToolkitBase: @mtkcompile, @named, @parameters, PDESystem, get_dvs, get_ivs,
     mtkcompile, unknowns
 using Symbolics: Symbolics, Differential, Integral, arguments, Num, expand_derivatives,
-    @register_symbolic, @variables
+    @register_array_symbolic, @register_symbolic, @variables
 using SymbolicUtils: SymbolicUtils, unwrap
 using SymbolicIndexingInterface: SymbolicIndexingInterface
 
@@ -50,8 +49,6 @@ using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
 using MonteCarloMeasurements: Particles
 
 import LuxCore: initialparameters, initialstates, parameterlength
-
-RuntimeGeneratedFunctions.init(@__MODULE__)
 
 """
     AbstractPINN
@@ -150,13 +147,14 @@ include("eltype_matching.jl")
 
 include("pinn_types.jl")
 include("symbolic_utilities.jl")
+include("transform_inf_integral.jl")
 include("training_strategies.jl")
 include("adaptive_losses.jl")
+include("optimization_system_parser.jl")
 
 include("ode_solve.jl")
 include("dae_solve.jl")
 include("pino_ode_solve.jl")
-include("transform_inf_integral.jl")
 include("discretize.jl")
 
 include("neural_adapter.jl")
@@ -184,7 +182,7 @@ export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
 
 export build_loss_function, get_loss_function,
     generate_training_sets, get_variables, get_argument, get_bounds,
-    get_numeric_integral, vector_to_parameters
+    get_numeric_integral, vector_to_parameters, build_pinn_optimization_system
 
 export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
     MiniMaxAdaptiveLoss, SoftAdaptAdaptiveLoss, ReLoBRaLoAdaptiveLoss
@@ -198,5 +196,12 @@ export ModelingToolkit, Differential, Integral, PDESystem, mtkcompile, unknowns,
     @mtkcompile, @named, @parameters, @register_symbolic, @variables
 
 @public logscalar, logvector
+
+# Compatibility for OptimizationOptimJL versions that pass `Symbol(true/false)`
+# retcodes into SciMLBase.OptimizationSolution.
+Base.convert(::Type{SciMLBase.ReturnCode.T}, s::Symbol) =
+    hasproperty(SciMLBase.ReturnCode, s) ?
+    getproperty(SciMLBase.ReturnCode, s) :
+    SciMLBase.ReturnCode.Default
 
 end # module

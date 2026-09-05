@@ -89,6 +89,9 @@ end
 
 (f::Phi)(x::AbstractArray, θ) = f.smodel(safe_get_device(θ)(x), θ)
 
+Base.Broadcast.broadcastable(f::Phi) = Ref(f)
+Base.length(::Phi) = 1
+
 """
     PhysicsInformedNN(
         chain, strategy; init_params = nothing, init_states = nothing,
@@ -389,17 +392,48 @@ mutable struct PINNRepresentation
     """
     integral::Any
     """
-    The PDE loss functions as represented in Julia AST
+    The generated data-free PDE residual kernels.
     """
     symbolic_pde_loss_functions::Any
     """
-    The boundary condition loss functions as represented in Julia AST
+    The generated data-free boundary-condition residual kernels.
     """
     symbolic_bc_loss_functions::Any
     """
     The PINNLossFunctions, i.e. the generated loss functions
     """
     loss_functions::Any
+    """
+    Symbolic array residuals for the PDE equations. These are populated when the
+    equations can be represented by the native ModelingToolkit array lowering.
+    """
+    symbolic_pde_residuals::Any
+    """
+    Symbolic array residuals for the boundary conditions.
+    """
+    symbolic_bc_residuals::Any
+    """
+    Symbolic scalar MSE terms corresponding to `symbolic_pde_residuals`.
+    """
+    symbolic_pde_losses::Any
+    """
+    Symbolic scalar MSE terms corresponding to `symbolic_bc_residuals`.
+    """
+    symbolic_bc_losses::Any
+    """
+    Symbolic scalar objective assembled from the array residuals.
+    """
+    symbolic_cost::Any
+    """
+    Native array-form `ModelingToolkit.OptimizationSystem` for the PINN objective, before
+    `mtkcompile` scalarizes its array unknowns and parameters.
+    """
+    optimization_system::Any
+    """
+    Symbols, operating-point values, and execution metadata associated with
+    `optimization_system`.
+    """
+    optimization_system_data::Any
 end
 
 """

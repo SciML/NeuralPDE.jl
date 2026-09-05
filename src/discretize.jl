@@ -1,177 +1,10 @@
 """
-Build a loss function for a PDE or a boundary condition.
+    build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars = nothing; kwargs...)
 
-# Examples: System of PDEs:
-
-Take expressions in the form:
-
-[Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
- Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0]
-
-to
-
-:((cord, θ, phi, derivative, u)->begin
-          #= ... =#
-          #= ... =#
-          begin
-              (u1, u2) = (θ.depvar.u1, θ.depvar.u2)
-              (phi1, phi2) = (phi[1], phi[2])
-              let (x, y) = (cord[1], cord[2])
-                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, u1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, u1))) - 0,
-                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, u2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, u2))) - 0]
-              end
-          end
-      end)
-
-for Lux.AbstractLuxLayer.
+Returns the native array residual kernel for the supplied PDE or boundary equation.
 """
-function build_symbolic_loss_function(
-        pinnrep::PINNRepresentation, eqs;
-        eq_params = SciMLBase.NullParameters(), param_estim = false, default_p = nothing,
-        bc_indvars = pinnrep.indvars, integrand = nothing,
-        dict_transformation_vars = nothing, transformation_vars = nothing,
-        integrating_depvars = pinnrep.depvars
-    )
-    (;
-        depvars, dict_depvars, dict_depvar_input, phi, derivative, integral,
-        multioutput, init_params, strategy, eq_params, param_estim, default_p,
-    ) = pinnrep
-
-    if integrand isa Nothing
-        loss_function = parse_equation(pinnrep, eqs)
-        this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
-        this_eq_indvars = unique(vcat(values(this_eq_pair)...))
-    else
-        this_eq_pair = Dict(
-            map(
-                intvars -> dict_depvars[intvars] => dict_depvar_input[intvars],
-                integrating_depvars
-            )
-        )
-        this_eq_indvars = transformation_vars isa Nothing ?
-            unique(vcat(values(this_eq_pair)...)) : transformation_vars
-        loss_function = integrand
-    end
-
-    vars = :(cord, $θ, phi, derivative, integral, u, p)
-    ex = Expr(:block)
-    if multioutput
-        θ_nums = Symbol[]
-        phi_nums = Symbol[]
-        for v in depvars
-            num = dict_depvars[v]
-            push!(θ_nums, :($(Symbol(:($θ), num))))
-            push!(phi_nums, :($(Symbol(:phi, num))))
-        end
-
-        expr_θ = Expr[]
-        expr_phi = Expr[]
-
-        for i in eachindex(depvars)
-            push!(expr_θ, :($θ.depvar.$(depvars[i])))
-            push!(expr_phi, :(phi[$i]))
-        end
-
-        vars_θ = Expr(:(=), build_expr(:tuple, θ_nums), build_expr(:tuple, expr_θ))
-        push!(ex.args, vars_θ)
-
-        vars_phi = Expr(:(=), build_expr(:tuple, phi_nums), build_expr(:tuple, expr_phi))
-        push!(ex.args, vars_phi)
-    end
-
-    #Add an expression for parameter symbols
-    if param_estim == true && eq_params != SciMLBase.NullParameters()
-        params_symbols = Symbol[]
-        expr_params = Expr[]
-        for (i, eq_param) in enumerate(eq_params)
-            push!(expr_params, :($θ.p[$((i):(i))]))
-            push!(params_symbols, Symbol(:($eq_param)))
-        end
-        params_eq = Expr(
-            :(=), build_expr(:tuple, params_symbols),
-            build_expr(:tuple, expr_params)
-        )
-        push!(ex.args, params_eq)
-    end
-
-    if eq_params != SciMLBase.NullParameters() && param_estim == false
-        params_symbols = Symbol[]
-        expr_params = Expr[]
-        for (i, eq_param) in enumerate(eq_params)
-            push!(expr_params, :(ArrayInterface.allowed_getindex(p, ($i))))
-            push!(params_symbols, Symbol(:($eq_param)))
-        end
-        params_eq = Expr(
-            :(=), build_expr(:tuple, params_symbols),
-            build_expr(:tuple, expr_params)
-        )
-        push!(ex.args, params_eq)
-    end
-
-    eq_pair_expr = Expr[]
-    for i in keys(this_eq_pair)
-        push!(eq_pair_expr, :($(Symbol(:cord, :($i))) = vcat($(this_eq_pair[i]...))))
-    end
-    vcat_expr = Expr(:block, :($(eq_pair_expr...)))
-    vcat_expr_loss_functions = Expr(:block, vcat_expr, loss_function) # TODO rename
-
-    if strategy isa QuadratureTraining
-        indvars_ex = get_indvars_ex(bc_indvars)
-        left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-        vars_eq = Expr(
-            :(=), build_expr(:tuple, left_arg_pairs),
-            build_expr(:tuple, right_arg_pairs)
-        )
-    else
-        indvars_ex = [:($:cord[[$i], :]) for (i, x) in enumerate(this_eq_indvars)]
-        left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-        vars_eq = Expr(
-            :(=), build_expr(:tuple, left_arg_pairs),
-            build_expr(:tuple, right_arg_pairs)
-        )
-    end
-
-    if !(dict_transformation_vars isa Nothing)
-        transformation_expr_ = Expr[]
-        for (i, u) in dict_transformation_vars
-            push!(transformation_expr_, :($i = $u))
-        end
-        transformation_expr = Expr(:block, :($(transformation_expr_...)))
-        vcat_expr_loss_functions = Expr(
-            :block, transformation_expr, vcat_expr,
-            loss_function
-        )
-    end
-    let_ex = Expr(:let, vars_eq, vcat_expr_loss_functions)
-    push!(ex.args, let_ex)
-    return :(
-        ($vars) -> begin
-            $ex
-        end
-    )
-end
-
-"""
-    build_loss_function(
-        eqs, indvars, depvars, phi, derivative, init_params;
-        bc_indvars = nothing
-    )
-
-Returns the body of loss function, which is the executable Julia function, for the main
-equation or boundary condition.
-"""
-function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
-    (; eq_params, param_estim, default_p, phi, derivative, integral) = pinnrep
-
-    bc_indvars = bc_indvars === nothing ? pinnrep.indvars : bc_indvars
-
-    expr_loss_function = build_symbolic_loss_function(
-        pinnrep, eqs; bc_indvars, eq_params,
-        param_estim, default_p
-    )
-    u = get_u()
-    _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
-    return (cord, θ) -> _loss_function(cord, θ, phi, derivative, integral, u, default_p)
+function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars = nothing; kwargs...)
+    return build_runtime_array_residual_function(pinnrep, eqs; local_indvars = bc_indvars)
 end
 
 """
@@ -501,66 +334,73 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
         multioutput, iteration, init_params, flat_init_params, phi,
         derivative,
         strategy, pde_indvars, bc_indvars, pde_integration_vars,
-        bc_integration_vars, nothing, nothing, nothing, nothing
+        bc_integration_vars, nothing, nothing, nothing, nothing,
+        nothing, nothing, nothing, nothing, nothing, nothing, nothing
     )
 
-    integral = get_numeric_integral(pinnrep)
+    pinnrep.integral = get_numeric_integral(pinnrep)
 
-    symbolic_pde_loss_functions = [
-        build_symbolic_loss_function(
-            pinnrep, eq;
-            bc_indvars = pde_indvar
-        )
-            for (eq, pde_indvar) in zip(
-                eqs, pde_indvars,
-                pde_integration_vars
-            )
-    ]
-
-    symbolic_bc_loss_functions = [
-        build_symbolic_loss_function(
-            pinnrep, bc;
-            bc_indvars = bc_indvar
-        )
-            for (bc, bc_indvar) in zip(
-                bcs, bc_indvars,
-                bc_integration_vars
-            )
-    ]
-
-    pinnrep.integral = integral
-    pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
-    pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
-
-    datafree_pde_loss_functions = [
-        build_loss_function(pinnrep, eq, pde_indvar)
-            for (eq, pde_indvar) in zip(eqs, pde_indvars)
-    ]
-
-    datafree_bc_loss_functions = [
-        build_loss_function(pinnrep, bc, bc_indvar)
-            for (bc, bc_indvar) in zip(bcs, bc_indvars)
-    ]
-
-    pde_loss_functions,
-        bc_loss_functions = merge_strategy_with_loss_function(
-        pinnrep,
-        strategy, datafree_pde_loss_functions, datafree_bc_loss_functions
-    )
-
-    # setup for all adaptive losses
-    num_pde_losses = length(pde_loss_functions)
-    num_bc_losses = length(bc_loss_functions)
-    # assume one single additional loss function if there is one. this means that the user needs to lump all their functions into a single one,
+    num_pde_losses = length(eqs)
+    num_bc_losses = length(bcs)
     num_additional_loss = convert(Int, additional_loss !== nothing)
-
     adaloss_T = eltype(adaloss.pde_loss_weights)
-
-    # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
     adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .* adaloss.pde_loss_weights
     adaloss.bc_loss_weights = ones(adaloss_T, num_bc_losses) .* adaloss.bc_loss_weights
     adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
         adaloss.additional_loss_weights
+
+    if discretization isa PhysicsInformedNN
+        try
+            symbolic_optimization = build_pinn_optimization_system(pinnrep)
+            pinnrep.symbolic_pde_residuals = symbolic_optimization.pde_residuals
+            pinnrep.symbolic_bc_residuals = symbolic_optimization.bc_residuals
+            pinnrep.symbolic_pde_losses = symbolic_optimization.pde_losses
+            pinnrep.symbolic_bc_losses = symbolic_optimization.bc_losses
+            pinnrep.symbolic_cost = symbolic_optimization.cost
+            pinnrep.optimization_system = symbolic_optimization.system
+            pinnrep.optimization_system_data = symbolic_optimization.data
+        catch err
+            err isa InterruptException && rethrow()
+            pinnrep.optimization_system_data = PINNOptimizationSystemData(
+                nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
+                false, sprint(showerror, err)
+            )
+        end
+    end
+
+    symbolic_pde_loss_functions = if discretization isa PhysicsInformedNN
+        [
+            build_runtime_array_residual_function(
+                pinnrep, eq; local_indvars = pde_indvar
+            ) for (eq, pde_indvar) in zip(eqs, pde_indvars)
+        ]
+    else
+        [
+            build_loss_function(pinnrep, eq, pde_indvar)
+                for (eq, pde_indvar) in zip(eqs, pde_indvars)
+        ]
+    end
+    symbolic_bc_loss_functions = if discretization isa PhysicsInformedNN
+        [
+            build_runtime_array_residual_function(
+                pinnrep, bc; local_indvars = bc_indvar
+            ) for (bc, bc_indvar) in zip(bcs, bc_indvars)
+        ]
+    else
+        [
+            build_loss_function(pinnrep, bc, bc_indvar)
+                for (bc, bc_indvar) in zip(bcs, bc_indvars)
+        ]
+    end
+    pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
+    pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
+
+    datafree_pde_loss_functions = symbolic_pde_loss_functions
+    datafree_bc_loss_functions = symbolic_bc_loss_functions
+    pde_loss_functions,
+        bc_loss_functions = merge_strategy_with_loss_function(
+        pinnrep, strategy, datafree_pde_loss_functions, datafree_bc_loss_functions
+    )
 
     reweight_losses_func = generate_adaptive_loss_function(
         pinnrep, adaloss,
@@ -780,6 +620,207 @@ whose solution is the solution to the PDE.
 """
 function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
     pinnrep = symbolic_discretize(pde_system, discretization)
+    (; log_frequency) = discretization.log_options
+
+    system_data = pinnrep.optimization_system_data
+    if system_data isa PINNOptimizationSystemData && system_data.executable
+        generated_problem = Optimization.OptimizationProblem(
+            system_data.compiled_system, system_data.operating_point
+        )
+        generated_cost = generated_problem.f
+        coordinate_symbols = Any[]
+        append!(coordinate_symbols, system_data.coordinate_parameters.pde)
+        append!(coordinate_symbols, system_data.coordinate_parameters.bc)
+        coordinate_setters = system_data.coordinate_provider === nothing ? Any[] : [
+            SymbolicIndexingInterface.setp(generated_problem, symbol)
+                for symbol in coordinate_symbols
+        ]
+        loss_weight_parameters = system_data.loss_weight_parameters
+        pde_weight_setter = loss_weight_parameters.pde === nothing ? nothing :
+            SymbolicIndexingInterface.setp(generated_problem, loss_weight_parameters.pde)
+        bc_weight_setter = loss_weight_parameters.bc === nothing ? nothing :
+            SymbolicIndexingInterface.setp(generated_problem, loss_weight_parameters.bc)
+        additional_weight_setter = loss_weight_parameters.additional === nothing ? nothing :
+            SymbolicIndexingInterface.setp(
+                generated_problem, loss_weight_parameters.additional
+            )
+
+        current_generated_parameters = Ref{Any}(nothing)
+
+        function update_coordinate_parameters!(parameters, coordinate_sets)
+            for (setter, values) in
+                zip(coordinate_setters, Iterators.flatten(coordinate_sets))
+                setter(parameters, values)
+            end
+            return nothing
+        end
+
+        function loss_weight_vector(weights, active_index)
+            new_weights = zeros(eltype(weights), length(weights))
+            active_index === nothing || (new_weights[active_index] = one(eltype(weights)))
+            return new_weights
+        end
+
+        zero_pde_loss_weights = loss_weight_vector(pinnrep.adaloss.pde_loss_weights, nothing)
+        zero_bc_loss_weights = loss_weight_vector(pinnrep.adaloss.bc_loss_weights, nothing)
+        zero_additional_loss_weights = loss_weight_vector(
+            pinnrep.adaloss.additional_loss_weights, nothing
+        )
+
+        function set_loss_weight_parameters!(
+                parameters, pde_weights, bc_weights, additional_weights
+            )
+            pde_weight_setter === nothing ||
+                pde_weight_setter(parameters, pde_weights)
+            bc_weight_setter === nothing ||
+                bc_weight_setter(parameters, bc_weights)
+            additional_weight_setter === nothing ||
+                additional_weight_setter(parameters, additional_weights)
+            return nothing
+        end
+
+        adaptive_pde_loss_functions = [
+            let i = i,
+                pde_weights = loss_weight_vector(pinnrep.adaloss.pde_loss_weights, i),
+                bc_weights = zero_bc_loss_weights,
+                additional_weights = zero_additional_loss_weights
+                function (theta)
+                    parameters = current_generated_parameters[]
+                    @ignore_derivatives set_loss_weight_parameters!(
+                        parameters, pde_weights, bc_weights, additional_weights
+                    )
+                    return generated_cost(theta, parameters)
+                end
+            end for i in eachindex(pinnrep.adaloss.pde_loss_weights)
+        ]
+        adaptive_bc_loss_functions = [
+            let i = i,
+                pde_weights = zero_pde_loss_weights,
+                bc_weights = loss_weight_vector(pinnrep.adaloss.bc_loss_weights, i),
+                additional_weights = zero_additional_loss_weights
+                function (theta)
+                    parameters = current_generated_parameters[]
+                    @ignore_derivatives set_loss_weight_parameters!(
+                        parameters, pde_weights, bc_weights, additional_weights
+                    )
+                    return generated_cost(theta, parameters)
+                end
+            end for i in eachindex(pinnrep.adaloss.bc_loss_weights)
+        ]
+
+        reweight_losses_func = generate_adaptive_loss_function(
+            pinnrep, pinnrep.adaloss, adaptive_pde_loss_functions,
+            adaptive_bc_loss_functions
+        )
+
+        function strategy_component_losses(loss_functions, theta)
+            return [loss_function(theta) for loss_function in loss_functions]
+        end
+
+        function weighted_additional_loss(theta)
+            pinnrep.additional_loss === nothing && return nothing
+
+            structured_theta = theta isa ComponentArray ?
+                theta : ComponentArray(theta, getaxes(pinnrep.flat_init_params))
+            network_theta, equation_parameters = pinnrep.param_estim ?
+                (structured_theta.depvar, structured_theta.p) : (structured_theta, nothing)
+            return pinnrep.adaloss.additional_loss_weights[1] *
+                pinnrep.additional_loss(pinnrep.phi, network_theta, equation_parameters)
+        end
+
+        function update_loss_weight_parameters!(parameters)
+            set_loss_weight_parameters!(
+                parameters, pinnrep.adaloss.pde_loss_weights,
+                pinnrep.adaloss.bc_loss_weights,
+                pinnrep.adaloss.additional_loss_weights
+            )
+            return nothing
+        end
+
+        function optimization_system_cost(theta, parameters)
+            @ignore_derivatives current_generated_parameters[] = parameters
+            coordinate_sets = nothing
+            if system_data.coordinate_provider !== nothing
+                coordinate_sets = @ignore_derivatives system_data.coordinate_provider()
+                @ignore_derivatives update_coordinate_parameters!(parameters, coordinate_sets)
+            end
+            @ignore_derivatives if discretization.self_increment
+                discretization.iteration[] += 1
+            end
+            needs_component_losses = !(pinnrep.adaloss isa NonAdaptiveLoss) ||
+                pinnrep.logger !== nothing
+            pde_losses = nothing
+            bc_losses = nothing
+            @ignore_derivatives if needs_component_losses
+                pde_losses = strategy_component_losses(adaptive_pde_loss_functions, theta)
+                bc_losses = strategy_component_losses(adaptive_bc_loss_functions, theta)
+                if !(pinnrep.adaloss isa NonAdaptiveLoss)
+                    reweight_losses_func(theta, pde_losses, bc_losses)
+                    update_loss_weight_parameters!(parameters)
+                end
+            end
+            @ignore_derivatives update_loss_weight_parameters!(parameters)
+            full_weighted_loss = generated_cost(theta, parameters)
+            @ignore_derivatives if pinnrep.logger !== nothing &&
+                                   discretization.iteration[] % log_frequency == 0
+                weighted_pde_losses = pinnrep.adaloss.pde_loss_weights .* pde_losses
+                weighted_bc_losses = pinnrep.adaloss.bc_loss_weights .* bc_losses
+                sum_weighted_pde_losses = sum(weighted_pde_losses)
+                sum_weighted_bc_losses = sum(weighted_bc_losses)
+                weighted_additional_loss_val = weighted_additional_loss(theta)
+
+                logvector(
+                    pinnrep.logger, pde_losses, "unweighted_loss/pde_losses",
+                    discretization.iteration[]
+                )
+                logvector(
+                    pinnrep.logger, bc_losses, "unweighted_loss/bc_losses",
+                    discretization.iteration[]
+                )
+                logvector(
+                    pinnrep.logger, weighted_pde_losses,
+                    "weighted_loss/weighted_pde_losses", discretization.iteration[]
+                )
+                logvector(
+                    pinnrep.logger, weighted_bc_losses,
+                    "weighted_loss/weighted_bc_losses", discretization.iteration[]
+                )
+                weighted_additional_loss_val === nothing || logscalar(
+                    pinnrep.logger, weighted_additional_loss_val,
+                    "weighted_loss/weighted_additional_loss", discretization.iteration[]
+                )
+                logscalar(
+                    pinnrep.logger, sum_weighted_pde_losses,
+                    "weighted_loss/sum_weighted_pde_losses", discretization.iteration[]
+                )
+                logscalar(
+                    pinnrep.logger, sum_weighted_bc_losses,
+                    "weighted_loss/sum_weighted_bc_losses", discretization.iteration[]
+                )
+                logscalar(
+                    pinnrep.logger, full_weighted_loss,
+                    "weighted_loss/full_weighted_loss", discretization.iteration[]
+                )
+                logvector(
+                    pinnrep.logger, pinnrep.adaloss.pde_loss_weights,
+                    "adaptive_loss/pde_loss_weights", discretization.iteration[]
+                )
+                logvector(
+                    pinnrep.logger, pinnrep.adaloss.bc_loss_weights,
+                    "adaptive_loss/bc_loss_weights", discretization.iteration[]
+                )
+            end
+            return full_weighted_loss
+        end
+
+        f = OptimizationFunction(
+            optimization_system_cost, AutoZygote(); sys = system_data.compiled_system
+        )
+        return Optimization.OptimizationProblem(
+            f, pinnrep.flat_init_params, generated_problem.p
+        )
+    end
+
     f = OptimizationFunction(pinnrep.loss_functions.full_loss_function, AutoZygote())
     return Optimization.OptimizationProblem(f, pinnrep.flat_init_params)
 end

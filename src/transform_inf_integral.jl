@@ -41,6 +41,8 @@ end
 function v_inf(t)
     return :($t ./ (1 .- $t .^ 2))
 end
+@inline v_inf_eval(t::Number) = t / (1 - t^2)
+@inline v_inf_jacobian(t::Number) = (1 + t^2) / ((1 - t^2)^2)
 
 function v_semiinf(t, a, upto_inf)
     if a isa Num || a isa SymbolicUtils.BasicSymbolic
@@ -57,6 +59,8 @@ function v_semiinf(t, a, upto_inf)
         return :($a .+ $t ./ (1 .+ $t))
     end
 end
+@inline v_semiinf_eval(t::Number, a::Number, upto_inf::Bool = true) = upto_inf ? (a + t / (1 - t)) : (a + t / (1 + t))
+@inline v_semiinf_jacobian(t::Number, upto_inf::Bool = true) = upto_inf ? (1 / ((1 - t)^2)) : (1 / ((1 + t)^2))
 
 function get_inf_transformation_jacobian(
         integrating_variable, _inf, _semiup, _semilw,

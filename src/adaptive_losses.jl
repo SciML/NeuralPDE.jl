@@ -322,6 +322,12 @@ function generate_adaptive_loss_function(
     return (θ, pde_losses, bc_losses) -> begin
         # Seed previous losses on the very first call
         if !initialized[]
+            if length(adaloss.prev_pde_losses) != length(pde_losses)
+                adaloss.prev_pde_losses = zeros(T, length(pde_losses))
+            end
+            if length(adaloss.prev_bc_losses) != length(bc_losses)
+                adaloss.prev_bc_losses = zeros(T, length(bc_losses))
+            end
             adaloss.prev_pde_losses .= pde_losses
             adaloss.prev_bc_losses .= bc_losses
             initialized[] = true
@@ -451,6 +457,18 @@ function generate_adaptive_loss_function(
     return (θ, pde_losses, bc_losses) -> begin
         # Record initial losses on the very first call
         if !initialized[]
+            if length(adaloss.init_pde_losses) != length(pde_losses)
+                adaloss.init_pde_losses = zeros(T, length(pde_losses))
+            end
+            if length(adaloss.init_bc_losses) != length(bc_losses)
+                adaloss.init_bc_losses = zeros(T, length(bc_losses))
+            end
+            if length(adaloss.prev_pde_losses) != length(pde_losses)
+                adaloss.prev_pde_losses = zeros(T, length(pde_losses))
+            end
+            if length(adaloss.prev_bc_losses) != length(bc_losses)
+                adaloss.prev_bc_losses = zeros(T, length(bc_losses))
+            end
             adaloss.init_pde_losses .= T.(pde_losses)
             adaloss.init_bc_losses .= T.(bc_losses)
             adaloss.prev_pde_losses .= T.(pde_losses)
