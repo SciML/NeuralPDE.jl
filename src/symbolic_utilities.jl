@@ -83,13 +83,13 @@ get_dict_vars(vars) = Dict([Symbol(v) .=> i for (i, v) in enumerate(vars)])
 function transform_expression(
         pinnrep::PINNRepresentation, ex; is_integral = false,
         dict_transformation_vars = nothing,
-        transformation_vars = nothing
+        transformation_vars = nothing, coordinate_vars = nothing, scope_vars = pinnrep.indvars
     )
     if ex isa Expr
         ex = _transform_expression(
             pinnrep, ex; is_integral = is_integral,
             dict_transformation_vars = dict_transformation_vars,
-            transformation_vars = transformation_vars
+            transformation_vars = transformation_vars, coordinate_vars = coordinate_vars, scope_vars = scope_vars
         )
     end
     return ex
@@ -109,6 +109,24 @@ function get_limits(domain)
         return collect(map(leftendpoint, DomainSets.components(domain))),
             collect(map(rightendpoint, DomainSets.components(domain)))
     end
+end
+
+function integral_variables(integral)
+    variables = integral.domain.variables
+    variables isa Tuple && return toexpr.(collect(variables))
+    variables = toexpr(variables)
+    if variables isa Expr && variables.head == :call && variables.args[1] === tuple
+        return variables.args[2:end]
+    end
+    return [variables]
+end
+
+function has_local_integral(ex, dict_indvars)
+    ex isa Expr || return false
+    if ex.head == :call && first(ex.args) isa Symbolics.Integral
+        any(v -> !haskey(dict_indvars, v), integral_variables(first(ex.args))) && return true
+    end
+    return any(arg -> has_local_integral(arg, dict_indvars), ex.args)
 end
 
 θ = gensym("θ")
@@ -131,7 +149,8 @@ where
 """
 function _transform_expression(
         pinnrep::PINNRepresentation, ex; is_integral = false,
-        dict_transformation_vars = nothing, transformation_vars = nothing
+        dict_transformation_vars = nothing, transformation_vars = nothing,
+        coordinate_vars = nothing, scope_vars = pinnrep.indvars
     )
     (;
         indvars, depvars, dict_indvars, dict_depvars, dict_depvar_input, multioutput,
@@ -146,13 +165,15 @@ function _transform_expression(
                 depvar = _args[1]
                 num_depvar = dict_depvars[depvar]
                 indvars = _args[2:end]
+                coordinates = coordinate_vars === nothing ? Symbol(:cord, num_depvar) :
+                    Expr(:call, Expr(:$, :vcat), indvars...)
                 var_ = is_integral ? :(u) : :($(Expr(:$, :u)))
                 ex.args = if !multioutput
-                    [var_, Symbol(:cord, num_depvar), :($θ), :phi]
+                    [var_, coordinates, :($θ), :phi]
                 else
                     [
                         var_,
-                        Symbol(:cord, num_depvar),
+                        coordinates,
                         Symbol(:($θ), num_depvar),
                         Symbol(:phi, num_depvar),
                     ]
@@ -179,7 +200,14 @@ function _transform_expression(
                             enumerate(dict_depvar_input[depvar])
                     ]
                 )
-                dim_l = length(dict_interior_indvars)
+                if coordinate_vars !== nothing
+                    for (j, indvar) in enumerate(indvars)
+                        indvar isa Symbol && (dict_interior_indvars[indvar] = j)
+                    end
+                end
+                dim_l = length(dict_depvar_input[depvar])
+                coordinates = coordinate_vars === nothing ? Symbol(:cord, num_depvar) :
+                    Expr(:call, Expr(:$, :vcat), indvars...)
 
                 var_ = is_integral ? :(derivative) : :($(Expr(:$, :derivative)))
                 εs = [get_ε(dim_l, d, eltypeθ, order) for d in 1:dim_l]
@@ -187,13 +215,13 @@ function _transform_expression(
                 εs_dnv = [εs[d] for d in undv]
 
                 ex.args = if !multioutput
-                    [var_, :phi, :u, Symbol(:cord, num_depvar), εs_dnv, order, :($θ)]
+                    [var_, :phi, :u, coordinates, εs_dnv, order, :($θ)]
                 else
                     [
                         var_,
                         Symbol(:phi, num_depvar),
                         :u,
-                        Symbol(:cord, num_depvar),
+                        coordinates,
                         εs_dnv,
                         order,
                         Symbol(:($θ), num_depvar),
@@ -201,27 +229,15 @@ function _transform_expression(
                 end
                 break
             elseif e isa Symbolics.Integral
-                if _args[1].domain.variables isa Tuple
-                    integrating_variable_ = collect(_args[1].domain.variables)
-                    integrating_variable = toexpr.(integrating_variable_)
-                    integrating_var_id = [dict_indvars[i] for i in integrating_variable]
-                else
-                    integrating_variable = toexpr(_args[1].domain.variables)
-                    # In SymbolicUtils v4, a symbolic tuple may produce
-                    # Expr(:call, :tuple, :x, :y) instead of a Julia Tuple
-                    if integrating_variable isa Expr &&
-                            integrating_variable.head == :call &&
-                            integrating_variable.args[1] === tuple
-                        integrating_variable = integrating_variable.args[2:end]
-                        integrating_var_id = [
-                            dict_indvars[i]
-                                for i in integrating_variable
-                        ]
-                    else
-                        integrating_var_id = [dict_indvars[integrating_variable]]
-                    end
-                end
+                integrating_variable = integral_variables(e)
 
+                outer_vars = coordinate_vars === nothing ? scope_vars : coordinate_vars
+                inner_vars = unique(vcat(outer_vars, integrating_variable))
+                integrating_var_id = [findfirst(==(v), inner_vars) for v in integrating_variable]
+                coordinates = Expr(
+                    :call, Expr(:$, :vcat),
+                    [v in outer_vars ? v : Expr(:$, :(zeros(eltype(cord), 1, size(cord, 2)))) for v in inner_vars]...
+                )
                 integrating_depvars = []
                 integrand_expr = _args[2]
                 for d in depvars
@@ -243,18 +259,14 @@ function _transform_expression(
                     dict_depvar_input,
                     dict_depvars,
                     integrating_variable,
-                    eltypeθ
+                    eltypeθ; coordinate_vars = inner_vars
                 )
 
-                num_depvar = map(
-                    int_depvar -> dict_depvars[int_depvar],
-                    integrating_depvars
-                )
                 integrand_ = transform_expression(
                     pinnrep, _args[2];
                     is_integral = false,
                     dict_transformation_vars = dict_transformation_vars,
-                    transformation_vars = transformation_vars
+                    transformation_vars = transformation_vars, coordinate_vars = inner_vars
                 )
                 integrand__ = _dot_(integrand_)
 
@@ -266,7 +278,7 @@ function _transform_expression(
                     dict_transformation_vars = dict_transformation_vars,
                     transformation_vars = transformation_vars,
                     param_estim = false,
-                    default_p = nothing
+                    default_p = nothing, coordinate_vars = inner_vars
                 )
                 # integrand = repr(integrand)
                 lb = toexpr.(lb)
@@ -282,7 +294,7 @@ function _transform_expression(
                             integrand = _dot_(l),
                             integrating_depvars = integrating_depvars,
                             param_estim = false,
-                            default_p = nothing
+                            default_p = nothing, coordinate_vars = inner_vars
                         )
                         l_f = @RuntimeGeneratedFunction(l_expr)
                         push!(lb_, l_f)
@@ -297,7 +309,7 @@ function _transform_expression(
                             integrand = _dot_(u_),
                             integrating_depvars = integrating_depvars,
                             param_estim = false,
-                            default_p = nothing
+                            default_p = nothing, coordinate_vars = inner_vars
                         )
                         u_f = @RuntimeGeneratedFunction(u_expr)
                         push!(ub_, u_f)
@@ -305,16 +317,18 @@ function _transform_expression(
                 end
 
                 integrand_func = @RuntimeGeneratedFunction(integrand)
+                integral_params = isempty(integrating_depvars) && pinnrep.eq_params isa SciMLBase.NullParameters ?
+                    SciMLBase.NullParameters() : :($θ)
                 ex.args = [
                     :($(Expr(:$, :integral))),
                     :u,
-                    Symbol(:cord, num_depvar[1]),
+                    coordinates,
                     :phi,
                     integrating_var_id,
                     integrand_func,
                     lb_,
                     ub_,
-                    :($θ),
+                    integral_params,
                 ]
                 break
             end
@@ -323,7 +337,7 @@ function _transform_expression(
                 pinnrep, ex.args[i];
                 is_integral = is_integral,
                 dict_transformation_vars = dict_transformation_vars,
-                transformation_vars = transformation_vars
+                transformation_vars = transformation_vars, coordinate_vars = coordinate_vars, scope_vars = scope_vars
             )
         end
     end
@@ -357,13 +371,13 @@ Parse ModelingToolkit equation form to the inner representation.
       [(derivative(phi1, u1, [x, y], [[ε,0]], 1, θ1) + 4 * derivative(phi2, u, [x, y], [[0,ε]], 1, θ2)) - 0,
        (derivative(phi2, u2, [x, y], [[ε,0]], 1, θ2) + 9 * derivative(phi1, u, [x, y], [[0,ε]], 1, θ1)) - 0]
 """
-function parse_equation(pinnrep::PINNRepresentation, eq)
+function parse_equation(pinnrep::PINNRepresentation, eq; scope_vars = pinnrep.indvars, coordinate_vars = nothing)
     eq_lhs = SymbolicUtils._iszero(expand_derivatives(eq.lhs)) ? eq.lhs :
         expand_derivatives(eq.lhs)
     eq_rhs = SymbolicUtils._iszero(expand_derivatives(eq.rhs)) ? eq.rhs :
         expand_derivatives(eq.rhs)
-    left_expr = transform_expression(pinnrep, toexpr(eq_lhs))
-    right_expr = transform_expression(pinnrep, toexpr(eq_rhs))
+    left_expr = transform_expression(pinnrep, toexpr(eq_lhs); scope_vars, coordinate_vars)
+    right_expr = transform_expression(pinnrep, toexpr(eq_rhs); scope_vars, coordinate_vars)
     left_expr = _dot_(left_expr)
     right_expr = _dot_(right_expr)
     return loss_func = :($left_expr .- $right_expr)
@@ -501,6 +515,32 @@ function get_argument(eqs, _indvars::Array, _depvars::Array)
 end
 function get_argument(eqs, dict_indvars, dict_depvars)
     exprs = toexpr.(eqs)
+    function replace_bound_arguments(ex, bound = Symbol[])
+        ex isa Expr || return ex
+        if ex.head == :call && first(ex.args) isa Symbolics.Integral
+            op = first(ex.args)
+            variables = integral_variables(op)
+            local_vars = filter(v -> !haskey(dict_indvars, v), variables)
+            isempty(local_vars) && return ex
+            lb, ub = get_limits(op.domain.domain)
+            return Expr(:call, :+, replace_bound_arguments(ex.args[2], vcat(bound, local_vars)), toexpr.(lb)..., toexpr.(ub)...)
+        end
+        if ex.head == :call && haskey(dict_depvars, first(ex.args))
+            args = filter(ex.args[2:end]) do arg
+                !any(v -> arg == v || (arg isa Expr && !isempty(find_thing_in_expr(arg, v))), bound)
+            end
+            length(args) == length(ex.args) - 1 && return ex
+            free_vars = filter(collect(keys(dict_indvars))) do v
+                any(ex.args[2:end]) do arg
+                    arg == v || (arg isa Expr && !isempty(find_thing_in_expr(arg, v)))
+                end
+            end
+            return Expr(:call, :+, Expr(:call, first(ex.args), args...), free_vars...)
+        end
+        return Expr(ex.head, map(arg -> replace_bound_arguments(arg, bound), ex.args)...)
+    end
+    original_exprs = exprs
+    exprs = replace_bound_arguments.(exprs)
     vars = map(exprs) do expr
         _vars = map(depvar -> find_thing_in_expr(expr, depvar), collect(keys(dict_depvars)))
         f_vars = filter(x -> !isempty(x), _vars)
@@ -520,6 +560,14 @@ function get_argument(eqs, dict_indvars, dict_depvars)
             else
                 true
             end
+        end
+    end
+    for (i, (original, expr)) in enumerate(zip(original_exprs, exprs))
+        if original != expr
+            args_[i] = [
+                v for (v, _) in sort!(collect(dict_indvars); by = last)
+                    if !isempty(find_thing_in_expr(expr, v))
+            ]
         end
     end
     return args_ # TODO for all arguments

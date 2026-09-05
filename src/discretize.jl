@@ -30,7 +30,7 @@ function build_symbolic_loss_function(
         eq_params = SciMLBase.NullParameters(), param_estim = false, default_p = nothing,
         bc_indvars = pinnrep.indvars, integrand = nothing,
         dict_transformation_vars = nothing, transformation_vars = nothing,
-        integrating_depvars = pinnrep.depvars
+        integrating_depvars = pinnrep.depvars, coordinate_vars = nothing
     )
     (;
         depvars, dict_depvars, dict_depvar_input, phi, derivative, integral,
@@ -38,9 +38,14 @@ function build_symbolic_loss_function(
     ) = pinnrep
 
     if integrand isa Nothing
-        loss_function = parse_equation(pinnrep, eqs)
         this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
         this_eq_indvars = unique(vcat(values(this_eq_pair)...))
+        if has_local_integral(toexpr(eqs), pinnrep.dict_indvars)
+            coordinate_vars = only(get_variables([eqs], pinnrep.dict_indvars, dict_depvars))
+            this_eq_indvars = coordinate_vars
+            this_eq_pair = Dict()
+        end
+        loss_function = parse_equation(pinnrep, eqs; scope_vars = this_eq_indvars, coordinate_vars)
     else
         this_eq_pair = Dict(
             map(
@@ -50,12 +55,16 @@ function build_symbolic_loss_function(
         )
         this_eq_indvars = transformation_vars isa Nothing ?
             unique(vcat(values(this_eq_pair)...)) : transformation_vars
+        if coordinate_vars !== nothing
+            this_eq_pair = Dict()
+            this_eq_indvars = transformation_vars === nothing ? coordinate_vars : transformation_vars
+        end
         loss_function = integrand
     end
 
     vars = :(cord, $θ, phi, derivative, integral, u, p)
     ex = Expr(:block)
-    if multioutput
+    if multioutput && !(coordinate_vars !== nothing && isempty(integrating_depvars))
         θ_nums = Symbol[]
         phi_nums = Symbol[]
         for v in depvars
@@ -115,7 +124,7 @@ function build_symbolic_loss_function(
     vcat_expr = Expr(:block, :($(eq_pair_expr...)))
     vcat_expr_loss_functions = Expr(:block, vcat_expr, loss_function) # TODO rename
 
-    if strategy isa QuadratureTraining
+    if strategy isa QuadratureTraining && coordinate_vars === nothing
         indvars_ex = get_indvars_ex(bc_indvars)
         left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
         vars_eq = Expr(
@@ -357,7 +366,7 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
         dict_depvars = dict_depvars,
     ) -> begin
         function integration_(cord, lb, ub, θ)
-            cord_ = cord
+            cord_ = copy(cord)
             function integrand_(x, p)
                 @ignore_derivatives cord_[integrating_var_id] .= x
                 return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)

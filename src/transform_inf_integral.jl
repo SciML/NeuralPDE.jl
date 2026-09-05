@@ -80,7 +80,7 @@ function transform_inf_integral(
         lb, ub, integrating_ex, integrating_depvars,
         dict_depvar_input, dict_depvars, integrating_variable,
         eltypeθ; dict_transformation_vars = nothing,
-        transformation_vars = nothing
+        transformation_vars = nothing, coordinate_vars = nothing
     )
     lb_ = Symbolics.tosymbol.(lb)
     ub_ = Symbolics.tosymbol.(ub)
@@ -121,10 +121,20 @@ function transform_inf_integral(
             end
         end
 
-        dict_transformation_vars, transformation_vars,
-            integrating_var_transformation = transform_inf_expr(
-            integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable, transform_indvars
-        )
+        if coordinate_vars === nothing
+            dict_transformation_vars, transformation_vars,
+                integrating_var_transformation = transform_inf_expr(
+                integrating_depvars, dict_depvar_input, dict_depvars, integrating_variable, transform_indvars
+            )
+        else
+            integrating_var_transformation = [gensym(:τ) for _ in integrating_variable]
+            dict_transformation_vars = Dict(
+                v => transform_indvars(τ, i)
+                    for (i, (v, τ)) in enumerate(zip(integrating_variable, integrating_var_transformation))
+            )
+            replacements = Dict(zip(integrating_variable, integrating_var_transformation))
+            transformation_vars = [get(replacements, v, v) for v in coordinate_vars]
+        end
 
         ϵ = 1 / 20 #cbrt(eps(eltypeθ))
 
