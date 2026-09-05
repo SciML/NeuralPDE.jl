@@ -4,12 +4,11 @@ using Test
 @testset "ODE I" begin
     using OrdinaryDiffEq, Random, Lux, Optimisers
 
-    linear = (
-        u,
-        p,
-        t,
-    ) -> @. t^3 + 2 * t + (t^2) * ((1 + 3 * (t^2)) / (1 + t + (t^3))) -
-        u * (t + ((1 + 3 * (t^2)) / (1 + t + t^3)))
+    function linear(u, p, t)
+        ts = t'
+        return @. ts^3 + 2 * ts + (ts^2) * ((1 + 3 * (ts^2)) / (1 + ts + (ts^3))) -
+            u * (ts + ((1 + 3 * (ts^2)) / (1 + ts + ts^3)))
+    end
     linear_analytic = (u0, p, t) -> [exp(-(t^2) / 2) / (1 + t + t^3) + t^2]
     prob = ODEProblem(
         ODEFunction(linear; analytic = linear_analytic), [1.0f0], (0.0f0, 1.0f0)

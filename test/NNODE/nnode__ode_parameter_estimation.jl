@@ -31,7 +31,7 @@ using Test
     alg = NNODE(
         luxchain, BFGS(linesearch = BackTracking());
         strategy = GridTraining(0.01), dataset = dataset,
-        param_estim = true
+        param_estim = true, ode_batch_eval = false
     )
     sol = solve(prob, alg; verbose = false, abstol = 1.0e-8, maxiters = 1000, saveat = t_)
 

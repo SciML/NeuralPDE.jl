@@ -7,7 +7,7 @@ using Test
 
     Random.seed!(100)
 
-    linear = (u, p, t) -> cospi(2t)
+    linear = (u, p, t) -> @. cospi(2t)
     tspan = (0.0f0, 1.0f0)
     u0 = 0.0f0
     prob = ODEProblem(linear, u0, tspan)

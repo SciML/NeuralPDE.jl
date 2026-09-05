@@ -21,7 +21,8 @@ using Test
     )
 
     alg = NNODE(
-        chain, Adam(0.01); strategy = WeightedIntervalTraining([0.7, 0.2, 0.1], 200)
+        chain, Adam(0.01); strategy = WeightedIntervalTraining([0.7, 0.2, 0.1], 200),
+        ode_batch_eval = false
     )
 
     sol = solve(prob_oop, alg; verbose = false, maxiters = 5000, saveat = 0.01)
