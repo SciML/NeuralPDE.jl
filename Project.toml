@@ -105,6 +105,7 @@ SafeTestsets = "0.1"
 SciMLBase = "3.18.0"
 SciMLPublic = "1"
 SciMLTesting = "2.4"
+StableRNGs = "1"
 Statistics = "1.10"
 StochasticDiffEq = "7"
 SymbolicIndexingInterface = "0.3.48"
@@ -135,9 +136,10 @@ OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
+StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
 StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["AdvancedHMC", "Boltz", "CUDA", "DiffEqNoiseProcess", "FastGaussQuadrature", "Flux", "InteractiveUtils", "LineSearches", "LogDensityProblems", "LuxCUDA", "LuxCore", "LuxLib", "MCMCChains", "Optim", "OptimizationOptimJL", "OrdinaryDiffEq", "SafeTestsets", "SciMLTesting", "StochasticDiffEq", "TensorBoardLogger", "Test"]
+test = ["AdvancedHMC", "Boltz", "CUDA", "DiffEqNoiseProcess", "FastGaussQuadrature", "Flux", "InteractiveUtils", "LineSearches", "LogDensityProblems", "LuxCUDA", "LuxCore", "LuxLib", "MCMCChains", "Optim", "OptimizationOptimJL", "OrdinaryDiffEq", "SafeTestsets", "SciMLTesting", "StableRNGs", "StochasticDiffEq", "TensorBoardLogger", "Test"]
