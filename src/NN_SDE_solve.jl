@@ -219,7 +219,7 @@ function ∂u_∂t(
     autodiff &&
         return ForwardDiff.jacobian(t -> phi(vcat(t, inputs[2:end, :]), θ), inputs[1, :])
 
-    ϵ = sqrt(eps(eltype(inputs)))
+    ϵ = sqrt(max(eps(eltype(inputs)), eps(real(eltype(θ)))))
     return (phi(vcat(inputs[1, :]' .+ ϵ, inputs[2:end, :]), θ) .- phi(inputs, θ)) ./ ϵ
 end
 
