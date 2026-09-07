@@ -4,6 +4,12 @@ versions = ["lts", "1"]
 [Interface]
 versions = ["1.11", "lts"]
 
+["Interface 32-bit"]
+group = "Interface"
+versions = ["1"]
+os = ["ubuntu-latest"]
+arch = "x86"
+
 [ODEBPINN]
 versions = ["1.11", "lts"]
 
