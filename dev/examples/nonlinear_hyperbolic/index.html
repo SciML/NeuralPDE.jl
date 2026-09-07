@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Nonlinear hyperbolic system of PDEs · NeuralPDE.jl</title><meta name="title" content="Nonlinear hyperbolic system of PDEs · NeuralPDE.jl"/><meta property="og:title" content="Nonlinear hyperbolic system of PDEs · NeuralPDE.jl"/><meta property="twitter:title" content="Nonlinear hyperbolic system of PDEs · NeuralPDE.jl"/><meta name="description" content="Documentation for NeuralPDE.jl."/><meta property="og:description" content="Documentation for NeuralPDE.jl."/><meta property="twitter:description" content="Documentation for NeuralPDE.jl."/><meta property="og:url" content="https://docs.sciml.ai/NeuralPDE/stable/examples/nonlinear_hyperbolic/"/><meta property="twitter:url" content="https://docs.sciml.ai/NeuralPDE/stable/examples/nonlinear_hyperbolic/"/><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/examples/nonlinear_hyperbolic/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/ode/">Introduction to NeuralPDE for ODEs</a></li><li><a class="tocitem" href="../../tutorials/Lotka_Volterra_BPINNs/">Bayesian PINNs for Coupled ODEs</a></li><li><a class="tocitem" href="../../tutorials/dae/">PINNs DAEs</a></li><li><a class="tocitem" href="../../tutorials/ode_parameter_estimation/">Parameter Estimation with PINNs for ODEs</a></li><li><a class="tocitem" href="../../tutorials/data_collocation_Inverse/">Improved PINNs for Inverse problems in ODEs</a></li><li><a class="tocitem" href="../../tutorials/pino_ode/">Physics informed Neural Operator ODEs</a></li><li><a class="tocitem" href="../../tutorials/dgm/">Deep Galerkin Method</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../../tutorials/low_level_2/">Bayesian PINNs for PDEs</a></li><li><a class="tocitem" href="../../tutorials/gpu/">Using GPUs</a></li><li><a class="tocitem" href="../../tutorials/systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../../tutorials/constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../../tutorials/low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../../tutorials/param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../../tutorials/integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../../tutorials/neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../../tutorials/derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li class="is-active"><a class="tocitem" href>Nonlinear hyperbolic system of PDEs</a></li><li><a class="tocitem" href="../complex/">Complex Equations with PINNs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/dae/">Differential Algebraic Equation Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/bpinns/"><code>BayesianPINN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li><li><a class="tocitem" href="../../manual/pino_ode/">Physics-Informed Neural Operator (PINO) for ODEs</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Extended Examples</a></li><li class="is-active"><a href>Nonlinear hyperbolic system of PDEs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Nonlinear hyperbolic system of PDEs</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/examples/nonlinear_hyperbolic.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Nonlinear-hyperbolic-system-of-PDEs"><a class="docs-heading-anchor" href="#Nonlinear-hyperbolic-system-of-PDEs">Nonlinear hyperbolic system of PDEs</a><a id="Nonlinear-hyperbolic-system-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Nonlinear-hyperbolic-system-of-PDEs" title="Permalink"></a></h1><p>We may also solve hyperbolic systems like the following</p><p class="math-container">\[\begin{aligned}
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Nonlinear hyperbolic system of PDEs · NeuralPDE.jl</title><meta name="title" content="Nonlinear hyperbolic system of PDEs · NeuralPDE.jl"/><meta property="og:title" content="Nonlinear hyperbolic system of PDEs · NeuralPDE.jl"/><meta property="twitter:title" content="Nonlinear hyperbolic system of PDEs · NeuralPDE.jl"/><meta name="description" content="Documentation for NeuralPDE.jl."/><meta property="og:description" content="Documentation for NeuralPDE.jl."/><meta property="twitter:description" content="Documentation for NeuralPDE.jl."/><meta property="og:url" content="https://docs.sciml.ai/NeuralPDE/stable/examples/nonlinear_hyperbolic/"/><meta property="twitter:url" content="https://docs.sciml.ai/NeuralPDE/stable/examples/nonlinear_hyperbolic/"/><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/examples/nonlinear_hyperbolic/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/ode/">Introduction to NeuralPDE for ODEs</a></li><li><a class="tocitem" href="../../tutorials/Lotka_Volterra_BPINNs/">Bayesian PINNs for Coupled ODEs</a></li><li><a class="tocitem" href="../../tutorials/dae/">PINNs DAEs</a></li><li><a class="tocitem" href="../../tutorials/ode_parameter_estimation/">Parameter Estimation with PINNs for ODEs</a></li><li><a class="tocitem" href="../../tutorials/data_collocation_Inverse/">Improved PINNs for Inverse problems in ODEs</a></li><li><a class="tocitem" href="../../tutorials/pino_ode/">Physics informed Neural Operator ODEs</a></li><li><a class="tocitem" href="../../tutorials/dgm/">Deep Galerkin Method</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../../tutorials/low_level_2/">Bayesian PINNs for PDEs</a></li><li><a class="tocitem" href="../../tutorials/gpu/">Using GPUs</a></li><li><a class="tocitem" href="../../tutorials/systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../../tutorials/constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../../tutorials/low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../../tutorials/param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../../tutorials/integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../../tutorials/neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../../tutorials/derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../linear_parabolic/">Linear parabolic system of PDEs</a></li><li><a class="tocitem" href="../nonlinear_elliptic/">Nonlinear elliptic system of PDEs</a></li><li class="is-active"><a class="tocitem" href>Nonlinear hyperbolic system of PDEs</a></li><li><a class="tocitem" href="../complex/">Complex Equations with PINNs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/dae/">Differential Algebraic Equation Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/bpinns/"><code>BayesianPINN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li><li><a class="tocitem" href="../../manual/pino_ode/">Physics-Informed Neural Operator (PINO) for ODEs</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li><li><a class="tocitem" href="../../developer/interfaces/">Developer Interfaces</a></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Extended Examples</a></li><li class="is-active"><a href>Nonlinear hyperbolic system of PDEs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Nonlinear hyperbolic system of PDEs</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/examples/nonlinear_hyperbolic.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Nonlinear-hyperbolic-system-of-PDEs"><a class="docs-heading-anchor" href="#Nonlinear-hyperbolic-system-of-PDEs">Nonlinear hyperbolic system of PDEs</a><a id="Nonlinear-hyperbolic-system-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Nonlinear-hyperbolic-system-of-PDEs" title="Permalink"></a></h1><p>We may also solve hyperbolic systems like the following</p><p class="math-container">\[\begin{aligned}
 \frac{\partial^2u}{\partial t^2} &amp;= \frac{a}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + u f(\frac{u}{w})  \\
 \frac{\partial^2w}{\partial t^2} &amp;= \frac{b}{x^n} \frac{\partial}{\partial x}(x^n \frac{\partial u}{\partial x}) + w g(\frac{u}{w})  \\
 \end{aligned}\]</p><p>where f and g are arbitrary functions. With initial and boundary conditions:</p><p class="math-container">\[\begin{aligned}
@@ -11,8 +11,9 @@ w(t,0) &amp;= j_0(ξ(t, 0)) + y_0(ξ(t, 0)) \\
 w(t,1) &amp;= j_0(ξ(t, 0)) + y_0(ξ(t, 0)) \\
 \end{aligned}\]</p><p>where <span>$k$</span> is a root of the algebraic (transcendental) equation <span>$f(k) = g(k)$</span>, <span>$j_0$</span> and <span>$y_0$</span> are the Bessel functions, and <span>$ξ(t, x)$</span> is:</p><p class="math-container">\[\begin{aligned}
 \frac{\sqrt[]{f(k)}}{\sqrt[]{\frac{a}{x^n}}}\sqrt[]{\frac{a}{x^n}(t+1)^2 - (x+1)^2}
-\end{aligned}\]</p><p>We solve this with Neural:</p><pre><code class="language-julia hljs">using NeuralPDE, Lux, ModelingToolkit, Optimization, OptimizationOptimJL, Roots,
+\end{aligned}\]</p><p>We solve this with Neural:</p><pre><code class="language-julia hljs">using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, NonlinearSolve,
       LineSearches
+using Optim: BFGS
 using SpecialFunctions
 using Plots
 using DomainSets: Interval
@@ -32,10 +33,10 @@ n = 0
 # Arbitrary functions
 f(x) = x^2
 g(x) = 4 * cos(π * x)
-root(x) = g(x) - f(x)
+root(x, p) = g(x) - f(x)
 
 # Analytic solution
-k = find_zero(root, (0, 1), Roots.Bisection())                # k is a root of the algebraic (transcendental) equation f(x) = g(x)
+k = solve(IntervalNonlinearProblem(root, (0.0, 1.0)), ITP()).u  # k is a root of the algebraic (transcendental) equation f(x) = g(x)
 ξ(t, x) = sqrt(f(k)) / sqrt(a) * sqrt(a * (t + 1)^2 - (x + 1)^2)
 θ(t, x) = besselj0(ξ(t, x)) + bessely0(ξ(t, x))                     # Analytical solution to Klein-Gordon equation
 w_analytic(t, x) = θ(t, x)
@@ -79,7 +80,8 @@ callback = function (p, l)
     return false
 end
 
-res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 200, callback)
+res = Optimization.solve(
+    prob, BFGS(linesearch = LineSearches.BackTracking()); maxiters = 200, callback)
 
 phi = discretization.phi
 
@@ -98,606 +100,606 @@ for i in 1:2
     p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = &quot;predict&quot;)
     p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = &quot;error&quot;)
     push!(ps, plot(p1, p2, p3))
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">loss: 44.18193540272127
-pde_losses: [39.303473249323986, 0.7345196005703054]
-bcs_losses: [0.6082255690867204, 0.35894327772588963, 0.8135484656821607, 0.7178150176553018, 0.8799366219551612, 0.7654736007217434]
-loss: 7.573844238452043
-pde_losses: [0.02337338713294831, 0.6560297208920118]
-bcs_losses: [0.2518349377887783, 1.4915162466463674, 0.39517898386525824, 2.116349031479724, 0.43169769728722107, 2.2078642333597345]
-loss: 7.4354118617201514
-pde_losses: [0.027864330406965898, 0.19790383797140004]
-bcs_losses: [0.2947742326068006, 1.5401151031009628, 0.4476271850453586, 2.1728127315557484, 0.48797305468161234, 2.266341386351304]
-loss: 4.933639641434781
-pde_losses: [0.015188002803257014, 0.25970907025464407]
-bcs_losses: [0.1191819334034509, 0.9265236119081992, 0.26292610308881376, 1.5214596689510378, 0.2510068475667955, 1.577644403458582]
-loss: 2.787287087037753
-pde_losses: [0.15312839609738785, 2.0833424380689856]
-bcs_losses: [0.02054167570434923, 0.00677996593804302, 0.1243426937866623, 0.16681646980158893, 0.09187115964600627, 0.14046428799472996]
-loss: 1.792695476789706
-pde_losses: [0.14985778197616537, 1.0484519716405558]
-bcs_losses: [0.02867893822775809, 0.00800083962710128, 0.1430593011686944, 0.17033981824553096, 0.10824751313310321, 0.13605931277079708]
-loss: 1.120697507443622
-pde_losses: [0.14566607121841527, 0.2802092610688613]
-bcs_losses: [0.04508529946546634, 0.01125277057855251, 0.17642799146438948, 0.18270211179192664, 0.13805101984214047, 0.14130298201387004]
-loss: 0.7839284813217092
-pde_losses: [0.049797166936214346, 0.052702291577365015]
-bcs_losses: [0.07315824019808212, 0.0028853408241223647, 0.20442208445557283, 0.1409106278392264, 0.1666195396309177, 0.09343318986020849]
-loss: 0.6335754439830951
-pde_losses: [0.022446334739708678, 0.056438140309193016]
-bcs_losses: [0.06705476625569534, 0.003596437321553687, 0.18292147559736593, 0.09796612475831888, 0.1507561622202182, 0.052396002781041284]
-loss: 0.5931275975416709
-pde_losses: [0.01858030435541553, 0.04957539702142281]
-bcs_losses: [0.06369225530191676, 0.005784626268534087, 0.175086486408892, 0.09091583357871934, 0.14515348162495226, 0.04433921298181808]
-loss: 0.5349985160418816
-pde_losses: [0.012497787157720437, 0.053976002052684796]
-bcs_losses: [0.05395038735442378, 0.009065404350636456, 0.15628624377684264, 0.08374330700083764, 0.1293602067273668, 0.03611917762136905]
-loss: 0.4933728797093528
-pde_losses: [0.00751317884103414, 0.06725149679453664]
-bcs_losses: [0.045121475757061956, 0.011152608166245102, 0.13867392472304105, 0.07825909508565597, 0.11377900606994855, 0.03162209427182937]
-loss: 0.4542813011946394
-pde_losses: [0.0034419743997987184, 0.08156743985249489]
-bcs_losses: [0.0363343036094757, 0.012541214940378517, 0.11997252575627855, 0.07438747754887337, 0.09757876272462562, 0.02845760236271405]
-loss: 0.4296351583228248
-pde_losses: [0.0018552167460915347, 0.08956002070325758]
-bcs_losses: [0.031598106641306446, 0.014428840570787348, 0.10964140340079806, 0.06819089243978663, 0.08880936750320617, 0.025551310317591006]
-loss: 0.3877426316512764
-pde_losses: [0.0005922267909847108, 0.0906047777335937]
-bcs_losses: [0.025594276965143763, 0.01869151274646866, 0.0963731227975984, 0.05714801889567366, 0.07778205262875769, 0.020956643093055817]
-loss: 0.3078661970118107
-pde_losses: [0.0005883391056022985, 0.0798061443772949]
-bcs_losses: [0.015595721997843075, 0.032709569761242716, 0.0734652509241587, 0.03248886740873364, 0.05862075809911094, 0.014591545337824481]
-loss: 0.225186985785587
-pde_losses: [0.003565306164201245, 0.049028900873011226]
-bcs_losses: [0.00344797942280638, 0.07074984800276535, 0.039914149624693335, 0.009458626813274917, 0.029711389548599892, 0.01931078533623461]
-loss: 0.1833441400063946
-pde_losses: [0.004614497253082752, 0.03453502740502643]
-bcs_losses: [0.0007607278348143251, 0.07100286904775133, 0.026619942655270165, 0.008369840479462473, 0.018708183219423524, 0.018733052111563616]
-loss: 0.14908030098298747
-pde_losses: [0.004131985835321704, 0.03229583487039831]
-bcs_losses: [0.00023025736098614458, 0.060402406756826045, 0.01803620983586786, 0.007486904321254579, 0.012291498449187525, 0.014205203553145298]
-loss: 0.0663130594956842
-pde_losses: [0.001039421783978474, 0.009424139632897658]
-bcs_losses: [0.00025947454045746393, 0.01581054542151811, 0.01332256224912393, 0.006598364451218887, 0.009957835068831085, 0.009900716347658585]
-loss: 0.05260806284859603
-pde_losses: [0.0005399412662374499, 0.004532894553108336]
-bcs_losses: [0.0004480910428691925, 0.012419367473515344, 0.010627403135943842, 0.004796100908816026, 0.008230493079252641, 0.0110137713888532]
-loss: 0.04408842857959918
-pde_losses: [0.0004731057543620435, 0.00232998112750284]
-bcs_losses: [0.000997701072969565, 0.010947821440094567, 0.007853077065476681, 0.003623432385035127, 0.006286116127538545, 0.01157719360661981]
-loss: 0.0373020184717082
-pde_losses: [0.002628764874850996, 0.0033160309797347744]
-bcs_losses: [0.003100314220875649, 0.00690701658801827, 0.003404449551563178, 0.00210637269443821, 0.0034386451871590037, 0.012400424375068112]
-loss: 0.03272706186274966
-pde_losses: [0.0015623006407507257, 0.0010404909373581]
-bcs_losses: [0.0029979412287133218, 0.00891447867362405, 0.0037871849144191947, 0.002199537026189285, 0.003585572812266973, 0.008639555629428012]
-loss: 0.030478596945482453
-pde_losses: [0.0012632321024056003, 0.0017656865527727868]
-bcs_losses: [0.0024234738071643577, 0.0070876866042117155, 0.004156203438984433, 0.001674283390360964, 0.003809404527186463, 0.008298626522396133]
-loss: 0.024463353047207634
-pde_losses: [0.0011304113373154872, 0.0033661661875021695]
-bcs_losses: [0.0021452126742379386, 0.0035758915414286743, 0.003553798104697041, 0.0008893490420120671, 0.003104463857202128, 0.006698060302812128]
-loss: 0.018310431326517416
-pde_losses: [0.003481466000977417, 0.003531508079543008]
-bcs_losses: [0.0013293365803360123, 0.0008656887947270334, 0.0024893235368493583, 0.001250597064985795, 0.0017270959337714546, 0.003635415335327338]
-loss: 0.016097671184535596
-pde_losses: [0.0030427646003575023, 0.002632913821028831]
-bcs_losses: [0.001004692291675647, 0.0010778766252839153, 0.0023379447996142704, 0.0014518318605230666, 0.0016587560600960153, 0.00289089112595635]
-loss: 0.014138244319796942
-pde_losses: [0.002358635174993572, 0.002475110412299104]
-bcs_losses: [0.0008853145396850332, 0.0011964522525974523, 0.0019509824531387862, 0.0014175733438128125, 0.0015285610164212289, 0.0023256151268489533]
-loss: 0.010387368721769527
-pde_losses: [0.0016526428404804578, 0.001944277931158913]
-bcs_losses: [0.0006040033270363759, 0.0010285182871186327, 0.0012196252015920098, 0.0018494429227673271, 0.0011684793655426795, 0.0009203788460731313]
-loss: 0.006863698078731401
-pde_losses: [0.001502845584039318, 0.001190185599790228]
-bcs_losses: [0.00011240378326142973, 0.00012574381812091058, 0.000855508921041023, 0.0013969113305035928, 0.0009672441914474531, 0.0007128548505274451]
-loss: 0.005965667161005871
-pde_losses: [0.0014302726096179586, 0.0010540245623794572]
-bcs_losses: [0.00015534850300250418, 0.00010421773269787248, 0.0006644772250376368, 0.0011401031188877136, 0.0007267174615287447, 0.0006905059478539836]
-loss: 0.0055181758543149835
-pde_losses: [0.0010862382523290093, 0.0011495644697433777]
-bcs_losses: [8.947333888794352e-5, 0.00021021189156909397, 0.0008871654474978754, 0.0006758320857671774, 0.0008706248995963174, 0.0005490654689241886]
-loss: 0.004872670237564871
-pde_losses: [0.0009616691130007001, 0.0006329456722576398]
-bcs_losses: [7.545299137609365e-5, 0.00027051202282708055, 0.000848800362082993, 0.0006537252021350026, 0.0008860739349664637, 0.0005434909389188983]
-loss: 0.00448968008720989
-pde_losses: [0.0008365321962080613, 0.0005621951395802474]
-bcs_losses: [0.00010468239363950203, 0.0003255023272150419, 0.0006426322621259604, 0.0007037543350427296, 0.0007179035121274083, 0.0005964779212709393]
-loss: 0.004002908740312231
-pde_losses: [0.0005641864729636481, 0.0006479176144475188]
-bcs_losses: [0.00011601817567336725, 0.0004020419623458435, 0.0004981537394332554, 0.0005946321731551217, 0.0005839485356599692, 0.0005960100666335071]
-loss: 0.003455208485770081
-pde_losses: [0.00027134181175388577, 0.0007976088683219979]
-bcs_losses: [0.00017543460924671414, 0.0004335999151720785, 0.00035900903748731493, 0.000505269737666087, 0.0004473772895907777, 0.0004655672165312248]
-loss: 0.0032863303044192264
-pde_losses: [0.00021492769289958006, 0.0008798257035252411]
-bcs_losses: [0.00021283436244796093, 0.00038126790663480485, 0.0002933620309007318, 0.00048735911379212284, 0.00038819264967655933, 0.00042856084454222557]
-loss: 0.003155323626271824
-pde_losses: [0.00017025929458325075, 0.0009729288292691403]
-bcs_losses: [0.00026012190159320714, 0.00031851594884889996, 0.0002348646887565939, 0.00045390714873023644, 0.000342319602606372, 0.00040240621188412386]
-loss: 0.002991123129551109
-pde_losses: [0.00012791638337046358, 0.0009780710888050313]
-bcs_losses: [0.00028250427426112937, 0.00024157918062866511, 0.00019850075431096054, 0.0004245318800595347, 0.0003250443902276749, 0.00041297517788764943]
-loss: 0.002779139683506391
-pde_losses: [9.427148213590088e-5, 0.0008614430123242376]
-bcs_losses: [0.00028994201610431624, 0.00018219393101637677, 0.00016877544703877568, 0.0004020213986259905, 0.0003217608084633698, 0.00045873158779742356]
-loss: 0.002523983849824823
-pde_losses: [0.00010201674345655434, 0.0006040945119108497]
-bcs_losses: [0.00023296970078255929, 0.000145847099657471, 0.0001648714860165639, 0.00041360566218472204, 0.00035375683643246506, 0.0005068218093836377]
-loss: 0.002324859323539378
-pde_losses: [0.0001763422136628676, 0.0003722501956632099]
-bcs_losses: [0.00018416203893627725, 0.0001646441241478385, 0.00015966619752987493, 0.00040837642650556275, 0.0003741789306760936, 0.00048523919641765357]
-loss: 0.002255859944204344
-pde_losses: [0.00023012211254941933, 0.00024644493905990374]
-bcs_losses: [0.00011208493884416356, 0.00019728573155867215, 0.00019842846598710682, 0.00039607972849137093, 0.0004328741858156444, 0.0004425398418980631]
-loss: 0.0022085924705952343
-pde_losses: [0.0002553315714127453, 0.00024111118680182]
-bcs_losses: [0.0001142856220752123, 0.00022598073440835865, 0.00018616793085988748, 0.0003696451913570773, 0.0003990200333212716, 0.00041705020035886196]
-loss: 0.002189818442209597
-pde_losses: [0.00023159493981926604, 0.0002495484332550293]
-bcs_losses: [0.00011730741534759115, 0.00022965608133779445, 0.00018869002911420062, 0.00036425654537989427, 0.00039494811198263166, 0.0004138168859731893]
-loss: 0.002139363594936813
-pde_losses: [0.0001903549261197845, 0.00029184251200113144]
-bcs_losses: [0.00011853990725138754, 0.00022774684600364572, 0.00018179574901289088, 0.0003567626767349936, 0.0003672781654275229, 0.0004050428123854564]
-loss: 0.0020708804317625114
-pde_losses: [0.0001522799552997647, 0.0003214770126417391]
-bcs_losses: [0.000123991498410531, 0.0002260679709097096, 0.00016965462677042087, 0.0003394212574786244, 0.000343806150127018, 0.00039418196012470377]
-loss: 0.0019213400768094244
-pde_losses: [0.00011464077076645511, 0.0003787974583960625]
-bcs_losses: [0.0001260678918966256, 0.0002192103783399802, 0.00012910634661655984, 0.0003057974790751095, 0.0002800830402626799, 0.00036763671145595173]
-loss: 0.001753008491771853
-pde_losses: [8.034867943595358e-5, 0.00038196932231873704]
-bcs_losses: [0.00013839051217987513, 0.0002079820360826389, 9.965586174494856e-5, 0.0002517067543898635, 0.00023863340223853705, 0.00035432192338129937]
-loss: 0.0016303268514898223
-pde_losses: [7.368093289819489e-5, 0.0003557358770590684]
-bcs_losses: [0.00013046729737729198, 0.00019130286862725424, 9.344788984694193e-5, 0.00021167096889683, 0.00021623102727473718, 0.00035778998950950375]
-loss: 0.0015690535499771805
-pde_losses: [7.231585969266675e-5, 0.00028424533207900636]
-bcs_losses: [0.00010398676193690688, 0.00016769740527138982, 9.318260728449171e-5, 0.00019993742794260414, 0.00025341254530003853, 0.0003942756104700762]
-loss: 0.0015458486671927761
-pde_losses: [8.017143406352623e-5, 0.0002668210436749956]
-bcs_losses: [9.423423216173991e-5, 0.000154087668803643, 9.793014142635176e-5, 0.0001980813334533392, 0.00025073795697117197, 0.0004037848566380085]
-loss: 0.001525314648494433
-pde_losses: [8.292590789233563e-5, 0.00024378510722787317]
-bcs_losses: [8.394611474789761e-5, 0.00015910700674505362, 9.948148929359765e-5, 0.00020032699615970748, 0.0002612837831431607, 0.000394458243284807]
-loss: 0.0015016690890782753
-pde_losses: [7.503386550391388e-5, 0.0002037389084462372]
-bcs_losses: [8.894874768138973e-5, 0.00016735061705179858, 9.540574481836035e-5, 0.00020576037322603976, 0.0002717199206202242, 0.0003937109117303115]
-loss: 0.0014494487262433251
-pde_losses: [6.17575981448096e-5, 0.00014013842381738103]
-bcs_losses: [8.6174685483082e-5, 0.00017077318110663602, 9.522924186789394e-5, 0.0002158756394152087, 0.00028593817113221757, 0.0003935617852760963]
-loss: 0.001379587781888024
-pde_losses: [5.1961128958939894e-5, 8.369187335881036e-5]
-bcs_losses: [7.82805962076547e-5, 0.00015846360451976182, 9.64968295176408e-5, 0.00022597247931519703, 0.0002897430967629391, 0.00039497817324708024]
-loss: 0.001319271238004271
-pde_losses: [5.627117838168734e-5, 7.237149208684168e-5]
-bcs_losses: [7.372220411255436e-5, 0.00014691102935719712, 9.620280428288566e-5, 0.00021813609292222914, 0.00026772934361996915, 0.00038792709324090636]
-loss: 0.0012554682449862267
-pde_losses: [6.676820089492627e-5, 9.138549128786614e-5]
-bcs_losses: [7.023143097432608e-5, 0.00013469502391124264, 0.0001034012177768009, 0.00019208076246712374, 0.00022698153539742156, 0.00036992458227651936]
-loss: 0.001214173132482043
-pde_losses: [7.347515237296701e-5, 0.00010839304938661195]
-bcs_losses: [7.02383369444907e-5, 0.00012837829327126332, 0.0001162023298731649, 0.00016766140202297076, 0.00019589074495711162, 0.0003539338236534626]
-loss: 0.001191206662017206
-pde_losses: [7.83991403568678e-5, 0.00011676006838624416]
-bcs_losses: [7.059792640353865e-5, 0.00011941701952642328, 0.0001274512951113333, 0.0001577720106669006, 0.00017642937405669195, 0.0003443798275092064]
-loss: 0.001177876905362365
-pde_losses: [8.092428257086566e-5, 0.0001332225636820263]
-bcs_losses: [6.872172948717456e-5, 0.00012201043621083855, 0.00014028327227786494, 0.00013605051090291245, 0.00016345956056633426, 0.0003332045496643482]
-loss: 0.0011591778464407354
-pde_losses: [8.226192865506228e-5, 0.00013412572534566894]
-bcs_losses: [7.18501598983698e-5, 0.00011861923554170457, 0.00014737591359328592, 0.0001297661260574198, 0.00015012656436396013, 0.00032505219298526394]
-loss: 0.0011329824469021497
-pde_losses: [7.713560596330517e-5, 0.0001415827393631304]
-bcs_losses: [7.325222527543842e-5, 0.00011387568512458271, 0.00015565632818239419, 0.00011909690390870253, 0.0001362335122690175, 0.00031614944681557884]
-loss: 0.0010662976226996938
-pde_losses: [6.320199797021761e-5, 0.00016175370806317845]
-bcs_losses: [7.375820064228693e-5, 0.00010382162128755898, 0.00019625197895302963, 8.321416172166532e-5, 9.427157930279511e-5, 0.00029002437475896176]
-loss: 0.0009740392856474739
-pde_losses: [5.6316212008693425e-5, 0.00014384174634595853]
-bcs_losses: [8.553843277293865e-5, 8.741677194298396e-5, 0.0002000256347268867, 7.264499854694988e-5, 6.425797688028426e-5, 0.00026399751242277855]
-loss: 0.0009479337464384275
-pde_losses: [6.053072801502716e-5, 0.00014817682380160988]
-bcs_losses: [7.621526986105173e-5, 7.83381030629897e-5, 0.0002097975300199059, 7.63381040255428e-5, 5.554770000526915e-5, 0.00024298948764703125]
-loss: 0.0009311859497482717
-pde_losses: [7.916305798902392e-5, 0.00014527256696227452]
-bcs_losses: [7.013463988359997e-5, 7.523527747053725e-5, 0.00020983106378947105, 9.390294501927179e-5, 4.9416915794831464e-5, 0.0002082294828392617]
-loss: 0.0009030517246476301
-pde_losses: [9.09425161000663e-5, 0.0001269875495474152]
-bcs_losses: [6.641121389095928e-5, 7.464019234344063e-5, 0.00021001759111667173, 8.892210575272618e-5, 4.7959581579426225e-5, 0.0001971709743169246]
-loss: 0.0008790508847306814
-pde_losses: [9.554930110069297e-5, 0.00012913151523039816]
-bcs_losses: [6.312611962326335e-5, 7.440785528860564e-5, 0.00021071810203789377, 7.502546990746877e-5, 4.632403399649202e-5, 0.00018476848754586677]
-loss: 0.0008543340814414937
-pde_losses: [7.331794798421782e-5, 0.00014832921736695348]
-bcs_losses: [5.791048344593104e-5, 8.756814805338854e-5, 0.00018837958659892936, 7.267541168118815e-5, 4.6619317447981986e-5, 0.00017953396886290335]
-loss: 0.0008289045967776449
-pde_losses: [5.28982349103896e-5, 0.00015694769145384955]
-bcs_losses: [4.9699653407468424e-5, 9.505409451921301e-5, 0.00017970381354411825, 7.246126137688851e-5, 4.808390579709198e-5, 0.0001740559417686255]
-loss: 0.0008098190264114155
-pde_losses: [3.6388381985607544e-5, 0.00016955503191363338]
-bcs_losses: [4.241648381859316e-5, 0.0001024644095748137, 0.00017442233765508765, 7.982218232558972e-5, 4.7959388537361084e-5, 0.00015679081060072922]
-loss: 0.0007974220708235921
-pde_losses: [2.759318849029972e-5, 0.00017018971258653606]
-bcs_losses: [4.2632396582202036e-5, 0.00010413982789332554, 0.00017429946094818204, 7.551539568683812e-5, 4.780922439007016e-5, 0.00015524286424613843]
-loss: 0.0007688981050092344
-pde_losses: [2.5355154271328206e-5, 0.000172100433704789]
-bcs_losses: [4.528770347812015e-5, 9.548585490320641e-5, 0.00017306826835051354, 6.733757327739563e-5, 4.5196850851566705e-5, 0.0001450662661723147]
-loss: 0.0007266570349131409
-pde_losses: [2.401534865339208e-5, 0.00016863996365479138]
-bcs_losses: [5.065031755185199e-5, 8.721535881698623e-5, 0.00016652092370781903, 5.763263064249352e-5, 4.34288428853986e-5, 0.00012855364900040805]
-loss: 0.0006802375814775162
-pde_losses: [2.4109317911044057e-5, 0.00016004694656462985]
-bcs_losses: [5.793865254160856e-5, 7.634930907928611e-5, 0.00015530088046060783, 5.0684969216429476e-5, 4.378576905783422e-5, 0.00011202173664607613]
-loss: 0.0006237514761662358
-pde_losses: [3.2304857461650987e-5, 0.00013324725662696186]
-bcs_losses: [7.411789607575455e-5, 6.141146710062996e-5, 0.00013153790004698772, 4.6181576733953594e-5, 5.144076696559257e-5, 9.350975515470457e-5]
-loss: 0.0006190710078760514
-pde_losses: [3.5448649361929256e-5, 0.0001601469664920808]
-bcs_losses: [7.91748772799255e-5, 6.0534967961550066e-5, 0.000125039878298173, 2.294691764503272e-5, 5.6594626286063226e-5, 7.918412455129687e-5]
-loss: 0.0005827754850403193
-pde_losses: [2.8904990056884786e-5, 0.00012848705992857376]
-bcs_losses: [7.74041252474311e-5, 6.878002959127026e-5, 0.00013049353314999643, 1.3465910440168994e-5, 5.5551633838975166e-5, 7.968820278701877e-5]
-loss: 0.0005559018119151532
-pde_losses: [3.284065060193075e-5, 0.00013234182628974118]
-bcs_losses: [6.484546970148447e-5, 4.658036058201585e-5, 0.00012912898392283514, 1.6645863404098628e-5, 4.299675342540351e-5, 9.052190398764365e-5]
-loss: 0.0005361696004151717
-pde_losses: [3.6009518185139824e-5, 0.00014115853758005733]
-bcs_losses: [5.875168326511852e-5, 3.69317204636951e-5, 0.0001260539523337951, 8.61135111088377e-6, 3.685734932320173e-5, 9.179548815328023e-5]
-loss: 0.0005296381316787801
-pde_losses: [3.828878674436892e-5, 0.0001482651412508922]
-bcs_losses: [5.2180046516885726e-5, 4.1640464561197976e-5, 0.00012410167903118617, 3.1287716392322324e-6, 3.349741407053812e-5, 8.853582786447878e-5]
-loss: 0.0005221951590006231
-pde_losses: [3.850433541440995e-5, 0.0001466102905415313]
-bcs_losses: [4.989409782557994e-5, 4.015782668383056e-5, 0.00012418446075787614, 2.3743212958877707e-6, 3.218987423621968e-5, 8.82799522452878e-5]
-loss: 0.000518982572222343
-pde_losses: [3.899168675002837e-5, 0.00014439260836401918]
-bcs_losses: [5.006998371478886e-5, 3.722810283614933e-5, 0.00012269731914944456, 2.343258256171663e-6, 3.21790464637404e-5, 9.108056668800064e-5]
-loss: 0.000513823054016921
-pde_losses: [4.236397392006769e-5, 0.00014155078092046027]
-bcs_losses: [5.0567403869700946e-5, 3.4778507719111184e-5, 0.00011935519010443615, 2.2048290938135913e-6, 3.214479055885787e-5, 9.08575778304733e-5]
-loss: 0.0005037959407825443
-pde_losses: [4.607091426936785e-5, 0.0001383882034589241]
-bcs_losses: [5.216039162269422e-5, 3.0136985048258403e-5, 0.00011294874400488082, 2.014651365480673e-6, 3.148490654652995e-5, 9.05911444664083e-5]
-loss: 0.00047696895345848543
-pde_losses: [5.3945350835462e-5, 0.00012675810099234796]
-bcs_losses: [5.7245505527093275e-5, 2.348621835457774e-5, 9.934314840105291e-5, 2.2047102092597138e-6, 3.0180319185824922e-5, 8.380559995286693e-5]
-loss: 0.00043861114406627225
-pde_losses: [5.127345627273941e-5, 0.00011626217733655671]
-bcs_losses: [6.70790663110996e-5, 1.647697813277706e-5, 8.248964899448697e-5, 3.892807232779251e-6, 2.863991032638166e-5, 7.24970994594516e-5]
-loss: 0.00042290724684362983
-pde_losses: [4.406358822680911e-5, 0.00011148910099556391]
-bcs_losses: [7.330759396640737e-5, 1.7194117370850857e-5, 7.88993056410907e-5, 3.2230312380230083e-6, 2.9217924631305815e-5, 6.551258477357908e-5]
-loss: 0.0004073232686853808
-pde_losses: [3.4568772948031045e-5, 0.00012582926067081264]
-bcs_losses: [7.526903679415992e-5, 1.4843938800163036e-5, 7.172937542244192e-5, 5.025427619536153e-6, 2.7165410292006223e-5, 5.289204613822987e-5]
-loss: 0.0003811285149086527
-pde_losses: [2.5973086994753957e-5, 0.00010692915229438239]
-bcs_losses: [6.620492086502866e-5, 1.796973651410835e-5, 7.519369884210572e-5, 3.4625925712233502e-6, 2.559197144455422e-5, 5.9803355382496146e-5]
-loss: 0.0003738879770952083
-pde_losses: [2.3023777157237303e-5, 0.00010802300566532501]
-bcs_losses: [6.146052826324734e-5, 1.747077165868749e-5, 7.253789194238757e-5, 5.003104027241539e-6, 2.5213801316304273e-5, 6.115509706477781e-5]
-loss: 0.00036518716334411135
-pde_losses: [2.0579581574880357e-5, 0.00011151798586323198]
-bcs_losses: [5.510372586800351e-5, 1.4866807187161124e-5, 6.66193738236493e-5, 7.142802622836383e-6, 2.5882438682557975e-5, 6.347444772179074e-5]
-loss: 0.0003598593902158933
-pde_losses: [2.0047324457520953e-5, 0.00011235868771046428]
-bcs_losses: [5.3291500765387004e-5, 1.3557993816455018e-5, 6.158131415995812e-5, 9.089299037305091e-6, 2.7008409051741006e-5, 6.292486121706184e-5]
-loss: 0.0003529277474475634
-pde_losses: [2.0560598077495406e-5, 0.00011388674677057344]
-bcs_losses: [5.3959915202100705e-5, 1.0577073130263701e-5, 5.500649774541903e-5, 1.0803450147674891e-5, 2.730397632448898e-5, 6.082949004954723e-5]
-loss: 0.0003474922234085509
-pde_losses: [2.2925755410730793e-5, 0.000115723380682718]
-bcs_losses: [5.249914056666848e-5, 1.0064642068772428e-5, 5.335653115780587e-5, 1.0546670869756722e-5, 2.682595166837457e-5, 5.555015098372403e-5]
-loss: 0.0003413768904575168
-pde_losses: [2.7658907825374545e-5, 0.00011458292634267444]
-bcs_losses: [5.1832507354719815e-5, 9.51460222469205e-6, 5.264795232418182e-5, 1.0891973065972982e-5, 2.5601389617904055e-5, 4.864663170199709e-5]
-loss: 0.00033317945402517105
-pde_losses: [3.5433877854584744e-5, 0.00011013933323462067]
-bcs_losses: [4.9160036275630615e-5, 1.0097622650302718e-5, 5.312909690058388e-5, 1.1451045037748705e-5, 2.4162526485142483e-5, 3.960591558655727e-5]
-loss: 0.0003243643731979757
-pde_losses: [4.370244671003874e-5, 0.00010355869418494481]
-bcs_losses: [4.623059169455857e-5, 9.991820578307477e-6, 5.26132143966883e-5, 1.283049674410396e-5, 2.3009695696137115e-5, 3.242741319319676e-5]
-loss: 0.0003148051041959138
-pde_losses: [4.971279716615739e-5, 9.793124651598008e-5]
-bcs_losses: [4.2403507007531276e-5, 9.881420899065537e-6, 4.998310095652049e-5, 1.4826147065102368e-5, 2.2431200655792274e-5, 2.763568392976438e-5]
-loss: 0.0003028317666688995
-pde_losses: [5.1562580686256294e-5, 9.62681700699607e-5]
-bcs_losses: [3.782223027608152e-5, 8.048994207466842e-6, 4.393866801474549e-5, 1.7938303254455164e-5, 2.2263390341504857e-5, 2.4989429818428713e-5]
-loss: 0.00029986173429526647
-pde_losses: [4.2404551871006266e-5, 0.000111751746746223]
-bcs_losses: [3.2295203169174526e-5, 8.380097619230891e-6, 3.727318531860732e-5, 1.8308303127027902e-5, 2.291171833335184e-5, 2.6536928110644712e-5]
-loss: 0.0002762064669397398
-pde_losses: [3.549208178511881e-5, 9.945455861264522e-5]
-bcs_losses: [3.1798459131183406e-5, 6.757304576640157e-6, 3.507437374077634e-5, 1.9909038870792404e-5, 2.298452447509351e-5, 2.473612574748996e-5]
-loss: 0.0002667558604204054
-pde_losses: [2.8031665258482708e-5, 9.602954674310115e-5]
-bcs_losses: [3.438794467178946e-5, 4.226321380505082e-6, 3.312462615915593e-5, 1.798057984282335e-5, 2.4256879969966424e-5, 2.871829639458135e-5]
-loss: 0.00025910408930425954
-pde_losses: [2.2891813770515263e-5, 9.299763204256678e-5]
-bcs_losses: [3.2601166432218954e-5, 4.395300566257751e-6, 3.3033178048376715e-5, 1.6329093270125485e-5, 2.5831964309346726e-5, 3.1023940864851826e-5]
-loss: 0.0002527335272729614
-pde_losses: [2.4385547673564314e-5, 9.081571051500546e-5]
-bcs_losses: [2.967098754854583e-5, 4.429310026651655e-6, 2.988249913365648e-5, 1.7147429864514288e-5, 2.7337596396036044e-5, 2.90644461149873e-5]
-loss: 0.0002486951087752483
-pde_losses: [2.8830729242288358e-5, 8.647851391495941e-5]
-bcs_losses: [2.6830213365369588e-5, 5.439275244001469e-6, 3.01490786565348e-5, 1.6272408644853368e-5, 2.7137983215389962e-5, 2.755690649185135e-5]
-loss: 0.00024488977344358303
-pde_losses: [3.1135878401789524e-5, 8.270077196078547e-5]
-bcs_losses: [2.4194245935457084e-5, 5.8101538882002135e-6, 2.7852047849087828e-5, 1.7771449689684744e-5, 2.9786210980151822e-5, 2.563901473842633e-5]
-loss: 0.00024146338206521175
-pde_losses: [3.0324451077961207e-5, 8.094283589467329e-5]
-bcs_losses: [2.2291272197501742e-5, 6.134082641540645e-6, 2.8068647936161812e-5, 1.736005851476676e-5, 3.0960308338739295e-5, 2.5381725463866992e-5]
-loss: 0.00023248688821601897
-pde_losses: [2.6583065163170567e-5, 7.615167060515424e-5]
-bcs_losses: [1.795201773843429e-5, 7.515408709374454e-6, 2.9362917710425093e-5, 1.5836424344594296e-5, 3.327991066901102e-5, 2.5805473275854994e-5]
-loss: 0.00022614513310487697
-pde_losses: [2.142690566348525e-5, 7.246182661293287e-5]
-bcs_losses: [1.884210643986665e-5, 9.36951272836152e-6, 3.137391246220275e-5, 1.4881083505908672e-5, 3.116354170962073e-5, 2.6626243982498496e-5]
-loss: 0.0002223134971618362
-pde_losses: [1.7205226410255723e-5, 6.891704802212406e-5]
-bcs_losses: [1.9476438714239793e-5, 1.1093525227034013e-5, 3.282377563677613e-5, 1.5972131198999946e-5, 2.999014353957035e-5, 2.683520841283617e-5]
-loss: 0.00022046411631372468
-pde_losses: [1.5902653356271173e-5, 6.632378533244299e-5]
-bcs_losses: [2.324164927033669e-5, 1.1520458729724066e-5, 3.508002589724107e-5, 1.5569221762605935e-5, 2.6325162677254056e-5, 2.650115928784872e-5]
-loss: 0.0002189378007184257
-pde_losses: [1.5859688489250656e-5, 6.377508039226711e-5]
-bcs_losses: [2.4334695691532117e-5, 1.1735644960398819e-5, 3.628926570473821e-5, 1.5439606183159023e-5, 2.5198195000699587e-5, 2.6305624296380196e-5]
-loss: 0.0002177253039451915
-pde_losses: [1.681102981665655e-5, 6.246379196342727e-5]
-bcs_losses: [2.4273569515311192e-5, 1.1542398075247247e-5, 3.658426222885433e-5, 1.5852585283155166e-5, 2.4049200499434322e-5, 2.614846656310542e-5]
-loss: 0.00021615729441969058
-pde_losses: [1.7188764889206974e-5, 6.089799386825065e-5]
-bcs_losses: [2.4202265058167092e-5, 1.1601544218242754e-5, 3.763112780851849e-5, 1.5337601278647578e-5, 2.2901991885222526e-5, 2.6396005413434535e-5]
-loss: 0.00021137123657300158
-pde_losses: [1.7058046283882192e-5, 5.81975672868666e-5]
-bcs_losses: [2.3447486101097892e-5, 1.1620210023068742e-5, 3.879866359602766e-5, 1.454856843366803e-5, 2.092590349805247e-5, 2.6774791350337992e-5]
-loss: 0.000201997650999652
-pde_losses: [1.536992662295969e-5, 5.4037782127937886e-5]
-bcs_losses: [2.2058939424725084e-5, 1.1798983274316252e-5, 3.9404538764665765e-5, 1.3621126774875988e-5, 1.8694645484098027e-5, 2.701170852607331e-5]
-loss: 0.000184843088024918
-pde_losses: [1.2678873272023641e-5, 4.922391535544169e-5]
-bcs_losses: [2.0296485119274277e-5, 1.1082953443549445e-5, 3.60599477387806e-5, 1.2452865948075031e-5, 1.648691805396224e-5, 2.6561129093811086e-5]
-loss: 0.00016123714850033974
-pde_losses: [1.382373999031358e-5, 3.987349386667384e-5]
-bcs_losses: [1.7661666417243006e-5, 1.0773201769310308e-5, 2.822630861674149e-5, 1.153397484055714e-5, 1.4530377613146513e-5, 2.4814385386353845e-5]
-loss: 0.0001513976453965415
-pde_losses: [7.38713807888544e-6, 3.260022101686944e-5]
-bcs_losses: [1.6819343126820362e-5, 1.601961793298073e-5, 2.8288332081361898e-5, 9.717457246820209e-6, 1.4790099382350569e-5, 2.5775436530452847e-5]
-loss: 0.00013686050856143918
-pde_losses: [5.448559662118786e-6, 2.4551901543771216e-5]
-bcs_losses: [1.7101108893520487e-5, 1.2105120801754918e-5, 2.5873698381673792e-5, 9.206300940285842e-6, 1.5509932285328377e-5, 2.7063886052985758e-5]
-loss: 0.0001314487053065458
-pde_losses: [8.062332031685412e-6, 2.9430761035713677e-5]
-bcs_losses: [1.592576587697849e-5, 5.367715254598197e-6, 2.207460636906353e-5, 8.291711218548874e-6, 1.2488607923249599e-5, 2.9807205596708018e-5]
-loss: 0.00012406297611865238
-pde_losses: [5.2537813920778405e-6, 2.205531213629736e-5]
-bcs_losses: [1.5945192018587978e-5, 6.687523974135924e-6, 2.331446693304275e-5, 9.732928403085552e-6, 1.3096613180439163e-5, 2.7977158080985808e-5]
-loss: 0.00012050382839276407
-pde_losses: [5.805103212304447e-6, 2.0849807839040955e-5]
-bcs_losses: [1.5071285942325616e-5, 7.625625758858925e-6, 2.1742606448208826e-5, 1.0009342304687249e-5, 1.3087348610591009e-5, 2.631270827674705e-5]
-loss: 0.00011528791341853109
-pde_losses: [7.359146312641673e-6, 1.856432249838721e-5]
-bcs_losses: [1.4280882914051151e-5, 8.052393264477739e-6, 1.9632690717572542e-5, 9.851723932512203e-6, 1.2289619219449237e-5, 2.5257134559439338e-5]
-loss: 0.00010787358890673127
-pde_losses: [1.209415376772314e-5, 1.782214105765334e-5]
-bcs_losses: [1.2523764184757571e-5, 7.398857504610277e-6, 1.4734684329611175e-5, 1.0643531400860437e-5, 9.806237880179532e-6, 2.28502187813358e-5]
-loss: 0.00010130974337562427
-pde_losses: [9.146188087352695e-6, 1.5536882338681056e-5]
-bcs_losses: [1.1979568856580698e-5, 7.427471491203162e-6, 1.4443928590939928e-5, 1.164394893170048e-5, 9.364379847989919e-6, 2.1767375231176344e-5]
-loss: 9.55131787294917e-5
-pde_losses: [1.0818023096135383e-5, 1.378144226567864e-5]
-bcs_losses: [1.0258348959406866e-5, 6.337029072659155e-6, 1.2664613548913069e-5, 1.2663298346838978e-5, 8.880920011138617e-6, 2.0109503428720992e-5]
-loss: 9.30180455316786e-5
-pde_losses: [1.3371204180460613e-5, 1.297299364375355e-5]
-bcs_losses: [9.395890098908398e-6, 5.724324400566641e-6, 1.1098958559708533e-5, 1.2987295299783271e-5, 8.505430951448832e-6, 1.8961948397048764e-5]
-loss: 8.981452851563313e-5
-pde_losses: [1.5115981559810687e-5, 1.2394977395660392e-5]
-bcs_losses: [8.725689211350343e-6, 4.683135462575091e-6, 9.431803599850724e-6, 1.3481665046035085e-5, 8.12445548703724e-6, 1.7856820753313566e-5]
-loss: 8.679183147219791e-5
-pde_losses: [1.6672192237976526e-5, 1.1053426637392717e-5]
-bcs_losses: [8.633687747335436e-6, 3.882316687271272e-6, 7.966283539827112e-6, 1.3688929722598486e-5, 7.692929394851276e-6, 1.7202065504945095e-5]
-loss: 8.542244669985095e-5
-pde_losses: [1.8765902721286673e-5, 1.0700252683216882e-5]
-bcs_losses: [8.34008245783166e-6, 3.289659983513004e-6, 6.539147994908197e-6, 1.3749074324994149e-5, 7.235245979377706e-6, 1.680308055472266e-5]
-loss: 8.423125816540327e-5
-pde_losses: [2.0108770453399316e-5, 1.0886685553808897e-5]
-bcs_losses: [8.220120361066263e-6, 2.9796893697150744e-6, 5.326743652060486e-6, 1.3794247126610195e-5, 6.623422806421817e-6, 1.629157884232121e-5]
-loss: 8.362359984685107e-5
-pde_losses: [2.087964258547838e-5, 1.0425697627264073e-5]
-bcs_losses: [8.465993412416716e-6, 2.8578192743996016e-6, 4.791689848226409e-6, 1.3685338161575446e-5, 6.621190668964435e-6, 1.5896228268526004e-5]
-loss: 8.122319163798401e-5
-pde_losses: [2.0736911897686657e-5, 8.603530873722364e-6]
-bcs_losses: [8.275675797341198e-6, 2.8164087080155004e-6, 4.666340161270241e-6, 1.3628323107256896e-5, 6.56481747063971e-6, 1.5931183622051443e-5]
-loss: 8.046932009014705e-5
-pde_losses: [2.1244836799793963e-5, 8.643580589607307e-6]
-bcs_losses: [7.798663416737262e-6, 2.711735260469421e-6, 4.2335799879497644e-6, 1.3664987599481636e-5, 6.425407747226953e-6, 1.574652868888074e-5]
-loss: 7.756903002578657e-5
-pde_losses: [2.2300223671499633e-5, 1.0009593174951874e-5]
-bcs_losses: [5.896659168193865e-6, 2.4975071000458483e-6, 2.53593391962274e-6, 1.3830315970725473e-5, 5.8626170431246245e-6, 1.4636179977622512e-5]
-loss: 7.574836710136097e-5
-pde_losses: [2.1718410554295043e-5, 1.0334317368747586e-5]
-bcs_losses: [4.655300695116778e-6, 2.7286535276829867e-6, 2.3223323300331532e-6, 1.398240351521138e-5, 5.9337234132549135e-6, 1.407322569701913e-5]
-loss: 7.543716437972736e-5
-pde_losses: [1.9068220890279105e-5, 1.401022079656741e-5]
-bcs_losses: [3.4124619224946745e-6, 3.1657661212416916e-6, 2.2239595694717126e-6, 1.4056385372186752e-5, 6.430870501082518e-6, 1.3069279206403497e-5]
-loss: 7.311792126282933e-5
-pde_losses: [1.6970142149586358e-5, 1.6107925119386164e-5]
-bcs_losses: [2.2118172621564037e-6, 3.3478675665987524e-6, 1.774181136747675e-6, 1.379611633711111e-5, 6.928239827672382e-6, 1.1981631863570478e-5]
-loss: 6.943142492700788e-5
-pde_losses: [1.3528562659642053e-5, 1.6052305191549094e-5]
-bcs_losses: [1.5788535553303056e-6, 4.085193506564708e-6, 2.2439332252222944e-6, 1.2385888787066169e-5, 7.963580841820205e-6, 1.1593107159813057e-5]
-loss: 6.565059979425443e-5
-pde_losses: [1.1497471309641229e-5, 1.609309327868828e-5]
-bcs_losses: [1.4729779129375692e-6, 4.155343208597383e-6, 1.9572408895436055e-6, 1.0919294851240173e-5, 8.035094060572607e-6, 1.1520084283033582e-5]
-loss: 5.958814351308146e-5
-pde_losses: [9.057456191488654e-6, 1.3325984623706326e-5]
-bcs_losses: [2.1622533044852987e-6, 4.383661949486306e-6, 2.4206877823357633e-6, 8.064573338669978e-6, 8.201890990614013e-6, 1.1971635332295116e-5]
-loss: 5.684154422945634e-5
-pde_losses: [7.972348312612874e-6, 1.299453559372438e-5]
-bcs_losses: [2.4905879449532613e-6, 4.063971824086852e-6, 2.5458855109866593e-6, 7.007370815892019e-6, 7.781345545643823e-6, 1.1985498681556472e-5]
-loss: 5.5770550052758674e-5
-pde_losses: [7.96223850594884e-6, 1.2281538610915649e-5]
-bcs_losses: [2.9211773181147837e-6, 4.144495148105907e-6, 2.5330210891481663e-6, 6.624144470649027e-6, 7.804660703398545e-6, 1.1499274206477758e-5]
-loss: 5.480539333712191e-5
-pde_losses: [7.680236388165638e-6, 1.2128975248164838e-5]
-bcs_losses: [2.6041339106345507e-6, 3.896701596107393e-6, 2.3872224617486774e-6, 7.009016243096616e-6, 7.570999308770075e-6, 1.1528108180434119e-5]
-loss: 5.452365785588137e-5
-pde_losses: [7.674732699322065e-6, 1.2723132885509779e-5]
-bcs_losses: [2.336804744877778e-6, 3.979613940217703e-6, 2.0684393243741733e-6, 7.162664865042347e-6, 7.512723172699799e-6, 1.106554622383772e-5]
-loss: 5.431379488531963e-5
-pde_losses: [7.499250753760981e-6, 1.2387559343952427e-5]
-bcs_losses: [2.41998791937738e-6, 3.997166701527674e-6, 2.1389463151087463e-6, 7.1087260218592045e-6, 7.572835278630091e-6, 1.1189322551103124e-5]
-loss: 5.41328306959097e-5
-pde_losses: [7.416394256191817e-6, 1.2239018031846259e-5]
-bcs_losses: [2.4255696600380104e-6, 4.087866900223551e-6, 2.2094204236922915e-6, 6.806310186161502e-6, 7.666424428393704e-6, 1.1281826809362569e-5]
-loss: 5.3818477444221554e-5
-pde_losses: [7.246254313469284e-6, 1.2088221867933056e-5]
-bcs_losses: [2.538418186426603e-6, 4.260529399820817e-6, 2.2564846101805453e-6, 6.2849975152837e-6, 7.70289608134602e-6, 1.1440675469761522e-5]
-loss: 5.344579674520774e-5
-pde_losses: [7.060737167156356e-6, 1.188696104823392e-5]
-bcs_losses: [2.6057164167051623e-6, 4.403230856992707e-6, 2.3376197301122133e-6, 5.772053432602413e-6, 7.615618586678355e-6, 1.1763859506726612e-5]
-loss: 5.2778392627562226e-5
-pde_losses: [6.689634249212686e-6, 1.1509959543235712e-5]
-bcs_losses: [2.8515538997799696e-6, 4.507845664624611e-6, 2.3647609947163328e-6, 5.271372428719795e-6, 7.232424091590401e-6, 1.2350841755682713e-5]
-loss: 5.2284915031127145e-5
-pde_losses: [6.339196636638499e-6, 1.117757977238041e-5]
-bcs_losses: [3.1065532780752718e-6, 4.39322578763319e-6, 2.3133277863778133e-6, 5.239462783119517e-6, 6.883834951186974e-6, 1.2831734035715469e-5]
-loss: 5.19744420759587e-5
-pde_losses: [5.988040389971577e-6, 1.1146643395508857e-5]
-bcs_losses: [3.2246343708729835e-6, 4.195582633551971e-6, 2.1423968334719027e-6, 5.5728947463238485e-6, 6.63857082495e-6, 1.3065678881307555e-5]
-loss: 5.1855066475076106e-5
-pde_losses: [5.888685595277108e-6, 1.1163557470215907e-5]
-bcs_losses: [3.2188642307546494e-6, 4.056422060591506e-6, 2.049224130467002e-6, 5.771115173134796e-6, 6.596512312699955e-6, 1.3110685501935182e-5]
-loss: 5.1724569011782545e-5
-pde_losses: [5.8274178138906895e-6, 1.1284066238348398e-5]
-bcs_losses: [3.1834400318107934e-6, 3.938975495074456e-6, 1.926247191201817e-6, 5.895900384505772e-6, 6.570699260080253e-6, 1.3097822596870367e-5]
-loss: 5.148060848751781e-5
-pde_losses: [5.826487846338669e-6, 1.142753264715686e-5]
-bcs_losses: [3.1443794010074908e-6, 3.7740673438320348e-6, 1.754759555140097e-6, 5.95920603621373e-6, 6.551132067471541e-6, 1.3043043590357391e-5]
-loss: 5.099530387999996e-5
-pde_losses: [5.9060479557576425e-6, 1.1583049939231055e-5]
-bcs_losses: [3.0414493542053685e-6, 3.57732033209935e-6, 1.4886201241715036e-6, 5.931881957927073e-6, 6.550151479614952e-6, 1.2916782736993014e-5]
-loss: 4.994597400613146e-5
-pde_losses: [6.067300502850972e-6, 1.1513796508197221e-5]
-bcs_losses: [2.8737370228241986e-6, 3.353079870515342e-6, 1.1132844116908031e-6, 5.767793437052804e-6, 6.590607487170963e-6, 1.266637476582916e-5]
-loss: 4.826326749884212e-5
-pde_losses: [6.206470882709084e-6, 1.1247906009321983e-5]
-bcs_losses: [2.581500704434863e-6, 3.152236160338874e-6, 6.671047303947291e-7, 5.444033923869615e-6, 6.695337484477165e-6, 1.2268677603295814e-5]
-loss: 4.640998850314923e-5
-pde_losses: [5.729358321263173e-6, 1.1317033349511578e-5]
-bcs_losses: [2.2423108467411406e-6, 2.9587605806830725e-6, 3.69905004022524e-7, 5.282353364314409e-6, 6.794277509133492e-6, 1.171598952747984e-5]
-loss: 4.511210677807245e-5
-pde_losses: [4.754975420544086e-6, 1.1936485145547134e-5]
-bcs_losses: [1.7531806395078026e-6, 2.7062237583499004e-6, 2.1063909546677652e-7, 5.394953729806487e-6, 7.026271853741872e-6, 1.1329377135108393e-5]
-loss: 4.4612305567737995e-5
-pde_losses: [4.519069560044468e-6, 1.2257111947946e-5]
-bcs_losses: [1.5432255308429807e-6, 2.599289111482753e-6, 1.7942176432006534e-7, 5.619887217606072e-6, 7.100869413694195e-6, 1.0793431021801461e-5]
-loss: 4.404249253506486e-5
-pde_losses: [4.172266849844466e-6, 1.2361713447599202e-5]
-bcs_losses: [1.2323965636630203e-6, 2.5706021549612303e-6, 1.53838608412594e-7, 5.8288242442367545e-6, 7.360112567664925e-6, 1.0362738098682666e-5]
-loss: 4.352593963231359e-5
-pde_losses: [3.985622200432248e-6, 1.2518762977177026e-5]
-bcs_losses: [1.0604592467835699e-6, 2.6712409622181238e-6, 1.5230935658341955e-7, 5.768428035493381e-6, 7.550777714827258e-6, 9.818339138798561e-6]
-loss: 4.317093964704278e-5
-pde_losses: [3.971837174709462e-6, 1.245996067125089e-5]
-bcs_losses: [1.0252377421873985e-6, 2.6816088085875593e-6, 1.525622314912743e-7, 5.36247393399337e-6, 7.694434243409227e-6, 9.8228248414136e-6]
-loss: 4.29782861389337e-5
-pde_losses: [3.961845264965484e-6, 1.262837651988514e-5]
-bcs_losses: [9.495401263417423e-7, 2.8944510987754204e-6, 1.9740020558019447e-7, 4.9307908532631215e-6, 7.846498803634494e-6, 9.5693832664881e-6]
-loss: 4.2785808400819855e-5
-pde_losses: [3.859001566354573e-6, 1.2525987521459933e-5]
-bcs_losses: [1.1697503643495167e-6, 2.799495710401033e-6, 2.1015462115672713e-7, 4.588664664097129e-6, 7.546639408189309e-6, 1.0086114544811632e-5]
-loss: 4.263528611153067e-5
-pde_losses: [3.723651173159172e-6, 1.2157443938200507e-5]
-bcs_losses: [1.3318515131666771e-6, 2.758315623972382e-6, 1.7727432860162336e-7, 4.448086332577806e-6, 7.506232267327056e-6, 1.053243093452544e-5]
-loss: 4.25323464014561e-5
-pde_losses: [3.6444020916403377e-6, 1.2146158252293721e-5]
-bcs_losses: [1.453834086772145e-6, 2.80534222395481e-6, 1.9605235992271504e-7, 4.502972393294e-6, 7.359084570722187e-6, 1.0424500422856191e-5]
-loss: 4.245167035625582e-5
-pde_losses: [3.468258677863671e-6, 1.2129277015595594e-5]
-bcs_losses: [1.635719759798342e-6, 2.847476015858114e-6, 2.1126909738287892e-7, 4.547613628403226e-6, 7.193277116139986e-6, 1.0418779045214009e-5]
-loss: 4.2352351649065495e-5
-pde_losses: [3.3730849117259995e-6, 1.2106005201215476e-5]
-bcs_losses: [1.763373107805564e-6, 2.8873994335851185e-6, 2.301422521751809e-7, 4.589060907500518e-6, 7.0474796744844855e-6, 1.0355806160573155e-5]
-loss: 4.216674023915486e-5
-pde_losses: [3.2356607791727307e-6, 1.2007647183383641e-5]
-bcs_losses: [1.9103324165865928e-6, 2.8901853445278803e-6, 2.546560475329445e-7, 4.641527588927752e-6, 6.8672069601777235e-6, 1.0359523918845597e-5]
-loss: 4.19661014044911e-5
-pde_losses: [3.2244074888121895e-6, 1.1893528083874057e-5]
-bcs_losses: [1.926031539034724e-6, 2.867999042455867e-6, 2.7515735051774826e-7, 4.568143165805015e-6, 6.782112419430002e-6, 1.0428722314561493e-5]
-loss: 4.175744606720586e-5
-pde_losses: [3.259167772162214e-6, 1.1817580701997651e-5]
-bcs_losses: [1.8368236744356846e-6, 2.8262320084439564e-6, 2.973464874789164e-7, 4.36116345978458e-6, 6.791515803624765e-6, 1.0567616159278094e-5]
-loss: 4.152457086509647e-5
-pde_losses: [3.269778794577577e-6, 1.1828553942062279e-5]
-bcs_losses: [1.687325256486544e-6, 2.8318883388441736e-6, 3.128007068125188e-7, 4.044409295548216e-6, 6.891117638001435e-6, 1.0658696892763727e-5]
-loss: 4.126381878023866e-5
-pde_losses: [3.2338860313028917e-6, 1.1904179281611361e-5]
-bcs_losses: [1.5348689559514336e-6, 2.8855095395139967e-6, 3.147692359550505e-7, 3.678842928900872e-6, 7.053904259733081e-6, 1.065785854726997e-5]
-loss: 4.0930334868277465e-5
-pde_losses: [3.1662041685471936e-6, 1.201544120215445e-5]
-bcs_losses: [1.4183584031891338e-6, 3.0453022423150587e-6, 2.99432993924595e-7, 3.2766247925028693e-6, 7.26913254420942e-6, 1.043983852143474e-5]
-loss: 4.0488359295258e-5
-pde_losses: [3.0296807962207776e-6, 1.2077487900382787e-5]
-bcs_losses: [1.3655260809692795e-6, 3.295233895653004e-6, 2.7604333018199073e-7, 2.8425705882949904e-6, 7.508111911696965e-6, 1.0093704791858199e-5]
-loss: 3.9907966116153105e-5
-pde_losses: [2.8588119232290633e-6, 1.1925607358387184e-5]
-bcs_losses: [1.402780597210292e-6, 3.7105304997780786e-6, 2.5865787667220856e-7, 2.3751162703141953e-6, 7.76043551963706e-6, 9.616026070925023e-6]
-loss: 3.917152139867949e-5
-pde_losses: [2.563075567634346e-6, 1.1588177855822356e-5]
-bcs_losses: [1.4586400383272072e-6, 4.131073137910014e-6, 2.2297811711101545e-7, 1.961585050282002e-6, 8.009937974853223e-6, 9.236053656739323e-6]
-loss: 3.850442869997842e-5
-pde_losses: [2.468675511930841e-6, 1.1008571740305041e-5]
-bcs_losses: [1.4298533724871017e-6, 4.497704498883391e-6, 2.2064593869106333e-7, 1.6810790922622709e-6, 8.28044276129324e-6, 8.917455784125475e-6]
-loss: 3.8215776217711064e-5
-pde_losses: [2.5291011399031557e-6, 1.0795356446453126e-5]
-bcs_losses: [1.249604621161847e-6, 4.465059904061153e-6, 2.419278359670232e-7, 1.5881948460773663e-6, 8.541269972400672e-6, 8.805261451686718e-6]
-loss: 3.8156359189656586e-5
-pde_losses: [2.4757874139610906e-6, 1.0708196541937876e-5]
-bcs_losses: [1.1770408848072243e-6, 4.129098082750529e-6, 2.3479138189193274e-7, 1.7102240035922235e-6, 8.574601564702626e-6, 9.146619316013085e-6]
-loss: 3.809932566177115e-5
-pde_losses: [2.4488243548345598e-6, 1.0770953874265259e-5]
-bcs_losses: [1.1172273746572532e-6, 4.196879889049613e-6, 2.5234996842484197e-7, 1.704847444854629e-6, 8.597253241705223e-6, 9.010989513979774e-6]
-loss: 3.8083688982289245e-5
-pde_losses: [2.4199000907465757e-6, 1.0695775218760104e-5]
-bcs_losses: [1.1559444574477978e-6, 4.219980702371289e-6, 2.4785983102680994e-7, 1.6687429686287873e-6, 8.569168025031321e-6, 9.106317688276563e-6]
-loss: 3.8073245490702595e-5
-pde_losses: [2.4085255975642403e-6, 1.0682416055790882e-5]
-bcs_losses: [1.138343858260816e-6, 4.228882694335797e-6, 2.4705280680739895e-7, 1.6610882917953286e-6, 8.597296603995326e-6, 9.109639582152805e-6]
-loss: 3.803856215157023e-5
-pde_losses: [2.3541602949082688e-6, 1.0605883345315659e-5]
-bcs_losses: [1.1080283207183246e-6, 4.298993887644963e-6, 2.4036931480408046e-7, 1.62710126984997e-6, 8.663927011962093e-6, 9.140098706366872e-6]
-loss: 3.80070883458031e-5
-pde_losses: [2.2998208925248745e-6, 1.0503350782976955e-5]
-bcs_losses: [1.1002944931249642e-6, 4.383406339610232e-6, 2.334153279748401e-7, 1.6089463542942681e-6, 8.706167652651979e-6, 9.171686502644988e-6]
-loss: 3.7915505471267055e-5
-pde_losses: [2.158688187657776e-6, 1.017535901662037e-5]
-bcs_losses: [1.1165623225202681e-6, 4.622949127205042e-6, 2.264089513970085e-7, 1.5899733386647452e-6, 8.762700758484657e-6, 9.262863768717192e-6]
-loss: 3.7827746012947044e-5
-pde_losses: [2.0367393463280484e-6, 9.823576531993853e-6]
-bcs_losses: [1.1567213404905055e-6, 4.849123572246728e-6, 2.3361915119754935e-7, 1.6106084214861269e-6, 8.779097430083992e-6, 9.338260219120243e-6]
-loss: 3.7726461838171884e-5
-pde_losses: [1.9606030843306652e-6, 9.50307151964242e-6]
-bcs_losses: [1.2083755290674054e-6, 4.9822998411635336e-6, 2.458507277305954e-7, 1.6579467978127708e-6, 8.760341567323537e-6, 9.407972771100957e-6]
-loss: 3.760944914510051e-5
-pde_losses: [1.9402146508093367e-6, 9.283933909129481e-6]
-bcs_losses: [1.2555604457569451e-6, 4.959101572313278e-6, 2.528088106154854e-7, 1.7154052640522873e-6, 8.724270162382018e-6, 9.478154330041678e-6]
-loss: 3.744412130665936e-5
-pde_losses: [1.9051928112432747e-6, 9.086429459527423e-6]
-bcs_losses: [1.3136388899928015e-6, 4.860039116132966e-6, 2.638950419709981e-7, 1.7891967590590907e-6, 8.666167346103788e-6, 9.55956188262902e-6]
-loss: 3.705282873400079e-5
-pde_losses: [1.815367605371105e-6, 8.76088406193554e-6]
-bcs_losses: [1.4137594309406984e-6, 4.656764835181887e-6, 2.858224459335496e-7, 1.9591352526507775e-6, 8.557235870834352e-6, 9.603859231152876e-6]
-loss: 3.622491783706635e-5
-pde_losses: [1.722698901789826e-6, 8.151199298652985e-6]
-bcs_losses: [1.6001065376502774e-6, 4.293474901037027e-6, 3.2934799227795253e-7, 2.3518791141333295e-6, 8.355753645059193e-6, 9.420457446465759e-6]
-loss: 3.543324869603434e-5
-pde_losses: [1.5767412096612854e-6, 8.880462112800748e-6]
-bcs_losses: [1.3364722799101102e-6, 3.4003283112258403e-6, 3.40331698527009e-7, 3.1734892533678385e-6, 8.087888789261661e-6, 8.63753504127984e-6]
-loss: 3.469169886208292e-5
-pde_losses: [1.8461390596045189e-6, 7.742203209502581e-6]
-bcs_losses: [1.6901865368316722e-6, 3.44736821446667e-6, 4.2008248218588884e-7, 3.7272908953221677e-6, 7.5663571337612695e-6, 8.252071330408153e-6]
-loss: 3.3184081777073556e-5
-pde_losses: [8.675807108994034e-7, 7.766204863945386e-6]
-bcs_losses: [1.6936963582809827e-6, 3.5616651036932383e-6, 4.5974902005065973e-7, 3.6415441058489667e-6, 7.274278346087517e-6, 7.919363268267406e-6]</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="760f728c.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="74cbb8d1.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nonlinear_elliptic/">« Nonlinear elliptic system of PDEs</a><a class="docs-footer-nextpage" href="../complex/">Complex Equations with PINNs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 9 April 2026 21:20">Thursday 9 April 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">loss: 4.7215889016917725
+pde_losses: [0.4067883986046623, 3.9063816490939747]
+bcs_losses: [0.13750448495741519, 0.11019781513743625, 0.059931015506652585, 0.022543516045638798, 0.05725693636531878, 0.020985085980673193]
+loss: 1.697917249868058
+pde_losses: [0.15500368908574694, 1.2387331516724516]
+bcs_losses: [0.024141475110986917, 0.17924184580136565, 0.004846545028145847, 0.049289667836190425, 0.005072557330131199, 0.041588318003039366]
+loss: 1.0589983268240077
+pde_losses: [0.08994692103165666, 0.7817598572403426]
+bcs_losses: [0.0008525646798425979, 0.0005920191957144533, 0.0307527550132442, 0.054584832993073706, 0.032238792923443144, 0.0682705837466904]
+loss: 1.0061594504132425
+pde_losses: [0.3075385724148408, 0.3089972313455718]
+bcs_losses: [0.04077738632339273, 0.01653847011073735, 0.009599783724108853, 0.14088017327806246, 0.021676466076600863, 0.16015136713992784]
+loss: 0.8981936083244524
+pde_losses: [0.19313005252560342, 0.345124720719843]
+bcs_losses: [0.0409877308659299, 0.012166275406763622, 0.009855989478015104, 0.129163590063463, 0.022159206891963955, 0.14560604237287036]
+loss: 0.5819666190940604
+pde_losses: [0.10089909925714034, 0.10600868194396185]
+bcs_losses: [0.029010115199517406, 0.018444619475441907, 0.005381310146111519, 0.1630320410252563, 0.014203172500767938, 0.1449875795458632]
+loss: 0.511490007678982
+pde_losses: [0.057577254591811525, 0.054826115004164414]
+bcs_losses: [0.02295801115530236, 0.02524837611878917, 0.0027097392448531096, 0.17987809242321381, 0.010450481913458378, 0.15784193722738926]
+loss: 0.45190828641482433
+pde_losses: [0.018190565792032622, 0.04087096333772982]
+bcs_losses: [0.02603842997080691, 0.024777209690198546, 0.002973234478515691, 0.17745117428911467, 0.012791037861538594, 0.14881567099488752]
+loss: 0.4116692697806785
+pde_losses: [0.013407864332987966, 0.003213657296522187]
+bcs_losses: [0.03634927670396185, 0.023136068164623033, 0.005646505068996314, 0.17399142973366682, 0.020327928193927026, 0.1355965402859933]
+loss: 0.39839337968033967
+pde_losses: [0.005256754659458795, 0.004701870445223925]
+bcs_losses: [0.039839904252329215, 0.0207286164145213, 0.006742199173679653, 0.16764939567477088, 0.02392118735483433, 0.12955345170552157]
+loss: 0.3893990617518537
+pde_losses: [0.004714197925260462, 0.005814173232321669]
+bcs_losses: [0.04793214810670777, 0.01728640824105764, 0.009689028221217104, 0.15536162007380677, 0.030083423627752567, 0.11851806232372968]
+loss: 0.3809400191228773
+pde_losses: [0.004819380807838239, 0.004757455972444836]
+bcs_losses: [0.05822912098014433, 0.01313122062752457, 0.015744137047105096, 0.13912110792236126, 0.038593430222515705, 0.10654416554294323]
+loss: 0.3670898697287058
+pde_losses: [0.0049110849811263915, 0.015090717099202195]
+bcs_losses: [0.06470909767388981, 0.008061431884604906, 0.026154266398786454, 0.11355798588237141, 0.04484815937236293, 0.08975712643636166]
+loss: 0.359215810777263
+pde_losses: [0.005029758725039993, 0.01380599320469135]
+bcs_losses: [0.06594729052630624, 0.006995821983931845, 0.03070691717037081, 0.10522142054768792, 0.04625883677328567, 0.08524977184594919]
+loss: 0.3519690753171955
+pde_losses: [0.005701350445676413, 0.015789524168420197]
+bcs_losses: [0.06443074431999216, 0.006459210516447323, 0.03327884085660195, 0.09859562536667779, 0.045264059502747346, 0.08244972014063236]
+loss: 0.3416311899162344
+pde_losses: [0.006884418716549875, 0.019325150084129505]
+bcs_losses: [0.0601598205360398, 0.006145851351847394, 0.035074925430195907, 0.0921252705620351, 0.04201093206032418, 0.07990482117511269]
+loss: 0.31929907318173134
+pde_losses: [0.01499325074187664, 0.03263359481607408]
+bcs_losses: [0.04664914911490125, 0.00558364370220636, 0.036694091250128194, 0.07662971306000661, 0.03170857821103832, 0.07440705228549989]
+loss: 0.3113649501031357
+pde_losses: [0.016940863005761385, 0.037308965979021905]
+bcs_losses: [0.04081109858143862, 0.005815275562142066, 0.035726169412602884, 0.07406397251397845, 0.027238489392751794, 0.0734601156554386]
+loss: 0.3029271226515058
+pde_losses: [0.019163950390733507, 0.040049451680079555]
+bcs_losses: [0.03563788620146793, 0.005996791516874728, 0.03433115113807967, 0.07166560499386121, 0.023338879656073258, 0.07274340707433591]
+loss: 0.2888801241491686
+pde_losses: [0.01859792162140066, 0.04202568992215557]
+bcs_losses: [0.02927666665464565, 0.0062894634152138055, 0.032023681190947915, 0.07016668251942867, 0.018817260387189404, 0.07168275843818692]
+loss: 0.27121562396410337
+pde_losses: [0.01787422648615628, 0.045379277968298236]
+bcs_losses: [0.022773213445653383, 0.005998929939258252, 0.02980225399762252, 0.06669300595903999, 0.014595635295277106, 0.06809908087279755]
+loss: 0.2478227191358567
+pde_losses: [0.012069179216207877, 0.04953177383679999]
+bcs_losses: [0.016374377575964036, 0.005397970588441152, 0.026573416888212912, 0.06432403832232349, 0.010710965851018545, 0.06284099685688872]
+loss: 0.2184588276829028
+pde_losses: [0.004067261520927185, 0.06006242737050211]
+bcs_losses: [0.00946045984401319, 0.0030371658660219283, 0.02028264409300919, 0.06449100438424589, 0.00749617341968065, 0.04956169118450269]
+loss: 0.20232792392911597
+pde_losses: [0.004207302078700552, 0.040905924210600166]
+bcs_losses: [0.010906132702601592, 0.0023464700034256246, 0.017865970678623232, 0.06744336513750111, 0.00801269409201761, 0.05064006502564611]
+loss: 0.1749767838043249
+pde_losses: [0.00880983833184923, 0.05268370512480178]
+bcs_losses: [0.01791717213835948, 0.008787248340121546, 0.012191963453832434, 0.038641276151323366, 0.010670638432657243, 0.025274941831379846]
+loss: 0.1632939767858643
+pde_losses: [0.015441095202641981, 0.01602095396727532]
+bcs_losses: [0.02854197017417893, 0.02435668773324529, 0.009686285684602424, 0.032251640474410884, 0.014299440643822442, 0.022695902905687054]
+loss: 0.1564777202718346
+pde_losses: [0.011052143479506045, 0.039845886410934055]
+bcs_losses: [0.013506905284470792, 0.017250264955043573, 0.001693810917626897, 0.039601175370315815, 0.004030357485976464, 0.029497176367960957]
+loss: 0.14165794871798237
+pde_losses: [0.0038974132922487094, 0.012877929083296939]
+bcs_losses: [0.006125751671342444, 0.001105727460965696, 0.0006464484098150639, 0.06286288848027774, 0.0012163155759766825, 0.05292547474405909]
+loss: 0.1125219462773584
+pde_losses: [0.00300920173348097, 0.00922022867065794]
+bcs_losses: [0.015357178563373982, 0.011735070550064003, 0.004287032869927992, 0.035321401181898554, 0.005436937497692528, 0.02815489521026244]
+loss: 0.10231373464858794
+pde_losses: [0.002225392173783172, 0.0061535569661728285]
+bcs_losses: [0.014876533455360115, 0.012515358855740644, 0.003846432693181872, 0.03200254108513525, 0.0050932411609188955, 0.025600678258295158]
+loss: 0.07183881745143991
+pde_losses: [0.0015368600706842702, 0.02299572931925268]
+bcs_losses: [0.0087055787276527, 0.013959917566984361, 0.0017901418013609432, 0.009683701847062815, 0.0019167990175308167, 0.011250089100911326]
+loss: 0.059021719771843964
+pde_losses: [0.003863033765319524, 0.018231006765031626]
+bcs_losses: [0.004943858687883985, 0.0055081391824213875, 0.0012937145676545658, 0.009780846086773789, 0.0007344123344509438, 0.014666708382308139]
+loss: 0.04144001276649116
+pde_losses: [0.0038349008742654665, 0.0037724771838366076]
+bcs_losses: [0.002445356788969817, 0.0032167091974883997, 0.0005848532314314291, 0.010004345815279583, 0.0002861292023335351, 0.01729524047288632]
+loss: 0.034305732710897846
+pde_losses: [0.0058697554345569555, 0.012336679874518327]
+bcs_losses: [0.0004279843980850551, 0.00456837224693514, 0.00017336534123048804, 0.0017762432795465325, 0.0006908425282879814, 0.00846248960773736]
+loss: 0.020801711935182012
+pde_losses: [0.0046913468092250514, 0.0010192744363067606]
+bcs_losses: [0.0011012324987368224, 0.005900485103007918, 0.0007862745401693177, 0.0016202137135590835, 0.00018463866453964227, 0.005498246169637417]
+loss: 0.01612529410003579
+pde_losses: [0.002838374928124685, 0.0014820002957597772]
+bcs_losses: [0.00040154651848346506, 0.002934678441374867, 0.00020519241974271884, 0.0011248913469586441, 0.00047901208952011974, 0.006659598060071516]
+loss: 0.01105632850392112
+pde_losses: [0.0019045500035018994, 0.0013904169607878334]
+bcs_losses: [5.7009994798387244e-5, 0.0019232243652477642, 0.00011750442212448878, 0.000626504404008349, 0.0010709078289557136, 0.003966210524496686]
+loss: 0.010239250507202802
+pde_losses: [0.0017479883443378445, 0.002212117084636606]
+bcs_losses: [6.785173723269739e-5, 0.002189716443974777, 0.00017833917626768002, 0.0008911135335056929, 0.0009080283165650508, 0.0020440958706824538]
+loss: 0.008589351810009646
+pde_losses: [0.001447497915932929, 0.002378372378320729]
+bcs_losses: [0.00010308237049935042, 0.0013960328915199696, 0.0002863502526423087, 0.0004816583274644143, 0.0008035292589257918, 0.0016928284147041542]
+loss: 0.007174112735517012
+pde_losses: [0.0008791365179751716, 0.00260527533788075]
+bcs_losses: [6.758661249994968e-5, 0.0009645589515723894, 0.000379380040999735, 0.0001576780306435425, 0.0005490995680611842, 0.001571397675884289]
+loss: 0.006031379152368732
+pde_losses: [0.0005741393000449042, 0.0024816943729389336]
+bcs_losses: [4.0879758709120445e-5, 0.0007929154784590579, 0.0004421200047049009, 0.00012554401078603168, 0.00041248305110794367, 0.0011616031756178395]
+loss: 0.0048358733763691035
+pde_losses: [0.00038727725155232465, 0.0022723786420140025]
+bcs_losses: [2.8575675857983128e-5, 0.0005361747221107191, 0.0005318306372948938, 8.428863351035785e-5, 0.0003108453281750693, 0.0006845024858537533]
+loss: 0.004014563086953044
+pde_losses: [0.0004333615664716057, 0.0016710055415010549]
+bcs_losses: [1.4156219369521034e-5, 0.00043599676102059834, 0.0006080530439867882, 7.292365229328564e-5, 0.00026673906598544936, 0.0005123272363247412]
+loss: 0.002689580074543303
+pde_losses: [0.00044489903416979157, 0.000518717309008941]
+bcs_losses: [4.720057278398492e-6, 0.00029003349274222374, 0.0005019588405720959, 9.470309804256714e-5, 0.00022517828655182237, 0.000609369956177463]
+loss: 0.002287946557473268
+pde_losses: [0.00020739498873420574, 0.00040895904929924717]
+bcs_losses: [4.463412754599384e-6, 0.00022200729967869473, 0.0004259221804879666, 0.00010923200142472106, 0.00021250319906806822, 0.0006974644260257654]
+loss: 0.0021965751538584005
+pde_losses: [0.0001681198814683933, 0.0004011332749079733]
+bcs_losses: [1.2250570455250548e-6, 0.0002741628640461185, 0.00039008101801949044, 0.0001016577373967799, 0.0001900273106684039, 0.000670168010305716]
+loss: 0.0021687830946924805
+pde_losses: [0.00017638902492344536, 0.0004020469733073119]
+bcs_losses: [1.3427557775527422e-6, 0.00024733817897650207, 0.0003698782900621749, 0.0001089197251204296, 0.00018546540167319958, 0.0006774027448518646]
+loss: 0.0021146190245860163
+pde_losses: [0.0001957362695986185, 0.00040916420681564355]
+bcs_losses: [2.2876412817236343e-6, 0.00022966463307294113, 0.0003296115778454401, 0.00011964067245977069, 0.0001710507863578674, 0.0006574632371540115]
+loss: 0.0020182471846700396
+pde_losses: [0.00021052715971814936, 0.0004096926811260417]
+bcs_losses: [1.0169263133205933e-5, 0.0002114354383982405, 0.00028049955664464176, 0.00013512659841199528, 0.0001450690391173562, 0.0006157274481204087]
+loss: 0.0018555649102827872
+pde_losses: [0.0001848293646639834, 0.0004128776460024795]
+bcs_losses: [3.116638820621745e-5, 0.00018706134713057925, 0.00020430216818738935, 0.0001484954166462325, 0.00011532679951985344, 0.0005715057799260522]
+loss: 0.0016466682333728167
+pde_losses: [0.0001292333729488381, 0.00038676343243273603]
+bcs_losses: [5.786223383339327e-5, 0.0001662089456096979, 0.0001320309387698816, 0.00013550406971137136, 9.652625067269356e-5, 0.0005425389893942047]
+loss: 0.0014224924786299057
+pde_losses: [8.627579877413215e-5, 0.0002998199609001941]
+bcs_losses: [6.988586191138157e-5, 0.00016212580208636174, 9.475424742393801e-5, 0.0001093476307006292, 0.00010541984374340788, 0.0004948633330898611]
+loss: 0.001312640932628529
+pde_losses: [7.045561804947083e-5, 0.000262777783252638]
+bcs_losses: [6.249732111020645e-5, 0.0001360512186415397, 7.830541234034736e-5, 7.40675210598312e-5, 0.00013734783930810298, 0.0004911382188663926]
+loss: 0.0012864246222285963
+pde_losses: [6.586958290887932e-5, 0.0002651211285984325]
+bcs_losses: [4.558296399660248e-5, 0.00013308809744051037, 8.818018600481291e-5, 5.805747738716996e-5, 0.0001502586137042961, 0.0004802665721878928]
+loss: 0.001238550114272252
+pde_losses: [5.658204726155575e-5, 0.0002311753005759266]
+bcs_losses: [5.984597311958699e-5, 0.0001281626743517924, 8.181674790479063e-5, 6.566154858459592e-5, 0.00014157483154440066, 0.000473730990929603]
+loss: 0.0012120889632809093
+pde_losses: [4.8508051560346044e-5, 0.00022195177783145844]
+bcs_losses: [7.237396381273681e-5, 0.00011307585390367536, 7.829367248925518e-5, 6.215573575142173e-5, 0.000132182242852604, 0.00048354766507941165]
+loss: 0.001185586675454077
+pde_losses: [4.7931258996077635e-5, 0.00021108955634866367]
+bcs_losses: [9.009977939804832e-5, 9.105104556256627e-5, 7.584145868959041e-5, 5.7098519657870555e-5, 0.00012093463135172503, 0.000491540425449535]
+loss: 0.0011645926433985104
+pde_losses: [4.5769521568047224e-5, 0.00020035136609278335]
+bcs_losses: [0.00010739607486304494, 7.284713055071067e-5, 7.493183804295559e-5, 4.704502783347631e-5, 0.00011023087495977411, 0.0005060208094877182]
+loss: 0.0011506795715243553
+pde_losses: [4.035953321319844e-5, 0.00019729776023984558]
+bcs_losses: [0.00012118087154430602, 6.115478682044759e-5, 7.303155077330904e-5, 4.026525510225086e-5, 0.00010577782681825906, 0.0005116119870127387]
+loss: 0.0011395310201692734
+pde_losses: [3.45110991194766e-5, 0.00019467246802852567]
+bcs_losses: [0.00012986392212751855, 5.478835936491675e-5, 7.074194125645439e-5, 3.539067029145144e-5, 0.00010358285687022271, 0.0005159797031107072]
+loss: 0.001124469430108881
+pde_losses: [2.9812118495567456e-5, 0.00019200652584280153]
+bcs_losses: [0.0001360078608303514, 5.019051440046354e-5, 6.773753444571203e-5, 3.29293313588615e-5, 0.00010355000139629958, 0.0005122355433388238]
+loss: 0.0010990693308729628
+pde_losses: [2.434467974222702e-5, 0.00018662456275147347]
+bcs_losses: [0.00013615162170274443, 4.827025423006131e-5, 6.553706224296667e-5, 3.1839861065114994e-5, 0.00010485386636060543, 0.0005014474227777693]
+loss: 0.001065171873352288
+pde_losses: [1.978308730371083e-5, 0.00017697654953693502]
+bcs_losses: [0.00012544536098500503, 5.1219042760475945e-5, 6.733239320103122e-5, 3.5411003110572425e-5, 0.0001093975867345122, 0.0004796068497200454]
+loss: 0.0010354776595529935
+pde_losses: [1.9943695407552037e-5, 0.00016479168543811787]
+bcs_losses: [0.00010351167418107883, 5.802552894364381e-5, 7.423912509613887e-5, 3.982258711666411e-5, 0.00011247896991123652, 0.0004626643934585615]
+loss: 0.0010170377684829914
+pde_losses: [2.40018182603253e-5, 0.00014799619089361822]
+bcs_losses: [8.615400177229535e-5, 6.876729165786697e-5, 7.979852326194256e-5, 4.133912287393519e-5, 0.00011686607023738949, 0.00045211474952561826]
+loss: 0.0010094109188539427
+pde_losses: [3.0077237898705276e-5, 0.0001393257721248567]
+bcs_losses: [7.596220343298959e-5, 7.61730981191576e-5, 8.144903590628412e-5, 3.816975633211071e-5, 0.00011399057458459045, 0.00045426324045524816]
+loss: 0.0010064056685275624
+pde_losses: [2.58804042381308e-5, 0.00013865336702744362]
+bcs_losses: [7.93488765169546e-5, 7.814806039266562e-5, 7.974204623182689e-5, 3.656639989629526e-5, 0.00011237253899834242, 0.0004556939752259034]
+loss: 0.0010013083965044341
+pde_losses: [2.0583629338154702e-5, 0.00013638367873698956]
+bcs_losses: [8.347559713460226e-5, 7.88672909138982e-5, 7.811158386100087e-5, 3.4228133670703045e-5, 0.0001099619771684852, 0.00045969650568060036]
+loss: 0.0009922778348456984
+pde_losses: [1.5490128859136278e-5, 0.00013085027577643542]
+bcs_losses: [8.696102123352257e-5, 7.911170134163877e-5, 7.765281323840292e-5, 3.169388815493152e-5, 0.00010691005463115185, 0.000463607951610479]
+loss: 0.0009745236174468009
+pde_losses: [1.097211728349874e-5, 0.00011909177445026862]
+bcs_losses: [8.76482439482748e-5, 7.622264706469748e-5, 8.01169229686021e-5, 2.9516529650013874e-5, 0.00010376205611655186, 0.0004671933259648934]
+loss: 0.0009536511082121025
+pde_losses: [9.9069584035423e-6, 0.00011021998779835285]
+bcs_losses: [8.06903855837414e-5, 6.944512609796154e-5, 8.507665072159259e-5, 3.025524840743216e-5, 0.00010349962567687308, 0.0004645571255226065]
+loss: 0.0009410466276556157
+pde_losses: [8.804941597426336e-6, 0.00011313162580118721]
+bcs_losses: [6.94483207895671e-5, 6.167956764972557e-5, 8.520651609001588e-5, 3.643394339226806e-5, 0.00010824190788912024, 0.00045809980444630537]
+loss: 0.0009361306767810433
+pde_losses: [7.850498391199316e-6, 0.00011442873071274131]
+bcs_losses: [6.360583634259243e-5, 5.601852387689528e-5, 8.319271541782551e-5, 4.409956623821791e-5, 0.00011294853511844782, 0.00045398627068312373]
+loss: 0.0009346096563681823
+pde_losses: [7.76947524364869e-6, 0.00011405959819442191]
+bcs_losses: [6.318098152769036e-5, 5.499037780833258e-5, 8.269975777372321e-5, 4.616791563259579e-5, 0.0001134130623495334, 0.00045232848783823644]
+loss: 0.0009313930377279118
+pde_losses: [7.712172800039235e-6, 0.00011259792396826802]
+bcs_losses: [6.285285411697304e-5, 5.4427161527087135e-5, 8.174501746575078e-5, 4.897510538172449e-5, 0.00011453379963120181, 0.00044854900283686737]
+loss: 0.0009247419299272646
+pde_losses: [8.027164192138621e-6, 0.00010985887134600139]
+bcs_losses: [6.290253573202823e-5, 5.577153883554714e-5, 8.069885923062882e-5, 5.094147977827425e-5, 0.0001149940904176482, 0.00044154739039499794]
+loss: 0.000909023625279755
+pde_losses: [9.25750047582308e-6, 0.00010480654583339502]
+bcs_losses: [6.199307231370234e-5, 5.8234244513824646e-5, 8.049120921892571e-5, 5.377331453064232e-5, 0.00011423452739311567, 0.0004262332110003263]
+loss: 0.0008741236922758936
+pde_losses: [1.2636520623333492e-5, 9.302433467785781e-5]
+bcs_losses: [6.144647637544081e-5, 6.551671641211167e-5, 8.327580086031743e-5, 5.4581768130275096e-5, 0.00010680180274682337, 0.00039684027244973397]
+loss: 0.0007927525644326374
+pde_losses: [2.0002807827458002e-5, 5.530192334956291e-5]
+bcs_losses: [6.172170422089449e-5, 8.605730182724093e-5, 9.758358487368227e-5, 5.905703937705557e-5, 8.266842058180007e-5, 0.0003303597823749431]
+loss: 0.0007796558707923117
+pde_losses: [3.11753942853765e-5, 6.24069654054471e-5]
+bcs_losses: [6.566675953888923e-5, 0.000148312066445175, 0.00011170527545461456, 4.0298643901092004e-5, 5.553173231661402e-5, 0.0002645590334451034]
+loss: 0.0007473931058222077
+pde_losses: [1.5341318442120184e-5, 7.198855712737894e-5]
+bcs_losses: [5.179953863215106e-5, 7.25681191877798e-5, 0.00010209699541512013, 3.0397933586396016e-5, 6.32774843065674e-5, 0.00033992315912469417]
+loss: 0.0007229513196087316
+pde_losses: [8.79408059851118e-6, 4.208991556887805e-5]
+bcs_losses: [4.930336437935115e-5, 4.4254312833236055e-5, 9.969113695565697e-5, 3.776095112643714e-5, 6.712649763219365e-5, 0.00037393106051446744]
+loss: 0.0007058918257855065
+pde_losses: [1.112344779787395e-5, 4.357715396435549e-5]
+bcs_losses: [6.13942230225577e-5, 6.888372748916927e-5, 9.648030777981612e-5, 3.180453785080188e-5, 6.285099184841957e-5, 0.00032977743603251257]
+loss: 0.0006869530209143154
+pde_losses: [1.3323297443103033e-5, 3.0287175945124494e-5]
+bcs_losses: [5.635256135966143e-5, 7.249124152037348e-5, 0.00010062915791772195, 3.5667022561297403e-5, 6.226135795601832e-5, 0.0003159412062110153]
+loss: 0.0006817131197992151
+pde_losses: [1.3509977057012046e-5, 2.787066501533205e-5]
+bcs_losses: [5.373899888156763e-5, 6.134260046020913e-5, 0.00010165646272179877, 3.447211489413994e-5, 6.306144143952045e-5, 0.000326060859329635]
+loss: 0.0006751225202322453
+pde_losses: [1.4848774970424744e-5, 2.7408912769276997e-5]
+bcs_losses: [5.3582265597647096e-5, 5.605606623537732e-5, 0.0001035796796297125, 3.237551116344311e-5, 6.341343569419253e-5, 0.000323857874172171]
+loss: 0.0006645736247355056
+pde_losses: [1.8016818223478394e-5, 2.926846017434702e-5]
+bcs_losses: [5.429548247590612e-5, 5.400465744513904e-5, 0.00010779439734426886, 3.168922013034141e-5, 6.397270307103332e-5, 0.00030553188587099147]
+loss: 0.000656086679827103
+pde_losses: [2.0511242389463912e-5, 2.93812199225162e-5]
+bcs_losses: [5.821440222109063e-5, 5.669376631998644e-5, 0.00011288118772184133, 3.134886156380615e-5, 6.417122541271114e-5, 0.00028288477427568725]
+loss: 0.0006498807302306373
+pde_losses: [2.5894754448818475e-5, 3.074319542663521e-5]
+bcs_losses: [5.832962241967075e-5, 5.8870145000927976e-5, 0.00011810828355105743, 3.452292548180651e-5, 6.481166782171087e-5, 0.00025860013608001005]
+loss: 0.0006414426630966285
+pde_losses: [2.781404182140651e-5, 3.2683278898645476e-5]
+bcs_losses: [6.0105759961014204e-5, 5.630891194327738e-5, 0.00012106919315722402, 3.668348128243964e-5, 6.290047513698795e-5, 0.00024387752089563325]
+loss: 0.0006354766267917599
+pde_losses: [3.589549703724285e-5, 3.900166704715296e-5]
+bcs_losses: [6.439478802520642e-5, 5.2601622539235406e-5, 0.00012468250754432415, 4.253548256656873e-5, 6.452818937034937e-5, 0.00021183687266168]
+loss: 0.0006021564529284898
+pde_losses: [3.320435852596477e-5, 3.0021883030763347e-5]
+bcs_losses: [5.927955536421314e-5, 4.148545959168943e-5, 0.00011327956073922741, 3.7466336755237916e-5, 6.15531657887275e-5, 0.00022586613313266624]
+loss: 0.0005571378553438848
+pde_losses: [4.534934467616262e-5, 3.148175401520238e-5]
+bcs_losses: [5.3215187648663506e-5, 3.977338906169688e-5, 9.19704042924721e-5, 3.616953499521348e-5, 6.016353577378223e-5, 0.00019901470488069162]
+loss: 0.0005359608899175286
+pde_losses: [5.009540721500613e-5, 3.057789768124382e-5]
+bcs_losses: [5.069498703272142e-5, 3.43929824398299e-5, 8.258574311467854e-5, 3.729913464355829e-5, 5.770019845052587e-5, 0.00019261453933996467]
+loss: 0.0005071717703043176
+pde_losses: [5.743301935500657e-5, 2.8511590728482022e-5]
+bcs_losses: [4.84240381178451e-5, 3.0560211955972697e-5, 6.92605802504077e-5, 3.753355770724652e-5, 5.268506423742947e-5, 0.00018276370795192743]
+loss: 0.00047586524377417675
+pde_losses: [9.39246221788609e-5, 5.82119582788464e-5]
+bcs_losses: [4.340592452106278e-5, 9.549806120919948e-6, 2.5026837686588377e-5, 4.299108416360807e-5, 3.672249510791625e-5, 0.00016603251571637402]
+loss: 0.0004597827638578041
+pde_losses: [8.750820690784659e-5, 3.876144522241469e-5]
+bcs_losses: [4.445853337129115e-5, 8.262660607373827e-6, 2.680775957812675e-5, 3.744526999039926e-5, 3.846370059072668e-5, 0.00017807518758962518]
+loss: 0.00044537842927109953
+pde_losses: [8.749310163397321e-5, 3.401740582041567e-5]
+bcs_losses: [4.3609385044341425e-5, 2.1455095872829953e-5, 2.8729138875617385e-5, 3.5255736026098454e-5, 3.7930329109030804e-5, 0.0001568882368887926]
+loss: 0.0004413253162946109
+pde_losses: [9.060897222038461e-5, 3.388945805502701e-5]
+bcs_losses: [4.2072991841922266e-5, 2.348773410158798e-5, 2.8374799017859126e-5, 3.299795277163829e-5, 3.72742856483903e-5, 0.0001526191226378013]
+loss: 0.0004350085162180165
+pde_losses: [9.778864225492645e-5, 3.450454324532353e-5]
+bcs_losses: [3.74995613705875e-5, 2.330525849428282e-5, 2.617472312599491e-5, 2.8261391527793774e-5, 3.839748305888915e-5, 0.00014907691314021835]
+loss: 0.00042916359400992196
+pde_losses: [0.00010090712390401085, 3.367230729838448e-5]
+bcs_losses: [3.491661380958217e-5, 2.7052096124025295e-5, 2.4385944422256407e-5, 2.3187796432768e-5, 3.9997037643450663e-5, 0.0001450446743754441]
+loss: 0.000417327020477544
+pde_losses: [9.844413221265266e-5, 3.061942909058073e-5]
+bcs_losses: [2.8050697705771607e-5, 2.8035146243759044e-5, 2.378741730771037e-5, 1.835829211799201e-5, 4.5232252594475796e-5, 0.00014479965320460174]
+loss: 0.0003970600419441826
+pde_losses: [8.436885862824255e-5, 2.537829361913328e-5]
+bcs_losses: [2.334390355598789e-5, 3.2906469110785895e-5, 2.287010733029623e-5, 1.3536834047265023e-5, 5.169622653215035e-5, 0.00014295934912032137]
+loss: 0.00036511354169677264
+pde_losses: [5.80115702568149e-5, 2.3134619433972708e-5]
+bcs_losses: [1.5917146359586567e-5, 3.0488752586076818e-5, 2.2563117609759043e-5, 1.1866960099387475e-5, 6.157162012813135e-5, 0.00014155975522304377]
+loss: 0.0003336284626059767
+pde_losses: [3.3962188264758334e-5, 2.6628375531910086e-5]
+bcs_losses: [1.5214330071720512e-5, 2.722623369857336e-5, 2.10529904547884e-5, 1.1880872554305813e-5, 6.189376739214179e-5, 0.00013576970463777835]
+loss: 0.00031919018069513584
+pde_losses: [2.053197352443948e-5, 4.405266199400555e-5]
+bcs_losses: [1.597110969879042e-5, 1.834476659606548e-5, 1.9880747194953624e-5, 1.7811007406447955e-5, 5.397659051199091e-5, 0.00012862132376844244]
+loss: 0.000315468597802199
+pde_losses: [1.7831809175284628e-5, 4.7748392632262997e-5]
+bcs_losses: [1.737151308191272e-5, 1.3705224435192294e-5, 1.5881844035046416e-5, 2.8709776731283295e-5, 5.913039755357065e-5, 0.000115089640157646]
+loss: 0.00030225971071014843
+pde_losses: [1.905022805056102e-5, 3.383607897190937e-5]
+bcs_losses: [1.8460992478137617e-5, 1.6207255955085725e-5, 1.7380021893516046e-5, 1.950648009294928e-5, 5.4614731462598156e-5, 0.0001232039218053912]
+loss: 0.000296723189251537
+pde_losses: [1.8967782880379732e-5, 3.3156273301510504e-5]
+bcs_losses: [1.833503323405489e-5, 1.673185008249005e-5, 1.6347838145451353e-5, 1.8255279294748316e-5, 5.500547057962516e-5, 0.00011992366173327698]
+loss: 0.0002685793403556465
+pde_losses: [1.8690422460008073e-5, 3.839430954486759e-5]
+bcs_losses: [1.8442108594043463e-5, 1.92491610447313e-5, 1.1342184179940133e-5, 1.2172585385443386e-5, 5.116134954646063e-5, 9.912721960015193e-5]
+loss: 0.0002603092001088607
+pde_losses: [2.1213378667850902e-5, 3.210663180142536e-5]
+bcs_losses: [1.9025099529573045e-5, 1.9035059395658002e-5, 1.1423141863351333e-5, 1.059005536714928e-5, 4.9159020558939216e-5, 9.775681292491359e-5]
+loss: 0.00025594124274644814
+pde_losses: [2.655641042004245e-5, 3.476496359470274e-5]
+bcs_losses: [1.8644059442903057e-5, 1.835964454441091e-5, 1.0553162258988528e-5, 1.1114350989176228e-5, 4.690601607486675e-5, 8.904263542135749e-5]
+loss: 0.000253059327500756
+pde_losses: [2.975083442985886e-5, 3.609662893868409e-5]
+bcs_losses: [1.8193099444929325e-5, 1.7444245087118123e-5, 1.041182881726275e-5, 1.120368255798004e-5, 4.482736157386529e-5, 8.51316466510575e-5]
+loss: 0.000247972378158755
+pde_losses: [3.414914736298574e-5, 3.859774171758653e-5]
+bcs_losses: [1.679515761620971e-5, 1.5974623004399537e-5, 9.88736824885751e-6, 1.2138452079316276e-5, 4.250613173494583e-5, 7.792375639445386e-5]
+loss: 0.00024219856734060825
+pde_losses: [3.4386644407227584e-5, 4.202990560828702e-5]
+bcs_losses: [1.5759245507383567e-5, 1.3421451113062133e-5, 9.350340703089624e-6, 1.1737711416547649e-5, 4.06504311774635e-5, 7.486283740754718e-5]
+loss: 0.00023485865184435647
+pde_losses: [3.0398981869328467e-5, 4.951659722083633e-5]
+bcs_losses: [1.4385609713438397e-5, 1.2648500656470988e-5, 8.320355838351728e-6, 1.330890008322613e-5, 3.966006509417469e-5, 6.661964136852974e-5]
+loss: 0.00022682070353276747
+pde_losses: [2.1511006140158614e-5, 5.5996979030670536e-5]
+bcs_losses: [1.2766495545887378e-5, 1.0777630386859516e-5, 8.227553307708219e-6, 1.2663307831050503e-5, 3.995556558170463e-5, 6.492216570872808e-5]
+loss: 0.0002261733490589725
+pde_losses: [1.81619413162118e-5, 7.698220320409436e-5]
+bcs_losses: [1.2706009362047748e-5, 9.72823536821214e-6, 6.75940338398863e-6, 1.3399721729241973e-5, 3.653869257648674e-5, 5.189714211868913e-5]
+loss: 0.0002130063113200875
+pde_losses: [1.8190238618968982e-5, 6.0717795359813514e-5]
+bcs_losses: [1.0935952281784987e-5, 1.12557994329774e-5, 7.1732006345210165e-6, 1.2868595593784482e-5, 3.849797307578401e-5, 5.3366756322453115e-5]
+loss: 0.00020341189816618386
+pde_losses: [1.8444343097582705e-5, 6.104603237139739e-5]
+bcs_losses: [9.250177620522893e-6, 1.0772039639080705e-5, 6.7835460815555555e-6, 1.1390404200138687e-5, 3.768074345360157e-5, 4.8044611702304325e-5]
+loss: 0.00018477854948825419
+pde_losses: [2.0380073226652702e-5, 7.001123963164816e-5]
+bcs_losses: [6.580987830599668e-6, 9.96092690209933e-6, 6.063374736881294e-6, 6.548770047452851e-6, 3.197326989158165e-5, 3.3259907221338534e-5]
+loss: 0.00017866896673005708
+pde_losses: [1.7913131520051075e-5, 7.677997676883619e-5]
+bcs_losses: [4.457069987846808e-6, 8.671922657290612e-6, 4.522245330655328e-6, 6.1189212550538574e-6, 3.3036668921030864e-5, 2.716903028929235e-5]
+loss: 0.00017453567896464373
+pde_losses: [1.7227284157391966e-5, 7.391515203902316e-5]
+bcs_losses: [4.076794019132397e-6, 6.870982494555534e-6, 4.366177240508274e-6, 5.125973734925387e-6, 3.371332948604501e-5, 2.9239985793061987e-5]
+loss: 0.00016692232868328682
+pde_losses: [1.6197257206963197e-5, 7.928558552470003e-5]
+bcs_losses: [3.7244055991086468e-6, 8.039655676954441e-6, 3.824772368349301e-6, 4.75933334879908e-6, 3.0215003227462793e-5, 2.0876315730949338e-5]
+loss: 0.0001623764483777539
+pde_losses: [1.568217742789018e-5, 8.716792692976655e-5]
+bcs_losses: [3.2207296613593366e-6, 6.575916948892764e-6, 3.10709168406058e-6, 4.702126121618353e-6, 2.725192804436044e-5, 1.4668551559805704e-5]
+loss: 0.00015628043592581434
+pde_losses: [1.5438326934416788e-5, 8.576795432311106e-5]
+bcs_losses: [3.1666871973248703e-6, 5.6469464798311e-6, 2.761118317463033e-6, 5.55094010623269e-6, 2.6480888085229353e-5, 1.1467574482205454e-5]
+loss: 0.00015470918076558048
+pde_losses: [1.4432284453302179e-5, 9.001506214266574e-5]
+bcs_losses: [3.7035587913534653e-6, 5.642215936169334e-6, 1.82934409424496e-6, 5.336997878661137e-6, 2.5042422309955626e-5, 8.707295159228049e-6]
+loss: 0.00015232635968298545
+pde_losses: [1.4182706541905888e-5, 9.058385693767281e-5]
+bcs_losses: [2.818243781025896e-6, 4.6195017956229015e-6, 1.8704253126093403e-6, 4.9571435822677415e-6, 2.496363820265801e-5, 8.33084352922287e-6]
+loss: 0.00015156193271732564
+pde_losses: [1.4172411669915285e-5, 8.88503143662768e-5]
+bcs_losses: [2.35559732185007e-6, 4.1142543812156946e-6, 2.2257899383659712e-6, 5.115845137850303e-6, 2.5587152520408508e-5, 9.140567381443016e-6]
+loss: 0.00015021763847313457
+pde_losses: [1.3837589898886811e-5, 9.024751696571952e-5]
+bcs_losses: [1.961392007860223e-6, 4.998578843672381e-6, 2.142365734147932e-6, 4.530837055744118e-6, 2.5056235126484426e-5, 7.443122840619158e-6]
+loss: 0.00014888844441094247
+pde_losses: [1.3497136971928208e-5, 9.178142681093431e-5]
+bcs_losses: [1.4389289635778076e-6, 4.594162123650276e-6, 1.9781072388268104e-6, 4.534924344933662e-6, 2.4874030349278106e-5, 6.189727607813278e-6]
+loss: 0.00014635361670297786
+pde_losses: [1.3258067913505481e-5, 8.982384816301428e-5]
+bcs_losses: [1.1410504401847419e-6, 5.011175681125881e-6, 1.9849751423843224e-6, 4.561200747515537e-6, 2.52929581876716e-5, 5.280340427575997e-6]
+loss: 0.00013677900186514938
+pde_losses: [1.200080715580658e-5, 8.119981076251108e-5]
+bcs_losses: [9.393175882970137e-7, 4.74187509312464e-6, 2.2851395575009533e-6, 5.201121142671988e-6, 2.721866821289086e-5, 3.192262352346272e-6]
+loss: 0.0001273535853626378
+pde_losses: [1.132724143397569e-5, 7.15956576234746e-5]
+bcs_losses: [1.991401459827742e-6, 4.288413550230537e-6, 2.623868175817518e-6, 3.7219326932908425e-6, 2.9110388241660355e-5, 2.6946821843605243e-6]
+loss: 0.00011455747581106657
+pde_losses: [1.1702873999696987e-5, 5.4871353032554874e-5]
+bcs_losses: [3.6461012313463078e-6, 3.6356768067488056e-6, 3.570568831298432e-6, 2.6348961159249083e-6, 3.2492896608500207e-5, 2.0031091849960436e-6]
+loss: 0.00011164154408894143
+pde_losses: [1.162255439184519e-5, 5.07463833839997e-5]
+bcs_losses: [4.086655745300425e-6, 3.847290525730308e-6, 3.7847381718184126e-6, 1.8551745103681768e-6, 3.347035087378308e-5, 2.228396486096131e-6]
+loss: 0.00010580719455361233
+pde_losses: [1.1852225393078915e-5, 4.35853534978226e-5]
+bcs_losses: [3.761733051996733e-6, 3.2658886115998973e-6, 4.45887588242101e-6, 1.1982389202869307e-6, 3.491951048752085e-5, 2.7653687088853966e-6]
+loss: 9.833827158784323e-5
+pde_losses: [9.80119095499863e-6, 3.2862464744361936e-5]
+bcs_losses: [2.631080676697821e-6, 5.805597308121971e-6, 4.093381072773475e-6, 1.4606695738682944e-6, 3.2589436383290196e-5, 9.094450873730905e-6]
+loss: 9.176711756879761e-5
+pde_losses: [9.935196675761593e-6, 3.447545932438721e-5]
+bcs_losses: [1.2169129829174045e-6, 3.874310737588922e-6, 4.25647891453655e-6, 8.297392590670149e-7, 3.141733292581737e-5, 5.761686748721538e-6]
+loss: 8.64159651492979e-5
+pde_losses: [1.1592334227636475e-5, 2.5267288002353486e-5]
+bcs_losses: [1.3233622752895584e-6, 2.2841697925260894e-6, 5.827878017774636e-6, 1.0034517255030216e-6, 3.3781306395592824e-5, 5.3361747126218175e-6]
+loss: 8.157050998907057e-5
+pde_losses: [1.2014672605331188e-5, 2.298276172926527e-5]
+bcs_losses: [1.31833357874181e-6, 3.2533673500981423e-6, 5.046378529474604e-6, 1.0802446817939998e-6, 3.0928617442772006e-5, 4.946134071593547e-6]
+loss: 7.739744870712868e-5
+pde_losses: [1.148070825245603e-5, 2.2720890986812205e-5]
+bcs_losses: [1.0522197567117899e-6, 4.032115413151669e-6, 4.466871583276774e-6, 1.369033251115361e-6, 2.7413501933004485e-5, 4.862107530600363e-6]
+loss: 7.579369837402437e-5
+pde_losses: [1.0591692838936702e-5, 2.4300464791732708e-5]
+bcs_losses: [1.1782582851558104e-6, 2.938350468009647e-6, 4.111265522500161e-6, 1.7644542478664147e-6, 2.58781506790413e-5, 5.031061540781619e-6]
+loss: 7.434138490680078e-5
+pde_losses: [1.03827056774548e-5, 2.343280909061409e-5]
+bcs_losses: [1.0572384459314978e-6, 2.777870217431532e-6, 4.815238857114119e-6, 1.4812241028177539e-6, 2.632729729354483e-5, 4.067001221892148e-6]
+loss: 7.339168436436813e-5
+pde_losses: [1.0006931702808702e-5, 2.2443327108663664e-5]
+bcs_losses: [1.0576778638575039e-6, 2.4962293360945e-6, 5.307472137014586e-6, 1.4097744726744383e-6, 2.670866543430407e-5, 3.96160630895066e-6]
+loss: 7.251955484672056e-5
+pde_losses: [9.688224552200006e-6, 2.2375057586972996e-5]
+bcs_losses: [1.0394430935999243e-6, 2.4681850986667753e-6, 5.176202694825956e-6, 1.297510483171185e-6, 2.6723720567886607e-5, 3.7512107693971096e-6]
+loss: 7.149862730877884e-5
+pde_losses: [9.563949312618222e-6, 2.2470906142783146e-5]
+bcs_losses: [9.426601998354523e-7, 2.316417459098636e-6, 4.748706799830494e-6, 1.184072122607763e-6, 2.6149760187464663e-5, 4.122155084540457e-6]
+loss: 7.007924039662352e-5
+pde_losses: [9.504361074072166e-6, 2.353695244517497e-5]
+bcs_losses: [6.440413410557344e-7, 2.788313611659505e-6, 3.6454134026791336e-6, 1.0491973547663045e-6, 2.4627960141488237e-5, 4.283001025727473e-6]
+loss: 6.909505601046444e-5
+pde_losses: [9.57927057748096e-6, 2.3995007949319635e-5]
+bcs_losses: [5.299563455204394e-7, 3.006825987488218e-6, 2.7172008822427576e-6, 1.146094321886066e-6, 2.3220253542782436e-5, 4.900446403743939e-6]
+loss: 6.840678533841124e-5
+pde_losses: [9.562119291798225e-6, 2.3970702656502247e-5]
+bcs_losses: [5.6815673479848e-7, 3.5541724994152415e-6, 2.2624225779985216e-6, 1.0969952921516908e-6, 2.2627930374597806e-5, 4.76428591114904e-6]
+loss: 6.759998117273532e-5
+pde_losses: [9.79235747727993e-6, 2.3224737431771307e-5]
+bcs_losses: [6.255428539441788e-7, 3.3578325682105714e-6, 2.017771332369722e-6, 1.0436380951210108e-6, 2.2353206542343085e-5, 5.184894871695521e-6]
+loss: 6.62662722957965e-5
+pde_losses: [1.0002626908133361e-5, 2.1468736645814384e-5]
+bcs_losses: [7.157408597097872e-7, 3.208616137830384e-6, 1.967103806827501e-6, 8.488096538696488e-7, 2.270752688743037e-5, 5.347111396181067e-6]
+loss: 6.455331269721657e-5
+pde_losses: [9.776144156194927e-6, 1.928150911242083e-5]
+bcs_losses: [8.282079837351158e-7, 3.0863902057161847e-6, 2.0439049783691315e-6, 8.280932623835495e-7, 2.30739700575592e-5, 5.635092940837628e-6]
+loss: 6.298806359155451e-5
+pde_losses: [9.251614909055242e-6, 1.690468053961431e-5]
+bcs_losses: [9.619779202197377e-7, 2.8109331262792877e-6, 2.4135792103703777e-6, 1.0234928158915014e-6, 2.3959657227054255e-5, 5.662127843069797e-6]
+loss: 6.205164827161771e-5
+pde_losses: [8.668949348106072e-6, 1.579171994946121e-5]
+bcs_losses: [9.072462629508707e-7, 3.065554545994743e-6, 2.47772456355874e-6, 1.5422772756582324e-6, 2.353978476161861e-5, 6.0583915642692334e-6]
+loss: 6.125531641157596e-5
+pde_losses: [8.43996451106115e-6, 1.5099333671891264e-5]
+bcs_losses: [7.813015973101153e-7, 2.8890971439079824e-6, 2.772043100616162e-6, 1.9248150222987386e-6, 2.3735209850506664e-5, 5.613551513983888e-6]
+loss: 6.078872735697507e-5
+pde_losses: [8.18715639094792e-6, 1.5053212118820946e-5]
+bcs_losses: [6.716579218414686e-7, 2.8735132493708736e-6, 2.8373045864861646e-6, 2.0466361111869273e-6, 2.3453516371850634e-5, 5.66573060647014e-6]
+loss: 5.999899907933743e-5
+pde_losses: [7.543998548860293e-6, 1.5173643620290136e-5]
+bcs_losses: [5.310973975093579e-7, 2.9925047797021804e-6, 3.0281554325581733e-6, 2.018595804487616e-6, 2.2986789347777394e-5, 5.724214148152281e-6]
+loss: 5.963671150035617e-5
+pde_losses: [7.251833139776951e-6, 1.5066454420335322e-5]
+bcs_losses: [4.927734719265855e-7, 2.9465289256040275e-6, 3.160786550002471e-6, 1.8730434723099718e-6, 2.3039508689798767e-5, 5.80578283060208e-6]
+loss: 5.9048390220561736e-5
+pde_losses: [6.915554389209031e-6, 1.4756859287728255e-5]
+bcs_losses: [4.5399528308380296e-7, 2.9444350562017343e-6, 3.200615653506464e-6, 1.648964534924056e-6, 2.3255687857854206e-5, 5.872278158054183e-6]
+loss: 5.848309702604448e-5
+pde_losses: [6.787243837386154e-6, 1.4403371234482427e-5]
+bcs_losses: [4.378885682346982e-7, 2.89541632974957e-6, 3.065051543777117e-6, 1.5499302888613477e-6, 2.3412124802466178e-5, 5.932070421086986e-6]
+loss: 5.7578504980895895e-5
+pde_losses: [6.7330395588583776e-6, 1.4015672595672292e-5]
+bcs_losses: [4.4673852314866993e-7, 2.8768697333317232e-6, 2.6569495252352087e-6, 1.5254613028476389e-6, 2.3287830692842173e-5, 6.035943048959807e-6]
+loss: 5.6506645968826095e-5
+pde_losses: [6.66184192673481e-6, 1.3887378496476454e-5]
+bcs_losses: [4.7440687217782123e-7, 2.8249499953361823e-6, 2.1872028489487283e-6, 1.556604705248785e-6, 2.2623752236635094e-5, 6.290508887268218e-6]
+loss: 5.525704995108225e-5
+pde_losses: [6.407671915776971e-6, 1.4118197967622353e-5]
+bcs_losses: [5.454502122169211e-7, 2.8830268627662074e-6, 1.7189935447296654e-6, 1.532684580314847e-6, 2.1283742617705447e-5, 6.767282249949834e-6]
+loss: 5.3828842124122416e-5
+pde_losses: [5.835196884668798e-6, 1.4615991688905773e-5]
+bcs_losses: [7.472451811071708e-7, 2.887135301671783e-6, 1.390607542152743e-6, 1.305493003681196e-6, 1.9641097662038095e-5, 7.406074859896854e-6]
+loss: 5.212002701391859e-5
+pde_losses: [4.935977914958425e-6, 1.4967727839800048e-5]
+bcs_losses: [1.295571558077521e-6, 3.0757840417341597e-6, 1.1343913094217794e-6, 8.450949051126774e-7, 1.7703267227005626e-5, 8.162212217808355e-6]
+loss: 5.121473574163445e-5
+pde_losses: [4.355819878183579e-6, 1.6072708842050863e-5]
+bcs_losses: [1.5950491560426144e-6, 2.647706208686912e-6, 9.594763342721851e-7, 5.361376174284507e-7, 1.6693359179567793e-5, 8.354478525402046e-6]
+loss: 4.921695016514979e-5
+pde_losses: [3.7118367300957327e-6, 1.573081616895928e-5]
+bcs_losses: [2.3038597243146982e-6, 2.757109051974973e-6, 7.367204507705803e-7, 3.2326206261529136e-7, 1.5240404211761847e-5, 8.412941764657391e-6]
+loss: 4.796389701539084e-5
+pde_losses: [3.604354647946716e-6, 1.5950470252838038e-5]
+bcs_losses: [1.974289269180064e-6, 2.6880555644632464e-6, 6.089159491126549e-7, 3.940228592370892e-7, 1.5133618245526841e-5, 7.610170227086195e-6]
+loss: 4.6208165655062166e-5
+pde_losses: [3.6460936294685017e-6, 1.6667255791955e-5]
+bcs_losses: [1.127392335114531e-6, 3.518190567697863e-6, 4.709152669170695e-7, 6.706777054528883e-7, 1.5264377340606168e-5, 4.843263017850141e-6]
+loss: 4.544304187354517e-5
+pde_losses: [3.665508594510408e-6, 1.6320210172271666e-5]
+bcs_losses: [8.399416329535332e-7, 3.2952147434626524e-6, 5.408581265318733e-7, 7.79983672738034e-7, 1.5409967199012633e-5, 4.591357732064368e-6]
+loss: 4.456079532132272e-5
+pde_losses: [3.739578078144769e-6, 1.567626201688165e-5]
+bcs_losses: [7.633472513162635e-7, 3.4797874396947068e-6, 6.183476151323162e-7, 8.331957359370973e-7, 1.557995996893544e-5, 3.870317215280478e-6]
+loss: 4.433443870463955e-5
+pde_losses: [3.786096060086631e-6, 1.578365274824983e-5]
+bcs_losses: [8.355976346301833e-7, 3.844261536641917e-6, 5.745387167483395e-7, 1.0035104104940045e-6, 1.5031279201655748e-5, 3.4755023961328963e-6]
+loss: 4.423338197195378e-5
+pde_losses: [3.870677448270293e-6, 1.5720016823160597e-5]
+bcs_losses: [8.833467785626297e-7, 3.830882182825184e-6, 5.82255239310998e-7, 1.033844346407361e-6, 1.4749982468675729e-5, 3.5623766847409875e-6]
+loss: 4.416040079319059e-5
+pde_losses: [3.921115610451686e-6, 1.5678192704288553e-5]
+bcs_losses: [8.497563728659517e-7, 3.8545984459848025e-6, 5.863254332699782e-7, 1.0687836852430998e-6, 1.4641277451752939e-5, 3.5603510893335804e-6]
+loss: 4.405537388553249e-5
+pde_losses: [3.9291982963341e-6, 1.577452132523829e-5]
+bcs_losses: [9.030127007444263e-7, 3.881396303122818e-6, 5.374506485327227e-7, 1.139969872866498e-6, 1.4256396530014033e-5, 3.6334282086796025e-6]
+loss: 4.3913763965924794e-5
+pde_losses: [3.947179000635426e-6, 1.5878781126710067e-5]
+bcs_losses: [8.97330243781365e-7, 3.8830772995743596e-6, 4.968309037611303e-7, 1.22677731526025e-6, 1.400166918077793e-5, 3.5821188954242687e-6]
+loss: 4.373407585142776e-5
+pde_losses: [3.887055025944672e-6, 1.60320350157869e-5]
+bcs_losses: [9.457183744427889e-7, 3.88938152965683e-6, 4.2661922802966404e-7, 1.3186636722954566e-6, 1.37169369349924e-5, 3.5176660702790433e-6]
+loss: 4.3455564367846174e-5
+pde_losses: [3.813290103177442e-6, 1.6150800637127725e-5]
+bcs_losses: [1.0157948814943217e-6, 3.911161831386986e-6, 3.62722466912521e-7, 1.4444687843758458e-6, 1.3397757479815128e-5, 3.3595681835562045e-6]
+loss: 4.297998069592117e-5
+pde_losses: [3.705141251929861e-6, 1.6166735304893536e-5]
+bcs_losses: [1.122187186996737e-6, 3.917826149219564e-6, 3.049616142896384e-7, 1.6106790682656075e-6, 1.3015004595741644e-5, 3.13744552458458e-6]
+loss: 4.201403617378002e-5
+pde_losses: [3.6388154805310753e-6, 1.5881756351032267e-5]
+bcs_losses: [1.2916702726873408e-6, 3.8996228716415025e-6, 2.4514544568073993e-7, 1.9472623363181004e-6, 1.2319320507890876e-5, 2.7904429079981092e-6]
+loss: 4.043959559404483e-5
+pde_losses: [3.6925491465525293e-6, 1.506837652828559e-5]
+bcs_losses: [1.4012261730343997e-6, 3.822657693759826e-6, 1.8874228974628026e-7, 2.5207849505195517e-6, 1.139363970242307e-5, 2.351619109723587e-6]
+loss: 3.815555458910449e-5
+pde_losses: [3.936451407372609e-6, 1.3100450357786884e-5]
+bcs_losses: [1.233833059019799e-6, 3.7725055096393175e-6, 1.560478766887994e-7, 3.386510208851295e-6, 1.0408167703796623e-5, 2.161588465949163e-6]
+loss: 3.762949130345302e-5
+pde_losses: [3.8220791574386825e-6, 1.3608809574906612e-5]
+bcs_losses: [8.804193762359737e-7, 3.4020025054674558e-6, 2.3262521386344756e-7, 3.374436197065289e-6, 1.0527291334055912e-5, 1.7818279444196508e-6]
+loss: 3.610486288218353e-5
+pde_losses: [3.60101169478088e-6, 1.2049829270777206e-5]
+bcs_losses: [4.622984451149112e-7, 3.151305334364691e-6, 3.2556688498058087e-7, 3.114017414589437e-6, 1.1570331865629577e-5, 1.830501971946249e-6]
+loss: 3.488176722297346e-5
+pde_losses: [3.984839235202966e-6, 1.0488183825868537e-5]
+bcs_losses: [5.306377444539391e-7, 3.288047813116857e-6, 3.285846069921429e-7, 3.479045232433422e-6, 1.0757605580220558e-5, 2.024823184685042e-6]
+loss: 3.418560431554146e-5
+pde_losses: [3.930853839464914e-6, 1.0467723053789487e-5]
+bcs_losses: [6.749570172694637e-7, 2.886600472149957e-6, 3.4273328774430136e-7, 3.3699645121527183e-6, 1.0580614620718088e-5, 1.9321575122525297e-6]
+loss: 3.3735760307526676e-5
+pde_losses: [3.84557363906352e-6, 1.0153353241013875e-5]
+bcs_losses: [7.04426296956032e-7, 2.755233702358441e-6, 3.169181324832656e-7, 3.3217621269519415e-6, 1.065208397380293e-5, 1.9864091948966744e-6]
+loss: 3.323780105170764e-5
+pde_losses: [3.8232066891965854e-6, 9.80284811609915e-6]
+bcs_losses: [6.492772755932954e-7, 2.443013651256743e-6, 3.359335052606921e-7, 3.294414001258198e-6, 1.0800525843363297e-5, 2.0885819696796757e-6]
+loss: 3.231344584745347e-5
+pde_losses: [3.728467231048813e-6, 9.2787472309249e-6]
+bcs_losses: [7.432612627739681e-7, 1.7380309596219175e-6, 4.2785575362683066e-7, 3.2411382402919638e-6, 1.0885832025295312e-5, 2.2701131438697694e-6]
+loss: 3.209530751467379e-5
+pde_losses: [3.674284021434276e-6, 9.073570308420675e-6]
+bcs_losses: [7.608057674539611e-7, 1.6024266329796774e-6, 4.7229252478034864e-7, 3.198096283534282e-6, 1.1018437185769584e-5, 2.2953947903009864e-6]
+loss: 3.1980202279831376e-5
+pde_losses: [3.6304375002561073e-6, 9.010643435886765e-6]
+bcs_losses: [7.901807367528193e-7, 1.693444171417448e-6, 5.194545491205844e-7, 3.1395338419290465e-6, 1.0999143497277779e-5, 2.1973645471908286e-6]
+loss: 3.190956042463615e-5
+pde_losses: [3.6762883260296356e-6, 8.844891568148899e-6]
+bcs_losses: [7.549689186537593e-7, 1.6397402791092828e-6, 5.47830490805891e-7, 3.1830624201768458e-6, 1.1086509995159376e-5, 2.1762684265524656e-6]
+loss: 3.183105164588121e-5
+pde_losses: [3.728022624710616e-6, 8.719083573604208e-6]
+bcs_losses: [7.236113196261389e-7, 1.559902229158868e-6, 5.157446275291996e-7, 3.2585517994058497e-6, 1.1121986576616692e-5, 2.204148895229632e-6]
+loss: 3.164985847606219e-5
+pde_losses: [3.953377579265879e-6, 8.400488133157981e-6]
+bcs_losses: [7.029266669289141e-7, 1.366135409657424e-6, 5.16745867187824e-7, 3.5853652423023157e-6, 1.0872657327016393e-5, 2.2521622505454573e-6]
+loss: 3.155670174146461e-5
+pde_losses: [4.0865262297589745e-6, 8.211042293193543e-6]
+bcs_losses: [6.956183236644542e-7, 1.3292289825481519e-6, 5.516508568215253e-7, 3.7506681418495485e-6, 1.0684220145195108e-5, 2.2477467684333005e-6]
+loss: 3.1489198792522966e-5
+pde_losses: [4.30953402284092e-6, 7.947378284101142e-6]
+bcs_losses: [7.554845677523355e-7, 1.2736896274922324e-6, 7.005459367144648e-7, 3.971182828079954e-6, 1.0295222739688455e-5, 2.2361607858534643e-6]
+loss: 3.1430817864541285e-5
+pde_losses: [4.323172701983305e-6, 7.966127731425568e-6]
+bcs_losses: [8.018318888849584e-7, 1.3448713128722397e-6, 7.678730885658227e-7, 3.905517286912399e-6, 1.0100846937150325e-5, 2.220576916746665e-6]
+loss: 3.1398821715049194e-5
+pde_losses: [4.335543462275729e-6, 7.92500228746765e-6]
+bcs_losses: [8.110695285975348e-7, 1.344712676646562e-6, 8.057045240400726e-7, 3.85212616192251e-6, 1.0085268471431598e-5, 2.239394602667535e-6]
+loss: 3.132792633954546e-5
+pde_losses: [4.373881188947229e-6, 7.820781596220259e-6]
+bcs_losses: [8.380879918714174e-7, 1.3261857821890616e-6, 9.302362939218918e-7, 3.7086431753236974e-6, 1.0017638308334197e-5, 2.312472002737712e-6]
+loss: 3.125334789774027e-5
+pde_losses: [4.3419460644952095e-6, 7.758811180549182e-6]
+bcs_losses: [8.421132435339865e-7, 1.3003428634934333e-6, 9.859980739801722e-7, 3.5957531756099125e-6, 1.0034008496203807e-5, 2.3943747998745688e-6]</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="e9f06045.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="0d4a121d.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nonlinear_elliptic/">« Nonlinear elliptic system of PDEs</a><a class="docs-footer-nextpage" href="../complex/">Complex Equations with PINNs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Monday 7 September 2026 11:22">Monday 7 September 2026</span>. Using Julia version 1.12.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
