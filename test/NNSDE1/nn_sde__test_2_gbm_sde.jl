@@ -1,8 +1,10 @@
 using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
+include("../helpers/gbm_reference.jl")
+
 @testset "Test-2 GBM SDE" begin
-    using OrdinaryDiffEq, Random, Lux, Optimisers, DiffEqNoiseProcess, Distributions
+    using OrdinaryDiffEq, Random, Lux, Optimisers, Distributions
     using MonteCarloMeasurements: Particles, pmean
     Random.seed!(100)
 
@@ -43,7 +45,6 @@ using Test
     u1 = sol_1.estimated_sol[1]
     u2 = sol_2.estimated_sol[1]
 
-    analytic_sol(u0, p, t, W) = u0 * exp((α - β^2 / 2) * t + β * W)
     function W_kkl(t, z1, z2, z3)
         √2 * (
             z1 * sin((1 - 1 / 2) * π * t) / ((1 - 1 / 2) * π) +
@@ -63,13 +64,6 @@ using Test
     z3_samples = rand(Normal(0, 1), num_samples)
 
     num_time_steps = length(ts)
-    W_samples = Array{Float64}(undef, num_time_steps, num_samples)
-    for i in 1:num_samples
-        W = WienerProcess(0.0, 0.0)
-        probtemp = NoiseProblem(W, (0.0, 1.0))
-        Np_sol = solve(probtemp; dt = dt)
-        W_samples[:, i] = Np_sol.u
-    end
 
     temp_rands = hcat(z1_samples, z2_samples, z3_samples)'
     phi_inputs = [
@@ -77,7 +71,6 @@ using Test
             for i in 1:num_samples
     ]
 
-    analytic_solution_samples = Array{Float64}(undef, num_time_steps, num_samples)
     truncated_solution_samples = Array{Float64}(undef, num_time_steps, num_samples)
     predicted_solution_samples_1 = Array{Float64}(undef, num_time_steps, num_samples)
     predicted_solution_samples_2 = Array{Float64}(undef, num_time_steps, num_samples)
@@ -85,8 +78,6 @@ using Test
     for j in 1:num_samples
         for i in 1:num_time_steps
             # for each sample, pass each timepoints and get output
-            analytic_solution_samples[i, j] = analytic_sol(u₀, 0, ts[i], W_samples[i, j])
-
             predicted_solution_samples_1[i, j] = sol_1.rode_solution.interp.phi(
                 phi_inputs[j][:, i], sol_1.rode_solution.interp.θ
             )
@@ -101,10 +92,6 @@ using Test
     end
 
     # strong ensemble solution tests
-    strong_analytic_solution = [
-        Particles(analytic_solution_samples[i, :])
-            for i in eachindex(ts)
-    ]
     strong_truncated_solution = [
         Particles(truncated_solution_samples[i, :])
             for i in eachindex(ts)
@@ -118,35 +105,38 @@ using Test
             for i in eachindex(ts)
     ]
 
-    error_1 = sum(abs2, strong_analytic_solution .- strong_predicted_solution_1)
-    error_2 = sum(abs2, strong_analytic_solution .- strong_predicted_solution_2)
+    error_1 = sum(gbm_reference_squared_error.(u₀, α, β, ts, strong_predicted_solution_1))
+    error_2 = sum(gbm_reference_squared_error.(u₀, α, β, ts, strong_predicted_solution_2))
     @test pmean(error_1) > pmean(error_2) - 10.0
 
     @test pmean(sum(abs2.(strong_predicted_solution_1 .- strong_truncated_solution))) + 10.0 >
         pmean(sum(abs2.(strong_predicted_solution_2 .- strong_truncated_solution)))
 
     # weak ensemble solution tests
-    mean_analytic_solution = mean(analytic_solution_samples, dims = 2)
+    # Retain the variance of the original finite reference ensemble's sample mean.
+    weak_reference_error(prediction) = gbm_reference_squared_error.(
+        u₀, α, β, reshape(ts, :, 1), prediction, num_samples
+    )
     mean_truncated_solution = mean(truncated_solution_samples, dims = 2)
     mean_predicted_solution_1 = mean(predicted_solution_samples_1, dims = 2)
     mean_predicted_solution_2 = mean(predicted_solution_samples_2, dims = 2)
 
     # testing over different Z_i sample sizes
-    error_1 = sum(abs2, mean_analytic_solution .- pmean(u1))
-    error_2 = sum(abs2, mean_analytic_solution .- pmean(u2))
+    error_1 = sum(weak_reference_error(pmean(u1)))
+    error_2 = sum(weak_reference_error(pmean(u2)))
     @test error_1 > error_2 - 4.0
 
-    MSE_1 = mean(abs2.(mean_analytic_solution .- pmean(u1)))
-    MSE_2 = mean(abs2.(mean_analytic_solution .- pmean(u2)))
+    MSE_1 = mean(weak_reference_error(pmean(u1)))
+    MSE_2 = mean(weak_reference_error(pmean(u2)))
     @test MSE_2 < MSE_1 + 0.1
     @test MSE_2 < 2.0e-1
 
-    error_1 = sum(abs2, mean_analytic_solution .- mean_predicted_solution_1)
-    error_2 = sum(abs2, mean_analytic_solution .- mean_predicted_solution_2)
+    error_1 = sum(weak_reference_error(mean_predicted_solution_1))
+    error_2 = sum(weak_reference_error(mean_predicted_solution_2))
     @test error_1 > error_2 - 4.0
 
-    MSE_1 = mean(abs2.(mean_analytic_solution .- mean_predicted_solution_1))
-    MSE_2 = mean(abs2.(mean_analytic_solution .- mean_predicted_solution_2))
+    MSE_1 = mean(weak_reference_error(mean_predicted_solution_1))
+    MSE_2 = mean(weak_reference_error(mean_predicted_solution_2))
     @test MSE_2 < MSE_1 + 0.1
     @test MSE_2 < 2.0e-1
 
