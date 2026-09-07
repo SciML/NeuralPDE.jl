@@ -1,4 +1,6 @@
 using DomainSets: Interval
+using ForwardDiff: derivative
+using Integrals: CubatureJLh
 using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
@@ -61,6 +63,26 @@ end
 
         @test strategy isa NeuralPDE.AbstractTrainingStrategy
         @test loss([1.5, 2.0]) == 0.5
+    end
+
+    @testset "QuadratureTraining skips empty prototype batches" begin
+        calls = Ref(0)
+        residuals = function (x, θ)
+            isempty(x) && error("loss function cannot evaluate an empty batch")
+            calls[] += 1
+            return θ[1] .* x
+        end
+        strategy = QuadratureTraining(
+            quadrature_alg = CubatureJLh(), reltol = 1.0e-8, abstol = 1.0e-8,
+            maxiters = 10_000, batch = 16
+        )
+        loss = get_loss_function(
+            [2.0], residuals, [0.0], [1.0], Float64, strategy
+        )
+
+        @test only(loss([2.0])) ≈ 4 / 3
+        @test derivative(t -> only(loss([t])), 2.0) ≈ 4 / 3
+        @test calls[] > 0
     end
 
     @testset "NeuralPDEAlgorithm" begin
