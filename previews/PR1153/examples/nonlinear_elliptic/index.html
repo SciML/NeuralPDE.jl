@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Nonlinear elliptic system of PDEs · NeuralPDE.jl</title><meta name="title" content="Nonlinear elliptic system of PDEs · NeuralPDE.jl"/><meta property="og:title" content="Nonlinear elliptic system of PDEs · NeuralPDE.jl"/><meta property="twitter:title" content="Nonlinear elliptic system of PDEs · NeuralPDE.jl"/><meta name="description" content="Documentation for NeuralPDE.jl."/><meta property="og:description" content="Documentation for NeuralPDE.jl."/><meta property="twitter:description" content="Documentation for NeuralPDE.jl."/><meta property="og:url" content="https://docs.sciml.ai/NeuralPDE/stable/examples/nonlinear_elliptic/"/><meta property="twitter:url" content="https://docs.sciml.ai/NeuralPDE/stable/examples/nonlinear_elliptic/"/><link rel="canonical" href="https://docs.sciml.ai/NeuralPDE/stable/examples/nonlinear_elliptic/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="NeuralPDE.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NeuralPDE.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">NeuralPDE.jl: Automatic Physics-Informed Neural Networks (PINNs)</a></li><li><span class="tocitem">ODE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/ode/">Introduction to NeuralPDE for ODEs</a></li><li><a class="tocitem" href="../../tutorials/Lotka_Volterra_BPINNs/">Bayesian PINNs for Coupled ODEs</a></li><li><a class="tocitem" href="../../tutorials/dae/">PINNs DAEs</a></li><li><a class="tocitem" href="../../tutorials/ode_parameter_estimation/">Parameter Estimation with PINNs for ODEs</a></li><li><a class="tocitem" href="../../tutorials/data_collocation_Inverse/">Improved PINNs for Inverse problems in ODEs</a></li><li><a class="tocitem" href="../../tutorials/pino_ode/">Physics informed Neural Operator ODEs</a></li><li><a class="tocitem" href="../../tutorials/dgm/">Deep Galerkin Method</a></li></ul></li><li><span class="tocitem">PDE PINN Tutorials</span><ul><li><a class="tocitem" href="../../tutorials/pdesystem/">Introduction to NeuralPDE for PDEs</a></li><li><a class="tocitem" href="../../tutorials/low_level_2/">Bayesian PINNs for PDEs</a></li><li><a class="tocitem" href="../../tutorials/gpu/">Using GPUs</a></li><li><a class="tocitem" href="../../tutorials/systems/">Defining Systems of PDEs</a></li><li><a class="tocitem" href="../../tutorials/constraints/">Imposing Constraints</a></li><li><a class="tocitem" href="../../tutorials/low_level/">The symbolic_discretize Interface</a></li><li><a class="tocitem" href="../../tutorials/param_estim/">Optimising Parameters (Solving Inverse Problems)</a></li><li><a class="tocitem" href="../../tutorials/integro_diff/">Solving Integro Differential Equations</a></li><li><a class="tocitem" href="../../tutorials/neural_adapter/">Transfer Learning with Neural Adapter</a></li><li><a class="tocitem" href="../../tutorials/derivative_neural_network/">The Derivative Neural Network Approximation</a></li></ul></li><li><span class="tocitem">Extended Examples</span><ul><li><a class="tocitem" href="../wave/">1D Wave Equation with Dirichlet boundary conditions</a></li><li><a class="tocitem" href="../3rd/">ODE with a 3rd-Order Derivative</a></li><li><a class="tocitem" href="../ks/">Kuramoto–Sivashinsky equation</a></li><li><a class="tocitem" href="../heterogeneous/">PDEs with Dependent Variables on Heterogeneous Domains</a></li><li><a class="tocitem" href="../linear_parabolic/">Linear parabolic system of PDEs</a></li><li class="is-active"><a class="tocitem" href>Nonlinear elliptic system of PDEs</a></li><li><a class="tocitem" href="../nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs</a></li><li><a class="tocitem" href="../complex/">Complex Equations with PINNs</a></li></ul></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/ode/">ODE-Specialized Physics-Informed Neural Network (PINN) Solver</a></li><li><a class="tocitem" href="../../manual/dae/">Differential Algebraic Equation Specialized Physics-Informed Neural Solver</a></li><li><a class="tocitem" href="../../manual/pinns/"><code>PhysicsInformedNN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/bpinns/"><code>BayesianPINN</code> Discretizer for PDESystems</a></li><li><a class="tocitem" href="../../manual/training_strategies/">Training Strategies</a></li><li><a class="tocitem" href="../../manual/adaptive_losses/">Adaptive Loss Functions</a></li><li><a class="tocitem" href="../../manual/logging/">Logging Utilities</a></li><li><a class="tocitem" href="../../manual/neural_adapters/">Transfer Learning with neural_adapter</a></li><li><a class="tocitem" href="../../manual/pino_ode/">Physics-Informed Neural Operator (PINO) for ODEs</a></li></ul></li><li><span class="tocitem">Developer Documentation</span><ul><li><a class="tocitem" href="../../developer/debugging/">Debugging PINN Solutions</a></li><li><a class="tocitem" href="../../developer/interfaces/">Developer Interfaces</a></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Extended Examples</a></li><li class="is-active"><a href>Nonlinear elliptic system of PDEs</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Nonlinear elliptic system of PDEs</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/NeuralPDE.jl/blob/master/docs/src/examples/nonlinear_elliptic.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Nonlinear-elliptic-system-of-PDEs"><a class="docs-heading-anchor" href="#Nonlinear-elliptic-system-of-PDEs">Nonlinear elliptic system of PDEs</a><a id="Nonlinear-elliptic-system-of-PDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Nonlinear-elliptic-system-of-PDEs" title="Permalink"></a></h1><p>We can also solve nonlinear systems, such as the system of nonlinear elliptic PDEs</p><p class="math-container">\[\begin{aligned}
+\frac{\partial^2u}{\partial x^2} + \frac{\partial^2u}{\partial y^2} &amp;= uf(\frac{u}{w}) + \frac{u}{w}h(\frac{u}{w}) \\
+\frac{\partial^2w}{\partial x^2} + \frac{\partial^2w}{\partial y^2} &amp;= wg(\frac{u}{w}) + h(\frac{u}{w}) \\
+\end{aligned}\]</p><p>where f, g, h are arbitrary functions. With initial and boundary conditions:</p><p class="math-container">\[\begin{aligned}
+u(0,y) &amp;= y + 1 \\
+w(1,y) &amp;= [\cosh(\sqrt[]{f(k)}) + \sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
+w(x,0) &amp;= \cosh(\sqrt[]{f(k)}) + \sinh(\sqrt[]{f(k)}) \\
+w(0,y) &amp;= k(y + 1) \\
+u(1,y) &amp;= k[\cosh(\sqrt[]{f(k)}) + \sinh(\sqrt[]{f(k)})]\cdot(y + 1) \\
+u(x,0) &amp;= k[\cosh(\sqrt[]{f(k)}) + \sinh(\sqrt[]{f(k)})] \\
+\end{aligned}\]</p><p>where k is a root of the algebraic (transcendental) equation f(k) = g(k).</p><p>This is done using a derivative neural network approximation.</p><pre><code class="language-julia hljs">using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, NonlinearSolve
+using Optim: BFGS
+using Plots
+using DomainSets: Interval
+using IntervalSets: leftendpoint, rightendpoint
+
+@parameters x, y
+Dx = Differential(x)
+Dy = Differential(y)
+@variables Dxu(..), Dyu(..), Dxw(..), Dyw(..)
+@variables u(..), w(..)
+
+# Arbitrary functions
+f(x) = sin(x)
+g(x) = cos(x)
+h(x) = x
+root(x, p) = f(x) - g(x)
+
+# Analytic solution
+k = solve(IntervalNonlinearProblem(root, (0.0, 1.0)), ITP()).u      # k is a root of the algebraic (transcendental) equation f(x) = g(x)
+θ(x, y) = (cosh(sqrt(f(k)) * x) + sinh(sqrt(f(k)) * x)) * (y + 1)   # Analytical solution to Helmholtz equation
+w_analytic(x, y) = θ(x, y) - h(k) / f(k)
+u_analytic(x, y) = k * w_analytic(x, y)
+
+# Nonlinear Steady-State Systems of Two Reaction-Diffusion Equations with 3 arbitrary function f, g, h
+eqs_ = [
+    Dx(Dxu(x, y)) + Dy(Dyu(x, y)) ~
+    u(x, y) * f(u(x, y) / w(x, y)) +
+    u(x, y) / w(x, y) * h(u(x, y) / w(x, y)),
+    Dx(Dxw(x, y)) + Dy(Dyw(x, y)) ~ w(x, y) * g(u(x, y) / w(x, y)) + h(u(x, y) / w(x, y))]
+
+# Boundary conditions
+bcs_ = [u(0, y) ~ u_analytic(0, y),
+    u(1, y) ~ u_analytic(1, y),
+    u(x, 0) ~ u_analytic(x, 0),
+    w(0, y) ~ w_analytic(0, y),
+    w(1, y) ~ w_analytic(1, y),
+    w(x, 0) ~ w_analytic(x, 0)]
+
+der_ = [Dy(u(x, y)) ~ Dyu(x, y),
+    Dy(w(x, y)) ~ Dyw(x, y),
+    Dx(u(x, y)) ~ Dxu(x, y),
+    Dx(w(x, y)) ~ Dxw(x, y)]
+
+bcs__ = [bcs_; der_]
+
+# Space and time domains
+domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
+
+# Neural network
+input_ = length(domains)
+n = 15
+chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:6] # 1:number of @variables
+
+strategy = GridTraining(0.01)
+discretization = PhysicsInformedNN(chain, strategy)
+
+vars = [u(x, y), w(x, y), Dxu(x, y), Dyu(x, y), Dxw(x, y), Dyw(x, y)]
+@named pdesystem = PDESystem(eqs_, bcs__, domains, [x, y], vars)
+prob = NeuralPDE.discretize(pdesystem, discretization)
+sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
+
+pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
+bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:6]
+approx_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[7:end]
+
+callback = function (p, l)
+    if p.iter % 10 == 0
+        println(&quot;loss: &quot;, l)
+        println(&quot;pde_losses: &quot;, map(l_ -&gt; l_(p.u), pde_inner_loss_functions))
+        println(&quot;bcs_losses: &quot;, map(l_ -&gt; l_(p.u), bcs_inner_loss_functions))
+        println(&quot;der_losses: &quot;, map(l_ -&gt; l_(p.u), approx_derivative_loss_functions))
+    end
+    return false
+end
+
+res = solve(prob, BFGS(); maxiters = 100, callback)
+
+phi = discretization.phi
+
+# Analysis
+xs, ys = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
+depvars = [:u, :w]
+minimizers_ = [res.u.depvar[depvars[i]] for i in 1:2]
+
+analytic_sol_func(x, y) = [u_analytic(x, y), w_analytic(x, y)]
+u_real = [[analytic_sol_func(x, y)[i] for x in xs for y in ys] for i in 1:2]
+u_predict = [[phi[i]([x, y], minimizers_[i])[1] for x in xs for y in ys] for i in 1:2]
+diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
+ps = []
+for i in 1:2
+    p1 = plot(xs, ys, u_real[i], linetype = :contourf, title = &quot;u$i, analytic&quot;)
+    p2 = plot(xs, ys, u_predict[i], linetype = :contourf, title = &quot;predict&quot;)
+    p3 = plot(xs, ys, diff_u[i], linetype = :contourf, title = &quot;error&quot;)
+    push!(ps, plot(p1, p2, p3))
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">loss: 3.5028322893364123
+pde_losses: [0.14611777527935935, 0.16405722004328216]
+bcs_losses: [0.06663399283055883, 1.761784485534099, 0.08416686349592528, 0.03577637433766964, 0.6680931962145494, 0.12273457032100528]
+der_losses: [0.13905650378614345, 0.18416762366563827, 0.017810327963268535, 0.11243335586491322]
+loss: 1.388414312850703
+pde_losses: [0.1073831265316023, 0.2949547712027351]
+bcs_losses: [0.005267771734635534, 0.30190281452667556, 0.04815742943850946, 0.021368233152850597, 0.19022818094066316, 0.07609683178526505]
+der_losses: [0.044608373259146294, 0.13074238794285756, 0.11229311119969586, 0.055411281136066366]
+loss: 0.6624483014109721
+pde_losses: [0.02342249332883488, 0.16253336105103836]
+bcs_losses: [0.026479922166062545, 0.07883059581084478, 0.030402499640199046, 0.005585191053427548, 0.04516288734510352, 0.006442583938617732]
+der_losses: [0.04826369024435323, 0.0959121225935229, 0.04408679624717116, 0.09532615799179646]
+loss: 0.30658556457771713
+pde_losses: [0.044248098458064065, 0.022915142277119358]
+bcs_losses: [0.011434509663179998, 0.0384799593741812, 0.028924611570454496, 0.004002665260487136, 0.02108308378470427, 0.022627275148556697]
+der_losses: [0.031960002578558806, 0.04139104558174179, 0.019974277114018765, 0.019544893766650605]
+loss: 0.15565621437028304
+pde_losses: [0.014982759817652349, 0.002436618019476775]
+bcs_losses: [0.016640809379511345, 0.030543642495676183, 0.020539817386350242, 0.010864369522074636, 0.004359545101761026, 0.005423822020669788]
+der_losses: [0.00716106941941972, 0.008766600500017359, 0.002412818303170979, 0.031524342404502644]
+loss: 0.1067651309102579
+pde_losses: [0.010445910535899558, 0.002816431260549065]
+bcs_losses: [0.009156077271866224, 0.011236764435186317, 0.009333786394184628, 0.0036414690686526886, 0.004364052814076388, 0.0014537400735006346]
+der_losses: [0.011310763564322819, 0.016745652276399275, 0.001803294416028355, 0.024457188799591946]
+loss: 0.05977495370974187
+pde_losses: [0.0030139550217903287, 0.0017138141703717377]
+bcs_losses: [0.0029818073976927185, 0.002621291058216865, 0.006446222938386656, 0.0050014138648747635, 0.005351869498113805, 0.006189292850195881]
+der_losses: [0.006309395531645303, 0.0077968926829126844, 0.005506224658055119, 0.006842774037486009]
+loss: 0.043291029081428324
+pde_losses: [0.00048136781764414696, 0.0010398039749383446]
+bcs_losses: [0.003276642110744463, 0.0014458725717600113, 0.004626508392975686, 0.0067459091347115445, 0.004310206935942958, 0.005525211475423569]
+der_losses: [0.0015288818684635044, 0.004759995329236216, 0.003804682868068226, 0.005745946601519648]
+loss: 0.031020523080258405
+pde_losses: [0.0009727251245165198, 0.0020160291986459702]
+bcs_losses: [0.0016288387894233707, 0.0008899166722562928, 0.0028273543490937875, 0.002585376639319428, 0.003578551920469015, 0.00628690610875838]
+der_losses: [0.0015165048765736222, 0.0027685158610529217, 0.002826703908994215, 0.0031230996311548856]
+loss: 0.020673806779386093
+pde_losses: [0.0011457014961677285, 0.0029457643286012764]
+bcs_losses: [0.0012471906633333113, 0.0020899282224992083, 0.001352087899909953, 0.0027548781822685172, 0.000618818787955919, 0.0022459924597612994]
+der_losses: [0.0020421858311116706, 0.0013370556998852149, 0.002342011205725324, 0.0005521920021666702]</code></pre><pre><code class="language-julia hljs">ps[1]</code></pre><img src="524471a6.svg" alt="Example block output"/><pre><code class="language-julia hljs">ps[2]</code></pre><img src="db48f24c.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../linear_parabolic/">« Linear parabolic system of PDEs</a><a class="docs-footer-nextpage" href="../nonlinear_hyperbolic/">Nonlinear hyperbolic system of PDEs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Monday 7 September 2026 13:00">Monday 7 September 2026</span>. Using Julia version 1.12.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
