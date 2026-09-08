@@ -4,9 +4,9 @@ using Test
 include("../helpers/gbm_reference.jl")
 
 @testset "Test-2 GBM SDE" begin
-    using OrdinaryDiffEq, Random, Lux, Optimisers, Distributions
+    using OrdinaryDiffEq, Lux, Optimisers, Distributions, StableRNGs
     using MonteCarloMeasurements: Particles, pmean
-    Random.seed!(100)
+    evaluation_rng = StableRNG(102)
 
     α = 1.2
     β = 1.1
@@ -18,6 +18,7 @@ include("../helpers/gbm_reference.jl")
     n_z = 3
     dim = 1 + n_z
     luxchain = Chain(Dense(dim, 16, σ), Dense(16, 16, σ), Dense(16, 1)) |> f64
+    init_params = Lux.initialparameters(StableRNG(100), luxchain)
 
     dt = 1 / 50.0f0
     abstol = 1.0e-12
@@ -28,14 +29,16 @@ include("../helpers/gbm_reference.jl")
 
     sol_2 = solve(
         prob, NNSDE(
-            luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 10, batch = true
+            luxchain, opt, init_params; autodiff, numensemble = numensemble, sub_batch = 10,
+            batch = true, rng = StableRNG(102)
         );
         kwargs...
     )
 
     sol_1 = solve(
         prob, NNSDE(
-            luxchain, opt; autodiff, numensemble = numensemble, sub_batch = 1, batch = true
+            luxchain, opt, init_params; autodiff, numensemble = numensemble, sub_batch = 1,
+            batch = true, rng = StableRNG(102)
         );
         kwargs...
     )
@@ -59,9 +62,9 @@ include("../helpers/gbm_reference.jl")
 
     num_samples = 2000
     num_time_steps = dt
-    z1_samples = rand(Normal(0, 1), num_samples)
-    z2_samples = rand(Normal(0, 1), num_samples)
-    z3_samples = rand(Normal(0, 1), num_samples)
+    z1_samples = rand(evaluation_rng, Normal(0, 1), num_samples)
+    z2_samples = rand(evaluation_rng, Normal(0, 1), num_samples)
+    z3_samples = rand(evaluation_rng, Normal(0, 1), num_samples)
 
     num_time_steps = length(ts)
 
