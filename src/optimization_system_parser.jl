@@ -14,6 +14,21 @@ _runtime_theta(theta, _) = theta
 _runtime_theta(theta::AbstractVector, theta_axes) = ComponentArray(theta, theta_axes)
 _runtime_theta(theta::ComponentArray, _) = theta
 
+struct PINNEmptyThetaAxes{A}
+    axes::A
+end
+
+function _runtime_theta(theta::AbstractVector, theta_axes::PINNEmptyThetaAxes)
+    return ComponentArray(view(theta, 1:0), theta_axes.axes)
+end
+
+_runtime_theta(theta::ComponentArray, ::PINNEmptyThetaAxes) = theta
+
+function _pinn_theta_axes(flat_init_params)
+    theta_axes = getaxes(flat_init_params)
+    return isempty(flat_init_params) ? PINNEmptyThetaAxes(theta_axes) : theta_axes
+end
+
 struct PINNPhiArrayOperator{P, A}
     phi::P
     theta_axes::A
@@ -73,14 +88,30 @@ end
 
 Base.nameof(::PINNCoordinateArrayOperator) = :pinn_coordinate_array
 
+function _coordinate_row(cord::AbstractMatrix, row_index::Int)
+    if row_index > size(cord, 1) && size(cord, 2) == 0
+        return similar(cord, eltype(cord), 1, 0)
+    end
+    return cord[row_index:row_index, :]
+end
+
+function _constant_coordinate_row(cord::AbstractMatrix{T}, value) where {T}
+    if size(cord, 1) == 0
+        row = similar(cord, T, 1, size(cord, 2))
+        fill!(row, zero(T))
+        return row .+ T(value)
+    end
+    return zero.(_coordinate_row(cord, 1)) .+ T(value)
+end
+
 function (op::PINNCoordinateArrayOperator)(cord::AbstractMatrix{T}, theta) where {T}
     return @ignore_derivatives begin
         rows = map(eachindex(op.row_types)) do i
             if op.row_types[i] == 1
                 idx = op.row_indices[i]
-                cord[idx:idx, :]
+                _coordinate_row(cord, idx)
             else
-                zero.(cord[1:1, :]) .+ T(op.row_constants[i])
+                _constant_coordinate_row(cord, op.row_constants[i])
             end
         end
         safe_get_device(theta)(collect(reduce(vcat, rows)))
@@ -101,7 +132,7 @@ end
 Base.nameof(::PINNCoordinateSliceOperator) = :pinn_coordinate_slice
 
 function (op::PINNCoordinateSliceOperator)(cord::AbstractMatrix, theta)
-    return @ignore_derivatives safe_get_device(theta)(collect(cord[op.row_index:op.row_index, :]))
+    return @ignore_derivatives safe_get_device(theta)(collect(_coordinate_row(cord, op.row_index)))
 end
 
 function ChainRulesCore.rrule(op::PINNCoordinateArrayOperator, cord, theta)
@@ -169,6 +200,77 @@ struct PINNAdditionalLossOperator{F, P, A}
 end
 
 Base.nameof(::PINNAdditionalLossOperator) = :pinn_additional_loss
+
+struct PINNQuadratureLossOperator{F, L, U, A, T}
+    residual::F
+    lower_bound::L
+    upper_bound::U
+    quadrature_alg::A
+    reltol::T
+    abstol::T
+    maxiters::Int
+    batch::Int
+    uses_fixed_parameters::Bool
+end
+
+Base.nameof(::PINNQuadratureLossOperator) = :pinn_quadrature_loss
+
+struct PINNArrayMSEOperator end
+
+Base.nameof(::PINNArrayMSEOperator) = :pinn_array_mse
+
+function (::PINNArrayMSEOperator)(residual::AbstractArray)
+    return sum(abs2, residual) / length(residual)
+end
+
+@register_symbolic (op::PINNArrayMSEOperator)(residual::AbstractArray)
+
+_quadrature_device_value(::CPUDevice, value) = value
+_quadrature_device_value(device, value) = Adapt.adapt(device, value)
+_quadrature_host_value(::CPUDevice, value) = value
+_quadrature_host_value(_, value) = Adapt.adapt(cdev, value)
+
+function (op::PINNQuadratureLossOperator)(theta, runtime_parameters)
+    element_type = recursive_eltype(theta)
+    device = safe_get_device(theta)
+    fixed_parameters = op.uses_fixed_parameters ? runtime_parameters : nothing
+
+    if isempty(op.lower_bound)
+        coordinates = device(zeros(element_type, 1, 1))
+        residual = fixed_parameters === nothing ?
+            op.residual(coordinates, theta) :
+            op.residual(coordinates, theta, fixed_parameters)
+        return mean(abs2, residual)
+    end
+
+    lower_bound = element_type.(op.lower_bound)
+    upper_bound = element_type.(op.upper_bound)
+    area = element_type(prod(abs.(upper_bound .- lower_bound)))
+    function integrand(coordinates, parameters)
+        coordinates = coordinates |> device |> EltypeAdaptor{element_type}()
+        parameters = _quadrature_device_value(device, parameters)
+        residual = fixed_parameters === nothing ?
+            op.residual(coordinates, parameters) :
+            op.residual(coordinates, parameters, fixed_parameters)
+        batch_loss = sum(abs2, view(residual, 1, :), dims = 2)
+        return _quadrature_host_value(device, batch_loss)
+    end
+
+    integral_function = BatchIntegralFunction(integrand, max_batch = op.batch)
+    integration_theta = _quadrature_host_value(device, theta)
+    problem = IntegralProblem(
+        integral_function, (lower_bound, upper_bound), integration_theta
+    )
+    integral = solve(
+        problem, op.quadrature_alg;
+        reltol = op.reltol, abstol = op.abstol, maxiters = op.maxiters
+    ).u
+    return (integral isa Number ? integral : only(integral)) / area
+end
+
+@register_symbolic (op::PINNQuadratureLossOperator)(
+    theta::AbstractVector, runtime_parameters::AbstractVector
+)
 
 function (op::PINNAdditionalLossOperator)(theta)
     structured_theta = _runtime_theta(theta, op.theta_axes)
@@ -376,6 +478,15 @@ end
 _is_symbolic_array(x) = x isa Symbolics.Arr
 _is_array_expression(x) = x isa AbstractArray || _is_symbolic_array(x)
 
+function _ensure_batched_residual(ctx::PINNSymbolicArrayContext, residual)
+    _is_array_expression(residual) && return residual
+
+    zero_batch = PINNCoordinateArrayOperator((0,), (0,), (0.0,))(
+        ctx.cord, ctx.theta
+    )
+    return broadcast(+, zero_batch, residual)
+end
+
 function _symbolic_unknown_vector(name::Symbol, n::Int)
     return only(@variables $name[1:n])
 end
@@ -396,6 +507,14 @@ end
 _mtk_operating_point_value(value) = value
 _mtk_operating_point_value(value::AbstractArray) = Array(value)
 _mtk_operating_point_value(value::ComponentArray) = Array(getdata(value))
+
+function _mtk_coordinate_values(values::AbstractMatrix)
+    size(values, 1) > 0 && return values
+
+    result = similar(values, eltype(values), 1, size(values, 2))
+    fill!(result, zero(eltype(values)))
+    return result
+end
 
 function (integrand::PINNRuntimeIntegrand)(cord, _, theta, __)
     context = PINNSymbolicArrayContext(
@@ -654,7 +773,9 @@ function build_symbolic_array_residual(
         estimated_parameter_indices, pinnrep.multioutput
     )
     normalized = normalize_equation_residual(equation, pinnrep.dict_depvars)
-    residual = _rebuild_array_expression(context, Symbolics.unwrap(normalized))
+    residual = _ensure_batched_residual(
+        context, _rebuild_array_expression(context, Symbolics.unwrap(normalized))
+    )
     _is_symbolic_array(residual) || throw(
         PINNArrayLoweringError(
             "Equation $(equation) did not lower to a symbolic residual array."
@@ -673,7 +794,13 @@ per-equation `build_function`/`RuntimeGeneratedFunction` pipeline.
 function build_runtime_array_residual_function(
         pinnrep::PINNRepresentation, equation; local_indvars = nothing
     )
-    theta_axes = getaxes(pinnrep.flat_init_params)
+    theta_axes = _pinn_theta_axes(pinnrep.flat_init_params)
+    phi = pinnrep.phi
+    derivative = pinnrep.derivative
+    dict_indvars = pinnrep.dict_indvars
+    dict_depvars = pinnrep.dict_depvars
+    dict_depvar_input = pinnrep.dict_depvar_input
+    multioutput = pinnrep.multioutput
     clean_parameters = pinnrep.eq_params isa SciMLBase.NullParameters ?
         Any[] : collect(pinnrep.eq_params)
     parameter_indices = Dict{Symbol, Int}(
@@ -690,20 +817,23 @@ function build_runtime_array_residual_function(
     )
     fixed_parameter_values = pinnrep.default_p === nothing ? Number[] : pinnrep.default_p
 
-    return function (coordinates, theta)
-        context = PINNSymbolicArrayContext(
-            coordinates, theta, theta_axes, pinnrep.phi, pinnrep.derivative,
-            pinnrep.dict_indvars, pinnrep.dict_depvars, pinnrep.dict_depvar_input,
-            coordinate_indices, parameter_indices, fixed_parameter_values,
-            fixed_parameter_values, estimated_parameter_indices, pinnrep.multioutput
+    return function (
+            coordinates, theta, runtime_fixed_parameters = fixed_parameter_values
         )
-        return _rebuild_array_expression(context, normalized)
+        context = PINNSymbolicArrayContext(
+            coordinates, theta, theta_axes, phi, derivative,
+            dict_indvars, dict_depvars, dict_depvar_input,
+            coordinate_indices, parameter_indices, runtime_fixed_parameters,
+            fixed_parameter_values, estimated_parameter_indices, multioutput
+        )
+        return _ensure_batched_residual(
+            context, _rebuild_array_expression(context, normalized)
+        )
     end
 end
 
 function _symbolic_mse(residual)
-    scalar_residual = Symbolics.scalarize(abs2.(residual))
-    return sum(scalar_residual) / length(scalar_residual)
+    return PINNArrayMSEOperator()(residual)
 end
 
 function _estimated_parameter_indices(pinnrep, theta_axes)
@@ -724,20 +854,19 @@ MSE objective, and a native `ModelingToolkit.OptimizationSystem`. The returned m
 contains the operating-point map used to construct an `OptimizationProblem`.
 """
 function build_pinn_optimization_system(pinnrep::PINNRepresentation)
-    isempty(pinnrep.flat_init_params) && throw(
-        PINNArrayLoweringError(
-            "A native OptimizationSystem requires at least one optimization unknown."
-        )
-    )
-
     element_type = recursive_eltype(pinnrep.flat_init_params)
     training_sets, coordinate_provider = _optimization_training_sets(
         pinnrep, pinnrep.strategy, element_type
     )
     pde_training_sets, bc_training_sets = training_sets
+    pde_coordinate_values = _mtk_coordinate_values.(pde_training_sets)
+    bc_coordinate_values = _mtk_coordinate_values.(bc_training_sets)
 
-    theta_axes = getaxes(pinnrep.flat_init_params)
-    theta = _symbolic_unknown_vector(:pinn_theta, length(pinnrep.flat_init_params))
+    parameterless = isempty(pinnrep.flat_init_params)
+    theta_axes = _pinn_theta_axes(pinnrep.flat_init_params)
+    theta = _symbolic_unknown_vector(
+        :pinn_theta, parameterless ? 1 : length(pinnrep.flat_init_params)
+    )
 
     clean_parameters = pinnrep.eq_params isa SciMLBase.NullParameters ?
         Any[] : collect(pinnrep.eq_params)
@@ -752,10 +881,10 @@ function build_pinn_optimization_system(pinnrep::PINNRepresentation)
         _symbolic_parameter_vector(:pinn_fixed_parameters, length(clean_parameters))
     end
 
-    pde_coordinates = map(enumerate(pde_training_sets)) do (i, values)
+    pde_coordinates = map(enumerate(pde_coordinate_values)) do (i, values)
         _symbolic_parameter_matrix(Symbol("pinn_pde_coordinates_", i), size(values)...)
     end
-    bc_coordinates = map(enumerate(bc_training_sets)) do (i, values)
+    bc_coordinates = map(enumerate(bc_coordinate_values)) do (i, values)
         _symbolic_parameter_matrix(Symbol("pinn_bc_coordinates_", i), size(values)...)
     end
 
@@ -778,8 +907,46 @@ function build_pinn_optimization_system(pinnrep::PINNRepresentation)
             zip(pinnrep.bcs, bc_coordinates, pinnrep.bc_indvars)
     ]
 
-    pde_losses = _symbolic_mse.(pde_residuals)
-    bc_losses = _symbolic_mse.(bc_residuals)
+    pde_losses, bc_losses = if pinnrep.strategy isa QuadratureTraining
+        pde_bounds, bc_bounds = get_bounds(
+            pinnrep.domains, pinnrep.eqs, pinnrep.bcs, element_type,
+            pinnrep.dict_indvars, pinnrep.dict_depvars, pinnrep.strategy
+        )
+        pde_lower_bounds, pde_upper_bounds = pde_bounds
+        bc_lower_bounds, bc_upper_bounds = bc_bounds
+
+        function quadrature_loss(equation, local_indvars, lower_bound, upper_bound)
+            residual = build_runtime_array_residual_function(
+                pinnrep, equation; local_indvars
+            )
+            operator = PINNQuadratureLossOperator(
+                residual, lower_bound, upper_bound,
+                pinnrep.strategy.quadrature_alg, pinnrep.strategy.reltol,
+                pinnrep.strategy.abstol, pinnrep.strategy.maxiters,
+                pinnrep.strategy.batch, fixed_parameters !== nothing
+            )
+            runtime_parameters = fixed_parameters === nothing ? theta : fixed_parameters
+            return operator(theta, runtime_parameters)
+        end
+
+        pde_quadrature_losses = [
+            quadrature_loss(equation, local_indvars, lower_bound, upper_bound)
+                for (equation, local_indvars, lower_bound, upper_bound) in zip(
+                    pinnrep.eqs, pinnrep.pde_indvars,
+                    pde_lower_bounds, pde_upper_bounds
+                )
+        ]
+        bc_quadrature_losses = [
+            quadrature_loss(equation, local_indvars, lower_bound, upper_bound)
+                for (equation, local_indvars, lower_bound, upper_bound) in zip(
+                    pinnrep.bcs, pinnrep.bc_indvars,
+                    bc_lower_bounds, bc_upper_bounds
+                )
+        ]
+        pde_quadrature_losses, bc_quadrature_losses
+    else
+        _symbolic_mse.(pde_residuals), _symbolic_mse.(bc_residuals)
+    end
 
     pde_weight_parameters = isempty(pde_losses) ? nothing :
         _symbolic_parameter_vector(:pinn_pde_loss_weights, length(pde_losses))
@@ -806,8 +973,11 @@ function build_pinn_optimization_system(pinnrep::PINNRepresentation)
     symbolic_cost = sum(weighted_losses)
 
     system_parameters = Any[]
-    append!(system_parameters, pde_coordinates)
-    append!(system_parameters, bc_coordinates)
+    uses_coordinate_parameters = !(pinnrep.strategy isa QuadratureTraining)
+    if uses_coordinate_parameters
+        append!(system_parameters, pde_coordinates)
+        append!(system_parameters, bc_coordinates)
+    end
     fixed_parameters === nothing || push!(system_parameters, fixed_parameters)
     pde_weight_parameters === nothing || push!(system_parameters, pde_weight_parameters)
     bc_weight_parameters === nothing || push!(system_parameters, bc_weight_parameters)
@@ -819,16 +989,22 @@ function build_pinn_optimization_system(pinnrep::PINNRepresentation)
     compiled_system = mtkcompile(source_system)
 
     operating_point = Pair{Any, Any}[
-        theta => _mtk_operating_point_value(pinnrep.flat_init_params)
+        theta => if parameterless
+            zeros(element_type, 1)
+        else
+            _mtk_operating_point_value(pinnrep.flat_init_params)
+        end
     ]
-    append!(
-        operating_point,
-        Pair.(pde_coordinates, _mtk_operating_point_value.(pde_training_sets))
-    )
-    append!(
-        operating_point,
-        Pair.(bc_coordinates, _mtk_operating_point_value.(bc_training_sets))
-    )
+    if uses_coordinate_parameters
+        append!(
+            operating_point,
+            Pair.(pde_coordinates, _mtk_operating_point_value.(pde_coordinate_values))
+        )
+        append!(
+            operating_point,
+            Pair.(bc_coordinates, _mtk_operating_point_value.(bc_coordinate_values))
+        )
+    end
     if fixed_parameters !== nothing
         pinnrep.default_p === nothing && throw(
             PINNArrayLoweringError(
@@ -854,17 +1030,10 @@ function build_pinn_optimization_system(pinnrep::PINNRepresentation)
             _mtk_operating_point_value(pinnrep.adaloss.additional_loss_weights)
     )
 
-    runs_on_cpu = safe_get_device(pinnrep.flat_init_params) == cdev
-    executable = !(pinnrep.strategy isa QuadratureTraining) && runs_on_cpu
-    fallback_reason = executable ? nothing :
-        if pinnrep.strategy isa QuadratureTraining
-            "The symbolic system is available, but the existing strategy objective is " *
-            "retained for quadrature execution."
-        else
-            "The symbolic system is available, but the existing strategy objective is " *
-            "retained for GPU execution because MTK scalar codegen indexes CuArray " *
-            "unknown vectors on the host."
-        end
+    native_coordinate_provider = coordinate_provider === nothing ? nothing : function ()
+        pde_values, bc_values = coordinate_provider()
+        return _mtk_coordinate_values.(pde_values), _mtk_coordinate_values.(bc_values)
+    end
 
     data = PINNOptimizationSystemData(
         source_system, compiled_system, theta,
@@ -872,7 +1041,7 @@ function build_pinn_optimization_system(pinnrep::PINNRepresentation)
         (;
             pde = pde_weight_parameters, bc = bc_weight_parameters,
             additional = additional_weight_parameters,
-        ), operating_point, coordinate_provider, executable, fallback_reason
+        ), operating_point, native_coordinate_provider, true, nothing
     )
     return (;
         pde_residuals, bc_residuals, pde_losses, bc_losses, weighted_losses,

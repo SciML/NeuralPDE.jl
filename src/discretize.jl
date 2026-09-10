@@ -350,22 +350,14 @@ function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::Ab
         adaloss.additional_loss_weights
 
     if discretization isa PhysicsInformedNN
-        try
-            symbolic_optimization = build_pinn_optimization_system(pinnrep)
-            pinnrep.symbolic_pde_residuals = symbolic_optimization.pde_residuals
-            pinnrep.symbolic_bc_residuals = symbolic_optimization.bc_residuals
-            pinnrep.symbolic_pde_losses = symbolic_optimization.pde_losses
-            pinnrep.symbolic_bc_losses = symbolic_optimization.bc_losses
-            pinnrep.symbolic_cost = symbolic_optimization.cost
-            pinnrep.optimization_system = symbolic_optimization.system
-            pinnrep.optimization_system_data = symbolic_optimization.data
-        catch err
-            err isa InterruptException && rethrow()
-            pinnrep.optimization_system_data = PINNOptimizationSystemData(
-                nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
-                false, sprint(showerror, err)
-            )
-        end
+        symbolic_optimization = build_pinn_optimization_system(pinnrep)
+        pinnrep.symbolic_pde_residuals = symbolic_optimization.pde_residuals
+        pinnrep.symbolic_bc_residuals = symbolic_optimization.bc_residuals
+        pinnrep.symbolic_pde_losses = symbolic_optimization.pde_losses
+        pinnrep.symbolic_bc_losses = symbolic_optimization.bc_losses
+        pinnrep.symbolic_cost = symbolic_optimization.cost
+        pinnrep.optimization_system = symbolic_optimization.system
+        pinnrep.optimization_system_data = symbolic_optimization.data
     end
 
     symbolic_pde_loss_functions = if discretization isa PhysicsInformedNN
@@ -628,6 +620,12 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
             system_data.compiled_system, system_data.operating_point
         )
         generated_cost = generated_problem.f
+        parameterless = isempty(pinnrep.flat_init_params)
+        function evaluate_generated_cost(theta, parameters)
+            generated_theta = parameterless ?
+                zeros(eltype(pinnrep.flat_init_params), 1) : theta
+            return generated_cost(generated_theta, parameters)
+        end
         coordinate_symbols = Any[]
         append!(coordinate_symbols, system_data.coordinate_parameters.pde)
         append!(coordinate_symbols, system_data.coordinate_parameters.bc)
@@ -689,7 +687,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                     @ignore_derivatives set_loss_weight_parameters!(
                         parameters, pde_weights, bc_weights, additional_weights
                     )
-                    return generated_cost(theta, parameters)
+                    return evaluate_generated_cost(theta, parameters)
                 end
             end for i in eachindex(pinnrep.adaloss.pde_loss_weights)
         ]
@@ -703,7 +701,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                     @ignore_derivatives set_loss_weight_parameters!(
                         parameters, pde_weights, bc_weights, additional_weights
                     )
-                    return generated_cost(theta, parameters)
+                    return evaluate_generated_cost(theta, parameters)
                 end
             end for i in eachindex(pinnrep.adaloss.bc_loss_weights)
         ]
@@ -760,7 +758,7 @@ function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInfo
                 end
             end
             @ignore_derivatives update_loss_weight_parameters!(parameters)
-            full_weighted_loss = generated_cost(theta, parameters)
+            full_weighted_loss = evaluate_generated_cost(theta, parameters)
             @ignore_derivatives if pinnrep.logger !== nothing &&
                                    discretization.iteration[] % log_frequency == 0
                 weighted_pde_losses = pinnrep.adaloss.pde_loss_weights .* pde_losses

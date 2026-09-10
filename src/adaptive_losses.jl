@@ -10,6 +10,9 @@ abstract type AbstractAdaptiveLoss end
 vectorify(x::Vector, ::Type{T}) where {T <: Real} = T.(x)
 vectorify(x, ::Type{T}) where {T <: Real} = T[convert(T, x)]
 
+_adaptive_gradient_data(gradient) = gradient
+_adaptive_gradient_data(gradient::ComponentArray) = getdata(gradient)
+
 # Dispatches
 """
     NonAdaptiveLoss(; pde_loss_weights = 1.0,
@@ -113,12 +116,22 @@ function generate_adaptive_loss_function(
             # the paper assumes a single pde loss function, so here we grab the maximum of
             # the maximums of each pde loss function
             pde_grads_maxes = [
-                maximum(abs, only(Zygote.gradient(pde_loss_function, θ)))
+                maximum(
+                    abs,
+                    _adaptive_gradient_data(
+                        only(Zygote.gradient(pde_loss_function, θ))
+                    )
+                )
                     for pde_loss_function in pde_loss_functions
             ]
             pde_grads_max = maximum(pde_grads_maxes)
             bc_grads_mean = [
-                mean(abs, only(Zygote.gradient(bc_loss_function, θ)))
+                mean(
+                    abs,
+                    _adaptive_gradient_data(
+                        only(Zygote.gradient(bc_loss_function, θ))
+                    )
+                )
                     for bc_loss_function in bc_loss_functions
             ]
 

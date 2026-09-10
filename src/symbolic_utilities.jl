@@ -268,10 +268,10 @@ end
 
 function coordinate_index_map(layout, dict_indvars)
     pairs = Pair{Symbol, Int}[]
-    for (i, v) in enumerate(layout)
+    for (row_index, v) in enumerate(layout)
         s = coordinate_symbol(v, dict_indvars)
         s === nothing && continue
-        push!(pairs, s => i)
+        push!(pairs, s => row_index)
     end
     return Dict(pairs)
 end
@@ -285,6 +285,8 @@ function local_coordinate_index_map(eq, dict_indvars, dict_depvars, strategy, lo
     eq_layout = equation_coordinate_layout(eq, dict_indvars, dict_depvars)
     is_bc = any(bc -> isequal(eq, bc), bcs)
 
+    # Non-quadrature samplers retain fixed arguments as coordinate rows. Quadrature
+    # supplies only the free boundary coordinates and therefore uses a compact layout.
     runtime_layout = if strategy isa QuadratureTraining && is_bc
         source_layout = local_indvars === nothing ? eq_layout : local_indvars
         filter(v -> coordinate_symbol(v, dict_indvars) !== nothing, source_layout)
