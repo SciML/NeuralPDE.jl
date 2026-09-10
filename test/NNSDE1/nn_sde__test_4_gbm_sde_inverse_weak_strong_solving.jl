@@ -28,14 +28,21 @@ using Test
     ts = collect(tspan[1]:dt:tspan[2])
     num_time_steps = length(ts)
 
-    # We want n=num_samples strong solutions defined at timepoints.
-    W_samples = Array{Float64}(undef, num_time_steps, num_samples)
-    for i in 1:num_samples
-        W = WienerProcess(0.0, 0.0)
-        probtemp = NoiseProblem(W, (0.0, 1.0))
-        Np_sol = solve(probtemp; dt = dt)
-        W_samples[:, i] = Np_sol.u
+    function wiener_samples(num_time_steps, num_samples, dt; seed_offset = 0)
+        samples = Array{Float64}(undef, num_time_steps, num_samples)
+        for i in 1:num_samples
+            W = WienerProcess(0.0, 0.0)
+            probtemp = NoiseProblem(W, (0.0, 1.0); seed = seed_offset + i)
+            Np_sol = solve(probtemp; dt)
+            samples[:, i] = Np_sol.u
+        end
+        return samples
     end
+
+    # We want n=num_samples strong solutions defined at timepoints.
+    W_samples = wiener_samples(num_time_steps, num_samples, dt)
+    @test W_samples == wiener_samples(num_time_steps, num_samples, dt)
+    Random.seed!(100)
 
     analytic_sol(u0, p, t, W) = u0 * exp((p[1] - p[2]^2 / 2) * t + p[2] * W)
     analytic_solution_samples = Array{Float64}(undef, num_time_steps, num_samples)
@@ -91,13 +98,9 @@ using Test
     # testing dataset must be for the same timepoints as solution
     num_samples = 500
     num_time_steps = length(ts)
-    W_samples = Array{Float64}(undef, num_time_steps, num_samples)
-    for i in 1:num_samples
-        W = WienerProcess(0.0, 0.0)
-        probtemp = NoiseProblem(W, (0.0, 1.0))
-        Np_sol = solve(probtemp; dt = 1 / N_solve)
-        W_samples[:, i] = Np_sol.u
-    end
+    W_samples = wiener_samples(
+        num_time_steps, num_samples, 1 / N_solve; seed_offset = num_samples
+    )
 
     temp_rands = hcat([randn(num_samples) for _ in 1:n_z]...)'
     phi_inputs = [

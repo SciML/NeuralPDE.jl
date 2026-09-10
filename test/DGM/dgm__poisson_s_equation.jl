@@ -2,9 +2,10 @@ using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "Poisson's equation" begin
-    using ModelingToolkit, Optimization, OptimizationOptimisers, Distributions,
-        LinearAlgebra
+    using ComponentArrays, Distributions, Lux, ModelingToolkit, Optimization,
+        OptimizationOptimisers, LinearAlgebra, StableRNGs
     import DomainSets: Interval, infimum, supremum
+    import QuasiMonteCarlo: LatinHypercubeSample
 
     @parameters x y
     @variables u(..)
@@ -22,8 +23,15 @@ using Test
     # Space and time domains
     domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
 
-    strategy = QuasiRandomTraining(256, minibatch = 32)
-    discretization = DeepGalerkin(2, 1, 20, 3, tanh, tanh, identity, strategy)
+    rng = StableRNG(18)
+    strategy = QuasiRandomTraining(
+        256; sampling_alg = LatinHypercubeSample(rng), resampling = false, minibatch = 1
+    )
+    chain = NeuralPDE.DGM(2, 1, 20, 3, tanh, tanh, identity)
+    init_params, init_states = Lux.setup(rng, chain)
+    discretization = PhysicsInformedNN(
+        chain, strategy; init_params = ComponentArray{Float64}(init_params), init_states
+    )
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
@@ -44,5 +52,8 @@ using Test
     u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
     u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
 
-    @test u_real ≈ u_predict atol = 0.4
+    rmse_scale = sqrt(length(u_real))
+    rmse_limit = 0.4 / rmse_scale
+    @test norm(u_real) / rmse_scale > rmse_limit
+    @test norm(u_real - u_predict) / rmse_scale ≤ rmse_limit
 end

@@ -1,9 +1,12 @@
 """
 	PINOODE(chain,
 	    opt,
-	    bounds;
+	    bounds,
+	    number_of_parameters;
 	    init_params = nothing,
-	    strategy = nothing
+	    strategy = nothing,
+	    additional_loss = nothing,
+	    rng = Random.default_rng(),
 	    kwargs...)
 
 Algorithm for solving paramentric ordinary differential equations using a physics-informed
@@ -23,6 +26,7 @@ neural operator, which is used as a solver for a parametrized `ODEProblem`.
                              which thus uses the random initialization provided by the neural network library.
 * `strategy`: The strategy for training the neural network.
 * `additional_loss`: additional loss function added to the default one. For example, add training on data.
+* `rng`: Random number generator used for model initialization and stochastic sampling.
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## References
@@ -38,6 +42,7 @@ neural operator, which is used as a solver for a parametrized `ODEProblem`.
     init_params
     strategy <: Union{Nothing, AbstractTrainingStrategy}
     additional_loss <: Union{Nothing, Function}
+    rng
     kwargs
 end
 
@@ -49,12 +54,23 @@ function PINOODE(
         init_params = nothing,
         strategy = nothing,
         additional_loss = nothing,
+        rng = Random.default_rng(),
         kwargs...
     )
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return PINOODE(
         chain, opt, bounds, number_of_parameters,
+        init_params, strategy, additional_loss, rng, kwargs
+    )
+end
+
+function PINOODE(
+        chain, opt, bounds, number_of_parameters,
         init_params, strategy, additional_loss, kwargs
+    )
+    return PINOODE(
+        chain, opt, bounds, number_of_parameters,
+        init_params, strategy, additional_loss, Random.default_rng(), kwargs
     )
 end
 
@@ -67,13 +83,13 @@ function PINOPhi(model::AbstractLuxLayer, st)
     return PINOPhi(model, StatefulLuxLayer{false}(model, nothing, st))
 end
 
-function generate_pino_phi_θ(chain::AbstractLuxLayer, ::Nothing)
-    θ, st = LuxCore.setup(Random.default_rng(), chain)
+function generate_pino_phi_θ(chain::AbstractLuxLayer, ::Nothing, rng)
+    θ, st = LuxCore.setup(rng, chain)
     return PINOPhi(chain, st), θ
 end
 
-function generate_pino_phi_θ(chain::AbstractLuxLayer, init_params)
-    st = LuxCore.initialstates(Random.default_rng(), chain)
+function generate_pino_phi_θ(chain::AbstractLuxLayer, init_params, rng)
+    st = LuxCore.initialstates(rng, chain)
     return PINOPhi(chain, st), init_params
 end
 
@@ -196,7 +212,8 @@ function initial_condition_loss(
 end
 
 function get_trainset(
-        strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan
+        strategy::GridTraining, chain::DeepONet, bounds, number_of_parameters, tspan;
+        rng = Random.default_rng()
     )
     dt = strategy.dx
     p_ = [range(start = b[1], length = number_of_parameters, stop = b[2]) for b in bounds]
@@ -208,7 +225,8 @@ function get_trainset(
 end
 
 function get_trainset(
-        strategy::GridTraining, chain::Chain, bounds, number_of_parameters, tspan
+        strategy::GridTraining, chain::Chain, bounds, number_of_parameters, tspan;
+        rng = Random.default_rng()
     )
     dt = strategy.dx
     tspan_ = tspan[1]:dt:tspan[2]
@@ -230,51 +248,55 @@ end
 
 function get_trainset(
         strategy::StochasticTraining, chain::DeepONet,
-        bounds, number_of_parameters, tspan
+        bounds, number_of_parameters, tspan;
+        rng = Random.default_rng()
     )
     p = reduce(
         vcat,
         [
-            (bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
+            (bound[2] .- bound[1]) .* rand(rng, 1, number_of_parameters) .+ bound[1]
                 for bound in bounds
         ]
     )
     # NeuralOperators 0.6+ requires 2D trunk input
-    t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points) .+ tspan[1]
+    t = (tspan[2] .- tspan[1]) .* rand(rng, 1, strategy.points) .+ tspan[1]
     return (p, t)
 end
 
 function get_trainset(
         strategy::StochasticTraining, chain::Chain,
-        bounds, number_of_parameters, tspan
+        bounds, number_of_parameters, tspan;
+        rng = Random.default_rng()
     )
     (number_of_parameters != strategy.points) &&
         throw(error("number_of_parameters should be the same strategy.points for StochasticTraining"))
     p = reduce(
         vcat,
         [
-            (bound[2] .- bound[1]) .* rand(1, number_of_parameters) .+ bound[1]
+            (bound[2] .- bound[1]) .* rand(rng, 1, number_of_parameters) .+ bound[1]
                 for bound in bounds
         ]
     )
-    t = (tspan[2] .- tspan[1]) .* rand(1, strategy.points, 1) .+ tspan[1]
+    t = (tspan[2] .- tspan[1]) .* rand(rng, 1, strategy.points, 1) .+ tspan[1]
     return (p, t)
 end
 
 function generate_loss(
-        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan
+        strategy::GridTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan;
+        rng = Random.default_rng()
     )
-    x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
+    x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan; rng)
     return function loss(θ, _)
         return initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
 
 function generate_loss(
-        strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan
+        strategy::StochasticTraining, prob::ODEProblem, phi, bounds, number_of_parameters, tspan;
+        rng = Random.default_rng()
     )
     return function loss(θ, _)
-        x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
+        x = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan; rng)
         return initial_condition_loss(phi, prob, x, θ) + physics_loss(phi, prob, x, θ)
     end
 end
@@ -458,7 +480,7 @@ function SciMLBase.__solve(
     (; tspan, u0, f) = prob
     (;
         chain, opt, bounds, number_of_parameters,
-        init_params, strategy, additional_loss,
+        init_params, strategy, additional_loss, rng,
     ) = alg
 
     if !(chain isa AbstractLuxLayer)
@@ -469,7 +491,7 @@ function SciMLBase.__solve(
         end
     end
 
-    phi, init_params = generate_pino_phi_θ(chain, init_params)
+    phi, init_params = generate_pino_phi_θ(chain, init_params, rng)
 
     init_params = ComponentArray(init_params)
 
@@ -480,15 +502,15 @@ function SciMLBase.__solve(
         if chain isa DeepONet
             # Use length(bounds) as branch input dimension - this is the number of parameters
             in_dim = length(bounds)
-            u = rand(in_dim, number_of_parameters)
+            u = rand(rng, in_dim, number_of_parameters)
             # NeuralOperators 0.6+ requires 2D trunk input
-            v = rand(1, 10)
+            v = rand(rng, 1, 10)
             x = (u, v)
             phi(x, init_params)
         end
         if chain isa Chain
             in_dim = chain.layers.layer_1.in_dims
-            x = rand(in_dim, number_of_parameters)
+            x = rand(rng, in_dim, number_of_parameters)
             phi(x, init_params)
         end
     catch err
@@ -506,7 +528,7 @@ function SciMLBase.__solve(
     end
 
     inner_f = generate_loss(
-        strategy, prob, phi, bounds, number_of_parameters, tspan
+        strategy, prob, phi, bounds, number_of_parameters, tspan; rng
     )
 
     function total_loss(θ, _)
@@ -533,7 +555,9 @@ function SciMLBase.__solve(
     optprob = OptimizationProblem(optf, init_params)
     res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
 
-    (p, t) = get_trainset(strategy, phi.smodel.model, bounds, number_of_parameters, tspan)
+    (p, t) = get_trainset(
+        strategy, phi.smodel.model, bounds, number_of_parameters, tspan; rng
+    )
     interp = PINOODEInterpolation(phi, res.u)
     u = interp(p, t)
     metadata = PINOODEMetadata(p)

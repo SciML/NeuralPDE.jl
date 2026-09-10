@@ -190,7 +190,7 @@ function get_numeric_integral(pinnrep::PINNRepresentation)
         dict_depvars = dict_depvars,
     ) -> begin
         function integration_(cord, lb, ub, θ)
-            cord_ = cord
+            cord_ = copy(cord)
             function integrand_(x, p)
                 @ignore_derivatives cord_[integrating_var_id] .= x
                 return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)
