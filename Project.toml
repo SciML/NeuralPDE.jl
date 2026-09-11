@@ -118,6 +118,7 @@ Zygote = "0.7.10"
 julia = "1.10"
 
 [extras]
+MonteCarloIntegration = "4886b29c-78c9-11e9-0a6e-41e1f4161f7b"
 AdvancedHMC = "0bf59076-c3b1-5ca4-86bd-e02cd72cde3d"
 Boltz = "4544d5e4-abc5-4dea-817f-29e4c205d9c8"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
@@ -142,4 +143,8 @@ TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["AdvancedHMC", "Boltz", "CUDA", "DiffEqNoiseProcess", "FastGaussQuadrature", "Flux", "InteractiveUtils", "LineSearches", "LogDensityProblems", "LuxCUDA", "LuxCore", "LuxLib", "MCMCChains", "Optim", "OptimizationOptimJL", "OrdinaryDiffEq", "SafeTestsets", "SciMLTesting", "StableRNGs", "StochasticDiffEq", "TensorBoardLogger", "Test"]
+test = ["AdvancedHMC", "MonteCarloIntegration", "Boltz", "CUDA", "DiffEqNoiseProcess", "FastGaussQuadrature", "Flux", "InteractiveUtils", "LineSearches", "LogDensityProblems", "LuxCUDA", "LuxCore", "LuxLib", "MCMCChains", "Optim", "OptimizationOptimJL", "OrdinaryDiffEq", "SafeTestsets", "SciMLTesting", "StableRNGs", "StochasticDiffEq", "TensorBoardLogger", "Test"]
+
+[sources]
+Integrals = {url = "https://github.com/SciML/Integrals.jl.git", rev = "master"}
+MonteCarloIntegration = {url = "https://github.com/ranjanan/MonteCarloIntegration.jl.git", rev = "master"}
