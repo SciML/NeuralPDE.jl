@@ -478,8 +478,9 @@ function get_loss_function(
     ) -> begin
         function integrand(x, θ)
             x = x |> dev |> EltypeAdaptor{eltypeθ}()
-            isempty(x) && return similar(x, recursive_eltype(θ), 0)
-            return sum(abs2, view(loss_(x, θ), 1, :), dims = 2) #./ size_x
+            isempty(x) && return cdev(similar(x, recursive_eltype(θ), 0))
+            # CPU quadrature backends apply their Jacobian and accumulate on the host.
+            return cdev(sum(abs2, view(loss_(x, θ), 1, :), dims = 2)) #./ size_x
         end
         integral_function = BatchIntegralFunction(integrand, max_batch = strategy.batch)
         prob = IntegralProblem(integral_function, (lb, ub), θ)

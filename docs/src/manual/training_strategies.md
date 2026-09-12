@@ -8,7 +8,8 @@ of the physics-informed loss.
 `QuasiRandomTraining` with its default `LatinHyperCubeSample()` is a well-rounded training
 strategy which can be used for most situations. It scales well for high dimensional
 spaces and is GPU-compatible. `QuadratureTraining` can lead to faster or more robust convergence
-with one of the H-Cubature or P-Cubature methods, but are not currently GPU compatible.
+with one of the H-Cubature or P-Cubature methods. Its quadrature backend generates points and
+accumulates integral values on the CPU, while residual evaluation follows the parameter device.
 For very high dimensional cases, `QuadratureTraining` with an adaptive Monte Carlo quadrature
 method, such as `CubaVegas`, can be beneficial for difficult or stiff problems.
 
