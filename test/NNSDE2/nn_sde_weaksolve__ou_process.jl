@@ -3,9 +3,8 @@ using Test
 
 @testset "OU process" begin
     using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, Optimisers
-    using OrdinaryDiffEq, Random, Distributions, Integrals, Cubature
+    using OrdinaryDiffEq, Distributions, Integrals, Cubature, StableRNGs
     using OptimizationOptimJL: BFGS
-    Random.seed!(100)
 
     α = -1
     β = 1
@@ -25,6 +24,7 @@ using Test
             inn, 1, Lux.logcosh
         )
     ) |> f64
+    initial_parameters = Lux.initialparameters(StableRNG(100), chain)
 
     # problem setting
     dx = 0.02
@@ -36,6 +36,7 @@ using Test
         chain = chain,
         optimalg = BFGS(),
         norm_loss_alg = HCubatureJL(),
+        initial_parameters = initial_parameters,
         x_0 = x_0,
         x_end = x_end,
         distrib = Normal(u0, σ_var_bc)
