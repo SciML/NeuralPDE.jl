@@ -5,31 +5,34 @@ using Adapt: Adapt
 using ArrayInterface: ArrayInterface
 using ChainRulesCore: ChainRulesCore, @ignore_derivatives
 using Cubature: Cubature
-using ComponentArrays: ComponentArrays, ComponentArray, getdata, getaxes
+using ComponentArrays: ComponentArrays, ComponentArray
 using ConcreteStructs: @concrete
-using DocStringExtensions: FIELDS
-using DomainSets: DomainSets, AbstractInterval, leftendpoint, rightendpoint, ProductDomain
+using DomainSets: DomainSets
+using Enzyme: Enzyme
+using FastGaussQuadrature: gausslegendre
 using ForwardDiff: ForwardDiff
 using Functors: Functors, fmap
-using Integrals: Integrals, CubatureJLh, QuadGKJL
-using IntervalSets: infimum, supremum
-using LinearAlgebra: Diagonal
+using Integrals: Integrals, CubatureJLh, GaussLegendre, QuadGKJL
+using LinearAlgebra: I
 using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
 using NeuralOperators: DeepONet
-using LuxCore: LuxCore, AbstractLuxLayer, AbstractLuxWrapperLayer
+using LuxCore: LuxCore, AbstractLuxContainerLayer, AbstractLuxLayer, AbstractLuxWrapperLayer
 using MLDataDevices: CPUDevice, get_device
+using ModelingToolkitNeuralNets: ModelingToolkitNeuralNets, SymbolicNeuralNetwork
 using Optimisers: Optimisers, Adam
 using Optimization: Optimization
 using OptimizationOptimisers: OptimizationOptimisers
+using PDEBase: PDEBase
 using Printf: @printf
 using Random: Random, AbstractRNG
 using RecursiveArrayTools: DiffEqArray
-using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
+using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions
 using SciMLBase: SciMLBase, BatchIntegralFunction, DAEProblem, IntegralProblem,
     NoiseProblem, ODEFunction, ODEInputFunction, ODEProblem, ODESolution,
-    OptimizationFunction, OptimizationProblem, PDETimeSeriesSolution, ReturnCode,
-    SDEProblem, discretize, init, isinplace, remake, solve, symbolic_discretize
+    OptimizationFunction, OptimizationProblem, PDENoTimeSolution, PDETimeSeriesSolution,
+    ReturnCode, SDEProblem, discretize, init, isinplace, remake, solve,
+    symbolic_discretize
 using SciMLPublic: @public
 using Statistics: Statistics, mean
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
@@ -37,66 +40,28 @@ using WeightInitializers: glorot_uniform, zeros32
 using Zygote: Zygote
 
 # Symbolic Stuff
-using ModelingToolkit: ModelingToolkit, toexpr
-using ModelingToolkitBase: @mtkcompile, @named, @parameters, PDESystem, get_dvs, get_ivs,
-    mtkcompile, unknowns
-using Symbolics: Symbolics, Differential, Integral, arguments, Num, expand_derivatives,
-    @register_symbolic, @variables
-using SymbolicUtils: SymbolicUtils, unwrap
-using SymbolicIndexingInterface: SymbolicIndexingInterface
+using ModelingToolkit: ModelingToolkit
+using ModelingToolkitBase: ModelingToolkitBase, @mtkcompile, @named, @parameters,
+    PDESystem, ProblemTypeCtx, System, get_bcs, get_dvs, get_ivs, get_ps,
+    getdefault, initial_conditions, mtkcompile, setdefault, tovar, unknowns
+using Symbolics: Symbolics, Differential, Equation, Integral, arguments, iscall, Num, operation,
+    wrap, @register_symbolic, @variables
+using SymbolicUtils: SymbolicUtils, getmetadata, unwrap
+using SymbolicIndexingInterface: SymbolicIndexingInterface, getu, setp
 
 # Needed for the Bayesian Stuff
-using Distributions: Distributions, Distribution, MvNormal, Normal, dim, logpdf
+using Distributions: Distributions, Distribution, Normal
 using MonteCarloMeasurements: Particles
 
-import LuxCore: initialparameters, initialstates, parameterlength
+import LuxCore: initialparameters, parameterlength
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
-
-"""
-    AbstractPINN
-
-Abstract supertype for PDE discretizations that use a physics-informed neural
-network.
-
-# Fields
-
-This abstract type has no fields. Concrete discretizations define the state
-needed by their `symbolic_discretize` method.
-
-# Extension Rules
-
-A concrete subtype must add a method for
-`SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::MyPINN)`.
-The method must translate the symbolic `PDESystem` and the discretization into
-the symbolic representation consumed by the package's training workflow. Callers
-should use the generic `SciMLBase.symbolic_discretize` entry point; the concrete
-type is the dispatch extension point.
-
-This is a developer interface. Application code should normally use one of the
-concrete discretizations exported by NeuralPDE.
-
-# Example
-
-```julia
-using ModelingToolkit: PDESystem
-
-struct MyPINN <: NeuralPDE.AbstractPINN end
-
-function SciMLBase.symbolic_discretize(
-        pde_system::PDESystem, discretization::MyPINN
-    )
-    return (; pde_system, discretization)
-end
-```
-"""
-abstract type AbstractPINN end
 
 """
     AbstractTrainingStrategy
 
 Abstract supertype for the sampling and loss-construction strategies used by
-NeuralPDE discretizations.
+NeuralPDE discretizations and solvers.
 
 # Fields
 
@@ -105,19 +70,18 @@ needed by their training-data and loss-construction methods.
 
 # Extension Rules
 
-A custom strategy must implement the generic
+A strategy used with [`PhysicsInformedNN`](@ref) implements the collocation interface
+`collocation_count(strategy, kind, ivpos, bounds, pinned)` and
+`sample_points(strategy, block, rng)`, optionally `resamples(strategy)` and
+`uses_quadrature_weights(strategy)`.
+
+A strategy used with the ODE solvers implements the generic
 `get_loss_function(init_params, loss_function, training_data, T, strategy;
 kwargs...)` interface. For an interval-based strategy, the training data may
 instead be passed as lower and upper bounds:
 `get_loss_function(init_params, loss_function, lower_bounds, upper_bounds, T,
 strategy; kwargs...)`. In either form, the method must return a callable scalar
 objective whose first argument is the optimization parameter container.
-
-`loss_function` receives the strategy's training data and that parameter
-container and returns the residuals to aggregate. `T` is the element type used
-for generated training data. Keyword arguments are strategy-specific and are
-forwarded by the generic training workflow. Implement `generate_training_sets`
-or `get_bounds` only when the strategy needs those representations.
 
 This is a developer interface. User code should generally use the built-in
 training strategies.
@@ -149,17 +113,15 @@ const cdev = CPUDevice()
 include("eltype_matching.jl")
 
 include("pinn_types.jl")
-include("symbolic_utilities.jl")
 include("training_strategies.jl")
-include("adaptive_losses.jl")
+include("pinn_lowering.jl")
+include("discretize.jl")
+include("pde_solution.jl")
 
 include("ode_solve.jl")
 include("dae_solve.jl")
 include("pino_ode_solve.jl")
-include("transform_inf_integral.jl")
-include("discretize.jl")
 
-include("neural_adapter.jl")
 include("bpinn_types.jl")
 
 include("dgm.jl")
@@ -170,33 +132,29 @@ include("precompilation.jl")
 
 export PINOODE
 export NNODE, NNDAE
-export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
+export BNNODE, ahmc_bayesian_pinn_ode
 export NNSDE
 export SDEPINN
-export PhysicsInformedNN
-export BPINNsolution, BayesianPINN
+export PhysicsInformedNN, FiniteDifferenceDerivative
+export BPINNsolution
 export DeepGalerkin
-
-export neural_adapter
 
 export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
     WeightedIntervalTraining
 
-export build_loss_function, get_loss_function,
-    generate_training_sets, get_variables, get_argument, get_bounds,
-    get_numeric_integral, vector_to_parameters
-
-export AbstractAdaptiveLoss, NonAdaptiveLoss, GradientScaleAdaptiveLoss,
-    MiniMaxAdaptiveLoss, SoftAdaptAdaptiveLoss, ReLoBRaLoAdaptiveLoss
-
-export LogOptions
+export get_loss_function, vector_to_parameters
+export pinn_metadata, resample!
 
 export SciMLBase, DAEProblem, NoiseProblem, ODEFunction, ODEInputFunction, ODEProblem,
-    ODESolution, OptimizationFunction, OptimizationProblem, PDETimeSeriesSolution,
-    ReturnCode, SDEProblem, discretize, init, remake, solve, symbolic_discretize
+    ODESolution, OptimizationFunction, OptimizationProblem, PDENoTimeSolution,
+    PDETimeSeriesSolution, ReturnCode, SDEProblem, discretize, init, remake, solve,
+    symbolic_discretize
 export ModelingToolkit, Differential, Integral, PDESystem, mtkcompile, unknowns,
     @mtkcompile, @named, @parameters, @register_symbolic, @variables
 
-@public logscalar, logvector
+@public AbstractDerivativeLowering, PINNMetadata, ResidualBlock, TrialNetwork,
+    AdditionalLoss, nn_eval, nn_eval_row, default_adtype, lower, lower_derivative,
+    trial_function,
+    collocation_count, sample_points, resamples, uses_quadrature_weights
 
 end # module

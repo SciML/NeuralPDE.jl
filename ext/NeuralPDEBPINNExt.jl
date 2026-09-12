@@ -3,9 +3,7 @@ module NeuralPDEBPINNExt
 using NeuralPDE
 using NeuralPDE: NeuralPDE, AbstractTrainingStrategy, GridTraining, StochasticTraining,
     QuadratureTraining, WeightedIntervalTraining, BNNODE, BPINNstats,
-    BPINNsolution, vector_to_parameters, build_loss_function,
-    get_dataset_train_points, merge_strategy_with_loglikelihood_function,
-    safe_get_device, safe_expand
+    BPINNsolution, vector_to_parameters, safe_get_device, safe_expand
 
 using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
     JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
@@ -14,13 +12,11 @@ using ComponentArrays: ComponentArrays, ComponentArray, getdata
 using ConcreteStructs: @concrete
 using Distributions: Distributions, Distribution, MvNormal, logpdf
 using ForwardDiff: ForwardDiff
-using IntervalSets: infimum, supremum
 using LinearAlgebra: Diagonal
 using LogDensityProblems: LogDensityProblems
 using Lux: Lux, StatefulLuxLayer, FromFluxAdaptor
 using LuxCore: LuxCore, AbstractLuxLayer
 using MCMCChains: MCMCChains, Chains, sample
-using ModelingToolkit: ModelingToolkit, Differential, toexpr
 using MonteCarloMeasurements: Particles
 using Printf: @printf
 using Random: Random
@@ -31,6 +27,5 @@ using Symbolics: Symbolics
 
 include("bpinn/advancedHMC_MCMC.jl")
 include("bpinn/BPINN_ode.jl")
-include("bpinn/PDE_BPINN.jl")
 
 end # module

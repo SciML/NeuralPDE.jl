@@ -1,12 +1,11 @@
 # API
 
 NeuralPDE's own public API — the solver algorithms (`NNODE`, `NNDAE`, `BNNODE`,
-`PINOODE`, `NNSDE`, `SDEPINN`, `DeepGalerkin`), the `PhysicsInformedNN` discretization,
-the training strategies and the adaptive loss functions — is documented
+`PINOODE`, `NNSDE`, `SDEPINN`, `DeepGalerkin`), the `PhysicsInformedNN` discretization
+and the training strategies — is documented
 in the Manual: [ODE solvers](manual/ode.md), [DAE solvers](manual/dae.md),
-[PINN discretizations](manual/pinns.md), [Bayesian PINNs](manual/bpinns.md),
-[physics-informed neural operators](manual/pino_ode.md) and
-[neural adapters](manual/neural_adapters.md).
+[PINN discretizations](manual/pinns.md), [Bayesian PINNs](manual/bpinns.md) and
+[physics-informed neural operators](manual/pino_ode.md).
 
 This page documents the *reexported* surface instead: names that `using NeuralPDE`
 brings into scope but that another package owns and documents.
@@ -42,7 +41,7 @@ separately. These names are owned and documented by
   - Problems: `ODEProblem`, `DAEProblem`, `SDEProblem`, `NoiseProblem`,
     `OptimizationProblem`
   - Functions: `ODEFunction`, `ODEInputFunction`, `OptimizationFunction`
-  - Solutions: `ODESolution`, `PDETimeSeriesSolution`
+  - Solutions: `ODESolution`, `PDENoTimeSolution`, `PDETimeSeriesSolution`
   - Solving and discretizing: `solve`, `init`, `remake`, `discretize`,
     `symbolic_discretize`
   - Return status: `ReturnCode`

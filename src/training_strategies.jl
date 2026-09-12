@@ -1,10 +1,12 @@
 """
     GridTraining(dx)
 
-A training strategy that uses the grid points in a multidimensional grid
-with spacings `dx`. If the grid is multidimensional, then `dx` is expected
-to be an array of `dx` values matching the dimension of the domain,
-corresponding to the grid spacing in each dimension.
+A training strategy that uses the points of a multidimensional grid with spacings `dx`.
+If the grid is multidimensional, `dx` may be an array of spacings matching the
+independent variables of the `PDESystem` in order.
+
+For PDEs the interior grid excludes the coordinate values pinned by the boundary
+conditions, and the cost of each equation is the mean of its squared residuals.
 
 ## Positional Arguments
 
@@ -16,151 +18,6 @@ end
 
 _zero_dimensional_coordinates(::Type{T}) where {T} = Matrix{T}(undef, 0, 1)
 
-# dataset must have depvar values for same values of indvars
-function get_dataset_train_points(eqs, train_sets, pinnrep)
-    dict_depvar_input = pinnrep.dict_depvar_input
-    depvars = pinnrep.depvars
-    dict_depvars = pinnrep.dict_depvars
-    dict_indvars = pinnrep.dict_indvars
-
-    symbols_input = [(i, dict_depvar_input[i]) for i in depvars]
-    # [(:u, [:t])]
-    eq_args = NeuralPDE.get_argument(eqs, dict_indvars, dict_depvars)
-    # equation wise indvar presence ~ [[:t]]
-    # in each equation atleast one depvars must be a function of all indvars(to cover heterogenous/not case)
-
-    # train_sets follows order of depvars
-    # take dataset indvar values if for equations depvar's indvar matches input symbol indvar
-    points = []
-    for eq_arg in eq_args
-        eq_points = []
-        for i in eachindex(symbols_input)
-            if symbols_input[i][2] == eq_arg
-                push!(eq_points, train_sets[i][:, 2:end]')
-                # Terminate to avoid repetitive ind var points inclusion
-                break
-            end
-        end
-        # Concatenate points for this equation argument
-        push!(points, vcat(eq_points...))
-    end
-
-    return points
-end
-
-# includes dataset points in pde_residual loglikelihood (only for BayesianPINN)
-function merge_strategy_with_loglikelihood_function(
-        pinnrep::PINNRepresentation,
-        strategy::GridTraining, datafree_pde_loss_function,
-        datafree_bc_loss_function; train_sets_pde = nothing, train_sets_bc = nothing
-    )
-    eltypeθ = recursive_eltype(pinnrep.flat_init_params)
-    adaptor = EltypeAdaptor{eltypeθ}()
-
-    # only when physics loss is taken, merge_strategy_with_loglikelihood_function() call case
-    if ((train_sets_bc isa Nothing) && (train_sets_pde isa Nothing))
-        train_sets = generate_training_sets(
-            pinnrep.domains, strategy.dx, pinnrep.eqs, pinnrep.bcs, eltypeθ,
-            pinnrep.dict_indvars, pinnrep.dict_depvars
-        )
-
-        train_sets_pde, train_sets_bc = train_sets |> adaptor
-        # train_sets_pde matches PhysicsInformedNN solver train_sets[1] dims.
-        pde_loss_functions = [
-            get_points_loss_functions(_loss, _set, eltypeθ, strategy)
-                for (_loss, _set) in zip(
-                    datafree_pde_loss_function, train_sets_pde
-                )
-        ]
-
-        bc_loss_functions = [
-            get_points_loss_functions(_loss, _set, eltypeθ, strategy)
-                for (_loss, _set) in zip(
-                    datafree_bc_loss_function, train_sets_bc
-                )
-        ]
-
-        return pde_loss_functions, bc_loss_functions
-    end
-
-    pde_loss_functions = if train_sets_pde !== nothing
-        # as first col in all rows is depvar's value in depvar's dataset respectively
-        # and we want only all depvar dataset's indvar points
-        pde_train_sets = [train_set[:, 2:end]' for train_set in train_sets_pde] |> adaptor
-
-        # pde_train_sets must match PhysicsInformedNN solver train_sets[1] dims. It is a vector with coords.
-        # Vector is for number of PDE equations in system, Matrix has rows of indvar grid point coords
-        # each loss struct mapped onto (total_numpoints_combs, dim_indvars)
-        [
-            get_points_loss_functions(_loss, _set, eltypeθ, strategy)
-                for (_loss, _set) in zip(datafree_pde_loss_function, pde_train_sets)
-        ]
-    else
-        nothing
-    end
-
-    bc_loss_functions = if train_sets_bc !== nothing
-        bcs_train_sets = [train_set[:, 2:end]' for train_set in train_sets_bc] |> adaptor
-        [
-            get_points_loss_functions(_loss, _set, eltypeθ, strategy)
-                for (_loss, _set) in zip(datafree_bc_loss_function, bcs_train_sets)
-        ]
-    else
-        nothing
-    end
-
-    return pde_loss_functions, bc_loss_functions
-end
-
-function get_points_loss_functions(
-        loss_function, train_set, eltypeθ, strategy::GridTraining;
-        τ = nothing
-    )
-    # loss_function length is number of all points loss is being evaluated upon
-    # train sets rows are for each indvar, cols are coordinates (row_1,row_2,..row_n) at which loss evaluated
-    return function loss(θ, std)
-        return logpdf(
-            MvNormal(
-                loss_function(train_set, θ)[1, :],
-                Diagonal(abs2.(std .* ones(eltypeθ, size(train_set)[2])))
-            ),
-            zeros(eltypeθ, size(train_set)[2])
-        )
-    end
-end
-
-# only for PhysicsInformedNN
-function merge_strategy_with_loss_function(
-        pinnrep::PINNRepresentation,
-        strategy::GridTraining, datafree_pde_loss_function, datafree_bc_loss_function
-    )
-    (; domains, eqs, bcs, dict_indvars, dict_depvars) = pinnrep
-    eltypeθ = recursive_eltype(pinnrep.flat_init_params)
-    adaptor = EltypeAdaptor{eltypeθ}()
-
-    train_sets = generate_training_sets(
-        domains, strategy.dx, eqs, bcs, eltypeθ,
-        dict_indvars, dict_depvars
-    )
-
-    # the points in the domain and on the boundary
-    pde_train_sets, bcs_train_sets = train_sets |> adaptor
-    pde_loss_functions = [
-        get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
-            for (_loss, _set) in zip(
-                datafree_pde_loss_function, pde_train_sets
-            )
-    ]
-
-    bc_loss_functions = [
-        get_loss_function(pinnrep, _loss, _set, eltypeθ, strategy)
-            for (_loss, _set) in
-            zip(datafree_bc_loss_function, bcs_train_sets)
-    ]
-
-    return pde_loss_functions, bc_loss_functions
-end
-
 """
     get_loss_function(init_params, loss_function, training_data, eltype, strategy; kwargs...)
     get_loss_function(
@@ -168,13 +25,13 @@ end
         kwargs...
     )
 
-Construct the scalar objective used by a NeuralPDE training strategy from a residual
-function and strategy-specific training data.
+Construct the scalar objective used by the ODE solvers (`NNODE`, `NNDAE`, `NNSDE`) from a
+residual function and strategy-specific training data.
 
 # Arguments
 
-* `init_params`: the initial parameter container, or a `PINNRepresentation` containing
-  it. The strategy uses this to choose a device when needed.
+* `init_params`: the initial parameter container. The strategy uses this to choose a
+  device when needed.
 * `loss_function`: a function called as `loss_function(training_data, θ)` that returns
   the residuals for the current optimization parameters `θ`.
 * `training_data`: the grid, sampled points, or bounds consumed by the strategy.
@@ -196,9 +53,7 @@ A callable `objective(θ)` that returns the scalar training objective for `θ`.
 
 Custom strategies extend this generic function with a method specialized on their
 strategy type. The method must return a callable whose first argument is the
-optimization parameter container. `generate_training_sets` and `get_bounds` are
-separate optional extension points used only when the strategy needs to construct
-its own training data.
+optimization parameter container.
 
 # Examples
 
@@ -217,13 +72,17 @@ function get_loss_function end
 function get_loss_function(
         init_params, loss_function, train_set, eltype0, ::GridTraining; τ = nothing
     )
-    init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
     train_set = train_set |> safe_get_device(init_params) |> EltypeAdaptor{eltype0}()
     return θ -> mean(abs2, loss_function(train_set, θ))
 end
 
 """
     StochasticTraining(points; bcs_points = points)
+
+A training strategy that draws `points` uniformly distributed random points in the
+domain of each equation. For PDEs the points are stored as parameters of the generated
+`OptimizationProblem`; call [`resample!`](@ref) from a `solve` callback to draw new points
+during training.
 
 ## Positional Arguments
 
@@ -247,35 +106,10 @@ function generate_random_points(points, bound, eltypeθ)
     return rand(eltypeθ, length(lb), points) .* (ub .- lb) .+ lb
 end
 
-function merge_strategy_with_loss_function(
-        pinnrep::PINNRepresentation,
-        strategy::StochasticTraining, datafree_pde_loss_function, datafree_bc_loss_function
-    )
-    (; domains, eqs, bcs, dict_indvars, dict_depvars) = pinnrep
-
-    eltypeθ = eltype(pinnrep.flat_init_params)
-
-    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-    pde_bounds, bcs_bounds = bounds
-
-    pde_loss_functions = [
-        get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy)
-            for (_loss, bound) in zip(datafree_pde_loss_function, pde_bounds)
-    ]
-
-    bc_loss_functions = [
-        get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy)
-            for (_loss, bound) in zip(datafree_bc_loss_function, bcs_bounds)
-    ]
-
-    return pde_loss_functions, bc_loss_functions
-end
-
 function get_loss_function(
         init_params, loss_function, bound, eltypeθ,
         strategy::StochasticTraining; τ = nothing
     )
-    init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
     dev = safe_get_device(init_params)
     return θ -> begin
         sets = generate_random_points(strategy.points, bound, eltypeθ) |> dev |>
@@ -289,7 +123,6 @@ end
                                 sampling_alg = LatinHypercubeSample(), resampling = true,
                                 minibatch = 0)
 
-
 A training strategy which uses quasi-Monte Carlo sampling for low discrepancy sequences
 that accelerate the convergence in high dimensional spaces over pure random sequences.
 
@@ -302,12 +135,10 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
 * `bcs_points`: the number of quasi-random points in a sample for boundary conditions
   (by default, it equals `points`),
 * `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
-* `resampling`: if it's false - the full training set is generated in advance before
-  training, and at each iteration, one subset is randomly selected out of the batch.
-  If it's true - the training set isn't generated beforehand, and one set of quasi-random
-  points is generated directly at each iteration in runtime. In this case, `minibatch` has
-  no effect.
-* `minibatch`: the number of subsets, if `!resampling`.
+* `resampling`: whether [`resample!`](@ref) draws a new sample for PDE problems. For the
+  ODE solvers, `false` generates `minibatch` samples in advance and selects one of them at
+  random on every objective evaluation.
+* `minibatch`: the number of subsets, if `!resampling` (ODE solvers only).
 
 For more information, see [QuasiMonteCarlo.jl](https://docs.sciml.ai/QuasiMonteCarlo/stable/).
 """
@@ -327,42 +158,11 @@ function QuasiRandomTraining(
 end
 
 function generate_quasi_random_points_batch(
-        points, bound, eltypeθ, sampling_alg,
-        minibatch
+        points, bound, eltypeθ, sampling_alg, minibatch
     )
     lb, ub = bound
-    return QuasiMonteCarlo.generate_design_matrices(
-        points, lb, ub, sampling_alg, minibatch
-    ) |> EltypeAdaptor{eltypeθ}()
-end
-
-function merge_strategy_with_loss_function(
-        pinnrep::PINNRepresentation,
-        strategy::QuasiRandomTraining, datafree_pde_loss_function,
-        datafree_bc_loss_function
-    )
-    (; domains, eqs, bcs, dict_indvars, dict_depvars) = pinnrep
-
-    eltypeθ = eltype(pinnrep.flat_init_params)
-
-    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-    pde_bounds, bcs_bounds = bounds
-
-    pde_loss_functions = [
-        get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy)
-            for (_loss, bound) in zip(datafree_pde_loss_function, pde_bounds)
-    ]
-
-    strategy_ = QuasiRandomTraining(
-        strategy.bcs_points; strategy.sampling_alg,
-        strategy.resampling, strategy.minibatch
-    )
-    bc_loss_functions = [
-        get_loss_function(pinnrep, _loss, bound, eltypeθ, strategy_)
-            for (_loss, bound) in zip(datafree_bc_loss_function, bcs_bounds)
-    ]
-
-    return pde_loss_functions, bc_loss_functions
+    set = QuasiMonteCarlo.generate_design_matrices(points, lb, ub, sampling_alg, minibatch)
+    return set |> EltypeAdaptor{eltypeθ}()
 end
 
 function get_loss_function(
@@ -370,8 +170,6 @@ function get_loss_function(
         strategy::QuasiRandomTraining; τ = nothing
     )
     (; sampling_alg, points, resampling, minibatch) = strategy
-
-    init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
     dev = safe_get_device(init_params)
 
     if isempty(bound[1])
@@ -401,10 +199,16 @@ end
                         maxiters = 1_000, batch = 100)
 
 A training strategy which treats the loss function as the integral of
-||condition|| over the domain. Uses an Integrals.jl algorithm for
-computing the (adaptive) quadrature of this loss with respect to the
-chosen tolerances, with a batching `batch` corresponding to the maximum
-number of points to evaluate in a given integrand call.
+||condition|| over the domain.
+
+For the ODE solvers, the integral is computed with the adaptive Integrals.jl algorithm
+`quadrature_alg` under the given tolerances, batching at most `batch` points per
+integrand call.
+
+For PDEs, `quadrature_alg` must be a fixed-node `Integrals.GaussLegendre` rule; the
+tensor-product Gauss–Legendre nodes are the collocation points of every equation and the
+cost is the quadrature of the squared residual normalized by the domain measure. The
+tolerance keywords are ignored.
 
 ## Keyword Arguments
 
@@ -432,35 +236,10 @@ function QuadratureTraining(;
     return QuadratureTraining(quadrature_alg, reltol, abstol, maxiters, batch)
 end
 
-function merge_strategy_with_loss_function(
-        pinnrep::PINNRepresentation,
-        strategy::QuadratureTraining, datafree_pde_loss_function, datafree_bc_loss_function
-    )
-    (; domains, eqs, bcs, dict_indvars, dict_depvars) = pinnrep
-    eltypeθ = eltype(pinnrep.flat_init_params)
-
-    bounds = get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-    pde_bounds, bcs_bounds = bounds
-
-    lbs, ubs = pde_bounds
-    pde_loss_functions = [
-        get_loss_function(pinnrep, _loss, lb, ub, eltypeθ, strategy)
-            for (_loss, lb, ub) in zip(datafree_pde_loss_function, lbs, ubs)
-    ]
-    lbs, ubs = bcs_bounds
-    bc_loss_functions = [
-        get_loss_function(pinnrep, _loss, lb, ub, eltypeθ, strategy)
-            for (_loss, lb, ub) in zip(datafree_bc_loss_function, lbs, ubs)
-    ]
-
-    return pde_loss_functions, bc_loss_functions
-end
-
 function get_loss_function(
         init_params, loss_function, lb, ub, eltypeθ,
         strategy::QuadratureTraining; τ = nothing
     )
-    init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
     dev = safe_get_device(init_params)
 
     if length(lb) == 0
@@ -518,7 +297,136 @@ function get_loss_function(
         init_params, loss_function, train_set, eltype0,
         ::WeightedIntervalTraining; τ = nothing
     )
-    init_params = init_params isa PINNRepresentation ? init_params.init_params : init_params
     train_set = train_set |> safe_get_device(init_params) |> EltypeAdaptor{eltype0}()
-    return (θ) -> mean(abs2, loss_function(train_set, θ))
+    return θ -> mean(abs2, loss_function(train_set, θ))
+end
+
+# PDE collocation interface. Every strategy answers how many points a residual block
+# gets, how to draw them, and whether `resample!` should redraw them.
+
+"""
+    collocation_count(strategy, kind, ivpos, bounds, pinned)
+
+Number of collocation points a residual block of kind `:pde` or `:bc` receives under
+`strategy`. `ivpos` holds the positions of the block's free independent variables in
+`get_ivs(pdesys)`, `bounds` is `(lb, ub)` and `pinned` the set of boundary-pinned values
+of each free independent variable.
+"""
+function collocation_count end
+
+"""
+    sample_points(strategy, block::ResidualBlock, rng)
+
+Return `(X, W)`: the `d × n` matrix of collocation points and the `1 × n` quadrature
+weights (or `nothing`) of `block` under `strategy`.
+"""
+function sample_points end
+
+"""
+    resamples(strategy)
+
+Whether [`resample!`](@ref) draws new collocation points for `strategy`.
+"""
+resamples(::AbstractTrainingStrategy) = false
+
+"""
+    uses_quadrature_weights(strategy)
+
+Whether residual blocks of `strategy` carry a quadrature weight parameter.
+"""
+uses_quadrature_weights(::AbstractTrainingStrategy) = false
+
+_pde_strategy_error(strategy) = throw(
+    ArgumentError(
+        "`$(typeof(strategy).name.name)` cannot be used with `PhysicsInformedNN`; use \
+        `GridTraining`, `StochasticTraining`, `QuasiRandomTraining` or `QuadratureTraining`."
+    )
+)
+collocation_count(strategy::AbstractTrainingStrategy, args...) = _pde_strategy_error(strategy)
+sample_points(strategy::AbstractTrainingStrategy, args...) = _pde_strategy_error(strategy)
+
+function grid_axes(strategy::GridTraining, kind, ivpos, bounds, pinned)
+    lb, ub = bounds
+    T = eltype(lb)
+    return map(eachindex(ivpos)) do i
+        dx = strategy.dx isa Number ? strategy.dx : strategy.dx[ivpos[i]]
+        axis = collect(T, lb[i]:T(dx):ub[i])
+        kind == :pde && filter!(v -> !(v in pinned[i]), axis)
+        axis
+    end
+end
+
+function collocation_count(strategy::GridTraining, kind, ivpos, bounds, pinned)
+    isempty(ivpos) && return 1
+    return prod(length, grid_axes(strategy, kind, ivpos, bounds, pinned))
+end
+
+function sample_points(strategy::GridTraining, block::ResidualBlock, rng)
+    axes_ = grid_axes(strategy, block.kind, block.ivpos, block.bounds, block.pinned)
+    return _product_matrix(axes_), nothing
+end
+
+function _product_matrix(axes_)
+    d = length(axes_)
+    n = prod(length, axes_)
+    X = Matrix{eltype(first(axes_))}(undef, d, n)
+    for (j, pt) in enumerate(Iterators.product(axes_...))
+        X[:, j] .= pt
+    end
+    return X
+end
+
+function collocation_count(strategy::StochasticTraining, kind, ivpos, bounds, pinned)
+    isempty(ivpos) && return 1
+    return kind == :pde ? strategy.points : strategy.bcs_points
+end
+
+function sample_points(::StochasticTraining, block::ResidualBlock, rng)
+    lb, ub = block.bounds
+    X = rand(rng, eltype(lb), length(lb), block.npoints) .* (ub .- lb) .+ lb
+    return X, nothing
+end
+
+resamples(::StochasticTraining) = true
+
+function collocation_count(strategy::QuasiRandomTraining, kind, ivpos, bounds, pinned)
+    isempty(ivpos) && return 1
+    return kind == :pde ? strategy.points : strategy.bcs_points
+end
+
+function sample_points(strategy::QuasiRandomTraining, block::ResidualBlock, rng)
+    lb, ub = block.bounds
+    X = QuasiMonteCarlo.sample(block.npoints, lb, ub, strategy.sampling_alg)
+    return Matrix{eltype(lb)}(reshape(X, length(lb), block.npoints)), nothing
+end
+
+resamples(strategy::QuasiRandomTraining) = strategy.resampling
+
+function _gauss_legendre_order(strategy::QuadratureTraining)
+    alg = strategy.quadrature_alg
+    alg isa GaussLegendre || throw(
+        ArgumentError(
+            "`QuadratureTraining` for PDEs requires a fixed-node rule; pass \
+            `quadrature_alg = GaussLegendre(n = ...)`."
+        )
+    )
+    return length(alg.nodes)
+end
+
+function collocation_count(strategy::QuadratureTraining, kind, ivpos, bounds, pinned)
+    isempty(ivpos) && return 1
+    return _gauss_legendre_order(strategy)^length(ivpos)
+end
+
+uses_quadrature_weights(::QuadratureTraining) = true
+
+function sample_points(strategy::QuadratureTraining, block::ResidualBlock, rng)
+    lb, ub = block.bounds
+    T = eltype(lb)
+    nodes, weights = gausslegendre(_gauss_legendre_order(strategy))
+    axes_ = [T.((ub[i] - lb[i]) / 2 .* nodes .+ (ub[i] + lb[i]) / 2) for i in eachindex(lb)]
+    waxes = [T.(weights ./ 2) for _ in eachindex(lb)]
+    X = _product_matrix(axes_)
+    W = reshape(vec(_product_matrix(waxes) |> w -> prod(w; dims = 1)), 1, :)
+    return X, W
 end

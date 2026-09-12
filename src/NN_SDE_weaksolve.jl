@@ -230,7 +230,7 @@ function SciMLBase.__solve(
     end
 
     function combined_additional(phi, θ, _)
-        return λ_norm * norm_loss(phi, θ)
+        return λ_norm * norm_loss(phi.p̂, θ.p̂)
     end
 
     # Discretization - GridTraining only
@@ -243,18 +243,15 @@ function SciMLBase.__solve(
 
     @named pdesys = PDESystem(eq, bcs, domains, [X, T], [p̂(X, T)])
     opt_prob = discretize(pdesys, discretization)
-    phi = discretization.phi
-
-    sym = NeuralPDE.symbolic_discretize(pdesys, discretization)
-    pde_losses = sym.loss_functions.pde_loss_functions
-    bc_losses = sym.loss_functions.bc_loss_functions
+    md = pinn_metadata(opt_prob)
+    net = only(md.networks)
+    wrapper = getdefault(net.NN)
+    phi = (x, θ) -> wrapper(x, θ)
 
     cb = function (p, l)
         # DiffEqBase now passes DEVerbosity by default; keep these debug prints opt-in.
         verbose === true || return false
         println("loss = ", l)
-        println("pde = ", map(f -> f(p.u), pde_losses))
-        println("bc  = ", map(f -> f(p.u), bc_losses))
         println("norm = ", norm_loss(phi, p.u))
         return false
     end
@@ -267,6 +264,6 @@ function SciMLBase.__solve(
         kwargs...
     )
 
-    # TODO postprocessing for custom solution struct
-    return res, phi
+    # The PDE solution wrapper is unwrapped so that `res.u` stays the parameter vector.
+    return res.original_sol, phi
 end

@@ -172,14 +172,3 @@ Bayesian inference of an ODE problem via NUTS / HMC sampling. Implemented in the
 See the extension method for the full keyword argument documentation.
 """
 function ahmc_bayesian_pinn_ode end
-
-"""
-    ahmc_bayesian_pinn_pde(pde_system, discretization; kwargs...)
-
-Bayesian inference of a PDE system via NUTS / HMC sampling. Implemented in the
-`NeuralPDEBPINNExt` package extension. Load `AdvancedHMC`, `MCMCChains` and
-`LogDensityProblems` to enable it (e.g. `using AdvancedHMC, MCMCChains, LogDensityProblems`).
-
-See the extension method for the full keyword argument documentation.
-"""
-function ahmc_bayesian_pinn_pde end

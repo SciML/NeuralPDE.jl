@@ -19,7 +19,8 @@ using Lux: Chain, Dense
     )
 
     @compile_workload begin
-        prob = discretize(pde_system, discretization)
+        # ForwardDiff keeps the workload cheap; the Enzyme path is compiled on first use.
+        prob = discretize(pde_system, discretization; adtype = AutoForwardDiff())
         solve(prob, Adam(0.001); maxiters = 1)
     end
 end
