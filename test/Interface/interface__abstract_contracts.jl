@@ -1,20 +1,19 @@
 using DomainSets: Interval
 using ForwardDiff: derivative
 using Integrals: CubatureJLh
-using ModelingToolkit, NeuralPDE, SciMLBase
+using ModelingToolkit, NeuralPDE, SciMLBase, Lux, SymbolicIndexingInterface
 using Test
 
-struct MinimalPINN <: NeuralPDE.AbstractPINN
-    scale::Float64
-end
-
-function SciMLBase.symbolic_discretize(
-        pde_system::PDESystem, discretization::MinimalPINN
-    )
-    return (; pde_system, scale = discretization.scale)
-end
-
 struct MinimalTrainingStrategy <: NeuralPDE.AbstractTrainingStrategy end
+
+struct FixedPointsTraining <: NeuralPDE.AbstractTrainingStrategy end
+
+NeuralPDE.collocation_count(::FixedPointsTraining, kind, ivpos, bounds, pinned) =
+    isempty(ivpos) ? 1 : 3
+function NeuralPDE.sample_points(::FixedPointsTraining, block::NeuralPDE.ResidualBlock, rng)
+    lb, ub = block.bounds
+    return lb .+ (ub .- lb) .* [0.25 0.5 0.75], nothing
+end
 
 function NeuralPDE.get_loss_function(
         init_params, loss_function, training_data, eltypeθ,
@@ -37,19 +36,21 @@ function SciMLBase.__solve(
 end
 
 @testset "Developer interface contracts" begin
-    @testset "AbstractPINN" begin
-        @test Docs.doc(NeuralPDE.AbstractPINN) !== nothing
+    @testset "PDE collocation strategy contract" begin
+        @test Docs.doc(NeuralPDE.collocation_count) !== nothing
+        @test Docs.doc(NeuralPDE.sample_points) !== nothing
         @parameters x
         @variables u(..)
         @named pde_system = PDESystem(
-            [u(x) ~ 0], [u(0) ~ 0], [x ∈ Interval(0, 1)], [x], [u(x)]
+            [Differential(x)(u(x)) ~ 1], [u(0) ~ 0], [x ∈ Interval(0, 1)], [x], [u(x)]
         )
-
-        discretization = MinimalPINN(2.0)
-        @test discretization isa NeuralPDE.AbstractPINN
-        symbolic_problem = SciMLBase.symbolic_discretize(pde_system, discretization)
-        @test symbolic_problem.pde_system === pde_system
-        @test symbolic_problem.scale == 2.0
+        strategy = FixedPointsTraining()
+        disc = PhysicsInformedNN(Lux.Chain(Lux.Dense(1, 4, tanh), Lux.Dense(4, 1)), strategy)
+        prob = discretize(pde_system, disc)
+        md = pinn_metadata(prob)
+        @test md.blocks[1].npoints == 3
+        @test SymbolicIndexingInterface.getp(prob, md.blocks[1].xs)(prob) == [0.25 0.5 0.75]
+        @test prob.f(prob.u0, prob.p) isa Float64
     end
 
     @testset "AbstractTrainingStrategy" begin

@@ -10,8 +10,7 @@ u(x) + w(x, v) = \frac{\partial w(x, v)}{\partial w}
 Here, we write an arbitrary heterogeneous system:
 
 ```@example heterogeneous
-using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
-using Optim: BFGS
+using NeuralPDE, Lux, OptimizationOptimJL, Integrals
 import DomainSets: Interval
 
 @parameters x y
@@ -36,15 +35,15 @@ chains = [[Chain(Dense(1, numhid, σ), Dense(numhid, numhid, σ), Dense(numhid, 
            for i in 1:2]
           [Chain(Dense(2, numhid, σ), Dense(numhid, numhid, σ), Dense(numhid, 1))
            for i in 1:2]]
-discretization = PhysicsInformedNN(chains, QuadratureTraining())
+discretization = PhysicsInformedNN(chains, QuadratureTraining(; quadrature_alg = GaussLegendre(n = 20)))
 
 @named pde_system = PDESystem(eq, bcs, domains, [x, y], [p(x), q(y), r(x, y), s(y, x)])
-prob = SciMLBase.discretize(pde_system, discretization)
+prob = discretize(pde_system, discretization)
 
 callback = function (p, l)
     println("Current loss is: $l")
     return false
 end
 
-res = Optimization.solve(prob, BFGS(); maxiters = 100)
+sol = solve(prob, BFGS(); maxiters = 100)
 ```

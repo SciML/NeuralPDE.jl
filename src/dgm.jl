@@ -61,6 +61,24 @@ function DGMLSTMBlock(layers...)
     return Chain(blocks...)
 end
 
+"""
+    DGMTrunk(embed, block)
+
+Applies the embedding layer `S = embed(x)` and then the LSTM-type `block` on `(S, x)`.
+A container rather than a `SkipConnection` with a layer connection so that
+`LuxCore.stateless_apply` (used by the symbolic network wrapper) works.
+"""
+@concrete struct DGMTrunk <: AbstractLuxContainerLayer{(:embed, :block)}
+    embed
+    block
+end
+
+function (l::DGMTrunk)(x, ps, st::NamedTuple)
+    S, st_embed = l.embed(x, ps.embed, st.embed)
+    S, st_block = l.block((S, x), ps.block, st.block)
+    return S, (embed = st_embed, block = st_block)
+end
+
 @concrete struct DGM <: AbstractLuxWrapperLayer{:model}
     model
 end
@@ -100,7 +118,7 @@ function DGM(
     )
     return DGM(
         Chain(
-            SkipConnection(
+            DGMTrunk(
                 Dense(in_dims => modes, activation1),
                 DGMLSTMBlock(
                     [

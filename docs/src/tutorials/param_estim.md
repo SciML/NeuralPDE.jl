@@ -15,11 +15,9 @@ with Physics-Informed Neural Networks. Now we would consider the case where we w
 We start by defining the problem,
 
 ```@example param_estim
-using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, OrdinaryDiffEq,
-      Plots, LineSearches
-using Optim: BFGS
+using NeuralPDE, Lux, OptimizationOptimJL, OrdinaryDiffEq, Plots, LineSearches
 using DomainSets: Interval
-using IntervalSets: leftendpoint, rightendpoint
+
 @parameters t, σ_, β, ρ
 @variables x(..), y(..), z(..)
 Dt = Differential(t)
@@ -29,20 +27,13 @@ eqs = [Dt(x(t)) ~ σ_ * (y(t) - x(t)),
 
 bcs = [x(0) ~ 1.0, y(0) ~ 0.0, z(0) ~ 0.0]
 domains = [t ∈ Interval(0.0, 1.0)]
-dt = 0.01
 ```
 
 And the neural networks as,
 
 ```@example param_estim
-input_ = length(domains)
 n = 8
-chain1 = Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, n, Lux.σ),
-    Dense(n, 1))
-chain2 = Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, n, Lux.σ),
-    Dense(n, 1))
-chain3 = Lux.Chain(Dense(input_, n, Lux.σ), Dense(n, n, Lux.σ), Dense(n, n, Lux.σ),
-    Dense(n, 1))
+chains = [Chain(Dense(1, n, σ), Dense(n, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:3]
 ```
 
 We will add another loss term based on the data that we have to optimize the parameters.
@@ -58,63 +49,52 @@ end
 
 u0 = [1.0; 0.0; 0.0]
 tspan = (0.0, 1.0)
-prob = ODEProblem(lorenz!, u0, tspan)
-sol = solve(prob, Tsit5(), dt = 0.1)
-ts = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains][1]
-function getData(sol)
-    data = []
-    us = hcat(sol(ts).u...)
-    ts_ = hcat(sol(ts).t...)
-    return [us, ts_]
-end
-data = getData(sol)
-
-(u_, t_) = data
-len = length(data[2])
+ode_prob = ODEProblem(lorenz!, u0, tspan)
+ode_sol = solve(ode_prob, Tsit5(), dt = 0.1)
+ts = collect(0.0:0.01:1.0)
+data = Array(ode_sol(ts))
+t_ = reshape(ts, 1, :)
 ```
 
-Then we define the additional loss function `additional_loss(phi, θ , p)`, the function has
+Then we define the additional loss function `additional_loss(phi, θ, p)`, the function has
 three arguments:
 
-  - `phi` the trial solution
-  - `θ` the parameters of neural networks
-  - the hyperparameters `p` .
-
-For a Lux neural network, the composed function will present itself as having θ as a
-[`ComponentArray`](https://github.com/SciML/ComponentArrays.jl)
-subsets `θ.x`, which can also be dereferenced like `θ[:x]`. Thus, the additional
-loss looks like:
+  - `phi`: a `NamedTuple` of batched trial solutions keyed by dependent variable name;
+    `phi.x(t_, θ.x)` evaluates the network of `x` on the matrix of points `t_`,
+  - `θ`: a `NamedTuple` of the network parameter vectors with the same keys,
+  - `p`: the values of the `PDESystem` parameters (`[σ_, ρ, β]` here), which are being
+    optimized together with the networks.
 
 ```@example param_estim
-depvars = [:x, :y, :z]
 function additional_loss(phi, θ, p)
-    return sum(sum(abs2, phi[i](t_, θ[depvars[i]]) .- u_[[i], :]) / len for i in 1:1:3)
+    return sum(abs2, phi.x(t_, θ.x) .- data[1:1, :]) / length(ts) +
+        sum(abs2, phi.y(t_, θ.y) .- data[2:2, :]) / length(ts) +
+        sum(abs2, phi.z(t_, θ.z) .- data[3:3, :]) / length(ts)
 end
 ```
 
-Then finally defining and optimizing using the `PhysicsInformedNN` interface.
+Then finally defining and optimizing using the `PhysicsInformedNN` interface. With
+`param_estim = true` the parameters of the `PDESystem` become unknowns of the generated
+`System`, initialized from `initial_conditions`.
 
 ```@example param_estim
-discretization = NeuralPDE.PhysicsInformedNN([chain1, chain2, chain3],
-    NeuralPDE.QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200), param_estim = true,
-    additional_loss = additional_loss)
-@named pde_system = PDESystem(eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β],
-    initial_conditions = Dict([p => 1.0 for p in [σ_, ρ, β]]))
-prob = NeuralPDE.discretize(pde_system, discretization)
-callback = function (p, l)
-    println("Current loss is: $l")
-    return false
-end
-res = Optimization.solve(prob, BFGS(linesearch = BackTracking()); maxiters = 1000)
-p_ = res.u[(end - 2):end] # p_ = [9.93, 28.002, 2.667]
+discretization = PhysicsInformedNN(
+    chains, GridTraining(0.01); param_estim = true, additional_loss
+)
+@named pde_system = PDESystem(
+    eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β];
+    initial_conditions = Dict([p => 1.0 for p in [σ_, ρ, β]])
+)
+prob = discretize(pde_system, discretization)
+sol = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 1000)
+p_ = [sol.original_sol[σ_], sol.original_sol[ρ], sol.original_sol[β]] # p_ ≈ [10.0, 28.0, 2.667]
 ```
 
 And then finally some analysis by plotting.
 
 ```@example param_estim
-minimizers = [res.u.depvar[depvars[i]] for i in 1:3]
-ts = [leftendpoint(d.domain):(0.001):rightendpoint(d.domain) for d in domains][1]
-u_predict = [[discretization.phi[i]([t], minimizers[i])[1] for t in ts] for i in 1:3]
-plot(sol)
-plot!(ts, u_predict, label = ["x(t)" "y(t)" "z(t)"])
+ts_plot = 0.0:0.001:1.0
+u_predict = [sol(ts_plot; dv = dv) for dv in [x(t), y(t), z(t)]]
+plot(ode_sol)
+plot!(ts_plot, u_predict, label = ["x(t)" "y(t)" "z(t)"])
 ```

@@ -1,794 +1,371 @@
 """
-Build a loss function for a PDE or a boundary condition.
+    symbolic_discretize(pdesys::PDESystem, discretization::PhysicsInformedNN)
 
-# Examples: System of PDEs:
+Lower `pdesys` into a `ModelingToolkit.System` describing the physics-informed neural
+network training problem. This runs PDEBase's optimization-system discretization driver
+with the hooks implemented below.
 
-Take expressions in the form:
+Every dependent variable `u(x, t)` is replaced by a `ModelingToolkitNeuralNets`
+symbolic network evaluated on a matrix of collocation points, `Differential`s are lowered
+with `discretization.derivative`, and every equation becomes one [`ResidualBlock`](@ref)
+with its own collocation array parameter. The returned `System` has:
 
-[Dx(u1(x,y)) + 4*Dy(u2(x,y)) ~ 0,
- Dx(u2(x,y)) + 9*Dy(u1(x,y)) ~ 0]
+* unknowns: the flat network parameter vectors (and the `PDESystem` parameters when
+  `param_estim = true`);
+* parameters: the collocation matrices and quadrature weights of each equation, the
+  network callables, and the `PDESystem` parameters;
+* costs: one mean squared (or quadrature-weighted) residual per PDE, one per boundary
+  condition when `boundary_policy == :penalty`, and the `additional_loss` cost;
+* constraints: the pointwise boundary residuals when `boundary_policy == :constraints`.
 
-to
-
-:((cord, θ, phi, derivative, u)->begin
-          #= ... =#
-          #= ... =#
-          begin
-              (u1, u2) = (θ.depvar.u1, θ.depvar.u2)
-              (phi1, phi2) = (phi[1], phi[2])
-              let (x, y) = (cord[1], cord[2])
-                  [(+)(derivative(phi1, u, [x, y], [[ε, 0.0]], 1, u1), (*)(4, derivative(phi2, u, [x, y], [[0.0, ε]], 1, u1))) - 0,
-                   (+)(derivative(phi2, u, [x, y], [[ε, 0.0]], 1, u2), (*)(9, derivative(phi1, u, [x, y], [[0.0, ε]], 1, u2))) - 0]
-              end
-          end
-      end)
-
-for Lux.AbstractLuxLayer.
+The [`PINNMetadata`](@ref) describing the discretization is stored in the system
+metadata under `ModelingToolkitBase.ProblemTypeCtx`.
 """
-function build_symbolic_loss_function(
-        pinnrep::PINNRepresentation, eqs;
-        eq_params = SciMLBase.NullParameters(), param_estim = false, default_p = nothing,
-        bc_indvars = pinnrep.indvars, integrand = nothing,
-        dict_transformation_vars = nothing, transformation_vars = nothing,
-        integrating_depvars = pinnrep.depvars, coordinate_vars = nothing
-    )
-    (;
-        depvars, dict_depvars, dict_depvar_input, phi, derivative, integral,
-        multioutput, init_params, strategy, eq_params, param_estim, default_p,
-    ) = pinnrep
+SciMLBase.symbolic_discretize(::PDESystem, ::PhysicsInformedNN)
 
-    if integrand isa Nothing
-        this_eq_pair = pair(eqs, depvars, dict_depvars, dict_depvar_input)
-        this_eq_indvars = unique(vcat(values(this_eq_pair)...))
-        if has_local_integral(toexpr(eqs), pinnrep.dict_indvars)
-            coordinate_vars = only(get_variables([eqs], pinnrep.dict_indvars, dict_depvars))
-            this_eq_indvars = coordinate_vars
-            this_eq_pair = Dict()
-        end
-        loss_function = parse_equation(pinnrep, eqs; scope_vars = this_eq_indvars, coordinate_vars)
+"""
+    CollocationSpace
+
+The discrete space of a `PhysicsInformedNN` discretization: the variable map of the
+system, the trial networks, the symbols standing in for the `PDESystem` parameters and
+the boundary-pinned coordinate values.
+"""
+struct CollocationSpace{V, I, N, P, S, Q, D, T} <: PDEBase.AbstractDiscreteSpace
+    varmap::V
+    ivs::I
+    networks::N
+    netmap::P
+    ps::S
+    param_syms::Q
+    pinned::D
+    eltype::Type{T}
+end
+
+mutable struct PINNState <: PDEBase.AbstractDiscretizationState
+    blocks::Vector{ResidualBlock}
+end
+
+PDEBase.construct_disc_state(::PhysicsInformedNN) = PINNState(ResidualBlock[])
+
+function PDEBase.construct_discrete_space(
+        v::PDEBase.VariableMap, pdesys::PDESystem, disc::PhysicsInformedNN
+    )
+    T = _param_eltype(disc)
+    networks = build_networks(disc, v, T)
+    netmap = Dict(net.depvar => net for net in networks)
+    ps = _pdesys_params(pdesys)
+    param_syms = if disc.param_estim
+        Dict{Any, Any}(unwrap(p) => tovar(p) for p in ps)
     else
-        this_eq_pair = Dict(
-            map(
-                intvars -> dict_depvars[intvars] => dict_depvar_input[intvars],
-                integrating_depvars
-            )
-        )
-        this_eq_indvars = transformation_vars isa Nothing ?
-            unique(vcat(values(this_eq_pair)...)) : transformation_vars
-        if coordinate_vars !== nothing
-            this_eq_pair = Dict()
-            this_eq_indvars = transformation_vars === nothing ? coordinate_vars : transformation_vars
-        end
-        loss_function = integrand
+        Dict{Any, Any}(unwrap(p) => wrap(unwrap(p)) for p in ps)
     end
-
-    vars = :(cord, $θ, phi, derivative, integral, u, p)
-    ex = Expr(:block)
-    if multioutput && !(coordinate_vars !== nothing && isempty(integrating_depvars))
-        θ_nums = Symbol[]
-        phi_nums = Symbol[]
-        for v in depvars
-            num = dict_depvars[v]
-            push!(θ_nums, :($(Symbol(:($θ), num))))
-            push!(phi_nums, :($(Symbol(:phi, num))))
-        end
-
-        expr_θ = Expr[]
-        expr_phi = Expr[]
-
-        for i in eachindex(depvars)
-            push!(expr_θ, :($θ.depvar.$(depvars[i])))
-            push!(expr_phi, :(phi[$i]))
-        end
-
-        vars_θ = Expr(:(=), build_expr(:tuple, θ_nums), build_expr(:tuple, expr_θ))
-        push!(ex.args, vars_θ)
-
-        vars_phi = Expr(:(=), build_expr(:tuple, phi_nums), build_expr(:tuple, expr_phi))
-        push!(ex.args, vars_phi)
-    end
-
-    #Add an expression for parameter symbols
-    if param_estim == true && eq_params != SciMLBase.NullParameters()
-        params_symbols = Symbol[]
-        expr_params = Expr[]
-        for (i, eq_param) in enumerate(eq_params)
-            push!(expr_params, :($θ.p[$((i):(i))]))
-            push!(params_symbols, Symbol(:($eq_param)))
-        end
-        params_eq = Expr(
-            :(=), build_expr(:tuple, params_symbols),
-            build_expr(:tuple, expr_params)
-        )
-        push!(ex.args, params_eq)
-    end
-
-    if eq_params != SciMLBase.NullParameters() && param_estim == false
-        params_symbols = Symbol[]
-        expr_params = Expr[]
-        for (i, eq_param) in enumerate(eq_params)
-            push!(expr_params, :(ArrayInterface.allowed_getindex(p, ($i))))
-            push!(params_symbols, Symbol(:($eq_param)))
-        end
-        params_eq = Expr(
-            :(=), build_expr(:tuple, params_symbols),
-            build_expr(:tuple, expr_params)
-        )
-        push!(ex.args, params_eq)
-    end
-
-    eq_pair_expr = Expr[]
-    for i in keys(this_eq_pair)
-        push!(eq_pair_expr, :($(Symbol(:cord, :($i))) = vcat($(this_eq_pair[i]...))))
-    end
-    vcat_expr = Expr(:block, :($(eq_pair_expr...)))
-    vcat_expr_loss_functions = Expr(:block, vcat_expr, loss_function) # TODO rename
-
-    if strategy isa QuadratureTraining && coordinate_vars === nothing
-        indvars_ex = get_indvars_ex(bc_indvars)
-        left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-        vars_eq = Expr(
-            :(=), build_expr(:tuple, left_arg_pairs),
-            build_expr(:tuple, right_arg_pairs)
-        )
-    else
-        indvars_ex = [:($:cord[[$i], :]) for (i, x) in enumerate(this_eq_indvars)]
-        left_arg_pairs, right_arg_pairs = this_eq_indvars, indvars_ex
-        vars_eq = Expr(
-            :(=), build_expr(:tuple, left_arg_pairs),
-            build_expr(:tuple, right_arg_pairs)
-        )
-    end
-
-    if !(dict_transformation_vars isa Nothing)
-        transformation_expr_ = Expr[]
-        for (i, u) in dict_transformation_vars
-            push!(transformation_expr_, :($i = $u))
-        end
-        transformation_expr = Expr(:block, :($(transformation_expr_...)))
-        vcat_expr_loss_functions = Expr(
-            :block, transformation_expr, vcat_expr,
-            loss_function
-        )
-    end
-    let_ex = Expr(:let, vars_eq, vcat_expr_loss_functions)
-    push!(ex.args, let_ex)
-    return :(
-        ($vars) -> begin
-            $ex
-        end
+    pinned = pinned_values(get_bcs(pdesys), v)
+    return CollocationSpace(
+        v, collect(get_ivs(pdesys)), networks, netmap, ps, param_syms, pinned, T
     )
 end
 
-"""
-    build_loss_function(
-        eqs, indvars, depvars, phi, derivative, init_params;
-        bc_indvars = nothing
+function PDEBase.construct_differential_discretizer(
+        pdesys, s::CollocationSpace, disc::PhysicsInformedNN, orders
     )
-
-Returns the body of loss function, which is the executable Julia function, for the main
-equation or boundary condition.
-"""
-function build_loss_function(pinnrep::PINNRepresentation, eqs, bc_indvars)
-    (; eq_params, param_estim, default_p, phi, derivative, integral) = pinnrep
-
-    bc_indvars = bc_indvars === nothing ? pinnrep.indvars : bc_indvars
-
-    expr_loss_function = build_symbolic_loss_function(
-        pinnrep, eqs; bc_indvars, eq_params,
-        param_estim, default_p
-    )
-    u = get_u()
-    _loss_function = @RuntimeGeneratedFunction(expr_loss_function)
-    return (cord, θ) -> _loss_function(cord, θ, phi, derivative, integral, u, default_p)
+    return disc.derivative
 end
 
-"""
-    generate_training_sets(domains, dx, bcs, _indvars::Array, _depvars::Array)
-
-Returns training sets for equations and boundary condition, that is used for GridTraining
-strategy.
-"""
-function generate_training_sets end
-
-function generate_training_sets(
-        domains, dx, eqs, bcs, eltypeθ, _indvars::Array,
-        _depvars::Array
+function PDEBase.discretize_equation!(
+        state::PINNState, eq::Equation, kind::Symbol, s::CollocationSpace, derivative,
+        disc::PhysicsInformedNN
     )
-    _, _, dict_indvars, dict_depvars, _ = get_vars(_indvars, _depvars)
-    return generate_training_sets(
-        domains, dx, eqs, bcs, eltypeθ, dict_indvars,
-        dict_depvars
-    )
+    index = count(b -> b.kind == kind, state.blocks) + 1
+    push!(state.blocks, residual_block(eq, kind, index, s, derivative, disc))
+    return nothing
 end
 
-# Generate training set in the domain and on the boundary
-function generate_training_sets(
-        domains, dx, eqs, bcs, eltypeθ, dict_indvars::Dict,
-        dict_depvars::Dict
+function PDEBase.generate_metadata(
+        s::CollocationSpace, disc::PhysicsInformedNN, pdesys, boundarymap, complexmap, u0
     )
-    dxs = dx isa Array ? dx : fill(dx, length(domains))
-
-    spans = [infimum(d.domain):dx:supremum(d.domain) for (d, dx) in zip(domains, dxs)]
-    dict_var_span = Dict(
-        [
-            Symbol(d.variables) => infimum(d.domain):dx:supremum(d.domain)
-                for (d, dx) in zip(domains, dxs)
-        ]
+    eval_grid = Dict(
+        unwrap(x) => range(s.varmap.intervals[unwrap(x)]...; length = disc.eval_points)
+            for x in s.ivs
     )
-
-    bound_args = get_argument(bcs, dict_indvars, dict_depvars)
-    bound_vars = get_variables(bcs, dict_indvars, dict_depvars)
-
-    dif = [eltypeθ[] for i in 1:size(domains)[1]]
-    for _args in bound_vars, (i, x) in enumerate(_args)
-
-        x isa Number && push!(dif[i], x)
-    end
-    cord_train_set = collect.(spans)
-    bc_data = map(zip(dif, cord_train_set)) do (d, c)
-        setdiff(c, d)
-    end
-
-    dict_var_span_ = Dict([Symbol(d.variables) => bc for (d, bc) in zip(domains, bc_data)])
-
-    bcs_train_sets = map(bound_args) do bt
-        isempty(bt) && return _zero_dimensional_coordinates(eltypeθ)
-        span = get.((dict_var_span,), bt, bt)
-        return reduce(hcat, vec(map(collect, Iterators.product(span...)))) |>
-            EltypeAdaptor{eltypeθ}()
-    end
-
-    pde_args = get_argument(eqs, dict_indvars, dict_depvars)
-
-    pde_train_sets = map(pde_args) do bt
-        isempty(bt) && return _zero_dimensional_coordinates(eltypeθ)
-        span = get.((dict_var_span_,), bt, bt)
-        return reduce(hcat, vec(map(collect, Iterators.product(span...)))) |>
-            EltypeAdaptor{eltypeθ}()
-    end
-
-    return [pde_train_sets, bcs_train_sets]
+    return PINNMetadata(pdesys, disc, s.varmap, s.networks, ResidualBlock[], s.ps, eval_grid)
 end
 
-"""
-    get_bounds(domains, bcs, _indvars::Array, _depvars::Array)
-
-Returns pairs with lower and upper bounds for all domains. It is used for all non-grid
-training strategy: StochasticTraining, QuasiRandomTraining, QuadratureTraining.
-"""
-function get_bounds end
-
-function get_bounds(domains, eqs, bcs, eltypeθ, _indvars::Array, _depvars::Array, strategy)
-    _, _, dict_indvars, dict_depvars, _ = get_vars(_indvars, _depvars)
-    return get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-end
-
-function get_bounds(
-        domains, eqs, bcs, eltypeθ, _indvars::Array, _depvars::Array,
-        strategy::QuadratureTraining
+function PDEBase.generate_system(
+        state::PINNState, s::CollocationSpace, u0, tspan, md::PINNMetadata,
+        disc::PhysicsInformedNN; checks = true
     )
-    _, _, dict_indvars, dict_depvars, _ = get_vars(_indvars, _depvars)
-    return get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-end
-
-function get_bounds(
-        domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars,
-        ::QuadratureTraining
-    )
-    dict_lower_bound = Dict([Symbol(d.variables) => infimum(d.domain) for d in domains])
-    dict_upper_bound = Dict([Symbol(d.variables) => supremum(d.domain) for d in domains])
-
-    pde_args = get_argument(eqs, dict_indvars, dict_depvars)
-
-    ϵ = cbrt(eps(eltypeθ))
-    eltype_adaptor = EltypeAdaptor{eltypeθ}()
-
-    pde_lower_bounds = map(pde_args) do pd
-        span = get.((dict_lower_bound,), pd, pd) |> eltype_adaptor
-        return span .+ ϵ
-    end
-    pde_upper_bounds = map(pde_args) do pd
-        span = get.((dict_upper_bound,), pd, pd) |> eltype_adaptor
-        return span .+ ϵ
-    end
-    pde_bounds = [pde_lower_bounds, pde_upper_bounds]
-
-    bound_vars = get_variables(bcs, dict_indvars, dict_depvars)
-
-    bcs_lower_bounds = map(bound_vars) do bt
-        map(b -> dict_lower_bound[b], bt)
-    end
-    bcs_upper_bounds = map(bound_vars) do bt
-        map(b -> dict_upper_bound[b], bt)
-    end
-    bcs_bounds = [bcs_lower_bounds, bcs_upper_bounds]
-
-    return [pde_bounds, bcs_bounds]
-end
-
-function get_bounds(domains, eqs, bcs, eltypeθ, dict_indvars, dict_depvars, strategy)
-    dx = 1 / strategy.points
-    dict_span = Dict(
-        [
-            Symbol(d.variables) => [
-                infimum(d.domain) + dx, supremum(d.domain) - dx,
-            ] for d in domains
-        ]
-    )
-
-    pde_args = get_argument(eqs, dict_indvars, dict_depvars)
-    pde_bounds = map(pde_args) do pde_arg
-        isempty(pde_arg) && return (eltypeθ[], eltypeθ[])
-        bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, pde_arg)
-        bds = eltypeθ.(bds)
-        return bds[1, :], bds[2, :]
-    end
-
-    bound_args = get_argument(bcs, dict_indvars, dict_depvars)
-    bcs_bounds = map(bound_args) do bound_arg
-        isempty(bound_arg) && return (eltypeθ[], eltypeθ[])
-        bds = mapreduce(s -> get(dict_span, s, fill(s, 2)), hcat, bound_arg)
-        bds = eltypeθ.(bds)
-        return bds[1, :], bds[2, :]
-    end
-
-    return pde_bounds, bcs_bounds
-end
-
-"""
-    get_numeric_integral(pinnrep::PINNRepresentation)
-
-Build the numeric integral callback used by generated NeuralPDE loss functions for
-integral terms.
-"""
-function get_numeric_integral end
-
-function get_numeric_integral(pinnrep::PINNRepresentation)
-    (;
-        strategy, indvars, depvars, derivative, depvars,
-        indvars, dict_indvars, dict_depvars,
-    ) = pinnrep
-
-    return (
-        u,
-        cord,
-        phi,
-        integrating_var_id,
-        integrand_func,
-        lb,
-        ub,
-        θ;
-        strategy = strategy,
-        indvars = indvars,
-        depvars = depvars,
-        dict_indvars = dict_indvars,
-        dict_depvars = dict_depvars,
-    ) -> begin
-        function integration_(cord, lb, ub, θ)
-            cord_ = copy(cord)
-            function integrand_(x, p)
-                @ignore_derivatives cord_[integrating_var_id] .= x
-                return integrand_func(cord_, p, phi, derivative, nothing, u, nothing)
-            end
-            prob_ = IntegralProblem(integrand_, (lb, ub), θ)
-            sol = solve(prob_, CubatureJLh(), reltol = 1.0e-3, abstol = 1.0e-3)[1]
-
-            return sol
-        end
-
-        T = eltype(cord)
-        lb_ = zeros(T, size(lb)[1], size(cord)[2])
-        ub_ = zeros(T, size(ub)[1], size(cord)[2])
-        for (i, l) in enumerate(lb)
-            if l isa Number
-                @ignore_derivatives lb_[i, :] .= l
-            else
-                @ignore_derivatives lb_[i, :] = l(
-                    cord, θ, phi, derivative, nothing, u, nothing
-                )
-            end
-        end
-        for (i, u_) in enumerate(ub)
-            if u_ isa Number
-                @ignore_derivatives ub_[i, :] .= u_
-            else
-                @ignore_derivatives ub_[i, :] = u_(
-                    cord, θ, phi, derivative,
-                    nothing, u, nothing
-                )
-            end
-        end
-        integration_arr = Matrix{T}(undef, 1, 0)
-        for i in 1:size(cord, 2)
-            integration_arr = hcat(
-                integration_arr,
-                integration_(cord[:, i], lb_[:, i], ub_[:, i], θ)
-            )
-        end
-        return integration_arr
-    end
-end
-
-"""
-    prob = symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
-
-`symbolic_discretize` is the lower level interface to `discretize` for inspecting internals.
-It transforms a symbolic description of a ModelingToolkit-defined `PDESystem` into a
-`PINNRepresentation` which holds the pieces required to build an `OptimizationProblem`
-for [Optimization.jl](https://docs.sciml.ai/Optimization/stable) or a Likelihood Function
-used for HMC based Posterior Sampling Algorithms
-[AdvancedHMC.jl](https://turinglang.org/AdvancedHMC.jl/stable/) which is later optimized
-upon to give Solution or the Solution Distribution of the PDE.
-
-For more information, see `discretize` and `PINNRepresentation`.
-"""
-function SciMLBase.symbolic_discretize(pde_system::PDESystem, discretization::AbstractPINN)
-    (; eqs, bcs, domain) = pde_system
-    eq_params = pde_system.ps
-    defaults = pde_system.initial_conditions
-    (;
-        chain, param_estim, additional_loss, multioutput, init_params, phi,
-        derivative, strategy, logger, iteration, self_increment,
-    ) = discretization
-    (; log_frequency) = discretization.log_options
-    adaloss = discretization.adaptive_loss
-
-    default_p = eq_params isa SciMLBase.NullParameters ? nothing :
-        [Symbolics.value(defaults[ep]) for ep in eq_params]
-
-    depvars, indvars, dict_indvars,
-        dict_depvars, dict_depvar_input = get_vars(
-        get_ivs(pde_system), get_dvs(pde_system)
-    )
-
-    if init_params === nothing
-        # Use the initialization of the neural network framework
-        # But for Lux, default to Float64
-        # This is done because Float64 is almost always better for these applications
-        if chain isa AbstractArray
-            x = map(chain) do x
-                ComponentArray{Float64}(LuxCore.initialparameters(Random.default_rng(), x))
-            end
-            names = ntuple(i -> depvars[i], length(chain))
-            init_params = ComponentArray(NamedTuple{names}(Tuple(x)))
+    blocks = state.blocks
+    append!(md.blocks, blocks)
+    T = s.eltype
+    costs = Num[]
+    constraints = Equation[]
+    for b in blocks
+        if b.kind == :bc && disc.boundary_policy == :constraints
+            push!(constraints, b.residual ~ zeros(T, 1, b.npoints))
         else
-            init_params = ComponentArray{Float64}(
-                LuxCore.initialparameters(
-                    Random.default_rng(), chain
+            push!(costs, block_cost(b))
+        end
+    end
+
+    nets = unique_networks(s.networks)
+    unknowns_ = Any[net.θ for net in nets]
+    params_ = Any[net.NN for net in nets]
+    for b in blocks
+        b.xs === nothing || push!(params_, b.xs)
+        b.w === nothing || push!(params_, b.w)
+    end
+    psyms = [s.param_syms[unwrap(p)] for p in s.ps]
+    if disc.param_estim
+        append!(unknowns_, psyms)
+    else
+        append!(params_, psyms)
+    end
+
+    if disc.additional_loss !== nothing
+        al = AdditionalLoss(
+            disc.additional_loss, Tuple(Symbol(nameof(net.depvar)) for net in nets),
+            Tuple(getdefault(net.NN) for net in nets), Tuple(net.output for net in nets)
+        )
+        alsym = additional_loss_parameter(al)
+        push!(params_, alsym)
+        push!(costs, alsym((net.θ for net in nets)..., psyms...))
+    end
+
+    return System(
+        Equation[], unknowns_, params_; costs, constraints, name = nameof(md.pdesys),
+        metadata = [ProblemTypeCtx => md], checks
+    )
+end
+
+_param_eltype(disc::PhysicsInformedNN) = _param_eltype(disc.init_params)
+_param_eltype(::Nothing) = Float64
+_param_eltype(x::AbstractVector{<:Number}) = float(eltype(x))
+_param_eltype(x::AbstractVector) = promote_type(map(_param_eltype, x)...)
+
+function _pdesys_params(pdesys)
+    ps = get_ps(pdesys)
+    ps isa SciMLBase.NullParameters && return Num[]
+    return collect(ps)
+end
+
+unique_networks(networks) = unique(net -> unwrap(net.θ), networks)
+
+"""
+    build_networks(disc, v, dvs, T)
+
+Create one [`TrialNetwork`](@ref) per dependent variable. A vector of chains gives one
+network per dependent variable; a single chain is shared, with its `i`-th output
+representing the `i`-th dependent variable.
+"""
+function build_networks(disc::PhysicsInformedNN, v, T)
+    dvs = v.depvar_ops
+    ndv = length(dvs)
+    chains = disc.chain isa AbstractArray ? disc.chain : fill(disc.chain, ndv)
+    length(chains) == ndv || throw(
+        ArgumentError(
+            "Got $(length(chains)) chains for $(ndv) dependent variables; pass one chain \
+            per dependent variable or a single shared chain."
+        )
+    )
+    shared = !(disc.chain isa AbstractArray) && ndv > 1
+    init = disc.init_params
+    if init !== nothing && !shared
+        init = init isa AbstractVector{<:Number} ? [init] : init
+        length(init) == ndv || throw(
+            ArgumentError("`init_params` must have one entry per network, got $(length(init)).")
+        )
+    end
+    networks = TrialNetwork[]
+    shared_net = nothing
+    for (i, op) in enumerate(dvs)
+        args = v.args[op]
+        n_in = length(args)
+        if shared
+            if shared_net === nothing
+                allargs = unique(reduce(vcat, [v.args[d] for d in dvs]))
+                length(allargs) == n_in || throw(
+                    ArgumentError(
+                        "A shared chain requires every dependent variable to have the same \
+                        arguments."
+                    )
                 )
-            )
-        end
-    end
-
-    flat_init_params = if init_params isa ComponentArray
-        init_params
-    elseif multioutput
-        @assert length(init_params) == length(depvars)
-        names = ntuple(i -> depvars[i], length(init_params))
-        x = ComponentArray(NamedTuple{names}(Tuple(init_params)))
-    else
-        ComponentArray(init_params)
-    end
-
-    flat_init_params = if !param_estim
-        multioutput ? ComponentArray(; depvar = flat_init_params) : flat_init_params
-    else
-        ComponentArray(; depvar = flat_init_params, p = default_p)
-    end
-
-    if length(flat_init_params) == 0 && !Base.isconcretetype(eltype(flat_init_params))
-        flat_init_params = ComponentArray(
-            convert(AbstractArray{Float64}, getdata(flat_init_params)),
-            getaxes(flat_init_params)
-        )
-    end
-
-    adaloss === nothing && (adaloss = NonAdaptiveLoss{eltype(flat_init_params)}())
-
-    eqs isa Array || (eqs = [eqs])
-
-    pde_indvars = if strategy isa QuadratureTraining
-        get_argument(eqs, dict_indvars, dict_depvars)
-    else
-        get_variables(eqs, dict_indvars, dict_depvars)
-    end
-
-    bc_indvars = if strategy isa QuadratureTraining
-        get_argument(bcs, dict_indvars, dict_depvars)
-    else
-        get_variables(bcs, dict_indvars, dict_depvars)
-    end
-
-    pde_integration_vars = get_integration_variables(eqs, dict_indvars, dict_depvars)
-    bc_integration_vars = get_integration_variables(bcs, dict_indvars, dict_depvars)
-
-    pinnrep = PINNRepresentation(
-        eqs, bcs, domain, eq_params, defaults, default_p,
-        param_estim, additional_loss, adaloss, depvars, indvars,
-        dict_indvars, dict_depvars, dict_depvar_input, logger,
-        multioutput, iteration, init_params, flat_init_params, phi,
-        derivative,
-        strategy, pde_indvars, bc_indvars, pde_integration_vars,
-        bc_integration_vars, nothing, nothing, nothing, nothing
-    )
-
-    integral = get_numeric_integral(pinnrep)
-
-    symbolic_pde_loss_functions = [
-        build_symbolic_loss_function(
-            pinnrep, eq;
-            bc_indvars = pde_indvar
-        )
-            for (eq, pde_indvar) in zip(
-                eqs, pde_indvars,
-                pde_integration_vars
-            )
-    ]
-
-    symbolic_bc_loss_functions = [
-        build_symbolic_loss_function(
-            pinnrep, bc;
-            bc_indvars = bc_indvar
-        )
-            for (bc, bc_indvar) in zip(
-                bcs, bc_indvars,
-                bc_integration_vars
-            )
-    ]
-
-    pinnrep.integral = integral
-    pinnrep.symbolic_pde_loss_functions = symbolic_pde_loss_functions
-    pinnrep.symbolic_bc_loss_functions = symbolic_bc_loss_functions
-
-    datafree_pde_loss_functions = [
-        build_loss_function(pinnrep, eq, pde_indvar)
-            for (eq, pde_indvar) in zip(eqs, pde_indvars)
-    ]
-
-    datafree_bc_loss_functions = [
-        build_loss_function(pinnrep, bc, bc_indvar)
-            for (bc, bc_indvar) in zip(bcs, bc_indvars)
-    ]
-
-    pde_loss_functions,
-        bc_loss_functions = merge_strategy_with_loss_function(
-        pinnrep,
-        strategy, datafree_pde_loss_functions, datafree_bc_loss_functions
-    )
-
-    # setup for all adaptive losses
-    num_pde_losses = length(pde_loss_functions)
-    num_bc_losses = length(bc_loss_functions)
-    # assume one single additional loss function if there is one. this means that the user needs to lump all their functions into a single one,
-    num_additional_loss = convert(Int, additional_loss !== nothing)
-
-    adaloss_T = eltype(adaloss.pde_loss_weights)
-
-    # this will error if the user has provided a number of initial weights that is more than 1 and doesn't match the number of loss functions
-    adaloss.pde_loss_weights = ones(adaloss_T, num_pde_losses) .* adaloss.pde_loss_weights
-    adaloss.bc_loss_weights = ones(adaloss_T, num_bc_losses) .* adaloss.bc_loss_weights
-    adaloss.additional_loss_weights = ones(adaloss_T, num_additional_loss) .*
-        adaloss.additional_loss_weights
-
-    reweight_losses_func = generate_adaptive_loss_function(
-        pinnrep, adaloss,
-        pde_loss_functions, bc_loss_functions
-    )
-
-    function get_likelihood_estimate_function(::PhysicsInformedNN)
-        function full_loss_function(θ, p)
-            # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
-            pde_losses = [pde_loss_function(θ) for pde_loss_function in pde_loss_functions]
-            bc_losses = [bc_loss_function(θ) for bc_loss_function in bc_loss_functions]
-
-            # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
-            # that's why we prefer the user to maintain the increment in the outer loop callback during optimization
-            @ignore_derivatives if self_increment
-                iteration[] += 1
+                shared_net = symbolic_network(
+                    chains[1], :NN, n_in, ndv, T, init === nothing ? nothing : init, disc.rng
+                )
             end
-
-            @ignore_derivatives begin
-                reweight_losses_func(θ, pde_losses, bc_losses)
-            end
-
-            weighted_pde_losses = adaloss.pde_loss_weights .* pde_losses
-            weighted_bc_losses = adaloss.bc_loss_weights .* bc_losses
-
-            sum_weighted_pde_losses = sum(weighted_pde_losses)
-            sum_weighted_bc_losses = isempty(weighted_bc_losses) ?
-                zero(sum_weighted_pde_losses) : sum(weighted_bc_losses)
-            weighted_loss_before_additional = sum_weighted_pde_losses +
-                sum_weighted_bc_losses
-
-            full_weighted_loss = if additional_loss isa Nothing
-                weighted_loss_before_additional
-            else
-                (θ_, p_) = param_estim ? (θ.depvar, θ.p) : (θ, nothing)
-                _additional_loss = additional_loss(phi, θ_, p_)
-                weighted_additional_loss_val = adaloss.additional_loss_weights[1] *
-                    _additional_loss
-                weighted_loss_before_additional + weighted_additional_loss_val
-            end
-
-            @ignore_derivatives begin
-                if iteration[] % log_frequency == 0
-                    logvector(
-                        pinnrep.logger, pde_losses, "unweighted_loss/pde_losses",
-                        iteration[]
-                    )
-                    logvector(
-                        pinnrep.logger, bc_losses, "unweighted_loss/bc_losses",
-                        iteration[]
-                    )
-                    logvector(
-                        pinnrep.logger, weighted_pde_losses,
-                        "weighted_loss/weighted_pde_losses", iteration[]
-                    )
-                    logvector(
-                        pinnrep.logger, weighted_bc_losses,
-                        "weighted_loss/weighted_bc_losses", iteration[]
-                    )
-                    if additional_loss !== nothing
-                        logscalar(
-                            pinnrep.logger, weighted_additional_loss_val,
-                            "weighted_loss/weighted_additional_loss", iteration[]
-                        )
-                    end
-                    logscalar(
-                        pinnrep.logger, sum_weighted_pde_losses,
-                        "weighted_loss/sum_weighted_pde_losses", iteration[]
-                    )
-                    logscalar(
-                        pinnrep.logger, sum_weighted_bc_losses,
-                        "weighted_loss/sum_weighted_bc_losses", iteration[]
-                    )
-                    logscalar(
-                        pinnrep.logger, full_weighted_loss,
-                        "weighted_loss/full_weighted_loss", iteration[]
-                    )
-                    logvector(
-                        pinnrep.logger, adaloss.pde_loss_weights,
-                        "adaptive_loss/pde_loss_weights", iteration[]
-                    )
-                    logvector(
-                        pinnrep.logger, adaloss.bc_loss_weights,
-                        "adaptive_loss/bc_loss_weights", iteration[]
-                    )
-                end
-            end
-
-            return full_weighted_loss
-        end
-
-        return full_loss_function
-    end
-
-    function get_likelihood_estimate_function(discretization::BayesianPINN)
-        dataset_pde, dataset_bc = discretization.dataset
-
-        pde_loss_functions,
-            bc_loss_functions = merge_strategy_with_loglikelihood_function(
-            pinnrep, strategy,
-            datafree_pde_loss_functions, datafree_bc_loss_functions
-        )
-
-        # required as Physics loss also needed on the discrete dataset domain points
-        # data points are discrete and so by default GridTraining loss applies
-        # passing placeholder dx with GridTraining, it uses data points irl
-        datapde_loss_functions,
-            databc_loss_functions = if dataset_bc !== nothing ||
-                dataset_pde !== nothing
-            merge_strategy_with_loglikelihood_function(
-                pinnrep, GridTraining(0.1),
-                datafree_pde_loss_functions, datafree_bc_loss_functions,
-                train_sets_pde = dataset_pde, train_sets_bc = dataset_bc
-            )
+            NN, θ = shared_net
+            push!(networks, TrialNetwork(op, args, NN, θ, i, ndv, chains[1]))
         else
-            nothing, nothing
-        end
-
-        # this includes losses from dataset domain points as well as discretization points
-        function full_loss_function(θ, allstd::Vector{Vector{Float64}})
-            stdpdes, stdbcs, stdextra = allstd
-            # the aggregation happens on cpu even if the losses are gpu, probably fine since it's only a few of them
-            # SSE FOR LOSS ON GRIDPOINTS not MSE ! i, j depend on number of bcs and eqs
-            pde_loglikelihoods = sum(
-                [
-                    pde_loglike_function(θ, stdpdes[i])
-                        for (i, pde_loglike_function) in
-                        enumerate(pde_loss_functions)
-                ]
+            name = nameof(op)
+            NN, θ = symbolic_network(
+                chains[i], name, n_in, 1, T, init === nothing ? nothing : init[i], disc.rng
             )
-
-            bc_loglikelihoods = sum(
-                [
-                    bc_loglike_function(θ, stdbcs[j])
-                        for (j, bc_loglike_function) in
-                        enumerate(bc_loss_functions)
-                ]
-            )
-
-            # final newloss creation components are similar to this
-            if !(datapde_loss_functions isa Nothing)
-                pde_loglikelihoods += sum(
-                    [
-                        pde_loglike_function(θ, stdpdes[j])
-                            for (j, pde_loglike_function) in
-                            enumerate(datapde_loss_functions)
-                    ]
-                )
-            end
-
-            if !(databc_loss_functions isa Nothing)
-                bc_loglikelihoods += sum(
-                    [
-                        bc_loglike_function(θ, stdbcs[j])
-                            for (j, bc_loglike_function) in
-                            enumerate(databc_loss_functions)
-                    ]
-                )
-            end
-
-            # this is kind of a hack, and means that whenever the outer function is evaluated the increment goes up, even if it's not being optimized
-            # that's why we prefer the user to maintain the increment in the outer loop callback during optimization
-            @ignore_derivatives if self_increment
-                iteration[] += 1
-            end
-
-            @ignore_derivatives begin
-                reweight_losses_func(
-                    θ, pde_loglikelihoods,
-                    bc_loglikelihoods
-                )
-            end
-
-            weighted_pde_loglikelihood = adaloss.pde_loss_weights .* pde_loglikelihoods
-            weighted_bc_loglikelihood = adaloss.bc_loss_weights .* bc_loglikelihoods
-
-            sum_weighted_pde_loglikelihood = sum(weighted_pde_loglikelihood)
-            sum_weighted_bc_loglikelihood = sum(weighted_bc_loglikelihood)
-            weighted_loglikelihood_before_additional = sum_weighted_pde_loglikelihood +
-                sum_weighted_bc_loglikelihood
-
-            full_weighted_loglikelihood = if additional_loss isa Nothing
-                weighted_loglikelihood_before_additional
-            else
-                (θ_, p_) = param_estim ? (θ.depvar, θ.p) : (θ, nothing)
-                _additional_loss = additional_loss(phi, θ_, p_)
-                _additional_loglikelihood = logpdf(Normal(0, stdextra), _additional_loss)
-
-                weighted_additional_loglikelihood = adaloss.additional_loss_weights[1] *
-                    _additional_loglikelihood
-
-                weighted_loglikelihood_before_additional + weighted_additional_loglikelihood
-            end
-
-            return full_weighted_loglikelihood
+            push!(networks, TrialNetwork(op, args, NN, θ, 1, 1, chains[i]))
         end
-
-        return full_loss_function
     end
+    return networks
+end
 
-    full_loss_function = get_likelihood_estimate_function(discretization)
-    pinnrep.loss_functions = PINNLossFunctions(
-        bc_loss_functions, pde_loss_functions,
-        full_loss_function, additional_loss, datafree_pde_loss_functions,
-        datafree_bc_loss_functions
+function symbolic_network(chain, name, n_in, nout, T, init, rng)
+    NN, p = SymbolicNeuralNetwork(;
+        chain, n_input = n_in, n_output = nout, rng, eltype = T,
+        nn_name = Symbol(:NN_, name), nn_p_name = Symbol(:p_, name)
     )
+    np = length(getdefault(p))
+    θname = Symbol(:θ_, name)
+    θ = only(@variables $θname[1:np])
+    init === nothing || length(init) == np || throw(
+        ArgumentError(
+            "`init_params` for `$(name)` has length $(length(init)); the network has \
+            $(np) parameters."
+        )
+    )
+    θ0 = init === nothing ? getdefault(p) : Vector{T}(init)
+    θ = setdefault(θ, θ0)
+    return NN, θ
+end
 
-    return pinnrep
+function additional_loss_parameter(al::AdditionalLoss)
+    al_sym = only(@parameters (additional_loss::typeof(al))(..) = al [tunable = false])
+    return al_sym
 end
 
 """
-    prob = discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
+    residual_block(eq, kind, index, s::CollocationSpace, derivative, disc)
 
-Transforms a symbolic description of a ModelingToolkit-defined `PDESystem` and generates
-an `OptimizationProblem` for [Optimization.jl](https://docs.sciml.ai/Optimization/stable/)
-whose solution is the solution to the PDE.
+Lower one equation onto its own collocation set and return the [`ResidualBlock`](@ref).
 """
-function SciMLBase.discretize(pde_system::PDESystem, discretization::PhysicsInformedNN)
-    pinnrep = symbolic_discretize(pde_system, discretization)
-    f = OptimizationFunction(pinnrep.loss_functions.full_loss_function, AutoZygote())
-    return Optimization.OptimizationProblem(f, pinnrep.flat_init_params)
+function residual_block(eq, kind, index, s::CollocationSpace, derivative, disc)
+    T = s.eltype
+    v = s.varmap
+    ex = unwrap(eq.lhs - eq.rhs)
+    ivs = free_ivs(ex, s.ivs, v.depvar_ops)
+    d = length(ivs)
+    ivpos = Int[findfirst(y -> isequal(unwrap(y), unwrap(x)), s.ivs) for x in ivs]
+    lb = T[v.intervals[unwrap(x)][1] for x in ivs]
+    ub = T[v.intervals[unwrap(x)][2] for x in ivs]
+    bpinned = [s.pinned[unwrap(x)] for x in ivs]
+    npoints = collocation_count(disc.strategy, kind, ivpos, (lb, ub), bpinned)
+    xs = if d == 0
+        nothing
+    else
+        xsname = Symbol(:xs_, kind, index)
+        only(@parameters $xsname[1:d, 1:npoints] [tunable = false])
+    end
+    w = if d > 0 && uses_quadrature_weights(disc.strategy)
+        wname = Symbol(:w_, kind, index)
+        only(@parameters $wname[1:1, 1:npoints] [tunable = false])
+    else
+        nothing
+    end
+    iv_index = Dict(unwrap(x) => i for (i, x) in enumerate(ivs))
+    iv_global = Dict(unwrap(x) => i for (i, x) in enumerate(s.ivs))
+    ctx = LoweringContext(
+        xs === nothing ? nothing : unwrap(xs), iv_index, iv_global, s.netmap,
+        s.param_syms, derivative, npoints, T
+    )
+    residual = lower(ex, ctx, zeros(T, length(s.ivs)))
+    return ResidualBlock(eq, kind, ivs, ivpos, (lb, ub), bpinned, xs, w, npoints, residual)
 end
+
+"""
+    block_cost(block::ResidualBlock)
+
+The scalar cost of a residual block: the mean of the squared pointwise residuals, or
+their quadrature-weighted sum when the block carries quadrature weights.
+"""
+function block_cost(b::ResidualBlock)
+    r = b.residual
+    if !_isarray(unwrap(r))
+        return abs2(r)
+    elseif b.w === nothing
+        return sum(abs2, r) / b.npoints
+    else
+        return sum(b.w .* abs2.(r))
+    end
+end
+
+"""
+    discretize(pdesys::PDESystem, discretization::PhysicsInformedNN; kwargs...)
+
+Build the `OptimizationProblem` for training the physics-informed neural network.
+
+`symbolic_discretize` produces the `System`, `mtkcompile` compiles it, the collocation
+points are sampled with `discretization.strategy`, and `OptimizationProblem(sys, op;
+kwargs...)` generates the objective. All keyword arguments are forwarded to the
+`OptimizationProblem` constructor; in particular `adtype` selects the automatic
+differentiation backend (default [`default_adtype`](@ref), Zygote) and `weights` scalarizes the costs with
+a weighted sum. Parameters of the `PDESystem` without a value in
+`pdesys.initial_conditions` must be given through `p`, a collection of `parameter =>
+value` pairs.
+"""
+function SciMLBase.discretize(
+        pdesys::PDESystem, disc::PhysicsInformedNN; adtype = default_adtype(), p = (),
+        kwargs...
+    )
+    sys = symbolic_discretize(pdesys, disc)
+    md = pinn_metadata(sys)
+    csys = mtkcompile(sys)
+    PDEBase.add_metadata!(md, csys)
+    op = operating_point(md, disc.rng)
+    for (k, val) in p
+        op[k] = val
+    end
+    return OptimizationProblem(csys, op; adtype, u0_eltype = _param_eltype(disc), kwargs...)
+end
+
+"""
+    pinn_metadata(sys)
+    pinn_metadata(prob::OptimizationProblem)
+
+Return the [`PINNMetadata`](@ref) of a `System` produced by `symbolic_discretize` or of
+the `OptimizationProblem` produced by `discretize`.
+"""
+pinn_metadata(sys::System) = getmetadata(sys, ProblemTypeCtx, nothing)
+pinn_metadata(prob::OptimizationProblem) = pinn_metadata(prob.f.sys)
+
+function operating_point(md::PINNMetadata, rng)
+    op = Dict{Any, Any}()
+    for net in unique_networks(md.networks)
+        op[net.θ] = getdefault(net.θ)
+    end
+    for b in md.blocks
+        b.xs === nothing && continue
+        X, W = sample_points(md.disc.strategy, b, rng)
+        op[b.xs] = X
+        b.w === nothing || (op[b.w] = W)
+    end
+    ics = initial_conditions(md.pdesys)
+    for p in md.ps
+        haskey(ics, p) && (op[p] = ics[p])
+    end
+    return op
+end
+
+"""
+    resample!(p, md::PINNMetadata; rng = md.disc.rng)
+
+Draw new collocation points for every residual block whose training strategy resamples
+(`StochasticTraining` and `QuasiRandomTraining` with `resampling = true`) and store
+them in the parameter object `p` of the compiled problem. Use it in a `solve` callback to
+recover stochastic training:
+
+```julia
+md = pinn_metadata(prob)
+cb = (state, loss) -> (resample!(state.p, md); false)
+solve(prob, Adam(); callback = cb, maxiters = 1000)
+```
+"""
+function resample!(p, md::PINNMetadata; rng = md.disc.rng)
+    sys = md.metadata[]
+    sys === nothing && throw(ArgumentError("`resample!` needs metadata from `discretize`."))
+    resamples(md.disc.strategy) || return p
+    for b in md.blocks
+        b.xs === nothing && continue
+        X, W = sample_points(md.disc.strategy, b, rng)
+        setp(sys, b.xs)(p, X)
+        b.w === nothing || setp(sys, b.w)(p, W)
+    end
+    return p
+end
+resample!(prob::OptimizationProblem; kwargs...) = resample!(prob.p, pinn_metadata(prob); kwargs...)
