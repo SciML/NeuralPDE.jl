@@ -478,7 +478,9 @@ function get_loss_function(
     ) -> begin
         function integrand(x, θ)
             x = x |> dev |> EltypeAdaptor{eltypeθ}()
+            θ_eltype = eltype(θ)
             θ = dev(θ)
+            θ_eltype <: AbstractFloat && (θ = θ |> EltypeAdaptor{θ_eltype}())
             isempty(x) && return cdev(similar(x, recursive_eltype(θ), 0))
             # CPU quadrature backends apply their Jacobian and accumulate on the host.
             return cdev(sum(abs2, view(loss_(x, θ), 1, :), dims = 2)) #./ size_x
