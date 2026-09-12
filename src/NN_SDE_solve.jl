@@ -3,7 +3,8 @@
         chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         batch = true, sub_batch = 1, strong_loss = false,
         moment_loss = false, param_estim = false, dataset = [],
-        data_sub_batch = 1, numensemble = 10, additional_loss = nothing, kwargs...
+        data_sub_batch = 1, numensemble = 10, additional_loss = nothing,
+        rng = Random.default_rng(), kwargs...
     )
 
 This is an algorithm for solving stochastic ordinary differential equations using a specialization of physics-informed neural networks (PINNs).
@@ -87,6 +88,8 @@ Allows users to solve standard `SDEProblem`s using a Stochastic PINN (SPINN) sol
 * `additional_loss`: A function additional_loss(phi, θ) where phi are the neural network
                      trial solutions, θ are the weights of the neural network(s).
 
+* `rng`: Random number generator used for model initialization and stochastic sampling.
+
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## Examples
@@ -132,6 +135,7 @@ Stochastic PDE Functionality #531 : https://github.com/SciML/NeuralPDE.jl/issues
     chain <: AbstractLuxLayer
     opt
     init_params
+    rng <: AbstractRNG
     strategy <: Union{Nothing, AbstractTrainingStrategy}
     autodiff::Bool
     batch::Bool
@@ -150,12 +154,24 @@ function NNSDE(
         chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         batch = true, sub_batch = 1, strong_loss = false,
         moment_loss = false, param_estim = false, dataset = [],
-        data_sub_batch = 1, numensemble = 10, additional_loss = nothing, kwargs...
+        data_sub_batch = 1, numensemble = 10, additional_loss = nothing,
+        rng = Random.default_rng(), kwargs...
     )
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return NNSDE(
-        chain, opt, init_params, strategy, autodiff, batch, sub_batch, strong_loss, moment_loss,
-        param_estim, dataset, data_sub_batch, numensemble, additional_loss, kwargs
+        chain, opt, init_params, rng, strategy, autodiff, batch, sub_batch, strong_loss,
+        moment_loss, param_estim, dataset, data_sub_batch, numensemble, additional_loss, kwargs
+    )
+end
+
+function NNSDE(
+        chain, opt, init_params, strategy, autodiff, batch, sub_batch, strong_loss,
+        moment_loss, param_estim, dataset, data_sub_batch, numensemble, additional_loss, kwargs
+    )
+    return NNSDE(
+        chain, opt, init_params, Random.default_rng(), strategy, autodiff, batch, sub_batch,
+        strong_loss, moment_loss, param_estim, dataset, data_sub_batch, numensemble,
+        additional_loss, kwargs
     )
 end
 
@@ -191,13 +207,13 @@ function (f::SDEPhi)(dev, inp::Matrix{<:Number}, θ)
     return dev(f.u0) .+ ((inp[1, :] .- f.t0)' .* f.smodel(dev(inp), θ.depvar))
 end
 
-function generate_phi(chain::AbstractLuxLayer, t, u0, ::Nothing)
-    θ, st = LuxCore.setup(Random.default_rng(), chain)
+function generate_phi(chain::AbstractLuxLayer, t, u0, ::Nothing, rng::AbstractRNG)
+    θ, st = LuxCore.setup(rng, chain)
     return SDEPhi(chain, t, u0, st), θ
 end
 
-function generate_phi(chain::AbstractLuxLayer, t, u0, init_params)
-    st = LuxCore.initialstates(Random.default_rng(), chain)
+function generate_phi(chain::AbstractLuxLayer, t, u0, init_params, rng::AbstractRNG)
+    st = LuxCore.initialstates(rng, chain)
     return SDEPhi(chain, t, u0, st), init_params
 end
 
@@ -350,13 +366,15 @@ n_z is the number of Independent Random basis vectors for the Brownian's probabi
 returns a list appending `n = n_z`` sampled (Uniform Gaussian) values to a fixed time's value or a list of times.
 """
 # strategy 1 -> train for the expected behaviour of SDE solution.
-function add_rand_coeff(times::P, n_z::Int64, sub_batch::Int64) where {P <: Number}
-    return reduce(hcat, [vcat(times, rand(Normal(0, 1), n_z)) for i in 1:sub_batch])
+function add_rand_coeff(
+        rng::AbstractRNG, times::P, n_z::Int64, sub_batch::Int64
+    ) where {P <: Number}
+    return reduce(hcat, [vcat(times, rand(rng, Normal(0, 1), n_z)) for i in 1:sub_batch])
 end
 
-function add_rand_coeff(times::Vector, n_z::Int64, sub_batch::Int64)
+function add_rand_coeff(rng::AbstractRNG, times::Vector, n_z::Int64, sub_batch::Int64)
     return [
-        reduce(hcat, [vcat(time, rand(Normal(0, 1), n_z)) for i in 1:sub_batch])
+        reduce(hcat, [vcat(time, rand(rng, Normal(0, 1), n_z)) for i in 1:sub_batch])
             for time in times
     ]
 end
@@ -369,12 +387,12 @@ For `n = n_samples` strong paths (`z_i`... are the same per sample) - strong tra
 returns a list appending `n = n_z` sampled (Uniform Gaussian) random variables values to a list of times.
 """
 # strategy 2 -> train over n = num_samples strong realisations of the process.
-function add_rand_coeff_2(times, n_z::Int64, num_samples)
+function add_rand_coeff_2(rng::AbstractRNG, times, n_z::Int64, num_samples)
     # each timepoint is paired with a set of fixed n_z random coefficients.
     # This is defined via a Filtration on the estimated probability space for the adapted process.
     # t is fixed, therefore eigen-functions,values are fixed with it. W (therefore z_i) is not fixed so z_i sampled randomnly.
 
-    zi_samples = [rand(Normal(0, 1), n_z) for i in 1:num_samples]
+    zi_samples = [rand(rng, Normal(0, 1), n_z) for i in 1:num_samples]
     return [
         reduce(hcat, [vcat(time, zi_samples[i]) for i in 1:num_samples])
             for time in times
@@ -390,7 +408,8 @@ Assumes direct moment matching of 1st and 2nd moments captures the solution and 
 """
 function generate_DataMoments_loss(
         dataset::Vector{<:Vector}, n_z::Int64, phi::SDEPhi, f, g,
-        autodiff::Bool, p, param_estim::Bool, data_sub_batch::Int64, train_type
+        autodiff::Bool, p, param_estim::Bool, data_sub_batch::Int64, train_type,
+        rng::AbstractRNG
     )
     # n_timepoints x data_sub_batch Matrix
     process = reduce(hcat, dataset[1])
@@ -398,8 +417,8 @@ function generate_DataMoments_loss(
     ts = dataset[2]
 
     # construct NN inputs of form [t,n_i] for the physics loss to be applied on the dataset points.
-    sdephi_inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, data_sub_batch) :
-        add_rand_coeff(ts, n_z, data_sub_batch)
+    sdephi_inputs = train_type == sum ? add_rand_coeff_2(rng, ts, n_z, data_sub_batch) :
+        add_rand_coeff(rng, ts, n_z, data_sub_batch)
 
     # moment matching (MSE across time for 1st, 2nd moments) - assumes diffusion is a Gaussian at each timepoint
     # uses sample variance
@@ -490,15 +509,15 @@ Representation of the loss function, parametric on the training strategy `strate
 """
 function generate_loss(
         strategy::QuadratureTraining, phi, f, g, autodiff::Bool, tspan, n_z::Int64, sub_batch::Int64, train_type, p,
-        batch::Bool, param_estim::Bool
+        batch::Bool, param_estim::Bool, rng::AbstractRNG
     )
     inputs = AbstractVector{Any}[]
-    zt_samples = [rand(Normal(0, 1), n_z) for i in 1:sub_batch]
+    zt_samples = [rand(rng, Normal(0, 1), n_z) for i in 1:sub_batch]
 
     function integrand(t::Number, θ)
         inputs = train_type == sum ?
             reduce(hcat, [vcat(time, zt_samples[i]) for i in 1:sub_batch]) :
-            add_rand_coeff(t, n_z, sub_batch)
+            add_rand_coeff(rng, t, n_z, sub_batch)
         return abs2(
             inner_sde_loss(
                 phi, f, g, autodiff, inputs, θ, p, param_estim, train_type
@@ -508,8 +527,8 @@ function generate_loss(
 
     # when ts is a 1D Array
     function integrand(ts::Vector, θ)
-        inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, sub_batch) :
-            add_rand_coeff(ts, n_z, sub_batch)
+        inputs = train_type == sum ? add_rand_coeff_2(rng, ts, n_z, sub_batch) :
+            add_rand_coeff(rng, ts, n_z, sub_batch)
         return [
             abs2(
                 inner_sde_loss(
@@ -535,13 +554,13 @@ end
 
 function generate_loss(
         strategy::GridTraining, phi, f, g, autodiff::Bool, tspan, n_z::Int64, sub_batch::Int64,
-        train_type, p, batch::Bool, param_estim::Bool
+        train_type, p, batch::Bool, param_estim::Bool, rng::AbstractRNG
     )
     ts = collect(tspan[1]:(strategy.dx):tspan[2])
 
     # n_timepoints * (1+n_z) * n_samples -> Vector{Matrix{Float64}}
-    inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, sub_batch) :
-        add_rand_coeff(ts, n_z, sub_batch)
+    inputs = train_type == sum ? add_rand_coeff_2(rng, ts, n_z, sub_batch) :
+        add_rand_coeff(rng, ts, n_z, sub_batch)
 
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
     batch &&
@@ -569,7 +588,8 @@ end
 
 function generate_loss(
         strategy::StochasticTraining, phi, f, g, autodiff::Bool,
-        tspan, n_z::Int64, sub_batch::Int64, train_type, p, batch::Bool, param_estim::Bool
+        tspan, n_z::Int64, sub_batch::Int64, train_type, p, batch::Bool,
+        param_estim::Bool, rng::AbstractRNG
     )
     autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
     inputs = AbstractVector{Any}[]
@@ -579,9 +599,9 @@ function generate_loss(
             _,
         ) -> begin
             T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
-            ts = ((tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1])
-            inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, sub_batch) :
-            add_rand_coeff(ts, n_z, sub_batch)
+            ts = ((tspan[2] - tspan[1]) .* rand(rng, T, strategy.points) .+ tspan[1])
+            inputs = train_type == sum ? add_rand_coeff_2(rng, ts, n_z, sub_batch) :
+            add_rand_coeff(rng, ts, n_z, sub_batch)
 
             if batch
                 inner_sde_loss(
@@ -604,7 +624,7 @@ end
 
 function generate_loss(
         strategy::WeightedIntervalTraining, phi, f, g, autodiff::Bool, tspan, n_z::Int64, sub_batch::Int64, train_type, p,
-        batch::Bool, param_estim::Bool
+        batch::Bool, param_estim::Bool, rng::AbstractRNG
     )
     autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT, maxT = tspan
@@ -614,12 +634,12 @@ function generate_loss(
 
     ts = eltype(difference)[]
     for (index, item) in enumerate(weights)
-        temp_data = rand(1, trunc(Int, strategy.points * item)) .* difference .+ minT .+
+        temp_data = rand(rng, 1, trunc(Int, strategy.points * item)) .* difference .+ minT .+
             ((index - 1) * difference)
         append!(ts, temp_data)
     end
-    inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, sub_batch) :
-        add_rand_coeff(ts, n_z, sub_batch)
+    inputs = train_type == sum ? add_rand_coeff_2(rng, ts, n_z, sub_batch) :
+        add_rand_coeff(rng, ts, n_z, sub_batch)
 
     batch &&
         return (
@@ -646,10 +666,10 @@ end
 
 function evaluate_tstops_loss(
         phi, f, g, autodiff::Bool, tstops, n_z::Int64, sub_batch::Int64,
-        train_type, p, batch::Bool, param_estim::Bool
+        train_type, p, batch::Bool, param_estim::Bool, rng::AbstractRNG
     )
-    inputs = train_type == sum ? add_rand_coeff_2(ts, n_z, sub_batch) :
-        add_rand_coeff(ts, n_z, sub_batch)
+    inputs = train_type == sum ? add_rand_coeff_2(rng, ts, n_z, sub_batch) :
+        add_rand_coeff(rng, ts, n_z, sub_batch)
 
     batch &&
         return (
@@ -676,7 +696,8 @@ end
 
 function generate_loss(
         ::QuasiRandomTraining, phi, f, g, autodiff::Bool,
-        tspan, n_z::Int64, sub_batch::Int64, train_type, p, batch::Bool, param_estim::Bool
+        tspan, n_z::Int64, sub_batch::Int64, train_type, p, batch::Bool,
+        param_estim::Bool, rng::AbstractRNG
     )
     error("QuasiRandomTraining is not supported by NNODE since it's for high dimensional \
            spaces only. Use StochasticTraining instead.")
@@ -784,11 +805,11 @@ function SciMLBase.__solve(
     # weak loss-> weak training is default solve mode.
     (;
         param_estim, sub_batch, strong_loss, moment_loss,
-        chain, opt, autodiff, init_params, batch,
+        chain, opt, autodiff, init_params, rng, batch,
         additional_loss, dataset, numensemble, data_sub_batch,
     ) = alg
     n_z = chain[1].in_dims - 1
-    sde_phi, init_params = generate_phi(chain, t0, u0, init_params)
+    sde_phi, init_params = generate_phi(chain, t0, u0, init_params, rng)
 
     (recursive_eltype(init_params) <: Complex && alg.strategy isa QuadratureTraining) &&
         error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
@@ -821,7 +842,7 @@ function SciMLBase.__solve(
     inner_f,
         training_sets = generate_loss(
         strategy, sde_phi, f, g, autodiff, tspan_scale, n_z,
-        sub_batch, train_type, p, batch, param_estim
+        sub_batch, train_type, p, batch, param_estim, rng
     )
 
     if isempty(dataset) && param_estim && isnothing(additional_loss)
@@ -842,7 +863,7 @@ function SciMLBase.__solve(
             DataMoments_loss,
                 dataset_training_sets = generate_DataMoments_loss(
                 dataset, n_z, sde_phi, f, g,
-                autodiff, p, param_estim, data_sub_batch, train_type
+                autodiff, p, param_estim, data_sub_batch, train_type, rng
             )
         end
     else
@@ -865,7 +886,7 @@ function SciMLBase.__solve(
             num_tstops_points = length(tstops)
             tstops_loss_func = evaluate_tstops_loss(
                 sde_phi, f, g, autodiff, tstops, n_z, sub_batch,
-                train_type, p, batch, param_estim
+                train_type, p, batch, param_estim, rng
             )
             tstops_loss = tstops_loss_func(θ, sde_phi)
             if strategy isa GridTraining
@@ -917,7 +938,7 @@ function SciMLBase.__solve(
     ts = collect(ts)
 
     # validation ensemble creation for all timepoints -> reflects learnt dynamics of the SDE solution's Expectation.
-    validation_inputs = add_rand_coeff(ts, n_z, numensemble)
+    validation_inputs = add_rand_coeff(rng, ts, n_z, numensemble)
     u = [sde_phi(input, res.u) for input in validation_inputs]
     n_output = chain[end].out_dims
     sol_parts = [[Particles(u[i][j, :]) for i in eachindex(ts)] for j in 1:n_output]
