@@ -7,15 +7,22 @@ training strategies in the manual.
 
 ## PDE Discretizations
 
+`PhysicsInformedNN` is a `PDEBase.AbstractOptimizationSystemDiscretization`. The
+lowering from a `PDESystem` to a `ModelingToolkit.System` is split into small
+functions that can be extended:
+
 ```@docs
-NeuralPDE.AbstractPINN
+NeuralPDE.AbstractDerivativeLowering
+NeuralPDE.lower
+NeuralPDE.lower_derivative
+NeuralPDE.AdditionalLoss
 ```
 
-The concrete subtype is the dispatch extension point for
-`SciMLBase.symbolic_discretize`. Its method should translate the symbolic
-`PDESystem` into the representation consumed by its training workflow. The
-abstract type and application-facing examples are documented on the
-[PINN manual page](@ref "`PhysicsInformedNN` Discretizer for PDESystems").
+A new derivative backend implements `lower_derivative` for its own
+`AbstractDerivativeLowering` subtype. The lowered expression must be a symbolic array
+expression over the collocation matrix of the residual block (see
+[`NeuralPDE.ResidualBlock`](@ref)) so that the representation stays independent of the
+number of collocation points.
 
 ## Training Strategies
 
@@ -23,12 +30,25 @@ abstract type and application-facing examples are documented on the
 NeuralPDE.AbstractTrainingStrategy
 ```
 
-A custom training strategy implements the generic `NeuralPDE.get_loss_function`
-interface, which is documented on the
-[developer debugging page](@ref "Debugging PINN Solutions"). It returns a callable
-scalar objective. The interval form receives lower and upper bounds as separate
-arguments. `NeuralPDE.generate_training_sets` and `NeuralPDE.get_bounds` are optional
-extension points for strategies that construct grid or bound-based data.
+A training strategy used with `PhysicsInformedNN` implements the collocation
+interface documented on the [training strategies page](@ref "Training Strategies"):
+`NeuralPDE.collocation_count` and `NeuralPDE.sample_points`, plus optionally
+`NeuralPDE.resamples` and `NeuralPDE.uses_quadrature_weights`.
+
+```julia
+struct FixedPointsTraining <: NeuralPDE.AbstractTrainingStrategy end
+
+NeuralPDE.collocation_count(::FixedPointsTraining, kind, ivpos, bounds, pinned) =
+    isempty(ivpos) ? 1 : 3
+function NeuralPDE.sample_points(::FixedPointsTraining, block::NeuralPDE.ResidualBlock, rng)
+    lb, ub = block.bounds
+    return lb .+ (ub .- lb) .* [0.25 0.5 0.75], nothing
+end
+```
+
+A strategy used with the ODE solvers (`NNODE`, `NNDAE`, `NNSDE`) implements the
+generic `NeuralPDE.get_loss_function` interface instead, which returns a callable scalar
+objective:
 
 ```julia
 using Statistics: mean

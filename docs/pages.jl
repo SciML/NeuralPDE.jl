@@ -11,15 +11,11 @@ pages = [
     ],
     "PDE PINN Tutorials" => Any[
         "Introduction to NeuralPDE for PDEs" => "tutorials/pdesystem.md",
-        "Bayesian PINNs for PDEs" => "tutorials/low_level_2.md",
         "Using GPUs" => "tutorials/gpu.md",
         "Defining Systems of PDEs" => "tutorials/systems.md",
         "Imposing Constraints" => "tutorials/constraints.md",
         "The symbolic_discretize Interface" => "tutorials/low_level.md",
         "Optimising Parameters (Solving Inverse Problems)" => "tutorials/param_estim.md",
-        "Solving Integro Differential Equations" => "tutorials/integro_diff.md",
-        "Convolution Integrals" => "tutorials/integral_bound_variables.md",
-        "Transfer Learning with Neural Adapter" => "tutorials/neural_adapter.md",
         "The Derivative Neural Network Approximation" => "tutorials/derivative_neural_network.md",
     ],
     "Extended Examples" => Any[
@@ -38,9 +34,6 @@ pages = [
         "manual/pinns.md",
         "manual/bpinns.md",
         "manual/training_strategies.md",
-        "manual/adaptive_losses.md",
-        "manual/logging.md",
-        "manual/neural_adapters.md",
         "manual/pino_ode.md",
     ],
     "Developer Documentation" => Any[
