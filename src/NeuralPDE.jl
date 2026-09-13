@@ -9,6 +9,7 @@ using ComponentArrays: ComponentArrays, ComponentArray, getdata, getaxes
 using ConcreteStructs: @concrete
 using DocStringExtensions: FIELDS
 using DomainSets: DomainSets, AbstractInterval, leftendpoint, rightendpoint, ProductDomain
+import Enzyme
 using ForwardDiff: ForwardDiff
 using Functors: Functors, fmap
 using Integrals: Integrals, CubatureJLh, QuadGKJL
@@ -24,6 +25,7 @@ using Optimization: Optimization
 using OptimizationOptimisers: OptimizationOptimisers
 using Printf: @printf
 using Random: Random, AbstractRNG
+import Reactant
 using RecursiveArrayTools: DiffEqArray
 using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions, @RuntimeGeneratedFunction
 using SciMLBase: SciMLBase, BatchIntegralFunction, DAEProblem, IntegralProblem,

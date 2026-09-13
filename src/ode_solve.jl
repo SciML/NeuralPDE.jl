@@ -40,8 +40,8 @@ abstract type NeuralPDEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
 
 """
     NNODE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-        batch = true, ode_batch_eval = false, param_estim = false, additional_loss = nothing,
-        dataset = [], estim_collocate = false, kwargs...)
+        batch = true, param_estim = false, additional_loss = nothing,
+        dataset = [], estim_collocate = false, reactant = false, kwargs...)
 
 Algorithm for solving ordinary differential equations using a neural network. This is a
 specialization of the physics-informed neural network which is used as a solver for a
@@ -82,15 +82,15 @@ standard `ODEProblem`.
            neural network is done at individual time points one at a time. This is not
            applicable to `QuadratureTraining` where `batch` is passed in the `strategy`
            which is the number of points it can parallelly compute the integrand.
-* `ode_batch_eval`: Whether the ODE right-hand side accepts batched state and time arrays.
-                    Defaults to `false`. GPU execution enables batched evaluation
-                    automatically.
 * `param_estim`: Boolean to indicate whether parameters of the differential equations are
                  learnt along with parameters of the neural network.
 * `strategy`: The training strategy used to choose the points for the evaluations.
               Default of `nothing` means that `QuadratureTraining` with QuadGK is used if no
               `dt` is given, and `GridTraining` is used with `dt` if given.
 * `estim_collocate`: A boolean value to indicate whether to use the Data Quadrature loss function or not. This is only relevant for ODE parameter estimation.
+* `reactant`: Experimental opt-in for Reactant-compiled NNODE training with Enzyme
+              differentiation. Currently supported for batched `GridTraining` forward
+              problems only. Defaults to `false`.
 * `kwargs`: Extra keyword arguments are splatted to the Optimization.jl `solve` call.
 
 ## Examples
@@ -135,24 +135,25 @@ Networks 9, no. 5 (1998): 987-1000.
     init_params
     autodiff::Bool
     batch
-    ode_batch_eval::Bool
     strategy <: Union{Nothing, AbstractTrainingStrategy}
     param_estim
     additional_loss <: Union{Nothing, Function}
     dataset <: Union{Vector, Vector{<:Vector{<:AbstractFloat}}}
     estim_collocate::Bool
+    reactant::Bool
     kwargs
 end
 
 function NNODE(
         chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
-        batch = true, ode_batch_eval = false, param_estim = false, additional_loss = nothing,
-        dataset = [], estim_collocate = false, kwargs...
+        batch = true, param_estim = false, additional_loss = nothing,
+        dataset = [], estim_collocate = false, reactant = false, kwargs...
     )
     chain isa AbstractLuxLayer || (chain = FromFluxAdaptor()(chain))
     return NNODE(
-        chain, opt, init_params, autodiff, batch, ode_batch_eval,
-        strategy, param_estim, additional_loss, dataset, estim_collocate, kwargs
+        chain, opt, init_params, autodiff, batch,
+        strategy, param_estim, additional_loss, dataset, estim_collocate,
+        reactant, kwargs
     )
 end
 
@@ -217,13 +218,27 @@ function ode_dfdx(phi::ODEPhi, t, θ, autodiff::Bool)
     return (phi(t .+ ϵ, θ) .- phi(t, θ)) ./ ϵ
 end
 
-abstract type AbstractBatchedRHS end
 
-struct BatchedRHS{F} <: AbstractBatchedRHS
-    f::F
+# The two-argument `phi(t, θ)` calls `safe_get_device`, and MLDataDevices' `get_device`
+# refuses to run inside a `Reactant.@compile` trace. Everything is already on-device
+# there, so the Reactant path dispatches straight to the three-argument methods with a
+# no-op device: `ODEPhi{<:Number}` ignores the argument, and the general method only
+# uses it to move `u0`, which tracing turns into a constant anyway.
+_reactant_phi(phi, t, θ) = phi(identity, t, θ)
+
+_odephi_apply(phi, θ, t) = _reactant_phi(phi, t, θ)
+
+function enzyme_ode_dfdx(phi::ODEPhi, t, θ, tangent)
+    res = Enzyme.autodiff(
+        Enzyme.ForwardWithPrimal,
+        _odephi_apply,
+        Enzyme.Const(phi),
+        Enzyme.Const(θ),
+        Enzyme.Duplicated(t, tangent),
+    )
+
+    return res[1]
 end
-
-@inline (rhs::BatchedRHS)(u, p, t) = rhs.f(u, p, t)
 
 """
     inner_loss(phi, f, autodiff, t, θ, p, param_estim)
@@ -231,62 +246,6 @@ end
 Simple L2 inner loss at a time `t` with parameters `θ` of the neural network.
 """
 function inner_loss end
-
-function inner_loss(
-        phi::ODEPhi{<:Number}, f::AbstractBatchedRHS, autodiff::Bool,
-        ts::AbstractVector, θ, p, param_estim::Bool
-    )
-    p_ = param_estim ? θ.p : p
-    dev = safe_get_device(θ)
-
-    out_matrix = phi(dev, ts, θ)
-    out = vec(out_matrix)
-    fs = vec(f(out, p_, ts))
-
-    dxdtguess = if autodiff
-        vec(ode_dfdx(phi, ts, θ, true))
-    else
-        ϵ = sqrt(max(eps(eltype(ts)), eps(real(eltype(θ)))))
-        vec((phi(dev, ts .+ ϵ, θ) .- out_matrix) ./ ϵ)
-    end
-
-    length(fs) == length(dxdtguess) ||
-        throw(
-        DimensionMismatch(
-            "Batched scalar RHS returned $(length(fs)) values; " *
-                "expected $(length(dxdtguess))."
-        )
-    )
-
-    return sum(abs2, fs .- dxdtguess) / length(ts)
-end
-
-function inner_loss(
-        phi::ODEPhi, f::AbstractBatchedRHS, autodiff::Bool,
-        ts::AbstractVector, θ, p, param_estim::Bool
-    )
-    p_ = param_estim ? θ.p : p
-    dev = safe_get_device(θ)
-
-    out = phi(dev, ts, θ)
-    fs = f(out, p_, ts)
-
-    dxdtguess = if autodiff
-        ode_dfdx(phi, ts, θ, true)
-    else
-        ϵ = sqrt(max(eps(eltype(ts)), eps(real(eltype(θ)))))
-        (phi(dev, ts .+ ϵ, θ) .- out) ./ ϵ
-    end
-
-    size(fs) == size(dxdtguess) ||
-        throw(
-        DimensionMismatch(
-            "Batched RHS returned size $(size(fs)); expected $(size(dxdtguess))."
-        )
-    )
-    return sum(abs2, fs .- dxdtguess) / length(ts)
-end
-
 
 function inner_loss(phi::ODEPhi, f, autodiff::Bool, t::Number, θ, p, param_estim::Bool)
     p_ = param_estim ? θ.p : p
@@ -307,6 +266,67 @@ function inner_loss(
     return sum(abs2, fs .- dxdtguess) / length(t)
 end
 
+function reactant_inner_loss(
+        phi::ODEPhi,
+        f,
+        autodiff::Bool,
+        t::AbstractVector,
+        tangent,
+        θ,
+        p,
+        param_estim::Bool,
+    )
+    p_ = param_estim ? θ.p : p
+
+    # Both of these are computed once, outside the loop. Calling the network per
+    # iteration would re-trace it for every grid point and defeat the purpose of
+    # emitting a loop at all.
+    out = _reactant_phi(phi, t, θ)
+
+    dxdtguess = if autodiff
+        enzyme_ode_dfdx(phi, t, θ, tangent)
+    else
+        ϵ = sqrt(eps(eltype(t)))
+        (_reactant_phi(phi, t .+ ϵ, θ) .- out) ./ ϵ
+    end
+
+    # `length` reads the static shape, so the loop bounds are known at trace time.
+    n = length(t)
+
+    # Accumulated rather than assembled into a matrix: a traced loop body cannot grow a
+    # Vector, and not materializing `fs` keeps the emitted graph size independent of `n`.
+    # `f` stays the ordinary pointwise right-hand side; Reactant supplies the control flow.
+    #
+    # Indexing is two-dimensional on purpose -- with a traced index these lower to dynamic
+    # slices, where linear indexing would be likelier to fall back on scalar extraction.
+    # The residual is a sum of `abs2`, so it is mathematically real even when `out` is
+    # complex. Seeding the accumulator with `zero(eltype(out))` would type it complex and
+    # the loss would come back as `ComplexF64(real, 0)` -- AD-correct, but not orderable,
+    # which breaks every consumer that compares the objective (NNODE's own `l < abstol`
+    # callback, and `save_best` inside OptimizationOptimisers). `abs2` maps both
+    # ComplexF64 and Float64 to a real zero, so this keeps the loss real in both cases
+    # without a type-level `real` on the traced wrapper.
+    acc = abs2(zero(eltype(out)))
+
+    # `@allowscalar` is the documented pattern for indexing inside a traced loop, not a
+    # workaround: the scalar-indexing guard fires on the generic getindex path even when
+    # the surrounding loop is emitted as control flow. It is scoped to the indexing
+    # expressions rather than applied globally.
+    if phi.u0 isa Number
+        Reactant.@trace for i in 1:n
+            acc += Reactant.@allowscalar abs2(f(out[1, i], p_, t[i]) - dxdtguess[1, i])
+        end
+    else
+        Reactant.@trace for i in 1:n
+            acc += Reactant.@allowscalar sum(
+                abs2, f(out[:, i], p_, t[i]) .- dxdtguess[:, i]
+            )
+        end
+    end
+
+    return acc / n
+end
+
 """
     generate_loss(strategy, phi, f, autodiff, tspan, p, batch, param_estim)
 
@@ -314,7 +334,7 @@ Representation of the loss function, parametric on the training strategy `strate
 """
 function generate_loss(
         strategy::QuadratureTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, ode_batch_eval, param_estim::Bool
+        batch, param_estim::Bool
     )
     integrand(t::Number, θ) = abs2(inner_loss(phi, f, autodiff, t, θ, p, param_estim))
 
@@ -336,24 +356,17 @@ function generate_loss(
 end
 
 function generate_loss(
-        strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, ode_batch_eval, param_estim::Bool
+        strategy::GridTraining, phi, f, autodiff::Bool, tspan, p, batch, param_estim::Bool
     )
     ts = collect(tspan[1]:(strategy.dx):tspan[2])
     autodiff && throw(ArgumentError("autodiff not supported for GridTraining."))
-    if batch
-        return (θ, _) -> begin
-            dev = safe_get_device(θ)
-            batch_f = ode_batch_eval || dev != cdev ? BatchedRHS(f) : f
-            inner_loss(phi, batch_f, autodiff, safe_expand(dev, ts), θ, p, param_estim)
-        end
-    else
-        return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
-    end
+    batch && return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
+    return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
 end
 
 function generate_loss(
         strategy::StochasticTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, ode_batch_eval, param_estim::Bool
+        batch, param_estim::Bool
     )
     autodiff && throw(ArgumentError("autodiff not supported for StochasticTraining."))
     return (
@@ -363,10 +376,7 @@ function generate_loss(
         T = promote_type(eltype(tspan[1]), eltype(tspan[2]))
         ts = (tspan[2] - tspan[1]) .* rand(T, strategy.points) .+ tspan[1]
         if batch
-            dev = safe_get_device(θ)
-            ts = safe_expand(dev, ts)
-            batch_f = ode_batch_eval || dev != cdev ? BatchedRHS(f) : f
-            inner_loss(phi, batch_f, autodiff, ts, θ, p, param_estim)
+            inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
         else
             sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
         end
@@ -375,7 +385,7 @@ end
 
 function generate_loss(
         strategy::WeightedIntervalTraining, phi, f, autodiff::Bool, tspan, p,
-        batch, ode_batch_eval, param_estim::Bool
+        batch, param_estim::Bool
     )
     autodiff && throw(ArgumentError("autodiff not supported for WeightedIntervalTraining."))
     minT, maxT = tspan
@@ -390,15 +400,8 @@ function generate_loss(
         append!(ts, temp_data)
     end
 
-    if batch
-        return (θ, _) -> begin
-            dev = safe_get_device(θ)
-            batch_f = ode_batch_eval || dev != cdev ? BatchedRHS(f) : f
-            inner_loss(phi, batch_f, autodiff, safe_expand(dev, ts), θ, p, param_estim)
-        end
-    else
-        return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
-    end
+    batch && return (θ, _) -> inner_loss(phi, f, autodiff, ts, θ, p, param_estim)
+    return (θ, _) -> sum([inner_loss(phi, f, autodiff, t, θ, p, param_estim) for t in ts])
 end
 
 function evaluate_tstops_loss(phi, f, autodiff::Bool, tstops, p, batch, param_estim::Bool)
@@ -486,6 +489,101 @@ end
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::NNODE) = true
 
+_reactant_to_host(x::ComponentArray) = Array(getdata(x))
+_reactant_to_host(x) = Array(x)
+
+# Strips the ComponentArray wrapper so host↔device copies hit the backing arrays directly
+# instead of going through ComponentArrays' elementwise path, which would scalar-index the
+# device array.
+_reactant_data(x::ComponentArray) = getdata(x)
+_reactant_data(x) = x
+
+function build_reactant_grid_objective(
+        phi,
+        f,
+        autodiff::Bool,
+        tspan,
+        strategy::GridTraining,
+        p,
+        param_estim::Bool,
+        init_params,
+    )
+
+    ts = collect(tspan[1]:(strategy.dx):tspan[2])
+
+    ts_dev = Reactant.to_rarray(ts)
+    # Forward-mode seed for `enzyme_ode_dfdx`. Seeding every entry with one recovers the
+    # whole diagonal `du_i/dt_i` in a single forward pass -- but only because `phi` treats
+    # collocation points independently, making its Jacobian w.r.t. `t` diagonal. A layer
+    # that mixes across the batch dimension (batch-dependent statistics, attention along
+    # the batch axis) would break that: the all-ones seed would return row sums of the
+    # Jacobian instead of its diagonal. Standard Dense NNODE chains satisfy the assumption.
+    tangent_dev = Reactant.to_rarray(fill(one(eltype(ts)), size(ts)))
+    θ_dev = Reactant.to_rarray(init_params)
+
+    function scalar_loss(q, tt, tangent)
+        return reactant_inner_loss(
+            phi,
+            f,
+            autodiff,
+            tt,
+            tangent,
+            q,
+            p,
+            param_estim,
+        )
+    end
+
+    function gradfun(q, tt, tangent)
+        g = Enzyme.gradient(
+            Enzyme.Reverse,
+            scalar_loss,
+            q,
+            Enzyme.Const(tt),
+            Enzyme.Const(tangent),
+        )
+
+        return g[1]
+    end
+
+    # Compiled on first use and reused for the rest of the solve. In particular a
+    # derivative-free optimizer never asks for a gradient, so it never pays to compile one.
+    # Nothing is cached between separate `solve` calls.
+    loss_c = nothing
+    grad_c = nothing
+
+    # The trailing parameter argument is optional. With an AD backend, OptimizationBase
+    # instantiates the objective and calls it as `f(u, p)`; with `SciMLBase.NoAD` and a
+    # hand-supplied gradient it binds `p` into its own wrapper and calls `f(u)` instead.
+    # Accepting both keeps this working under either convention.
+    #
+    # `θ_dev` is reused across iterations rather than rebuilt: `to_rarray` allocates a new
+    # device array and copies into it on every call, which for an optimizer means one
+    # host→device allocation per objective and per gradient evaluation. Copying into the
+    # existing buffer keeps the transfer but drops the allocation.
+    function objective(θ, _ = nothing)
+        copyto!(_reactant_data(θ_dev), _reactant_data(θ))
+        if loss_c === nothing
+            loss_c = Reactant.@compile scalar_loss(θ_dev, ts_dev, tangent_dev)
+        end
+        loss = loss_c(θ_dev, ts_dev, tangent_dev)
+        return Reactant.to_number(loss)
+    end
+
+    function gradient!(G, θ, _ = nothing)
+        copyto!(_reactant_data(θ_dev), _reactant_data(θ))
+        if grad_c === nothing
+            grad_c = Reactant.@compile gradfun(θ_dev, ts_dev, tangent_dev)
+        end
+        g = grad_c(θ_dev, ts_dev, tangent_dev)
+
+        copyto!(G, _reactant_to_host(g))
+        return G
+    end
+
+    return (; objective, gradient!)
+end
+
 function SciMLBase.__solve(
         prob::SciMLBase.AbstractODEProblem,
         alg::NNODE,
@@ -506,7 +604,7 @@ function SciMLBase.__solve(
     # add estim_collocate, dataset (or nothing) in NNODE
     (;
         param_estim, estim_collocate, dataset, chain, opt, autodiff,
-        init_params, batch, ode_batch_eval, additional_loss, estim_collocate,
+        init_params, batch, additional_loss, reactant,
     ) = alg
 
     phi, init_params = generate_phi_θ(chain, t0, u0, init_params)
@@ -536,7 +634,25 @@ function SciMLBase.__solve(
         alg.strategy
     end
 
-    inner_f = generate_loss(strategy, phi, f, autodiff, tspan, p, batch, ode_batch_eval, param_estim)
+    reactant_supported =
+        strategy isa GridTraining &&
+        batch &&
+        isempty(dataset) &&
+        !param_estim &&
+        additional_loss === nothing &&
+        tstops === nothing
+
+    if reactant && !reactant_supported
+        throw(
+            ArgumentError(
+                "reactant = true is currently supported only for batched GridTraining " *
+                    "forward problems without dataset, parameter estimation, " *
+                    "additional_loss, or tstops."
+            )
+        )
+    end
+
+    use_reactant = reactant && reactant_supported
 
     if !isempty(dataset) &&
             (length(dataset) < 3 || !(dataset isa Vector{<:Vector{<:AbstractFloat}}))
@@ -549,45 +665,72 @@ function SciMLBase.__solve(
         error("Dataset is required for Inverse problems performing Parameter Estimation using the Data Quadrature loss function.")
     end
 
-    n_output = length(u0)
-    L2lossData = generate_L2lossData(dataset, phi, n_output)
-    L2loss2 = generate_L2loss2(f, autodiff, dataset, phi, n_output)
+    # The legacy objective and everything it closes over live inside the legacy branch.
+    # Hoisting them would mean `inner_f` is `nothing` on the Reactant path and `total_loss`
+    # would carry a call to it that stays harmless only while nothing invokes it.
+    optf = if use_reactant
+        reactant_obj = build_reactant_grid_objective(
+            phi,
+            f,
+            autodiff,
+            tspan,
+            strategy,
+            p,
+            param_estim,
+            init_params,
+        )
 
-    # Creates OptimizationFunction Object from total_loss
-    function total_loss(θ, _)
-        L2_loss = inner_f(θ, phi)
+        OptimizationFunction(
+            reactant_obj.objective;
+            grad = reactant_obj.gradient!,
+        )
+    else
+        inner_f = generate_loss(
+            strategy, phi, f, autodiff, tspan, p, batch, param_estim
+        )
 
-        if param_estim && estim_collocate
-            L2_loss = L2_loss + L2lossData(θ, phi) + L2loss2(θ, phi)
-        elseif param_estim && !isempty(dataset)
-            L2_loss = L2_loss + L2lossData(θ, phi)
-        end
-        if additional_loss !== nothing
-            L2_loss = L2_loss + additional_loss(phi, θ)
-        end
-        if tstops !== nothing
-            num_tstops_points = length(tstops)
-            tstops_loss_func = evaluate_tstops_loss(
-                phi, f, autodiff, tstops, p, batch, param_estim
-            )
-            tstops_loss = tstops_loss_func(θ, phi)
-            if strategy isa GridTraining
-                num_original_points = length(tspan[1]:(strategy.dx):tspan[2])
-            elseif strategy isa Union{WeightedIntervalTraining, StochasticTraining}
-                num_original_points = strategy.points
-            else
-                return L2_loss + tstops_loss
+        n_output = length(u0)
+        L2lossData = generate_L2lossData(dataset, phi, n_output)
+        L2loss2 = generate_L2loss2(f, autodiff, dataset, phi, n_output)
+
+        # Creates OptimizationFunction Object from total_loss
+        function total_loss(θ, _)
+            L2_loss = inner_f(θ, phi)
+
+            if param_estim && estim_collocate
+                L2_loss = L2_loss + L2lossData(θ, phi) + L2loss2(θ, phi)
+            elseif param_estim && !isempty(dataset)
+                L2_loss = L2_loss + L2lossData(θ, phi)
             end
-            total_original_loss = L2_loss * num_original_points
-            total_tstops_loss = tstops_loss * num_tstops_points
-            total_points = num_original_points + num_tstops_points
-            L2_loss = (total_original_loss + total_tstops_loss) / total_points
+            if additional_loss !== nothing
+                L2_loss = L2_loss + additional_loss(phi, θ)
+            end
+            if tstops !== nothing
+                num_tstops_points = length(tstops)
+                tstops_loss_func = evaluate_tstops_loss(
+                    phi, f, autodiff, tstops, p, batch, param_estim
+                )
+                tstops_loss = tstops_loss_func(θ, phi)
+                if strategy isa GridTraining
+                    num_original_points = length(tspan[1]:(strategy.dx):tspan[2])
+                elseif strategy isa Union{WeightedIntervalTraining, StochasticTraining}
+                    num_original_points = strategy.points
+                else
+                    return L2_loss + tstops_loss
+                end
+                total_original_loss = L2_loss * num_original_points
+                total_tstops_loss = tstops_loss * num_tstops_points
+                total_points = num_original_points + num_tstops_points
+                L2_loss = (total_original_loss + total_tstops_loss) / total_points
+            end
+            return L2_loss
         end
-        return L2_loss
-    end
 
-    opt_algo = ifelse(strategy isa QuadratureTraining, AutoForwardDiff(), AutoZygote())
-    optf = OptimizationFunction(total_loss, opt_algo)
+        opt_algo = ifelse(
+            strategy isa QuadratureTraining, AutoForwardDiff(), AutoZygote()
+        )
+        OptimizationFunction(total_loss, opt_algo)
+    end
 
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
     callback = function (p, l)
