@@ -41,7 +41,7 @@ using Zygote: Zygote
 
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit
-using ModelingToolkitBase: ModelingToolkitBase, @mtkcompile, @named, @parameters,
+using ModelingToolkitBase: ModelingToolkitBase, @mtkcompile, @named, @parameters, complete,
     PDESystem, ProblemTypeCtx, System, get_bcs, get_dvs, get_ivs, get_ps,
     getdefault, initial_conditions, mtkcompile, setdefault, tovar, unknowns
 using Symbolics: Symbolics, Differential, Equation, Integral, arguments, iscall, Num, operation,

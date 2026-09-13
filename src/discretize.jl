@@ -302,9 +302,10 @@ end
 
 Build the `OptimizationProblem` for training the physics-informed neural network.
 
-`symbolic_discretize` produces the `System`, `mtkcompile` compiles it, the collocation
-points are sampled with `discretization.strategy`, and `OptimizationProblem(sys, op;
-kwargs...)` generates the objective. All keyword arguments are forwarded to the
+`symbolic_discretize` produces the `System`, the collocation points are sampled with
+`discretization.strategy`, and `OptimizationProblem(complete(sys), op; kwargs...)`
+generates the objective; the network parameters stay array unknowns, so no `mtkcompile`
+pass (which would scalarize them) is involved. All keyword arguments are forwarded to the
 `OptimizationProblem` constructor; in particular `adtype` selects the automatic
 differentiation backend (default [`default_adtype`](@ref), Zygote) and `weights` scalarizes the costs with
 a weighted sum. Parameters of the `PDESystem` without a value in
@@ -317,7 +318,7 @@ function SciMLBase.discretize(
     )
     sys = symbolic_discretize(pdesys, disc)
     md = pinn_metadata(sys)
-    csys = mtkcompile(sys)
+    csys = complete(sys)
     PDEBase.add_metadata!(md, csys)
     op = operating_point(md, disc.rng)
     for (k, val) in p

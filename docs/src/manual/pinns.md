@@ -36,11 +36,13 @@ as the other SciML discretizers (for example MethodOfLines.jl):
    boundary condition is a symbolic array expression over a matrix of collocation points
    stored as a parameter of the system; each residual contributes one cost (or, for
    boundary conditions with `boundary_policy = :constraints`, one equality constraint).
-2. `discretize(pdesys, discretization)` compiles the system with `mtkcompile`, samples the
-   collocation points with the training strategy and generates an `OptimizationProblem`
-   through ModelingToolkit's `OptimizationProblem(sys, op)` constructor. Keyword arguments
-   such as `adtype` (automatic differentiation backend) and `weights` (weighted sum of the
-   costs) are forwarded to it.
+2. `discretize(pdesys, discretization)` samples the collocation points with the training
+   strategy and generates an `OptimizationProblem` through ModelingToolkit's
+   `OptimizationProblem(sys, op)` constructor. Keyword arguments such as `adtype`
+   (automatic differentiation backend) and `weights` (weighted sum of the costs) are
+   forwarded to it. The system is only `complete`d, not passed through `mtkcompile`:
+   the network parameters stay array unknowns of the problem, which keeps the generated
+   code independent of the number of parameters.
 3. `solve(prob, optimizer)` returns a `PDENoTimeSolution` which evaluates the trained
    networks: `sol[u(x, t)]` on the evaluation grid, `sol(x, t; dv = u(x, t))` at arbitrary
    points, and `sol.original_sol` for the underlying `OptimizationSolution`.

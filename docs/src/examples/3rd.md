@@ -56,11 +56,10 @@ using Plots
 
 analytic_sol_func(x) = (π * x * (-x + (π^2) * (2 * x - 3) + 1) - sin(π * x)) / (π^3)
 
-xs = 0:0.005:1
-u_real = [analytic_sol_func(x) for x in xs]
-u_predict = sol(xs; dv = u(x))
+xs = sol[x]
+u_real = analytic_sol_func.(xs)
+u_predict = sol[u(x)]
 
-x_plot = collect(xs)
-plot(x_plot, u_real, title = "real")
-plot!(x_plot, u_predict, title = "predict")
+plot(xs, u_real, title = "real")
+plot!(xs, u_predict, title = "predict")
 ```
