@@ -35,7 +35,7 @@ run_qa(
         all_qualified_accesses_are_public = (;
             ignore = (
                 :_iszero, :derivative, :dottable, :jacobian, :make_kernel, :mapany,
-                :variables,
+                :variables, :to_number, :to_rarray
             ),
         ),
         # ExplicitImports scans extensions as separate modules, although these
