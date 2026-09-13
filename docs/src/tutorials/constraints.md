@@ -20,11 +20,17 @@ p(-2.2) = p(2.2) = 0
 
 with Physics-Informed Neural Networks.
 
+The normalization condition is not a pointwise equation, so it enters the problem as an
+`additional_loss`. Its signature is `additional_loss(phi, θ, p)`: `phi` is a `NamedTuple`
+of batched network evaluators keyed by dependent variable name, `θ` a `NamedTuple` of the
+corresponding parameter vectors and `p` the vector of `PDESystem` parameter values.
+`phi.p(X, θ.p)` evaluates the network for `p(x)` on a matrix of points with one column
+per point.
+
 ```@example fokkerplank
-using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, LineSearches
-using Optim: BFGS
+using NeuralPDE, Lux, OptimizationOptimJL, LineSearches, Integrals
 using DomainSets: Interval
-using IntervalSets: leftendpoint, rightendpoint
+
 # the example is taken from this article https://arxiv.org/abs/1910.10503
 @parameters x
 @variables p(..)
@@ -36,6 +42,8 @@ Dxx = Differential(x)^2
 _σ = 0.5
 x_0 = -2.2
 x_end = 2.2
+# Discretization
+dx = 0.01
 
 eq = Dx((α * x - β * x^3) * p(x)) ~ (_σ^2 / 2) * Dxx(p(x))
 
@@ -47,50 +55,33 @@ domains = [x ∈ Interval(x_0, x_end)]
 
 # Neural network
 inn = 18
-chain = Lux.Chain(Dense(1, inn, Lux.σ),
-    Dense(inn, inn, Lux.σ),
-    Dense(inn, inn, Lux.σ),
-    Dense(inn, 1))
+chain = Chain(Dense(1, inn, σ), Dense(inn, inn, σ), Dense(inn, inn, σ), Dense(inn, 1))
 
-lb = x_0
-ub = x_end
-# Use a simple trapezoidal rule for the normalization constraint.
-# This avoids AD issues with Integrals.jl's C-based quadrature solvers.
-norm_xs = collect(range(lb, ub, length = 200))
-norm_dx = Float64(norm_xs[2] - norm_xs[1])
+# Trapezoidal rule for the normalization constraint.
+norm_xs = reshape(collect(range(x_0, x_end; length = 200)), 1, :)
+norm_dx = norm_xs[2] - norm_xs[1]
 function norm_loss_function(phi, θ, p)
-    # Evaluate phi at quadrature points (each point as a 1-element vector)
-    s = sum(1:length(norm_xs)) do i
-        first(phi([norm_xs[i]], θ))
-    end
-    norm_val = 0.01 * s * norm_dx
-    abs(norm_val - 1)
+    norm_val = sum(phi.p(norm_xs, θ.p)) * norm_dx
+    return abs2(norm_val - 1)
 end
 
-discretization = PhysicsInformedNN(chain,
-    QuadratureTraining(),
-    additional_loss = norm_loss_function)
+discretization = PhysicsInformedNN(
+    chain, QuadratureTraining(; quadrature_alg = GaussLegendre(n = 200));
+    additional_loss = norm_loss_function
+)
 
 @named pdesystem = PDESystem(eq, bcs, domains, [x], [p(x)])
+sys = symbolic_discretize(pdesystem, discretization)
+```
+
+The additional loss is the last cost of the generated `System`. The costs can be
+monitored individually from a callback; see the [systems tutorial](@ref systems) for how
+to evaluate residuals. Here we simply train:
+
+```@example fokkerplank
 prob = discretize(pdesystem, discretization)
-phi = discretization.phi
-
-sym_prob = NeuralPDE.symbolic_discretize(pdesystem, discretization)
-
-pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
-bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
-approx_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions
-
-cb_ = function (p, l)
-    println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
-    println("additional_loss: ", norm_loss_function(phi, p.u, nothing))
-    return false
-end
-
-res = Optimization.solve(
-    prob, BFGS(linesearch = BackTracking()), callback = cb_, maxiters = 600)
+sol = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 600)
+sol.original_sol.objective
 ```
 
 And some analysis:
@@ -100,10 +91,26 @@ using Plots
 C = 142.88418699042 #fitting param
 analytic_sol_func(x) = C * exp((1 / (2 * _σ^2)) * (2 * α * x^2 - β * x^4))
 
-xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains][1]
+xs = x_0:0.01:x_end
 u_real = [analytic_sol_func(x) for x in xs]
-u_predict = [first(phi(x, res.u)) for x in xs]
+u_predict = sol(xs; dv = p(x))
 
 plot(xs, u_real, label = "analytic")
 plot!(xs, u_predict, label = "predict")
+```
+
+## Boundary conditions as constraints of the optimization problem
+
+By default every boundary condition becomes a penalty cost (its mean squared residual),
+which is the standard PINN formulation. With `boundary_policy = :constraints` the pointwise
+boundary residuals are kept as equality constraints of the `System` instead, so that a
+constrained optimizer can enforce them exactly:
+
+```@example fokkerplank
+constrained = PhysicsInformedNN(
+    chain, QuadratureTraining(; quadrature_alg = GaussLegendre(n = 200));
+    additional_loss = norm_loss_function, boundary_policy = :constraints
+)
+csys = symbolic_discretize(pdesystem, constrained)
+length(ModelingToolkit.constraints(csys))
 ```

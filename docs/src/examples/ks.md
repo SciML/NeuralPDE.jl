@@ -27,10 +27,8 @@ where $\theta = t - x/2$ and with initial and boundary conditions:
 We use physics-informed neural networks.
 
 ```@example ks
-using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
-using Optim: BFGS
+using NeuralPDE, Lux, OptimizationOptimJL
 import DomainSets: Interval
-using IntervalSets: leftendpoint, rightendpoint
 
 @parameters x, t
 @variables u(..)
@@ -74,8 +72,7 @@ callback = function (p, l)
 end
 
 opt = BFGS()
-res = Optimization.solve(prob, opt; maxiters = 2000, callback)
-phi = discretization.phi
+sol = solve(prob, opt; maxiters = 2000, callback)
 ```
 
 And some analysis:
@@ -83,13 +80,12 @@ And some analysis:
 ```@example ks
 using Plots
 
-xs,
-ts = [leftendpoint(d.domain):dx:rightendpoint(d.domain)
-      for (d, dx) in zip(domains, [dx / 10, dt])]
+xs = -10:(dx / 10):10
+ts = 0:dt:1
 
-u_predict = [[first(phi([x, t], res.u)) for x in xs] for t in ts]
-u_real = [[u_analytic(x, t) for x in xs] for t in ts]
-diff_u = [[abs(u_analytic(x, t) - first(phi([x, t], res.u))) for x in xs] for t in ts]
+u_predict = [sol(xs, tᵢ; dv = u(x, t)) for tᵢ in ts]
+u_real = [[u_analytic(xᵢ, tᵢ) for xᵢ in xs] for tᵢ in ts]
+diff_u = [abs.(u_real[i] .- u_predict[i]) for i in eachindex(ts)]
 
 p1 = plot(xs, u_predict, title = "predict")
 p2 = plot(xs, u_real, title = "analytic")

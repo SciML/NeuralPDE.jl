@@ -49,15 +49,13 @@ second numerical derivative `u3(t,x) ~ (Dtt(u1(t,x)) -Dxx(u1(t,x))) / sin(pi*x)`
 
 We approximate the derivative of the neural network with another neural network
 `Dt(u1(t,x)) ~ Dtu1(t,x)` and train it along with other equations, and thus we avoid
-using the second numeric derivative `Dt(Dtu1(t,x))`.
+using the second numeric derivative `Dt(Dtu1(t,x))`. The linking equations between a
+network and its derivative network are ordinary boundary conditions of the `PDESystem`,
+so nothing else changes.
 
 ```@example derivativenn
-using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimisers,
-      OptimizationOptimJL, LineSearches, Plots
-using Optim: LBFGS
-using Optimisers: Adam
+using NeuralPDE, Lux, OptimizationOptimisers, OptimizationOptimJL, LineSearches, Plots
 using DomainSets: Interval
-using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 Dt = Differential(t)
@@ -94,35 +92,19 @@ bcs__ = [bcs_; der_]
 # Space and time domains
 domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 1.0)]
 
-input_ = length(domains)
 n = 15
-chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:7]
+chain = [Chain(Dense(2, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:7]
 
-training_strategy = StochasticTraining(128)
+training_strategy = QuasiRandomTraining(256; bcs_points = 64)
 discretization = PhysicsInformedNN(chain, training_strategy)
 
 vars = [u1(t, x), u2(t, x), u3(t, x), Dxu1(t, x), Dtu1(t, x), Dxu2(t, x), Dtu2(t, x)]
 @named pdesystem = PDESystem(eqs_, bcs__, domains, [t, x], vars)
 prob = discretize(pdesystem, discretization)
-sym_prob = symbolic_discretize(pdesystem, discretization)
 
-pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
-bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions[1:7]
-approx_derivative_loss_functions = sym_prob.loss_functions.bc_loss_functions[9:end]
-
-callback = function (p, l)
-    println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
-    println("der_losses: ", map(l_ -> l_(p.u), approx_derivative_loss_functions))
-    return false
-end
-
-res = Optimization.solve(prob, Adam(0.01); maxiters = 2000, callback)
-prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
-
-phi = discretization.phi
+res = solve(prob, Adam(0.01); maxiters = 2000)
+prob = remake(prob; u0 = res.original_sol.u)
+sol = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200)
 ```
 
 And some analysis:
@@ -130,8 +112,7 @@ And some analysis:
 ```@example derivativenn
 using Plots
 
-ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
-minimizers_ = [res.u.depvar[sym_prob.depvars[i]] for i in 1:length(chain)]
+ts = xs = 0:0.01:1
 
 u1_real(t, x) = exp(-t) * sinpi(x)
 u2_real(t, x) = exp(-t) * cospi(x)
@@ -146,15 +127,15 @@ function analytic_sol_func_all(t, x)
         Dxu1_real(t, x), Dtu1_real(t, x), Dxu2_real(t, x), Dtu2_real(t, x)]
 end
 
-u_real = [[analytic_sol_func_all(t, x)[i] for t in ts for x in xs] for i in 1:7]
-u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:7]
+u_real = [[analytic_sol_func_all(t, x)[i] for t in ts, x in xs] for i in 1:7]
+u_predict = [sol(ts, xs; dv = vars[i]) for i in 1:7]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:7]
+titles = ["u1", "u2", "u3", "Dxu1", "Dtu1", "Dxu2", "Dtu2"]
 ps = []
-titles = ["u1", "u2", "u3", "Dtu1", "Dtu2", "Dxu1", "Dxu2"]
 for i in 1:7
-    p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = "$(titles[i]), analytic")
-    p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
-    p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
+    p1 = plot(ts, xs, u_real[i]', linetype = :contourf, title = "$(titles[i]), analytic")
+    p2 = plot(ts, xs, u_predict[i]', linetype = :contourf, title = "predict")
+    p3 = plot(ts, xs, diff_u[i]', linetype = :contourf, title = "error")
     push!(ps, plot(p1, p2, p3))
 end
 ```
