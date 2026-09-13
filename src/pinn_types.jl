@@ -106,8 +106,9 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
 
 ## Keyword Arguments
 
-* `init_params`: initial network parameters as a flat vector (one network) or a vector
-  of flat vectors (one per network). Defaults to `Lux.initialparameters` with `rng`.
+* `init_params`: initial network parameters as a flat vector, a Lux parameter
+  `NamedTuple` or a `ComponentArray` (one network), or a vector of those (one per
+  network). Defaults to `Lux.initialparameters` with `rng`.
 * `rng`: the random number generator used for parameter initialization and sampling.
 * `derivative`: the [`AbstractDerivativeLowering`](@ref) used for `Differential`
   operators. Defaults to [`FiniteDifferenceDerivative`](@ref).
