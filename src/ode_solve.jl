@@ -213,7 +213,7 @@ function ode_dfdx(phi::ODEPhi, t, θ, autodiff::Bool)
         t isa Number && return ForwardDiff.derivative(Base.Fix2(phi, θ), t)
         return ForwardDiff.jacobian(Base.Fix2(phi, θ), t)
     end
-    ϵ = sqrt(eps(eltype(t)))
+    ϵ = sqrt(max(eps(eltype(t)), eps(real(eltype(θ)))))
     return (phi(t .+ ϵ, θ) .- phi(t, θ)) ./ ϵ
 end
 
@@ -246,7 +246,7 @@ function inner_loss(
     dxdtguess = if autodiff
         vec(ode_dfdx(phi, ts, θ, true))
     else
-        ϵ = sqrt(eps(eltype(ts)))
+        ϵ = sqrt(max(eps(eltype(ts)), eps(real(eltype(θ)))))
         vec((phi(dev, ts .+ ϵ, θ) .- out_matrix) ./ ϵ)
     end
 
@@ -274,7 +274,7 @@ function inner_loss(
     dxdtguess = if autodiff
         ode_dfdx(phi, ts, θ, true)
     else
-        ϵ = sqrt(eps(eltype(ts)))
+        ϵ = sqrt(max(eps(eltype(ts)), eps(real(eltype(θ)))))
         (phi(dev, ts .+ ϵ, θ) .- out) ./ ϵ
     end
 
