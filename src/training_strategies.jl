@@ -478,17 +478,39 @@ function get_loss_function(
     ) -> begin
         function integrand(x, θ)
             x = x |> dev |> EltypeAdaptor{eltypeθ}()
-            isempty(x) && return similar(x, recursive_eltype(θ), 0)
-            return sum(abs2, view(loss_(x, θ), 1, :), dims = 2) #./ size_x
+            θ = _adapt_preserving_eltype(dev, θ)
+            isempty(x) && return cdev(similar(x, recursive_eltype(θ), 0))
+            # CPU quadrature backends apply their Jacobian and accumulate on the host.
+            return cdev(sum(abs2, view(loss_(x, θ), 1, :), dims = 2)) #./ size_x
         end
         integral_function = BatchIntegralFunction(integrand, max_batch = strategy.batch)
-        prob = IntegralProblem(integral_function, (lb, ub), θ)
+        prob = IntegralProblem(integral_function, (lb, ub), cdev(θ))
         return solve(
             prob, strategy.quadrature_alg; strategy.reltol, strategy.abstol,
             strategy.maxiters
         ).u
     end
     return (θ) -> f_(lb, ub, loss_function, θ) / area
+end
+
+function _adapt_preserving_eltype(dev, x::AbstractArray)
+    x_device = dev(x)
+    eltype(x_device) === eltype(x) && return x_device
+    return copyto!(similar(x_device, eltype(x)), x)
+end
+
+function ChainRulesCore.rrule(::typeof(_adapt_preserving_eltype), dev, x::AbstractArray)
+    y = _adapt_preserving_eltype(dev, x)
+    function pullback(ȳ)
+        x̄ = ChainRulesCore.@thunk begin
+            ȳ_source = _adapt_preserving_eltype(
+                safe_get_device(x), ChainRulesCore.unthunk(ȳ)
+            )
+            ChainRulesCore.ProjectTo(x)(ȳ_source)
+        end
+        return ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), x̄
+    end
+    return y, pullback
 end
 
 """
