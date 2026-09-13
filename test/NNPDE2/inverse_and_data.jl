@@ -33,11 +33,14 @@ using OrdinaryDiffEq, Statistics
         eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β];
         initial_conditions = Dict(σ_ => 9.0, ρ => 27.0, β => 3.0)
     )
+    # Every `symbolic_discretize`/`discretize` call draws fresh network weights from
+    # `disc.rng`, so train from the first draw and inspect the system afterwards.
+    prob = discretize(pde_system, disc)
     sys = symbolic_discretize(pde_system, disc)
     @test length(unknowns(sys)) == 6
     @test length(ModelingToolkit.get_costs(sys)) == 7
-    prob = discretize(pde_system, disc)
     sol = train(prob; adam_iters = 1000, bfgs_iters = 2000)
+    @test sol.original_sol.objective < 1.0
     p_est = [sol.original_sol[σ_], sol.original_sol[ρ], sol.original_sol[β]]
     @test isapprox(p_est, [10.0, 28.0, 8 / 3]; rtol = 0.1)
 end
