@@ -140,7 +140,21 @@ end
 _param_eltype(disc::PhysicsInformedNN) = _param_eltype(disc.init_params)
 _param_eltype(::Nothing) = Float64
 _param_eltype(x::AbstractVector{<:Number}) = float(eltype(x))
+_param_eltype(x::NamedTuple) = _param_eltype(flat_params(x))
 _param_eltype(x::AbstractVector) = promote_type(map(_param_eltype, x)...)
+
+flat_params(x::AbstractVector{<:Number}) = collect(x)
+flat_params(x::NamedTuple) = collect(ComponentArray(x))
+
+"""
+    flat_init_params(init)
+
+Normalize the `init_params` of a [`PhysicsInformedNN`](@ref) to a vector with one flat
+parameter vector per network: a flat vector, a Lux parameter `NamedTuple` or a
+`ComponentArray` describes a single network, and a vector of those one network each.
+"""
+flat_init_params(x::Union{AbstractVector{<:Number}, NamedTuple}) = [flat_params(x)]
+flat_init_params(x::AbstractVector) = map(flat_params, x)
 
 function _pdesys_params(pdesys)
     ps = get_ps(pdesys)
@@ -168,13 +182,11 @@ function build_networks(disc::PhysicsInformedNN, v, T)
         )
     )
     shared = !(disc.chain isa AbstractArray) && ndv > 1
-    init = disc.init_params
-    if init !== nothing && !shared
-        init = init isa AbstractVector{<:Number} ? [init] : init
-        length(init) == ndv || throw(
-            ArgumentError("`init_params` must have one entry per network, got $(length(init)).")
-        )
-    end
+    init = disc.init_params === nothing ? nothing : flat_init_params(disc.init_params)
+    nnets = shared ? 1 : ndv
+    init === nothing || length(init) == nnets || throw(
+        ArgumentError("`init_params` must have one entry per network, got $(length(init)).")
+    )
     networks = TrialNetwork[]
     shared_net = nothing
     for (i, op) in enumerate(dvs)
@@ -190,7 +202,7 @@ function build_networks(disc::PhysicsInformedNN, v, T)
                     )
                 )
                 shared_net = symbolic_network(
-                    chains[1], :NN, n_in, ndv, T, init === nothing ? nothing : init, disc.rng
+                    chains[1], :NN, n_in, ndv, T, init === nothing ? nothing : init[1], disc.rng
                 )
             end
             NN, θ = shared_net

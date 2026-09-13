@@ -107,4 +107,8 @@ end
     fprob = discretize(pde_system, fdisc)
     @test eltype(fprob.u0) == Float32
     @test fprob.f(fprob.u0, fprob.p) isa Float32
+    for init in (Lux.initialparameters(Xoshiro(0), chain), ps, [ps])
+        nprob = discretize(pde_system, PhysicsInformedNN(chain, GridTraining(0.1); init_params = init))
+        @test nprob.u0 == collect(ps)
+    end
 end
