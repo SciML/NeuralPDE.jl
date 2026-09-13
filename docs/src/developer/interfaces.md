@@ -31,7 +31,7 @@ NeuralPDE.AbstractTrainingStrategy
 ```
 
 A training strategy used with `PhysicsInformedNN` implements the collocation
-interface documented on the [training strategies page](@ref "Training Strategies"):
+interface documented on the [training strategies page](@ref training_strategies):
 `NeuralPDE.collocation_count` and `NeuralPDE.sample_points`, plus optionally
 `NeuralPDE.resamples` and `NeuralPDE.uses_quadrature_weights`.
 

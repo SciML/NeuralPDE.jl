@@ -1,4 +1,4 @@
-# Training Strategies
+# [Training Strategies](@id training_strategies)
 
 Training strategies are the choices for how the points are sampled for the definition
 of the physics-informed loss.
