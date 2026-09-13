@@ -69,11 +69,12 @@ md = pinn_metadata(sys)
 md.blocks[end].residual
 ```
 
-Because the result is a `System`, the standard ModelingToolkit compiler builds the
-`OptimizationProblem`. `discretize` does exactly this: it calls `mtkcompile`, samples the
-collocation points and calls `OptimizationProblem(sys, op)`, forwarding keyword arguments
-such as `adtype` or `weights`. Weighting the boundary conditions ten times more than the
-PDE residual, for instance, is
+Because the result is a `System`, the standard ModelingToolkit constructor builds the
+`OptimizationProblem`. `discretize` does exactly this: it samples the collocation points
+and calls `OptimizationProblem(sys, op)`, forwarding keyword arguments such as `adtype` or
+`weights`. The system is `complete`d rather than passed through `mtkcompile`, so the
+network parameters remain array unknowns. Weighting the boundary conditions ten times
+more than the PDE residual, for instance, is
 
 ```@example low_level
 prob = discretize(pde_system, discretization; weights = [1.0, 10.0, 10.0, 10.0, 10.0])

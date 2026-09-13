@@ -59,9 +59,9 @@ prob = discretize(pde_system, discretization)
 # Optimizer
 sol = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 1000)
 
-xs = ys = 0:0.01:1
+xs, ys = sol[x], sol[y]
+u_predict = sol[u(x, y)]
 analytic_sol_func(x, y) = sinpi(x) * sinpi(y) / (2pi^2)
-u_predict = sol(xs, ys; dv = u(x, y))
 u_real = [analytic_sol_func(x, y) for x in xs, y in ys]
 diff_u = abs.(u_predict .- u_real)
 
@@ -127,9 +127,10 @@ prob = discretize(pde_system, discretization)
 The objective is differentiated with Zygote by default; `discretize(pde_system,
 discretization; adtype = AutoForwardDiff())` selects another backend, and the section
 below compiles the objective and its Enzyme gradient with Reactant. Now we can solve the PDE
-using any Optimization.jl optimizer. The result is a `PDENoTimeSolution` that evaluates
-the trained network: `sol(x, y; dv = u(x, y))` at points or grids, and `sol[u(x, y)]` on
-the default evaluation grid `sol[x]`, `sol[y]`.
+using any Optimization.jl optimizer. The result is a `PDENoTimeSolution`: `sol[u(x, y)]`
+is the trained network evaluated on the evaluation grid `sol[x]` × `sol[y]` (`eval_points`
+points per independent variable, 100 by default), the same way `sol[u(x, y)]` indexes a
+MethodOfLines.jl solution.
 
 ```@example poisson
 sol = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 1000)
@@ -139,9 +140,9 @@ sol.original_sol.objective
 We can plot the predicted solution of the PDE and compare it with the analytical solution to plot the relative error.
 
 ```@example poisson
-xs = ys = 0:0.01:1
+xs, ys = sol[x], sol[y]
+u_predict = sol[u(x, y)]
 analytic_sol_func(x, y) = sinpi(x) * sinpi(y) / (2pi^2)
-u_predict = sol(xs, ys; dv = u(x, y))
 u_real = [analytic_sol_func(x, y) for x in xs, y in ys]
 diff_u = abs.(u_predict .- u_real)
 
@@ -149,6 +150,14 @@ p1 = plot(xs, ys, u_real', linetype = :contourf, title = "analytic");
 p2 = plot(xs, ys, u_predict', linetype = :contourf, title = "predict");
 p3 = plot(xs, ys, diff_u', linetype = :contourf, title = "error");
 plot(p1, p2, p3)
+```
+
+The network can also be evaluated away from the grid: `sol(x, y; dv = u(x, y))` takes
+numbers or ranges for each independent variable and returns the value or the array of
+values on their product.
+
+```@example poisson
+sol(0.5, 0.5; dv = u(x, y)), sol(0.5, 0:0.25:1; dv = u(x, y))
 ```
 
 ## Compiling the training loop with Reactant
@@ -185,5 +194,5 @@ and a zero-iteration solve, or evaluated directly through the network:
 
 ```@example poisson
 sol_reactant = solve(remake(prob; u0 = Array(θ)), LBFGS(linesearch = BackTracking()); maxiters = 200)
-maximum(abs, sol_reactant(xs, ys; dv = u(x, y)) .- u_real)
+maximum(abs, sol_reactant[u(x, y)] .- u_real)
 ```
