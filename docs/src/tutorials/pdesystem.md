@@ -124,7 +124,7 @@ sys = symbolic_discretize(pde_system, discretization)
 prob = discretize(pde_system, discretization)
 ```
 
-The objective is differentiated with Zygote by default; `discretize(pde_system,
+The objective is differentiated with Enzyme by default; `discretize(pde_system,
 discretization; adtype = AutoForwardDiff())` selects another backend, and the section
 below compiles the objective and its Enzyme gradient with Reactant. Now we can solve the PDE
 using any Optimization.jl optimizer. The result is a `PDENoTimeSolution`: `sol[u(x, y)]`
