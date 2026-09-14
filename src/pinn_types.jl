@@ -76,15 +76,14 @@ nn_eval_row(f, X, θ, k) = f(X, θ)[k:k, :]
     default_adtype()
 
 The automatic differentiation backend `discretize` uses unless `adtype` is given:
-`AutoZygote()`. Enzyme can be selected with
-`adtype = AutoEnzyme(; mode = Enzyme.set_runtime_activity(Enzyme.Reverse), function_annotation = Enzyme.Const)`;
-static activity analysis rejects the generated objective, and with runtime activity the
-reverse pass through an `additional_loss` closure was observed to overwrite arrays the
-closure captures, so Enzyme is not the default until that is resolved. The
-Reactant-compiled path (see the PDE tutorial) differentiates the generated objective with
-Enzyme correctly.
+`AutoEnzyme()` (reverse mode, static activity analysis). The generated objective
+passes static activity analysis, so runtime activity is not needed; under
+`Enzyme.set_runtime_activity` the reverse pass through an `additional_loss`
+closure was observed to overwrite arrays the closure captures. `AutoZygote()` is
+the recommended fallback for `additional_loss` closures that mutate captured
+state, and remains selectable through `adtype`.
 """
-default_adtype() = AutoZygote()
+default_adtype() = AutoEnzyme()
 
 """
     PhysicsInformedNN(chain, strategy; kwargs...)
