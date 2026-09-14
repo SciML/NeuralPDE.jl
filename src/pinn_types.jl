@@ -73,6 +73,87 @@ end
 nn_eval_row(f, X, θ, k) = f(X, θ)[k:k, :]
 
 """
+    nn_vcat(A, B)
+
+Lazy `vcat` for symbolic matrix expressions: row-stacking of `1 × n` lowered
+expressions into a `k × n` input matrix. `Base.vcat` materializes every element when
+applied to symbolic arrays, so dependent-variable calls with general argument
+expressions stack their argument rows through this registered call instead, keeping
+the representation size independent of the batch size.
+"""
+function nn_vcat end
+Symbolics.@register_array_symbolic nn_vcat(A::AbstractMatrix, B::AbstractMatrix) begin
+    size = (size(A, 1) + size(B, 1), size(A, 2))
+    eltype = Real
+end false
+SymbolicUtils.promote_symtype(::typeof(nn_vcat), A, B) = Array{Real, 2}
+function SymbolicUtils.promote_shape(
+        ::typeof(nn_vcat), shA::SymbolicUtils.ShapeT, shB::SymbolicUtils.ShapeT
+    )
+    if shA isa SymbolicUtils.Unknown || shB isa SymbolicUtils.Unknown
+        return SymbolicUtils.Unknown(2)
+    end
+    m = length(shA[1]) + length(shB[1])
+    return SymbolicUtils.ShapeVecT([1:m, 1:length(shA[2])])
+end
+nn_vcat(A, B) = vcat(A, B)
+
+"""
+    nn_veccat(a, b)
+
+Lazy `vcat` for symbolic vectors; the vector counterpart of [`nn_vcat`](@ref), used to
+concatenate network parameter vectors and scalar `PDESystem` parameters into the flat
+argument of [`quadrature`](@ref).
+"""
+function nn_veccat end
+Symbolics.@register_array_symbolic nn_veccat(A::AbstractVector, B::AbstractVector) begin
+    size = (length(A) + length(B),)
+    eltype = Real
+end false
+SymbolicUtils.promote_symtype(::typeof(nn_veccat), A, B) = Vector{Real}
+function SymbolicUtils.promote_shape(
+        ::typeof(nn_veccat), shA::SymbolicUtils.ShapeT, shB::SymbolicUtils.ShapeT
+    )
+    if shA isa SymbolicUtils.Unknown || shB isa SymbolicUtils.Unknown
+        return SymbolicUtils.Unknown(1)
+    end
+    return SymbolicUtils.ShapeVecT([1:(length(shA[1]) + length(shB[1]))])
+end
+nn_veccat(A, B) = vcat(A, B)
+
+"""
+    quadrature(f, X, θ, ξ, w)
+
+Fixed-node quadrature of a batched integrand over the collocation points. `X` is the
+`d × n` matrix of collocation points, `θ` the flat network-parameter vector, `ξ` the
+`q × M` matrix of tensor-product quadrature nodes on the reference hypercube `[-1, 1]^q`
+and `w` the corresponding `M` weights. `f` is a [`QuadratureIntegrand`](@ref) carrying
+the runtime-compiled integrand and bound evaluators; for every outer collocation point
+it is evaluated on the `n`-times repeated outer point combined with the `M` mapped
+inner nodes (the inner integration variables are appended to the network input), and
+the weighted sum over the `M` inner nodes gives one value per outer point, returned as
+a `1 × n` row.
+
+Because the node set is fixed, the whole term is a static array expression that
+Reactant can compile and differentiate; adaptive quadrature is not supported.
+"""
+function quadrature end
+Symbolics.@register_array_symbolic quadrature(
+    f::Any, X::AbstractMatrix, θ::AbstractVector, ξ::AbstractMatrix, w::AbstractVector
+) begin
+    size = (1, size(X, 2))
+    eltype = Real
+end false
+SymbolicUtils.promote_symtype(::typeof(quadrature), f, X, θ, ξ, w) = Array{Real, 2}
+function SymbolicUtils.promote_shape(
+        ::typeof(quadrature), shf::SymbolicUtils.ShapeT, shX::SymbolicUtils.ShapeT,
+        shθ::SymbolicUtils.ShapeT, shξ::SymbolicUtils.ShapeT, sh_w::SymbolicUtils.ShapeT
+    )
+    shX isa SymbolicUtils.Unknown && return SymbolicUtils.Unknown(2)
+    return SymbolicUtils.ShapeVecT([1:1, 1:length(shX[2])])
+end
+
+"""
     default_adtype()
 
 The automatic differentiation backend `discretize` uses unless `adtype` is given:
@@ -120,6 +201,9 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
 * `boundary_policy`: how boundary conditions enter the `System`. `:penalty` (default)
   adds the mean squared boundary residual as a cost; `:constraints` keeps the pointwise
   boundary residuals as equality constraints of the `System`.
+* `integral_alg`: the fixed-node quadrature rule used to lower `Integral` terms.
+  Must be `Integrals.GaussLegendre`; defaults to `GaussLegendre()`, or to the
+  `quadrature_alg` of `strategy` when it is a [`QuadratureTraining`](@ref).
 * `eval_points`: number of points per independent variable in the evaluation grid used by
   the solution interface (`sol[u(x, t)]`).
 
@@ -149,6 +233,7 @@ sol = solve(prob, Adam(0.01); maxiters = 1000)
     param_estim::Bool
     additional_loss
     boundary_policy::Symbol
+    integral_alg
     eval_points::Int
 end
 
@@ -156,18 +241,36 @@ function PhysicsInformedNN(
         chain, strategy::AbstractTrainingStrategy; init_params = nothing,
         rng::AbstractRNG = Random.default_rng(), derivative = FiniteDifferenceDerivative(),
         param_estim::Bool = false, additional_loss = nothing,
-        boundary_policy::Symbol = :penalty, eval_points::Int = 100
+        boundary_policy::Symbol = :penalty, integral_alg = nothing, eval_points::Int = 100
     )
     boundary_policy in (:penalty, :constraints) || throw(
         ArgumentError(
             "`boundary_policy` must be `:penalty` or `:constraints`, got `$(boundary_policy)`."
         )
     )
+    _check_integral_alg(integral_alg)
     chain = chain isa AbstractArray ? map(_to_lux, chain) : _to_lux(chain)
     return PhysicsInformedNN(
         chain, strategy, init_params, rng, derivative, param_estim, additional_loss,
-        boundary_policy, eval_points
+        boundary_policy, integral_alg, eval_points
     )
+end
+
+_check_integral_alg(::Nothing) = nothing
+function _check_integral_alg(alg)
+    alg isa GaussLegendre || throw(
+        ArgumentError(
+            "`integral_alg` must be a fixed-node rule; only `Integrals.GaussLegendre` \
+            is supported, got `$(alg)`."
+        )
+    )
+    return nothing
+end
+
+function _integral_alg(disc::PhysicsInformedNN)
+    disc.integral_alg === nothing || return disc.integral_alg
+    disc.strategy isa QuadratureTraining && return disc.strategy.quadrature_alg
+    return GaussLegendre()
 end
 
 _to_lux(layer::AbstractLuxLayer) = layer
@@ -228,6 +331,8 @@ of collocation points.
   use the mean squared residual.
 * `npoints`: number of collocation points.
 * `residual`: the lowered symbolic residual (a `1 × npoints` array expression).
+* `extra_params`: non-tunable parameters created while lowering `Integral` terms
+  (the `QuadratureIntegrand` callable, quadrature nodes and weights of each integral).
 """
 struct ResidualBlock{E, I, B, X, W, R}
     eq::E
@@ -240,6 +345,7 @@ struct ResidualBlock{E, I, B, X, W, R}
     w::W
     npoints::Int
     residual::R
+    extra_params::Vector{Any}
 end
 
 """
