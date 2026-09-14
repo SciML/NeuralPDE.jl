@@ -3,7 +3,7 @@
 # collocation matrix, dependent variables become batched network evaluations and scalar
 # operations are broadcast, so the representation size is independent of `n`.
 
-struct LoweringContext{X, I, G, N, P, D, T}
+struct LoweringContext{X, I, G, N, P, D, T, E}
     xs::X                 # collocation matrix parameter (d × n) or `nothing`
     iv_index::I           # free independent variable => row of `xs`
     iv_global::G          # every independent variable => index into the shift vector
@@ -12,6 +12,9 @@ struct LoweringContext{X, I, G, N, P, D, T}
     derivative::D
     npoints::Int
     eltype::Type{T}
+    integral_alg::E       # fixed-node rule for `Integral` terms
+    extras::Vector{Any}   # parameters created by integral lowering (qf, ξ, w)
+    tag::Symbol           # block tag used to name created parameters
 end
 
 _isnumber(ex) = ex isa Number || (ex isa SymbolicUtils.BasicSymbolic && SymbolicUtils.isconst(ex))
@@ -47,12 +50,7 @@ function lower(ex, ctx::LoweringContext, shift)
     if op isa Differential
         return lower_differential(ex, ctx, shift)
     elseif op isa Symbolics.Integral
-        throw(
-            ArgumentError(
-                "`Integral` terms are not supported by the `PhysicsInformedNN` \
-                discretization yet; see https://github.com/SciML/NeuralPDE.jl/issues/1161."
-            )
-        )
+        return lower_integral(ex, ctx, shift)
     elseif haskey(ctx.networks, op)
         return lower_depvar(ex, ctx, shift)
     end
@@ -67,9 +65,12 @@ function lower_depvar(ex, ctx::LoweringContext, shift)
     net = ctx.networks[operation(ex)]
     callargs = arguments(ex)
     n_in = length(callargs)
-    d = ctx.xs === nothing ? 0 : length(ctx.iv_index)
+    # `iv_index` values are rows of `ctx.xs`; an integrating variable that shadows an
+    # outer variable name replaces its entry, so the row count is the largest value.
+    d = ctx.xs === nothing ? 0 : maximum(values(ctx.iv_index))
     P = zeros(ctx.eltype, n_in, d)
     c = zeros(ctx.eltype, n_in)
+    general = false
     for (j, a) in enumerate(callargs)
         a = unwrap(a)
         # A literal argument is still translated when differentiating with respect to the
@@ -82,15 +83,26 @@ function lower_depvar(ex, ctx::LoweringContext, shift)
             P[j, ctx.iv_index[a]] = one(ctx.eltype)
             c[j] += shift[ctx.iv_global[a]]
         else
-            throw(
-                ArgumentError(
-                    "Argument `$(a)` of `$(ex)` must be an independent variable or a \
-                    number; general argument expressions are not supported yet."
-                )
-            )
+            general = true
         end
     end
-    X = if ctx.xs === nothing
+    X = if general
+        # A general argument such as `u(t - τ)` lowers to its own `1 × n` row; the rows
+        # are stacked lazily so the expression does not scalarize over the batch.
+        rows = map(enumerate(callargs)) do (j, a)
+            a = unwrap(a)
+            if _isnumber(a)
+                wrap(fill(ctx.eltype(0), 1, ctx.npoints))
+            elseif haskey(ctx.iv_index, a)
+                wrap(ctx.xs)[ctx.iv_index[a]:ctx.iv_index[a], :]
+            else
+                r = lower(a, ctx, shift)
+                _isarray(r) ? r : wrap(fill(unwrap(r), 1, ctx.npoints))
+            end
+        end
+        Xg = foldl(nn_vcat, rows)
+        iszero(c) ? Xg : Xg .+ reshape(c, n_in, 1)
+    elseif ctx.xs === nothing
         reshape(c, n_in, 1)
     elseif P == I
         iszero(c) ? wrap(ctx.xs) : wrap(ctx.xs) .+ c
@@ -163,15 +175,35 @@ function free_ivs(ex, ivs, depvar_ops)
     return filter(x -> unwrap(x) in found, ivs)
 end
 
-function _collect_ivs!(found, ex, ivs)
+function _collect_ivs!(found, ex, ivs, exclude = ())
     ex = unwrap(ex)
+    any(v -> isequal(unwrap(v), ex), exclude) && return
     if any(x -> isequal(unwrap(x), ex), ivs)
         push!(found, ex)
         return
     end
     iscall(ex) || return
+    op = operation(ex)
+    if op isa Symbolics.Integral
+        # Free variables can hide in the domain bounds. Integrating variables are
+        # bound: inside the integrand they are all excluded, and in the bound of the
+        # `i`-th variable only the variables `1:i-1` may be bound (intervals compose
+        # lexicographically); a later integrating-variable name there is an outer
+        # variable that happens to share the symbol.
+        ivars = _integral_variables(op.domain)
+        lbs, ubs = _integral_bounds(op.domain.domain)
+        for i in eachindex(ivars)
+            for b in (lbs[i], ubs[i])
+                _collect_ivs!(found, b, ivs, (exclude..., ivars[1:(i - 1)]...))
+            end
+        end
+        for a in arguments(ex)
+            _collect_ivs!(found, a, ivs, (exclude..., ivars...))
+        end
+        return
+    end
     for a in arguments(ex)
-        _collect_ivs!(found, a, ivs)
+        _collect_ivs!(found, a, ivs, exclude)
     end
     return
 end

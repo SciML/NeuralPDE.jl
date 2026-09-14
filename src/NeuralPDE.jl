@@ -42,8 +42,8 @@ using Zygote: Zygote
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit
 using ModelingToolkitBase: ModelingToolkitBase, @mtkcompile, @named, @parameters, complete,
-    PDESystem, ProblemTypeCtx, System, get_bcs, get_dvs, get_ivs, get_ps,
-    getdefault, initial_conditions, mtkcompile, setdefault, tovar, unknowns
+    PDESystem, ProblemTypeCtx, System, get_bcs, get_domain, get_dvs, get_eqs, get_ivs,
+    get_ps, getdefault, initial_conditions, mtkcompile, setdefault, tovar, unknowns
 using Symbolics: Symbolics, Differential, Equation, Integral, arguments, iscall, Num, operation,
     wrap, @register_symbolic, @variables
 using SymbolicUtils: SymbolicUtils, getmetadata, unwrap
@@ -115,6 +115,7 @@ include("eltype_matching.jl")
 include("pinn_types.jl")
 include("training_strategies.jl")
 include("pinn_lowering.jl")
+include("integral_lowering.jl")
 include("discretize.jl")
 include("pde_solution.jl")
 
@@ -153,8 +154,9 @@ export ModelingToolkit, Differential, Integral, PDESystem, mtkcompile, unknowns,
     @mtkcompile, @named, @parameters, @register_symbolic, @variables
 
 @public AbstractDerivativeLowering, PINNMetadata, ResidualBlock, TrialNetwork,
-    AdditionalLoss, nn_eval, nn_eval_row, default_adtype, lower, lower_derivative,
-    trial_function,
+    AdditionalLoss, nn_eval, nn_eval_row, nn_vcat, nn_veccat, quadrature,
+    QuadratureIntegrand,
+    default_adtype, lower, lower_derivative, trial_function,
     collocation_count, sample_points, resamples, uses_quadrature_weights
 
 end # module
