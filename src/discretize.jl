@@ -30,7 +30,7 @@ The discrete space of a `PhysicsInformedNN` discretization: the variable map of 
 system, the trial networks, the symbols standing in for the `PDESystem` parameters and
 the boundary-pinned coordinate values.
 """
-struct CollocationSpace{V, I, N, P, S, Q, D, T} <: PDEBase.AbstractDiscreteSpace
+struct CollocationSpace{V, I, N, P, S, Q, D, T, B} <: PDEBase.AbstractDiscreteSpace
     varmap::V
     ivs::I
     networks::N
@@ -39,6 +39,7 @@ struct CollocationSpace{V, I, N, P, S, Q, D, T} <: PDEBase.AbstractDiscreteSpace
     param_syms::Q
     pinned::D
     eltype::Type{T}
+    dom_bounds::B
 end
 
 mutable struct PINNState <: PDEBase.AbstractDiscretizationState
@@ -51,7 +52,7 @@ function PDEBase.construct_discrete_space(
         v::PDEBase.VariableMap, pdesys::PDESystem, disc::PhysicsInformedNN
     )
     T = _param_eltype(disc)
-    networks = build_networks(disc, v, T)
+    networks = build_networks(disc, v, pdesys, T)
     netmap = Dict(net.depvar => net for net in networks)
     ps = _pdesys_params(pdesys)
     param_syms = if disc.param_estim
@@ -61,8 +62,31 @@ function PDEBase.construct_discrete_space(
     end
     pinned = pinned_values(get_bcs(pdesys), v)
     return CollocationSpace(
-        v, collect(get_ivs(pdesys)), networks, netmap, ps, param_syms, pinned, T
+        v, collect(get_ivs(pdesys)), networks, netmap, ps, param_syms, pinned, T,
+        _domain_bounds(pdesys)
     )
+end
+
+# `v.intervals` only covers independent variables that appear as dependent-variable
+# arguments; `Integral` bounds can make a variable free without one, so fall back to
+# the declared domains.
+function _domain_bounds(pdesys)
+    bounds = Dict{Any, Any}()
+    for d in get_domain(pdesys)
+        vars = unwrap(d.variables)
+        vars = iscall(vars) && operation(vars) === tuple ? arguments(vars) : (vars,)
+        for v in vars
+            bounds[unwrap(v)] = (
+                DomainSets.infimum(d.domain), DomainSets.supremum(d.domain)
+            )
+        end
+    end
+    return bounds
+end
+
+function _iv_interval(s::CollocationSpace, x)
+    x = unwrap(x)
+    return get(() -> s.varmap.intervals[x], s.dom_bounds, x)
 end
 
 function PDEBase.construct_differential_discretizer(
@@ -84,7 +108,7 @@ function PDEBase.generate_metadata(
         s::CollocationSpace, disc::PhysicsInformedNN, pdesys, boundarymap, complexmap, u0
     )
     eval_grid = Dict(
-        unwrap(x) => range(s.varmap.intervals[unwrap(x)]...; length = disc.eval_points)
+        unwrap(x) => range(_iv_interval(s, x)...; length = disc.eval_points)
             for x in s.ivs
     )
     return PINNMetadata(pdesys, disc, s.varmap, s.networks, ResidualBlock[], s.ps, eval_grid)
@@ -113,6 +137,7 @@ function PDEBase.generate_system(
     for b in blocks
         b.xs === nothing || push!(params_, b.xs)
         b.w === nothing || push!(params_, b.w)
+        append!(params_, b.extra_params)
     end
     psyms = [s.param_syms[unwrap(p)] for p in s.ps]
     if disc.param_estim
@@ -171,9 +196,15 @@ Create one [`TrialNetwork`](@ref) per dependent variable. A vector of chains giv
 network per dependent variable; a single chain is shared, with its `i`-th output
 representing the `i`-th dependent variable.
 """
-function build_networks(disc::PhysicsInformedNN, v, T)
+function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
     dvs = v.depvar_ops
     ndv = length(dvs)
+    # `v.args` takes the arguments of the last seen call, which for `Integral`
+    # integrands may be the integrating variable; the declared signature is canonical.
+    declared = Dict(
+        unwrap(operation(dv)) => Any[unwrap(a) for a in arguments(dv)]
+            for dv in get_dvs(pdesys)
+    )
     chains = disc.chain isa AbstractArray ? disc.chain : fill(disc.chain, ndv)
     length(chains) == ndv || throw(
         ArgumentError(
@@ -190,11 +221,13 @@ function build_networks(disc::PhysicsInformedNN, v, T)
     networks = TrialNetwork[]
     shared_net = nothing
     for (i, op) in enumerate(dvs)
-        args = v.args[op]
+        args = get(() -> v.args[op], declared, unwrap(op))
         n_in = length(args)
         if shared
             if shared_net === nothing
-                allargs = unique(reduce(vcat, [v.args[d] for d in dvs]))
+                allargs = unique(
+                    reduce(vcat, [get(() -> v.args[d], declared, unwrap(d)) for d in dvs])
+                )
                 length(allargs) == n_in || throw(
                     ArgumentError(
                         "A shared chain requires every dependent variable to have the same \
@@ -254,9 +287,9 @@ function residual_block(eq, kind, index, s::CollocationSpace, derivative, disc)
     ivs = free_ivs(ex, s.ivs, v.depvar_ops)
     d = length(ivs)
     ivpos = Int[findfirst(y -> isequal(unwrap(y), unwrap(x)), s.ivs) for x in ivs]
-    lb = T[v.intervals[unwrap(x)][1] for x in ivs]
-    ub = T[v.intervals[unwrap(x)][2] for x in ivs]
-    bpinned = [s.pinned[unwrap(x)] for x in ivs]
+    lb = T[_iv_interval(s, x)[1] for x in ivs]
+    ub = T[_iv_interval(s, x)[2] for x in ivs]
+    bpinned = [get(s.pinned, unwrap(x), Set{Float64}()) for x in ivs]
     npoints = collocation_count(disc.strategy, kind, ivpos, (lb, ub), bpinned)
     xs = if d == 0
         nothing
@@ -272,12 +305,16 @@ function residual_block(eq, kind, index, s::CollocationSpace, derivative, disc)
     end
     iv_index = Dict(unwrap(x) => i for (i, x) in enumerate(ivs))
     iv_global = Dict(unwrap(x) => i for (i, x) in enumerate(s.ivs))
+    extras = Any[]
     ctx = LoweringContext(
         xs === nothing ? nothing : unwrap(xs), iv_index, iv_global, s.netmap,
-        s.param_syms, derivative, npoints, T
+        s.param_syms, derivative, npoints, T, _integral_alg(disc), extras,
+        Symbol(kind, index)
     )
     residual = lower(ex, ctx, zeros(T, length(s.ivs)))
-    return ResidualBlock(eq, kind, ivs, ivpos, (lb, ub), bpinned, xs, w, npoints, residual)
+    return ResidualBlock(
+        eq, kind, ivs, ivpos, (lb, ub), bpinned, xs, w, npoints, residual, extras
+    )
 end
 
 """
