@@ -789,7 +789,10 @@ function SciMLBase.__solve(
         verbose = false,
         saveat = nothing,
         maxiters = nothing,
-        tstops = nothing
+        tstops = nothing,
+        # Accepted for DiffEqBase solve-interface compatibility; the PINN
+        # training loop does not consume callbacks.
+        callback = nothing
     )
     (; u0, tspan, f, g, p) = prob
     # rescaling tspan discretization so KKL expansion can be applied for loss formulation

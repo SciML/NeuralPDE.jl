@@ -475,7 +475,10 @@ function SciMLBase.__solve(
         reltol = 1.0f-3,
         verbose = false,
         saveat = nothing,
-        maxiters = nothing
+        maxiters = nothing,
+        # Accepted for DiffEqBase solve-interface compatibility; the PINN
+        # training loop does not consume callbacks.
+        callback = nothing
     )
     (; tspan, u0, f) = prob
     (;
