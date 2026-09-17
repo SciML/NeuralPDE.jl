@@ -8,7 +8,7 @@
     not supported in this release; it will return with an upstream
     `ModelingToolkitNeuralNets` change. Progress is tracked in
     https://github.com/SciML/NeuralPDE.jl/issues/1161. The ODE solvers (`NNODE`) keep
-    their GPU support, see the [ODE tutorial](@ref).
+    their GPU support, see the [ODE tutorial](@ref ode_tutorial).
 
 The intended workflow is unchanged from the CPU case: the network parameters, the
 collocation matrices and the trained weights are the arrays of the generated
