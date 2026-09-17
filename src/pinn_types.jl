@@ -76,14 +76,22 @@ nn_eval_row(f, X, θ, k) = f(X, θ)[k:k, :]
     default_adtype()
 
 The automatic differentiation backend `discretize` uses unless `adtype` is given:
-`AutoEnzyme()` (reverse mode, static activity analysis). The generated objective
-passes static activity analysis, so runtime activity is not needed; under
-`Enzyme.set_runtime_activity` the reverse pass through an `additional_loss`
-closure was observed to overwrite arrays the closure captures. `AutoZygote()` is
-the recommended fallback for `additional_loss` closures that mutate captured
-state, and remains selectable through `adtype`.
+`AutoReactant()` when OptimizationReactant.jl is loaded in the session
+(`using OptimizationReactant`), which compiles the objective, gradient and
+value-and-gradient evaluation through Reactant and differentiates them with Enzyme
+inside the compiled program, and `AutoEnzyme()` otherwise (reverse mode, static
+activity analysis). The generated objective passes static activity analysis, so
+runtime activity is not needed; under `Enzyme.set_runtime_activity` the reverse
+pass through an `additional_loss` closure was observed to overwrite arrays the
+closure captures. `AutoZygote()` is the recommended fallback for `additional_loss`
+closures that mutate captured state, and remains selectable through `adtype`.
 """
-default_adtype() = AutoEnzyme()
+function default_adtype()
+    if Base.get_extension(@__MODULE__, :NeuralPDEOptimizationReactantExt) === nothing
+        return AutoEnzyme()
+    end
+    return AutoReactant()
+end
 
 """
     PhysicsInformedNN(chain, strategy; kwargs...)

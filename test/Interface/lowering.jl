@@ -112,3 +112,21 @@ end
         @test nprob.u0 == collect(ps)
     end
 end
+
+optimization_reactant_loaded = try
+    @eval using OptimizationReactant
+    true
+catch
+    false
+end
+
+if optimization_reactant_loaded
+    @testset "AutoReactant backend" begin
+        @test Base.get_extension(NeuralPDE, :NeuralPDEOptimizationReactantExt) !== nothing
+        @test NeuralPDE.default_adtype() isa ADTypes.AutoReactant
+        rprob = discretize(pde_system, disc)
+        @test rprob.f.adtype isa ADTypes.AutoReactant
+        res = solve(rprob, Adam(0.001); maxiters = 50)
+        @test res.original_sol.objective < prob.f(θ, prob.p)
+    end
+end
