@@ -27,7 +27,10 @@ function SciMLBase.__solve(
         prob::SciMLBase.ODEProblem, alg::BNNODE, args...; dt = nothing,
         timeseries_errors = true, save_everystep = true, adaptive = false,
         abstol = 1.0f-6, reltol = 1.0f-3, verbose = false, saveat = 1 / 50.0,
-        maxiters = nothing
+        maxiters = nothing,
+        # Accepted for DiffEqBase solve-interface compatibility; the PINN
+        # training loop does not consume callbacks.
+        callback = nothing
     )
     (; chain, param, strategy, draw_samples, numensemble, verbose) = alg
 

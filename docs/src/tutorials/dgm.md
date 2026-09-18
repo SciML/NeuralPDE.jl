@@ -107,7 +107,10 @@ u_MOL = [
 strategy = QuasiRandomTraining(256)
 discretization = DeepGalerkin(2, 1, 16, 2, tanh, tanh, identity, strategy)
 @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
-prob = discretize(pde_system, discretization)
+# The DGM network threads the collocation points through Lux `SkipConnection`s, which the
+# default `AutoEnzyme()` backend cannot differentiate under static activity analysis, so
+# select the documented `AutoZygote()` fallback.
+prob = discretize(pde_system, discretization; adtype = AutoZygote())
 
 callback = function (p, l)
     (p.iter % 20 == 0) && println("$(p.iter) => $l")
