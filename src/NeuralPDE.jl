@@ -26,6 +26,7 @@ using OptimizationOptimisers: OptimizationOptimisers
 using PDEBase: PDEBase
 using Printf: @printf
 using Random: Random, AbstractRNG
+using Reactant: Reactant
 using RecursiveArrayTools: DiffEqArray
 using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions
 using SciMLBase: SciMLBase, BatchIntegralFunction, DAEProblem, IntegralProblem,
