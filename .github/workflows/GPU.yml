@@ -26,6 +26,13 @@ jobs:
     runs-on: [self-hosted, gpu-v100]
     timeout-minutes: 360
     if: github.event_name == 'push' || !github.event.pull_request.draft
+    env:
+      # The runner is a V100 (compute capability 7.0). Reactant_jll picks its CUDA
+      # build from the driver version (13.x here), but CUDA 13 dropped pre-Turing
+      # kernels, so XLA's GEMM autotuner finds no compilable config and the
+      # Reactant example dies with "No candidates could be compiled". Pin the
+      # CUDA 12.9 build, the last one with Volta support.
+      REACTANT_GPU_VERSION: "12.9"
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
