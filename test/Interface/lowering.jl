@@ -115,6 +115,9 @@ end
 
 optimization_reactant_loaded = try
     @eval using OptimizationReactant
+    # the package can load without a functional XLA backend (e.g. 32-bit
+    # platforms with no Reactant_jll client); probe the client the test needs
+    OptimizationReactant.Reactant.to_rarray(Float64[1.0])
     true
 catch
     false
