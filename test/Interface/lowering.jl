@@ -112,3 +112,24 @@ end
         @test nprob.u0 == collect(ps)
     end
 end
+
+optimization_reactant_loaded = try
+    @eval using OptimizationReactant
+    # the package can load without a functional XLA backend (e.g. 32-bit
+    # platforms with no Reactant_jll client); probe the client the test needs
+    OptimizationReactant.Reactant.to_rarray(Float64[1.0])
+    true
+catch
+    false
+end
+
+if optimization_reactant_loaded
+    @testset "AutoReactant backend" begin
+        @test Base.get_extension(NeuralPDE, :NeuralPDEOptimizationReactantExt) !== nothing
+        @test NeuralPDE.default_adtype() isa ADTypes.AutoReactant
+        rprob = discretize(pde_system, disc)
+        @test rprob.f.adtype isa ADTypes.AutoReactant
+        res = solve(rprob, Adam(0.001); maxiters = 50)
+        @test res.original_sol.objective < prob.f(θ, prob.p)
+    end
+end

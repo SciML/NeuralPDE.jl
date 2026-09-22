@@ -1,6 +1,6 @@
 module NeuralPDE
 
-using ADTypes: ADTypes, AutoEnzyme, AutoForwardDiff, AutoZygote
+using ADTypes: ADTypes, AutoEnzyme, AutoForwardDiff, AutoReactant, AutoZygote
 using Adapt: Adapt
 using ArrayInterface: ArrayInterface
 using ChainRulesCore: ChainRulesCore, @ignore_derivatives

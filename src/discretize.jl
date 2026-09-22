@@ -344,7 +344,7 @@ Build the `OptimizationProblem` for training the physics-informed neural network
 generates the objective; the network parameters stay array unknowns, so no `mtkcompile`
 pass (which would scalarize them) is involved. All keyword arguments are forwarded to the
 `OptimizationProblem` constructor; in particular `adtype` selects the automatic
-differentiation backend (default [`default_adtype`](@ref), Zygote) and `weights` scalarizes the costs with
+differentiation backend (default [`default_adtype`](@ref)) and `weights` scalarizes the costs with
 a weighted sum. Parameters of the `PDESystem` without a value in
 `pdesys.initial_conditions` must be given through `p`, a collection of `parameter =>
 value` pairs.
