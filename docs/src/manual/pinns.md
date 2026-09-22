@@ -47,6 +47,32 @@ as the other SciML discretizers (for example MethodOfLines.jl):
    networks: `sol[u(x, t)]` on the evaluation grid, `sol(x, t; dv = u(x, t))` at arbitrary
    points, and `sol.original_sol` for the underlying `OptimizationSolution`.
 
+## Integral terms
+
+`Symbolics.Integral` terms are supported: they lower to a fixed-node quadrature over
+the batch of collocation points. For
+
+```julia
+@parameters t τ
+@variables u(..)
+I = Integral(τ in DomainSets.ClosedInterval(0.0, t))
+@named sys = PDESystem([I(u(τ)) ~ t^2 / 2], [u(0.0) ~ 0.0],
+    [t ∈ Interval(0.0, 1.0)], [t], [u(t)])
+```
+
+the integrating variable `τ` is declared with `@parameters` like any other symbol and
+needs no domain of its own; the bounds may depend on the free independent variables
+(`0.0 .. t`), on earlier integrating variables for multidimensional domains, on
+`PDESystem` parameters, or be infinite (`-Inf`/`Inf` bounds are mapped to a finite
+`σ` interval exactly as in NeuralPDE 6). Inside the integrand the integrating
+variables are appended to the network input, so shifted arguments (`u(t - τ)`),
+inner derivatives (`Differential(τ)(u(τ))`) and nested `Integral` terms work as well.
+
+The quadrature rule is fixed-node only so the lowered term is a static array
+expression (Reactant compatible); it defaults to `Integrals.GaussLegendre`, inherits
+`quadrature_alg` from `QuadratureTraining`, and can be set explicitly with the
+`integral_alg` keyword of `PhysicsInformedNN`.
+
 ## The `PhysicsInformedNN` Discretizer
 
 ```@docs
@@ -66,6 +92,10 @@ NeuralPDE.TrialNetwork
 NeuralPDE.ResidualBlock
 NeuralPDE.nn_eval
 NeuralPDE.nn_eval_row
+NeuralPDE.nn_vcat
+NeuralPDE.nn_veccat
+NeuralPDE.quadrature
+NeuralPDE.QuadratureIntegrand
 ```
 
 ## Solutions, resampling and transfer learning
