@@ -133,3 +133,58 @@ if optimization_reactant_loaded
         @test res.original_sol.objective < prob.f(θ, prob.p)
     end
 end
+
+@testset "general arguments lower with nn_vcat and FD composition" begin
+    @parameters x
+    @variables u(..)
+    Dx = Differential(x)
+    # Exact network identity: apply(X, θ) = X, so Dx(u(2x)) = 2 at every point.
+    chain = Chain(Dense(1, 1))
+    init = [1.0, 0.0]
+    domains = [x ∈ Interval(0.0, 1.0)]
+    @named scaled = PDESystem(
+        [Dx(u(2x)) ~ 2.0], [u(0.0) ~ 0.0], domains, [x], [u(x)]
+    )
+    sdisc = PhysicsInformedNN(chain, GridTraining(0.25); init_params = init, rng = Xoshiro(3))
+    sprob = discretize(scaled, sdisc)
+    smd = pinn_metadata(sprob)
+    @test occursin("nn_vcat", string(smd.blocks[1].residual))
+    residual = getu(sprob, smd.blocks[1].residual)(sprob)
+    @test residual ≈ zeros(size(residual)) atol = 1.0e-8
+
+    apply = getdefault(only(smd.networks).NN)
+    X = getp(sprob, smd.blocks[1].xs)(sprob)
+    ε = eps(Float64)^(1 / 3)
+    # Manual FD of the composition x ↦ apply(2x): (f(2(x+ε)) - f(2(x-ε))) / (2ε).
+    manual = (apply(2 .* (X .+ ε), init) .- apply(2 .* (X .- ε), init)) ./ (2ε)
+    @test residual .+ 2 ≈ manual atol = 1.0e-8
+    @test manual ≈ fill(2.0, size(manual)) atol = 1.0e-8
+
+    @named reflected = PDESystem(
+        [u(1 - x) ~ u(x)], [u(0.0) ~ 0.0], domains, [x], [u(x)]
+    )
+    rdisc = PhysicsInformedNN(chain, GridTraining(0.25); init_params = init, rng = Xoshiro(4))
+    rprob = discretize(reflected, rdisc)
+    rmd = pinn_metadata(rprob)
+    @test occursin("nn_vcat", string(rmd.blocks[1].residual))
+    Xr = getp(rprob, rmd.blocks[1].xs)(rprob)
+    # Identity network: u(1 - x) - u(x) = (1 - x) - x = 1 - 2x.
+    @test getu(rprob, rmd.blocks[1].residual)(rprob) ≈ 1 .- 2 .* Xr
+
+    @named nested = PDESystem(
+        [u(2 * (1 - x)) ~ 2 * (1 - x)], [u(0.0) ~ 0.0], domains, [x], [u(x)]
+    )
+    ndisc = PhysicsInformedNN(chain, GridTraining(0.25); init_params = init, rng = Xoshiro(5))
+    nprob = discretize(nested, ndisc)
+    nmd = pinn_metadata(nprob)
+    Xn = getp(nprob, nmd.blocks[1].xs)(nprob)
+    @test getu(nprob, nmd.blocks[1].residual)(nprob) ≈ zeros(size(Xn)) atol = 1.0e-12
+
+    # Plain arguments keep the affine `P * X + c` shortcut (no nn_vcat).
+    @named plain = PDESystem(
+        [Dx(u(x)) ~ 1.0], [u(0.0) ~ 0.0], domains, [x], [u(x)]
+    )
+    pdisc = PhysicsInformedNN(chain, GridTraining(0.25); init_params = init, rng = Xoshiro(6))
+    pprob = discretize(plain, pdisc)
+    @test !occursin("nn_vcat", string(pinn_metadata(pprob).blocks[1].residual))
+end

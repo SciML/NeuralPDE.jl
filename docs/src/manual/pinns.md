@@ -98,6 +98,13 @@ needs no domain of its own; the bounds may depend on the free independent variab
 variables are appended to the network input, so shifted arguments (`u(t - τ)`),
 inner derivatives (`Differential(τ)(u(τ))`) and nested `Integral` terms work as well.
 
+The same row-stacking applies outside integrals: dependent-variable calls with general
+scalar arguments (`u(t, x + 1)`, `u(2x)`, `u(t, 1 - x)`, including nested forms) lower
+through [`nn_vcat`](@ref) so each argument becomes a `1 × n` row of the network input.
+Derivatives of such calls are derivatives of the composition under the finite-difference
+backend (`Dx(u(2x))` shifts the argument `2x`). Plain independent-variable and literal
+arguments keep the affine shortcut and do not go through `nn_vcat`.
+
 The quadrature rule is fixed-node only so the lowered term is a static array
 expression (Reactant compatible); it defaults to `Integrals.GaussLegendre`, inherits
 `quadrature_alg` from `QuadratureTraining`, and can be set explicitly with the
