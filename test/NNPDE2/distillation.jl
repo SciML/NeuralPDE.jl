@@ -1,6 +1,7 @@
 include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
 
 using ComponentArrays: ComponentArray, getaxes
+using ADTypes: AutoZygote
 
 # `train` in pinn_setup.jl unwraps `PDENoTimeSolution`s; a distilled problem solves
 # to a plain `OptimizationSolution`, so warm-start from `res.u` directly.
@@ -48,10 +49,11 @@ Lux.initialstates(rng::AbstractRNG, ::OffsetStudent) = (offset = rand(rng),)
     u_real = [analytic(xi, yi) for xi in xs, yi in ys]
     @test maximum(abs, u_teacher .- u_real) < 0.01
 
-    # Accuracy budget for the fidelity checks below: the solution ranges over
-    # [0, amp], so any constant student is at least amp / 2 from the teacher,
-    # while the trained students below land near 0.01. A budget of 0.4 * amp
-    # therefore rejects the constant negative control with margin.
+    # Accuracy budget for the fidelity checks below: the analytic solution ranges
+    # over [0, amp], so any constant student is at least amp / 2 from it, and the
+    # first-teacher mutation measured 0.0164 on the right subdomain, while the
+    # trained students below land near 0.001. A budget of 0.2 * amp therefore
+    # rejects both controls with margin.
     amp = maximum(u_real)
 
     @testset "same-architecture warm start" begin
@@ -72,8 +74,8 @@ Lux.initialstates(rng::AbstractRNG, ::OffsetStudent) = (offset = rand(rng),)
             only(first(student_chain(reshape(Float64[xi, yi], 2, 1), θ, st)))
                 for xi in xs, yi in ys
         ]
-        @test maximum(abs, u_student .- u_teacher) < 0.4 * amp
-        @test maximum(abs, u_student .- u_real) < 0.4 * amp
+        @test maximum(abs, u_student .- u_teacher) < 0.2 * amp
+        @test maximum(abs, u_student .- u_real) < 0.2 * amp
         # Held-out grid: offset from the evaluation grid above and almost surely
         # disjoint from the random training points and the teacher collocation.
         xsh = 0.025:0.05:1.0
@@ -82,7 +84,7 @@ Lux.initialstates(rng::AbstractRNG, ::OffsetStudent) = (offset = rand(rng),)
                 for xi in xsh, yi in xsh
         ]
         t_hold = [teacher(xi, yi; dv = u(x, y)) for xi in xsh, yi in xsh]
-        @test maximum(abs, u_hold .- t_hold) < 0.4 * amp
+        @test maximum(abs, u_hold .- t_hold) < 0.2 * amp
     end
 
     @testset "domain decomposition then distillation" begin
@@ -135,13 +137,13 @@ Lux.initialstates(rng::AbstractRNG, ::OffsetStudent) = (offset = rand(rng),)
                 for xi in xl, yi in xh
         ]
         t_left = [left_sol(xi, yi; dv = u(x, y)) for xi in xl, yi in xh]
-        @test maximum(abs, g_left .- t_left) < 0.4 * amp
+        @test maximum(abs, g_left .- t_left) < 0.2 * amp
         g_right = [
             only(first(global_chain(reshape(Float64[xi, yi], 2, 1), θ, st)))
                 for xi in xr, yi in xh
         ]
         t_right = [right_sol(xi, yi; dv = u(x, y)) for xi in xr, yi in xh]
-        @test maximum(abs, g_right .- t_right) < 0.4 * amp
+        @test maximum(abs, g_right .- t_right) < 0.2 * amp
     end
 
     @testset "argument order and deterministic targets" begin
@@ -231,6 +233,14 @@ Lux.initialstates(rng::AbstractRNG, ::OffsetStudent) = (offset = rand(rng),)
             init_params = mean_init,
         )
         @test abs(doverlap.f(doverlap.u0, doverlap.p) - 1.0) < 1.0e-10
+        # A student initialized to the first teacher exactly has half its
+        # residuals vanish and half equal 2^2; a mutation using only the first
+        # teacher's targets drives this objective to 0 instead of 2.
+        dt1 = distill(
+            [oteacher, oteacher2], Dense(2, 1); points = [X, X], dvs = u(x, y),
+            init_params = u_init,
+        )
+        @test abs(dt1.f(dt1.u0, dt1.p) - 2.0) < 1.0e-10
     end
 
     @testset "teacher coordinate validation" begin
@@ -240,8 +250,11 @@ Lux.initialstates(rng::AbstractRNG, ::OffsetStudent) = (offset = rand(rng),)
         @named tiny_system = PDESystem(
             Dt(w(t)) ~ 1.0, [w(0.0) ~ 0.0], [t ∈ Interval(0.0, 1.0)], [t], [w(t)]
         )
+        # Explicit non-Enzyme adtype: the default AutoEnzyme hits the tracked
+        # runtime-activity failure (#1194) on this fixture before the abort callback.
         tiny_prob = discretize(
-            tiny_system, PhysicsInformedNN(Dense(1, 1), GridTraining(0.5); rng = Xoshiro(8))
+            tiny_system, PhysicsInformedNN(Dense(1, 1), GridTraining(0.5); rng = Xoshiro(8));
+            adtype = AutoZygote(),
         )
         tiny_teacher = solve(tiny_prob, BFGS(); maxiters = 1, callback = (s, l) -> true)
         other_chain = Chain(Dense(2, 4, tanh), Dense(4, 1))
