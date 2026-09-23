@@ -47,7 +47,7 @@ using ModelingToolkitBase: ModelingToolkitBase, @mtkcompile, @named, @parameters
 using Symbolics: Symbolics, Differential, Equation, Integral, arguments, iscall, Num, operation,
     wrap, @register_symbolic, @variables
 using SymbolicUtils: SymbolicUtils, getmetadata, unwrap
-using SymbolicIndexingInterface: SymbolicIndexingInterface, getu, setp
+using SymbolicIndexingInterface: SymbolicIndexingInterface, getp, getu, setp
 
 # Needed for the Bayesian Stuff
 using Distributions: Distributions, Distribution, Normal

@@ -344,10 +344,34 @@ function block_cost(b::ResidualBlock)
     if !_isarray(unwrap(r))
         return abs2(r)
     elseif b.w === nothing
-        return sum(abs2, r) / b.npoints
+        return _mean_square(r, b.npoints)
     else
-        return sum(b.w .* abs2.(r))
+        return _weighted_square_sum(b.w, r)
     end
+end
+
+Base.@noinline _mean_square(r, n) = sum(abs2.(r)) / n
+@register_symbolic _mean_square(r, n)
+function ChainRulesCore.rrule(::typeof(_mean_square), r::AbstractArray, n)
+    y = _mean_square(r, n)
+    function mean_square_pullback(Δ)
+        return ChainRulesCore.NoTangent(), ChainRulesCore.unthunk(Δ) .* (2 .* r ./ n),
+            ChainRulesCore.NoTangent()
+    end
+    return y, mean_square_pullback
+end
+
+Base.@noinline _weighted_square_sum(w, r) = sum(w .* abs2.(r))
+@register_symbolic _weighted_square_sum(w, r)
+function ChainRulesCore.rrule(
+        ::typeof(_weighted_square_sum), w::AbstractArray, r::AbstractArray
+    )
+    y = _weighted_square_sum(w, r)
+    function weighted_square_sum_pullback(Δ)
+        Δ = ChainRulesCore.unthunk(Δ)
+        return ChainRulesCore.NoTangent(), Δ .* abs2.(r), Δ .* (2 .* w .* r)
+    end
+    return y, weighted_square_sum_pullback
 end
 
 """
@@ -429,9 +453,17 @@ function resample!(p, md::PINNMetadata; rng = md.disc.rng)
     for b in md.blocks
         b.xs === nothing && continue
         X, W = sample_points(md.disc.strategy, b, rng)
-        setp(sys, b.xs)(p, X)
-        b.w === nothing || setp(sys, b.w)(p, W)
+        setp(sys, b.xs)(p, _similar_array(getp(sys, b.xs)(p), X))
+        if b.w !== nothing
+            setp(sys, b.w)(p, _similar_array(getp(sys, b.w)(p), W))
+        end
     end
     return p
 end
 resample!(prob::OptimizationProblem; kwargs...) = resample!(prob.p, pinn_metadata(prob); kwargs...)
+
+function _similar_array(dest, src)
+    result = similar(dest, eltype(src), size(src))
+    copyto!(result, src)
+    return result
+end
