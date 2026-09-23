@@ -220,7 +220,8 @@ end
     zdomains = [zs[i] ∈ Interval(0.0, 1.0) for i in 1:3]
     # An empty boundary list makes PDEBase call `union()` with no sets. DomainSets
     # adds `union(::Domain...)`, so that call is the empty domain and is not iterable.
-    curl_bcs = [a([0.0, zs[2], zs[3]]) ~ 0.0]
+    # a = sin(π y), so the face x = 0 carries sin(π y), not zero.
+    curl_bcs = [a([0.0, zs[2], zs[3]]) ~ sinpi(zs[2])]
     @named csys = PDESystem(curl_eqs, curl_bcs, zdomains, [z], [a(z), b(z), c(z)])
     @parameters r s t
     @variables a2(..) b2(..) c2(..)
@@ -230,7 +231,7 @@ end
         Differential(r)(b2(r, s, t)) - Differential(s)(a2(r, s, t)) ~ -π * cospi(s),
     ]
     @named ccomp_sys = PDESystem(
-        curl_comp, [a2(0.0, s, t) ~ 0.0],
+        curl_comp, [a2(0.0, s, t) ~ sinpi(s)],
         [r ∈ Interval(0.0, 1.0), s ∈ Interval(0.0, 1.0), t ∈ Interval(0.0, 1.0)],
         [r, s, t], [a2(r, s, t), b2(r, s, t), c2(r, s, t)]
     )
@@ -293,6 +294,103 @@ end
     @test length(net.groups) == 2
     @test length(net.groups[1].components) == 1
     @test length(net.groups[2].components) == 2
+end
+
+@testset "matrix arguments pack in column-major order" begin
+    @parameters t x[1:2, 1:2]
+    @variables u(..)
+    eq = Differential(x[1, 2])(u(t, x)) ~ x[2, 1]
+    bcs = [u(0.0, x) ~ 0.0]
+    domains = vcat(
+        [t ∈ Interval(0.0, 1.0)],
+        [x[i, j] ∈ Interval(0.0, 1.0) for j in 1:2 for i in 1:2],
+    )
+    @named sys = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
+    expected = [t, x[1, 1], x[2, 1], x[1, 2], x[2, 2]]
+    _, packing = NeuralPDE.expand_array_arguments(sys)
+    packed = vcat((g.components for g in only(packing.depvars).groups)...)
+    @test all(isequal(unwrap(a), unwrap(b)) for (a, b) in zip(packed, expected))
+    chain = Chain(Dense(5, 4, tanh), Dense(4, 1))
+    θ = collect(ComponentArray(Lux.initialparameters(Xoshiro(1), chain)))
+    prob = _discretize(sys, chain, θ; dx = 0.5, eval_points = 2)
+    md = pinn_metadata(prob)
+    net = only(md.networks)
+    @test all(isequal(unwrap(a), unwrap(b)) for (a, b) in zip(net.args, expected))
+    @test all(isequal(unwrap(a), unwrap(b)) for (a, b) in zip(md.blocks[1].ivs, expected))
+    X = getp(prob, md.blocks[1].xs)(prob)
+    apply = getdefault(net.NN)
+    θnet = getu(prob, net.θ)(prob)
+    # `x[1,2]` is packed input 4 once `t` is present; the source `x[2,1]` is input 3.
+    manual = _fd_derivative(apply, θnet, X, 4, 1) .- X[3:3, :]
+    @test _residuals(prob)[1] ≈ manual rtol = 1.0e-8
+    flat = [0.1, 0.2, 0.3, 0.4]
+    matrix = [0.1 0.3; 0.2 0.4]
+    @test vec(matrix) == flat
+    sol = solve(prob, Adam(0.01); maxiters = 1)
+    expanded = u(t, x[1, 1], x[2, 1], x[1, 2], x[2, 2])
+    @test sol(0.2, matrix; dv = u(t, x)) ≈ sol(0.2, flat; dv = u(t, x))
+    @test sol(0.2, flat; dv = u(t, x)) ≈ sol(0.2, 0.1, 0.2, 0.3, 0.4; dv = expanded)
+end
+
+@testset "singleton arrays keep the array signature" begin
+    @parameters t x[1:1]
+    @variables u(..)
+    eq = Differential(t)(u(t, x)) ~ -u(t, x)
+    bcs = [u(0.0, x) ~ x[1]]
+    domains = [t ∈ Interval(0.0, 1.0), x[1] ∈ Interval(0.0, 1.0)]
+    @named sys = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
+    _, packing = NeuralPDE.expand_array_arguments(sys)
+    groups = only(packing.depvars).groups
+    @test !groups[1].array && groups[2].array
+    @test length(groups[2].components) == 1
+    chain = Chain(Dense(2, 4, tanh), Dense(4, 1))
+    θ = collect(ComponentArray(Lux.initialparameters(Xoshiro(1), chain)))
+    prob = _discretize(sys, chain, θ; dx = 0.5, eval_points = 2)
+    sol = solve(prob, Adam(0.01); maxiters = 1)
+    expanded = u(t, x[1])
+    @test sol[u(t, x)] == sol[expanded]
+    @test sol(0.2, [0.3]; dv = u(t, x)) ≈ sol(0.2, 0.3; dv = expanded)
+    @test sol(0.2, [[0.1], [0.2]]; dv = u(t, x)) ≈ [
+        sol(0.2, [0.1]; dv = u(t, x)), sol(0.2, [0.2]; dv = u(t, x)),
+    ]
+
+    @parameters y[1:2]
+    @variables w(..)
+    @named mixed = PDESystem(
+        w(x, y) ~ 0.0,
+        [w([0.0], y) ~ 0.0],
+        [
+            x[1] ∈ Interval(0.0, 1.0),
+            y[1] ∈ Interval(0.0, 1.0),
+            y[2] ∈ Interval(0.0, 1.0),
+        ],
+        [x, y],
+        [w(x, y)],
+    )
+    mchain = Chain(Dense(3, 4, tanh), Dense(4, 1))
+    mθ = collect(ComponentArray(Lux.initialparameters(Xoshiro(2), mchain)))
+    mprob = _discretize(mixed, mchain, mθ; dx = 0.5, eval_points = 2)
+    msol = solve(mprob, Adam(0.01); maxiters = 1)
+    @test size(msol[w(x, y)]) == (2, 2, 2)
+    @test msol([0.1], [0.3, 0.4]; dv = w(x, y)) ≈
+        msol(0.1, 0.3, 0.4; dv = w(x[1], y[1], y[2]))
+    @test msol([[0.1], [0.2]], [0.3, 0.4]; dv = w(x, y)) ≈ [
+        msol([0.1], [0.3, 0.4]; dv = w(x, y)),
+        msol([0.2], [0.3, 0.4]; dv = w(x, y)),
+    ]
+end
+
+@testset "boundary calls are checked against the packed signature" begin
+    @parameters x[1:2]
+    @variables u(..)
+    @named sys = PDESystem(
+        u(x) ~ 0.0,
+        [u([0.0, x[2], x[1]]) ~ 0.0],
+        [x[i] ∈ Interval(0.0, 1.0) for i in 1:2],
+        [x],
+        [u(x)],
+    )
+    @test_throws "packs to 3" NeuralPDE.expand_array_arguments(sys)
 end
 
 @testset "manufactured Laplacian and whole-array u(t, z)" begin

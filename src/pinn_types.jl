@@ -298,12 +298,14 @@ PDEBase.get_time(::PhysicsInformedNN) = nothing
 One argument of a dependent variable in the packed network input `[arg₁; vec(arg₂); …]`.
 
 `symbol` is the argument as declared (`t`, or the array `x`). `components` is the
-flat list of scalar symbols occupying the packed slots, in `vec` order. A scalar
-argument has a single component, itself.
+flat list of scalar symbols occupying the packed slots, in column-major `vec` order.
+`array` is true for an array argument, including a length-1 array such as `x[1:1]`.
+A scalar argument has `array == false` and a single component, itself.
 """
 struct ArgumentGroup
     symbol::Any
     components::Vector{Any}
+    array::Bool
 end
 
 """

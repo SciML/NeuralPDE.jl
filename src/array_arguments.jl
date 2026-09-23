@@ -51,27 +51,36 @@ function _as_scalar(c)
     end
 end
 
+function _fixed_shape(au)
+    sz = try
+        size(au)
+    catch
+        return nothing
+    end
+    sz isa Tuple && !isempty(sz) && all(n -> n isa Integer && n > 0, sz) || return nothing
+    return sz
+end
+
 function _component_list(arr)
     au = unwrap(arr)
-    # Linear indexing is column-major, which is `vec` order. `getindex` simplifies an
-    # `array_literal` (the form of a vector written in a call) to its elements.
-    n = try
-        length(au)
-    catch
-        throw(
-            ArgumentError(
-                "Array argument `$arr` does not have a fixed shape. Declare independent \
-                variables with explicit indices, for example `@parameters x[1:d]`."
-            )
-        )
-    end
-    n isa Integer && n > 0 || throw(
+    # `CartesianIndices` walks column-major order, which is `vec`. Symbolic matrices
+    # reject linear `getindex`; a 1-d `array_literal` still simplifies under `(i,)`.
+    sz = _fixed_shape(au)
+    sz === nothing && throw(
         ArgumentError(
             "Array argument `$arr` does not have a fixed shape. Declare independent \
             variables with explicit indices, for example `@parameters x[1:d]`."
         )
     )
-    return Any[_as_scalar(au[i]) for i in 1:n]
+    # A comprehension over `CartesianIndices` would keep the array shape. `vec` order
+    # is the iteration order, stored as a flat vector of slots.
+    comps = Vector{Any}(undef, prod(sz))
+    i = 0
+    for I in CartesianIndices(sz)
+        i += 1
+        comps[i] = _as_scalar(au[Tuple(I)...])
+    end
+    return comps
 end
 
 function _packed_components(a)
@@ -107,7 +116,7 @@ end
 function _groups_of(dv)
     return map(arguments(unwrap(dv))) do a
         comps = _packed_components(a)
-        comps === nothing ? ArgumentGroup(a, Any[a]) : ArgumentGroup(a, comps)
+        comps === nothing ? ArgumentGroup(a, Any[a], false) : ArgumentGroup(a, comps, true)
     end
 end
 
@@ -161,6 +170,15 @@ _rewrite_piece(eq, ::Any) = eq
 
 function _scan_array_args!(found, ex, ops)
     found[] && return
+    if ex isa Equation
+        _scan_array_args!(found, ex.lhs, ops)
+        _scan_array_args!(found, ex.rhs, ops)
+        return nothing
+    elseif ex isa Pair
+        _scan_array_args!(found, ex.first, ops)
+        _scan_array_args!(found, ex.second, ops)
+        return nothing
+    end
     ex isa AbstractArray && _symbolic_array(ex) === nothing && return _scan_elements!(found, ex, ops)
     exu = unwrap(ex)
     iscall(exu) || return
@@ -200,7 +218,15 @@ function _needs_expansion(pdesys, ops)
 end
 
 function _walk_calls!(f, ex, ops)
-    if ex isa AbstractArray && _symbolic_array(ex) === nothing
+    if ex isa Equation
+        _walk_calls!(f, ex.lhs, ops)
+        _walk_calls!(f, ex.rhs, ops)
+        return nothing
+    elseif ex isa Pair
+        _walk_calls!(f, ex.first, ops)
+        _walk_calls!(f, ex.second, ops)
+        return nothing
+    elseif ex isa AbstractArray && _symbolic_array(ex) === nothing
         for el in ex
             _walk_calls!(f, el, ops)
         end
@@ -279,7 +305,7 @@ end
 function _append_missing_components!(flat, parents, entries)
     for entry in entries
         for g in entry.groups
-            length(g.components) == 1 && continue
+            g.array || continue
             for (k, c) in enumerate(g.components)
                 _contains_symbol(flat, c) && continue
                 push!(flat, c)
@@ -378,7 +404,7 @@ function _packing_entries(pdesys)
         dvu = unwrap(dv)
         iscall(dvu) || continue
         groups = _groups_of(dvu)
-        any(g -> length(g.components) > 1, groups) || continue
+        any(g -> g.array, groups) || continue
         op = operation(dvu)
         push!(entries, DepvarPacking(op, dvu, _expanded_call(op, groups), groups))
     end
@@ -445,19 +471,27 @@ function _check_grid_spacing(disc, packing)
     return nothing
 end
 
+function _argument_shape(g::ArgumentGroup)
+    sz = _fixed_shape(unwrap(g.symbol))
+    return sz === nothing ? (length(g.components),) : sz
+end
+
 function _points_for(g::ArgumentGroup, a, sol)
     w = length(g.components)
-    if a isa Colon
-        w == 1 || throw(
-            ArgumentError(
-                "`:` stands for the evaluation grid of a scalar argument. Index \
-                `sol[$(g.symbol)]` for the tensor-product grid of an array argument."
-            )
-        )
-        return collect(_iv_grid(sol, only(g.components)))
-    end
-    if w == 1
+    if !g.array
+        a isa Colon && return collect(_iv_grid(sol, only(g.components)))
         return a isa Number ? [a] : collect(a)
+    end
+    a isa Colon && throw(
+        ArgumentError(
+            "`:` stands for the evaluation grid of a scalar argument. Index \
+            `sol[$(g.symbol)]` for the tensor-product grid of an array argument."
+        )
+    )
+    # A numeric array of the declared shape is one point, in column-major `vec` order.
+    # A length-`w` vector is that same point when the caller has already flattened it.
+    if a isa AbstractArray{<:Number} && size(a) == _argument_shape(g)
+        return Any[vec(a)]
     end
     if a isa AbstractVector{<:Number}
         length(a) == w || throw(
@@ -482,16 +516,17 @@ function _points_for(g::ArgumentGroup, a, sol)
             )
         end
     end
-    if a isa AbstractVector && all(p -> p isa AbstractVector{<:Number}, a)
+    shape = _argument_shape(g)
+    if a isa AbstractVector && all(p -> p isa AbstractArray{<:Number}, a)
         for p in a
-            length(p) == w || throw(
+            size(p) == shape || (p isa AbstractVector{<:Number} && length(p) == w) || throw(
                 ArgumentError(
-                    "Array argument `$(g.symbol)` has $w components; got a point of \
-                    length $(length(p))."
+                    "Array argument `$(g.symbol)` has shape $shape; got a point of \
+                    size $(size(p))."
                 )
             )
         end
-        return Any[collect(p) for p in a]
+        return Any[vec(p) for p in a]
     end
     throw(
         ArgumentError(
@@ -508,16 +543,15 @@ function _iv_grid(sol, sym)
 end
 
 _is_grouped_call(groups, args) =
-    groups !== nothing && length(args) == length(groups) &&
-    any(g -> length(g.components) > 1, groups)
+    groups !== nothing && length(args) == length(groups) && any(g -> g.array, groups)
 
 function _flatten_point(pts, groups, ::Type{T}) where {T}
     col = T[]
     for (p, g) in zip(pts, groups)
-        if length(g.components) == 1
-            push!(col, T(p))
-        else
+        if g.array
             append!(col, T.(p))
+        else
+            push!(col, T(p))
         end
     end
     return col

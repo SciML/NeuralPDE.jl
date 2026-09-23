@@ -77,9 +77,11 @@ expression (Reactant compatible); it defaults to `Integrals.GaussLegendre`, inhe
 
 A dependent variable can take an array of independent variables as one argument.
 With `@parameters t x[1:d]` the call `u(t, x)` is a function of `1 + d` scalars: the
-network input is the packed vector `[t; vec(x)]`, in column-major order for a
-higher-dimensional array. `Differential(x[i])` differentiates along the slot of
-component `x[i]`. The declared grouping is kept, so the packing is reversible.
+network input is the packed vector `[t; vec(x)]`, in column-major order. For
+`x[1:2,1:2]` that order is `x[1,1], x[2,1], x[1,2], x[2,2]`. `Differential(x[i])`
+or `Differential(x[i,j])` differentiates along that slot. A length-1 array such as
+`x[1:1]` is still an array argument: pass a length-1 vector, `sol(t, [x1]; dv = u(t, x))`.
+The declared grouping is kept, so the packing is reversible.
 
 Domains are either one interval per component, `x[i] ∈ Interval(a, b)`, or a single
 product domain for the array (one factor per component, in `vec` order). A boundary
