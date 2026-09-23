@@ -210,6 +210,35 @@ end
     @test lg_residual .+ 10 ≈ manual_litgen atol = 1.0e-7
     @test manual_litgen ≈ fill(10.0, size(manual_litgen)) atol = 1.0e-7
 
+    # Plain calls nested in a general argument keep their literals fixed under an outer
+    # FD; a derivative inside the argument still uses the plain boundary convention.
+    # Expected values are hand algebra of u(a,b)=3a+5b, e.g. u(u(0,y),2x) = 15y + 10x.
+    xy_domains = [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)]
+    xy_residual = function (eq)
+        sys = PDESystem(
+            [eq], [u(0.0, 0.0) ~ 0.0], xy_domains, [x, y], [u(x, y)]; name = :nested
+        )
+        pdisc = PhysicsInformedNN(
+            chain_xy, GridTraining(0.25); init_params = init_xy, rng = Xoshiro(10)
+        )
+        p = discretize(sys, pdisc)
+        return getu(p, pinn_metadata(p).blocks[1].residual)(p)
+    end
+    for eq in [
+            Dx(u(u(0.0, y), 2x)) ~ 10.0,
+            Dx(u(u(0.0, x), 2x)) ~ 25.0,
+            u(Dx(u(0.0, y)), 2x) ~ 9 + 10x,
+            Dx(u(Dx(u(0.0, y)), 2x)) ~ 10.0,
+        ]
+        r = xy_residual(eq)
+        @test r ≈ zeros(size(r)) atol = 1.0e-7
+    end
+    # Differentiating along a variable that only occurs in fixed literal slots would be
+    # a θ-independent residual.
+    for eq in [Dx(u(0.0, 2y)) ~ 0.0, Dx(u(u(0.0, y), 2y)) ~ 0.0]
+        @test_throws ArgumentError xy_residual(eq)
+    end
+
     @named reflected = PDESystem(
         [u(1 - x) ~ u(x)], [u(0.0) ~ 0.0], domains, [x], [u(x)]
     )
