@@ -58,7 +58,7 @@ residuals:
 student = Chain(Dense(2, 16, tanh), Dense(16, 16, tanh), Dense(16, 1))
 dprob = distill(teacher, student; npoints = 1000, rng = Xoshiro(2))
 dres = solve(dprob, LBFGS(linesearch = BackTracking()); maxiters = 300)
-dres.original_sol.objective
+dres.objective
 ```
 
 The distilled weights are the flat vector `dres.u`. Wrapping them back into the
@@ -70,11 +70,11 @@ template, st = Lux.setup(Xoshiro(0), student)
 θ = ComponentArray(dres.u, getaxes(ComponentArray(template)))
 u_student(x, y) = only(first(student(reshape(Float64[x, y], 2, 1), θ, st)))
 analytic(x, y) = sinpi(x) * sinpi(y) / (2pi^2)
-maximum(abs, [u_student(x, y) - analytic(x, y) for x in 0:0.05:1, y in 0:0.05:1])
+maximum(abs, [u_student(xi, yi) - analytic(xi, yi) for xi in 0:0.05:1, yi in 0:0.05:1])
 ```
 
 ```@example transfer
-maximum(abs, [u_student(x, y) - teacher(x, y; dv = u(x, y)) for x in 0:0.05:1, y in 0:0.05:1])
+maximum(abs, [u_student(xi, yi) - teacher(xi, yi; dv = u(x, y)) for xi in 0:0.05:1, yi in 0:0.05:1])
 ```
 
 ## Distilling a domain decomposition
@@ -106,5 +106,5 @@ gres = solve(
 gtemplate, gst = Lux.setup(Xoshiro(0), global_net)
 gθ = ComponentArray(gres.u, getaxes(ComponentArray(gtemplate)))
 u_global(x, y) = only(first(global_net(reshape(Float64[x, y], 2, 1), gθ, gst)))
-maximum(abs, [u_global(x, y) - analytic(x, y) for x in 0:0.05:1, y in 0:0.05:1])
+maximum(abs, [u_global(xi, yi) - analytic(xi, yi) for xi in 0:0.05:1, yi in 0:0.05:1])
 ```
