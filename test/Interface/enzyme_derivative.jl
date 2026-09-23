@@ -49,8 +49,10 @@ exponential_network(X, θ) = θ[1] .* exp.(θ[2] .* X[1:1, :] .+ θ[3] .* X[2:2,
         ForwardDiff.gradient(p -> sum(exponential_network(X, p) .* p[2] .* p[3]), θ)
 end
 
-@testset "Lux sin activation uses the same primal under both AD paths" begin
-    layer = Dense(1, 1, sin)
+base_tanh(x) = Base.tanh(x)
+
+@testset "Lux $activation activation has identical AD primals" for activation in (sin, base_tanh)
+    layer = Dense(1, 1, activation)
     ps = (weight = ones(1, 1), bias = zeros(1))
     st = Lux.initialstates(Xoshiro(1), layer)
     X = reshape(collect(range(-1.0, 1.0; length = 17)), 1, :)
@@ -60,7 +62,7 @@ end
         Enzyme.ForwardWithPrimal, Enzyme.Const(f), Enzyme.Duplicated,
         Enzyme.Duplicated(X, one.(X))
     )
-    @test isequal(f(X), sin.(X))
+    @test isequal(f(X), activation.(X))
     @test isequal(f(X), dual_primal)
     @test isequal(enzyme_primal, dual_primal)
 end
@@ -84,7 +86,7 @@ end
         [u(x, 0) ~ 0.0, u(0, y) ~ 0.0],
         [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)], [x, y], [u(x, y)]
     )
-    @testset "$activation activation" for activation in (sin, tanh)
+    @testset "$(activation === tanh ? "tanh smoke" : "$activation strict parity")" for activation in (sin, base_tanh, tanh)
         for (system, dim, order) in ((poisson, 2, 2), (third_order, 1, 3), (mixed, 2, 2))
             chain = Chain(Dense(dim, 3, activation), Dense(3, 1))
             θ0 = Float64.(collect(ComponentArray(Lux.initialparameters(Xoshiro(42), chain)))) ./ 4
@@ -151,11 +153,12 @@ end
             actual = zero(θ)
             objective(p) = prob.f(p, prob.p)
             Enzyme.autodiff(Enzyme.Reverse, Enzyme.Const(objective), Enzyme.Active, Enzyme.Duplicated(θ, actual))
-            # NNlib's Float64 tanh_fast polynomial and its Dual fallback (tanh) differ.
-            # At x=0.1, 256-bit fourth derivatives are 1.5553210429164255 and
-            # 1.5553210414847942: ~9.2e-10 relative; 2e-9 allows twice that discrepancy.
-            # Polynomial source: https://github.com/FluxML/NNlib.jl/blob/v0.9.45/src/activations.jl
-            gradient_rtol = activation === tanh ? 2.0e-9 : 4096eps(Float64)
+            # NNlib 0.9.45's tanh_fast polynomial (|x| < 0.1304) differs from Base.tanh:
+            # a 256-bit branch scan found relative discrepancies up to 5.3e-8 (order 4)
+            # and 8.6e-7 (order 5). This seed's relative gradient error is at most 2.2e-11;
+            # 1e-10 is a smoke-test margin, not a branch-wide accuracy bound.
+            # Polynomial: https://github.com/FluxML/NNlib.jl/blob/v0.9.45/src/activations.jl
+            gradient_rtol = activation === tanh ? 1.0e-10 : 4096eps(Float64)
             @test actual ≈ expected atol = 4096eps(Float64) rtol = gradient_rtol
             @test only(Zygote.gradient(objective, θ)) ≈ expected atol = 4096eps(Float64) rtol = gradient_rtol
             baseline = ForwardDiff.gradient(p -> fdprob.f(p, fdprob.p), θ)
