@@ -313,8 +313,9 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         end
     end
 
-    stds = _block_stds(md.blocks, phystd, bcstd)
+    stds = _block_stds(md.blocks, Float64.(phystd), Float64.(bcstd))
     residual_syms = Any[b.residual for b in md.blocks]
+    l2std_f = Float64.(l2std)
 
     priors = Distribution[
         MvNormal(
@@ -332,7 +333,7 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
     end
 
     ℓπ = PDELogTargetDensity(
-        nparameters, prob, residual_syms, stds, priors, ninv, dataset, l2std,
+        nparameters, prob, residual_syms, stds, priors, ninv, dataset, l2std_f,
         network_fns, net_lengths
     )
 
