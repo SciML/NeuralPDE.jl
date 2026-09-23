@@ -340,18 +340,37 @@ The scalar cost of a residual block: the mean of the squared pointwise residuals
 their quadrature-weighted sum when the block carries quadrature weights.
 """
 function block_cost(b::ResidualBlock)
-    r = b.residual
-    if !_isarray(unwrap(r))
-        return abs2(r)
-    elseif b.w === nothing
-        return _mean_square(r, b.npoints)
-    else
-        return _weighted_square_sum(b.w, r)
+    r = unwrap(b.residual)
+    if !_isarray(r)
+        return abs2(b.residual)
     end
+    if b.w === nothing
+        aop = unwrap(sum(abs2.(wrap(r)) ./ b.npoints))
+        args = (r, b.npoints)
+        f = _mean_square
+    else
+        w = unwrap(b.w)
+        aop = unwrap(sum(wrap(w) .* abs2.(wrap(r))))
+        args = (w, r)
+        f = _weighted_square_sum
+    end
+    return wrap(_with_reduction_term(f, aop, args))
+end
+
+# `expand` treats `ArrayOp`s as opaque variables, so reusing the `sum` reduction's
+# `ArrayOp` keeps the array arguments out of polyform while `term` makes codegen
+# emit a direct call to `f` instead of `mapreduce` (which GPU arrays cannot
+# differentiate through `task_local_storage` under Zygote).
+function _with_reduction_term(f, aop::SymbolicUtils.BasicSymbolic{T}, args) where {T}
+    t = SymbolicUtils.term(f, args...; vartype = T)
+    return SymbolicUtils.BSImpl.ArrayOp{T}(
+        aop.output_idx, aop.expr, aop.reduce, t;
+        type = Real, shape = SymbolicUtils.ShapeVecT()
+    )
 end
 
 Base.@noinline _mean_square(r, n) = sum(abs2.(r)) / n
-@register_symbolic _mean_square(r, n)
+@register_symbolic _mean_square(r::AbstractArray, n)
 function ChainRulesCore.rrule(::typeof(_mean_square), r::AbstractArray, n)
     y = _mean_square(r, n)
     function mean_square_pullback(Δ)
@@ -362,7 +381,7 @@ function ChainRulesCore.rrule(::typeof(_mean_square), r::AbstractArray, n)
 end
 
 Base.@noinline _weighted_square_sum(w, r) = sum(w .* abs2.(r))
-@register_symbolic _weighted_square_sum(w, r)
+@register_symbolic _weighted_square_sum(w::AbstractArray, r::AbstractArray)
 function ChainRulesCore.rrule(
         ::typeof(_weighted_square_sum), w::AbstractArray, r::AbstractArray
     )
