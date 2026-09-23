@@ -49,3 +49,14 @@ Closure field types do not determine `additional_loss` AD compatibility: callbac
 with non-`isbits` captures can still differentiate correctly with Enzyme. Choose a
 backend explicitly at call sites with demonstrated requirements, and retain
 captured-metadata, buffer-writing callbacks in default-backend regression coverage.
+
+## Device-genericity pitfalls
+
+- The generated objective must keep every reduction behind a registered
+  function (`_mean_square`, `_weighted_square_sum`) with a `ChainRulesCore.rrule`.
+  A literal `sum`/`mapreduce` over a GPU array hits `GPUArraysCore._mapreduce` →
+  `task_local_storage`, which Zygote cannot differentiate. Test devices with
+  JLArrays under `JLArrays.allowscalar(false)`.
+- `remake(prob; u0 = dev(prob.u0), p = [block.xs => dev(X), ...])` moves the
+  whole problem; `resample!` must write device arrays (`similar` + `copyto!`),
+  and `PDENoTimeSolution` copies `θ` back to the host with `Array`.
