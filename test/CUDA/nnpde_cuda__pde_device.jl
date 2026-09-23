@@ -1,5 +1,5 @@
 include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
-using CUDA, Zygote, LinearAlgebra
+using CUDA, Zygote
 using SymbolicIndexingInterface: getp
 
 @parameters x y
