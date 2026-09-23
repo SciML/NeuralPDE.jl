@@ -21,15 +21,38 @@ apply = getdefault(net.NN)
 θ = prob.u0
 
 @testset "default AD for objective paths" begin
-    @test prob.f.adtype isa (Sys.WORD_SIZE == 32 ? AutoZygote : AutoEnzyme)
+    default = Sys.WORD_SIZE == 32 ? AutoZygote : AutoEnzyme
+    @test prob.f.adtype isa default
     dgm_disc = DeepGalerkin(
         2, 1, 4, 1, tanh, tanh, identity, GridTraining(0.5); rng = Xoshiro(2)
     )
     @test discretize(pde_system, dgm_disc).f.adtype isa AutoZygote
-    loss_disc = PhysicsInformedNN(
-        chain, GridTraining(0.5); additional_loss = (phi, θ, p) -> 0.0
+    @test discretize(pde_system, dgm_disc; adtype = AutoEnzyme()).f.adtype isa AutoEnzyme
+    nested_dgm = PhysicsInformedNN(
+        Chain(NeuralPDE.DGM(2, 1, 4, 1, tanh, tanh, identity)), GridTraining(0.5);
+        rng = Xoshiro(2)
     )
-    @test discretize(pde_system, loss_disc).f.adtype isa AutoZygote
+    @test discretize(pde_system, nested_dgm).f.adtype isa AutoZygote
+    loss_disc = PhysicsInformedNN(
+        chain, GridTraining(0.5); rng = Xoshiro(4), additional_loss = function (phi, θ, p)
+            out = phi.u([0.5 0.25; 0.5 0.25], θ.u)
+            v = similar(out, 2)
+            v[1] = out[1]
+            v[2] = out[2]
+            return sum(abs2, v)
+        end
+    )
+    loss_prob = discretize(pde_system, loss_disc)
+    @test loss_prob.f.adtype isa default
+    Sys.WORD_SIZE == 64 &&
+        @test solve(loss_prob, Adam(0.001); maxiters = 2).original_sol.objective isa Real
+    data = [0.3 0.1]
+    capture_disc = PhysicsInformedNN(
+        chain, GridTraining(0.5); rng = Xoshiro(5), additional_loss = function (phi, θ, p)
+            return sum(abs2, phi.u([0.5 0.25; 0.5 0.25], θ.u) .- data)
+        end
+    )
+    @test discretize(pde_system, capture_disc).f.adtype isa AutoZygote
     @parameters s τ
     @variables v(..)
     integral = Integral(τ in Interval(0.0, s))
@@ -41,6 +64,7 @@ apply = getdefault(net.NN)
         Chain(Dense(1, 1)), GridTraining(0.5); rng = Xoshiro(3)
     )
     @test discretize(integral_sys, integral_disc).f.adtype isa AutoZygote
+    @test discretize(integral_sys, integral_disc; adtype = AutoEnzyme()).f.adtype isa AutoEnzyme
 end
 
 @testset "lowered residual matches a manual finite-difference computation" begin

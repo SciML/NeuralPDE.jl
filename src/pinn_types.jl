@@ -163,23 +163,19 @@ OptimizationReactant.jl is loaded (`using OptimizationReactant`), and `AutoEnzym
 otherwise. `AutoReactant()` compiles the objective and gradient through Reactant;
 `AutoEnzyme()` uses reverse mode with static activity analysis.
 
-`default_adtype(md)` selects `AutoZygote()` for a DGM network or an
-`additional_loss` callback because their objectives trigger Enzyme runtime-activity
-errors, and for lowered `Integral` terms because their quadrature objective triggers
-Enzyme illegal-type analysis. On 32-bit Julia it also selects `AutoZygote()` because
-the default Enzyme path reaches an LLVM.jl debug-location conversion error. This
-32-bit fallback does not change an explicit `AutoEnzyme()` choice. Enzyme runtime
-activity has also been observed to overwrite arrays captured by an `additional_loss`
-callback. An explicit `adtype` passed to `discretize` always takes precedence.
-
-The DGM, additional-loss, and default-backed 32-bit failures were introduced by the
-AutoEnzyme default in
-[`c7acdc17`](https://github.com/SciML/NeuralPDE.jl/commit/c7acdc17a1f7005e5b3386db79a99d3281e52c5f).
-The Integral test first appeared in
-[`6454ea25`](https://github.com/SciML/NeuralPDE.jl/commit/6454ea25f9d53a6327b077272146592e4144779b).
-The explicit 32-bit `AutoEnzyme()` gradient test dates to the v7 rewrite in
-[`10f929f0`](https://github.com/SciML/NeuralPDE.jl/commit/10f929f03a0acfff89844a3b24ee920bb0d146fd)
-and still needs the upstream LLVM.jl debug-location fix.
+`default_adtype(md)` selects `AutoZygote()` when a `DGM`/`DGMLSTMLayer` appears
+anywhere in the network's layer tree, because the DGM objective triggers an Enzyme
+runtime-activity error; when the lowered equations contain `Integral` terms, whose
+quadrature objective triggers Enzyme illegal-type analysis; and when the
+`additional_loss` callback captures boxed state such as data arrays, which
+Enzyme's activity analysis rejects — a closure with no captured objects
+differentiates under Enzyme and keeps it. On 32-bit Julia it also selects
+`AutoZygote()`: the Enzyme path can reach an LLVM.jl debug-location conversion
+error there (observed on Julia 1.13 x86; Julia 1.11 x86 is unaffected). An
+explicit `adtype` passed to `discretize` always takes precedence. Objectives that
+Enzyme cannot differentiate select their backend at the call site instead:
+[`SDEPINN`](@ref) passes `AutoZygote()` because its norm-loss closure solves an
+`IntegralProblem`, which Enzyme rejects.
 """
 function default_adtype()
     Sys.WORD_SIZE == 32 && return AutoZygote()

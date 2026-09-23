@@ -242,7 +242,8 @@ function SciMLBase.__solve(
     )
 
     @named pdesys = PDESystem(eq, bcs, domains, [X, T], [p̂(X, T)])
-    opt_prob = discretize(pdesys, discretization)
+    # norm_loss solves an IntegralProblem inside the loss, which Enzyme rejects.
+    opt_prob = discretize(pdesys, discretization; adtype = AutoZygote())
     md = pinn_metadata(opt_prob)
     net = only(md.networks)
     wrapper = getdefault(net.NN)
