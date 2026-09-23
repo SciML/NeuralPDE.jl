@@ -11,18 +11,24 @@ architectures); warm starts within the same architecture are `remake(prob; u0 = 
 
 The second form distills several teachers at once (for example one per subdomain of a
 domain decomposition) into a single student: each solution is evaluated on its own
-points and the targets are concatenated.
+points and the targets are concatenated. Where teachers overlap, the mean squared
+error compromises between their values weighted by sample density, so duplicated
+points fit the mean of the conflicting values.
 
 `chain` is a Lux layer, or a vector with one Lux layer per distilled dependent
 variable. A single layer with several dependent variables is shared, with its `i`-th
-output representing the `i`-th distilled variable. `points` is the `d × n` matrix of
-training inputs (one column per point, rows in `sol.ivs` order), or a vector with one
-such matrix per solution; when omitted, `npoints` inputs per solution are drawn
-uniformly over its `ivdomain` with `rng`. `dvs` selects the dependent variables to
-distill (a collection, or a single variable) and defaults to all of the (first)
-solution's `dvs`; the target rows follow its order. `init_params` is a flat vector, a
-Lux parameter `NamedTuple` or a `ComponentArray` (one network), or a vector of those
-(one per network). The objective is the mean squared error against
+output representing the `i`-th distilled variable. Student networks must be stateless:
+the objective evaluates them at their setup state and the evaluation recipe below
+assumes the same, so layers carrying state (such as batch statistics) are rejected.
+`points` is the `d × n` matrix of training inputs (one column per point, rows in
+`sol.ivs` order), or a vector with one such matrix per solution; when omitted,
+`npoints` inputs per solution are drawn uniformly over its `ivdomain` with `rng`.
+`dvs` selects the dependent variables to distill (an array or tuple collection, or a
+single variable) and defaults to all of the (first) solution's `dvs`; the target rows
+follow its order. Each variable is evaluated in its own argument order: input row `i`
+holds `sol.ivs[i]`, mapped onto the arguments of each `dv`. `init_params` is a flat
+vector, a Lux parameter `NamedTuple` or a `ComponentArray` (one network), or a vector
+of those (one per network). The objective is the mean squared error against
 `sol(x...; dv = ...)` on the training inputs, with element type taken from
 `init_params` (`Float64` by default).
 
@@ -51,11 +57,19 @@ function distill(
         dvs = nothing, init_params = nothing, rng::AbstractRNG = Random.default_rng(),
         adtype = AutoZygote()
     )
-    T = _param_eltype(init_params)
-    dvlist = _distill_dvs(sol, dvs)
-    X = _distill_points(sol, points, npoints, T, rng)
-    Y = _distill_targets(sol, dvlist, X, T)
-    return _distill_fit(X, Y, length(dvlist), chain; init_params, rng, adtype)
+    if points !== nothing && !(points isa AbstractMatrix)
+        throw(
+            ArgumentError(
+                "For one solution `points` must be a single `d × n` matrix; pass a \
+                 vector of matrices to distill several solutions."
+            )
+        )
+    end
+    return distill(
+        PDENoTimeSolution[sol], chain;
+        points = points === nothing ? nothing : AbstractMatrix[points], npoints, dvs,
+        init_params, rng, adtype
+    )
 end
 
 function distill(
@@ -65,12 +79,9 @@ function distill(
     )
     isempty(sols) && throw(ArgumentError("`sols` must hold at least one solution."))
     sols = vec(collect(sols))
-    d = length(first(sols).ivs)
-    all(s -> length(s.ivs) == d, sols) || throw(
-        ArgumentError("All distilled solutions must share the independent variables.")
-    )
     T = _param_eltype(init_params)
     dvlist = _distill_dvs(first(sols), dvs)
+    _distill_validate(sols, dvlist)
     blocks = points === nothing ? fill(nothing, length(sols)) : vec(collect(points))
     length(blocks) == length(sols) || throw(
         ArgumentError(
@@ -84,14 +95,47 @@ function distill(
     Ys = map(zip(sols, Xs)) do (s, X)
         _distill_targets(s, dvlist, X, T)
     end
-    return _distill_fit(hcat(Xs...), hcat(Ys...), length(dvlist), chain; init_params, rng, adtype)
+    return _distill_fit(
+        hcat(Xs...), hcat(Ys...), length(dvlist), chain; init_params, rng, adtype
+    )
 end
 
 function _distill_dvs(sol, dvs)
-    dvlist = dvs === nothing ? collect(sol.dvs) :
-        (dvs isa AbstractArray ? vec(collect(dvs)) : [dvs])
+    dvlist = if dvs === nothing
+        collect(sol.dvs)
+    elseif dvs isa Union{AbstractArray, Tuple}
+        vec(collect(dvs))
+    else
+        [dvs]
+    end
     isempty(dvlist) && throw(ArgumentError("`dvs` must select at least one variable."))
     return dvlist
+end
+
+function _distill_validate(sols, dvlist)
+    iv0 = map(unwrap, collect(first(sols).ivs))
+    for (i, s) in enumerate(sols)
+        ivs = map(unwrap, collect(s.ivs))
+        same = length(ivs) == length(iv0) &&
+            all(j -> isequal(ivs[j], iv0[j]), eachindex(iv0))
+        if !same
+            throw(
+                ArgumentError(
+                    "Solution $i has independent variables $(collect(s.ivs)); all \
+                     distilled solutions must share the independent variables in the \
+                     same order."
+                )
+            )
+        end
+        for dv in dvlist
+            if !any(d -> isequal(unwrap(d), unwrap(dv)), s.dvs)
+                throw(
+                    ArgumentError("Solution $i does not contain dependent variable $dv.")
+                )
+            end
+        end
+    end
+    return nothing
 end
 
 function _distill_points(sol, points, npoints, T, rng)
@@ -101,7 +145,7 @@ function _distill_points(sol, points, npoints, T, rng)
         doms = sol.ivdomain
         lb = T[first(g) for g in doms]
         ub = T[last(g) for g in doms]
-        return         rand(rng, T, d, npoints) .* (ub .- lb) .+ lb
+        return rand(rng, T, d, npoints) .* (ub .- lb) .+ lb
     end
     X = Matrix{T}(points)
     size(X, 1) == d || throw(
@@ -115,11 +159,26 @@ function _distill_points(sol, points, npoints, T, rng)
 end
 
 function _distill_targets(sol, dvlist, X, T)
-    d = length(sol.ivs)
+    ivs = map(unwrap, collect(sol.ivs))
+    perms = map(dvlist) do dv
+        iscall(unwrap(dv)) || throw(
+            ArgumentError("`dvs` entries must be dependent-variable calls, got $dv.")
+        )
+        map(arguments(unwrap(dv))) do a
+            i = findfirst(x -> isequal(x, unwrap(a)), ivs)
+            i === nothing && throw(
+                ArgumentError(
+                    "Argument $a of $dv is not an independent variable of the solution."
+                )
+            )
+            i
+        end
+    end
     n = size(X, 2)
     Y = Matrix{T}(undef, length(dvlist), n)
     for j in 1:n, (k, dv) in enumerate(dvlist)
-        Y[k, j] = sol((X[i, j] for i in 1:d)...; dv = dv)
+        perm = perms[k]
+        Y[k, j] = sol((X[perm[i], j] for i in eachindex(perm))...; dv = dv)
     end
     return Y
 end
@@ -136,6 +195,14 @@ function _distill_fit(X, Y, ntargets, chain; init_params, rng, adtype)
     )
     nets = shared ? [chains[1]] : chains
     psets = map(c -> Lux.setup(rng, c), nets)
+    for (i, (_, st)) in enumerate(psets)
+        _distill_stateless(st) || throw(
+            ArgumentError(
+                "Student network $i carries Lux state; `distill` only supports \
+                 stateless layers."
+            )
+        )
+    end
     specs = init_params === nothing ? nothing : flat_init_params(init_params)
     specs === nothing || length(specs) == length(nets) || throw(
         ArgumentError("`init_params` must have one entry per network, got $(length(specs)).")
@@ -146,7 +213,7 @@ function _distill_fit(X, Y, ntargets, chain; init_params, rng, adtype)
     len = map(psets) do (ps, _)
         length(ComponentArray(ps))
     end
-    θ0 = vcat(map(eachindex(nets)) do i
+    blocks = map(eachindex(nets)) do i
         tpl = ComponentArray(psets[i][1])
         if specs === nothing
             Vector{T}(tpl)
@@ -160,7 +227,8 @@ function _distill_fit(X, Y, ntargets, chain; init_params, rng, adtype)
             )
             Vector{T}(copyto!(similar(tpl, T), v))
         end
-    end...)
+    end
+    θ0 = vcat(blocks...)
     off = cumsum([0; len])
     need = shared ? ntargets : 1
     for i in eachindex(nets)
@@ -183,4 +251,10 @@ function _distill_fit(X, Y, ntargets, chain; init_params, rng, adtype)
         return mean(abs2, pred .- Y)
     end
     return OptimizationProblem(OptimizationFunction(loss, adtype), θ0)
+end
+
+function _distill_stateless(st)
+    return all(Functors.fleaves(st)) do leaf
+        leaf === nothing || (leaf isa AbstractArray && isempty(leaf))
+    end
 end
