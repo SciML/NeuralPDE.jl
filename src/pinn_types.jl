@@ -171,6 +171,15 @@ the default Enzyme path reaches an LLVM.jl debug-location conversion error. This
 32-bit fallback does not change an explicit `AutoEnzyme()` choice. Enzyme runtime
 activity has also been observed to overwrite arrays captured by an `additional_loss`
 callback. An explicit `adtype` passed to `discretize` always takes precedence.
+
+The DGM, additional-loss, and default-backed 32-bit failures were introduced by the
+AutoEnzyme default in
+[`c7acdc17`](https://github.com/SciML/NeuralPDE.jl/commit/c7acdc17a1f7005e5b3386db79a99d3281e52c5f).
+The Integral test first appeared in
+[`6454ea25`](https://github.com/SciML/NeuralPDE.jl/commit/6454ea25f9d53a6327b077272146592e4144779b).
+The explicit 32-bit `AutoEnzyme()` gradient test dates to the v7 rewrite in
+[`10f929f0`](https://github.com/SciML/NeuralPDE.jl/commit/10f929f03a0acfff89844a3b24ee920bb0d146fd)
+and still needs the upstream LLVM.jl debug-location fix.
 """
 function default_adtype()
     Sys.WORD_SIZE == 32 && return AutoZygote()
