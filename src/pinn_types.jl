@@ -25,6 +25,47 @@ type of the network parameters.
 struct FiniteDifferenceDerivative <: AbstractDerivativeLowering end
 
 """
+    EnzymeForwardDerivative()
+
+Lower spatial derivatives of batched neural-network trial functions with nested
+Enzyme forward-mode Jacobian-vector products. Supports pure and mixed derivatives
+of total order one through four, including derivatives at literal boundary points.
+Network arguments must be independent variables or numeric literals. Networks must
+act independently on each batch column and support Enzyme differentiation.
+
+Use `PhysicsInformedNN(chain, strategy; derivative = EnzymeForwardDerivative())`.
+The derivative backend is independent of the outer optimization `adtype`; Enzyme
+reverse mode and Zygote (through a ChainRules pullback) differentiate its output.
+"""
+struct EnzymeForwardDerivative <: AbstractDerivativeLowering end
+
+"""
+    nn_jvp(NN, X, θ, directions, k)
+
+Evaluate row `k` of nested spatial Jacobian-vector products of the batched network
+`NN(X, θ)`. `directions` is a `Val` containing a tuple of tuples of input row indices;
+each inner tuple seeds those rows with ones across the batch. The result is a
+`1 × size(X, 2)` array, represented symbolically by one registered array call.
+Network parameters reside in `θ`; `NN` and `directions` are constant configuration.
+"""
+function nn_jvp end
+Symbolics.@register_array_symbolic nn_jvp(
+    f::Any, X::AbstractMatrix, θ::AbstractVector, directions::Any, k::Integer
+) begin
+    size = (1, size(X, 2))
+    eltype = Real
+end false
+SymbolicUtils.promote_symtype(::typeof(nn_jvp), f, X, θ, directions, k) = Array{Real, 2}
+function SymbolicUtils.promote_shape(
+        ::typeof(nn_jvp), shf::SymbolicUtils.ShapeT, shX::SymbolicUtils.ShapeT,
+        shθ::SymbolicUtils.ShapeT, shdirections::SymbolicUtils.ShapeT,
+        shk::SymbolicUtils.ShapeT
+    )
+    shX isa SymbolicUtils.Unknown && return SymbolicUtils.Unknown(2)
+    return SymbolicUtils.ShapeVecT([1:1, 1:length(shX[2])])
+end
+
+"""
     nn_eval(NN, X, θ)
 
 Evaluate the symbolic neural network `NN` on the batch of inputs `X` (one column per
