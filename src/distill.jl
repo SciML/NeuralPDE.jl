@@ -101,7 +101,7 @@ function _distill_points(sol, points, npoints, T, rng)
         doms = sol.ivdomain
         lb = T[first(g) for g in doms]
         ub = T[last(g) for g in doms]
-        return Random.rand(rng, T, d, npoints) .* (ub .- lb) .+ lb
+        return         rand(rng, T, d, npoints) .* (ub .- lb) .+ lb
     end
     X = Matrix{T}(points)
     size(X, 1) == d || throw(
