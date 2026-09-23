@@ -64,7 +64,7 @@ function PDEBase.construct_discrete_space(
     else
         Dict{Any, Any}(unwrap(p) => wrap(unwrap(p)) for p in ps)
     end
-    pinned = pinned_values(get_bcs(pdesys), v)
+    pinned = pinned_values(get_bcs(pdesys), pdesys)
     return CollocationSpace(
         v, collect(get_ivs(pdesys)), networks, netmap, ps, param_syms, pinned, T,
         _domain_bounds(pdesys)

@@ -210,25 +210,33 @@ function _collect_ivs!(found, ex, ivs, exclude = ())
 end
 
 """
-    pinned_values(bcs, v::PDEBase.VariableMap)
+    pinned_values(bcs, pdesys)
 
 Return a `Dict` mapping each independent variable to the set of numeric values it is
 pinned to in the boundary conditions, e.g. `x => Set([0.0, 1.0])` for `u(0, y)` and
 `u(1, y)`. `GridTraining` uses it to keep interior points off the boundaries.
+
+The declared signatures of `get_dvs(pdesys)` are used as the argument slots, not
+`VariableMap.args`, so a call with a general argument (`u(t, x + 1)`) does not
+overwrite the pin mapping for `u(t, 0)`.
 """
-function pinned_values(bcs, v::PDEBase.VariableMap)
-    pinned = Dict(unwrap(x) => Set{Float64}() for x in PDEBase.all_ivs(v))
+function pinned_values(bcs, pdesys)
+    pinned = Dict(unwrap(x) => Set{Float64}() for x in get_ivs(pdesys))
+    declared = Dict(
+        unwrap(operation(dv)) => Any[unwrap(a) for a in arguments(dv)]
+            for dv in get_dvs(pdesys)
+    )
     for bc in bcs, side in (bc.lhs, bc.rhs)
-        _collect_pinned!(pinned, unwrap(side), v)
+        _collect_pinned!(pinned, unwrap(side), declared)
     end
     return pinned
 end
 
-function _collect_pinned!(pinned, ex, v)
+function _collect_pinned!(pinned, ex, declared)
     iscall(ex) || return
-    op = operation(ex)
-    if haskey(v.args, op)
-        for (a, x) in zip(arguments(ex), v.args[op])
+    op = unwrap(operation(ex))
+    if haskey(declared, op)
+        for (a, x) in zip(arguments(ex), declared[op])
             a = unwrap(a)
             _isnumber(a) && haskey(pinned, unwrap(x)) &&
                 push!(pinned[unwrap(x)], Float64(_number(a)))
@@ -236,7 +244,7 @@ function _collect_pinned!(pinned, ex, v)
         return
     end
     for a in arguments(ex)
-        _collect_pinned!(pinned, unwrap(a), v)
+        _collect_pinned!(pinned, unwrap(a), declared)
     end
     return
 end
