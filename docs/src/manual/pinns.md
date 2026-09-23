@@ -163,11 +163,14 @@ NeuralPDE.QuadratureIntegrand
 SciMLBase.PDENoTimeSolution(::SciMLBase.AbstractOptimizationSolution, ::NeuralPDE.PINNMetadata)
 NeuralPDE.trial_function
 NeuralPDE.resample!
+NeuralPDE.distill
 ```
 
 Warm-starting a problem from previously trained weights (transfer learning) is
 `remake(prob; u0 = trained_weights)`, and replacing the collocation points of a residual
-block is `remake(prob; p = [block.xs => new_points])`.
+block is `remake(prob; p = [block.xs => new_points])`. Moving a trained solution into
+a different network architecture is [`distill`](@ref), whose distillation recipe is
+worked out in the [transfer-learning tutorial](../tutorials/transfer_learning.md).
 
 ## SDE Solvers
 
