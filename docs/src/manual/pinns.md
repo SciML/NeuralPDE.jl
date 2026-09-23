@@ -73,6 +73,33 @@ expression (Reactant compatible); it defaults to `Integrals.GaussLegendre`, inhe
 `quadrature_alg` from `QuadratureTraining`, and can be set explicitly with the
 `integral_alg` keyword of `PhysicsInformedNN`.
 
+## Array arguments
+
+A dependent variable can take an array of independent variables as one argument.
+With `@parameters t x[1:d]` the call `u(t, x)` is a function of `1 + d` scalars: the
+network input is the packed vector `[t; vec(x)]`, in column-major order. For
+`x[1:2,1:2]` that order is `x[1,1], x[2,1], x[1,2], x[2,2]`. `Differential(x[i])`
+or `Differential(x[i,j])` differentiates along that slot. A length-1 array such as
+`x[1:1]` is still an array argument: pass a length-1 vector, `sol(t, [x1]; dv = u(t, x))`.
+The declared grouping is kept, so the packing is reversible.
+
+Domains are either one interval per component, `x[i] ∈ Interval(a, b)`, or a single
+product domain for the array (one factor per component, in `vec` order). A boundary
+on which one component is fixed is an ordinary vector argument, for example
+`u(t, [0.0, x[2]])`. A `GridTraining` spacing vector, when it is not a single
+number, has one entry per packed scalar in the order of the independent-variable
+list after that expansion.
+
+`sol[u(t, x)]` is the tensor product of the component evaluation grids, with shape
+`(n_t, n_x₁, …, n_x_d)`. `sol(t, xvec; dv = u(t, x))` evaluates a scalar `t` and one
+length-`d` vector `xvec` (a matrix with `d` rows is a list of such vectors, one per
+column). The same value is `sol(t, x[1], …, x[d]; dv = u(t, x[1], …))`.
+
+Symbolics does not ship gradient, divergence, Laplacian or curl operators. The open
+pull request [JuliaSymbolics/Symbolics.jl#942](https://github.com/JuliaSymbolics/Symbolics.jl/pull/942)
+is not part of the Symbolics version NeuralPDE depends on, so those operators are
+written componentwise, including `Differential.(collect(x))`.
+
 ## The `PhysicsInformedNN` Discretizer
 
 ```@docs

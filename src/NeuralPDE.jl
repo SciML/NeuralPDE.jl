@@ -113,6 +113,7 @@ const cdev = CPUDevice()
 include("eltype_matching.jl")
 
 include("pinn_types.jl")
+include("array_arguments.jl")
 include("training_strategies.jl")
 include("pinn_lowering.jl")
 include("integral_lowering.jl")

@@ -293,6 +293,22 @@ end
 PDEBase.get_time(::PhysicsInformedNN) = nothing
 
 """
+    ArgumentGroup
+
+One argument of a dependent variable in the packed network input `[arg₁; vec(arg₂); …]`.
+
+`symbol` is the argument as declared (`t`, or the array `x`). `components` is the
+flat list of scalar symbols occupying the packed slots, in column-major `vec` order.
+`array` is true for an array argument, including a length-1 array such as `x[1:1]`.
+A scalar argument has `array == false` and a single component, itself.
+"""
+struct ArgumentGroup
+    symbol::Any
+    components::Vector{Any}
+    array::Bool
+end
+
+"""
     TrialNetwork
 
 The symbolic neural network representing one dependent variable.
@@ -300,14 +316,22 @@ The symbolic neural network representing one dependent variable.
 # Fields
 
 * `depvar`: the dependent variable operation (e.g. `u` for `u(x, t)`).
-* `args`: the independent variables the dependent variable is called with.
+* `args`: the independent variables the dependent variable is called with, after
+  array arguments have been packed into scalar components.
 * `NN`: the symbolic network callable parameter (see `ModelingToolkitNeuralNets`).
 * `θ`: the array unknown holding the flat network parameters.
 * `output`: the output row of `NN` used for this dependent variable.
 * `noutputs`: the number of outputs of `NN`.
 * `chain`: the Lux layer.
+* `groups`: the `ArgumentGroup`s of the declared call when an argument is an
+  array, or `nothing` when every argument is scalar. The groups invert the
+  packing: slot `k` of the network input is component `k` of `[arg₁; vec(arg₂); …]`.
+* `original`: the declared dependent-variable call before packing (`u(t, x)`), or
+  `nothing` when `groups` is `nothing`.
+* `expanded`: the packed call (`u(t, x[1], …)`), or `nothing` when `groups` is
+  `nothing`.
 """
-struct TrialNetwork{D, A, N, P, C}
+struct TrialNetwork{D, A, N, P, C, G, O, E}
     depvar::D
     args::A
     NN::N
@@ -315,6 +339,19 @@ struct TrialNetwork{D, A, N, P, C}
     output::Int
     noutputs::Int
     chain::C
+    groups::G
+    original::O
+    expanded::E
+
+    function TrialNetwork(
+            depvar, args, NN, θ, output::Int, noutputs::Int, chain,
+            groups = nothing, original = nothing, expanded = nothing
+        )
+        return new{
+            typeof(depvar), typeof(args), typeof(NN), typeof(θ), typeof(chain),
+            typeof(groups), typeof(original), typeof(expanded),
+        }(depvar, args, NN, θ, output, noutputs, chain, groups, original, expanded)
+    end
 end
 
 """
