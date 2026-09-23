@@ -2,10 +2,12 @@ using ModelingToolkit, NeuralPDE, SciMLBase
 using Test
 
 @testset "GBM SDE" begin
-    using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, Optimisers
-    using OrdinaryDiffEq, Random, Distributions, Integrals, Cubature
+    using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL,
+        OptimizationOptimisers, Optimisers
+    using OrdinaryDiffEq, Random, Distributions, Integrals
     using OptimizationOptimJL: BFGS
-    Random.seed!(100)
+    using OptimizationOptimisers: Adam
+    using LineSearches: BackTracking
 
     μ = 0.2
     σ = 0.3
@@ -32,8 +34,12 @@ using Test
     σ_var_bc = 0.05
     alg = SDEPINN(
         chain = chain,
-        optimalg = BFGS(),
-        norm_loss_alg = HCubatureJL(),
+        optimalg = (Adam(0.01), BFGS(linesearch = BackTracking())),
+        # fixed-node quadrature keeps the normalization loss deterministic;
+        # adaptive refinement (HCubatureJL) can take different paths under
+        # floating-point ordering changes
+        norm_loss_alg = GaussLegendre(n = 32),
+        rng = Xoshiro(100),
         x_0 = x_0,
         x_end = x_end,
 
@@ -45,7 +51,7 @@ using Test
     sol_GBM, phi = solve(
         prob,
         alg,
-        maxiters = 400
+        maxiters = (300, 400)
     )
 
     analytic_sol_func(x, t) = pdf(LogNormal(log(u0) + (μ - 0.5 * σ^2) * t, sqrt(t) * σ), x)
@@ -57,9 +63,13 @@ using Test
     u_real = [[analytic_sol_func(x, t) for x in xs] for t in ts]
     u_predict = [[first(phi([x, t], sol_GBM.u)) for x in xs] for t in ts]
 
+    @test sol_GBM.objective < 1.0e-3
+
     # MSE across all x
     diff = u_real .- u_predict
-    @test mean(vcat([abs2.(diff_i) for diff_i in diff]...)) < 5.0e-2
+    mse = mean(vcat([abs2.(diff_i) for diff_i in diff]...))
+    println("GBM SDE: objective=$(sol_GBM.objective) mse=$mse")
+    @test mse < 5.0e-2
 
     # Compare with analytic GBM solution Plotting
     # using Plots
