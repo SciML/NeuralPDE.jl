@@ -27,8 +27,9 @@ function SciMLBase.__solve(
         prob::SciMLBase.ODEProblem, alg::BNNODE, args...; dt = nothing,
         timeseries_errors = true, save_everystep = true, adaptive = false,
         abstol = 1.0f-6, reltol = 1.0f-3, verbose = false, saveat = 1 / 50.0,
-        maxiters = nothing
+        maxiters = nothing, callback = nothing
     )
+    warn_unsupported_callback(alg, callback)
     (; chain, param, strategy, draw_samples, numensemble, verbose) = alg
 
     # ahmc_bayesian_pinn_ode needs param=[] for easier vcat operation for full vector of parameters

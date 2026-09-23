@@ -475,8 +475,11 @@ function SciMLBase.__solve(
         reltol = 1.0f-3,
         verbose = false,
         saveat = nothing,
-        maxiters = nothing
+        maxiters = nothing,
+        callback = nothing
     )
+    warn_unsupported_callback(alg, callback)
+    verbose = verbose_flag(verbose)
     (; tspan, u0, f) = prob
     (;
         chain, opt, bounds, number_of_parameters,
@@ -546,14 +549,14 @@ function SciMLBase.__solve(
     optf = OptimizationFunction(total_loss, opt_algo)
 
     iteration = 0
-    callback = function (p, l)
+    opt_callback = function (p, l)
         iteration += 1
         verbose && println("Current loss is: $l, Iteration: $iteration")
         return l < abstol
     end
 
     optprob = OptimizationProblem(optf, init_params)
-    res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
+    res = solve(optprob, opt; callback = opt_callback, maxiters, alg.kwargs...)
 
     (p, t) = get_trainset(
         strategy, phi.smodel.model, bounds, number_of_parameters, tspan; rng

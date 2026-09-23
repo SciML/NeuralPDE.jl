@@ -46,7 +46,7 @@ run_qa(
         all_explicit_imports_are_public = (;
             ignore = (
                 :AbstractTrainingStrategy, :BPINNstats, :safe_expand, :safe_get_device,
-                :tovar,
+                :tovar, :warn_unsupported_callback,
             ),
         ),
     ),
