@@ -14,6 +14,7 @@ pages = [
         "Using GPUs" => "tutorials/gpu.md",
         "Defining Systems of PDEs" => "tutorials/systems.md",
         "Imposing Constraints" => "tutorials/constraints.md",
+        "Adaptive Loss Weights" => "tutorials/adaptive_losses.md",
         "The symbolic_discretize Interface" => "tutorials/low_level.md",
         "Optimising Parameters (Solving Inverse Problems)" => "tutorials/param_estim.md",
         "The Derivative Neural Network Approximation" => "tutorials/derivative_neural_network.md",

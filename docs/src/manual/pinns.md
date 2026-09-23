@@ -110,6 +110,16 @@ Warm-starting a problem from previously trained weights (transfer learning) is
 `remake(prob; u0 = trained_weights)`, and replacing the collocation points of a residual
 block is `remake(prob; p = [block.xs => new_points])`.
 
+## Adaptive cost weights
+
+```@docs
+NeuralPDE.AbstractAdaptiveLoss
+NeuralPDE.GradientScaleAdaptiveLoss
+NeuralPDE.MiniMaxAdaptiveLoss
+NeuralPDE.SoftAdaptAdaptiveLoss
+NeuralPDE.ReLoBRaLoAdaptiveLoss
+```
+
 ## SDE Solvers
 
 ```@docs
