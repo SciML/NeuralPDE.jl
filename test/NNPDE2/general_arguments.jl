@@ -50,14 +50,14 @@ end
 end
 
 @testset "reflection argument against manufactured solution" begin
-    # Exact solution u(x) = cospi(2x) satisfies u(1 - x) = u(x) and
-    # Dx(u) = -2π sinpi(2x); u(0) = 1 rules out the trivial zero solution of the
-    # corresponding eigenproblem.
+    # Exact solution u(x) = x^2. `Dx(u) = 2x` fixes u only up to a constant, which the
+    # reflection condition alone determines; lowering `u(1 - x)` as `u(x)` would make
+    # the condition `2u(x) = (1 - x)^2 + x^2`, inconsistent with the equation.
     @parameters x
     @variables u(..)
     Dx = Differential(x)
-    eq = Dx(u(x)) ~ -2 * π * sinpi(2x)
-    bcs = [u(1 - x) ~ u(x), u(0.0) ~ 1.0]
+    eq = Dx(u(x)) ~ 2x
+    bcs = [u(1 - x) + u(x) ~ (1 - x)^2 + x^2]
     domains = [x ∈ Interval(0.0, 1.0)]
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
     chain = Chain(Dense(1, 16, tanh), Dense(16, 16, tanh), Dense(16, 1))
@@ -65,6 +65,5 @@ end
     prob = discretize(pde_system, disc)
     sol = train(prob; adam_iters = 1500, bfgs_iters = 2000)
     xs = 0:0.05:1
-    @test maximum(abs, [sol(xi; dv = u(x)) - cospi(2xi) for xi in xs]) < 0.08
-    @test maximum(abs, [sol(1 - xi; dv = u(x)) - sol(xi; dv = u(x)) for xi in xs]) < 0.05
+    @test maximum(abs, [sol(xi; dv = u(x)) - xi^2 for xi in xs]) < 0.05
 end
