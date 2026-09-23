@@ -111,6 +111,12 @@ end
     @test getp(sprob, smd.blocks[1].xs)(sprob) == X0
 end
 
+@testset "non-copyable rng keeps a live init stream" begin
+    ddisc = PhysicsInformedNN(chain, GridTraining(0.1); rng = RandomDevice())
+    @test ddisc.rng === ddisc.init_rng
+    @test discretize(pde_system, ddisc).u0 != discretize(pde_system, ddisc).u0
+end
+
 @testset "cost weights and quadrature weights" begin
     wprob = discretize(pde_system, disc; weights = [1.0, 10.0, 10.0, 10.0, 10.0])
     costs = [mean(abs2, getu(prob, b.residual)(prob)) for b in md.blocks]

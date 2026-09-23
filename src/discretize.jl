@@ -220,7 +220,7 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
     )
     networks = TrialNetwork[]
     shared_net = nothing
-    init_rng = copy(disc.init_rng)
+    init_rng = _rng_snapshot(disc.init_rng)
     for (i, op) in enumerate(dvs)
         args = get(() -> v.args[op], declared, unwrap(op))
         n_in = length(args)

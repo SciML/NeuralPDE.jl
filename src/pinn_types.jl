@@ -199,7 +199,9 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
   network). Defaults to `Lux.initialparameters` with `rng`.
 * `rng`: the random number generator used for parameter initialization and sampling.
   A copy is stored at construction, so the discretization owns its random stream and
-  never draws from the global `Random.default_rng()` after it is built.
+  never draws from the global `Random.default_rng()` after it is built. A generator
+  without a `copy` method (for example `RandomDevice`) cannot snapshot its state and
+  is used directly.
 * `derivative`: the [`AbstractDerivativeLowering`](@ref) used for `Differential`
   operators. Defaults to [`FiniteDifferenceDerivative`](@ref).
 * `param_estim`: when `true`, the parameters of the `PDESystem` are added to the
@@ -225,7 +227,9 @@ therefore independent of how many times `symbolic_discretize` or `discretize` ha
 called before: `symbolic_discretize(pdesys, disc)` followed by `discretize(pdesys, disc)`
 produces the same initial parameters (`u0`) as `discretize(pdesys, disc)` alone. Pass a
 seeded `rng` (for example `Xoshiro(seed)`) for a fully reproducible run; the collocation
-points are sampled from the same owned `rng` stream, so they are reproducible too.
+points are sampled from the same owned `rng` stream, so they are reproducible too. A
+generator whose state cannot be copied (for example `RandomDevice`) keeps drawing fresh
+parameters on every `discretize` call.
 
 ## Example
 
@@ -274,12 +278,16 @@ function PhysicsInformedNN(
     # Own the RNG: `rng` advances over collocation sampling, `init_rng` stays frozen so
     # that repeated `symbolic_discretize`/`discretize` calls draw the same initial
     # parameters.
-    rng = copy(rng)
+    rng = _rng_snapshot(rng)
     return PhysicsInformedNN(
-        chain, strategy, init_params, rng, copy(rng), derivative, param_estim,
+        chain, strategy, init_params, rng, _rng_snapshot(rng), derivative, param_estim,
         additional_loss, boundary_policy, integral_alg, eval_points
     )
 end
+
+# Streams without a `copy` method (`RandomDevice`, GPU generators, ...) cannot snapshot
+# their state; sampling then keeps drawing from the live generator.
+_rng_snapshot(rng::AbstractRNG) = hasmethod(copy, Tuple{typeof(rng)}) ? copy(rng) : rng
 
 _check_integral_alg(::Nothing) = nothing
 function _check_integral_alg(alg)
