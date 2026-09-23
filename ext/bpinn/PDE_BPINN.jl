@@ -18,10 +18,16 @@ plumbing shared with `ahmc_bayesian_pinn_ode`.
     l2std::Vector{Float64}
     network_fns
     net_lengths::Vector{Int}
+    phynewstd::Vector{Float64}
+    L2_loss2   # `nothing` or `(θ, phynewstd) -> logdensity` data-quadrature term
 end
 
 function LogDensityProblems.logdensity(ltd::PDELogTargetDensity, θ)
-    return physics_loglikelihood(ltd, θ) + priorlogpdf(ltd, θ) + L2LossData(ltd, θ)
+    ll = physics_loglikelihood(ltd, θ) + priorlogpdf(ltd, θ) + L2LossData(ltd, θ)
+    if ltd.L2_loss2 !== nothing
+        ll += ltd.L2_loss2(θ, ltd.phynewstd)
+    end
+    return ll
 end
 
 LogDensityProblems.dimension(ltd::PDELogTargetDensity) = ltd.dim
@@ -85,6 +91,203 @@ end
 end
 
 _net_offsets(lengths) = cumsum(vcat(0, lengths))
+
+"""
+Scalar network evaluation at a coordinate vector `X` (length = input dim).
+"""
+function _scalar_nn(Φ, θ, X::AbstractVector)
+    return only(Φ(reshape(X, length(X), 1), θ))
+end
+
+"""
+Central finite-difference ∂ⁿ/∂x_dimⁿ of the network at `X`. Uses primal steps in `X` so
+the outer AdvancedHMC `ForwardDiff` seed on `θ` still propagates through `Φ`.
+"""
+function _nth_partial_fd(Φ, θ, X::AbstractVector, dim::Int, n::Int; ε = 1.0e-4)
+    n == 0 && return _scalar_nn(Φ, θ, X)
+    Xp = copy(X)
+    Xm = copy(X)
+    Xp[dim] += ε
+    Xm[dim] -= ε
+    if n == 1
+        return (_scalar_nn(Φ, θ, Xp) - _scalar_nn(Φ, θ, Xm)) / (2ε)
+    end
+    return (
+        _nth_partial_fd(Φ, θ, Xp, dim, n - 1; ε = ε) -
+            _nth_partial_fd(Φ, θ, Xm, dim, n - 1; ε = ε)
+    ) / (2ε)
+end
+
+"""
+Parse a Differential(...) tree into `(depvar_operation, Dict(iv => order))`.
+"""
+function _diff_spec(diff_term)
+    orders = Dict{Any, Int}()
+    t = unwrap(diff_term)
+    while iscall(t) && operation(t) isa ModelingToolkit.Differential
+        iv = unwrap(operation(t).x)
+        orders[iv] = get(orders, iv, 0) + 1
+        t = only(arguments(t))
+    end
+    iscall(t) || error("Dict_differentials term does not wrap a dependent variable: $diff_term")
+    return operation(t), orders
+end
+
+"""
+Find callable depvar terms `u(x,t)` in equations whose operation name matches `depvars`.
+"""
+function _depvar_call_map(eqs, depvars)
+    depvar_set = Set(Symbol(d) for d in depvars)
+    found = Dict{Symbol, Any}()
+    function _search(term)
+        t = SymbolicUtils.unwrap(term)
+        if SymbolicUtils.iscall(t)
+            op = SymbolicUtils.operation(t)
+            if !(op isa ModelingToolkit.Differential) && !SymbolicUtils.iscall(op)
+                name = Symbol(op)
+                if name in depvar_set && !haskey(found, name)
+                    found[name] = t
+                end
+            end
+            for arg in SymbolicUtils.arguments(t)
+                _search(arg)
+            end
+        end
+        return nothing
+    end
+    for eq in eqs
+        _search(eq.lhs)
+        _search(eq.rhs)
+    end
+    return found
+end
+
+function _as_float(x)
+    x = unwrap(x)
+    if x isa Number
+        return float(x)
+    elseif SymbolicUtils.isconst(x)
+        return float(SymbolicUtils.unwrap_const(x))
+    else
+        return float(Symbolics.value(x))
+    end
+end
+
+"""
+Build the NeuralPDE 6 data-quadrature / operator-masking likelihood.
+
+At each observational row the undifferentiated dependent variables are pinned to the
+observed values (via `Dict_differentials` masking), while Differential terms are
+evaluated from the trial network by batched central finite differences. Each PDE
+residual at each data point is a `Normal(0, phynewstd[eq])` likelihood contribution.
+"""
+function build_data_quadrature(
+        pde_system, Dict_differentials, dataset, network_fns, net_lengths, md
+    )
+    eqs = ModelingToolkit.get_eqs(pde_system)
+    depvars = ModelingToolkit.get_dvs(pde_system)
+    depvar_syms = [Symbol(operation(unwrap(dv))) for dv in depvars]
+    ivs = collect(get_ivs(pde_system))
+    iv_index = Dict(unwrap(iv) => i for (i, iv) in enumerate(ivs))
+    ps = collect(md.ps)
+    ninv = length(ps)
+    offsets = _net_offsets(net_lengths)
+
+    diff_specs = Dict{Any, Any}()
+    for (diff_term, placeholder) in Dict_differentials
+        dep_op, orders = _diff_spec(diff_term)
+        diff_specs[unwrap(placeholder)] = (dep_op, orders)
+    end
+
+    eqs_masked = [SymbolicUtils.substitute(eq, Dict_differentials) for eq in eqs]
+    call_map = _depvar_call_map(eqs, depvar_syms)
+
+    n_rows = size(dataset[1], 1)
+    depvar_vals = Dict(depvar_syms[i] => dataset[i][:, 1] for i in eachindex(depvar_syms))
+    # `d × n` collocation matrix of independent-variable coordinates.
+    coords = Matrix(transpose(dataset[1][:, 2:end]))
+
+    nets = unique_networks(md.networks)
+    net_of = Dict{Any, Int}()
+    for (i, net) in enumerate(nets)
+        op = unwrap(net.depvar)
+        net_of[op] = i
+        net_of[Symbol(op)] = i
+    end
+
+    function _net_index(dep_op)
+        return get(net_of, unwrap(dep_op)) do
+            get(net_of, Symbol(unwrap(dep_op))) do
+                error("No trial network for dependent variable $dep_op")
+            end
+        end
+    end
+
+    function _batched_nth(eval_at, Xbatch, dim::Int, n::Int; ε = 1.0e-3)
+        n == 0 && return eval_at(Xbatch)
+        Xp = copy(Xbatch)
+        Xm = copy(Xbatch)
+        @views Xp[dim, :] .+= ε
+        @views Xm[dim, :] .-= ε
+        if n == 1
+            return (eval_at(Xp) .- eval_at(Xm)) ./ (2ε)
+        end
+        return (
+            _batched_nth(eval_at, Xp, dim, n - 1; ε = ε) .-
+                _batched_nth(eval_at, Xm, dim, n - 1; ε = ε)
+        ) ./ (2ε)
+    end
+
+    # Compile numeric residual evaluators: residual(diff_vals..., u_vals..., params...)
+    placeholder_syms = collect(keys(diff_specs))
+    u_syms = [call_map[name] for name in depvar_syms if haskey(call_map, name)]
+    u_names = [name for name in depvar_syms if haskey(call_map, name)]
+    param_syms = [unwrap(p) for p in ps]
+    residual_fns = map(eqs_masked) do eqm
+        expr = eqm.lhs - eqm.rhs
+        args = (placeholder_syms..., u_syms..., param_syms...)
+        return Symbolics.build_function(expr, args...; expression = Val{false})
+    end
+
+    function L2_loss2(θ, phynewstd)
+        T = eltype(θ)
+        ll = zero(T)
+        nnθ = view(θ, 1:(length(θ) - ninv))
+        pvals = ntuple(j -> θ[end - ninv + j], ninv)
+        Xbatch = T.(coords)
+
+        diff_batches = Dict{Any, Any}()
+        for (placeholder, (dep_op, orders)) in diff_specs
+            ni = _net_index(dep_op)
+            Φ = network_fns[ni]
+            θi = nnθ[(offsets[ni] + 1):offsets[ni + 1]]
+            eval_at = X -> vec(Φ(X, θi))
+            f = eval_at
+            for (iv, ord) in orders
+                dim = iv_index[unwrap(iv)]
+                f_prev = f
+                f = let f_prev = f_prev, dim = dim, ord = ord
+                    X -> _batched_nth(f_prev, X, dim, ord)
+                end
+            end
+            diff_batches[placeholder] = f(Xbatch)
+        end
+        diff_mat = ntuple(i -> diff_batches[placeholder_syms[i]], length(placeholder_syms))
+
+        for j in 1:n_rows
+            dvals = ntuple(i -> diff_mat[i][j], length(placeholder_syms))
+            uvals = ntuple(i -> T(depvar_vals[u_names[i]][j]), length(u_names))
+            for (eq_i, rfn) in enumerate(residual_fns)
+                r = rfn(dvals..., uvals..., pvals...)
+                σ = phynewstd[min(eq_i, length(phynewstd))]
+                ll += logpdf(Distributions.Normal(zero(T), T(σ)), T(r))
+            end
+        end
+        return ll
+    end
+
+    return L2_loss2
+end
 
 function _block_stds(blocks, phystd, bcstd)
     pde_i = 0
@@ -224,6 +427,12 @@ and, when `param_estim = true`, the estimated PDE parameters in `param`.
 * `bcstd`: noise std of each boundary-condition residual batch.
 * `phystd`: noise std of each PDE residual batch.
 * `l2std`: noise std of the observational L2 likelihood (inverse problems).
+* `phynewstd`: noise std of the data-quadrature / operator-masking likelihood built
+  from `Dict_differentials` (ignored when that keyword is `nothing`).
+* `Dict_differentials`: optional `Dict` mapping Differential trees in the PDE to
+  placeholder symbols; enables the NeuralPDE 6 data-quadrature likelihood that pins
+  undifferentiated dependent variables to observations while evaluating derivatives
+  from the trial network.
 * `priorsNNw`: `(mean, std)` of the isotropic Normal prior on network weights.
 * `param`: prior distributions of estimated PDE parameters (`param_estim = true`).
 * `nchains`: number of MCMC chains.
@@ -249,14 +458,6 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         numensemble = floor(Int, draw_samples / 3), Dict_differentials = nothing,
         pretrain_iters::Int = 500, progress = false, verbose = false
     )
-    if Dict_differentials !== nothing
-        @warn """
-        `Dict_differentials` (data-quadrature / operator-masking likelihood) is not
-        reconstructed on the NeuralPDE 7 Systems pipeline yet; sampling proceeds with
-        physics, boundary, prior and L2-data terms only. `phynewstd` is ignored.
-        """
-    end
-
     pinn = discretization isa BayesianPINN ? discretization.pinn : discretization
     dataset_pde, dataset_bc = if discretization isa BayesianPINN
         discretization.dataset
@@ -296,26 +497,10 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
             Float64[Distributions.params(param[i])[1] for i in 1:ninv]
     end
 
-    # Short MAP warmstart: the residual likelihood with small `phystd`/`bcstd` is
-    # extremely peaked, so AdvancedHMC from a cold Lux init mixes poorly within the
-    # sample budgets of the NeuralPDE 6 tests. Optimizing the System objective first
-    # places the chain near the posterior mode without changing the log-density.
-    if pretrain_iters > 0
-        train_prob = remake(prob; u0 = initial_θ)
-        tres = SciMLBase.solve(
-            train_prob, OptimizationOptimisers.Adam(0.01); maxiters = pretrain_iters
-        )
-        θ_opt = hasproperty(tres, :original_sol) ? tres.original_sol.u : tres.u
-        initial_θ = collect(Float64, θ_opt)
-        if verbose
-            obj = hasproperty(tres, :original_sol) ? tres.original_sol.objective : tres.objective
-            @printf("Pretrain objective after %d Adam steps: %g\n", pretrain_iters, obj)
-        end
-    end
-
     stds = _block_stds(md.blocks, Float64.(phystd), Float64.(bcstd))
     residual_syms = Any[b.residual for b in md.blocks]
     l2std_f = Float64.(l2std)
+    phynewstd_f = Float64.(phynewstd)
 
     priors = Distribution[
         MvNormal(
@@ -332,10 +517,38 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         return (X, θ) -> wrapper(X, θ)
     end
 
+    L2_loss2 = if Dict_differentials === nothing
+        nothing
+    else
+        dataset_pde === nothing && error(
+            "`Dict_differentials` requires a PDE observational dataset on `BayesianPINN`"
+        )
+        build_data_quadrature(
+            pde_system, Dict_differentials, dataset_pde, network_fns, net_lengths, md
+        )
+    end
+
     ℓπ = PDELogTargetDensity(
         nparameters, prob, residual_syms, stds, priors, ninv, dataset, l2std_f,
-        network_fns, net_lengths
+        network_fns, net_lengths, phynewstd_f, L2_loss2
     )
+
+    # Short MAP warmstart: the residual likelihood with small `phystd`/`bcstd` is
+    # extremely peaked, so AdvancedHMC from a cold Lux init mixes poorly within the
+    # sample budgets of the NeuralPDE 6 tests. Optimizing the System objective first
+    # places the chain near the posterior mode without changing the log-density.
+    if pretrain_iters > 0
+        train_prob = remake(prob; u0 = initial_θ)
+        tres = SciMLBase.solve(
+            train_prob, OptimizationOptimisers.Adam(0.01); maxiters = pretrain_iters
+        )
+        θ_opt = hasproperty(tres, :original_sol) ? tres.original_sol.u : tres.u
+        initial_θ = collect(Float64, θ_opt)
+        if verbose
+            obj = hasproperty(tres, :original_sol) ? tres.original_sol.objective : tres.objective
+            @printf("Pretrain objective after %d Adam steps: %g\n", pretrain_iters, obj)
+        end
+    end
 
     @assert nchains ≥ 1 "number of chains must be greater than or equal to 1"
 
