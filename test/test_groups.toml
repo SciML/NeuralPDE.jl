@@ -25,6 +25,9 @@ versions = ["1.11", "lts"]
 [NNPDE2]
 versions = ["1.11", "lts"]
 
+[AdaptiveLoss]
+versions = ["1.11", "lts"]
+
 [DGM]
 versions = ["1.11", "lts"]
 
