@@ -47,6 +47,36 @@ as the other SciML discretizers (for example MethodOfLines.jl):
    networks: `sol[u(x, t)]` on the evaluation grid, `sol(x, t; dv = u(x, t))` at arbitrary
    points, and `sol.original_sol` for the underlying `OptimizationSolution`.
 
+## Spatial derivatives with Enzyme
+
+Select `derivative = EnzymeForwardDerivative()` when constructing
+`PhysicsInformedNN` to evaluate spatial derivatives with Enzyme forward mode:
+
+```julia
+disc = PhysicsInformedNN(chain, GridTraining(0.1);
+    derivative = EnzymeForwardDerivative(), rng = Xoshiro(1))
+prob = discretize(pde_system, disc; adtype = AutoEnzyme())
+```
+
+This choice controls differentiation with respect to network inputs. The separate
+`adtype` controls differentiation of the training objective with respect to network
+weights. Both `AutoEnzyme()` and `AutoZygote()` can differentiate the spatial JVPs;
+the Zygote path uses a ChainRules pullback evaluated by Enzyme reverse mode.
+
+Pure derivatives of orders one through four and mixed derivatives of total order
+at most four use nested forward-over-forward differentiation. Each level seeds
+the requested input coordinate across all collocation columns. This avoids
+constructing a full Jacobian and uses no finite-difference step size. Nesting
+also allows different coordinate directions at successive levels. Higher orders
+increase compilation and evaluation costs, so benchmark the backend on your network.
+
+Apply `Differential` operators to dependent-variable calls whose arguments are
+independent variables or numeric literals; derivative boundary conditions such as
+`Differential(x)(u(1.0))` are supported. Networks must process columns independently
+and support Enzyme. Derivatives of composite expressions or transformed network
+arguments are not supported by this backend; write the product or chain rule
+explicitly in the PDE. `FiniteDifferenceDerivative()` remains the default.
+
 ## Integral terms
 
 `Symbolics.Integral` terms are supported: they lower to a fixed-node quadrature over
@@ -78,6 +108,7 @@ expression (Reactant compatible); it defaults to `Integrals.GaussLegendre`, inhe
 ```@docs
 NeuralPDE.PhysicsInformedNN
 NeuralPDE.FiniteDifferenceDerivative
+NeuralPDE.EnzymeForwardDerivative
 SciMLBase.discretize(::PDESystem, ::NeuralPDE.PhysicsInformedNN)
 NeuralPDE.default_adtype
 ```
@@ -92,6 +123,7 @@ NeuralPDE.TrialNetwork
 NeuralPDE.ResidualBlock
 NeuralPDE.nn_eval
 NeuralPDE.nn_eval_row
+NeuralPDE.nn_jvp
 NeuralPDE.nn_vcat
 NeuralPDE.nn_veccat
 NeuralPDE.quadrature
