@@ -306,13 +306,10 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         append!(priors, param)
     end
 
-    network_fns = Function[
-        begin
-            wrapper = getdefault(net.NN)
-            (X, θ) -> wrapper(X, θ)
-        end
-            for net in nets
-    ]
+    network_fns = map(nets) do net
+        wrapper = getdefault(net.NN)
+        return (X, θ) -> wrapper(X, θ)
+    end
 
     ℓπ = PDELogTargetDensity(
         nparameters, prob, residual_syms, stds, priors, ninv, dataset, l2std,
