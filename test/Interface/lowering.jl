@@ -36,10 +36,10 @@ apply = getdefault(net.NN)
     loss_disc = PhysicsInformedNN(
         chain, GridTraining(0.5); rng = Xoshiro(4), additional_loss = function (phi, θ, p)
             out = phi.u([0.5 0.25; 0.5 0.25], θ.u)
-            v = similar(out, 2)
-            v[1] = out[1]
-            v[2] = out[2]
-            return sum(abs2, v)
+            buf = similar(out, 2)
+            buf[1] = out[1]
+            buf[2] = out[2]
+            return sum(abs2, buf)
         end
     )
     loss_prob = discretize(pde_system, loss_disc)
