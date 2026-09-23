@@ -31,7 +31,7 @@ using Test
     discretization = BayesianPINN([chain], GridTraining([0.01]))
     @test discretization.chain[1] isa Lux.AbstractLuxLayer
 
-    @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
+    @named pde_system = PDESystem(eq, bcs, domains, [θ], [u(θ)])
 
     sol = ahmc_bayesian_pinn_pde(
         pde_system, discretization; draw_samples = 500,

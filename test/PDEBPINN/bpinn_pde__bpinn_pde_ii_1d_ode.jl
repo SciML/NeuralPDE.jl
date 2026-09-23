@@ -32,7 +32,7 @@ using Test
 
     discretization = BayesianPINN([chain], GridTraining([0.01]))
 
-    @named pde_system = PDESystem(eq, bcs, domains, [θ], [u])
+    @named pde_system = PDESystem(eq, bcs, domains, [θ], [u(θ)])
 
     sol1 = ahmc_bayesian_pinn_pde(
         pde_system, discretization; draw_samples = 500, bcstd = [0.1],
