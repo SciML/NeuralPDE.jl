@@ -29,6 +29,7 @@ using SymbolicIndexingInterface: getu
 using SymbolicUtils: SymbolicUtils
 using Symbolics: Symbolics, unwrap, iscall, operation, arguments
 using ModelingToolkitBase: get_ivs, get_domain, getdefault
+using OptimizationOptimisers: OptimizationOptimisers
 using ModelingToolkit: ModelingToolkit
 
 include("bpinn/advancedHMC_MCMC.jl")

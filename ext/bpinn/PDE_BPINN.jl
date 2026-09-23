@@ -230,6 +230,9 @@ and, when `param_estim = true`, the estimated PDE parameters in `param`.
 * `Kernel`, `Adaptorkwargs`, `Integratorkwargs`: AdvancedHMC sampling controls.
 * `saveats`: grid spacing per independent variable for the ensemble solution.
 * `numensemble`: trailing samples used for the ensemble / parameter estimates.
+* `pretrain_iters`: number of Adam steps on the `OptimizationProblem` objective used to
+  warm-start the MCMC chain (default `500`). Set to `0` to sample from the Lux
+  initialization directly.
 * `progress`, `verbose`: AdvancedHMC verbosity.
 
 Returns a [`BPINNsolution`](@ref) (or a vector of them when `nchains > 1`).
@@ -244,7 +247,7 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         ),
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
         numensemble = floor(Int, draw_samples / 3), Dict_differentials = nothing,
-        progress = false, verbose = false
+        pretrain_iters::Int = 500, progress = false, verbose = false
     )
     if Dict_differentials !== nothing
         @warn """
@@ -291,6 +294,23 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
     if ninv > 0
         initial_θ[(end - ninv + 1):end] .=
             Float64[Distributions.params(param[i])[1] for i in 1:ninv]
+    end
+
+    # Short MAP warmstart: the residual likelihood with small `phystd`/`bcstd` is
+    # extremely peaked, so AdvancedHMC from a cold Lux init mixes poorly within the
+    # sample budgets of the NeuralPDE 6 tests. Optimizing the System objective first
+    # places the chain near the posterior mode without changing the log-density.
+    if pretrain_iters > 0
+        train_prob = remake(prob; u0 = initial_θ)
+        tres = SciMLBase.solve(
+            train_prob, OptimizationOptimisers.Adam(0.01); maxiters = pretrain_iters
+        )
+        θ_opt = hasproperty(tres, :original_sol) ? tres.original_sol.u : tres.u
+        initial_θ = collect(Float64, θ_opt)
+        if verbose
+            obj = hasproperty(tres, :original_sol) ? tres.original_sol.objective : tres.objective
+            @printf("Pretrain objective after %d Adam steps: %g\n", pretrain_iters, obj)
+        end
     end
 
     stds = _block_stds(md.blocks, phystd, bcstd)
