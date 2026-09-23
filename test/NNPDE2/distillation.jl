@@ -115,5 +115,10 @@ end
         )
         two_out = Chain(Dense(2, 4, tanh), Dense(4, 2))
         @test_throws ArgumentError distill(teacher, two_out; npoints = 10, rng = Xoshiro(6))
+        selective = distill(teacher, other_chain; dvs = u(x, y), npoints = 10, rng = Xoshiro(6))
+        @test selective isa OptimizationProblem
+        Xs = hcat([[x, y] for x in 0.0:0.5:1.0 for y in 0.0:0.5:1.0]...)
+        explicit = distill(teacher, other_chain; points = Xs, rng = Xoshiro(6))
+        @test explicit isa OptimizationProblem
     end
 end
