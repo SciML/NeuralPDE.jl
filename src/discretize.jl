@@ -24,6 +24,20 @@ metadata under `ModelingToolkitBase.ProblemTypeCtx`.
 SciMLBase.symbolic_discretize(::PDESystem, ::PhysicsInformedNN)
 
 """
+    symbolic_discretize(pdesys::PDESystem, discretization::BayesianPINN)
+
+Forward to the underlying [`PhysicsInformedNN`](@ref). Bayesian sampling is performed
+by [`ahmc_bayesian_pinn_pde`](@ref) on the same residual `System`.
+"""
+function SciMLBase.symbolic_discretize(pdesys::PDESystem, disc::BayesianPINN)
+    return symbolic_discretize(pdesys, disc.pinn)
+end
+
+function SciMLBase.discretize(pdesys::PDESystem, disc::BayesianPINN; kwargs...)
+    return discretize(pdesys, disc.pinn; kwargs...)
+end
+
+"""
     CollocationSpace
 
 The discrete space of a `PhysicsInformedNN` discretization: the variable map of the

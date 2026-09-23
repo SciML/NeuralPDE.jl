@@ -133,11 +133,11 @@ include("precompilation.jl")
 
 export PINOODE
 export NNODE, NNDAE
-export BNNODE, ahmc_bayesian_pinn_ode
+export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
 export NNSDE
 export SDEPINN
-export PhysicsInformedNN, FiniteDifferenceDerivative
-export BPINNsolution
+export PhysicsInformedNN, BayesianPINN, FiniteDifferenceDerivative
+export BPINNstats, BPINNsolution
 export DeepGalerkin
 
 export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,

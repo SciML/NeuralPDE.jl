@@ -172,3 +172,65 @@ Bayesian inference of an ODE problem via NUTS / HMC sampling. Implemented in the
 See the extension method for the full keyword argument documentation.
 """
 function ahmc_bayesian_pinn_ode end
+
+"""
+    BayesianPINN(chain, strategy; dataset = nothing, kwargs...)
+
+A [`PhysicsInformedNN`](@ref) discretization whose lowered `System` costs are interpreted
+as Gaussian likelihood terms for AdvancedHMC posterior sampling of the network
+parameters (and of estimated PDE parameters when `param_estim = true`).
+
+`BayesianPINN` is a thin wrapper around [`PhysicsInformedNN`](@ref): all positional and
+keyword arguments are forwarded except `dataset`, which stores optional observational
+data for inverse problems. Prefer this type over adding Bayesian-only keywords to
+`PhysicsInformedNN`, so the optimization and Bayesian paths stay distinct while sharing
+the same residual lowering.
+
+## Keyword Arguments
+
+* `dataset`: `nothing` (forward problems) or a pair
+  `(dataset_pde, dataset_bc)` where each entry is `nothing` or a vector of matrices.
+  Matrix `i` has the observed values of the `i`-th dependent variable in column 1 and
+  the corresponding independent-variable coordinates in the remaining columns.
+  Required when `param_estim = true`.
+
+Other keyword arguments match [`PhysicsInformedNN`](@ref).
+
+!!! note
+
+    `ahmc_bayesian_pinn_pde` requires `AdvancedHMC`, `MCMCChains`, and
+    `LogDensityProblems` to be loaded before it can be used.
+"""
+@concrete struct BayesianPINN <: PDEBase.AbstractOptimizationSystemDiscretization
+    pinn <: PhysicsInformedNN
+    dataset
+end
+
+function Base.getproperty(bpinn::BayesianPINN, name::Symbol)
+    name === :dataset && return getfield(bpinn, :dataset)
+    name === :pinn && return getfield(bpinn, :pinn)
+    return getproperty(getfield(bpinn, :pinn), name)
+end
+
+function Base.propertynames(bpinn::BayesianPINN)
+    return (fieldnames(BayesianPINN)..., propertynames(bpinn.pinn)...)
+end
+
+function BayesianPINN(args...; dataset = nothing, kwargs...)
+    dataset === nothing && (dataset = (nothing, nothing))
+    return BayesianPINN(PhysicsInformedNN(args...; kwargs...), dataset)
+end
+
+PDEBase.get_time(::BayesianPINN) = nothing
+
+"""
+    ahmc_bayesian_pinn_pde(pde_system, discretization; kwargs...)
+
+Bayesian inference of a `PDESystem` via NUTS / HMC sampling on the NeuralPDE 7
+`System` produced by `symbolic_discretize`. Implemented in the `NeuralPDEBPINNExt`
+package extension. Load `AdvancedHMC`, `MCMCChains` and `LogDensityProblems` to enable
+it.
+
+See the extension method for the full keyword argument documentation.
+"""
+function ahmc_bayesian_pinn_pde end

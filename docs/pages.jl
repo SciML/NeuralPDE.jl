@@ -11,6 +11,7 @@ pages = [
     ],
     "PDE PINN Tutorials" => Any[
         "Introduction to NeuralPDE for PDEs" => "tutorials/pdesystem.md",
+        "Bayesian PINNs for PDEs" => "tutorials/bpinn_pde.md",
         "Using GPUs" => "tutorials/gpu.md",
         "Defining Systems of PDEs" => "tutorials/systems.md",
         "Imposing Constraints" => "tutorials/constraints.md",
