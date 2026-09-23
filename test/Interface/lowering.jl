@@ -20,6 +20,29 @@ net = only(md.networks)
 apply = getdefault(net.NN)
 θ = prob.u0
 
+@testset "default AD for objective paths" begin
+    @test prob.f.adtype isa (Sys.WORD_SIZE == 32 ? AutoZygote : AutoEnzyme)
+    dgm_disc = DeepGalerkin(
+        2, 1, 4, 1, tanh, tanh, identity, GridTraining(0.5); rng = Xoshiro(2)
+    )
+    @test discretize(pde_system, dgm_disc).f.adtype isa AutoZygote
+    loss_disc = PhysicsInformedNN(
+        chain, GridTraining(0.5); additional_loss = (phi, θ, p) -> 0.0
+    )
+    @test discretize(pde_system, loss_disc).f.adtype isa AutoZygote
+    @parameters s τ
+    @variables v(..)
+    integral = Integral(τ in Interval(0.0, s))
+    @named integral_sys = PDESystem(
+        integral(v(τ)) ~ s^2 / 2, [v(0.0) ~ 0.0],
+        [s ∈ Interval(0.0, 1.0)], [s], [v(s)]
+    )
+    integral_disc = PhysicsInformedNN(
+        Chain(Dense(1, 1)), GridTraining(0.5); rng = Xoshiro(3)
+    )
+    @test discretize(integral_sys, integral_disc).f.adtype isa AutoZygote
+end
+
 @testset "lowered residual matches a manual finite-difference computation" begin
     block = md.blocks[1]
     X = getp(prob, block.xs)(prob)

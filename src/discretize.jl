@@ -77,7 +77,7 @@ function _domain_bounds(pdesys)
         vars = iscall(vars) && operation(vars) === tuple ? arguments(vars) : (vars,)
         for v in vars
             bounds[unwrap(v)] = (
-                DomainSets.infimum(d.domain), DomainSets.supremum(d.domain)
+                DomainSets.infimum(d.domain), DomainSets.supremum(d.domain),
             )
         end
     end
@@ -350,11 +350,12 @@ a weighted sum. Parameters of the `PDESystem` without a value in
 value` pairs.
 """
 function SciMLBase.discretize(
-        pdesys::PDESystem, disc::PhysicsInformedNN; adtype = default_adtype(), p = (),
+        pdesys::PDESystem, disc::PhysicsInformedNN; adtype = nothing, p = (),
         kwargs...
     )
     sys = symbolic_discretize(pdesys, disc)
     md = pinn_metadata(sys)
+    adtype = isnothing(adtype) ? default_adtype(md) : adtype
     csys = complete(sys)
     PDEBase.add_metadata!(md, csys)
     op = operating_point(md, disc.rng)
@@ -362,6 +363,17 @@ function SciMLBase.discretize(
         op[k] = val
     end
     return OptimizationProblem(csys, op; adtype, u0_eltype = _param_eltype(disc), kwargs...)
+end
+
+function default_adtype(md::PINNMetadata)
+    disc = md.disc
+    chain = disc.chain
+    has_dgm = chain isa AbstractArray ? any(c -> c isa DGM, chain) : chain isa DGM
+    if Sys.WORD_SIZE == 32 || has_dgm || disc.additional_loss !== nothing ||
+            any(b -> !isempty(b.extra_params), md.blocks)
+        return AutoZygote()
+    end
+    return default_adtype()
 end
 
 """

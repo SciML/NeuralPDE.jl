@@ -155,19 +155,25 @@ end
 
 """
     default_adtype()
+    default_adtype(md::PINNMetadata)
 
-The automatic differentiation backend `discretize` uses unless `adtype` is given:
-`AutoReactant()` when OptimizationReactant.jl is loaded in the session
-(`using OptimizationReactant`), which compiles the objective, gradient and
-value-and-gradient evaluation through Reactant and differentiates them with Enzyme
-inside the compiled program, and `AutoEnzyme()` otherwise (reverse mode, static
-activity analysis). The generated objective passes static activity analysis, so
-runtime activity is not needed; under `Enzyme.set_runtime_activity` the reverse
-pass through an `additional_loss` closure was observed to overwrite arrays the
-closure captures. `AutoZygote()` is the recommended fallback for `additional_loss`
-closures that mutate captured state, and remains selectable through `adtype`.
+The automatic differentiation backend `discretize` uses unless `adtype` is given.
+For a plain generated PDE objective on 64-bit Julia, this is `AutoReactant()` when
+OptimizationReactant.jl is loaded (`using OptimizationReactant`), and `AutoEnzyme()`
+otherwise. `AutoReactant()` compiles the objective and gradient through Reactant;
+`AutoEnzyme()` uses reverse mode with static activity analysis.
+
+`default_adtype(md)` selects `AutoZygote()` for a DGM network or an
+`additional_loss` callback because their objectives trigger Enzyme runtime-activity
+errors, and for lowered `Integral` terms because their quadrature objective triggers
+Enzyme illegal-type analysis. On 32-bit Julia it also selects `AutoZygote()` because
+the default Enzyme path reaches an LLVM.jl debug-location conversion error. This
+32-bit fallback does not change an explicit `AutoEnzyme()` choice. Enzyme runtime
+activity has also been observed to overwrite arrays captured by an `additional_loss`
+callback. An explicit `adtype` passed to `discretize` always takes precedence.
 """
 function default_adtype()
+    Sys.WORD_SIZE == 32 && return AutoZygote()
     if Base.get_extension(@__MODULE__, :NeuralPDEOptimizationReactantExt) === nothing
         return AutoEnzyme()
     end

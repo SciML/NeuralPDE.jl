@@ -124,8 +124,9 @@ sys = symbolic_discretize(pde_system, discretization)
 prob = discretize(pde_system, discretization)
 ```
 
-The objective is differentiated with Enzyme by default, or with a Reactant-compiled
-Enzyme gradient when OptimizationReactant.jl is loaded (see [`default_adtype`](@ref));
+On 64-bit Julia, this plain Poisson objective is differentiated with Enzyme by default,
+or with a Reactant-compiled Enzyme gradient when OptimizationReactant.jl is loaded
+(see [`default_adtype`](@ref));
 `discretize(pde_system, discretization; adtype = AutoForwardDiff())` selects another
 backend explicitly, and the section below compiles the objective and its Enzyme gradient
 with Reactant by hand. Now we can solve the PDE
