@@ -1,11 +1,11 @@
 module NeuralPDE
 
-using ADTypes: ADTypes, AutoEnzyme, AutoForwardDiff, AutoZygote
+using ADTypes: ADTypes, AutoEnzyme, AutoForwardDiff, AutoReactant, AutoZygote
 using Adapt: Adapt
 using ArrayInterface: ArrayInterface
 using ChainRulesCore: ChainRulesCore, @ignore_derivatives
 using Cubature: Cubature
-using ComponentArrays: ComponentArrays, ComponentArray, getdata
+using ComponentArrays: ComponentArrays, ComponentArray, getaxes, getdata
 using ConcreteStructs: @concrete
 using DomainSets: DomainSets
 using Enzyme: Enzyme
@@ -43,8 +43,8 @@ using Zygote: Zygote
 # Symbolic Stuff
 using ModelingToolkit: ModelingToolkit
 using ModelingToolkitBase: ModelingToolkitBase, @mtkcompile, @named, @parameters, complete,
-    PDESystem, ProblemTypeCtx, System, get_bcs, get_dvs, get_ivs, get_ps,
-    getdefault, initial_conditions, mtkcompile, setdefault, tovar, unknowns
+    PDESystem, ProblemTypeCtx, System, get_bcs, get_domain, get_dvs, get_eqs, get_ivs,
+    get_ps, getdefault, initial_conditions, mtkcompile, setdefault, tovar, unknowns
 using Symbolics: Symbolics, Differential, Equation, Integral, arguments, iscall, Num, operation,
     wrap, @register_symbolic, @variables
 using SymbolicUtils: SymbolicUtils, getmetadata, unwrap
@@ -114,10 +114,14 @@ const cdev = CPUDevice()
 include("eltype_matching.jl")
 
 include("pinn_types.jl")
+include("array_arguments.jl")
 include("training_strategies.jl")
 include("pinn_lowering.jl")
+include("enzyme_derivative.jl")
+include("integral_lowering.jl")
 include("discretize.jl")
 include("pde_solution.jl")
+include("distill.jl")
 
 include("ode_solve.jl")
 include("dae_solve.jl")
@@ -136,7 +140,7 @@ export NNODE, NNDAE
 export BNNODE, ahmc_bayesian_pinn_ode
 export NNSDE
 export SDEPINN
-export PhysicsInformedNN, FiniteDifferenceDerivative
+export PhysicsInformedNN, FiniteDifferenceDerivative, EnzymeForwardDerivative
 export BPINNsolution
 export DeepGalerkin
 
@@ -144,7 +148,7 @@ export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
     WeightedIntervalTraining
 
 export get_loss_function, vector_to_parameters
-export pinn_metadata, resample!
+export pinn_metadata, resample!, distill
 
 export SciMLBase, DAEProblem, NoiseProblem, ODEFunction, ODEInputFunction, ODEProblem,
     ODESolution, OptimizationFunction, OptimizationProblem, PDENoTimeSolution,
@@ -154,8 +158,9 @@ export ModelingToolkit, Differential, Integral, PDESystem, mtkcompile, unknowns,
     @mtkcompile, @named, @parameters, @register_symbolic, @variables
 
 @public AbstractDerivativeLowering, PINNMetadata, ResidualBlock, TrialNetwork,
-    AdditionalLoss, nn_eval, nn_eval_row, default_adtype, lower, lower_derivative,
-    trial_function,
+    AdditionalLoss, nn_eval, nn_eval_row, nn_jvp, nn_vcat, nn_veccat, quadrature,
+    QuadratureIntegrand,
+    default_adtype, lower, lower_derivative, trial_function,
     collocation_count, sample_points, resamples, uses_quadrature_weights
 
 end # module

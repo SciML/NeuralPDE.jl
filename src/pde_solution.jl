@@ -10,7 +10,11 @@ end
 Wrap the trained network parameters into a `PDENoTimeSolution`. `sol[u(x, t)]` evaluates
 the trial function of `u` on the tensor product of the evaluation grids of its arguments
 (`sol[x]` returns the grid of `x`), and `sol(x, t; dv = u(x, t))` evaluates it at
-arbitrary points. `sol.original_sol` is the underlying `OptimizationSolution`.
+arbitrary points. For an array argument, `u(t, x)` with `x` of length `d`, the network
+input is the packed vector `[t; vec(x)]`: `sol[u(t, x)]` is the tensor product of the
+component grids (shape `(n_t, n_x₁, …, n_x_d)`), and `sol(t, xvec; dv = u(t, x))`
+evaluates one scalar `t` and one length-`d` vector `xvec`. `sol.original_sol` is the
+underlying `OptimizationSolution`.
 """
 function SciMLBase.PDENoTimeSolution(
         sol::SciMLBase.AbstractOptimizationSolution, md::PINNMetadata
@@ -29,6 +33,10 @@ function SciMLBase.PDENoTimeSolution(
         grids = [ivgrid[findfirst(y -> isequal(unwrap(y), unwrap(x)), ivs)] for x in net.args]
         X = _product_matrix(grids)
         umap[dv] = reshape(vec(f(X)), length.(grids)...)
+        if net.original !== nothing
+            interp[net.original] = f
+            umap[net.original] = umap[dv]
+        end
     end
     return SciMLBase.PDENoTimeSolution{
         T, length(dvs), typeof(umap), typeof(md), typeof(sol), typeof(ivgrid),
@@ -54,7 +62,27 @@ function trial_function(net::TrialNetwork, θ)
     return f
 end
 
+function _matching_network(sol, dv)
+    target = unwrap(dv)
+    for net in sol.disc_data.networks
+        net.original === nothing && continue
+        isequal(unwrap(net.original), target) && return net
+    end
+    return nothing
+end
+
 function _pinn_call(sol, args...; dv = nothing)
+    if dv !== nothing
+        net = _matching_network(sol, dv)
+        if net !== nothing && _is_grouped_call(net.groups, args)
+            return _eval_grouped(sol.interp[net.original], net.groups, args, sol)
+        elseif net !== nothing && net.groups !== nothing
+            nflat = sum(g -> length(g.components), net.groups; init = 0)
+            if length(args) == nflat
+                return _pinn_call(sol, args...; dv = net.expanded)
+            end
+        end
+    end
     args = map(enumerate(args)) do (i, arg)
         arg isa Colon ? sol.ivdomain[i] : arg
     end
@@ -108,6 +136,10 @@ function _pinn_getindex(A, sym)
     iiv === nothing || return A.ivdomain[iiv]
     idv = findfirst(x -> isequal(unwrap(x), unwrap(sym)), A.dvs)
     idv === nothing || return A.u[A.dvs[idv]]
+    for net in A.disc_data.networks
+        net.original === nothing && continue
+        isequal(unwrap(net.original), unwrap(sym)) && return A.u[net.original]
+    end
     return error("Invalid indexing of solution. $sym not found in solution.")
 end
 

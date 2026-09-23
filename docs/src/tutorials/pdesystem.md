@@ -124,9 +124,11 @@ sys = symbolic_discretize(pde_system, discretization)
 prob = discretize(pde_system, discretization)
 ```
 
-The objective is differentiated with Enzyme by default; `discretize(pde_system,
-discretization; adtype = AutoForwardDiff())` selects another backend, and the section
-below compiles the objective and its Enzyme gradient with Reactant. Now we can solve the PDE
+The objective is differentiated with Enzyme by default, or with a Reactant-compiled
+Enzyme gradient when OptimizationReactant.jl is loaded (see [`default_adtype`](@ref));
+`discretize(pde_system, discretization; adtype = AutoForwardDiff())` selects another
+backend explicitly, and the section below compiles the objective and its Enzyme gradient
+with Reactant by hand. Now we can solve the PDE
 using any Optimization.jl optimizer. The result is a `PDENoTimeSolution`: `sol[u(x, y)]`
 is the trained network evaluated on the evaluation grid `sol[x]` × `sol[y]` (`eval_points`
 points per independent variable, 100 by default), the same way `sol[u(x, y)]` indexes a
