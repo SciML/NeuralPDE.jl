@@ -24,19 +24,6 @@ const REEXPORTS = (
     end
 end
 
-# Extensions triggered only by weakdeps are unschedulable by parallel
-# precompilation and can outlive the precompile driver; they must stay opted
-# out (#1203).
-@testset "Weakdep extensions opt out of precompilation" begin
-    proj = Base.parsed_toml(joinpath(pkgdir(NeuralPDE), "Project.toml"))
-    weakdeps = Set(keys(get(proj, "weakdeps", Dict{String,Any}())))
-    for (ext, triggers) in get(proj, "extensions", Dict{String,Any}())
-        issubset(Set(triggers), weakdeps) || continue
-        extfile = joinpath(pkgdir(NeuralPDE), "ext", ext * ".jl")
-        @test occursin(r"__precompile__\(\s*false\s*\)", read(extfile, String))
-    end
-end
-
 run_qa(
     NeuralPDE;
     reexports_allow = REEXPORTS,

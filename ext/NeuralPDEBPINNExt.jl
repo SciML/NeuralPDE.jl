@@ -1,10 +1,5 @@
 module NeuralPDEBPINNExt
 
-# Extensions triggered only by weakdeps receive no ordering edge in Julia's
-# parallel precompilation, so their workers can outlive the process Aqua waits
-# on after the depending package finishes loading. Opt out of precompilation.
-__precompile__(false)
-
 using NeuralPDE
 using NeuralPDE: NeuralPDE, AbstractTrainingStrategy, GridTraining, StochasticTraining,
     QuadratureTraining, WeightedIntervalTraining, BNNODE, BPINNstats,
