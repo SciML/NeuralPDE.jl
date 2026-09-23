@@ -52,22 +52,36 @@ as the other SciML discretizers (for example MethodOfLines.jl):
 By default, boundary residuals contribute mean squared penalty costs. Set
 `boundary_policy = :constraints` to impose each boundary residual as an equality at its
 collocation points. The selected optimization solver must support equality constraints;
-for example, Ipopt through OptimizationMOI does. Constraint derivatives for these array
-residuals need an automatic differentiation backend, so pass `adtype` when discretizing:
+for example, `IpoptOptimizer` from OptimizationIpopt does. Constraint derivatives for
+these array residuals need an automatic differentiation backend, so pass `adtype` when
+discretizing:
 
 ```julia
-using OptimizationMOI, Ipopt
+using OptimizationIpopt
 using ADTypes: AutoForwardDiff
 
 disc = PhysicsInformedNN(chain, GridTraining(0.1); boundary_policy = :constraints)
 prob = discretize(pde_system, disc; adtype = AutoForwardDiff())
-sol = solve(prob, Ipopt.Optimizer(); max_iter = 1000)
+sol = solve(prob, IpoptOptimizer(); maxiters = 1000)
 ```
 
-Install OptimizationMOI and Ipopt in the environment when using this solver. Ipopt is
-distributed under the Eclipse Public License 2.0. Exact boundary feasibility does not by
-itself guarantee a lower interior approximation error; that still depends on the network,
-collocation, and optimizer.
+Install OptimizationIpopt in the environment when using this solver; it brings the Ipopt
+binary, which is distributed under the Eclipse Public License 2.0.
+
+Started from the default initial weights, a constrained solve can converge to a trivial
+feasible network: under homogeneous Dirichlet conditions `u ≡ 0` satisfies every boundary
+equality exactly, so it is a stationary point of the constrained problem regardless of the
+interior residual. Warm-start the constrained problem from a converged
+`boundary_policy = :penalty` solve — a partial warm start can still collapse — and check
+that the trained network is not the trivial boundary-satisfying function:
+
+```julia
+penalty_prob = discretize(pde_system,
+    PhysicsInformedNN(chain, GridTraining(0.1); boundary_policy = :penalty);
+    adtype = AutoForwardDiff())
+warm = solve(penalty_prob, IpoptOptimizer(); maxiters = 1000)
+sol = solve(remake(prob; u0 = warm.original_sol.u), IpoptOptimizer(); maxiters = 1000)
+```
 
 ## Integral terms
 
