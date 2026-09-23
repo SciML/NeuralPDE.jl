@@ -39,6 +39,54 @@ end
 abstract type NeuralPDEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
 
 """
+    warn_unsupported_callback(alg, callback)
+
+Warn that `alg` ignores a step-control `callback`, unless there is nothing to ignore.
+
+On Julia 1.12 and later `DiffEqBase.merge_problem_kwargs` rewrites the `callback`
+keyword into a type-erased `CallbackSet` before dispatching to `SciMLBase.__solve`,
+and it does so even when the caller passed no callback at all: the absent callback
+becomes an empty `CallbackSet{Vector{Any}, Vector{Any}}`. Every `__solve` method here
+must therefore accept a `callback` keyword, or ordinary `solve` calls fail with a
+`MethodError` on those versions.
+
+The neural solvers fit a network over the whole time span instead of stepping through
+it, so there is no step at which a callback could fire. The synthesised empty set is
+dropped silently, because the caller never asked for a callback; a callback the caller
+did supply is dropped with a warning rather than in silence.
+"""
+function warn_unsupported_callback(alg, callback)
+    callback === nothing && return nothing
+    if callback isa SciMLBase.CallbackSet && isempty(callback.continuous_callbacks) &&
+            isempty(callback.discrete_callbacks)
+        return nothing
+    end
+    @warn "$(nameof(typeof(alg))) fits the whole time span at once instead of stepping \
+        through it, so the `callback` keyword is ignored." maxlog = 1
+    return nothing
+end
+
+"""
+    verbose_flag(verbose)
+
+Reduce the `verbose` keyword to the `Bool` that the solvers below print by.
+
+`DiffEqBase.solve` defaults `verbose` to `DEFAULT_VERBOSE`, a `DEVerbosity` verbosity
+object, and forwards it to `SciMLBase.__solve` on every Julia version, so a solver that
+uses `verbose` in boolean context raises `TypeError: non-boolean (DEVerbosity{...}) used
+in boolean context` for every `solve` call that does not pass a `Bool` of its own.
+
+NeuralPDE has not adopted the SciMLLogging verbosity system these objects configure. The
+only thing `verbose` controls here is a per-iteration training loss line, which belongs
+to none of `DEVerbosity`'s groups, so a verbosity object carries no instruction about it.
+Only an explicit `Bool` is honoured and anything else falls back to the quiet default
+these methods declare, which is the same reading of `verbose` that
+`SciMLBase.__solve(::AbstractSDEProblem, ::SDEPINN)` already applies.
+"""
+verbose_flag(verbose::Bool) = verbose
+verbose_flag(_) = false
+
+"""
     NNODE(chain, opt, init_params = nothing; strategy = nothing, autodiff = false,
         batch = true, ode_batch_eval = false, param_estim = false, additional_loss = nothing,
         dataset = [], estim_collocate = false, kwargs...)
@@ -499,8 +547,11 @@ function SciMLBase.__solve(
         verbose = false,
         saveat = nothing,
         maxiters = nothing,
-        tstops = nothing
+        tstops = nothing,
+        callback = nothing
     )
+    warn_unsupported_callback(alg, callback)
+    verbose = verbose_flag(verbose)
     (; u0, tspan, f, p) = prob
     t0 = tspan[1]
     # add estim_collocate, dataset (or nothing) in NNODE
@@ -590,7 +641,7 @@ function SciMLBase.__solve(
     optf = OptimizationFunction(total_loss, opt_algo)
 
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
-    callback = function (p, l)
+    opt_callback = function (p, l)
         if verbose
             if maxiters === nothing
                 @printf("[NNODE]\tIter: [%*d]\tLoss: %g\n", plen, p.iter, l)
@@ -602,7 +653,7 @@ function SciMLBase.__solve(
     end
 
     optprob = OptimizationProblem(optf, init_params)
-    res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
+    res = solve(optprob, opt; callback = opt_callback, maxiters, alg.kwargs...)
 
     #solutions at timepoints
     if saveat isa Number

@@ -3,7 +3,8 @@ module NeuralPDEBPINNExt
 using NeuralPDE
 using NeuralPDE: NeuralPDE, AbstractTrainingStrategy, GridTraining, StochasticTraining,
     QuadratureTraining, WeightedIntervalTraining, BNNODE, BPINNstats,
-    BPINNsolution, vector_to_parameters, safe_get_device, safe_expand
+    BPINNsolution, vector_to_parameters, safe_get_device, safe_expand,
+    warn_unsupported_callback
 
 using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
     JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
