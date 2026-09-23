@@ -47,7 +47,7 @@ using ModelingToolkitBase: ModelingToolkitBase, @mtkcompile, @named, @parameters
 using Symbolics: Symbolics, Differential, Equation, Integral, arguments, iscall, Num, operation,
     wrap, @register_symbolic, @variables
 using SymbolicUtils: SymbolicUtils, getmetadata, unwrap
-using SymbolicIndexingInterface: SymbolicIndexingInterface, getu, setp
+using SymbolicIndexingInterface: SymbolicIndexingInterface, getp, getu, setp
 
 # Needed for the Bayesian Stuff
 using Distributions: Distributions, Distribution, Normal
@@ -117,6 +117,7 @@ include("training_strategies.jl")
 include("pinn_lowering.jl")
 include("integral_lowering.jl")
 include("discretize.jl")
+include("adaptive_losses.jl")
 include("pde_solution.jl")
 
 include("ode_solve.jl")
@@ -145,6 +146,8 @@ export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
 
 export get_loss_function, vector_to_parameters
 export pinn_metadata, resample!
+export AbstractAdaptiveLoss, GradientScaleAdaptiveLoss, MiniMaxAdaptiveLoss,
+    SoftAdaptAdaptiveLoss, ReLoBRaLoAdaptiveLoss
 
 export SciMLBase, DAEProblem, NoiseProblem, ODEFunction, ODEInputFunction, ODEProblem,
     ODESolution, OptimizationFunction, OptimizationProblem, PDENoTimeSolution,
