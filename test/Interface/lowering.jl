@@ -81,6 +81,36 @@ end
     @test wprob.u0 == res.original_sol.u
 end
 
+@testset "discretize is reproducible regardless of a preceding symbolic_discretize" begin
+    rdisc = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20); rng = Xoshiro(7))
+    prob_alone = discretize(pde_system, rdisc)
+
+    sdisc = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20); rng = Xoshiro(7))
+    sys = symbolic_discretize(pde_system, sdisc)
+    prob_after = discretize(pde_system, sdisc)
+
+    @test prob_after.u0 == prob_alone.u0
+    amd = pinn_metadata(prob_alone)
+    bmd = pinn_metadata(prob_after)
+    @test getp(prob_after, bmd.blocks[1].xs)(prob_after) ==
+        getp(prob_alone, amd.blocks[1].xs)(prob_alone)
+end
+
+@testset "seeded deterministic resample!" begin
+    sdisc = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20); rng = Xoshiro(2))
+    sprob = discretize(pde_system, sdisc)
+    smd = pinn_metadata(sprob)
+    X0 = copy(getp(sprob, smd.blocks[1].xs)(sprob))
+    p1 = copy(sprob.p)
+    p2 = copy(sprob.p)
+    resample!(p1, smd; rng = Xoshiro(42))
+    resample!(p2, smd; rng = Xoshiro(42))
+    @test getp(sprob, smd.blocks[1].xs)(p1) == getp(sprob, smd.blocks[1].xs)(p2)
+    @test getp(sprob, smd.blocks[1].xs)(p1) != X0
+    # an explicit `rng` leaves the discretization's own stream untouched
+    @test getp(sprob, smd.blocks[1].xs)(sprob) == X0
+end
+
 @testset "cost weights and quadrature weights" begin
     wprob = discretize(pde_system, disc; weights = [1.0, 10.0, 10.0, 10.0, 10.0])
     costs = [mean(abs2, getu(prob, b.residual)(prob)) for b in md.blocks]
