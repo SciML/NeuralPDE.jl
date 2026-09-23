@@ -32,3 +32,14 @@ not in the main env).
   when accessed as `DomainSets.endpoints`. `DomainSets.infimum`/`supremum` pass
   that check but do an `a > b` emptiness test that throws on symbolic bounds.
   Read `d.left`/`d.right` on `TypedEndpointsInterval` domains instead.
+
+## Device-genericity pitfalls
+
+- The generated objective must keep every reduction behind a registered
+  function (`_mean_square`, `_weighted_square_sum`) with a `ChainRulesCore.rrule`.
+  A literal `sum`/`mapreduce` over a GPU array hits `GPUArraysCore._mapreduce` →
+  `task_local_storage`, which Zygote cannot differentiate. Test devices with
+  JLArrays under `JLArrays.allowscalar(false)`.
+- `remake(prob; u0 = dev(prob.u0), p = [block.xs => dev(X), ...])` moves the
+  whole problem; `resample!` must write device arrays (`similar` + `copyto!`),
+  and `PDENoTimeSolution` copies `θ` back to the host with `Array`.
