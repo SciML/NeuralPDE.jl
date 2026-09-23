@@ -224,6 +224,20 @@ end
 PDEBase.get_time(::BayesianPINN) = nothing
 
 """
+    symbolic_discretize(pdesys::PDESystem, discretization::BayesianPINN)
+
+Forward to the underlying [`PhysicsInformedNN`](@ref). Bayesian sampling is performed
+by [`ahmc_bayesian_pinn_pde`](@ref) on the same residual `System`.
+"""
+function SciMLBase.symbolic_discretize(pdesys::PDESystem, disc::BayesianPINN)
+    return symbolic_discretize(pdesys, disc.pinn)
+end
+
+function SciMLBase.discretize(pdesys::PDESystem, disc::BayesianPINN; kwargs...)
+    return discretize(pdesys, disc.pinn; kwargs...)
+end
+
+"""
     ahmc_bayesian_pinn_pde(pde_system, discretization; kwargs...)
 
 Bayesian inference of a `PDESystem` via NUTS / HMC sampling on the NeuralPDE 7
