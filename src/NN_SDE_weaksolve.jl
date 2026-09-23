@@ -1,7 +1,8 @@
 """
     SDEPINN(;
         chain, x_0, x_end, optimalg = nothing, norm_loss_alg = nothing,
-        initial_parameters = nothing, Nt = 20, dx = 0.05, σ_var_bc = 0.05,
+        initial_parameters = nothing, rng = Random.default_rng(),
+        adtype = AutoZygote(), Nt = 20, dx = 0.05, σ_var_bc = 0.05,
         λ_ic = 1.0, λ_norm = 1.0, distrib = Normal(0.5, 0.01), strategy = nothing,
         autodiff = true, batch = false, param_estim = false, dataset = nothing,
         additional_loss = nothing, kwargs...
@@ -14,9 +15,17 @@ Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
 
 - `chain`: Neural network used to represent the probability density.
 - `x_0`, `x_end`: Lower and upper endpoints of the spatial domain.
-- `optimalg`: Optimizer used to train the network.
+- `optimalg`: Optimizer used to train the network, or a vector/tuple of optimizers run
+  in sequence; each stage warm-starts from the previous stage's parameters and is given
+  `maxiters` iterations (`maxiters` may itself be a vector/tuple with one entry per stage).
 - `norm_loss_alg`: Integration algorithm used by the normalization loss.
-- `initial_parameters`: Initial network parameters. NeuralPDE initializes them when omitted.
+- `initial_parameters`: Initial network parameters. NeuralPDE draws them from `rng` when
+  omitted.
+- `rng`: Random number generator for network parameter initialization and collocation
+  sampling.
+- `adtype`: AD backend of the training objective. Defaults to `AutoZygote()` because the
+  normalization loss calls `Integrals.solve` on `norm_loss_alg`, which Enzyme and
+  Reactant cannot differentiate.
 - `Nt`: Number of temporal training points.
 - `dx`: Spatial grid spacing used to evaluate the solution.
 - `σ_var_bc`: Width of the Gaussian approximation to the initial condition.
@@ -50,6 +59,8 @@ alg = SDEPINN(
     optimalg
     norm_loss_alg
     initial_parameters
+    rng <: AbstractRNG
+    adtype
 
     # domain + discretization
     x_0::Float64
@@ -79,6 +90,8 @@ function SDEPINN(;
         optimalg = nothing,
         norm_loss_alg = nothing,
         initial_parameters = nothing,
+        rng::AbstractRNG = Random.default_rng(),
+        adtype = AutoZygote(),
         x_0,
         x_end,
         Nt = 20,
@@ -100,6 +113,8 @@ function SDEPINN(;
         optimalg,
         norm_loss_alg,
         initial_parameters,
+        rng,
+        adtype,
         x_0,
         x_end,
         Nt,
@@ -140,7 +155,7 @@ function SciMLBase.__solve(
 
     (;
         x_0, x_end, Nt, dx, σ_var_bc, λ_ic, λ_norm,
-        distrib, optimalg, norm_loss_alg, initial_parameters, chain,
+        distrib, optimalg, norm_loss_alg, initial_parameters, rng, adtype, chain,
     ) = alg
 
     dt = (t₁ - t₀) / Nt
@@ -238,11 +253,12 @@ function SciMLBase.__solve(
         chain,
         GridTraining([dx, dt]);
         init_params = initial_parameters,
+        rng = rng,
         additional_loss = combined_additional
     )
 
     @named pdesys = PDESystem(eq, bcs, domains, [X, T], [p̂(X, T)])
-    opt_prob = discretize(pdesys, discretization)
+    opt_prob = discretize(pdesys, discretization; adtype = adtype)
     md = pinn_metadata(opt_prob)
     net = only(md.networks)
     wrapper = getdefault(net.NN)
@@ -256,13 +272,25 @@ function SciMLBase.__solve(
         return false
     end
 
-    res = Optimization.solve(
-        opt_prob,
-        optimalg;
-        callback = cb,
-        maxiters = maxiters,
-        kwargs...
-    )
+    opts = optimalg isa Union{Tuple, AbstractVector} ? optimalg : (optimalg,)
+    iters = if maxiters isa Union{Tuple, AbstractVector}
+        length(maxiters) == length(opts) || throw(
+            ArgumentError(
+                "`maxiters` has $(length(maxiters)) entries but `optimalg` has \
+                $(length(opts)) stages."
+            )
+        )
+        maxiters
+    else
+        ntuple(_ -> maxiters, length(opts))
+    end
+    res = nothing
+    for (opt, mi) in zip(opts, iters)
+        res = Optimization.solve(
+            opt_prob, opt; callback = cb, maxiters = mi, kwargs...
+        )
+        opt_prob = remake(opt_prob; u0 = res.original_sol.u)
+    end
 
     # The PDE solution wrapper is unwrapped so that `res.u` stays the parameter vector.
     return res.original_sol, phi
