@@ -148,7 +148,6 @@ end
     sdisc = PhysicsInformedNN(chain, GridTraining(0.25); init_params = init, rng = Xoshiro(3))
     sprob = discretize(scaled, sdisc)
     smd = pinn_metadata(sprob)
-    @test occursin("nn_vcat", string(smd.blocks[1].residual))
     residual = getu(sprob, smd.blocks[1].residual)(sprob)
     @test residual ≈ zeros(size(residual)) atol = 1.0e-8
 
@@ -160,13 +159,38 @@ end
     @test residual .+ 2 ≈ manual atol = 1.0e-8
     @test manual ≈ fill(2.0, size(manual)) atol = 1.0e-8
 
+    @named shifted = PDESystem(
+        [u(x + 1) - u(x) ~ 1.0], [u(0.0) ~ 0.0], domains, [x], [u(x)]
+    )
+    shdisc = PhysicsInformedNN(chain, GridTraining(0.25); init_params = init, rng = Xoshiro(4))
+    shprob = discretize(shifted, shdisc)
+    shmd = pinn_metadata(shprob)
+    # Identity network: u(x + 1) - u(x) = 1.
+    @test getu(shprob, shmd.blocks[1].residual)(shprob) ≈
+        zeros(1, size(getp(shprob, shmd.blocks[1].xs)(shprob), 2)) atol = 1.0e-12
+
+    # Two-input network; second argument is general so rows stack through nn_vcat.
+    @parameters t
+    chain2 = Chain(Dense(2, 1))
+    init2 = [1.0, 0.0, 0.0]  # weights [1, 0], bias 0 → output = first input
+    @named mixed2 = PDESystem(
+        [u(t, 1 - x) ~ t], [u(0.0, 0.0) ~ 0.0],
+        [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 1.0)], [t, x], [u(t, x)]
+    )
+    mdisc = PhysicsInformedNN(chain2, GridTraining(0.25); init_params = init2, rng = Xoshiro(8))
+    mprob = discretize(mixed2, mdisc)
+    mmd = pinn_metadata(mprob)
+    @test occursin("nn_vcat", string(mmd.blocks[1].residual))
+    # Network returns first input (= t); residual t - t = 0.
+    @test getu(mprob, mmd.blocks[1].residual)(mprob) ≈
+        zeros(size(getu(mprob, mmd.blocks[1].residual)(mprob))) atol = 1.0e-12
+
     @named reflected = PDESystem(
         [u(1 - x) ~ u(x)], [u(0.0) ~ 0.0], domains, [x], [u(x)]
     )
     rdisc = PhysicsInformedNN(chain, GridTraining(0.25); init_params = init, rng = Xoshiro(4))
     rprob = discretize(reflected, rdisc)
     rmd = pinn_metadata(rprob)
-    @test occursin("nn_vcat", string(rmd.blocks[1].residual))
     Xr = getp(rprob, rmd.blocks[1].xs)(rprob)
     # Identity network: u(1 - x) - u(x) = (1 - x) - x = 1 - 2x.
     @test getu(rprob, rmd.blocks[1].residual)(rprob) ≈ 1 .- 2 .* Xr

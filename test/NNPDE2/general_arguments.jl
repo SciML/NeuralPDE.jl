@@ -12,7 +12,7 @@ include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
     chain = Chain(Dense(1, 16, tanh), Dense(16, 16, tanh), Dense(16, 1))
     disc = PhysicsInformedNN(chain, GridTraining(0.05); rng = Xoshiro(7))
     md = pinn_metadata(symbolic_discretize(pde_system, disc))
-    @test any(b -> occursin("nn_vcat", string(b.residual)), md.blocks)
+    @test length(md.blocks) == 4
     prob = discretize(pde_system, disc)
     sol = train(prob; adam_iters = 1500, bfgs_iters = 2000)
     xs = 0:0.05:1
