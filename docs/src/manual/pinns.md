@@ -35,7 +35,7 @@ as the other SciML discretizers (for example MethodOfLines.jl):
    whose parameters are array unknowns of the system; the residual of every equation and
    boundary condition is a symbolic array expression over a matrix of collocation points
    stored as a parameter of the system; each residual contributes one cost (or, for
-   boundary conditions with `boundary_policy = :constraints`, one equality constraint).
+   boundary conditions with `boundary_policy = :constraints`, a pointwise equality).
 2. `discretize(pdesys, discretization)` samples the collocation points with the training
    strategy and generates an `OptimizationProblem` through ModelingToolkit's
    `OptimizationProblem(sys, op)` constructor. Keyword arguments such as `adtype`
@@ -46,6 +46,28 @@ as the other SciML discretizers (for example MethodOfLines.jl):
 3. `solve(prob, optimizer)` returns a `PDENoTimeSolution` which evaluates the trained
    networks: `sol[u(x, t)]` on the evaluation grid, `sol(x, t; dv = u(x, t))` at arbitrary
    points, and `sol.original_sol` for the underlying `OptimizationSolution`.
+
+## Exact boundary constraints
+
+By default, boundary residuals contribute mean squared penalty costs. Set
+`boundary_policy = :constraints` to impose each boundary residual as an equality at its
+collocation points. The selected optimization solver must support equality constraints;
+for example, Ipopt through OptimizationMOI does. Constraint derivatives for these array
+residuals need an automatic differentiation backend, so pass `adtype` when discretizing:
+
+```julia
+using OptimizationMOI, Ipopt
+using ADTypes: AutoForwardDiff
+
+disc = PhysicsInformedNN(chain, GridTraining(0.1); boundary_policy = :constraints)
+prob = discretize(pde_system, disc; adtype = AutoForwardDiff())
+sol = solve(prob, Ipopt.Optimizer(); max_iter = 1000)
+```
+
+Install OptimizationMOI and Ipopt in the environment when using this solver. Ipopt is
+distributed under the Eclipse Public License 2.0. Exact boundary feasibility does not by
+itself guarantee a lower interior approximation error; that still depends on the network,
+collocation, and optimizer.
 
 ## Integral terms
 
