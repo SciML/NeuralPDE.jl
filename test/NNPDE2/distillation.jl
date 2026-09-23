@@ -182,8 +182,13 @@ Lux.initialstates(rng::AbstractRNG, ::OffsetStudent) = (offset = rand(rng),)
         swapped = (weight = [1.0 10.0; 20.0 2.0], bias = [0.0, 0.0])
         dswapped = distill(oteacher, Dense(2, 2); points = X, init_params = swapped)
         @test dswapped.f(dswapped.u0, dswapped.p) > 10.0
-        # Single reordered variable through the separate-network path.
-        vonly = distill(oteacher, Dense(2, 1); points = X, dvs = v(y, x), init_params = v_init)
+        # Single reordered variable through the separate-network path. The student
+        # always sees inputs in independent-variable order, so its weights are
+        # the physical map v(x, y) = 2x + 20y, unlike the teacher network order.
+        v_physical = (weight = reshape([2.0, 20.0], 1, 2), bias = [0.0])
+        vonly = distill(
+            oteacher, Dense(2, 1); points = X, dvs = v(y, x), init_params = v_physical
+        )
         @test vonly.f(vonly.u0, vonly.p) < 1.0e-20
         # Tuples select variables like arrays do.
         dtuple = distill(
