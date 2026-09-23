@@ -73,17 +73,26 @@ function lower_depvar(ex, ctx::LoweringContext, shift, directions = nothing)
     general = false
     for (j, a) in enumerate(callargs)
         a = unwrap(a)
-        # A literal argument is still translated when differentiating with respect to the
-        # variable of that slot: `Dx(u(1.0))` is the derivative of `u` evaluated at `x = 1`.
         if _isnumber(a)
             c[j] = _number(a)
-            slot = unwrap(net.args[j])
-            haskey(ctx.iv_global, slot) && (c[j] += shift[ctx.iv_global[slot]])
         elseif haskey(ctx.iv_index, a)
             P[j, ctx.iv_index[a]] = one(ctx.eltype)
             c[j] += shift[ctx.iv_global[a]]
         else
             general = true
+        end
+    end
+    # Plain-call boundary convention: `Dx(u(1.0))` is ∂u/∂x at the pinned point, so the
+    # finite-difference shift is applied to the literal. In a general composition such as
+    # `Dx(u(0.0, 2x))` the derivative is of the map `x ↦ u(0.0, 2x)` and literals stay fixed;
+    # only free-coordinate / general argument rows pick up the shift (via `lower` below).
+    if !general
+        for (j, a) in enumerate(callargs)
+            a = unwrap(a)
+            if _isnumber(a)
+                slot = unwrap(net.args[j])
+                haskey(ctx.iv_global, slot) && (c[j] += shift[ctx.iv_global[slot]])
+            end
         end
     end
     X = if general

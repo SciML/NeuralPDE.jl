@@ -169,21 +169,46 @@ end
     @test getu(shprob, shmd.blocks[1].residual)(shprob) ≈
         zeros(1, size(getp(shprob, shmd.blocks[1].xs)(shprob), 2)) atol = 1.0e-12
 
-    # Two-input network; second argument is general so rows stack through nn_vcat.
+    # Two-input network; both inputs enter the analytic expectation so an incorrect
+    # second row (e.g. `x` instead of `1 - x`) cannot cancel.
     @parameters t
     chain2 = Chain(Dense(2, 1))
-    init2 = [1.0, 0.0, 0.0]  # weights [1, 0], bias 0 → output = first input
+    init2 = [3.0, 5.0, 0.0]  # weights [3, 5], bias 0 → output = 3a + 5b
     @named mixed2 = PDESystem(
-        [u(t, 1 - x) ~ t], [u(0.0, 0.0) ~ 0.0],
+        [u(t, 1 - x) ~ 3t + 5(1 - x)], [u(0.0, 0.0) ~ 0.0],
         [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 1.0)], [t, x], [u(t, x)]
     )
     mdisc = PhysicsInformedNN(chain2, GridTraining(0.25); init_params = init2, rng = Xoshiro(8))
     mprob = discretize(mixed2, mdisc)
     mmd = pinn_metadata(mprob)
     @test occursin("nn_vcat", string(mmd.blocks[1].residual))
-    # Network returns first input (= t); residual t - t = 0.
     @test getu(mprob, mmd.blocks[1].residual)(mprob) ≈
         zeros(size(getu(mprob, mmd.blocks[1].residual)(mprob))) atol = 1.0e-12
+
+    # Literal + general composition: Dx(u(0, 2x)) must keep the literal fixed.
+    # Declared signature u(x, y) so the literal occupies the differentiated slot;
+    # exact network u(a,b)=3a+5b ⇒ u(0,2x)=10x ⇒ Dx = 10 (not 13 from shifting 0).
+    @parameters y
+    chain_xy = Chain(Dense(2, 1))
+    init_xy = [3.0, 5.0, 0.0]
+    @named litgen = PDESystem(
+        [Dx(u(0.0, 2x)) ~ 10.0], [u(0.0, 0.0) ~ 0.0],
+        [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)], [x, y], [u(x, y)]
+    )
+    lgdisc = PhysicsInformedNN(chain_xy, GridTraining(0.25); init_params = init_xy, rng = Xoshiro(9))
+    lgprob = discretize(litgen, lgdisc)
+    lgmd = pinn_metadata(lgprob)
+    lg_residual = getu(lgprob, lgmd.blocks[1].residual)(lgprob)
+    @test lg_residual ≈ zeros(size(lg_residual)) atol = 1.0e-7
+    # Manual FD of the composition x ↦ apply([0; 2x]): literal row stays 0.
+    apply_xy = getdefault(only(lgmd.networks).NN)
+    Xl = getp(lgprob, lgmd.blocks[1].xs)(lgprob)  # free ivs of Dx(u(0,2x)): only x
+    ε1 = eps(Float64)^(1 / 3)
+    Xp = vcat(zeros(1, size(Xl, 2)), 2 .* (Xl .+ ε1))
+    Xm = vcat(zeros(1, size(Xl, 2)), 2 .* (Xl .- ε1))
+    manual_litgen = (apply_xy(Xp, init_xy) .- apply_xy(Xm, init_xy)) ./ (2ε1)
+    @test lg_residual .+ 10 ≈ manual_litgen atol = 1.0e-7
+    @test manual_litgen ≈ fill(10.0, size(manual_litgen)) atol = 1.0e-7
 
     @named reflected = PDESystem(
         [u(1 - x) ~ u(x)], [u(0.0) ~ 0.0], domains, [x], [u(x)]
