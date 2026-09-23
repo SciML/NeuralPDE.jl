@@ -1,5 +1,5 @@
 include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
-using JLArrays, Zygote, LinearAlgebra
+using JLArrays, Zygote
 using SymbolicIndexingInterface: getp
 
 @parameters x y
