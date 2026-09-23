@@ -32,10 +32,12 @@ run_qa(
         # SymbolicUtils._iszero, and Symbolics.variables calls. ForwardDiff does not
         # declare its derivative entry points public, and AdvancedHMC has no public
         # equivalent for constructing a kernel from its public sampler specifications.
+        # Reactant exports `@compile`, `@trace` and `@allowscalar` but not the
+        # host/device conversion entry points `to_rarray` and `to_number`.
         all_qualified_accesses_are_public = (;
             ignore = (
                 :_iszero, :derivative, :dottable, :jacobian, :make_kernel, :mapany,
-                :variables, :to_number, :to_rarray
+                :to_number, :to_rarray, :variables,
             ),
         ),
         # ExplicitImports scans extensions as separate modules, although these

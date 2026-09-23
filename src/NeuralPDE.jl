@@ -5,7 +5,7 @@ using Adapt: Adapt
 using ArrayInterface: ArrayInterface
 using ChainRulesCore: ChainRulesCore, @ignore_derivatives
 using Cubature: Cubature
-using ComponentArrays: ComponentArrays, ComponentArray
+using ComponentArrays: ComponentArrays, ComponentArray, getdata
 using ConcreteStructs: @concrete
 using DomainSets: DomainSets
 using Enzyme: Enzyme

@@ -104,7 +104,7 @@ using Reactant
             compiled = Reactant.@compile fd_loss(θ_dev, ts_dev, tangent_dev)
             got = Reactant.to_number(compiled(θ_dev, ts_dev, tangent_dev))
 
-            @test got≈expected rtol=1.0e-8 atol=1.0e-10
+            @test got ≈ expected rtol = 1.0e-8 atol = 1.0e-10
         end
 
         # 2. φ is elementwise in t, so its Jacobian w.r.t. t is diagonal and a single
@@ -118,7 +118,7 @@ using Reactant
             got = Array(compiled(θ_dev, ts_dev, tangent_dev))
 
             @test size(got) == size(ref)
-            @test got≈ref rtol=1.0e-8 atol=1.0e-10
+            @test got ≈ ref rtol = 1.0e-8 atol = 1.0e-10
         end
 
         # 3. The full residual on the autodiff = true path, against a reference built
@@ -134,7 +134,7 @@ using Reactant
             compiled = Reactant.@compile ad_loss(θ_dev, ts_dev, tangent_dev)
             got = Reactant.to_number(compiled(θ_dev, ts_dev, tangent_dev))
 
-            @test got≈expected rtol=1.0e-8 atol=1.0e-10
+            @test got ≈ expected rtol = 1.0e-8 atol = 1.0e-10
         end
     end
 
@@ -216,7 +216,7 @@ using Reactant
         function check_direction(obj, θ, v, ad)
             for h in hs
                 fd = (obj.objective(θ .+ h .* v) - obj.objective(θ .- h .* v)) / (2h)
-                @test ad≈fd rtol=grad_rtol
+                @test ad ≈ fd rtol = grad_rtol
             end
         end
 
