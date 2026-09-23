@@ -50,12 +50,14 @@ end
 end
 
 @testset "reflection argument against manufactured solution" begin
-    # Exact solution u(x) = sinpi(2x) satisfies u(1 - x) = u(x) and Dxx(u) = -4π² u.
+    # Exact solution u(x) = cospi(2x) satisfies u(1 - x) = u(x) and
+    # Dx(u) = -2π sinpi(2x); u(0) = 1 rules out the trivial zero solution of the
+    # corresponding eigenproblem.
     @parameters x
     @variables u(..)
-    Dxx = Differential(x)^2
-    eq = Dxx(u(x)) ~ -4 * π^2 * u(x)
-    bcs = [u(1 - x) ~ u(x), u(0.0) ~ 0.0]
+    Dx = Differential(x)
+    eq = Dx(u(x)) ~ -2 * π * sinpi(2x)
+    bcs = [u(1 - x) ~ u(x), u(0.0) ~ 1.0]
     domains = [x ∈ Interval(0.0, 1.0)]
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
     chain = Chain(Dense(1, 16, tanh), Dense(16, 16, tanh), Dense(16, 1))
@@ -63,6 +65,6 @@ end
     prob = discretize(pde_system, disc)
     sol = train(prob; adam_iters = 1500, bfgs_iters = 2000)
     xs = 0:0.05:1
-    @test maximum(abs, [sol(xi; dv = u(x)) - sinpi(2xi) for xi in xs]) < 0.08
+    @test maximum(abs, [sol(xi; dv = u(x)) - cospi(2xi) for xi in xs]) < 0.08
     @test maximum(abs, [sol(1 - xi; dv = u(x)) - sol(xi; dv = u(x)) for xi in xs]) < 0.05
 end
