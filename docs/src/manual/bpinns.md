@@ -25,7 +25,6 @@ discretizer lowers the `PDESystem` through the same residual `System` as
 over its collocation batch for AdvancedHMC sampling.
 
 ```@docs
-NeuralPDE.BNNODE
 NeuralPDE.BayesianPINN
 NeuralPDE.ahmc_bayesian_pinn_ode
 NeuralPDE.ahmc_bayesian_pinn_pde

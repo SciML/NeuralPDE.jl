@@ -159,12 +159,16 @@ using Test
         saveats = [1 / 100.0, 1 / 100.0]
     )
 
-    # Reconstruct a Lux-callable mean network from flat Particle weights (v7 has no `phi`).
+    # Posterior-mean prediction: average the network output over the posterior
+    # weight samples, as v6 did with `pmean(phi([x, t], particles))`.
     function mean_predict(chain, estim_nn_params, x, t)
         ps, st = Lux.setup(Random.default_rng(), chain)
-        θmean = pmean.(estim_nn_params)
-        θ = ComponentArray(θmean, getaxes(ComponentArray(ps)))
-        return only(chain([x, t], θ, st)[1])
+        ax = getaxes(ComponentArray(ps))
+        θsamples = reduce(hcat, [p.particles for p in estim_nn_params])
+        return mean(
+            only(chain([x, t], ComponentArray(θc, ax), st)[1])
+                for θc in eachcol(θsamples)
+        )
     end
 
     xs,

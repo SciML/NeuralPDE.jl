@@ -137,7 +137,7 @@ export BNNODE, ahmc_bayesian_pinn_ode, ahmc_bayesian_pinn_pde
 export NNSDE
 export SDEPINN
 export PhysicsInformedNN, BayesianPINN, FiniteDifferenceDerivative
-export BPINNstats, BPINNsolution
+export BPINNsolution
 export DeepGalerkin
 
 export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining,
