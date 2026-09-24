@@ -3,6 +3,8 @@ using ModelingToolkitBase: getdefault
 using SymbolicIndexingInterface: getu, getp
 using Zygote, ForwardDiff, Enzyme, LinearAlgebra, Statistics, ADTypes, ComponentArrays
 
+first_objective(f, θ, p) = (value = f(θ, p); value isa AbstractFloat ? value : first(value))
+
 @parameters x y
 @variables u(..)
 Dx = Differential(x)
@@ -53,6 +55,30 @@ end
         res = solve(p, Adam(0.001); maxiters = 50)
         @test res.original_sol.objective < prob.f(θ, prob.p)
     end
+end
+
+@testset "default AD preserves captured additional-loss data" begin
+    captured_xs = [0.2 0.4 0.6 0.8; 0.2 0.4 0.6 0.8]
+    additional_loss = (phi, θ, p) -> mean(abs2, phi.u(captured_xs, θ.u))
+    captured_disc = PhysicsInformedNN(
+        chain, GridTraining(0.5); rng = Xoshiro(3), additional_loss
+    )
+    captured_prob = discretize(pde_system, captured_disc)
+    captured_xs_before = copy(captured_xs)
+    @test captured_prob.f.adtype == NeuralPDE.default_adtype()
+
+    g_enzyme = similar(captured_prob.u0)
+    Enzyme.autodiff(
+        Enzyme.Reverse, Enzyme.Const(first_objective), Enzyme.Active,
+        Enzyme.Const(captured_prob.f.f),
+        Enzyme.Duplicated(captured_prob.u0, g_enzyme), Enzyme.Const(captured_prob.p)
+    )
+    g_fd = ForwardDiff.gradient(θ -> captured_prob.f(θ, captured_prob.p), captured_prob.u0)
+    @test g_enzyme ≈ g_fd rtol = 1.0e-6
+    @test captured_xs == captured_xs_before
+
+    solve(captured_prob, Adam(0.001); maxiters = 2)
+    @test captured_xs == captured_xs_before
 end
 
 @testset "resampling and remake" begin
