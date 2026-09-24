@@ -19,14 +19,14 @@ plumbing shared with `ahmc_bayesian_pinn_ode`.
     network_fns
     net_lengths::Vector{Int}
     phynewstd::Vector{Float64}
+    data_phys  # `nothing` or `θ -> logdensity`, physics likelihood at the dataset points
     L2_loss2   # `nothing` or `(θ, phynewstd) -> logdensity` data-quadrature term
 end
 
 function LogDensityProblems.logdensity(ltd::PDELogTargetDensity, θ)
     ll = physics_loglikelihood(ltd, θ) + priorlogpdf(ltd, θ) + L2LossData(ltd, θ)
-    if ltd.L2_loss2 !== nothing
-        ll += ltd.L2_loss2(θ, ltd.phynewstd)
-    end
+    ltd.data_phys === nothing || (ll += ltd.data_phys(θ))
+    ltd.L2_loss2 === nothing || (ll += ltd.L2_loss2(θ, ltd.phynewstd))
     return ll
 end
 
@@ -93,44 +93,127 @@ end
 _net_offsets(lengths) = cumsum(vcat(0, lengths))
 
 """
-Scalar network evaluation at a coordinate vector `X` (length = input dim).
-"""
-function _scalar_nn(Φ, θ, X::AbstractVector)
-    return only(Φ(reshape(X, length(X), 1), θ))
-end
-
-"""
-Central finite-difference ∂ⁿ/∂x_dimⁿ of the network at `X`. Uses primal steps in `X` so
-the outer AdvancedHMC `ForwardDiff` seed on `θ` still propagates through `Φ`.
-"""
-function _nth_partial_fd(Φ, θ, X::AbstractVector, dim::Int, n::Int; ε = 1.0e-4)
-    n == 0 && return _scalar_nn(Φ, θ, X)
-    Xp = copy(X)
-    Xm = copy(X)
-    Xp[dim] += ε
-    Xm[dim] -= ε
-    if n == 1
-        return (_scalar_nn(Φ, θ, Xp) - _scalar_nn(Φ, θ, Xm)) / (2ε)
-    end
-    return (
-        _nth_partial_fd(Φ, θ, Xp, dim, n - 1; ε = ε) -
-            _nth_partial_fd(Φ, θ, Xm, dim, n - 1; ε = ε)
-    ) / (2ε)
-end
-
-"""
-Parse a Differential(...) tree into `(depvar_operation, Dict(iv => order))`.
+Parse a `Differential(...)` tree into `(depvar_operation, Dict(iv => order), inner_term)`.
+Symbolics 7 fuses `Differential(x)^n` into a single `Differential(x, n)` node carrying
+an `order`, while mixed partials stay nested one `Differential` per level; both forms
+are accumulated here.
 """
 function _diff_spec(diff_term)
     orders = Dict{Any, Int}()
     t = unwrap(diff_term)
     while iscall(t) && operation(t) isa ModelingToolkit.Differential
-        iv = unwrap(operation(t).x)
-        orders[iv] = get(orders, iv, 0) + 1
+        op = operation(t)
+        iv = unwrap(op.x)
+        orders[iv] = get(orders, iv, 0) + (hasproperty(op, :order) ? Int(op.order) : 1)
         t = only(arguments(t))
     end
     iscall(t) || error("Dict_differentials term does not wrap a dependent variable: $diff_term")
-    return operation(t), orders
+    return operation(t), orders, t
+end
+
+"""
+Shared setup for evaluating PDE residuals at arbitrary coordinate batches with the
+trial networks: the depvar symbols, the independent-variable index of each coordinate
+row, the estimated-parameter count, and the map from depvar operations to the index
+of their network in `unique_networks`.
+"""
+function _point_eval_setup(pde_system, md, net_lengths)
+    depvars = ModelingToolkit.get_dvs(pde_system)
+    depvar_syms = [Symbol(operation(unwrap(dv))) for dv in depvars]
+    ivs = collect(get_ivs(pde_system))
+    ps = collect(md.ps)
+    nets = unique_networks(md.networks)
+    net_of = Dict{Any, Int}()
+    for (i, net) in enumerate(nets)
+        op = unwrap(net.depvar)
+        net_of[op] = i
+        net_of[Symbol(op)] = i
+    end
+    return (;
+        depvar_syms, depvar_set = Set(depvar_syms), nets, net_of, ps,
+        ninv = md.disc.param_estim ? length(ps) : 0,
+        iv_index = Dict(unwrap(iv) => i for (i, iv) in enumerate(ivs)),
+        offsets = _net_offsets(net_lengths),
+    )
+end
+
+function _net_index(net_of, dep_op)
+    return get(net_of, unwrap(dep_op)) do
+        get(net_of, Symbol(unwrap(dep_op))) do
+            error("No trial network for dependent variable $dep_op")
+        end
+    end
+end
+
+"""
+Batched central finite-difference `∂ⁿ/∂X_dimⁿ` of `eval_at`, which maps a `d × n`
+coordinate batch to a length-`n` vector of network outputs. Primal steps in `X` keep
+the outer AdvancedHMC `ForwardDiff` seed on `θ` propagating through the network.
+"""
+function _batched_nth(eval_at, Xbatch, dim::Int, n::Int; ε = 1.0e-3)
+    n == 0 && return eval_at(Xbatch)
+    Xp = copy(Xbatch)
+    Xm = copy(Xbatch)
+    @views Xp[dim, :] .+= ε
+    @views Xm[dim, :] .-= ε
+    if n == 1
+        return (eval_at(Xp) .- eval_at(Xm)) ./ (2ε)
+    end
+    return (
+        _batched_nth(eval_at, Xp, dim, n - 1; ε = ε) .-
+            _batched_nth(eval_at, Xm, dim, n - 1; ε = ε)
+    ) ./ (2ε)
+end
+
+_opname(op) = op isa Union{Symbol, SymbolicUtils.BasicSymbolic} ? Symbol(op) :
+    (op isa Function ? nameof(op) : nothing)
+
+"""
+Split the dependent-variable terms of an equation expression into `Differential`
+subtrees and undifferentiated depvar calls, and collect the independent variables
+that appear outside any dependent-variable term.
+"""
+function _eq_term_map(ex, depvar_set, iv_index)
+    diffs = Any[]
+    calls = Any[]
+    freeivs = Any[]
+    function _walk(term)
+        t = unwrap(term)
+        if !iscall(t)
+            haskey(iv_index, t) && t ∉ freeivs && push!(freeivs, t)
+            return nothing
+        end
+        op = operation(t)
+        if op isa ModelingToolkit.Differential
+            push!(diffs, t)
+        elseif !iscall(op) && _opname(op) in depvar_set
+            push!(calls, t)
+        else
+            foreach(_walk, arguments(t))
+        end
+        return nothing
+    end
+    _walk(ex)
+    return diffs, calls, freeivs
+end
+
+"""
+Coordinate batch for the arguments of a dependent-variable call: the data column of
+each argument that is an independent variable, and a constant row for literal
+coordinates such as `u(-10, t)`.
+"""
+function _term_coords(args, X, iv_index)
+    n = size(X, 2)
+    rows = map(args) do a
+        k = get(iv_index, unwrap(a), nothing)
+        k === nothing ? fill(_as_float(a), n) : X[k, :]
+    end
+    return reduce(vcat, (reshape(r, 1, :) for r in rows); init = zeros(0, n))
+end
+
+function _param_value(ics, p)
+    v = get(ics, p, nothing)
+    return _as_float(v === nothing ? getdefault(unwrap(p)) : v)
 end
 
 """
@@ -185,17 +268,15 @@ function build_data_quadrature(
         pde_system, Dict_differentials, dataset, network_fns, net_lengths, md
     )
     eqs = ModelingToolkit.get_eqs(pde_system)
-    depvars = ModelingToolkit.get_dvs(pde_system)
-    depvar_syms = [Symbol(operation(unwrap(dv))) for dv in depvars]
-    ivs = collect(get_ivs(pde_system))
-    iv_index = Dict(unwrap(iv) => i for (i, iv) in enumerate(ivs))
-    ps = collect(md.ps)
-    ninv = length(ps)
-    offsets = _net_offsets(net_lengths)
+    (;
+        depvar_syms, iv_index, ninv, ps, offsets, net_of,
+    ) = _point_eval_setup(pde_system, md, net_lengths)
+    param_syms = [unwrap(p) for p in ps]
+    ics = initial_conditions(md.pdesys)
 
     diff_specs = Dict{Any, Any}()
     for (diff_term, placeholder) in Dict_differentials
-        dep_op, orders = _diff_spec(diff_term)
+        dep_op, orders, = _diff_spec(diff_term)
         diff_specs[unwrap(placeholder)] = (dep_op, orders)
     end
 
@@ -207,42 +288,10 @@ function build_data_quadrature(
     # `d × n` collocation matrix of independent-variable coordinates.
     coords = Matrix(transpose(dataset[1][:, 2:end]))
 
-    nets = unique_networks(md.networks)
-    net_of = Dict{Any, Int}()
-    for (i, net) in enumerate(nets)
-        op = unwrap(net.depvar)
-        net_of[op] = i
-        net_of[Symbol(op)] = i
-    end
-
-    function _net_index(dep_op)
-        return get(net_of, unwrap(dep_op)) do
-            get(net_of, Symbol(unwrap(dep_op))) do
-                error("No trial network for dependent variable $dep_op")
-            end
-        end
-    end
-
-    function _batched_nth(eval_at, Xbatch, dim::Int, n::Int; ε = 1.0e-3)
-        n == 0 && return eval_at(Xbatch)
-        Xp = copy(Xbatch)
-        Xm = copy(Xbatch)
-        @views Xp[dim, :] .+= ε
-        @views Xm[dim, :] .-= ε
-        if n == 1
-            return (eval_at(Xp) .- eval_at(Xm)) ./ (2ε)
-        end
-        return (
-            _batched_nth(eval_at, Xp, dim, n - 1; ε = ε) .-
-                _batched_nth(eval_at, Xm, dim, n - 1; ε = ε)
-        ) ./ (2ε)
-    end
-
     # Compile numeric residual evaluators: residual(diff_vals..., u_vals..., params...)
     placeholder_syms = collect(keys(diff_specs))
     u_syms = [call_map[name] for name in depvar_syms if haskey(call_map, name)]
     u_names = [name for name in depvar_syms if haskey(call_map, name)]
-    param_syms = [unwrap(p) for p in ps]
     residual_fns = map(eqs_masked) do eqm
         expr = eqm.lhs - eqm.rhs
         args = (placeholder_syms..., u_syms..., param_syms...)
@@ -253,12 +302,16 @@ function build_data_quadrature(
         T = eltype(θ)
         ll = zero(T)
         nnθ = view(θ, 1:(length(θ) - ninv))
-        pvals = ntuple(j -> θ[end - ninv + j], ninv)
+        pvals = if ninv > 0
+            ntuple(j -> θ[end - ninv + j], ninv)
+        else
+            ntuple(j -> T(_param_value(ics, ps[j])), length(ps))
+        end
         Xbatch = T.(coords)
 
         diff_batches = Dict{Any, Any}()
         for (placeholder, (dep_op, orders)) in diff_specs
-            ni = _net_index(dep_op)
+            ni = _net_index(net_of, dep_op)
             Φ = network_fns[ni]
             θi = nnθ[(offsets[ni] + 1):offsets[ni + 1]]
             eval_at = X -> vec(Φ(X, θi))
@@ -287,6 +340,114 @@ function build_data_quadrature(
     end
 
     return L2_loss2
+end
+
+"""
+Build the NeuralPDE 6 `datapde`/`databc` likelihood: each PDE and boundary residual is
+also evaluated at the observational coordinates, with the trial network supplying
+every dependent-variable term — undifferentiated calls directly and `Differential`
+terms by batched central finite differences. Each residual batch is a
+`Normal(0, phystd[eq])` (PDE equations) or `Normal(0, bcstd[eq])` (boundary
+conditions) likelihood contribution.
+"""
+function build_physics_at_points(
+        pde_system, dataset_pde, dataset_bc, network_fns, net_lengths, md,
+        phystd, bcstd
+    )
+    (;
+        depvar_set, nets, net_of, ps, ninv, iv_index, offsets,
+    ) = _point_eval_setup(pde_system, md, net_lengths)
+    param_syms = [unwrap(p) for p in ps]
+    ics = initial_conditions(md.pdesys)
+
+    function prep(eq, dataset_i, σ)
+        coords = Matrix(transpose(dataset_i[:, 2:end]))
+        ex = unwrap(eq.lhs - eq.rhs)
+        diffs, calls, freeivs = _eq_term_map(ex, depvar_set, iv_index)
+        terms = vcat(diffs, calls)
+        phs = [unwrap(Symbolics.variable(Symbol(:dp_, k))) for k in eachindex(terms)]
+        expr_sub = if isempty(terms)
+            ex
+        else
+            SymbolicUtils.substitute(ex, Dict(terms .=> phs))
+        end
+        rfn = Symbolics.build_function(
+            expr_sub, phs..., freeivs..., param_syms...; expression = Val{false}
+        )
+        specs = map(terms) do term
+            if operation(term) isa ModelingToolkit.Differential
+                dep_op, orders, inner = _diff_spec(term)
+                ni = _net_index(net_of, dep_op)
+                net_args = [unwrap(a) for a in nets[ni].args]
+                dim_orders = map(collect(orders)) do (iv, ord)
+                    dim = findfirst(a -> isequal(a, unwrap(iv)), net_args)
+                    dim === nothing && error(
+                        "Derivative with respect to $iv is not an input of $inner"
+                    )
+                    dim => ord
+                end
+                (;
+                    ni, coords = _term_coords(arguments(inner), coords, iv_index),
+                    dim_orders = Tuple(dim_orders),
+                )
+            else
+                (;
+                    ni = _net_index(net_of, operation(term)),
+                    coords = _term_coords(arguments(term), coords, iv_index),
+                    dim_orders = (),
+                )
+            end
+        end
+        return (; rfn, specs, freeivs, coords, σ)
+    end
+
+    preps = []
+    if dataset_pde !== nothing
+        for (i, eq) in enumerate(ModelingToolkit.get_eqs(pde_system))
+            push!(preps, prep(eq, dataset_pde[min(i, length(dataset_pde))], phystd[i]))
+        end
+    end
+    if dataset_bc !== nothing
+        for (j, bc) in enumerate(ModelingToolkit.get_bcs(pde_system))
+            push!(preps, prep(bc, dataset_bc[min(j, length(dataset_bc))], bcstd[j]))
+        end
+    end
+
+    function data_phys(θ)
+        T = eltype(θ)
+        ll = zero(T)
+        nnθ = view(θ, 1:(length(θ) - ninv))
+        pvals = if ninv > 0
+            ntuple(j -> θ[end - ninv + j], ninv)
+        else
+            ntuple(j -> T(_param_value(ics, ps[j])), length(ps))
+        end
+        for p in preps
+            termvals = map(p.specs) do spec
+                θi = nnθ[(offsets[spec.ni] + 1):offsets[spec.ni + 1]]
+                Φ = network_fns[spec.ni]
+                f = X -> vec(Φ(X, θi))
+                for (dim, ord) in spec.dim_orders
+                    f_prev = f
+                    f = let f_prev = f_prev, dim = dim, ord = ord
+                        X -> _batched_nth(f_prev, X, dim, ord)
+                    end
+                end
+                f(T.(spec.coords))
+            end
+            X = T.(p.coords)
+            rvec = map(1:size(X, 2)) do j
+                p.rfn(
+                    (termvals[k][j] for k in eachindex(termvals))...,
+                    (X[iv_index[iv], j] for iv in p.freeivs)...,
+                    pvals...
+                )
+            end
+            ll += residual_logpdf(rvec, p.σ)
+        end
+        return ll
+    end
+    return data_phys
 end
 
 function _block_stds(blocks, phystd, bcstd)
@@ -360,7 +521,7 @@ function inference(samples, md, saveats, numensemble, ℓπ)
     ranges, ivs = _saveat_grid(md, saveats)
     nets = unique_networks(md.networks)
     ninv = ℓπ.extraparams
-    samples = samples[(end - numensemble):end]
+    samples = samples[(end - numensemble + 1):end]
     nnparams = length(samples[1]) - ninv
     estimnnparams = [Particles(reduce(hcat, samples)[i, :]) for i in 1:nnparams]
     estimated_params = if ninv == 0
@@ -413,8 +574,17 @@ Bayesian inference for a ModelingToolkit `PDESystem` using the NeuralPDE 7
 
 The log-density is built from the discretized `System`: each residual block is a
 Gaussian likelihood over its collocation batch with noise std taken from `phystd`
-(PDE equations) or `bcstd` (boundary conditions). Priors cover the array unknowns
-and, when `param_estim = true`, the estimated PDE parameters in `param`.
+(PDE equations) or `bcstd` (boundary conditions). When the `BayesianPINN` carries a
+`dataset`, the PDE and boundary residuals are additionally evaluated at the dataset
+coordinates — the `datapde`/`databc` terms of NeuralPDE 6 — with the same `phystd`/
+`bcstd` noise levels, and the observed values enter as an `l2std` Gaussian on the
+network output. Priors cover the array unknowns and, when `param_estim = true`, the
+estimated PDE parameters in `param`.
+
+`additional_loss` contributes only to the optional Adam warm start, not to the
+sampled log-density, and collocation quadrature weights are ignored — every residual
+point has equal weight in the likelihood. Observational datasets and
+`Dict_differentials` require one single-output network per dependent variable.
 
 ## Positional Arguments
 
@@ -470,14 +640,34 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
     md = pinn_metadata(prob)
 
     if pinn.param_estim && isempty(param)
-        throw(UndefVarError(:param))
+        throw(
+            ArgumentError(
+                "`param` must contain prior distributions for the estimated PDE \
+                parameters when `param_estim = true`."
+            )
+        )
     elseif pinn.param_estim && dataset === nothing
-        throw(UndefVarError(:dataset))
+        throw(
+            ArgumentError(
+                "`dataset` must be set on the `BayesianPINN` discretization when \
+                `param_estim = true`."
+            )
+        )
     elseif pinn.param_estim && length(l2std) != length(md.networks)
         error("L2 stds length must match number of dependent variables")
     end
 
     nets = unique_networks(md.networks)
+    if (dataset !== nothing || Dict_differentials !== nothing) &&
+            any(net -> net.noutputs > 1, nets)
+        throw(
+            ArgumentError(
+                "observational datasets and `Dict_differentials` require one \
+                single-output network per dependent variable; shared multi-output \
+                chains are not supported."
+            )
+        )
+    end
     net_lengths = Int[length(getdefault(net.θ)) for net in nets]
     n_nn = sum(net_lengths)
     ninv = length(param)
@@ -497,7 +687,9 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
             Float64[Distributions.params(param[i])[1] for i in 1:ninv]
     end
 
-    stds = _block_stds(md.blocks, Float64.(phystd), Float64.(bcstd))
+    phystd_f = Float64.(phystd)
+    bcstd_f = Float64.(bcstd)
+    stds = _block_stds(md.blocks, phystd_f, bcstd_f)
     residual_syms = Any[b.residual for b in md.blocks]
     l2std_f = Float64.(l2std)
     phynewstd_f = Float64.(phynewstd)
@@ -528,25 +720,41 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         )
     end
 
+    data_phys = if dataset_pde === nothing && dataset_bc === nothing
+        nothing
+    else
+        build_physics_at_points(
+            pde_system, dataset_pde, dataset_bc, network_fns, net_lengths, md,
+            phystd_f, bcstd_f
+        )
+    end
+
     ℓπ = PDELogTargetDensity(
         nparameters, prob, residual_syms, stds, priors, ninv, dataset, l2std_f,
-        network_fns, net_lengths, phynewstd_f, L2_loss2
+        network_fns, net_lengths, phynewstd_f, data_phys, L2_loss2
     )
 
-    # Short MAP warmstart: the residual likelihood with small `phystd`/`bcstd` is
-    # extremely peaked, so AdvancedHMC from a cold Lux init mixes poorly within the
-    # sample budgets of the NeuralPDE 6 tests. Optimizing the System objective first
-    # places the chain near the posterior mode without changing the log-density.
+    # Adam warm start on the OptimizationProblem objective: physics and boundary
+    # residuals only, with no dataset or prior terms. It moves the network weights
+    # toward a low-residual region so short HMC chains start in high-likelihood
+    # territory, but it is not a MAP estimate of the sampled density and for inverse
+    # problems it can push the estimated parameters to degenerate values, so those
+    # are reset to their prior means before sampling.
     if pretrain_iters > 0
         train_prob = remake(prob; u0 = initial_θ)
         tres = SciMLBase.solve(
             train_prob, OptimizationOptimisers.Adam(0.01); maxiters = pretrain_iters
         )
-        θ_opt = hasproperty(tres, :original_sol) ? tres.original_sol.u : tres.u
-        initial_θ = collect(Float64, θ_opt)
+        initial_θ = collect(Float64, tres.u)
+        if ninv > 0
+            initial_θ[(end - ninv + 1):end] .=
+                Float64[Distributions.params(param[i])[1] for i in 1:ninv]
+        end
         if verbose
-            obj = hasproperty(tres, :original_sol) ? tres.original_sol.objective : tres.objective
-            @printf("Pretrain objective after %d Adam steps: %g\n", pretrain_iters, obj)
+            @printf(
+                "Pretrain objective after %d Adam steps: %g\n",
+                pretrain_iters, tres.objective
+            )
         end
     end
 

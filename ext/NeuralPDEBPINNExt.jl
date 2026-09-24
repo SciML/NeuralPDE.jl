@@ -3,8 +3,8 @@ module NeuralPDEBPINNExt
 using NeuralPDE
 using NeuralPDE: NeuralPDE, AbstractTrainingStrategy, GridTraining, StochasticTraining,
     QuadratureTraining, WeightedIntervalTraining, BNNODE, BPINNstats,
-    BPINNsolution, BayesianPINN, PhysicsInformedNN, vector_to_parameters,
-    safe_get_device, safe_expand, unique_networks, pinn_metadata, TrialNetwork
+    BPINNsolution, BayesianPINN, vector_to_parameters,
+    safe_get_device, safe_expand, unique_networks, pinn_metadata
 
 using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
     JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,
@@ -28,7 +28,7 @@ using SciMLBase: SciMLBase, isinplace, solve, remake
 using SymbolicIndexingInterface: getu
 using SymbolicUtils: SymbolicUtils
 using Symbolics: Symbolics, unwrap, iscall, operation, arguments
-using ModelingToolkitBase: get_ivs, get_domain, getdefault
+using ModelingToolkitBase: get_ivs, get_domain, getdefault, initial_conditions
 using OptimizationOptimisers: OptimizationOptimisers
 using ModelingToolkit: ModelingToolkit
 
