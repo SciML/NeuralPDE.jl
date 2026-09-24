@@ -28,4 +28,7 @@ using Test
             sol = solve(prob, NNODE(luxchain, opt; autodiff); kwargs...)
         end
     end
+
+    sol = solve(prob, NNODE(luxchain, Adam(0.1)); dt = 1 / 20.0f0, maxiters = 1)
+    @test !isempty(sol.u)
 end
