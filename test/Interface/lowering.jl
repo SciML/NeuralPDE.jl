@@ -101,6 +101,7 @@ end
     sprob = discretize(pde_system, sdisc)
     smd = pinn_metadata(sprob)
     X0 = copy(getp(sprob, smd.blocks[1].xs)(sprob))
+    saved_rng = copy(sdisc.rng)
     p1 = copy(sprob.p)
     p2 = copy(sprob.p)
     resample!(p1, smd; rng = Xoshiro(42))
@@ -108,13 +109,68 @@ end
     @test getp(sprob, smd.blocks[1].xs)(p1) == getp(sprob, smd.blocks[1].xs)(p2)
     @test getp(sprob, smd.blocks[1].xs)(p1) != X0
     # an explicit `rng` leaves the discretization's own stream untouched
+    @test sdisc.rng == saved_rng
     @test getp(sprob, smd.blocks[1].xs)(sprob) == X0
 end
 
-@testset "non-copyable rng keeps a live init stream" begin
+@testset "seeded resample! drives randomized quasi-random sampling" begin
+    qdisc = PhysicsInformedNN(
+        chain, QuasiRandomTraining(50; bcs_points = 20, resampling = true);
+        rng = Xoshiro(2)
+    )
+    qprob = discretize(pde_system, qdisc)
+    qmd = pinn_metadata(qprob)
+    X0 = copy(getp(qprob, qmd.blocks[1].xs)(qprob))
+    p1 = copy(qprob.p)
+    p2 = copy(qprob.p)
+    resample!(p1, qmd; rng = Xoshiro(42))
+    resample!(p2, qmd; rng = Xoshiro(42))
+    X1 = getp(qprob, qmd.blocks[1].xs)(p1)
+    @test X1 == getp(qprob, qmd.blocks[1].xs)(p2)
+    @test X1 != X0
+    # identically seeded discretizations draw identical initial QMC points
+    qdisc2 = PhysicsInformedNN(
+        chain, QuasiRandomTraining(50; bcs_points = 20, resampling = true);
+        rng = Xoshiro(2)
+    )
+    qprob2 = discretize(pde_system, qdisc2)
+    @test getp(qprob2, pinn_metadata(qprob2).blocks[1].xs)(qprob2) == X0
+    # deterministic samplers ignore `rng` and redraw the same points
+    sdisc = PhysicsInformedNN(
+        chain,
+        QuasiRandomTraining(50; bcs_points = 20, sampling_alg = SobolSample());
+        rng = Xoshiro(2)
+    )
+    sprob = discretize(pde_system, sdisc)
+    smd = pinn_metadata(sprob)
+    Xs = copy(getp(sprob, smd.blocks[1].xs)(sprob))
+    resample!(sprob)
+    @test getp(sprob, smd.blocks[1].xs)(sprob) == Xs
+end
+
+@testset "unseeded discretizations draw distinct weights and points" begin
+    d1 = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20))
+    d2 = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20))
+    p1 = discretize(pde_system, d1)
+    p2 = discretize(pde_system, d2)
+    @test p1.u0 != p2.u0
+    @test getp(p1, pinn_metadata(p1).blocks[1].xs)(p1) !=
+        getp(p2, pinn_metadata(p2).blocks[1].xs)(p2)
+    Random.seed!(11)
+    pa = discretize(pde_system, PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20)))
+    Random.seed!(11)
+    pb = discretize(pde_system, PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20)))
+    @test pa.u0 == pb.u0
+    @test getp(pa, pinn_metadata(pa).blocks[1].xs)(pa) ==
+        getp(pb, pinn_metadata(pb).blocks[1].xs)(pb)
+end
+
+@testset "non-copyable rng seeds the owned streams once" begin
     ddisc = PhysicsInformedNN(chain, GridTraining(0.1); rng = RandomDevice())
-    @test ddisc.rng === ddisc.init_rng
-    @test discretize(pde_system, ddisc).u0 != discretize(pde_system, ddisc).u0
+    @test ddisc.rng !== ddisc.init_rng
+    @test discretize(pde_system, ddisc).u0 == discretize(pde_system, ddisc).u0
+    d2 = PhysicsInformedNN(chain, GridTraining(0.1); rng = RandomDevice())
+    @test discretize(pde_system, d2).u0 != discretize(pde_system, ddisc).u0
 end
 
 @testset "cost weights and quadrature weights" begin

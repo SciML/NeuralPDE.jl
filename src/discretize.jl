@@ -220,7 +220,7 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
     )
     networks = TrialNetwork[]
     shared_net = nothing
-    init_rng = _rng_snapshot(disc.init_rng)
+    init_rng = copy(disc.init_rng)
     for (i, op) in enumerate(dvs)
         args = get(() -> v.args[op], declared, unwrap(op))
         n_in = length(args)
@@ -408,14 +408,20 @@ cb = (state, loss) -> (resample!(state.p, md); false)
 solve(prob, Adam(); callback = cb, maxiters = 1000)
 ```
 
-The points are drawn from the discretization's own `rng` (a copy of the generator passed
-to [`PhysicsInformedNN`](@ref)), not from the global `Random.default_rng()`, so a seeded
-discretization resamples reproducibly. Pass an explicit seeded generator to resample
-deterministically and independently of the discretization's stream:
+The points are drawn from the discretization's own `rng` (a generator seeded at
+construction from the `rng` passed to [`PhysicsInformedNN`](@ref)), not from the
+global `Random.default_rng()`, so a seeded discretization resamples reproducibly.
+Pass an explicit seeded generator to resample deterministically and independently
+of the discretization's stream:
 
 ```julia
 resample!(p, md; rng = Xoshiro(seed))
 ```
+
+For `QuasiRandomTraining` the generator is used only by randomized sampling
+algorithms — those carrying an `rng` field, such as `LatinHypercubeSample`.
+Deterministic algorithms such as `SobolSample` and `LatticeRuleSample` draw the
+same points on every call, so `resample!` leaves them unchanged.
 
 !!! warning
 

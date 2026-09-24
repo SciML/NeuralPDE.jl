@@ -396,9 +396,15 @@ end
 
 function sample_points(strategy::QuasiRandomTraining, block::ResidualBlock, rng)
     lb, ub = block.bounds
-    X = QuasiMonteCarlo.sample(block.npoints, lb, ub, strategy.sampling_alg)
+    X = QuasiMonteCarlo.sample(
+        block.npoints, lb, ub, _seed_sampling_alg(strategy.sampling_alg, rng)
+    )
     return Matrix{eltype(lb)}(reshape(X, length(lb), block.npoints)), nothing
 end
+
+# Randomized samplers (`LatinHypercubeSample`, `RandomSample`, ...) carry an `rng`
+# field; deterministic ones (`SobolSample`, `LatticeRuleSample`, ...) do not.
+_seed_sampling_alg(alg, rng) = hasproperty(alg, :rng) ? typeof(alg)(; rng) : alg
 
 resamples(strategy::QuasiRandomTraining) = strategy.resampling
 
