@@ -62,26 +62,39 @@ using ADTypes: AutoForwardDiff
 
 disc = PhysicsInformedNN(chain, GridTraining(0.1); boundary_policy = :constraints)
 prob = discretize(pde_system, disc; adtype = AutoForwardDiff())
-sol = solve(prob, IpoptOptimizer(); maxiters = 1000)
+sol = solve(prob, IpoptOptimizer(; acceptable_iter = 0); maxiters = 1000)
 ```
 
 Install OptimizationIpopt in the environment when using this solver; it brings the Ipopt
 binary, which is distributed under the Eclipse Public License 2.0.
 
-Started from the default initial weights, a constrained solve can converge to a trivial
-feasible network: under homogeneous Dirichlet conditions `u ≡ 0` satisfies every boundary
-equality exactly, so it is a stationary point of the constrained problem regardless of the
-interior residual. Warm-start the constrained problem from a converged
-`boundary_policy = :penalty` solve — a partial warm start can still collapse — and check
-that the trained network is not the trivial boundary-satisfying function:
+Two pitfalls are worth knowing about. First, Ipopt's default termination can report
+success at a looser "acceptable" level before the requested tolerance is met; pass
+`acceptable_iter = 0` to disable that early exit. Even so, `ReturnCode.Success` also
+covers `Feasible_Point_Found`, so check the achieved constraint violation directly
+rather than relying on the status alone. Second, started from the default initial
+weights a constrained solve can converge to a trivial feasible network: under
+homogeneous Dirichlet conditions `u ≡ 0` is feasible, and from the default
+initialisation Ipopt often converges to a degenerate stationary point there.
+Warm-start the constrained problem from a `boundary_policy = :penalty` solve and
+check that the trained network is not the trivial boundary-satisfying function:
 
 ```julia
 penalty_prob = discretize(pde_system,
     PhysicsInformedNN(chain, GridTraining(0.1); boundary_policy = :penalty);
     adtype = AutoForwardDiff())
 warm = solve(penalty_prob, IpoptOptimizer(); maxiters = 1000)
-sol = solve(remake(prob; u0 = warm.original_sol.u), IpoptOptimizer(); maxiters = 1000)
+sol = solve(remake(prob; u0 = warm.original_sol.u),
+    IpoptOptimizer(; acceptable_iter = 0); maxiters = 1000)
 ```
+
+Note that when the network has enough parameters to interpolate every collocation point,
+the penalty formulation already satisfies the boundary conditions to solver tolerance and
+the two formulations share a minimizer — a warm-started constrained solve then has nothing
+left to do. Exact constraints change the answer when the residuals outnumber the
+parameters, for example on fine training grids, where the penalty objective cannot drive
+every boundary residual to zero but the constrained formulation holds each one at the
+solver's constraint tolerance.
 
 ## Integral terms
 
