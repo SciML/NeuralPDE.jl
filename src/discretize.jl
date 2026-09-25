@@ -224,6 +224,7 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
     )
     networks = TrialNetwork[]
     shared_net = nothing
+    init_rng = copy(disc.init_rng)
     for (i, op) in enumerate(dvs)
         args = get(() -> v.args[op], declared, unwrap(op))
         n_in = length(args)
@@ -243,7 +244,8 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
                     )
                 )
                 shared_net = symbolic_network(
-                    chains[1], :NN, n_in, ndv, T, init === nothing ? nothing : init[1], disc.rng
+                    chains[1], :NN, n_in, ndv, T, init === nothing ? nothing : init[1],
+                    init_rng
                 )
             end
             NN, θ = shared_net
@@ -255,7 +257,7 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
         else
             name = nameof(op)
             NN, θ = symbolic_network(
-                chains[i], name, n_in, 1, T, init === nothing ? nothing : init[i], disc.rng
+                chains[i], name, n_in, 1, T, init === nothing ? nothing : init[i], init_rng
             )
             push!(
                 networks, TrialNetwork(
@@ -421,6 +423,30 @@ md = pinn_metadata(prob)
 cb = (state, loss) -> (resample!(state.p, md); false)
 solve(prob, Adam(); callback = cb, maxiters = 1000)
 ```
+
+The points are drawn from the discretization's own `rng` (a generator seeded at
+construction from the `rng` passed to [`PhysicsInformedNN`](@ref)), not from the
+global `Random.default_rng()`, so a seeded discretization resamples reproducibly.
+Pass an explicit seeded generator to resample deterministically and independently
+of the discretization's stream:
+
+```julia
+resample!(p, md; rng = Xoshiro(seed))
+```
+
+For `QuasiRandomTraining` the generator is used only by randomized sampling
+algorithms — those carrying an `rng` field, such as `LatinHypercubeSample`.
+Deterministic algorithms such as `SobolSample` and `LatticeRuleSample` draw the
+same points on every call, so `resample!` leaves them unchanged.
+
+!!! warning
+
+    Quasi-Newton optimizers (for example `BFGS`/`LBFGS`) accumulate curvature history
+    (approximate Hessian/inverse-Hessian) across iterations. Resampling the collocation
+    points between iterations invalidates that history, so follow a resampling phase
+    (typically with `Adam`) by a quasi-Newton refinement on fixed points rather than
+    interleaving resamples with quasi-Newton steps; see the
+    [training strategies manual](@ref training_strategies).
 """
 function resample!(p, md::PINNMetadata; rng = md.disc.rng)
     sys = md.metadata[]
