@@ -3,7 +3,8 @@
 
 A training strategy that uses the points of a multidimensional grid with spacings `dx`.
 If the grid is multidimensional, `dx` may be an array of spacings matching the
-independent variables of the `PDESystem` in order.
+packed independent variables in order. An array argument such as `x[1:d]`
+contributes `d` entries, in `vec` order.
 
 For PDEs the interior grid excludes the coordinate values pinned by the boundary
 conditions, and the cost of each equation is the mean of its squared residuals.

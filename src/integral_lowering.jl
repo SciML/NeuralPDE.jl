@@ -12,12 +12,16 @@
 function SciMLBase.symbolic_discretize(
         pdesys::PDESystem, disc::PhysicsInformedNN; checks = true
     )
-    _declare_integral_variables(pdesys)
-    return invoke(
-        SciMLBase.symbolic_discretize,
-        Tuple{PDESystem, PDEBase.AbstractOptimizationSystemDiscretization},
-        pdesys, disc; checks
-    )
+    expanded, packing = expand_array_arguments(pdesys)
+    _declare_integral_variables(expanded)
+    _check_grid_spacing(disc, packing)
+    return task_local_storage(_PACKING_TLS, packing) do
+        invoke(
+            SciMLBase.symbolic_discretize,
+            Tuple{PDESystem, PDEBase.AbstractOptimizationSystemDiscretization},
+            expanded, disc; checks
+        )
+    end
 end
 
 # Collect the symbols that need a domain entry for `PDEBase.VariableMap`: the
@@ -64,7 +68,7 @@ function _declare_integral_variables(pdesys)
     end
     dvops = Any[operation(unwrap(dv)) for dv in get_dvs(pdesys)]
     for eqs in (get_eqs(pdesys), get_bcs(pdesys)), eq in eqs,
-        side in (eq isa Equation ? (eq.lhs, eq.rhs) : (eq,))
+            side in (eq isa Equation ? (eq.lhs, eq.rhs) : (eq,))
         for v in _collect_integral_vars!(Any[], unwrap(side), dvops)
             any(x -> isequal(x, v), have) && continue
             push!(dom, wrap(v) ∈ DomainSets.Interval(-Inf, Inf))

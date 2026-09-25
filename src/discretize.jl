@@ -20,6 +20,10 @@ with its own collocation array parameter. The returned `System` has:
 
 The [`PINNMetadata`](@ref) describing the discretization is stored in the system
 metadata under `ModelingToolkitBase.ProblemTypeCtx`.
+
+An array argument, as in `u(t, x)` with `@parameters x[1:d]`, is packed into the
+network input `[t; vec(x)]` before lowering. `Differential(x[i])` is the derivative
+along that packed slot. The declared grouping is stored on the [`TrialNetwork`](@ref).
 """
 SciMLBase.symbolic_discretize(::PDESystem, ::PhysicsInformedNN)
 
@@ -77,7 +81,7 @@ function _domain_bounds(pdesys)
         vars = iscall(vars) && operation(vars) === tuple ? arguments(vars) : (vars,)
         for v in vars
             bounds[unwrap(v)] = (
-                DomainSets.infimum(d.domain), DomainSets.supremum(d.domain)
+                DomainSets.infimum(d.domain), DomainSets.supremum(d.domain),
             )
         end
     end
@@ -224,6 +228,10 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
     for (i, op) in enumerate(dvs)
         args = get(() -> v.args[op], declared, unwrap(op))
         n_in = length(args)
+        entry = _packing_entry(op)
+        groups = entry === nothing ? nothing : entry.groups
+        original = entry === nothing ? nothing : entry.original
+        expanded_dv = entry === nothing ? nothing : entry.expanded
         if shared
             if shared_net === nothing
                 allargs = unique(
@@ -241,13 +249,21 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
                 )
             end
             NN, θ = shared_net
-            push!(networks, TrialNetwork(op, args, NN, θ, i, ndv, chains[1]))
+            push!(
+                networks, TrialNetwork(
+                    op, args, NN, θ, i, ndv, chains[1], groups, original, expanded_dv
+                )
+            )
         else
             name = nameof(op)
             NN, θ = symbolic_network(
                 chains[i], name, n_in, 1, T, init === nothing ? nothing : init[i], init_rng
             )
-            push!(networks, TrialNetwork(op, args, NN, θ, 1, 1, chains[i]))
+            push!(
+                networks, TrialNetwork(
+                    op, args, NN, θ, 1, 1, chains[i], groups, original, expanded_dv
+                )
+            )
         end
     end
     return networks
