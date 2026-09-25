@@ -366,11 +366,12 @@ a weighted sum. Parameters of the `PDESystem` without a value in
 value` pairs.
 """
 function SciMLBase.discretize(
-        pdesys::PDESystem, disc::PhysicsInformedNN; adtype = default_adtype(), p = (),
+        pdesys::PDESystem, disc::PhysicsInformedNN; adtype = nothing, p = (),
         kwargs...
     )
     sys = symbolic_discretize(pdesys, disc)
     md = pinn_metadata(sys)
+    adtype = isnothing(adtype) ? default_adtype(md) : adtype
     csys = complete(sys)
     PDEBase.add_metadata!(md, csys)
     op = operating_point(md, disc.rng)
@@ -378,6 +379,26 @@ function SciMLBase.discretize(
         op[k] = val
     end
     return OptimizationProblem(csys, op; adtype, u0_eltype = _param_eltype(disc), kwargs...)
+end
+
+function default_adtype(md::PINNMetadata)
+    disc = md.disc
+    chains = disc.chain isa AbstractArray ? disc.chain : (disc.chain,)
+    has_dgm = any(chains) do chain
+        any(l -> l isa Union{DGM, DGMLSTMLayer}, Functors.fcollect(chain))
+    end
+    if Sys.WORD_SIZE == 32 || has_dgm || _captures_object(disc.additional_loss) ||
+            any(b -> !isempty(b.extra_params), md.blocks)
+        return AutoZygote()
+    end
+    return default_adtype()
+end
+
+# Enzyme's static activity analysis bails out on boxed values held by a closure;
+# a callback capturing only `isbits` data (or nothing) references plain constants.
+_captures_object(::Nothing) = false
+function _captures_object(f)
+    return any(i -> !isbitstype(fieldtype(typeof(f), i)), 1:fieldcount(typeof(f)))
 end
 
 """

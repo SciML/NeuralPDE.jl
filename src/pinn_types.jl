@@ -196,19 +196,30 @@ end
 
 """
     default_adtype()
+    default_adtype(md::PINNMetadata)
 
-The automatic differentiation backend `discretize` uses unless `adtype` is given:
-`AutoReactant()` when OptimizationReactant.jl is loaded in the session
-(`using OptimizationReactant`), which compiles the objective, gradient and
-value-and-gradient evaluation through Reactant and differentiates them with Enzyme
-inside the compiled program, and `AutoEnzyme()` otherwise (reverse mode, static
-activity analysis). The generated objective passes static activity analysis, so
-runtime activity is not needed; under `Enzyme.set_runtime_activity` the reverse
-pass through an `additional_loss` closure was observed to overwrite arrays the
-closure captures. `AutoZygote()` is the recommended fallback for `additional_loss`
-closures that mutate captured state, and remains selectable through `adtype`.
+The automatic differentiation backend `discretize` uses unless `adtype` is given.
+For a plain generated PDE objective on 64-bit Julia, this is `AutoReactant()` when
+OptimizationReactant.jl is loaded (`using OptimizationReactant`), and `AutoEnzyme()`
+otherwise. `AutoReactant()` compiles the objective and gradient through Reactant;
+`AutoEnzyme()` uses reverse mode with static activity analysis.
+
+`default_adtype(md)` selects `AutoZygote()` when a `DGM`/`DGMLSTMLayer` appears
+anywhere in the network's layer tree, because the DGM objective triggers an Enzyme
+runtime-activity error; when the lowered equations contain `Integral` terms, whose
+quadrature objective triggers Enzyme illegal-type analysis; and when the
+`additional_loss` callback captures boxed state such as data arrays, which
+Enzyme's activity analysis rejects — a closure with no captured objects
+differentiates under Enzyme and keeps it. On 32-bit Julia it also selects
+`AutoZygote()`: the Enzyme path can reach an LLVM.jl debug-location conversion
+error there (observed on Julia 1.13 x86; Julia 1.11 x86 is unaffected). An
+explicit `adtype` passed to `discretize` always takes precedence. Objectives that
+Enzyme cannot differentiate select their backend at the call site instead:
+[`SDEPINN`](@ref) passes `AutoZygote()` because its norm-loss closure solves an
+`IntegralProblem`, which Enzyme rejects.
 """
 function default_adtype()
+    Sys.WORD_SIZE == 32 && return AutoZygote()
     if Base.get_extension(@__MODULE__, :NeuralPDEOptimizationReactantExt) === nothing
         return AutoEnzyme()
     end
