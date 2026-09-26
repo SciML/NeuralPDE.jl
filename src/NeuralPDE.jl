@@ -13,7 +13,6 @@ using FastGaussQuadrature: gausslegendre
 using ForwardDiff: ForwardDiff
 using Functors: Functors, fmap
 using Integrals: Integrals, CubatureJLh, GaussLegendre, QuadGKJL
-using LinearAlgebra: I
 using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
 using NeuralOperators: DeepONet

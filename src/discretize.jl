@@ -369,7 +369,7 @@ function _with_reduction_term(f, aop::SymbolicUtils.BasicSymbolic{T}, args) wher
     )
 end
 
-Base.@noinline _mean_square(r, n) = sum(abs2.(r)) / n
+_mean_square(r, n) = sum(abs2.(r)) / n
 @register_symbolic _mean_square(r::AbstractArray, n)
 function ChainRulesCore.rrule(::typeof(_mean_square), r::AbstractArray, n)
     y = _mean_square(r, n)
@@ -380,7 +380,7 @@ function ChainRulesCore.rrule(::typeof(_mean_square), r::AbstractArray, n)
     return y, mean_square_pullback
 end
 
-Base.@noinline _weighted_square_sum(w, r) = sum(w .* abs2.(r))
+_weighted_square_sum(w, r) = sum(w .* abs2.(r))
 @register_symbolic _weighted_square_sum(w::AbstractArray, r::AbstractArray)
 function ChainRulesCore.rrule(
         ::typeof(_weighted_square_sum), w::AbstractArray, r::AbstractArray

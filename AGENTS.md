@@ -39,7 +39,12 @@ not in the main env).
   function (`_mean_square`, `_weighted_square_sum`) with a `ChainRulesCore.rrule`.
   A literal `sum`/`mapreduce` over a GPU array hits `GPUArraysCore._mapreduce` →
   `task_local_storage`, which Zygote cannot differentiate. Test devices with
-  JLArrays under `JLArrays.allowscalar(false)`.
+  JLArrays under `JLArrays.allowscalar(false)`, and check lowered residuals for
+  host array constants: JLArrays accepts mixed host/device arithmetic that CUDA
+  rejects. CUDA tests are required before claiming GPU support.
 - `remake(prob; u0 = dev(prob.u0), p = [block.xs => dev(X), ...])` moves the
-  whole problem; `resample!` must write device arrays (`similar` + `copyto!`),
+  collocation data and network parameters; `resample!` must write device arrays (`similar` + `copyto!`),
   and `PDENoTimeSolution` copies `θ` back to the host with `Array`.
+- Device tests and examples must select `AutoZygote()` explicitly and exercise
+  `solve`, resampling, and host solution evaluation. Preserve the discretization
+  element type during transfer: finite-difference steps are fixed at lowering time.

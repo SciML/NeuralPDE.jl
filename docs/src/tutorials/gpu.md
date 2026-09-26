@@ -1,15 +1,27 @@
 # Using GPUs to train Physics-Informed Neural Networks (PINNs)
 
-`PhysicsInformedNN` supports GPU training when used with a device-compatible Lux network.
+`PhysicsInformedNN` can place its collocation points and network parameters on a GPU.
+The workflow below uses finite-difference spatial derivatives and explicit
+`AutoZygote()` for optimization with a device-compatible Lux network. The default
+AD backend is not validated for this workflow; Enzyme fails on the JLArrays reference
+device. GPU execution must be validated on CUDA hardware. Symbolic `Integral` terms
+and `EnzymeForwardDerivative()` are not covered by this device workflow.
 Move the initial network parameters and every collocation matrix and quadrature weight
 with `remake` before solving. The returned `PDENoTimeSolution` evaluates on the host;
 `sol.original_sol` retains the optimizer's device-resident result.
 
-```julia
-using NeuralPDE, Lux, LuxCUDA, OptimizationOptimisers
+Keep the element type of all arrays unchanged when transferring them. The
+finite-difference step is fixed when `discretize` builds the problem, using the
+precision of `init_params` (Float64 by default). Changing to Float32 in `remake`
+can produce inaccurate derivatives and losses; use Float32 `init_params` before
+`discretize` if Float32 training is required. `gpu_device()` preserves precision,
+whereas `CUDA.cu` converts Float64 arrays to Float32.
+
+```@example gpu_setup
+using NeuralPDE, Lux, OptimizationOptimisers, Zygote
+using ADTypes: AutoZygote
 using DomainSets: Interval
 using SymbolicIndexingInterface: getp
-const gpud = gpu_device()
 
 @parameters t x y
 @variables u(..)
@@ -35,7 +47,15 @@ chain = Chain(
 )
 discretization = PhysicsInformedNN(chain, QuasiRandomTraining(2000; bcs_points = 500))
 @named pde_system = PDESystem(eq, bcs, domains, [t, x, y], [u(t, x, y)])
-prob = discretize(pde_system, discretization)
+prob = discretize(pde_system, discretization; adtype = AutoZygote())
+nothing # hide
+```
+
+The remaining steps require a CUDA-capable GPU:
+
+```julia
+using LuxCUDA
+const gpud = gpu_device()
 
 # Move the weights and every collocation matrix to the GPU.
 md = pinn_metadata(prob)
