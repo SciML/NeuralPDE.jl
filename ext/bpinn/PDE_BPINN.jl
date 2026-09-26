@@ -364,7 +364,7 @@ function build_physics_at_points(
         coords = Matrix(transpose(dataset_i[:, 2:end]))
         ex = unwrap(eq.lhs - eq.rhs)
         diffs, calls, freeivs = _eq_term_map(ex, depvar_set, iv_index)
-        terms = vcat(diffs, calls)
+        terms = unique!(vcat(diffs, calls))
         phs = [unwrap(Symbolics.variable(Symbol(:dp_, k))) for k in eachindex(terms)]
         expr_sub = if isempty(terms)
             ex
@@ -745,7 +745,11 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         tres = SciMLBase.solve(
             train_prob, OptimizationOptimisers.Adam(0.01); maxiters = pretrain_iters
         )
-        initial_θ = collect(Float64, tres.u)
+        # `solve` on the PDEBase discretization wraps the result into a
+        # `PDENoTimeSolution`, whose `u` is the depvar => grid dictionary; the raw
+        # minimizer lives on `original_sol`.
+        optsol = hasproperty(tres, :original_sol) ? tres.original_sol : tres
+        initial_θ = collect(Float64, optsol.u)
         if ninv > 0
             initial_θ[(end - ninv + 1):end] .=
                 Float64[Distributions.params(param[i])[1] for i in 1:ninv]
@@ -753,7 +757,7 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         if verbose
             @printf(
                 "Pretrain objective after %d Adam steps: %g\n",
-                pretrain_iters, tres.objective
+                pretrain_iters, optsol.objective
             )
         end
     end
