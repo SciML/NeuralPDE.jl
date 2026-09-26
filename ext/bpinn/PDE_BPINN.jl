@@ -610,9 +610,10 @@ point has equal weight in the likelihood. Observational datasets and
 * `Kernel`, `Adaptorkwargs`, `Integratorkwargs`: AdvancedHMC sampling controls.
 * `saveats`: grid spacing per independent variable for the ensemble solution.
 * `numensemble`: trailing samples used for the ensemble / parameter estimates.
-* `pretrain_iters`: number of Adam steps on the `OptimizationProblem` objective used to
-  warm-start the MCMC chain (default `500`). Set to `0` to sample from the Lux
-  initialization directly.
+* `pretrain_iters`: optional Adam steps on the `OptimizationProblem` objective before
+  HMC (default `0`, matching NeuralPDE 6). When positive, network weights are
+  warm-started from the physics/BC residual loss only; estimated PDE parameters are
+  then reset to their prior means because that objective is not the sampled posterior.
 * `progress`, `verbose`: AdvancedHMC verbosity.
 
 Returns a [`BPINNsolution`](@ref) (or a vector of them when `nchains > 1`).
@@ -627,7 +628,7 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         ),
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
         numensemble = floor(Int, draw_samples / 3), Dict_differentials = nothing,
-        pretrain_iters::Int = 500, progress = false, verbose = false
+        pretrain_iters::Int = 0, progress = false, verbose = false
     )
     pinn = discretization isa BayesianPINN ? discretization.pinn : discretization
     dataset_pde, dataset_bc = if discretization isa BayesianPINN
