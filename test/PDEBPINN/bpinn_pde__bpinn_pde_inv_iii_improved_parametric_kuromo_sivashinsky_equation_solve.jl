@@ -161,14 +161,13 @@ using Test
 
     # Posterior-mean prediction: average the network output over the posterior
     # weight samples, as v6 did with `pmean(phi([x, t], particles))`.
+    # `estim_nn_params` is a Vector{Particles} (one per weight); Lux evaluates with
+    # Particle parameters and `pmean` collapses the predictive Particles.
     function mean_predict(chain, estim_nn_params, x, t)
         ps, st = Lux.setup(Random.default_rng(), chain)
         ax = getaxes(ComponentArray(ps))
-        θsamples = reduce(hcat, [p.particles for p in estim_nn_params])
-        return mean(
-            only(chain([x, t], ComponentArray(θc, ax), st)[1])
-                for θc in eachcol(θsamples)
-        )
+        θ = ComponentArray(estim_nn_params, ax)
+        return only(pmean(first(chain([x, t], θ, st))))
     end
 
     xs,
