@@ -5,7 +5,7 @@ using Adapt: Adapt
 using ArrayInterface: ArrayInterface
 using ChainRulesCore: ChainRulesCore, @ignore_derivatives
 using Cubature: Cubature
-using ComponentArrays: ComponentArrays, ComponentArray
+using ComponentArrays: ComponentArrays, ComponentArray, getaxes
 using ConcreteStructs: @concrete
 using DomainSets: DomainSets
 using Enzyme: Enzyme
@@ -113,11 +113,14 @@ const cdev = CPUDevice()
 include("eltype_matching.jl")
 
 include("pinn_types.jl")
+include("array_arguments.jl")
 include("training_strategies.jl")
 include("pinn_lowering.jl")
+include("enzyme_derivative.jl")
 include("integral_lowering.jl")
 include("discretize.jl")
 include("pde_solution.jl")
+include("distill.jl")
 
 include("ode_solve.jl")
 include("dae_solve.jl")
@@ -136,7 +139,7 @@ export NNODE, NNDAE
 export BNNODE, ahmc_bayesian_pinn_ode
 export NNSDE
 export SDEPINN
-export PhysicsInformedNN, FiniteDifferenceDerivative
+export PhysicsInformedNN, FiniteDifferenceDerivative, EnzymeForwardDerivative
 export BPINNsolution
 export DeepGalerkin
 
@@ -144,7 +147,7 @@ export GridTraining, StochasticTraining, QuadratureTraining, QuasiRandomTraining
     WeightedIntervalTraining
 
 export get_loss_function, vector_to_parameters
-export pinn_metadata, resample!
+export pinn_metadata, resample!, distill
 
 export SciMLBase, DAEProblem, NoiseProblem, ODEFunction, ODEInputFunction, ODEProblem,
     ODESolution, OptimizationFunction, OptimizationProblem, PDENoTimeSolution,
@@ -154,7 +157,7 @@ export ModelingToolkit, Differential, Integral, PDESystem, mtkcompile, unknowns,
     @mtkcompile, @named, @parameters, @register_symbolic, @variables
 
 @public AbstractDerivativeLowering, PINNMetadata, ResidualBlock, TrialNetwork,
-    AdditionalLoss, nn_eval, nn_eval_row, nn_vcat, nn_veccat, quadrature,
+    AdditionalLoss, nn_eval, nn_eval_row, nn_jvp, nn_vcat, nn_veccat, quadrature,
     QuadratureIntegrand,
     default_adtype, lower, lower_derivative, trial_function,
     collocation_count, sample_points, resamples, uses_quadrature_weights

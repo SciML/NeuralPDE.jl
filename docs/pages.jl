@@ -17,6 +17,7 @@ pages = [
         "The symbolic_discretize Interface" => "tutorials/low_level.md",
         "Optimising Parameters (Solving Inverse Problems)" => "tutorials/param_estim.md",
         "The Derivative Neural Network Approximation" => "tutorials/derivative_neural_network.md",
+        "Transfer Learning by Distillation" => "tutorials/transfer_learning.md",
     ],
     "Extended Examples" => Any[
         "examples/wave.md",
