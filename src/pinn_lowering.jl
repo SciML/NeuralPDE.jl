@@ -61,7 +61,7 @@ function lower(ex, ctx::LoweringContext, shift)
     return op(args...)
 end
 
-function lower_depvar(ex, ctx::LoweringContext, shift)
+function lower_depvar(ex, ctx::LoweringContext, shift, directions = nothing)
     net = ctx.networks[operation(ex)]
     callargs = arguments(ex)
     n_in = length(callargs)
@@ -109,6 +109,7 @@ function lower_depvar(ex, ctx::LoweringContext, shift)
     else
         iszero(c) ? P * wrap(ctx.xs) : P * wrap(ctx.xs) .+ c
     end
+    directions === nothing || return nn_jvp(net.NN, X, net.θ, directions, net.output)
     net.noutputs == 1 && return nn_eval(net.NN, X, net.θ)
     return nn_eval_row(net.NN, X, net.θ, net.output)
 end
