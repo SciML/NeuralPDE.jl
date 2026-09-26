@@ -206,15 +206,17 @@ otherwise. `AutoReactant()` compiles the objective and gradient through Reactant
 
 `default_adtype(md)` selects `AutoZygote()` when a `DGM`/`DGMLSTMLayer` appears
 anywhere in the network's layer tree, because the DGM objective triggers an Enzyme
-runtime-activity error; when the lowered equations contain `Integral` terms, whose
-quadrature objective triggers Enzyme illegal-type analysis; and when the
-`additional_loss` callback captures boxed state such as data arrays, which
-Enzyme's activity analysis rejects — a closure with no captured objects
-differentiates under Enzyme and keeps it. On 32-bit Julia it also selects
-`AutoZygote()`: the Enzyme path can reach an LLVM.jl debug-location conversion
-error there (observed on Julia 1.13 x86; Julia 1.11 x86 is unaffected). An
-explicit `adtype` passed to `discretize` always takes precedence. Objectives that
-Enzyme cannot differentiate select their backend at the call site instead:
+runtime-activity error, and when the lowered equations contain `Integral` terms,
+whose quadrature objective triggers Enzyme illegal-type analysis. On 32-bit Julia it
+also selects `AutoZygote()`: the Enzyme path can reach an LLVM.jl debug-location
+conversion error there (observed on Julia 1.13 x86; Julia 1.11 x86 is unaffected).
+An explicit `adtype` passed to `discretize` always takes precedence.
+
+An `additional_loss` callback is differentiated with the same backend as the PDE
+objective; its closure is not inspected. Callbacks that close over local data arrays,
+such as `(phi, θ, p) -> sum(abs2, phi.u(xs, θ.u) .- ys)` with `xs`, `ys` local
+variables, can fail Enzyme's static activity analysis with an
+`EnzymeRuntimeActivityError`; pass `adtype = AutoZygote()` to `discretize` for them.
 [`SDEPINN`](@ref) passes `AutoZygote()` because its norm-loss closure solves an
 `IntegralProblem`, which Enzyme rejects.
 """

@@ -387,18 +387,11 @@ function default_adtype(md::PINNMetadata)
     has_dgm = any(chains) do chain
         any(l -> l isa Union{DGM, DGMLSTMLayer}, Functors.fcollect(chain))
     end
-    if Sys.WORD_SIZE == 32 || has_dgm || _captures_object(disc.additional_loss) ||
+    if Sys.WORD_SIZE == 32 || has_dgm ||
             any(b -> !isempty(b.extra_params), md.blocks)
         return AutoZygote()
     end
     return default_adtype()
-end
-
-# Enzyme's static activity analysis bails out on boxed values held by a closure;
-# a callback capturing only `isbits` data (or nothing) references plain constants.
-_captures_object(::Nothing) = false
-function _captures_object(f)
-    return any(i -> !isbitstype(fieldtype(typeof(f), i)), 1:fieldcount(typeof(f)))
 end
 
 """
