@@ -35,10 +35,10 @@ using Test
     alg = SDEPINN(
         chain = chain,
         optimalg = (Adam(0.01), BFGS(linesearch = BackTracking())),
-        # fixed-node quadrature keeps the normalization loss deterministic;
-        # adaptive refinement (HCubatureJL) can take different paths under
-        # floating-point ordering changes
-        norm_loss_alg = GaussLegendre(n = 32),
+        # `norm_loss` caps quadrature at maxiters = 10, where HCubatureJL
+        # applies a single 15-point rule that misses most of the narrow
+        # initial density; Gauss-Legendre on subintervals resolves it.
+        norm_loss_alg = GaussLegendre(n = 32, subintervals = 4),
         rng = Xoshiro(100),
         x_0 = x_0,
         x_end = x_end,
@@ -63,7 +63,7 @@ using Test
     u_real = [[analytic_sol_func(x, t) for x in xs] for t in ts]
     u_predict = [[first(phi([x, t], sol_GBM.u)) for x in xs] for t in ts]
 
-    @test sol_GBM.objective < 1.0e-3
+    @test sol_GBM.objective < 5.0e-4
 
     # MSE across all x
     diff = u_real .- u_predict

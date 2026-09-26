@@ -21,11 +21,12 @@ Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
 - `norm_loss_alg`: Integration algorithm used by the normalization loss.
 - `initial_parameters`: Initial network parameters. NeuralPDE draws them from `rng` when
   omitted.
-- `rng`: Random number generator for network parameter initialization and collocation
-  sampling.
+- `rng`: Random number generator for network parameter initialization when
+  `initial_parameters` is omitted. `SDEPINN` always uses `GridTraining`, so `rng`
+  does not affect collocation points.
 - `adtype`: AD backend of the training objective. Defaults to `AutoZygote()` because the
-  normalization loss calls `Integrals.solve` on `norm_loss_alg`, which Enzyme and
-  Reactant cannot differentiate.
+  normalization loss calls `Integrals.solve` on `norm_loss_alg`, which Enzyme cannot
+  differentiate (`EnzymeRuntimeActivityError`).
 - `Nt`: Number of temporal training points.
 - `dx`: Spatial grid spacing used to evaluate the solution.
 - `σ_var_bc`: Width of the Gaussian approximation to the initial condition.
@@ -272,6 +273,26 @@ function SciMLBase.__solve(
         return false
     end
 
+    opts, iters = _sdepinn_stages(optimalg, maxiters)
+    res = nothing
+    for (opt, mi) in zip(opts, iters)
+        res = Optimization.solve(
+            opt_prob, opt; callback = cb, maxiters = mi, kwargs...
+        )
+        opt_prob = remake(opt_prob; u0 = res.original_sol.u)
+    end
+
+    # The PDE solution wrapper is unwrapped so that `res.u` stays the parameter vector.
+    return res.original_sol, phi
+end
+
+"""
+    _sdepinn_stages(optimalg, maxiters)
+
+Normalize `optimalg` / `maxiters` into equal-length stage sequences. A scalar
+`maxiters` is broadcast to every stage; a vector/tuple must match `optimalg`.
+"""
+function _sdepinn_stages(optimalg, maxiters)
     opts = optimalg isa Union{Tuple, AbstractVector} ? optimalg : (optimalg,)
     iters = if maxiters isa Union{Tuple, AbstractVector}
         length(maxiters) == length(opts) || throw(
@@ -284,14 +305,5 @@ function SciMLBase.__solve(
     else
         ntuple(_ -> maxiters, length(opts))
     end
-    res = nothing
-    for (opt, mi) in zip(opts, iters)
-        res = Optimization.solve(
-            opt_prob, opt; callback = cb, maxiters = mi, kwargs...
-        )
-        opt_prob = remake(opt_prob; u0 = res.original_sol.u)
-    end
-
-    # The PDE solution wrapper is unwrapped so that `res.u` stays the parameter vector.
-    return res.original_sol, phi
+    return opts, iters
 end
