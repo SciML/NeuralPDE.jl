@@ -35,7 +35,7 @@ as the other SciML discretizers (for example MethodOfLines.jl):
    whose parameters are array unknowns of the system; the residual of every equation and
    boundary condition is a symbolic array expression over a matrix of collocation points
    stored as a parameter of the system; each residual contributes one cost (or, for
-   boundary conditions with `boundary_policy = :constraints`, one equality constraint).
+   boundary conditions with `boundary_policy = :constraints`, a pointwise equality).
 2. `discretize(pdesys, discretization)` samples the collocation points with the training
    strategy and generates an `OptimizationProblem` through ModelingToolkit's
    `OptimizationProblem(sys, op)` constructor. Keyword arguments such as `adtype`
@@ -46,6 +46,89 @@ as the other SciML discretizers (for example MethodOfLines.jl):
 3. `solve(prob, optimizer)` returns a `PDENoTimeSolution` which evaluates the trained
    networks: `sol[u(x, t)]` on the evaluation grid, `sol(x, t; dv = u(x, t))` at arbitrary
    points, and `sol.original_sol` for the underlying `OptimizationSolution`.
+
+## Exact boundary constraints
+
+By default, boundary residuals contribute mean squared penalty costs. Set
+`boundary_policy = :constraints` to impose each boundary residual as an equality at its
+collocation points. The selected optimization solver must support equality constraints;
+for example, `IpoptOptimizer` from OptimizationIpopt does. Constraint derivatives for
+these array residuals need an automatic differentiation backend, so pass `adtype` when
+discretizing.
+
+The following 2D Poisson problem has the solution
+`u(x, y) = sinpi(x) * sinpi(y) / (2pi^2)`. A fixed polynomial feature layer and a
+trainable linear output layer give a biquadratic trial space. Both optimization
+problems are convex quadratics, but this space cannot represent the sinusoidal
+solution exactly. The same seed gives both policies the same initial weights and
+collocation points; the points stay fixed during each solve.
+
+```@example boundary_constraints
+using NeuralPDE, ModelingToolkit, Lux, Random, SciMLBase
+using DomainSets: Interval
+using OptimizationIpopt
+using ADTypes: AutoForwardDiff
+import Ipopt
+
+@parameters x y
+@variables u(..)
+Dxx, Dyy = Differential(x)^2, Differential(y)^2
+eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ -sinpi(x) * sinpi(y)
+bcs = [u(0, y) ~ 0.0, u(1, y) ~ 0.0, u(x, 0) ~ 0.0, u(x, 1) ~ 0.0]
+@named poisson = PDESystem(eq, bcs,
+    [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)], [x, y], [u(x, y)])
+
+legendre(z) = (one.(z), 2z .- 1, 6z .^ 2 .- 6z .+ 1)
+features(X) = vcat([
+    a .* b for a in legendre(X[1:1, :]) for b in legendre(X[2:2, :])
+]...)
+chain = Chain(WrappedFunction(features), Dense(9, 1; use_bias = false))
+problem(policy) = discretize(poisson,
+    PhysicsInformedNN(chain, StochasticTraining(100; bcs_points = 2);
+        rng = Xoshiro(1173), boundary_policy = policy);
+    adtype = AutoForwardDiff())
+penalty_prob = problem(:penalty)
+constrained_prob = problem(:constraints)
+constr_viol_tol = 1.0e-9
+optimizer = IpoptOptimizer(; acceptable_iter = 0, constr_viol_tol,
+    nlp_scaling_method = "none")
+
+results = map((:penalty, :constraints), (penalty_prob, constrained_prob)) do policy, prob
+    sol = solve(prob, optimizer; maxiters = 100, reltol = 1.0e-8, verbose = 0)
+    status = Ipopt.ApplicationReturnStatus(sol.original_sol.original.status)
+    @assert status == Ipopt.Solve_Succeeded
+    residual = zeros(length(constrained_prob.lcons))
+    constrained_prob.f.cons(residual, sol.original_sol.u, constrained_prob.p)
+    boundary_error = maximum(abs, residual)
+    interior_error = maximum(
+        abs(sol(a, b; dv = u(x, y)) - sinpi(a) * sinpi(b) / (2pi^2))
+        for a in 0.05:0.05:0.95, b in 0.05:0.05:0.95)
+    (; policy, status, boundary_error, interior_error)
+end
+@assert results[2].boundary_error <= constr_viol_tol
+@assert results[1].boundary_error > constr_viol_tol
+@assert results[2].interior_error < results[1].interior_error
+results
+```
+
+Install OptimizationIpopt in the environment when using this solver; it brings the Ipopt
+binary, which is distributed under the Eclipse Public License 2.0.
+
+Ipopt's `acceptable_iter = 0` disables the heuristic based on consecutive
+acceptable iterates. Other termination paths can still return
+`Solved_To_Acceptable_Level`, and OptimizationIpopt maps that status to
+`ReturnCode.Success`. To require strict convergence, check
+`Ipopt.ApplicationReturnStatus(sol.original_sol.original.status) == Ipopt.Solve_Succeeded`
+and evaluate the constraint residual against the configured `constr_viol_tol`.
+See [Ipopt's termination options](https://coin-or.github.io/Ipopt/OPTIONS.html#OPT_Termination).
+
+Exact constraints hold at the boundary collocation points. They do not guarantee
+accuracy between those points or in the interior. Nonlinear networks can also have
+poor local optima; a penalty solution can provide an initial guess through
+`remake(prob; u0 = penalty_sol.original_sol.u)`, but both feasibility and interior
+accuracy still need checking. A finite penalty can trade boundary error for a smaller
+PDE residual when the trial space cannot represent the PDE solution. If both residuals
+can vanish simultaneously, the two policies can share a minimizer.
 
 ## Spatial derivatives with Enzyme
 
