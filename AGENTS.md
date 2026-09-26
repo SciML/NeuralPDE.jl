@@ -15,6 +15,11 @@ from the root `[extras]`/`[targets]`; `Pkg.test()` resolves them — do not run
 test files with `--project=.` directly (imports like `OptimizationOptimJL` are
 not in the main env).
 
+For constrained-solver regression tests, assert the raw solver status and bound the
+measured constraint violation by the configured constraint tolerance. OptimizationIpopt
+maps acceptable-level termination to `ReturnCode.Success`; `acceptable_iter = 0`
+does not rule out every such exit. Converge both policies before comparing their errors.
+
 ## Formatting and lint
 
 - Format/check with Runic.jl: `julia -m Runic -c <paths>` (the `runic` binary on
