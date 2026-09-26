@@ -550,7 +550,7 @@ function inference(samples, md, saveats, numensemble, ℓπ)
         k = net.output
         preds = [
             Φ(tp, samplesn[:, i][(offsets[net_idx] + 1):offsets[net_idx + 1]])[k:k, :]
-                for i in 1:numensemble
+                for i in axes(samplesn, 2)
         ]
         push!(ensemblecurves, Particles(reduce(vcat, preds)))
     end

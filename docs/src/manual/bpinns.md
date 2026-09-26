@@ -26,6 +26,7 @@ over its collocation batch for AdvancedHMC sampling.
 
 ```@docs
 NeuralPDE.BayesianPINN
+SciMLBase.symbolic_discretize(::PDESystem, ::NeuralPDE.BayesianPINN)
 NeuralPDE.ahmc_bayesian_pinn_ode
 NeuralPDE.ahmc_bayesian_pinn_pde
 NeuralPDE.BPINNstats
