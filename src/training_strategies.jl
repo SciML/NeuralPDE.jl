@@ -135,7 +135,10 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
 
 * `bcs_points`: the number of quasi-random points in a sample for boundary conditions
   (by default, it equals `points`),
-* `sampling_alg`: the quasi-Monte Carlo sampling algorithm,
+* `sampling_alg`: the quasi-Monte Carlo sampling algorithm. When the discretization's
+  `rng` (or an explicit `rng` passed to [`resample!`](@ref)) is applied, it replaces any
+  generator already stored on the sampler or on its nested randomization (`R.rng`), so a
+  user-supplied `LatinHypercubeSample(Xoshiro(99))` is overridden by the discretization.
 * `resampling`: whether [`resample!`](@ref) draws a new sample for PDE problems. For the
   ODE solvers, `false` generates `minibatch` samples in advance and selects one of them at
   random on every objective evaluation.
@@ -403,9 +406,26 @@ function sample_points(strategy::QuasiRandomTraining, block::ResidualBlock, rng)
     return Matrix{eltype(lb)}(reshape(X, length(lb), block.npoints)), nothing
 end
 
-# Randomized samplers (`LatinHypercubeSample`, `RandomSample`, ...) carry an `rng`
-# field; deterministic ones (`SobolSample`, `LatticeRuleSample`, ...) do not.
-_seed_sampling_alg(alg, rng) = hasproperty(alg, :rng) ? typeof(alg)(; rng) : alg
+# Rebuild `x` with `rng` while keeping every other field (needed for
+# `OwenScramble(base, pad, rng)` and any future sampler with settings beyond `rng`).
+function _with_rng(x, rng)
+    return typeof(x)(; (; (k => getfield(x, k) for k in fieldnames(typeof(x)))..., rng)...)
+end
+
+# Randomized samplers (`LatinHypercubeSample`, `RandomSample`, ...) carry a top-level
+# `rng`. Deterministic QMC bases (`SobolSample`, `LatticeRuleSample`, `HaltonSample`)
+# with `R = NoRand()` ignore `rng`; with an `R`-randomization (`OwenScramble`, `Shift`)
+# the generator lives on `alg.R.rng` and must be re-seeded as well.
+function _seed_sampling_alg(alg, rng)
+    if hasproperty(alg, :R) && hasproperty(alg.R, :rng)
+        R = _with_rng(alg.R, rng)
+        return typeof(alg)(; (; (k => getfield(alg, k) for k in fieldnames(typeof(alg)))..., R)...)
+    elseif hasproperty(alg, :rng)
+        return _with_rng(alg, rng)
+    else
+        return alg
+    end
+end
 
 resamples(strategy::QuasiRandomTraining) = strategy.resampling
 

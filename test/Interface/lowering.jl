@@ -135,7 +135,7 @@ end
     )
     qprob2 = discretize(pde_system, qdisc2)
     @test getp(qprob2, pinn_metadata(qprob2).blocks[1].xs)(qprob2) == X0
-    # deterministic samplers ignore `rng` and redraw the same points
+    # deterministic bases with R = NoRand() ignore `rng` and redraw the same points
     sdisc = PhysicsInformedNN(
         chain,
         QuasiRandomTraining(50; bcs_points = 20, sampling_alg = SobolSample());
@@ -146,6 +146,30 @@ end
     Xs = copy(getp(sprob, smd.blocks[1].xs)(sprob))
     resample!(sprob)
     @test getp(sprob, smd.blocks[1].xs)(sprob) == Xs
+    # R-randomized Sobol (power-of-two counts) re-seeds alg.R.rng
+    owen = SobolSample(R = OwenScramble(base = 2, pad = 32))
+    odisc = PhysicsInformedNN(
+        chain,
+        QuasiRandomTraining(64; bcs_points = 32, sampling_alg = owen, resampling = true);
+        rng = Xoshiro(2)
+    )
+    oprob = discretize(pde_system, odisc)
+    omd = pinn_metadata(oprob)
+    Xo0 = copy(getp(oprob, omd.blocks[1].xs)(oprob))
+    op1 = copy(oprob.p)
+    op2 = copy(oprob.p)
+    resample!(op1, omd; rng = Xoshiro(42))
+    resample!(op2, omd; rng = Xoshiro(42))
+    Xo1 = getp(oprob, omd.blocks[1].xs)(op1)
+    @test Xo1 == getp(oprob, omd.blocks[1].xs)(op2)
+    @test Xo1 != Xo0
+    odisc2 = PhysicsInformedNN(
+        chain,
+        QuasiRandomTraining(64; bcs_points = 32, sampling_alg = owen, resampling = true);
+        rng = Xoshiro(2)
+    )
+    oprob2 = discretize(pde_system, odisc2)
+    @test getp(oprob2, pinn_metadata(oprob2).blocks[1].xs)(oprob2) == Xo0
 end
 
 @testset "unseeded discretizations draw distinct weights and points" begin

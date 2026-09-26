@@ -434,10 +434,13 @@ of the discretization's stream:
 resample!(p, md; rng = Xoshiro(seed))
 ```
 
-For `QuasiRandomTraining` the generator is used only by randomized sampling
-algorithms — those carrying an `rng` field, such as `LatinHypercubeSample`.
-Deterministic algorithms such as `SobolSample` and `LatticeRuleSample` draw the
-same points on every call, so `resample!` leaves them unchanged.
+For `QuasiRandomTraining` the generator seeds randomized sampling algorithms —
+those carrying an `rng` field (for example `LatinHypercubeSample`) and nested
+`R`-randomizations such as `OwenScramble` or `Shift` on `SobolSample` /
+`LatticeRuleSample` / `HaltonSample`. It replaces any generator already stored
+on the sampler. With the default `R = NoRand()`, `SobolSample`,
+`LatticeRuleSample` and `HaltonSample` draw the same points on every call, so
+`resample!` leaves them unchanged.
 
 !!! warning
 
