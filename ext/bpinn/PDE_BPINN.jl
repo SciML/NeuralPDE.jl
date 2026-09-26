@@ -180,7 +180,8 @@ function _eq_term_map(ex, depvar_set, iv_index)
     function _walk(term)
         t = unwrap(term)
         if !iscall(t)
-            haskey(iv_index, t) && t ∉ freeivs && push!(freeivs, t)
+            # `x in ::Vector{Any}` on a symbolic x is a symbolic `in` node, not Bool.
+            haskey(iv_index, t) && !any(isequal(t), freeivs) && push!(freeivs, t)
             return nothing
         end
         op = operation(t)
