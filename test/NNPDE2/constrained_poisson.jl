@@ -70,11 +70,11 @@ import Ipopt
 
     xs = 0.05:0.05:0.95
     U_exact = [analytic(xi, yi) for xi in xs, yi in xs]
-    error(sol) = maximum(
+    interior_error(sol) = maximum(
         abs, [sol(xi, yi; dv = u(x, y)) for xi in xs, yi in xs] .- U_exact
     )
-    penalty_error = error(penalty_sol)
-    constrained_error = error(constrained_sol)
+    penalty_error = interior_error(penalty_sol)
+    constrained_error = interior_error(constrained_sol)
     @test constrained_error < maximum(abs, U_exact)
     @test constrained_error < penalty_error
     @info "2D Poisson boundary feasibility and interior error" constrained_bc penalty_bc constrained_error penalty_error
