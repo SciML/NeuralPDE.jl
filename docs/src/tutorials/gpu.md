@@ -31,20 +31,16 @@ Dt = Differential(t)
 
 eq = Dt(u(t, x, y)) ~ Dxx(u(t, x, y)) + Dyy(u(t, x, y))
 analytic_sol_func(t, x, y) = exp(x + y) * cos(x + y + 4t)
-bcs = [
-    u(0, x, y) ~ analytic_sol_func(0, x, y),
+bcs = [u(0, x, y) ~ analytic_sol_func(0, x, y),
     u(t, 0, y) ~ analytic_sol_func(t, 0, y),
     u(t, 2, y) ~ analytic_sol_func(t, 2, y),
     u(t, x, 0) ~ analytic_sol_func(t, x, 0),
-    u(t, x, 2) ~ analytic_sol_func(t, x, 2),
-]
+    u(t, x, 2) ~ analytic_sol_func(t, x, 2)]
 domains = [t ∈ Interval(0.0, 2.0), x ∈ Interval(0.0, 2.0), y ∈ Interval(0.0, 2.0)]
 
 inner = 25
-chain = Chain(
-    Dense(3, inner, σ), Dense(inner, inner, σ), Dense(inner, inner, σ),
-    Dense(inner, inner, σ), Dense(inner, 1)
-)
+chain = Chain(Dense(3, inner, σ), Dense(inner, inner, σ), Dense(inner, inner, σ),
+    Dense(inner, inner, σ), Dense(inner, 1))
 discretization = PhysicsInformedNN(chain, QuasiRandomTraining(2000; bcs_points = 500))
 @named pde_system = PDESystem(eq, bcs, domains, [t, x, y], [u(t, x, y)])
 prob = discretize(pde_system, discretization; adtype = AutoZygote())
