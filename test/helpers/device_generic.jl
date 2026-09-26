@@ -3,6 +3,12 @@ using SymbolicIndexingInterface: getp
 using Symbolics: build_function
 using SymbolicUtils: unwrap, BasicSymbolic, isconst, unwrap_const, iscall, arguments, operation
 
+# Finite-difference second derivatives with step h = eps^(1/4) amplify last-bit
+# differences in the network output (host BLAS vs device matmul) by eps/h^2 ≈ 1.5e-8
+# relative, the default `isapprox` tolerance: a one-ulp change of θ already moves the
+# CPU gradient by 1e-8 to 3e-8.
+const FD_RTOL = 1.0e-6
+
 function has_host_array(ex)
     ex = unwrap(ex)
     if ex isa BasicSymbolic
@@ -50,20 +56,20 @@ function test_device_pde(dev, DeviceArray)
         )
         cpu_loss = prob.f(prob.u0, prob.p)
         device_loss = device_prob.f(device_prob.u0, device_prob.p)
-        @test device_loss ≈ cpu_loss
+        @test device_loss ≈ cpu_loss rtol = FD_RTOL
         cpu_gradient = Zygote.gradient(θ -> prob.f(θ, prob.p), prob.u0)[1]
         device_gradient = Zygote.gradient(
             θ -> device_prob.f(θ, device_prob.p), device_prob.u0
         )[1]
         @test device_gradient isa DeviceArray
-        @test Array(device_gradient) ≈ cpu_gradient
+        @test Array(device_gradient) ≈ cpu_gradient rtol = FD_RTOL
         cpu_sol = solve(prob, Adam(0.01); maxiters = 5)
         device_sol = solve(device_prob, Adam(0.01); maxiters = 5)
         @test device_sol.original_sol.u isa DeviceArray
         @test device_sol.original_sol.objective < device_loss
-        @test device_sol.original_sol.objective ≈ cpu_sol.original_sol.objective
+        @test device_sol.original_sol.objective ≈ cpu_sol.original_sol.objective rtol = FD_RTOL
         @test device_sol[u(x, y)] isa Array
-        @test device_sol[u(x, y)] ≈ cpu_sol[u(x, y)]
+        @test device_sol[u(x, y)] ≈ cpu_sol[u(x, y)] rtol = FD_RTOL
     end
 
     @testset "resampling on $DeviceArray" begin
@@ -79,11 +85,12 @@ function test_device_pde(dev, DeviceArray)
         resample!(stochastic_prob; rng = Xoshiro(11))
         after = [getp(device_prob, b.xs)(device_prob) for b in stochastic_md.blocks if b.xs !== nothing]
         @test all(Array(a) != b for (a, b) in zip(after, before))
-        @test device_prob.f(device_prob.u0, device_prob.p) ≈ stochastic_prob.f(stochastic_prob.u0, stochastic_prob.p)
+        @test device_prob.f(device_prob.u0, device_prob.p) ≈
+            stochastic_prob.f(stochastic_prob.u0, stochastic_prob.p) rtol = FD_RTOL
         cpu_gradient = Zygote.gradient(θ -> stochastic_prob.f(θ, stochastic_prob.p), stochastic_prob.u0)[1]
         device_gradient = Zygote.gradient(θ -> device_prob.f(θ, device_prob.p), device_prob.u0)[1]
         @test device_gradient isa DeviceArray
-        @test Array(device_gradient) ≈ cpu_gradient
+        @test Array(device_gradient) ≈ cpu_gradient rtol = FD_RTOL
         @test all(
             getp(device_prob, b.xs)(device_prob) isa DeviceArray for b in stochastic_md.blocks if b.xs !== nothing
         )
@@ -106,11 +113,12 @@ function test_device_pde(dev, DeviceArray)
             key === nothing || push!(data, key => dev(getp(argument_prob, key)(argument_prob)))
         end
         device_prob = remake(argument_prob; u0 = dev(argument_prob.u0), p = data)
-        @test device_prob.f(device_prob.u0, device_prob.p) ≈ argument_prob.f(argument_prob.u0, argument_prob.p)
+        @test device_prob.f(device_prob.u0, device_prob.p) ≈
+            argument_prob.f(argument_prob.u0, argument_prob.p) rtol = FD_RTOL
         cpu_gradient = Zygote.gradient(θ -> argument_prob.f(θ, argument_prob.p), argument_prob.u0)[1]
         device_gradient = Zygote.gradient(θ -> device_prob.f(θ, device_prob.p), device_prob.u0)[1]
         @test device_gradient isa DeviceArray
-        @test Array(device_gradient) ≈ cpu_gradient
+        @test Array(device_gradient) ≈ cpu_gradient rtol = FD_RTOL
     end
     @testset "general argument lowering on $DeviceArray" begin
         @parameters a
