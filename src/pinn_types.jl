@@ -199,7 +199,7 @@ end
     default_adtype(md::PINNMetadata)
 
 The automatic differentiation backend `discretize` uses unless `adtype` is given.
-For a plain generated PDE objective on 64-bit Julia, this is `AutoReactant()` when
+For a plain generated PDE objective, this is `AutoReactant()` when
 OptimizationReactant.jl is loaded (`using OptimizationReactant`), and `AutoEnzyme()`
 otherwise. `AutoReactant()` compiles the objective and gradient through Reactant;
 `AutoEnzyme()` uses reverse mode with static activity analysis.
@@ -207,10 +207,8 @@ otherwise. `AutoReactant()` compiles the objective and gradient through Reactant
 `default_adtype(md)` selects `AutoZygote()` when a `DGM`/`DGMLSTMLayer` appears
 anywhere in the network's layer tree, because the DGM objective triggers an Enzyme
 runtime-activity error, and when the lowered equations contain `Integral` terms,
-whose quadrature objective triggers Enzyme illegal-type analysis. On 32-bit Julia it
-also selects `AutoZygote()`: the Enzyme path can reach an LLVM.jl debug-location
-conversion error there (observed on Julia 1.13 x86; Julia 1.11 x86 is unaffected).
-An explicit `adtype` passed to `discretize` always takes precedence.
+whose quadrature objective triggers Enzyme illegal-type analysis. An explicit
+`adtype` passed to `discretize` always takes precedence.
 
 An `additional_loss` callback is differentiated with the same backend as the PDE
 objective; its closure is not inspected. Callbacks that close over local data arrays,
@@ -221,7 +219,6 @@ variables, can fail Enzyme's static activity analysis with an
 `IntegralProblem`, which Enzyme rejects.
 """
 function default_adtype()
-    Sys.WORD_SIZE == 32 && return AutoZygote()
     if Base.get_extension(@__MODULE__, :NeuralPDEOptimizationReactantExt) === nothing
         return AutoEnzyme()
     end

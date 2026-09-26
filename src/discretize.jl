@@ -387,7 +387,7 @@ function default_adtype(md::PINNMetadata)
     has_dgm = any(chains) do chain
         any(l -> l isa Union{DGM, DGMLSTMLayer}, Functors.fcollect(chain))
     end
-    if Sys.WORD_SIZE == 32 || has_dgm ||
+    if has_dgm ||
             any(b -> !isempty(b.extra_params), md.blocks)
         return AutoZygote()
     end
