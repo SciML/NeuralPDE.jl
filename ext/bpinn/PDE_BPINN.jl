@@ -610,10 +610,13 @@ point has equal weight in the likelihood. Observational datasets and
 * `Kernel`, `Adaptorkwargs`, `Integratorkwargs`: AdvancedHMC sampling controls.
 * `saveats`: grid spacing per independent variable for the ensemble solution.
 * `numensemble`: trailing samples used for the ensemble / parameter estimates.
-* `pretrain_iters`: optional Adam steps on the `OptimizationProblem` objective before
-  HMC (default `0`, matching NeuralPDE 6). When positive, network weights are
-  warm-started from the physics/BC residual loss only; estimated PDE parameters are
-  then reset to their prior means because that objective is not the sampled posterior.
+* `pretrain_iters`: Adam steps on the `OptimizationProblem` objective before each
+  HMC chain (default `500` for forward problems, `0` when `param_estim = true`).
+  Set to `0` to sample directly from the network initialization. The objective
+  contains physics/BC residuals, not the data likelihood or priors. Inverse problems
+  default to a cold start because this objective can favor degenerate parameter
+  values. With explicit pretraining, estimated PDE parameters are reset to their
+  prior means before sampling.
 * `progress`, `verbose`: AdvancedHMC verbosity.
 
 Returns a [`BPINNsolution`](@ref) (or a vector of them when `nchains > 1`).
@@ -628,7 +631,8 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         ),
         Integratorkwargs = (Integrator = Leapfrog,), saveats = [1 / 10.0],
         numensemble = floor(Int, draw_samples / 3), Dict_differentials = nothing,
-        pretrain_iters::Int = 0, progress = false, verbose = false
+        pretrain_iters::Int = discretization.param_estim ? 0 : 500,
+        progress = false, verbose = false
     )
     pinn = discretization isa BayesianPINN ? discretization.pinn : discretization
     dataset_pde, dataset_bc = if discretization isa BayesianPINN
@@ -736,34 +740,6 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
         network_fns, net_lengths, phynewstd_f, data_phys, L2_loss2
     )
 
-    # Adam warm start on the OptimizationProblem objective: physics and boundary
-    # residuals only, with no dataset or prior terms. It moves the network weights
-    # toward a low-residual region so short HMC chains start in high-likelihood
-    # territory, but it is not a MAP estimate of the sampled density and for inverse
-    # problems it can push the estimated parameters to degenerate values, so those
-    # are reset to their prior means before sampling.
-    if pretrain_iters > 0
-        train_prob = remake(prob; u0 = initial_θ)
-        tres = SciMLBase.solve(
-            train_prob, OptimizationOptimisers.Adam(0.01); maxiters = pretrain_iters
-        )
-        # `solve` on the PDEBase discretization wraps the result into a
-        # `PDENoTimeSolution`, whose `u` is the depvar => grid dictionary; the raw
-        # minimizer lives on `original_sol`.
-        optsol = hasproperty(tres, :original_sol) ? tres.original_sol : tres
-        initial_θ = collect(Float64, optsol.u)
-        if ninv > 0
-            initial_θ[(end - ninv + 1):end] .=
-                Float64[Distributions.params(param[i])[1] for i in 1:ninv]
-        end
-        if verbose
-            @printf(
-                "Pretrain objective after %d Adam steps: %g\n",
-                pretrain_iters, optsol.objective
-            )
-        end
-    end
-
     @assert nchains ≥ 1 "number of chains must be greater than or equal to 1"
 
     Adaptor = Adaptorkwargs[:Adaptor]
@@ -772,15 +748,35 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
     metric = Metric(nparameters)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
 
-    if verbose
-        @printf("Current Physics Log-likelihood : %g\n", physics_loglikelihood(ℓπ, initial_θ))
-        @printf("Current Prior Log-likelihood : %g\n", priorlogpdf(ℓπ, initial_θ))
-        @printf(
-            "Current SSE against dataset Log-likelihood : %g\n", L2LossData(ℓπ, initial_θ)
-        )
-    end
-
     function _run_chain(θ0)
+        if pretrain_iters > 0
+            train_prob = remake(prob; u0 = θ0)
+            tres = SciMLBase.solve(
+                train_prob, OptimizationOptimisers.Adam(0.01); maxiters = pretrain_iters
+            )
+            # `solve` on the PDEBase discretization wraps the result into a
+            # `PDENoTimeSolution`, whose `u` is the depvar => grid dictionary; the raw
+            # minimizer lives on `original_sol`.
+            optsol = hasproperty(tres, :original_sol) ? tres.original_sol : tres
+            θ0 = collect(Float64, optsol.u)
+            if ninv > 0
+                θ0[(end - ninv + 1):end] .=
+                    Float64[Distributions.params(param[i])[1] for i in 1:ninv]
+            end
+            if verbose
+                @printf(
+                    "Pretrain objective after %d Adam steps: %g\n",
+                    pretrain_iters, optsol.objective
+                )
+            end
+        end
+        if verbose
+            @printf("Current Physics Log-likelihood : %g\n", physics_loglikelihood(ℓπ, θ0))
+            @printf("Current Prior Log-likelihood : %g\n", priorlogpdf(ℓπ, θ0))
+            @printf(
+                "Current SSE against dataset Log-likelihood : %g\n", L2LossData(ℓπ, θ0)
+            )
+        end
         initial_ϵ = find_good_stepsize(hamiltonian, θ0)
         integrator = integratorchoice(Integratorkwargs, initial_ϵ)
         adaptor = adaptorchoice(
