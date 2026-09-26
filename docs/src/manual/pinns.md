@@ -47,6 +47,36 @@ as the other SciML discretizers (for example MethodOfLines.jl):
    networks: `sol[u(x, t)]` on the evaluation grid, `sol(x, t; dv = u(x, t))` at arbitrary
    points, and `sol.original_sol` for the underlying `OptimizationSolution`.
 
+## Spatial derivatives with Enzyme
+
+Select `derivative = EnzymeForwardDerivative()` when constructing
+`PhysicsInformedNN` to evaluate spatial derivatives with Enzyme forward mode:
+
+```julia
+disc = PhysicsInformedNN(chain, GridTraining(0.1);
+    derivative = EnzymeForwardDerivative(), rng = Xoshiro(1))
+prob = discretize(pde_system, disc; adtype = AutoEnzyme())
+```
+
+This choice controls differentiation with respect to network inputs. The separate
+`adtype` controls differentiation of the training objective with respect to network
+weights. Both `AutoEnzyme()` and `AutoZygote()` can differentiate the spatial JVPs;
+the Zygote path uses a ChainRules pullback evaluated by Enzyme reverse mode.
+
+Pure derivatives of orders one through four and mixed derivatives of total order
+at most four use nested forward-over-forward differentiation. Each level seeds
+the requested input coordinate across all collocation columns. This avoids
+constructing a full Jacobian and uses no finite-difference step size. Nesting
+also allows different coordinate directions at successive levels. Higher orders
+increase compilation and evaluation costs, so benchmark the backend on your network.
+
+Apply `Differential` operators to dependent-variable calls whose arguments are
+independent variables or numeric literals; derivative boundary conditions such as
+`Differential(x)(u(1.0))` are supported. Networks must process columns independently
+and support Enzyme. Derivatives of composite expressions or transformed network
+arguments are not supported by this backend; write the product or chain rule
+explicitly in the PDE. `FiniteDifferenceDerivative()` remains the default.
+
 ## Integral terms
 
 `Symbolics.Integral` terms are supported: they lower to a fixed-node quadrature over
@@ -73,11 +103,39 @@ expression (Reactant compatible); it defaults to `Integrals.GaussLegendre`, inhe
 `quadrature_alg` from `QuadratureTraining`, and can be set explicitly with the
 `integral_alg` keyword of `PhysicsInformedNN`.
 
+## Array arguments
+
+A dependent variable can take an array of independent variables as one argument.
+With `@parameters t x[1:d]` the call `u(t, x)` is a function of `1 + d` scalars: the
+network input is the packed vector `[t; vec(x)]`, in column-major order. For
+`x[1:2,1:2]` that order is `x[1,1], x[2,1], x[1,2], x[2,2]`. `Differential(x[i])`
+or `Differential(x[i,j])` differentiates along that slot. A length-1 array such as
+`x[1:1]` is still an array argument: pass a length-1 vector, `sol(t, [x1]; dv = u(t, x))`.
+The declared grouping is kept, so the packing is reversible.
+
+Domains are either one interval per component, `x[i] ∈ Interval(a, b)`, or a single
+product domain for the array (one factor per component, in `vec` order). A boundary
+on which one component is fixed is an ordinary vector argument, for example
+`u(t, [0.0, x[2]])`. A `GridTraining` spacing vector, when it is not a single
+number, has one entry per packed scalar in the order of the independent-variable
+list after that expansion.
+
+`sol[u(t, x)]` is the tensor product of the component evaluation grids, with shape
+`(n_t, n_x₁, …, n_x_d)`. `sol(t, xvec; dv = u(t, x))` evaluates a scalar `t` and one
+length-`d` vector `xvec` (a matrix with `d` rows is a list of such vectors, one per
+column). The same value is `sol(t, x[1], …, x[d]; dv = u(t, x[1], …))`.
+
+Symbolics does not ship gradient, divergence, Laplacian or curl operators. The open
+pull request [JuliaSymbolics/Symbolics.jl#942](https://github.com/JuliaSymbolics/Symbolics.jl/pull/942)
+is not part of the Symbolics version NeuralPDE depends on, so those operators are
+written componentwise, including `Differential.(collect(x))`.
+
 ## The `PhysicsInformedNN` Discretizer
 
 ```@docs
 NeuralPDE.PhysicsInformedNN
 NeuralPDE.FiniteDifferenceDerivative
+NeuralPDE.EnzymeForwardDerivative
 SciMLBase.discretize(::PDESystem, ::NeuralPDE.PhysicsInformedNN)
 NeuralPDE.default_adtype
 ```
@@ -92,6 +150,7 @@ NeuralPDE.TrialNetwork
 NeuralPDE.ResidualBlock
 NeuralPDE.nn_eval
 NeuralPDE.nn_eval_row
+NeuralPDE.nn_jvp
 NeuralPDE.nn_vcat
 NeuralPDE.nn_veccat
 NeuralPDE.quadrature
@@ -104,11 +163,14 @@ NeuralPDE.QuadratureIntegrand
 SciMLBase.PDENoTimeSolution(::SciMLBase.AbstractOptimizationSolution, ::NeuralPDE.PINNMetadata)
 NeuralPDE.trial_function
 NeuralPDE.resample!
+NeuralPDE.distill
 ```
 
 Warm-starting a problem from previously trained weights (transfer learning) is
 `remake(prob; u0 = trained_weights)`, and replacing the collocation points of a residual
-block is `remake(prob; p = [block.xs => new_points])`.
+block is `remake(prob; p = [block.xs => new_points])`. Moving a trained solution into
+a different network architecture is [`distill`](@ref), whose distillation recipe is
+worked out in the [transfer-learning tutorial](../tutorials/transfer_learning.md).
 
 ## SDE Solvers
 
