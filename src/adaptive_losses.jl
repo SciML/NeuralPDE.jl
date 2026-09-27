@@ -2,12 +2,29 @@
     AbstractAdaptiveLoss
 
 Supertype for callbacks that adapt the symbolic cost weights of an optimization problem.
+
+Pass the returned callback to `solve`. Prefer `save_best = false` with
+`OptimizationOptimisers` algorithms: the default `save_best = true` stores the iterate
+with the lowest *weighted* objective, but objectives under changing weights are not
+comparable, and on the final iteration `save_best` reverts `θ` and re-invokes the
+callback at the same `state.iter` (which these rules skip via `last_updated`).
 """
 abstract type AbstractAdaptiveLoss end
 
 function _check_update_period(every)
     every > 0 || throw(ArgumentError("`every` must be a positive integer."))
     return Int(every)
+end
+
+"""
+Return `true` when `state.iter` is due for a weight update. Skips a second call at the
+same iteration (the OptimizationOptimisers `save_best` finalization path).
+"""
+function _due(rule, state)
+    state.iter % rule.every == 0 || return false
+    rule.last_updated == state.iter && return false
+    rule.last_updated = state.iter
+    return true
 end
 
 """
@@ -20,7 +37,8 @@ parameter-gradient magnitudes, following Wang, Teng, and Perdikaris (2020),
 At each update the largest maximum absolute cost gradient is divided by each cost's mean
 absolute gradient. `inertia` exponentially averages the proposed weights. `prob` must have
 been constructed with `discretize(...; weights = weights)`, and every weight must be a
-symbolic parameter of its system.
+symbolic parameter of its system. Prefer `save_best = false` when solving (see
+[`AbstractAdaptiveLoss`](@ref)).
 """
 mutable struct GradientScaleAdaptiveLoss{P, W, T} <: AbstractAdaptiveLoss
     prob::P
@@ -29,12 +47,13 @@ mutable struct GradientScaleAdaptiveLoss{P, W, T} <: AbstractAdaptiveLoss
     inertia::T
     epsilon::T
     context::Any
+    last_updated::Int
 end
 
 function GradientScaleAdaptiveLoss(prob, weights; every = 1, inertia = 0.9, epsilon = 1.0e-11)
     0 <= inertia <= 1 || throw(ArgumentError("`inertia` must be between zero and one."))
     return GradientScaleAdaptiveLoss(
-        prob, weights, _check_update_period(every), inertia, epsilon, nothing
+        prob, weights, _check_update_period(every), inertia, epsilon, nothing, -1
     )
 end
 
@@ -43,7 +62,8 @@ end
 
 Return a `solve` callback that ascends each loss weight with an `Optimisers` rule, porting
 the self-adaptive attention update of McClenny and Braga-Neto (2020),
-[Self-Adaptive PINNs](https://arxiv.org/abs/2009.04544).
+[Self-Adaptive PINNs](https://arxiv.org/abs/2009.04544). Prefer `save_best = false` when
+solving (see [`AbstractAdaptiveLoss`](@ref)).
 """
 mutable struct MiniMaxAdaptiveLoss{P, W, O} <: AbstractAdaptiveLoss
     prob::P
@@ -52,12 +72,13 @@ mutable struct MiniMaxAdaptiveLoss{P, W, O} <: AbstractAdaptiveLoss
     optimizer::O
     context::Any
     state::Any
+    last_updated::Int
 end
 
 function MiniMaxAdaptiveLoss(prob, weights; every = 1, optimizer = Adam(0.5))
     return MiniMaxAdaptiveLoss(
         prob, weights, _check_update_period(every), optimizer,
-        nothing, nothing
+        nothing, nothing, -1
     )
 end
 
@@ -66,7 +87,9 @@ end
 
 Return a `solve` callback that weights costs by a softmax of their relative loss changes,
 following Heydari, Thompson, and Mehmood (2019),
-[SoftAdapt](https://arxiv.org/abs/1912.12355).
+[SoftAdapt](https://arxiv.org/abs/1912.12355). Prefer `save_best = false` when solving
+(see [`AbstractAdaptiveLoss`](@ref)); with SoftAdapt a `save_best` double-fire at the
+final iteration can otherwise reset stored relative-rate state.
 """
 mutable struct SoftAdaptAdaptiveLoss{P, W, T} <: AbstractAdaptiveLoss
     prob::P
@@ -76,11 +99,12 @@ mutable struct SoftAdaptAdaptiveLoss{P, W, T} <: AbstractAdaptiveLoss
     epsilon::T
     context::Any
     previous::Any
+    last_updated::Int
 end
 
 SoftAdaptAdaptiveLoss(prob, weights; every = 1, α = 0.1, epsilon = 1.0e-8) =
     SoftAdaptAdaptiveLoss(
-    prob, weights, _check_update_period(every), α, epsilon, nothing, nothing
+    prob, weights, _check_update_period(every), α, epsilon, nothing, nothing, -1
 )
 
 """
@@ -92,7 +116,8 @@ following Bischof and Kraus (2021),
 [Multi-Objective Loss Balancing for Physics-Informed Deep Learning](https://arxiv.org/abs/2110.09813).
 `α` controls the published moving average, `β` is the probability of carrying the previous
 scalings forward, and `temperature` is the paper's `𝒯`: higher values flatten the softmax
-toward uniform weights.
+toward uniform weights. Prefer `save_best = false` when solving
+(see [`AbstractAdaptiveLoss`](@ref)).
 """
 mutable struct ReLoBRaLoAdaptiveLoss{P, W, T, R} <: AbstractAdaptiveLoss
     prob::P
@@ -107,6 +132,7 @@ mutable struct ReLoBRaLoAdaptiveLoss{P, W, T, R} <: AbstractAdaptiveLoss
     initial_losses::Any
     previous_losses::Any
     previous_weights::Any
+    last_updated::Int
 end
 
 function ReLoBRaLoAdaptiveLoss(
@@ -119,7 +145,7 @@ function ReLoBRaLoAdaptiveLoss(
     temperature > 0 || throw(ArgumentError("`temperature` must be positive."))
     return ReLoBRaLoAdaptiveLoss(
         prob, weights, _check_update_period(every), α, β, temperature, epsilon, rng,
-        nothing, nothing, nothing, nothing
+        nothing, nothing, nothing, nothing, -1
     )
 end
 
@@ -152,7 +178,7 @@ function _softmax_weights(scores)
 end
 
 function (rule::GradientScaleAdaptiveLoss)(state, loss)
-    if state.iter % rule.every == 0
+    if _due(rule, state)
         if rule.context === nothing
             rule.context = _adaptive_context(rule.prob, rule.weights)
         end
@@ -170,7 +196,7 @@ function (rule::GradientScaleAdaptiveLoss)(state, loss)
 end
 
 function (rule::MiniMaxAdaptiveLoss)(state, loss)
-    if state.iter % rule.every == 0
+    if _due(rule, state)
         if rule.context === nothing
             rule.context = _adaptive_context(rule.prob, rule.weights)
         end
@@ -187,7 +213,7 @@ function (rule::MiniMaxAdaptiveLoss)(state, loss)
 end
 
 function (rule::SoftAdaptAdaptiveLoss)(state, loss)
-    if state.iter % rule.every == 0
+    if _due(rule, state)
         if rule.context === nothing
             rule.context = _adaptive_context(rule.prob, rule.weights)
         end
@@ -206,7 +232,7 @@ function (rule::SoftAdaptAdaptiveLoss)(state, loss)
 end
 
 function (rule::ReLoBRaLoAdaptiveLoss)(state, loss)
-    if state.iter % rule.every == 0
+    if _due(rule, state)
         if rule.context === nothing
             rule.context = _adaptive_context(rule.prob, rule.weights)
         end
