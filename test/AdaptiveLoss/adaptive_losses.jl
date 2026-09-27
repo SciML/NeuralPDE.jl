@@ -8,7 +8,8 @@ function adaptive_test_problem()
     @parameters w1 w2
     sys = complete(OptimizationSystem([(z - 1)^2, 3 * (z + 1)^2], [z], [w1, w2]; name = :adaptive_test))
     prob = OptimizationProblem(
-        sys, [z => 0.0, w1 => 1.0, w2 => 1.0]; weights = [w1, w2], grad = true
+        sys, [z => 0.0, w1 => 1.0, w2 => 1.0];
+        weights = [w1, w2], adtype = AutoZygote()
     )
     return prob, [w1, w2]
 end
@@ -62,6 +63,19 @@ adaptive_weights(prob, weights) = [getp(prob.f.sys, w)(prob.p) for w in weights]
         expected = 0.5 .* initial_balance .+ 0.5 .* previous_balance
         @test adaptive_weights(prob, weights) ≈ expected
     end
+end
+
+# Detects the silent-noop failure mode: if Optimization.jl ever copies `p` so that
+# callback `setp` writes no longer reach the live objective, or if the callback body
+# stops writing, this fails. Hand tests alone would stay green.
+@testset "solve moves symbolic weights via state.p" begin
+    prob, weights = adaptive_test_problem()
+    initial = adaptive_weights(prob, weights)
+    callback = MiniMaxAdaptiveLoss(prob, weights; every = 1, optimizer = Adam(0.5))
+    solve(prob, Adam(0.05); maxiters = 200, callback, save_best = false)
+    updated = adaptive_weights(prob, weights)
+    @test updated != initial
+    @test all(updated .> initial)
 end
 
 function poisson_error(callback_factory; initial_weights = nothing)
