@@ -10,7 +10,7 @@ plumbing shared with `ahmc_bayesian_pinn_ode`.
 @concrete struct PDELogTargetDensity
     dim::Int
     prob <: SciMLBase.OptimizationProblem
-    residual_syms
+    residual_getters
     stds::Vector{Float64}
     priors <: Vector{<:Distribution}
     extraparams::Int
@@ -54,8 +54,8 @@ function physics_loglikelihood(ltd::PDELogTargetDensity, θ)
     # `remake` + `getu` is ForwardDiff-compatible for array unknowns of the Systems pipeline.
     pθ = remake(ltd.prob; u0 = θ)
     ll = zero(eltype(θ))
-    for (i, rsym) in enumerate(ltd.residual_syms)
-        ll += residual_logpdf(getu(pθ, rsym)(pθ), ltd.stds[i])
+    for (i, getter) in enumerate(ltd.residual_getters)
+        ll += residual_logpdf(getter(pθ), ltd.stds[i])
     end
     return ll
 end
@@ -696,7 +696,8 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
     phystd_f = Float64.(phystd)
     bcstd_f = Float64.(bcstd)
     stds = _block_stds(md.blocks, phystd_f, bcstd_f)
-    residual_syms = Any[b.residual for b in md.blocks]
+    # Built once: `getu` on an observed expression compiles a new function per call.
+    residual_getters = [getu(prob, b.residual) for b in md.blocks]
     l2std_f = Float64.(l2std)
     phynewstd_f = Float64.(phynewstd)
 
@@ -736,7 +737,7 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
     end
 
     ℓπ = PDELogTargetDensity(
-        nparameters, prob, residual_syms, stds, priors, ninv, dataset, l2std_f,
+        nparameters, prob, residual_getters, stds, priors, ninv, dataset, l2std_f,
         network_fns, net_lengths, phynewstd_f, data_phys, L2_loss2
     )
 
