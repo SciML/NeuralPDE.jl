@@ -31,10 +31,14 @@ prob = discretize(pdesys, disc; weights = weight_symbols,
 
 Pass the problem and the same weight symbols to a callback constructor. The callback updates
 only cost parameters; the optimizer continues to update the neural-network unknowns.
+Use `save_best = false` with `OptimizationOptimisers` algorithms: the default
+`save_best = true` keeps the iterate with the lowest *weighted* objective across the run,
+but objectives under changing weights are not comparable, and on the last iteration
+`save_best` reverts `θ` and re-invokes the callback at the same iteration.
 
 ```@example adaptive_loss
 callback = SoftAdaptAdaptiveLoss(prob, weight_symbols; every = 25, α = 0.1)
-sol = solve(prob, Adam(0.01); callback, maxiters = 1)
+sol = solve(prob, Adam(0.01); callback, maxiters = 50, save_best = false)
 ```
 
 ## Available rules
