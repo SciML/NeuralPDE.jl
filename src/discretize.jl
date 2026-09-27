@@ -340,14 +340,57 @@ The scalar cost of a residual block: the mean of the squared pointwise residuals
 their quadrature-weighted sum when the block carries quadrature weights.
 """
 function block_cost(b::ResidualBlock)
-    r = b.residual
-    if !_isarray(unwrap(r))
-        return abs2(r)
-    elseif b.w === nothing
-        return sum(abs2, r) / b.npoints
-    else
-        return sum(b.w .* abs2.(r))
+    r = unwrap(b.residual)
+    if !_isarray(r)
+        return abs2(b.residual)
     end
+    if b.w === nothing
+        aop = unwrap(sum(abs2.(wrap(r)) ./ b.npoints))
+        args = (r, b.npoints)
+        f = _mean_square
+    else
+        w = unwrap(b.w)
+        aop = unwrap(sum(wrap(w) .* abs2.(wrap(r))))
+        args = (w, r)
+        f = _weighted_square_sum
+    end
+    return wrap(_with_reduction_term(f, aop, args))
+end
+
+# `expand` treats `ArrayOp`s as opaque variables, so reusing the `sum` reduction's
+# `ArrayOp` keeps the array arguments out of polyform while `term` makes codegen
+# emit a direct call to `f` instead of `mapreduce` (which GPU arrays cannot
+# differentiate through `task_local_storage` under Zygote).
+function _with_reduction_term(f, aop::SymbolicUtils.BasicSymbolic{T}, args) where {T}
+    t = SymbolicUtils.term(f, args...; vartype = T)
+    return SymbolicUtils.BSImpl.ArrayOp{T}(
+        aop.output_idx, aop.expr, aop.reduce, t;
+        type = Real, shape = SymbolicUtils.ShapeVecT()
+    )
+end
+
+_mean_square(r, n) = sum(abs2.(r)) / n
+@register_symbolic _mean_square(r::AbstractArray, n)
+function ChainRulesCore.rrule(::typeof(_mean_square), r::AbstractArray, n)
+    y = _mean_square(r, n)
+    function mean_square_pullback(Δ)
+        return ChainRulesCore.NoTangent(), ChainRulesCore.unthunk(Δ) .* (2 .* r ./ n),
+            ChainRulesCore.NoTangent()
+    end
+    return y, mean_square_pullback
+end
+
+_weighted_square_sum(w, r) = sum(w .* abs2.(r))
+@register_symbolic _weighted_square_sum(w::AbstractArray, r::AbstractArray)
+function ChainRulesCore.rrule(
+        ::typeof(_weighted_square_sum), w::AbstractArray, r::AbstractArray
+    )
+    y = _weighted_square_sum(w, r)
+    function weighted_square_sum_pullback(Δ)
+        Δ = ChainRulesCore.unthunk(Δ)
+        return ChainRulesCore.NoTangent(), Δ .* abs2.(r), Δ .* (2 .* w .* r)
+    end
+    return y, weighted_square_sum_pullback
 end
 
 """
@@ -429,9 +472,17 @@ function resample!(p, md::PINNMetadata; rng = md.disc.rng)
     for b in md.blocks
         b.xs === nothing && continue
         X, W = sample_points(md.disc.strategy, b, rng)
-        setp(sys, b.xs)(p, X)
-        b.w === nothing || setp(sys, b.w)(p, W)
+        setp(sys, b.xs)(p, _similar_array(getp(sys, b.xs)(p), X))
+        if b.w !== nothing
+            setp(sys, b.w)(p, _similar_array(getp(sys, b.w)(p), W))
+        end
     end
     return p
 end
 resample!(prob::OptimizationProblem; kwargs...) = resample!(prob.p, pinn_metadata(prob); kwargs...)
+
+function _similar_array(dest, src)
+    result = similar(dest, eltype(src), size(src))
+    copyto!(result, src)
+    return result
+end

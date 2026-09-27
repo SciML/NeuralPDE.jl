@@ -1,4 +1,5 @@
 [deps]
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 AdvancedHMC = "0bf59076-c3b1-5ca4-86bd-e02cd72cde3d"
 ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
 Cubature = "667455a9-e2ce-5579-9412-b964f529a492"
@@ -40,8 +41,10 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
+ADTypes = "1"
 AdvancedHMC = "0.8"
 ComponentArrays = "0.15.8"
 Cubature = "1.5"
@@ -83,4 +86,5 @@ SciMLBase = "3"
 SpecialFunctions = "2.1"
 SymbolicIndexingInterface = "0.3"
 SymbolicUtils = "4.46.6"
+Zygote = "0.6, 0.7"
 julia = "1.10"
