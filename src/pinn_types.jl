@@ -211,12 +211,17 @@ whose quadrature objective triggers Enzyme illegal-type analysis. An explicit
 `adtype` passed to `discretize` always takes precedence.
 
 An `additional_loss` callback is differentiated with the same backend as the PDE
-objective; its closure is not inspected. Callbacks that close over local data arrays,
-such as `(phi, θ, p) -> sum(abs2, phi.u(xs, θ.u) .- ys)` with `xs`, `ys` local
-variables, can fail Enzyme's static activity analysis with an
-`EnzymeRuntimeActivityError`; pass `adtype = AutoZygote()` to `discretize` for them.
-[`SDEPINN`](@ref) passes `AutoZygote()` because its norm-loss closure solves an
-`IntegralProblem`, which Enzyme rejects.
+objective; its closure is not inspected. [`AdditionalLoss`](@ref) takes the
+dependent-variable names as a type parameter so that its `NamedTuple` construction
+is statically known to Enzyme: under the default static-activity `AutoEnzyme()`,
+measured reverse-mode gradients agree with ForwardDiff and arrays captured by the
+callback (for example `xs`, `ys` in
+`(phi, θ, p) -> sum(abs2, phi.u(xs, θ.u) .- ys)`) remain unchanged. Pass an
+explicit `adtype` when a different backend is required — for example
+`AutoZygote()` when the loss solves an `IntegralProblem` inside the closure (as
+[`SDEPINN`](@ref) does by default). Buffer-writing callbacks that allocate and
+mutate their own scratch remain supported by the Enzyme default; Zygote rejects
+those (`Mutating arrays is not supported`).
 """
 function default_adtype()
     if Base.get_extension(@__MODULE__, :NeuralPDEOptimizationReactantExt) === nothing
@@ -486,18 +491,28 @@ PDEBase.add_metadata!(md::PINNMetadata, sys) = (md.metadata[] = sys)
 Callable parameter wrapping a user `additional_loss(phi, θ, p)` so that it can appear as
 a cost of the generated `System`. It is called with the network parameter vectors
 followed by the `PDESystem` parameter values.
+
+The dependent-variable `names` are a type parameter so that `NamedTuple{names}(...)`
+is statically known to Enzyme; without that, static-activity reverse mode can treat
+arrays captured by the user closure as shadow storage and overwrite them.
 """
-struct AdditionalLoss{F, K, N, O}
+struct AdditionalLoss{names, F, K, N, O}
     f::F
     names::K
     wrappers::N
     outputs::O
 end
 
-function (al::AdditionalLoss)(args...)
-    nnets = length(al.names)
-    θs = NamedTuple{al.names}(ntuple(i -> args[i], nnets))
-    phi = NamedTuple{al.names}(
+function AdditionalLoss(f, names::Tuple{Vararg{Symbol}}, wrappers, outputs)
+    return AdditionalLoss{names, typeof(f), typeof(names), typeof(wrappers), typeof(outputs)}(
+        f, names, wrappers, outputs
+    )
+end
+
+function (al::AdditionalLoss{names})(args...) where {names}
+    nnets = length(names)
+    θs = NamedTuple{names}(ntuple(i -> args[i], nnets))
+    phi = NamedTuple{names}(
         ntuple(nnets) do i
             w = al.wrappers[i]
             k = al.outputs[i]
