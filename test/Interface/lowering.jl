@@ -55,6 +55,50 @@ end
     end
 end
 
+@testset "Enzyme preserves captured additional-loss data" begin
+    captured_xs = [0.2 0.4 0.6 0.8; 0.2 0.4 0.6 0.8]
+    captured_ys = zeros(1, 4)
+    additional_loss = (phi, θ, p) -> mean(abs2, phi.u(captured_xs, θ.u) .- captured_ys)
+    captured_disc = PhysicsInformedNN(
+        chain, GridTraining(0.5); rng = Xoshiro(3), additional_loss
+    )
+    captured_prob = discretize(pde_system, captured_disc)
+    captured_xs_before, captured_ys_before = copy(captured_xs), copy(captured_ys)
+    restore!() = (captured_xs .= captured_xs_before; captured_ys .= captured_ys_before)
+    @test captured_prob.f.adtype === NeuralPDE.default_adtype()
+    # the adtype whose reverse pass overwrote captured arrays in #1170
+    runtime_enzyme = AutoEnzyme(;
+        mode = Enzyme.set_runtime_activity(Enzyme.Reverse), function_annotation = Enzyme.Const
+    )
+
+    g_fd = ForwardDiff.gradient(θ -> captured_prob.f(θ, captured_prob.p), captured_prob.u0)
+    let first_objective = (f, θ, p) -> (v = f(θ, p); v isa AbstractFloat ? v : first(v))
+        for mode in (Enzyme.Reverse, Enzyme.set_runtime_activity(Enzyme.Reverse))
+            restore!()
+            g_enzyme = zero(captured_prob.u0)
+            Enzyme.autodiff(
+                mode, Enzyme.Const(first_objective), Enzyme.Active,
+                Enzyme.Const(captured_prob.f.f),
+                Enzyme.Duplicated(captured_prob.u0, g_enzyme), Enzyme.Const(captured_prob.p)
+            )
+            @test g_enzyme ≈ g_fd rtol = 1.0e-6
+            @test captured_xs == captured_xs_before
+            @test captured_ys == captured_ys_before
+        end
+    end
+
+    restore!()
+    solve(captured_prob, Adam(0.001); maxiters = 2)
+    @test captured_xs == captured_xs_before
+    @test captured_ys == captured_ys_before
+
+    restore!()
+    runtime_prob = discretize(pde_system, captured_disc; adtype = runtime_enzyme)
+    solve(runtime_prob, Adam(0.001); maxiters = 2)
+    @test captured_xs == captured_xs_before
+    @test captured_ys == captured_ys_before
+end
+
 @testset "resampling and remake" begin
     sdisc = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20); rng = Xoshiro(2))
     sprob = discretize(pde_system, sdisc)
