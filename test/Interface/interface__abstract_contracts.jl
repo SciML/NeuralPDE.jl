@@ -112,4 +112,21 @@ end
             @test T <: SciMLBase.AbstractSDEAlgorithm
         end
     end
+
+    @testset "SDEPINN stage / maxiters normalization" begin
+        opts, iters = NeuralPDE._sdepinn_stages(:a, 5)
+        @test opts == (:a,)
+        @test iters == (5,)
+
+        opts, iters = NeuralPDE._sdepinn_stages((:a, :b), 7)
+        @test opts == (:a, :b)
+        @test iters == (7, 7)
+
+        opts, iters = NeuralPDE._sdepinn_stages((:a, :b), (3, 4))
+        @test opts == (:a, :b)
+        @test iters == (3, 4)
+
+        @test_throws ArgumentError NeuralPDE._sdepinn_stages((:a, :b), (1,))
+        @test_throws ArgumentError NeuralPDE._sdepinn_stages(:a, (1, 2))
+    end
 end
