@@ -202,11 +202,11 @@ The automatic differentiation backend `discretize` uses unless `adtype` is given
 (`using OptimizationReactant`), which compiles the objective, gradient and
 value-and-gradient evaluation through Reactant and differentiates them with Enzyme
 inside the compiled program, and `AutoEnzyme()` otherwise (reverse mode, static
-activity analysis). The generated objective passes static activity analysis, so
-runtime activity is not needed; under `Enzyme.set_runtime_activity` the reverse
-pass through an `additional_loss` closure was observed to overwrite arrays the
-closure captures. `AutoZygote()` is the recommended fallback for `additional_loss`
-closures that mutate captured state, and remains selectable through `adtype`.
+activity analysis). `AdditionalLoss` specializes on the dependent-variable names,
+so its `NamedTuple` construction is statically known and captured arrays in an
+`additional_loss` closure remain unchanged during reverse-mode differentiation.
+`AutoZygote()` remains selectable through `adtype` for additional-loss functions
+that require a different differentiation backend.
 """
 function default_adtype()
     if Base.get_extension(@__MODULE__, :NeuralPDEOptimizationReactantExt) === nothing
@@ -477,17 +477,23 @@ Callable parameter wrapping a user `additional_loss(phi, θ, p)` so that it can 
 a cost of the generated `System`. It is called with the network parameter vectors
 followed by the `PDESystem` parameter values.
 """
-struct AdditionalLoss{F, K, N, O}
+struct AdditionalLoss{names, F, K, N, O}
     f::F
     names::K
     wrappers::N
     outputs::O
 end
 
-function (al::AdditionalLoss)(args...)
-    nnets = length(al.names)
-    θs = NamedTuple{al.names}(ntuple(i -> args[i], nnets))
-    phi = NamedTuple{al.names}(
+function AdditionalLoss(f, names::Tuple{Vararg{Symbol}}, wrappers, outputs)
+    return AdditionalLoss{names, typeof(f), typeof(names), typeof(wrappers), typeof(outputs)}(
+        f, names, wrappers, outputs
+    )
+end
+
+function (al::AdditionalLoss{names})(args...) where {names}
+    nnets = length(names)
+    θs = NamedTuple{names}(ntuple(i -> args[i], nnets))
+    phi = NamedTuple{names}(
         ntuple(nnets) do i
             w = al.wrappers[i]
             k = al.outputs[i]
