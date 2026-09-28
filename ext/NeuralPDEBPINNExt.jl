@@ -25,7 +25,8 @@ using Printf: @printf
 using Random: Random
 using Integrals: IntegralProblem, QuadGKJL
 using SciMLBase: SciMLBase, isinplace, solve, remake
-using SymbolicIndexingInterface: getu
+using SymbolicIndexingInterface: observed, parameter_values, state_values,
+    symbolic_container
 using SymbolicUtils: SymbolicUtils
 using Symbolics: Symbolics, unwrap, iscall, operation, arguments
 using ModelingToolkitBase: get_ivs, get_domain, getdefault, initial_conditions
