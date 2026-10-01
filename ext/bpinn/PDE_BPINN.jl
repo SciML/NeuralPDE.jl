@@ -129,6 +129,14 @@ function _point_eval_setup(pde_system, md, net_lengths)
         net_of[op] = i
         net_of[Symbol(op)] = i
     end
+    for net in nets
+        isequal(unwrap.(collect(net.args)), unwrap.(ivs)) || throw(
+            ArgumentError(
+                "observational datasets require every network's arguments to match " *
+                    "the system independent variables in order"
+            )
+        )
+    end
     return (;
         depvar_syms, depvar_set = Set(depvar_syms), nets, net_of, ps,
         ninv = md.disc.param_estim ? length(ps) : 0,
@@ -270,7 +278,7 @@ function build_data_quadrature(
     )
     eqs = ModelingToolkit.get_eqs(pde_system)
     (;
-        depvar_syms, iv_index, ninv, ps, offsets, net_of,
+        depvar_syms, depvar_set, iv_index, ninv, ps, offsets, net_of,
     ) = _point_eval_setup(pde_system, md, net_lengths)
     param_syms = [unwrap(p) for p in ps]
     ics = initial_conditions(md.pdesys)
@@ -284,22 +292,37 @@ function build_data_quadrature(
     eqs_masked = [SymbolicUtils.substitute(eq, Dict_differentials) for eq in eqs]
     call_map = _depvar_call_map(eqs, depvar_syms)
 
+    length(dataset) == length(depvar_syms) || throw(
+        ArgumentError(
+            "data quadrature requires one dataset per dependent variable"
+        )
+    )
+    all(data -> size(data, 2) == length(iv_index) + 1, dataset) ||
+        throw(ArgumentError("dataset columns must be observed values followed by all coordinates"))
+    all(data -> isequal(data[:, 2:end], dataset[1][:, 2:end]), dataset) ||
+        throw(ArgumentError("data quadrature requires matching coordinates across datasets"))
     n_rows = size(dataset[1], 1)
     depvar_vals = Dict(depvar_syms[i] => dataset[i][:, 1] for i in eachindex(depvar_syms))
     # `d × n` collocation matrix of independent-variable coordinates.
     coords = Matrix(transpose(dataset[1][:, 2:end]))
 
-    # Compile numeric residual evaluators: residual(diff_vals..., u_vals..., params...)
     placeholder_syms = collect(keys(diff_specs))
     u_syms = [call_map[name] for name in depvar_syms if haskey(call_map, name)]
     u_names = [name for name in depvar_syms if haskey(call_map, name)]
     residual_fns = map(eqs_masked) do eqm
         expr = eqm.lhs - eqm.rhs
-        args = (placeholder_syms..., u_syms..., param_syms...)
-        return Symbolics.build_function(expr, args...; expression = Val{false})
+        _, _, freeivs = _eq_term_map(expr, depvar_set, iv_index)
+        args = (placeholder_syms..., u_syms..., freeivs..., param_syms...)
+        rfn = Symbolics.build_function(expr, args...; expression = Val{false})
+        return (; rfn, freeivs)
     end
 
     function L2_loss2(θ, phynewstd)
+        length(phynewstd) == length(eqs) || throw(
+            ArgumentError(
+                "`phynewstd` must contain one noise standard deviation per PDE equation"
+            )
+        )
         T = eltype(θ)
         ll = zero(T)
         nnθ = view(θ, 1:(length(θ) - ninv))
@@ -331,9 +354,12 @@ function build_data_quadrature(
         for j in 1:n_rows
             dvals = ntuple(i -> diff_mat[i][j], length(placeholder_syms))
             uvals = ntuple(i -> T(depvar_vals[u_names[i]][j]), length(u_names))
-            for (eq_i, rfn) in enumerate(residual_fns)
-                r = rfn(dvals..., uvals..., pvals...)
-                σ = phynewstd[min(eq_i, length(phynewstd))]
+            for (eq_i, residual) in enumerate(residual_fns)
+                r = residual.rfn(
+                    dvals..., uvals...,
+                    (Xbatch[iv_index[iv], j] for iv in residual.freeivs)..., pvals...
+                )
+                σ = phynewstd[eq_i]
                 ll += logpdf(Distributions.Normal(zero(T), T(σ)), T(r))
             end
         end
@@ -403,14 +429,21 @@ function build_physics_at_points(
     end
 
     preps = []
-    if dataset_pde !== nothing
-        for (i, eq) in enumerate(ModelingToolkit.get_eqs(pde_system))
-            push!(preps, prep(eq, dataset_pde[min(i, length(dataset_pde))], phystd[i]))
-        end
-    end
-    if dataset_bc !== nothing
-        for (j, bc) in enumerate(ModelingToolkit.get_bcs(pde_system))
-            push!(preps, prep(bc, dataset_bc[min(j, length(dataset_bc))], bcstd[j]))
+    for (eqs, dataset, stds) in (
+            (ModelingToolkit.get_eqs(pde_system), dataset_pde, phystd),
+            (ModelingToolkit.get_bcs(pde_system), dataset_bc, bcstd),
+        )
+        dataset === nothing && continue
+        length(dataset) in (1, length(eqs)) || throw(
+            ArgumentError(
+                "dataset-point physics requires one shared dataset or one dataset per equation"
+            )
+        )
+        all(data -> size(data, 2) == length(iv_index) + 1, dataset) ||
+            throw(ArgumentError("dataset columns must be observed values followed by all coordinates"))
+        for (i, eq) in enumerate(eqs)
+            data = length(dataset) == 1 ? only(dataset) : dataset[i]
+            push!(preps, prep(eq, data, stds[i]))
         end
     end
 
@@ -585,7 +618,13 @@ estimated PDE parameters in `param`.
 `additional_loss` contributes only to the optional Adam warm start, not to the
 sampled log-density, and collocation quadrature weights are ignored — every residual
 point has equal weight in the likelihood. Observational datasets and
-`Dict_differentials` require one single-output network per dependent variable.
+`Dict_differentials` require one single-output network per dependent variable, with
+arguments matching the system independent variables in order. Dataset-point physics
+accepts one shared coordinate batch or one batch per equation; other counts raise an
+`ArgumentError`. Data quadrature requires one dataset per dependent variable with
+matching coordinates and one `phynewstd` per PDE equation. Derivatives in both data
+terms use central finite differences with step `1e-3`, independently of the
+configured derivative method used by the discretized `System` costs.
 
 ## Positional Arguments
 
@@ -749,10 +788,9 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
     Adaptor = Adaptorkwargs[:Adaptor]
     Metric = Adaptorkwargs[:Metric]
     targetacceptancerate = Adaptorkwargs[:targetacceptancerate]
-    metric = Metric(nparameters)
-    hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
-
     function _run_chain(θ0)
+        metric = Metric(nparameters)
+        hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
         if pretrain_iters > 0
             train_prob = remake(prob; u0 = θ0)
             tres = SciMLBase.solve(

@@ -27,8 +27,6 @@ using Test
 
     @parameters α
     @variables x, t
-    # NeuralPDE 7 / PDEBase `handle_complex` treats `@syms u(x, t)` as complex-valued and
-    # splits into Reu/Imu (two depvars). Use the NeuralPDE 7 `@variables u(..)` form instead.
     @variables u(..)
     Dt = Differential(t)
     Dx = Differential(x)

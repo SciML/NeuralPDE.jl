@@ -24,6 +24,7 @@ using Test
 
     # The data-quadrature likelihood at the dataset points, compared against
     # hand-written ForwardDiff references of the same masked residuals.
+    # rtol = 1e-4 allows O(ε²) truncation and cancellation for ε = 1e-3.
     function quadrature_likelihood(
             sys, disc, Dict_differentials, dataset, chain, θ, phynewstd
         )
@@ -47,12 +48,11 @@ using Test
         return X -> only(first(chain(X, ComponentArray(θnn, ax), st)))
     end
 
-    # Second-order derivative: u''(t) = -p u(t), u pinned to observations.
-    let
+    @testset "forcing = $forcing" for forcing in (zero, cos)
         @parameters t p
         @variables u(..)
         Dtt = Differential(t)^2
-        eq = Dtt(u(t)) ~ -p * u(t)
+        eq = Dtt(u(t)) ~ -p * u(t) + forcing(t)
         bcs = [u(0.0) ~ 0.0, Differential(t)(u(0.0)) ~ 1.0]
         @named sys = PDESystem(
             eq, bcs, [t ∈ Interval(0.0, 1.0)], [t], [u(t)], [p];
@@ -78,14 +78,13 @@ using Test
                 Normal(0, phynewstd),
                 ForwardDiff.derivative(
                     s -> ForwardDiff.derivative(z -> nn([z]), s), xi
-                ) + pp * yi
+                ) + pp * yi - forcing(xi)
             )
                 for (xi, yi) in zip(tdata, ydata)
         )
-        @test code_dq ≈ hand rtol = 1.0e-2
+        @test code_dq ≈ hand rtol = 1.0e-4
     end
 
-    # Mixed nested partial: Dx(Dt(u)) = -p u, evaluated pointwise.
     let
         @parameters x t p
         @variables u(..)
@@ -121,7 +120,7 @@ using Test
             )
                 for ((xi, ti), yi) in zip(pts, ydata)
         )
-        @test code_dq ≈ hand rtol = 1.0e-2
+        @test code_dq ≈ hand rtol = 1.0e-4
     end
 
     # Fused mixed partial: Dx^2(Dt(u)) = -p u (order 2 in x, 1 in t).
@@ -165,6 +164,6 @@ using Test
             )
                 for ((xi, ti), yi) in zip(pts, ydata)
         )
-        @test code_dq ≈ hand rtol = 1.0e-2
+        @test code_dq ≈ hand rtol = 1.0e-4
     end
 end
