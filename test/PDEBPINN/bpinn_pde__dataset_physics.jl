@@ -89,10 +89,10 @@ end
             )
             reference = sum(
                 logpdf(Normal(0, 0.3), 0.5 - cos(row[2]) - sin(row[3])) +
-                    logpdf(Normal(0, 0.3), 0.5 - sin(row[2]) - cos(row[3]))
+                    logpdf(Normal(0, 0.4), 0.5 - sin(row[2]) - cos(row[3]))
                     for row in eachrow(data)
             )
-            @test quad(fill(0.5, 6), [0.3, 0.3]) ≈ reference rtol = 1.0e-8
+            @test quad(fill(0.5, 6), [0.3, 0.4]) ≈ reference rtol = 1.0e-8
         end
     end
 end
