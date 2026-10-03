@@ -125,7 +125,8 @@ prob = discretize(pde_system, discretization)
 ```
 
 The objective is differentiated with Enzyme by default, or with a Reactant-compiled
-Enzyme gradient when OptimizationReactant.jl is loaded
+Enzyme gradient when OptimizationReactant.jl is loaded; objectives containing
+`Integral` terms use Zygote instead
 (see [`default_adtype`](@ref NeuralPDE.default_adtype));
 `discretize(pde_system, discretization; adtype = AutoForwardDiff())` selects another
 backend explicitly, and the section below compiles the objective and its Enzyme gradient

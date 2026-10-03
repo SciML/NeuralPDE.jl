@@ -36,6 +36,8 @@ using ADTypes: AutoZygote
     )
     # Every `symbolic_discretize`/`discretize` call draws fresh network weights from
     # `disc.rng`, so train from the first draw and inspect the system afterwards.
+    # The default static-activity `AutoEnzyme()` raises `EnzymeRuntimeActivityError`
+    # in the generated objective for this data-capturing `additional_loss`.
     prob = discretize(pde_system, disc; adtype = AutoZygote())
     sys = symbolic_discretize(pde_system, disc)
     @test length(unknowns(sys)) == 6
@@ -82,6 +84,7 @@ end
     chain = Chain(Dense(1, 12, tanh), Dense(12, 1))
     disc = PhysicsInformedNN(chain, GridTraining(0.1); additional_loss, rng = Xoshiro(11))
     @named pde_system = PDESystem(eq, bcs, domains, [x], [u(x)])
+    # Same `EnzymeRuntimeActivityError` under the default backend as the Lorenz case.
     prob = discretize(pde_system, disc; adtype = AutoZygote())
     sol = train(prob; adam_iters = 300, bfgs_iters = 500)
     @test maximum(abs, [sol(xi; dv = u(x)) for xi in xs] .- ys) < 0.01

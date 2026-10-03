@@ -26,13 +26,8 @@ apply = getdefault(net.NN)
     dgm_disc = DeepGalerkin(
         2, 1, 4, 1, tanh, tanh, identity, GridTraining(0.5); rng = Xoshiro(2)
     )
-    @test discretize(pde_system, dgm_disc).f.adtype isa AutoZygote
-    @test discretize(pde_system, dgm_disc; adtype = AutoEnzyme()).f.adtype isa AutoEnzyme
-    nested_dgm = PhysicsInformedNN(
-        Chain(NeuralPDE.DGM(2, 1, 4, 1, tanh, tanh, identity)), GridTraining(0.5);
-        rng = Xoshiro(2)
-    )
-    @test discretize(pde_system, nested_dgm).f.adtype isa AutoZygote
+    @test discretize(pde_system, dgm_disc).f.adtype isa default
+    @test discretize(pde_system, dgm_disc; adtype = AutoZygote()).f.adtype isa AutoZygote
     loss_disc = let data = "ab"
         PhysicsInformedNN(
             chain, GridTraining(0.5); rng = Xoshiro(4), additional_loss = function (phi, θ, p)

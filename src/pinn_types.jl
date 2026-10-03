@@ -204,11 +204,10 @@ OptimizationReactant.jl is loaded (`using OptimizationReactant`), and `AutoEnzym
 otherwise. `AutoReactant()` compiles the objective and gradient through Reactant;
 `AutoEnzyme()` uses reverse mode with static activity analysis.
 
-`default_adtype(md)` selects `AutoZygote()` when a `DGM`/`DGMLSTMLayer` appears
-anywhere in the network's layer tree, because the DGM objective triggers an Enzyme
-runtime-activity error, and when the lowered equations contain `Integral` terms,
-whose quadrature objective triggers Enzyme illegal-type analysis. An explicit
-`adtype` passed to `discretize` always takes precedence.
+`default_adtype(md)` selects `AutoZygote()` when the lowered equations contain
+`Integral` terms, whose quadrature objective triggers Enzyme illegal-type analysis,
+and `default_adtype()` for every other objective, including `DGM` networks. An
+explicit `adtype` passed to `discretize` always takes precedence.
 
 An `additional_loss` callback is differentiated with the same backend as the PDE
 objective; its closure is not inspected. [`AdditionalLoss`](@ref) takes the

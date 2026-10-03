@@ -382,15 +382,7 @@ function SciMLBase.discretize(
 end
 
 function default_adtype(md::PINNMetadata)
-    disc = md.disc
-    chains = disc.chain isa AbstractArray ? disc.chain : (disc.chain,)
-    has_dgm = any(chains) do chain
-        any(l -> l isa Union{DGM, DGMLSTMLayer}, Functors.fcollect(chain))
-    end
-    if has_dgm ||
-            any(b -> !isempty(b.extra_params), md.blocks)
-        return AutoZygote()
-    end
+    any(b -> !isempty(b.extra_params), md.blocks) && return AutoZygote()
     return default_adtype()
 end
 
