@@ -196,17 +196,31 @@ end
 
 """
     default_adtype()
+    default_adtype(md::PINNMetadata)
 
-The automatic differentiation backend `discretize` uses unless `adtype` is given:
-`AutoReactant()` when OptimizationReactant.jl is loaded in the session
-(`using OptimizationReactant`), which compiles the objective, gradient and
-value-and-gradient evaluation through Reactant and differentiates them with Enzyme
-inside the compiled program, and `AutoEnzyme()` otherwise (reverse mode, static
-activity analysis). `AdditionalLoss` specializes on the dependent-variable names,
-so its `NamedTuple` construction is statically known and captured arrays in an
-`additional_loss` closure remain unchanged during reverse-mode differentiation.
-`AutoZygote()` remains selectable through `adtype` for additional-loss functions
-that require a different differentiation backend.
+The automatic differentiation backend `discretize` uses unless `adtype` is given.
+For a plain generated PDE objective, this is `AutoReactant()` when
+OptimizationReactant.jl is loaded (`using OptimizationReactant`), and `AutoEnzyme()`
+otherwise. `AutoReactant()` compiles the objective and gradient through Reactant;
+`AutoEnzyme()` uses reverse mode with static activity analysis.
+
+`default_adtype(md)` selects `AutoZygote()` when the lowered equations contain
+`Integral` terms, whose quadrature objective triggers Enzyme illegal-type analysis,
+and `default_adtype()` for every other objective, including `DGM` networks. An
+explicit `adtype` passed to `discretize` always takes precedence.
+
+An `additional_loss` callback is differentiated with the same backend as the PDE
+objective; its closure is not inspected. [`AdditionalLoss`](@ref) takes the
+dependent-variable names as a type parameter so that its `NamedTuple` construction
+is statically known to Enzyme: under the default static-activity `AutoEnzyme()`,
+measured reverse-mode gradients agree with ForwardDiff and arrays captured by the
+callback (for example `xs`, `ys` in
+`(phi, θ, p) -> sum(abs2, phi.u(xs, θ.u) .- ys)`) remain unchanged. Pass an
+explicit `adtype` when a different backend is required — for example
+`AutoZygote()` when the loss solves an `IntegralProblem` inside the closure (as
+[`SDEPINN`](@ref) does by default). Buffer-writing callbacks that allocate and
+mutate their own scratch remain supported by the Enzyme default; Zygote rejects
+those (`Mutating arrays is not supported`).
 """
 function default_adtype()
     if Base.get_extension(@__MODULE__, :NeuralPDEOptimizationReactantExt) === nothing
@@ -476,6 +490,10 @@ PDEBase.add_metadata!(md::PINNMetadata, sys) = (md.metadata[] = sys)
 Callable parameter wrapping a user `additional_loss(phi, θ, p)` so that it can appear as
 a cost of the generated `System`. It is called with the network parameter vectors
 followed by the `PDESystem` parameter values.
+
+The dependent-variable `names` are a type parameter so that `NamedTuple{names}(...)`
+is statically known to Enzyme; without that, static-activity reverse mode can treat
+arrays captured by the user closure as shadow storage and overwrite them.
 """
 struct AdditionalLoss{names, F, K, N, O}
     f::F
