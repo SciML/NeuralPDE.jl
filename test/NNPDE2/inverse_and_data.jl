@@ -33,8 +33,9 @@ using OrdinaryDiffEq, Statistics
         eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β];
         initial_conditions = Dict(σ_ => 9.0, ρ => 27.0, β => 3.0)
     )
-    # Every `symbolic_discretize`/`discretize` call draws fresh network weights from
-    # `disc.rng`, so train from the first draw and inspect the system afterwards.
+    # `symbolic_discretize`/`discretize` draw the same initial weights from the
+    # discretization's owned RNG, so the system inspected afterwards matches the
+    # weights the problem trains from.
     prob = discretize(pde_system, disc)
     sys = symbolic_discretize(pde_system, disc)
     @test length(unknowns(sys)) == 6
