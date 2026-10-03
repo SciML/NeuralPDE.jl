@@ -42,21 +42,17 @@ apply = getdefault(net.NN)
     end
     loss_prob = discretize(pde_system, loss_disc)
     @test loss_prob.f.adtype isa default
-    # Compiling this Enzyme gradient exhausts the 32-bit address space before
-    # precompile_workload.jl runs in the same process (OutOfMemoryError).
-    if Sys.WORD_SIZE == 64
-        g_fd = ForwardDiff.gradient(w -> loss_prob.f(w, loss_prob.p), loss_prob.u0)
-        # Adam's callback sees the gradient at `state.u` before the update is applied.
-        g_default = Ref{Vector{Float64}}()
-        solve(
-            loss_prob, Adam(0.001); maxiters = 1, callback = function (state, l)
-                @test state.u == loss_prob.u0
-                g_default[] = copy(state.grad)
-                return false
-            end
-        )
-        @test g_default[] ≈ g_fd rtol = 1.0e-6
-    end
+    g_fd = ForwardDiff.gradient(w -> loss_prob.f(w, loss_prob.p), loss_prob.u0)
+    # Adam's callback sees the gradient at `state.u` before the update is applied.
+    g_default = Ref{Vector{Float64}}()
+    solve(
+        loss_prob, Adam(0.001); maxiters = 1, callback = function (state, l)
+            @test state.u == loss_prob.u0
+            g_default[] = copy(state.grad)
+            return false
+        end
+    )
+    @test g_default[] ≈ g_fd rtol = 1.0e-6
     data = [0.3 0.1]
     capture_disc = PhysicsInformedNN(
         chain, GridTraining(0.5); rng = Xoshiro(5), additional_loss = function (phi, θ, p)
