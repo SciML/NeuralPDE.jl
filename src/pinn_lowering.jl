@@ -15,6 +15,31 @@ struct LoweringContext{X, I, G, N, P, D, T, E}
     integral_alg::E       # fixed-node rule for `Integral` terms
     extras::Vector{Any}   # parameters created by integral lowering (qf, ξ, w)
     tag::Symbol           # block tag used to name created parameters
+    # Shift at the entry of the innermost enclosing general-call argument, or `nothing`.
+    # Plain-call literals move only by `shift - literal_base`, so an outer finite
+    # difference of `u(u(0.0, y), 2x)` does not move the inner `0.0`.
+    literal_base::Union{Nothing, Vector{T}}
+end
+
+function LoweringContext(
+        xs, iv_index, iv_global, networks, params, derivative, npoints, ::Type{T},
+        integral_alg, extras, tag, literal_base = nothing
+    ) where {T}
+    return LoweringContext{
+        typeof(xs), typeof(iv_index), typeof(iv_global),
+        typeof(networks), typeof(params), typeof(derivative), T, typeof(integral_alg),
+    }(
+        xs, iv_index, iv_global, networks, params, derivative, npoints, T,
+        integral_alg, extras, tag, literal_base
+    )
+end
+
+function _with_literal_base(ctx::LoweringContext, shift)
+    return LoweringContext(
+        ctx.xs, ctx.iv_index, ctx.iv_global, ctx.networks, ctx.params, ctx.derivative,
+        ctx.npoints, ctx.eltype, ctx.integral_alg, ctx.extras, ctx.tag,
+        collect(ctx.eltype, shift)
+    )
 end
 
 _isnumber(ex) = ex isa Number || (ex isa SymbolicUtils.BasicSymbolic && SymbolicUtils.isconst(ex))
@@ -61,6 +86,57 @@ function lower(ex, ctx::LoweringContext, shift)
     return op(args...)
 end
 
+function _is_general_call(callargs, ctx::LoweringContext)
+    for a in callargs
+        a = unwrap(a)
+        (_isnumber(a) || haskey(ctx.iv_index, a)) || return true
+    end
+    return false
+end
+
+# Whether `ex` depends on the independent variable `x` under the lowering's semantics:
+# a plain call's literal in the `x` slot counts (boundary convention) unless the call
+# sits inside a general argument (`fixed`), where literals do not move. Used to reject
+# vacuous derivatives such as `Dx(u(0.0, 2y))`.
+function _composition_depends_on_iv(ex, x, ctx::LoweringContext, fixed = false)
+    ex = unwrap(ex)
+    isequal(ex, x) && return true
+    iscall(ex) || return false
+    op = operation(ex)
+    if op isa Symbolics.Integral
+        ivars = _integral_variables(op.domain)
+        lbs, ubs = _integral_bounds(op.domain.domain)
+        any(b -> _composition_depends_on_iv(b, x, ctx, fixed), (lbs..., ubs...)) &&
+            return true
+        any(v -> isequal(unwrap(v), x), ivars) && return false
+        return _composition_depends_on_iv(only(arguments(ex)), x, ctx, true)
+    elseif haskey(ctx.networks, op)
+        callargs = arguments(ex)
+        general = _is_general_call(callargs, ctx)
+        for (j, a) in enumerate(callargs)
+            a = unwrap(a)
+            if _isnumber(a)
+                !general && !fixed && isequal(unwrap(ctx.networks[op].args[j]), x) &&
+                    return true
+            elseif _composition_depends_on_iv(a, x, ctx, fixed || general)
+                return true
+            end
+        end
+        return false
+    end
+    return any(a -> _composition_depends_on_iv(a, x, ctx, fixed), arguments(ex))
+end
+
+function _involves_general_call(ex, ctx::LoweringContext)
+    ex = unwrap(ex)
+    iscall(ex) || return false
+    op = operation(ex)
+    if haskey(ctx.networks, op)
+        _is_general_call(arguments(ex), ctx) && return true
+    end
+    return any(a -> _involves_general_call(a, ctx), arguments(ex))
+end
+
 function lower_depvar(ex, ctx::LoweringContext, shift, directions = nothing)
     net = ctx.networks[operation(ex)]
     callargs = arguments(ex)
@@ -70,25 +146,34 @@ function lower_depvar(ex, ctx::LoweringContext, shift, directions = nothing)
     d = ctx.xs === nothing ? 0 : maximum(values(ctx.iv_index))
     P = zeros(ctx.eltype, n_in, d)
     c = zeros(ctx.eltype, n_in)
-    general = false
+    general = _is_general_call(callargs, ctx)
     for (j, a) in enumerate(callargs)
         a = unwrap(a)
-        # A literal argument is still translated when differentiating with respect to the
-        # variable of that slot: `Dx(u(1.0))` is the derivative of `u` evaluated at `x = 1`.
         if _isnumber(a)
             c[j] = _number(a)
-            slot = unwrap(net.args[j])
-            haskey(ctx.iv_global, slot) && (c[j] += shift[ctx.iv_global[slot]])
         elseif haskey(ctx.iv_index, a)
             P[j, ctx.iv_index[a]] = one(ctx.eltype)
             c[j] += shift[ctx.iv_global[a]]
-        else
-            general = true
+        end
+    end
+    # Plain-call boundary convention: `Dx(u(1.0))` is ∂u/∂x at the pinned point, so the
+    # finite-difference shift is applied to the literal. In a general composition such as
+    # `Dx(u(0.0, 2x))` the derivative is of the map `x ↦ u(0.0, 2x)` and literals stay fixed;
+    # only free-coordinate / general argument rows pick up the shift (via `lower` below).
+    if !general
+        lshift = ctx.literal_base === nothing ? shift : shift .- ctx.literal_base
+        for (j, a) in enumerate(callargs)
+            a = unwrap(a)
+            if _isnumber(a)
+                slot = unwrap(net.args[j])
+                haskey(ctx.iv_global, slot) && (c[j] += lshift[ctx.iv_global[slot]])
+            end
         end
     end
     X = if general
         # A general argument such as `u(t - τ)` lowers to its own `1 × n` row; the rows
         # are stacked lazily so the expression does not scalarize over the batch.
+        ctx_args = _with_literal_base(ctx, shift)
         rows = map(enumerate(callargs)) do (j, a)
             a = unwrap(a)
             if _isnumber(a)
@@ -96,7 +181,7 @@ function lower_depvar(ex, ctx::LoweringContext, shift, directions = nothing)
             elseif haskey(ctx.iv_index, a)
                 wrap(ctx.xs)[ctx.iv_index[a]:ctx.iv_index[a], :]
             else
-                r = lower(a, ctx, shift)
+                r = lower(a, ctx_args, shift)
                 _isarray(r) ? r : wrap(fill(unwrap(r), 1, ctx.npoints))
             end
         end
@@ -127,6 +212,20 @@ function lower_differential(ex, ctx::LoweringContext, shift)
             the `PDESystem`."
         )
     )
+    # A general call keeps literal slots fixed, so `Dx(u(0.0, 2y))` would lower to the
+    # zero map with no dependence on θ. Reject that instead of a silent constant residual.
+    if _involves_general_call(inner, ctx) &&
+            !_composition_depends_on_iv(inner, unwrap(x), ctx)
+        throw(
+            ArgumentError(
+                "Differentiating `$(inner)` with respect to `$(x)` has no effect under \
+                composition semantics: `$(x)` appears only as a fixed literal in a \
+                general-argument call. Use a plain call such as `u(0.0, y)` for a boundary \
+                derivative at a pinned coordinate, or include `$(x)` in a non-literal \
+                argument (for example `Dx(u(0.0, 2x))`)."
+            )
+        )
+    end
     direction = ctx.iv_global[unwrap(x)]
     order = D.order
     # Orders above four are lowered as a first-order stencil of the next lower order.
@@ -210,25 +309,33 @@ function _collect_ivs!(found, ex, ivs, exclude = ())
 end
 
 """
-    pinned_values(bcs, v::PDEBase.VariableMap)
+    pinned_values(bcs, pdesys)
 
 Return a `Dict` mapping each independent variable to the set of numeric values it is
 pinned to in the boundary conditions, e.g. `x => Set([0.0, 1.0])` for `u(0, y)` and
 `u(1, y)`. `GridTraining` uses it to keep interior points off the boundaries.
+
+The declared signatures of `get_dvs(pdesys)` are used as the argument slots, not
+`VariableMap.args`, so a call with a general argument (`u(t, x + 1)`) does not
+overwrite the pin mapping for `u(t, 0)`.
 """
-function pinned_values(bcs, v::PDEBase.VariableMap)
-    pinned = Dict(unwrap(x) => Set{Float64}() for x in PDEBase.all_ivs(v))
+function pinned_values(bcs, pdesys)
+    pinned = Dict(unwrap(x) => Set{Float64}() for x in get_ivs(pdesys))
+    declared = Dict(
+        unwrap(operation(dv)) => Any[unwrap(a) for a in arguments(dv)]
+            for dv in get_dvs(pdesys)
+    )
     for bc in bcs, side in (bc.lhs, bc.rhs)
-        _collect_pinned!(pinned, unwrap(side), v)
+        _collect_pinned!(pinned, unwrap(side), declared)
     end
     return pinned
 end
 
-function _collect_pinned!(pinned, ex, v)
+function _collect_pinned!(pinned, ex, declared)
     iscall(ex) || return
-    op = operation(ex)
-    if haskey(v.args, op)
-        for (a, x) in zip(arguments(ex), v.args[op])
+    op = unwrap(operation(ex))
+    if haskey(declared, op)
+        for (a, x) in zip(arguments(ex), declared[op])
             a = unwrap(a)
             _isnumber(a) && haskey(pinned, unwrap(x)) &&
                 push!(pinned[unwrap(x)], Float64(_number(a)))
@@ -236,7 +343,7 @@ function _collect_pinned!(pinned, ex, v)
         return
     end
     for a in arguments(ex)
-        _collect_pinned!(pinned, unwrap(a), v)
+        _collect_pinned!(pinned, unwrap(a), declared)
     end
     return
 end

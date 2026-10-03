@@ -6,14 +6,15 @@
 
 # PDEBase derives the independent variables of a system from the arguments of
 # dependent-variable calls, so an integrating variable like `τ` in
-# `Integral(τ in [0, t])(x(τ))` would demand a domain. Declare an infinite one for
-# every integrating variable missing one; it is never sampled because integrating
-# variables are bound, not free.
+# `Integral(τ in [0, t])(x(τ))`, or a general argument like `2x` in `u(2x)`,
+# would demand a domain. Declare an infinite one for every such missing entry;
+# integrating variables and general argument expressions are never sampled as free
+# collocation coordinates (`s.ivs` comes from the declared independent variables).
 function SciMLBase.symbolic_discretize(
         pdesys::PDESystem, disc::PhysicsInformedNN; checks = true
     )
     expanded, packing = expand_array_arguments(pdesys)
-    _declare_integral_variables(expanded)
+    _declare_missing_domains(expanded)
     _check_grid_spacing(disc, packing)
     return task_local_storage(_PACKING_TLS, packing) do
         invoke(
@@ -26,9 +27,9 @@ end
 
 # Collect the symbols that need a domain entry for `PDEBase.VariableMap`: the
 # integrating variables of every `Integral`, plus the non-constant arguments of
-# dependent-variable calls inside integrands (a call like `x(t - τ)` registers
-# `t - τ` as an independent variable otherwise).
-function _collect_integral_vars!(found, ex, dvops, inside = false)
+# dependent-variable calls (a call like `u(2x)` or `x(t - τ)` registers the
+# argument expression as an independent variable otherwise).
+function _collect_missing_domains!(found, ex, dvops)
     ex = unwrap(ex)
     iscall(ex) || return found
     op = operation(ex)
@@ -38,10 +39,9 @@ function _collect_integral_vars!(found, ex, dvops, inside = false)
         end
         lbs, ubs = _integral_bounds(op.domain.domain)
         for b in vcat(lbs, ubs)
-            _collect_integral_vars!(found, b, dvops, inside)
+            _collect_missing_domains!(found, b, dvops)
         end
-        inside = true
-    elseif inside && any(d -> isequal(d, op), dvops)
+    elseif any(d -> isequal(d, op), dvops)
         for a in arguments(ex)
             a = unwrap(a)
             SymbolicUtils.unwrap_const(a) isa Number && continue
@@ -49,12 +49,12 @@ function _collect_integral_vars!(found, ex, dvops, inside = false)
         end
     end
     for a in arguments(ex)
-        _collect_integral_vars!(found, a, dvops, inside)
+        _collect_missing_domains!(found, a, dvops)
     end
     return found
 end
 
-function _declare_integral_variables(pdesys)
+function _declare_missing_domains(pdesys)
     dom = get_domain(pdesys)
     dom isa AbstractVector || return
     have = Any[]
@@ -69,7 +69,7 @@ function _declare_integral_variables(pdesys)
     dvops = Any[operation(unwrap(dv)) for dv in get_dvs(pdesys)]
     for eqs in (get_eqs(pdesys), get_bcs(pdesys)), eq in eqs,
             side in (eq isa Equation ? (eq.lhs, eq.rhs) : (eq,))
-        for v in _collect_integral_vars!(Any[], unwrap(side), dvops)
+        for v in _collect_missing_domains!(Any[], unwrap(side), dvops)
             any(x -> isequal(x, v), have) && continue
             push!(dom, wrap(v) ∈ DomainSets.Interval(-Inf, Inf))
             push!(have, v)
