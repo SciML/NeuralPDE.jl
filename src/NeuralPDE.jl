@@ -5,7 +5,7 @@ using Adapt: Adapt
 using ArrayInterface: ArrayInterface
 using ChainRulesCore: ChainRulesCore, @ignore_derivatives
 using Cubature: Cubature
-using ComponentArrays: ComponentArrays, ComponentArray, getaxes
+using ComponentArrays: ComponentArrays, ComponentArray, getaxes, getdata
 using ConcreteStructs: @concrete
 using DomainSets: DomainSets
 using Enzyme: Enzyme
@@ -26,6 +26,7 @@ using OptimizationOptimisers: OptimizationOptimisers
 using PDEBase: PDEBase
 using Printf: @printf
 using Random: Random, AbstractRNG
+using Reactant: Reactant
 using RecursiveArrayTools: DiffEqArray
 using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions
 using SciMLBase: SciMLBase, BatchIntegralFunction, DAEProblem, IntegralProblem,
