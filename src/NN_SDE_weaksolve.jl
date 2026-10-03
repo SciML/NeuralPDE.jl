@@ -18,7 +18,9 @@ Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
 - `optimalg`: Optimizer used to train the network, or a vector/tuple of optimizers run
   in sequence; each stage warm-starts from the previous stage's parameters and is given
   `maxiters` iterations (`maxiters` may itself be a vector/tuple with one entry per stage).
-- `norm_loss_alg`: Integration algorithm used by the normalization loss.
+- `norm_loss_alg`: Integration algorithm used by the normalization loss. Defaults to a
+  fixed composite Gauss-Legendre rule (`GaussLegendre(n = 32, subintervals = 4)`), which
+  stays accurate on peaked densities.
 - `initial_parameters`: Initial network parameters. NeuralPDE draws them from `rng` when
   omitted.
 - `rng`: Random number generator for network parameter initialization when
@@ -159,6 +161,8 @@ function SciMLBase.__solve(
         distrib, optimalg, norm_loss_alg, initial_parameters, rng, adtype, chain,
     ) = alg
 
+    norm_loss_alg = something(norm_loss_alg, GaussLegendre(n = 32, subintervals = 4))
+
     dt = (t₁ - t₀) / Nt
     ts = collect(t₀:dt:t₁)
 
@@ -238,7 +242,7 @@ function SciMLBase.__solve(
             phi_normloss(x, θ) = u0 isa Number ? first(phi([x, t], θ)) : phi([x, t], θ)
             I_est = solve(
                 IntegralProblem(phi_normloss, (x_0, x_end), θ), norm_loss_alg,
-                reltol = 1.0e-4, abstol = 1.0e-4, maxiters = 10
+                reltol = 1.0e-4, abstol = 1.0e-4
             )[1]
             loss += abs2(I_est - P(1))
         end
