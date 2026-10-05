@@ -20,6 +20,63 @@ net = only(md.networks)
 apply = getdefault(net.NN)
 θ = prob.u0
 
+@testset "default AD for objective paths" begin
+    default = AutoEnzyme
+    @test prob.f.adtype isa default
+    dgm_disc = DeepGalerkin(
+        2, 1, 4, 1, tanh, tanh, identity, GridTraining(0.5); rng = Xoshiro(2)
+    )
+    @test discretize(pde_system, dgm_disc).f.adtype isa default
+    @test discretize(pde_system, dgm_disc; adtype = AutoZygote()).f.adtype isa AutoZygote
+    loss_disc = let data = "ab"
+        PhysicsInformedNN(
+            chain, GridTraining(0.5); rng = Xoshiro(4), additional_loss = function (phi, θ, p)
+                out = phi.u([0.5 0.25; 0.5 0.25], θ.u)
+                buf = similar(out, length(data))
+                for i in eachindex(buf)
+                    buf[i] = out[i]
+                end
+                return sum(abs2, buf)
+            end
+        )
+    end
+    loss_prob = discretize(pde_system, loss_disc)
+    @test loss_prob.f.adtype isa default
+    g_fd = ForwardDiff.gradient(w -> loss_prob.f(w, loss_prob.p), loss_prob.u0)
+    # Adam's callback sees the gradient at `state.u` before the update is applied.
+    g_default = Ref{Vector{Float64}}()
+    solve(
+        loss_prob, Adam(0.001); maxiters = 1, callback = function (state, l)
+            @test state.u == loss_prob.u0
+            g_default[] = copy(state.grad)
+            return false
+        end
+    )
+    @test g_default[] ≈ g_fd rtol = 1.0e-6
+    data = [0.3 0.1]
+    capture_disc = PhysicsInformedNN(
+        chain, GridTraining(0.5); rng = Xoshiro(5), additional_loss = function (phi, θ, p)
+            return sum(abs2, phi.u([0.5 0.25; 0.5 0.25], θ.u) .- data)
+        end
+    )
+    # Selection only: an `additional_loss` that captures arrays keeps the default
+    # backend because the closure is not inspected. Integrity of those captures
+    # under reverse-mode AD is covered by the testset below.
+    @test discretize(pde_system, capture_disc).f.adtype isa default
+    @parameters s τ
+    @variables v(..)
+    integral = Integral(τ in Interval(0.0, s))
+    @named integral_sys = PDESystem(
+        integral(v(τ)) ~ s^2 / 2, [v(0.0) ~ 0.0],
+        [s ∈ Interval(0.0, 1.0)], [s], [v(s)]
+    )
+    integral_disc = PhysicsInformedNN(
+        Chain(Dense(1, 1)), GridTraining(0.5); rng = Xoshiro(3)
+    )
+    @test discretize(integral_sys, integral_disc).f.adtype isa AutoZygote
+    @test discretize(integral_sys, integral_disc; adtype = AutoEnzyme()).f.adtype isa AutoEnzyme
+end
+
 @testset "lowered residual matches a manual finite-difference computation" begin
     block = md.blocks[1]
     X = getp(prob, block.xs)(prob)

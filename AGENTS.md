@@ -32,3 +32,10 @@ not in the main env).
   when accessed as `DomainSets.endpoints`. `DomainSets.infimum`/`supremum` pass
   that check but do an `a > b` emptiness test that throws on symbolic bounds.
   Read `d.left`/`d.right` on `TypedEndpointsInterval` domains instead.
+
+## Additional-loss AD
+
+Closure field types do not determine `additional_loss` AD compatibility: callbacks
+with non-`isbits` captures can still differentiate correctly with Enzyme. Choose a
+backend explicitly at call sites with demonstrated requirements, and retain
+captured-metadata, buffer-writing callbacks in default-backend regression coverage.
