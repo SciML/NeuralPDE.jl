@@ -13,7 +13,11 @@ using NeuralPDE, Lux, ComponentArrays, StableRNGs, Zygote, Test
             gradient = only(Zygote.gradient(loss, theta))
             @test gradient.depvar.layer_1.bias ≈ T[2] rtol = 1.0e-3
         end
-        rhs = NeuralPDE.BatchedRHS((u, p, t) -> zero(u))
+        # NNODE no longer wraps the right-hand side for whole-batch evaluation, so an
+        # ordinary pointwise `f(u, p, t)` reaches `inner_loss` directly. The invariant
+        # under test is unchanged: the finite time difference must respect the parameter
+        # precision, not only the precision of the time points.
+        rhs = (u, p, t) -> zero(u)
         loss = p -> NeuralPDE.inner_loss(phi, rhs, false, S[0.4], p, nothing, false)
         gradient = only(Zygote.gradient(loss, theta))
         @test gradient.depvar.layer_1.bias ≈ T[2] rtol = 1.0e-3

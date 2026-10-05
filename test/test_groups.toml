@@ -31,6 +31,10 @@ versions = ["1.11", "lts"]
 [NNODE]
 versions = ["1.11", "lts"]
 
+[Reactant]
+versions = ["1.11", "lts"]
+timeout = 300
+
 [PINOODE]
 versions = ["1.11", "lts"]
 
