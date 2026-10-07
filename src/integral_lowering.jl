@@ -439,7 +439,7 @@ function lower_integral(ex, ctx::LoweringContext, shift)
     end
     ctx_inner = LoweringContext(
         xs_int, iv_index_i, iv_global_i, ctx.networks, ctx.params,
-        ctx.derivative, nM, T, ctx.integral_alg, ctx.extras, ctx.tag
+        ctx.derivative, nM, T, ctx.integral_alg, ctx.extras, ctx.tag, false
     )
     shift_inner = zeros(T, nivs + q)
     F = lower(integrand, ctx_inner, shift_inner)
@@ -454,7 +454,7 @@ function lower_integral(ex, ctx::LoweringContext, shift)
         end
         ctx_b = LoweringContext(
             xs_int, iv_index_b, iv_global_b, ctx.networks, ctx.params,
-            ctx.derivative, nM, T, ctx.integral_alg, ctx.extras, ctx.tag
+            ctx.derivative, nM, T, ctx.integral_alg, ctx.extras, ctx.tag, false
         )
         push!(lbE, lower(lbs[i], ctx_b, shift_inner))
         push!(ubE, lower(ubs[i], ctx_b, shift_inner))

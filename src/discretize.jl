@@ -327,6 +327,7 @@ function residual_block(eq, kind, index, s::CollocationSpace, derivative, disc)
         s.param_syms, derivative, npoints, T, _integral_alg(disc), extras,
         Symbol(kind, index)
     )
+    check_vacuous_derivatives(ex, ctx)
     residual = lower(ex, ctx, zeros(T, length(s.ivs)))
     return ResidualBlock(
         eq, kind, ivs, ivpos, (lb, ub), bpinned, xs, w, npoints, residual, extras

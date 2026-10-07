@@ -15,6 +15,9 @@ struct LoweringContext{X, I, G, N, P, D, T, E}
     integral_alg::E       # fixed-node rule for `Integral` terms
     extras::Vector{Any}   # parameters created by integral lowering (qf, ξ, w)
     tag::Symbol           # block tag used to name created parameters
+    # Whether general calls are lowered as compositions with fixed literal slots. Inside
+    # `Integral` integrands it is `false`: every literal follows the boundary convention.
+    compose::Bool
     # Shift at the entry of the innermost enclosing general-call argument, or `nothing`.
     # Plain-call literals move only by `shift - literal_base`, so an outer finite
     # difference of `u(u(0.0, y), 2x)` does not move the inner `0.0`.
@@ -23,21 +26,21 @@ end
 
 function LoweringContext(
         xs, iv_index, iv_global, networks, params, derivative, npoints, ::Type{T},
-        integral_alg, extras, tag, literal_base = nothing
+        integral_alg, extras, tag, compose = true, literal_base = nothing
     ) where {T}
     return LoweringContext{
         typeof(xs), typeof(iv_index), typeof(iv_global),
         typeof(networks), typeof(params), typeof(derivative), T, typeof(integral_alg),
     }(
         xs, iv_index, iv_global, networks, params, derivative, npoints, T,
-        integral_alg, extras, tag, literal_base
+        integral_alg, extras, tag, compose, literal_base
     )
 end
 
 function _with_literal_base(ctx::LoweringContext, shift)
     return LoweringContext(
         ctx.xs, ctx.iv_index, ctx.iv_global, ctx.networks, ctx.params, ctx.derivative,
-        ctx.npoints, ctx.eltype, ctx.integral_alg, ctx.extras, ctx.tag,
+        ctx.npoints, ctx.eltype, ctx.integral_alg, ctx.extras, ctx.tag, ctx.compose,
         collect(ctx.eltype, shift)
     )
 end
@@ -131,10 +134,59 @@ function _involves_general_call(ex, ctx::LoweringContext)
     ex = unwrap(ex)
     iscall(ex) || return false
     op = operation(ex)
+    op isa Symbolics.Integral && return false
     if haskey(ctx.networks, op)
         _is_general_call(arguments(ex), ctx) && return true
     end
     return any(a -> _involves_general_call(a, ctx), arguments(ex))
+end
+
+# A derivative of a composed general call along a variable that occurs only in fixed
+# literal slots, such as `Dx(u(0.0, 2y))`, lowers to zero.
+function _is_vacuous_derivative(ex, ctx::LoweringContext)
+    op = operation(ex)
+    op isa Differential && haskey(ctx.iv_global, unwrap(op.x)) || return false
+    inner = only(arguments(ex))
+    return _involves_general_call(inner, ctx) &&
+        !_composition_depends_on_iv(inner, unwrap(op.x), ctx)
+end
+
+# Whether `ex` contains a dependent-variable call or a `PDESystem` parameter outside
+# vacuous derivatives; the integrand of an `Integral` uses no composition semantics.
+function _has_live_term(ex, ctx::LoweringContext, composed = true)
+    ex = unwrap(ex)
+    haskey(ctx.params, ex) && return true
+    iscall(ex) || return false
+    op = operation(ex)
+    haskey(ctx.networks, op) && return true
+    composed && _is_vacuous_derivative(ex, ctx) && return false
+    composed &= !(op isa Symbolics.Integral)
+    return any(a -> _has_live_term(a, ctx, composed), arguments(ex))
+end
+
+function _has_vacuous_derivative(ex, ctx::LoweringContext)
+    ex = unwrap(ex)
+    iscall(ex) || return false
+    op = operation(ex)
+    op isa Symbolics.Integral && return false
+    _is_vacuous_derivative(ex, ctx) && return true
+    return any(a -> _has_vacuous_derivative(a, ctx), arguments(ex))
+end
+
+# Reject a residual whose only dependent-variable terms are vacuous derivatives: it would
+# be a constant. A vacuous term next to a live one (`Dx(u(0.0, 2y)) + u(x, y)`) is zero.
+function check_vacuous_derivatives(ex, ctx::LoweringContext)
+    (_has_vacuous_derivative(ex, ctx) && !_has_live_term(ex, ctx)) || return nothing
+    throw(
+        ArgumentError(
+            "The residual `$(ex)` does not depend on the networks: each dependent-variable \
+            call is differentiated with respect to a variable that appears only as a fixed \
+            literal in a general-argument call, which has no effect under composition \
+            semantics. Use a plain call such as `u(0.0, y)` for a boundary derivative at a \
+            pinned coordinate, or include the variable in a non-literal argument (for \
+            example `Dx(u(0.0, 2x))`)."
+        )
+    )
 end
 
 function lower_depvar(ex, ctx::LoweringContext, shift, directions = nothing)
@@ -147,6 +199,7 @@ function lower_depvar(ex, ctx::LoweringContext, shift, directions = nothing)
     P = zeros(ctx.eltype, n_in, d)
     c = zeros(ctx.eltype, n_in)
     general = _is_general_call(callargs, ctx)
+    compose = general && ctx.compose
     for (j, a) in enumerate(callargs)
         a = unwrap(a)
         if _isnumber(a)
@@ -160,7 +213,8 @@ function lower_depvar(ex, ctx::LoweringContext, shift, directions = nothing)
     # finite-difference shift is applied to the literal. In a general composition such as
     # `Dx(u(0.0, 2x))` the derivative is of the map `x ↦ u(0.0, 2x)` and literals stay fixed;
     # only free-coordinate / general argument rows pick up the shift (via `lower` below).
-    if !general
+    # Integrands keep the boundary convention for general calls too: `Dx(u(0.0, 2τ))`.
+    if !compose
         lshift = ctx.literal_base === nothing ? shift : shift .- ctx.literal_base
         for (j, a) in enumerate(callargs)
             a = unwrap(a)
@@ -173,7 +227,7 @@ function lower_depvar(ex, ctx::LoweringContext, shift, directions = nothing)
     X = if general
         # A general argument such as `u(t - τ)` lowers to its own `1 × n` row; the rows
         # are stacked lazily so the expression does not scalarize over the batch.
-        ctx_args = _with_literal_base(ctx, shift)
+        ctx_args = compose ? _with_literal_base(ctx, shift) : ctx
         rows = map(enumerate(callargs)) do (j, a)
             a = unwrap(a)
             if _isnumber(a)
@@ -212,20 +266,6 @@ function lower_differential(ex, ctx::LoweringContext, shift)
             the `PDESystem`."
         )
     )
-    # A general call keeps literal slots fixed, so `Dx(u(0.0, 2y))` would lower to the
-    # zero map with no dependence on θ. Reject that instead of a silent constant residual.
-    if _involves_general_call(inner, ctx) &&
-            !_composition_depends_on_iv(inner, unwrap(x), ctx)
-        throw(
-            ArgumentError(
-                "Differentiating `$(inner)` with respect to `$(x)` has no effect under \
-                composition semantics: `$(x)` appears only as a fixed literal in a \
-                general-argument call. Use a plain call such as `u(0.0, y)` for a boundary \
-                derivative at a pinned coordinate, or include `$(x)` in a non-literal \
-                argument (for example `Dx(u(0.0, 2x))`)."
-            )
-        )
-    end
     direction = ctx.iv_global[unwrap(x)]
     order = D.order
     # Orders above four are lowered as a first-order stencil of the next lower order.

@@ -105,11 +105,14 @@ Derivatives of such calls are derivatives of the composition under the finite-di
 backend (`Dx(u(2x))` shifts the argument `2x`; literal coordinates in a mixed call such as
 `Dx(u(0.0, 2x))` stay fixed, including when a plain call is nested inside a general
 argument, e.g. `Dx(u(u(0.0, y), 2x))`). Differentiating a general call with respect to a
-variable that appears only as a fixed literal (for example `Dx(u(0.0, 2y))`) throws an
-`ArgumentError`; use a plain call such as `Dx(u(0.0, y))` for a boundary derivative at a
-pinned coordinate. Plain independent-variable and literal arguments keep the affine
-shortcut and do not go through `nn_vcat`; the plain boundary convention `Dx(u(1.0))`
-still shifts the pinned literal.
+variable that appears only as a fixed literal (for example `Dx(u(0.0, 2y))`) gives zero; an
+equation in which every dependent-variable term is such a zero derivative does not depend
+on the networks and throws an `ArgumentError`. Use a plain call such as `Dx(u(0.0, y))` for
+a boundary derivative at a pinned coordinate. Plain independent-variable and literal
+arguments keep the affine shortcut and do not go through `nn_vcat`; the plain boundary
+convention `Dx(u(1.0))` still shifts the pinned literal. Inside an `Integral` integrand
+every literal follows the boundary convention, in general calls as well:
+`Integral(τ in Interval(0, 1))(Dx(u(0.0, 2τ)))` integrates ``∂u/∂x`` at ``x = 0``.
 
 The quadrature rule is fixed-node only so the lowered term is a static array
 expression (Reactant compatible); it defaults to `Integrals.GaussLegendre`, inherits

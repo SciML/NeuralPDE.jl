@@ -339,6 +339,9 @@ end
     for eq in [Dx(u(0.0, 2y)) ~ 0.0, Dx(u(u(0.0, y), 2y)) ~ 0.0]
         @test_throws ArgumentError xy_residual(eq)
     end
+    # Next to a θ-dependent term the vacuous derivative is zero.
+    r = xy_residual(Dx(u(0.0, 2y)) + u(x, y) ~ 3x + 5y)
+    @test r ≈ zeros(size(r)) atol = 1.0e-8
 
     @named reflected = PDESystem(
         [u(1 - x) ~ u(x)], [u(0.0) ~ 0.0], domains, [x], [u(x)]

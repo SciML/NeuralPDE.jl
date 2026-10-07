@@ -185,6 +185,34 @@ end
     @test residual ≈ X[1:1, :] .* (X[2:2, :] .+ X[1:1, :] .+ 1) atol = 1.0e-8
 end
 
+@testset "general-argument calls in integrands keep the boundary convention" begin
+    # Exact network u(a, b) = 3a + 5b.
+    @parameters x y τ
+    @variables u(..)
+    Dx = Differential(x)
+    I = Integral(τ in DomainSets.ClosedInterval(0.0, 1.0))
+    residual = function (eq)
+        sys = PDESystem(
+            [eq], [u(0.0, 0.0) ~ 0.0], [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)],
+            [x, y], [u(x, y)]; name = :sys
+        )
+        disc = PhysicsInformedNN(
+            Chain(Dense(2, 1)), GridTraining(0.25); init_params = [3.0, 5.0, 0.0]
+        )
+        prob = discretize(sys, disc)
+        return getu(prob, pinn_metadata(prob).blocks[1].residual)(prob)
+    end
+    # The integral does not depend on x, but the residual still depends on θ via
+    # u(x, y). Dx of the pinned x-slot literal is ∂u/∂a = 3 at every node.
+    @testset "$eq" for eq in [
+            Dx(I(u(0.0, 2y))) + u(x, y) ~ 3x + 5y,
+            I(Dx(u(0.0, 2τ))) ~ 3.0,
+        ]
+        r = residual(eq)
+        @test r ≈ zeros(size(r)) atol = 1.0e-8
+    end
+end
+
 @testset "gradients flow through quadrature terms" begin
     @parameters t tau
     @variables x(..)
