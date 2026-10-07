@@ -1,4 +1,5 @@
 using ModelingToolkit, NeuralPDE, SciMLBase
+using ADTypes: AutoForwardDiff
 using Random
 using Test
 
@@ -21,9 +22,9 @@ using Test
         Chain(Dense(1, 2, tanh), Dense(2, 1)), GridTraining(1.0)
     )
 
-    prob = discretize(pde_system, discretization)
+    prob = discretize(pde_system, discretization; adtype = AutoForwardDiff())
     res = solve(prob, Adam(0.001); maxiters = 1)
 
-    @test res.u !== nothing
-    @test isfinite(res.objective)
+    @test res isa PDENoTimeSolution
+    @test isfinite(res.original_sol.objective)
 end

@@ -1,4 +1,4 @@
-# Solving ODEs with Physics-Informed Neural Networks (PINNs)
+# [Solving ODEs with Physics-Informed Neural Networks (PINNs)](@id ode_tutorial)
 
 !!! note
     

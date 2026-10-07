@@ -28,10 +28,7 @@ using Test
         256; sampling_alg = LatinHypercubeSample(rng), resampling = false, minibatch = 1
     )
     chain = NeuralPDE.DGM(2, 1, 20, 3, tanh, tanh, identity)
-    init_params, init_states = Lux.setup(rng, chain)
-    discretization = PhysicsInformedNN(
-        chain, strategy; init_params = ComponentArray{Float64}(init_params), init_states
-    )
+    discretization = PhysicsInformedNN(chain, strategy; rng)
 
     @named pde_system = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     prob = discretize(pde_system, discretization)
@@ -42,14 +39,13 @@ using Test
     end
 
     res = solve(prob, Adam(0.01); callback, maxiters = 500)
-    prob = remake(prob, u0 = res.u)
-    res = solve(prob, Adam(0.001); callback, maxiters = 200)
-    phi = discretization.phi
+    prob = remake(prob, u0 = res.original_sol.u)
+    sol = solve(prob, Adam(0.001); callback, maxiters = 200)
 
     xs, ys = [infimum(d.domain):0.01:supremum(d.domain) for d in domains]
     analytic_sol_func(x, y) = (sin(pi * x) * sin(pi * y)) / (2pi^2)
 
-    u_predict = [first(phi([x, y], res.u)) for x in xs for y in ys]
+    u_predict = [sol(xᵢ, yᵢ; dv = u(x, y)) for xᵢ in xs for yᵢ in ys]
     u_real = [analytic_sol_func(x, y) for x in xs for y in ys]
 
     rmse_scale = sqrt(length(u_real))

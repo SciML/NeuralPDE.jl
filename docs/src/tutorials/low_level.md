@@ -13,10 +13,8 @@ u(t, -1) = u(t, 1) = 0 \, ,
 with Physics-Informed Neural Networks. Here is an example of using the low-level API:
 
 ```@example low_level
-using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, LineSearches
-using Optim: BFGS
+using NeuralPDE, Lux, OptimizationOptimJL, LineSearches
 using DomainSets: Interval
-using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..)
@@ -28,7 +26,7 @@ Dxx = Differential(x)^2
 eq = Dt(u(t, x)) + u(t, x) * Dx(u(t, x)) - (0.01 / pi) * Dxx(u(t, x)) ~ 0
 
 # Initial and boundary conditions
-bcs = [u(0, x) ~ -sin(pi * x),
+bcs = [u(0, x) ~ -sinpi(x),
     u(t, -1) ~ 0.0,
     u(t, 1) ~ 0.0,
     u(t, -1) ~ u(t, 1)]
@@ -39,35 +37,49 @@ domains = [t ∈ Interval(0.0, 1.0),
 
 # Neural network
 chain = Chain(Dense(2, 16, σ), Dense(16, 16, σ), Dense(16, 1))
-strategy = QuadratureTraining(; abstol = 1e-6, reltol = 1e-6, batch = 200)
+strategy = QuasiRandomTraining(500; bcs_points = 100)
 
-indvars = [t, x]
-depvars = [u(t, x)]
-@named pde_system = PDESystem(eq, bcs, domains, indvars, depvars)
-
+@named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
 discretization = PhysicsInformedNN(chain, strategy)
-sym_prob = symbolic_discretize(pde_system, discretization)
+sys = symbolic_discretize(pde_system, discretization)
+```
 
-phi = sym_prob.phi
+`symbolic_discretize` returns a `ModelingToolkit.System`. Its unknowns are the network
+parameters, its parameters are the network callable and the collocation matrices, and
+its costs are the mean squared residuals of the PDE and of each boundary condition:
 
-pde_loss_functions = sym_prob.loss_functions.pde_loss_functions
-bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
+```@example low_level
+unknowns(sys)
+```
 
-callback = function (p, l)
-    println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p.u), pde_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p.u), bc_loss_functions))
-    return false
-end
+```@example low_level
+ModelingToolkit.parameters(sys)
+```
 
-loss_functions = [pde_loss_functions; bc_loss_functions]
+```@example low_level
+ModelingToolkit.get_costs(sys)
+```
 
-loss_function(θ, p) = sum(map(l -> l(θ), loss_functions))
+The periodic condition `u(t, -1) ~ u(t, 1)` is lowered like any other equation: both
+calls of `u` are network evaluations on the same batch of `t` values with the pinned
+`x` coordinate appended, so periodicity does not need special treatment:
 
-f_ = OptimizationFunction(loss_function, AutoZygote())
-prob = OptimizationProblem(f_, sym_prob.flat_init_params)
+```@example low_level
+md = pinn_metadata(sys)
+md.blocks[end].residual
+```
 
-res = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 3000)
+Because the result is a `System`, the standard ModelingToolkit constructor builds the
+`OptimizationProblem`. `discretize` does exactly this: it samples the collocation points
+and calls `OptimizationProblem(sys, op)`, forwarding keyword arguments such as `adtype` or
+`weights`. The system is `complete`d rather than passed through `mtkcompile`, so the
+network parameters remain array unknowns. Weighting the boundary conditions ten times
+more than the PDE residual, for instance, is
+
+```@example low_level
+prob = discretize(pde_system, discretization; weights = [1.0, 10.0, 10.0, 10.0, 10.0])
+sol = solve(prob, BFGS(linesearch = BackTracking()); maxiters = 3000)
+sol.original_sol.objective
 ```
 
 And some analysis:
@@ -75,14 +87,13 @@ And some analysis:
 ```@example low_level
 using Plots
 
-ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
-u_predict_contourf = reshape([first(phi([t, x], res.u)) for t in ts for x in xs],
-    length(xs), length(ts))
-plot(ts, xs, u_predict_contourf, linetype = :contourf, title = "predict")
+ts = 0:0.01:1
+xs = -1:0.01:1
+u_predict = sol(ts, xs; dv = u(t, x))
+plot(ts, xs, u_predict', linetype = :contourf, title = "predict")
 
-u_predict = [[first(phi([t, x], res.u)) for x in xs] for t in ts]
-p1 = plot(xs, u_predict[3], title = "t = 0.1");
-p2 = plot(xs, u_predict[11], title = "t = 0.5");
-p3 = plot(xs, u_predict[end], title = "t = 1");
+p1 = plot(xs, u_predict[3, :], title = "t = 0.02");
+p2 = plot(xs, u_predict[51, :], title = "t = 0.5");
+p3 = plot(xs, u_predict[end, :], title = "t = 1");
 plot(p1, p2, p3)
 ```

@@ -49,7 +49,7 @@ const BURGER_REF_U = [
 
     # NeuralPDE
     strategy = QuasiRandomTraining(256, minibatch = 32)
-    discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
+    discretization = DeepGalerkin(2, 1, 16, 2, tanh, tanh, identity, strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
     prob = discretize(pde_system, discretization)
 
@@ -59,11 +59,10 @@ const BURGER_REF_U = [
     end
 
     res = solve(prob, Adam(0.01); callback = callback, maxiters = 500)
-    prob = remake(prob, u0 = res.u)
-    res = solve(prob, Adam(0.001); callback = callback, maxiters = 200)
-    phi = discretization.phi
+    prob = remake(prob, u0 = res.original_sol.u)
+    sol = solve(prob, Adam(0.001); callback = callback, maxiters = 200)
 
-    u_predict = [first(phi([t, x], res.u)) for t in BURGER_REF_TS, x in BURGER_REF_XS]
+    u_predict = [sol(tᵢ, xᵢ; dv = u(t, x)) for tᵢ in BURGER_REF_TS, xᵢ in BURGER_REF_XS]
 
     @test u_predict ≈ BURGER_REF_U rtol = 0.2
 end

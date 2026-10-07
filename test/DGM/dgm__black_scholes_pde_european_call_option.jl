@@ -23,7 +23,7 @@ using Test
     domains = [t ∈ Interval(0.0, T), x ∈ Interval(0.0, S * S_multiplier)]
 
     strategy = QuasiRandomTraining(128, minibatch = 32)
-    discretization = DeepGalerkin(2, 1, 40, 3, tanh, tanh, identity, strategy)
+    discretization = DeepGalerkin(2, 1, 16, 2, tanh, tanh, identity, strategy)
 
     @named pde_system = PDESystem(eq, bcs, domains, [t, x], [g(t, x)])
     prob = discretize(pde_system, discretization)
@@ -34,9 +34,8 @@ using Test
     end
 
     res = solve(prob, Adam(0.1); callback, maxiters = 100)
-    prob = remake(prob, u0 = res.u)
-    res = solve(prob, Adam(0.01); callback, maxiters = 500)
-    phi = discretization.phi
+    prob = remake(prob, u0 = res.original_sol.u)
+    sol = solve(prob, Adam(0.01); callback, maxiters = 500)
 
     function analytical_soln(t, x, K, σ, T)
         d₊ = (log(x / K) + (r + 0.5 * σ^2) * (T - t)) / (σ * sqrt(T - t))
@@ -50,7 +49,7 @@ using Test
     xs = collect(infimum(domains2[2].domain):1.0:supremum(domains2[2].domain))
 
     u_real = [analytic_sol_func(t, x) for t in ts, x in xs]
-    u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
+    u_predict = [sol(tᵢ, xᵢ; dv = g(t, x)) for tᵢ in ts, xᵢ in xs]
     # Use atol instead of rtol — u_real contains near-zero values (deep out-of-the-money)
     # where rtol is ill-defined. Check that the mean absolute error is reasonable.
     @test mean(abs, u_predict .- u_real) < 5.0

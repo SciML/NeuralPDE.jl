@@ -35,12 +35,8 @@ with physics-informed neural networks.
 ## Solution
 
 ```@example system
-using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, LineSearches,
-      OptimizationOptimisers
-using Optim: LBFGS
-using Optimisers: Adam
+using NeuralPDE, Lux, OptimizationOptimJL, OptimizationOptimisers, LineSearches
 using DomainSets: Interval
-using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u1(..), u2(..), u3(..)
@@ -69,81 +65,72 @@ bcs = [
 # Space and time domains
 domains = [t ∈ Interval(0.0, 1.0), x ∈ Interval(0.0, 1.0)]
 
-# Neural network
-input_ = length(domains)
+# One neural network per dependent variable
 n = 15
-chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:3]
+chain = [Chain(Dense(2, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:3]
 
-strategy = StochasticTraining(128)
+strategy = QuasiRandomTraining(256; bcs_points = 64)
 discretization = PhysicsInformedNN(chain, strategy)
 
 @named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u1(t, x), u2(t, x), u3(t, x)])
 prob = discretize(pdesystem, discretization)
-sym_prob = symbolic_discretize(pdesystem, discretization)
 
-pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
-bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
-
-callback = function (p, l)
-    println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
-    return false
-end
-
-res = solve(prob, Adam(0.01); maxiters = 1000, callback)
-prob = remake(prob, u0 = res.u)
-res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
-phi = discretization.phi
+res = solve(prob, Adam(0.01); maxiters = 1000)
+prob = remake(prob; u0 = res.original_sol.u)
+sol = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200)
 ```
 
-## Direct Construction via symbolic_discretize
+A vector of chains gives one network per dependent variable. A single chain with as many
+outputs as dependent variables is also accepted: its `i`-th output then represents the
+`i`-th dependent variable and all of them share the same parameters.
 
-One can take apart the pieces and reassemble the loss functions using the `symbolic_discretize`
-interface. Here is an example using the components from `symbolic_discretize` to fully
-reproduce the `discretize` optimization:
+## Inspecting the individual losses
+
+The `System` returned by `symbolic_discretize` has one cost per equation and boundary
+condition, in the order of `eqs` followed by `bcs`, and the [`NeuralPDE.PINNMetadata`](@ref)
+records the lowered residual of each. Any of them can be evaluated on the problem with
+SymbolicIndexingInterface, which is the way to monitor them from a callback:
 
 ```@example system
-pde_loss_functions = sym_prob.loss_functions.pde_loss_functions
-bc_loss_functions = sym_prob.loss_functions.bc_loss_functions
+using SymbolicIndexingInterface: getu, ProblemState
+using Statistics: mean
 
-loss_functions = [pde_loss_functions; bc_loss_functions]
-
-loss_function(θ, _) = sum(l -> l(θ), loss_functions)
-
-f_ = OptimizationFunction(loss_function, AutoZygote())
-prob = OptimizationProblem(f_, sym_prob.flat_init_params)
-
-res = solve(prob, Adam(0.01); maxiters = 1000, callback)
-prob = remake(prob, u0 = res.u)
-res = solve(prob, LBFGS(linesearch = BackTracking()); maxiters = 200, callback)
+md = pinn_metadata(prob)
+residuals = [getu(prob, block.residual) for block in md.blocks]
+callback = function (state, loss)
+    if state.iter % 100 == 0
+        current = ProblemState(; u = state.u, p = state.p)
+        println("iteration $(state.iter): loss = $loss")
+        println("  pde losses: ", [mean(abs2, r(current)) for r in residuals[1:3]])
+        println("  bc losses:  ", [mean(abs2, r(current)) for r in residuals[4:end]])
+    end
+    return false
+end
+res = solve(prob, Adam(0.01); maxiters = 200, callback)
 ```
 
 ## Solution Representation
 
-Now let's perform some analysis for both the `symbolic_discretize` and `discretize` APIs:
+The result of `solve` is a `PDENoTimeSolution`; every dependent variable is evaluated
+through it:
 
 ```@example system
 using Plots
 
-phi = discretization.phi
-ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
-
-minimizers_ = [res.u.depvar[sym_prob.depvars[i]] for i in 1:3]
-
+ts = xs = 0:0.01:1
 function analytic_sol_func(t, x)
     [exp(-t) * sinpi(x), exp(-t) * cospi(x), (1 + pi^2) * exp(-t)]
 end
-
-u_real = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:3]
-u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:3]
-
+dvs = [u1(t, x), u2(t, x), u3(t, x)]
+u_real = [[analytic_sol_func(t, x)[i] for t in ts, x in xs] for i in 1:3]
+u_predict = [sol(ts, xs; dv = dvs[i]) for i in 1:3]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:3]
+
 ps = []
 for i in 1:3
-    p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = "u$i, analytic")
-    p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
-    p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
+    p1 = plot(ts, xs, u_real[i]', linetype = :contourf, title = "u$i, analytic")
+    p2 = plot(ts, xs, u_predict[i]', linetype = :contourf, title = "predict")
+    p3 = plot(ts, xs, diff_u[i]', linetype = :contourf, title = "error")
     push!(ps, plot(p1, p2, p3))
 end
 ```
@@ -160,33 +147,10 @@ ps[2]
 ps[3]
 ```
 
-Notice here that the solution is represented in the `OptimizationSolution` with `u` as
-the parameters for the trained neural network. But, for the case where the neural network
-is from jl, it's given as a `ComponentArray` where `res.u.depvar.x` corresponds to the result
-for the neural network corresponding to the dependent variable `x`, i.e. `res.u.depvar.u1`
-are the trained parameters for `phi[1]` in our example. For simpler indexing, you can use
-`res.u.depvar[:u1]` or `res.u.depvar[Symbol(:u,1)]` as shown here.
+The trained parameters of each network are the array unknowns of the `System`, so they
+can be read from the underlying `OptimizationSolution` symbolically:
 
-Subsetting the array also works, but is inelegant.
-
-(If `param_estim == true`, then `res.u.p` are the fit parameters)
-
-#### Note: Solving Matrices of PDEs
-
-Also, in addition to vector systems, we can use the matrix form of PDEs:
-
-```julia
-using ModelingToolkit, NeuralPDE, SciMLBase
-@parameters x y
-@variables (u(..))[1:2, 1:2]
-Dxx = Differential(x)^2
-Dyy = Differential(y)^2
-
-# Initial and boundary conditions
-bcs = [u[1](x, 0) ~ x, u[2](x, 0) ~ 2, u[3](x, 0) ~ 3, u[4](x, 0) ~ 4]
-
-# matrix PDE
-eqs = @. [(Dxx(u_(x, y)) + Dyy(u_(x, y))) for u_ in u] ~ -sinpi(x) * sinpi(y) * [0 1; 0 1]
-
-size(eqs)
+```@example system
+θ_u1 = sol.original_sol[md.networks[1].θ]
+length(θ_u1)
 ```

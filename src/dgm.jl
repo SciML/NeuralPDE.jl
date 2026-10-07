@@ -37,28 +37,39 @@ end
 
 # TODO: use more optimized versions from LuxLib
 # XXX: Why not use the one from Lux?
-function (layer::DGMLSTMLayer)((S, x), ps, st::NamedTuple)
+function dgm_lstm(layer::DGMLSTMLayer, S, x, ps)
     (; Uz, Ug, Ur, Uh, Wz, Wg, Wr, Wh, bz, bg, br, bh) = ps
     Z = layer.activation1.(Uz * x .+ Wz * S .+ bz)
     G = layer.activation1.(Ug * x .+ Wg * S .+ bg)
     R = layer.activation1.(Ur * x .+ Wr * S .+ br)
     H = layer.activation2.(Uh * x .+ Wh * (S .* R) .+ bh)
-    S_new = (1 .- G) .* H .+ Z .* S
-    return S_new, st
+    return (1 .- G) .* H .+ Z .* S
 end
 
-dgm_lstm_block_rearrange(Sᵢ₊₁, (Sᵢ, x)) = Sᵢ₊₁, x
+(layer::DGMLSTMLayer)((S, x), ps, st::NamedTuple) = dgm_lstm(layer, S, x, ps), st
 
-function DGMLSTMBlock(layers...)
-    blocks = AbstractLuxLayer[]
-    for (i, layer) in enumerate(layers)
-        if i == length(layers)
-            push!(blocks, layer)
-        else
-            push!(blocks, SkipConnection(layer, dgm_lstm_block_rearrange))
-        end
-    end
-    return Chain(blocks...)
+dgm_lstm_stack(::Tuple{}, S, x, ps, ::Tuple{}) = S
+function dgm_lstm_stack(layers::Tuple, S, x, ps, names::Tuple)
+    S = dgm_lstm(first(layers), S, x, getproperty(ps, first(names)))
+    return dgm_lstm_stack(Base.tail(layers), S, x, ps, Base.tail(names))
+end
+
+"""
+    DGMTrunk(embed, block)
+
+Applies the embedding layer `S = embed(x)` and then the LSTM-type layers in the named
+tuple `block`. Each layer receives `S` and `x` separately so Enzyme can distinguish
+the differentiated state from the constant input with static activity analysis.
+"""
+@concrete struct DGMTrunk <: AbstractLuxContainerLayer{(:embed, :block)}
+    embed
+    block
+end
+
+function (l::DGMTrunk)(x, ps, st::NamedTuple)
+    S, st_embed = l.embed(x, ps.embed, st.embed)
+    S = dgm_lstm_stack(values(l.block), S, x, ps.block, keys(l.block))
+    return S, (embed = st_embed, block = st.block)
 end
 
 @concrete struct DGM <: AbstractLuxWrapperLayer{:model}
@@ -100,13 +111,10 @@ function DGM(
     )
     return DGM(
         Chain(
-            SkipConnection(
+            DGMTrunk(
                 Dense(in_dims => modes, activation1),
-                DGMLSTMBlock(
-                    [
-                        DGMLSTMLayer(in_dims, modes, activation1, activation2)
-                            for _ in 1:layers
-                    ]...
+                NamedTuple{ntuple(i -> Symbol(:layer_, i), layers)}(
+                    ntuple(_ -> DGMLSTMLayer(in_dims, modes, activation1, activation2), layers)
                 )
             ),
             Dense(modes => out_dims, out_activation)

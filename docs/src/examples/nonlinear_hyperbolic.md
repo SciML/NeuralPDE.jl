@@ -33,13 +33,10 @@ where ``k`` is a root of the algebraic (transcendental) equation ``f(k) = g(k)``
 We solve this with Neural:
 
 ```@example nonlinear_hyperbolic
-using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL, NonlinearSolve,
-      LineSearches
-using Optim: BFGS
+using NeuralPDE, Lux, OptimizationOptimJL, NonlinearSolve, LineSearches, Integrals
 using SpecialFunctions
 using Plots
 using DomainSets: Interval
-using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..), w(..)
@@ -81,46 +78,35 @@ domains = [t ∈ Interval(0.0, 1.0),
     x ∈ Interval(0.0, 1.0)]
 
 # Neural network
-input_ = length(domains)
 n = 15
-chain = [Chain(Dense(input_, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:2]
+chain = [Chain(Dense(2, n, σ), Dense(n, n, σ), Dense(n, 1)) for _ in 1:2]
 
-strategy = QuadratureTraining()
+strategy = QuadratureTraining(; quadrature_alg = GaussLegendre(n = 20))
 discretization = PhysicsInformedNN(chain, strategy)
 
 @named pdesystem = PDESystem(eqs, bcs, domains, [t, x], [u(t, x), w(t, x)])
 prob = discretize(pdesystem, discretization)
-sym_prob = symbolic_discretize(pdesystem, discretization)
-
-pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
-bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
 
 callback = function (p, l)
-    println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
+    p.iter % 10 == 0 && println("iter: ", p.iter, " loss: ", l)
     return false
 end
 
-res = Optimization.solve(
-    prob, BFGS(linesearch = LineSearches.BackTracking()); maxiters = 200, callback)
-
-phi = discretization.phi
+sol = solve(prob, BFGS(linesearch = LineSearches.BackTracking()); maxiters = 200, callback)
 
 # Analysis
-ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
-depvars = [:u, :w]
-minimizers_ = [res.u.depvar[depvars[i]] for i in 1:length(chain)]
+ts = xs = 0:0.01:1
+dvs = [u(t, x), w(t, x)]
 
 analytic_sol_func(t, x) = [u_analytic(t, x), w_analytic(t, x)]
-u_real = [[analytic_sol_func(t, x)[i] for t in ts for x in xs] for i in 1:2]
-u_predict = [[phi[i]([t, x], minimizers_[i])[1] for t in ts for x in xs] for i in 1:2]
+u_real = [[analytic_sol_func(t, x)[i] for t in ts, x in xs] for i in 1:2]
+u_predict = [sol(ts, xs; dv = dvs[i]) for i in 1:2]
 diff_u = [abs.(u_real[i] .- u_predict[i]) for i in 1:2]
 ps = []
 for i in 1:2
-    p1 = plot(ts, xs, u_real[i], linetype = :contourf, title = "u$i, analytic")
-    p2 = plot(ts, xs, u_predict[i], linetype = :contourf, title = "predict")
-    p3 = plot(ts, xs, diff_u[i], linetype = :contourf, title = "error")
+    p1 = plot(ts, xs, u_real[i]', linetype = :contourf, title = "u$i, analytic")
+    p2 = plot(ts, xs, u_predict[i]', linetype = :contourf, title = "predict")
+    p3 = plot(ts, xs, diff_u[i]', linetype = :contourf, title = "error")
     push!(ps, plot(p1, p2, p3))
 end
 ```

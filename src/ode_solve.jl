@@ -213,7 +213,7 @@ function ode_dfdx(phi::ODEPhi, t, θ, autodiff::Bool)
         t isa Number && return ForwardDiff.derivative(Base.Fix2(phi, θ), t)
         return ForwardDiff.jacobian(Base.Fix2(phi, θ), t)
     end
-    ϵ = sqrt(eps(eltype(t)))
+    ϵ = sqrt(max(eps(eltype(t)), eps(real(eltype(θ)))))
     return (phi(t .+ ϵ, θ) .- phi(t, θ)) ./ ϵ
 end
 
@@ -246,7 +246,7 @@ function inner_loss(
     dxdtguess = if autodiff
         vec(ode_dfdx(phi, ts, θ, true))
     else
-        ϵ = sqrt(eps(eltype(ts)))
+        ϵ = sqrt(max(eps(eltype(ts)), eps(real(eltype(θ)))))
         vec((phi(dev, ts .+ ϵ, θ) .- out_matrix) ./ ϵ)
     end
 
@@ -274,7 +274,7 @@ function inner_loss(
     dxdtguess = if autodiff
         ode_dfdx(phi, ts, θ, true)
     else
-        ϵ = sqrt(eps(eltype(ts)))
+        ϵ = sqrt(max(eps(eltype(ts)), eps(real(eltype(θ)))))
         (phi(dev, ts .+ ϵ, θ) .- out) ./ ϵ
     end
 
@@ -499,8 +499,19 @@ function SciMLBase.__solve(
         verbose = false,
         saveat = nothing,
         maxiters = nothing,
-        tstops = nothing
+        tstops = nothing,
+        callback = nothing
     )
+    # `solve` merges an empty `CallbackSet` into the keyword arguments; anything
+    # else cannot be honored because NNODE trains instead of integrating.
+    if callback !== nothing &&
+            !(
+            callback isa SciMLBase.CallbackSet &&
+                isempty(callback.continuous_callbacks) &&
+                isempty(callback.discrete_callbacks)
+        )
+        error("NNODE does not support ODE callbacks")
+    end
     (; u0, tspan, f, p) = prob
     t0 = tspan[1]
     # add estim_collocate, dataset (or nothing) in NNODE
@@ -590,7 +601,7 @@ function SciMLBase.__solve(
     optf = OptimizationFunction(total_loss, opt_algo)
 
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
-    callback = function (p, l)
+    progress_callback = function (p, l)
         if verbose
             if maxiters === nothing
                 @printf("[NNODE]\tIter: [%*d]\tLoss: %g\n", plen, p.iter, l)
@@ -602,7 +613,7 @@ function SciMLBase.__solve(
     end
 
     optprob = OptimizationProblem(optf, init_params)
-    res = solve(optprob, opt; callback, maxiters, alg.kwargs...)
+    res = solve(optprob, opt; callback = progress_callback, maxiters, alg.kwargs...)
 
     #solutions at timepoints
     if saveat isa Number

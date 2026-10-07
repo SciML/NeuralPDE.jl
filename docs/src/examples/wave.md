@@ -16,10 +16,8 @@ with grid discretization `dx = 0.1` and physics-informed neural networks.
 Further, the solution of this equation with the given boundary conditions is presented.
 
 ```@example wave
-using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
-using Optim: BFGS
+using NeuralPDE, Lux, OptimizationOptimJL
 using DomainSets: Interval
-using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..)
@@ -57,8 +55,7 @@ end
 
 # optimizer
 opt = BFGS()
-res = Optimization.solve(prob, opt; callback, maxiters = 1200)
-phi = discretization.phi
+sol = solve(prob, opt; callback, maxiters = 1200)
 ```
 
 We can plot the predicted solution of the PDE and compare it with the analytical solution to plot the relative error.
@@ -66,20 +63,18 @@ We can plot the predicted solution of the PDE and compare it with the analytical
 ```@example wave
 using Plots
 
-ts, xs = [leftendpoint(d.domain):dx:rightendpoint(d.domain) for d in domains]
+ts = xs = 0:0.1:1
 function analytic_sol_func(t, x)
     sum([(8 / (k^3 * pi^3)) * sin(k * pi * x) * cos(C * k * pi * t) for k in 1:2:50000])
 end
 
-u_predict = reshape([first(phi([t, x], res.u)) for t in ts for x in xs],
-    (length(ts), length(xs)))
-u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs],
-    (length(ts), length(xs)))
+u_predict = sol(ts, xs; dv = u(t, x))
+u_real = [analytic_sol_func(t, x) for t in ts, x in xs]
 
 diff_u = abs.(u_predict .- u_real)
-p1 = plot(ts, xs, u_real, linetype = :contourf, title = "analytic");
-p2 = plot(ts, xs, u_predict, linetype = :contourf, title = "predict");
-p3 = plot(ts, xs, diff_u, linetype = :contourf, title = "error");
+p1 = plot(ts, xs, u_real', linetype = :contourf, title = "analytic");
+p2 = plot(ts, xs, u_predict', linetype = :contourf, title = "predict");
+p3 = plot(ts, xs, diff_u', linetype = :contourf, title = "error");
 plot(p1, p2, p3)
 ```
 
@@ -99,11 +94,9 @@ u_t(0, x) = 1 - 2x \\
 with grid discretization `dx = 0.05` and physics-informed neural networks. Here, we take advantage of adaptive derivative to increase accuracy.
 
 ```@example wave2
-using ModelingToolkit, NeuralPDE, SciMLBase, Lux, Optimization, OptimizationOptimJL
-using Optim: BFGS
+using NeuralPDE, Lux, OptimizationOptimJL
 using Plots, Printf
 using DomainSets: Interval
-using IntervalSets: leftendpoint, rightendpoint
 
 @parameters t, x
 @variables u(..) Dxu(..) Dtu(..) O1(..) O2(..)
@@ -149,31 +142,18 @@ chain = [[Chain(Dense(2, inn, tanh),
          [Chain(Dense(2, innd, tanh), Dense(innd, 1)) for _ in 1:2]]
 
 strategy = GridTraining(0.02)
-discretization = PhysicsInformedNN(chain, strategy;)
+discretization = PhysicsInformedNN(chain, strategy)
 
 @named pde_system = PDESystem(eq, bcs, domains, [t, x],
     [u(t, x), Dxu(t, x), Dtu(t, x), O1(t, x), O2(t, x)])
 prob = discretize(pde_system, discretization)
-sym_prob = NeuralPDE.symbolic_discretize(pde_system, discretization)
 
-pde_inner_loss_functions = sym_prob.loss_functions.pde_loss_functions
-bcs_inner_loss_functions = sym_prob.loss_functions.bc_loss_functions
-
-callback = function (p, l)
-    println("loss: ", l)
-    println("pde_losses: ", map(l_ -> l_(p.u), pde_inner_loss_functions))
-    println("bcs_losses: ", map(l_ -> l_(p.u), bcs_inner_loss_functions))
-    return false
-end
-
-res = Optimization.solve(prob, BFGS(); maxiters = 2000)
-prob = remake(prob, u0 = res.u)
-res = Optimization.solve(prob, BFGS(); maxiters = 2000)
-
-phi = discretization.phi[1]
+res = solve(prob, BFGS(); maxiters = 2000)
+prob = remake(prob; u0 = res.original_sol.u)
+sol = solve(prob, BFGS(); maxiters = 2000)
 
 # Analysis
-ts, xs = [leftendpoint(d.domain):0.05:rightendpoint(d.domain) for d in domains]
+ts = xs = 0:0.05:L
 
 μ_n(k) = (v * sqrt(4 * k^2 * π^2 - b^2 * L^2 * v^2)) / (2 * L)
 function b_n(k)
@@ -193,27 +173,24 @@ function analytic_sol_func(t, x)
     sum([sin((k * π * x) / L) * exp(-v^2 * b * t / 2) *
          (a_n(k) * sin(μ_n(k) * t) + b_n(k) * cos(μ_n(k) * t)) for k in 1:2:100])
 end # TODO replace 10 with 500
-anim = @animate for t in ts
-    @info "Time $t..."
-    sol = [analytic_sol_func(t, x) for x in xs]
-    sol_p = [first(phi([t, x], res.u.depvar.u)) for x in xs]
-    plot(sol, label = "analytic", ylims = [0, 0.1])
-    title = @sprintf("t = %.3f", t)
+anim = @animate for tᵢ in ts
+    @info "Time $tᵢ..."
+    sol_a = [analytic_sol_func(tᵢ, xᵢ) for xᵢ in xs]
+    sol_p = sol(tᵢ, xs; dv = u(t, x))
+    plot(sol_a, label = "analytic", ylims = [0, 0.1])
+    title = @sprintf("t = %.3f", tᵢ)
     plot!(sol_p, label = "predict", ylims = [0, 0.1], title = title)
 end
 gif(anim, "1Dwave_damped_adaptive.gif", fps = 200)
 
 # Surface plot
-ts, xs = [leftendpoint(d.domain):0.01:rightendpoint(d.domain) for d in domains]
-u_predict = reshape(
-    [first(phi([t, x], res.u.depvar.u)) for
-     t in ts for x in xs], (length(ts), length(xs)))
-u_real = reshape([analytic_sol_func(t, x) for t in ts for x in xs],
-    (length(ts), length(xs)))
+ts = xs = 0:0.01:L
+u_predict = sol(ts, xs; dv = u(t, x))
+u_real = [analytic_sol_func(t, x) for t in ts, x in xs]
 
 diff_u = abs.(u_predict .- u_real)
-p1 = plot(ts, xs, u_real, linetype = :contourf, title = "analytic");
-p2 = plot(ts, xs, u_predict, linetype = :contourf, title = "predict");
-p3 = plot(ts, xs, diff_u, linetype = :contourf, title = "error");
+p1 = plot(ts, xs, u_real', linetype = :contourf, title = "analytic");
+p2 = plot(ts, xs, u_predict', linetype = :contourf, title = "predict");
+p3 = plot(ts, xs, diff_u', linetype = :contourf, title = "error");
 plot(p1, p2, p3)
 ```

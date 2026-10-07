@@ -101,9 +101,11 @@ u_MOL = [
     0.0 0.07288425058049804 0.14549989974559188 0.21751237895051007 0.28837101286341443 0.3568550973696773 0.41955914790174303 0.46575539721510667 0.4619833204532861 0.3272276449565788 -4.615855824540743e-5 -0.32729224157349524 -0.4620072354626463 -0.4657618705010458 -0.4195623150887295 -0.35685682771988164 -0.2883717851750601 -0.21751270388019428 -0.14550003543263415 -0.07288430042634352 0.0
 ]
 
-# NeuralPDE, using Deep Galerkin Method
-strategy = QuasiRandomTraining(256, minibatch = 32)
-discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
+# NeuralPDE, using Deep Galerkin Method. The network is kept small (16 modes, 2 layers)
+# because the problem generation currently scales with the number of scalarized network
+# parameters; see https://github.com/SciML/NeuralPDE.jl/issues/1161.
+strategy = QuasiRandomTraining(256)
+discretization = DeepGalerkin(2, 1, 16, 2, tanh, tanh, identity, strategy)
 @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
 prob = discretize(pde_system, discretization)
 
@@ -113,11 +115,10 @@ callback = function (p, l)
 end
 
 res = solve(prob, Adam(0.1); maxiters = 100)
-prob = remake(prob, u0 = res.u)
-res = solve(prob, Adam(0.01); maxiters = 500)
-phi = discretization.phi
+prob = remake(prob; u0 = res.original_sol.u)
+sol = solve(prob, Adam(0.01); maxiters = 500)
 
-u_predict = [first(phi([t, x], res.u)) for t in ts, x in xs]
+u_predict = sol(ts, xs; dv = u(t, x))
 
 diff_u = abs.(u_predict .- u_MOL)
 tgrid = collect(ts)
