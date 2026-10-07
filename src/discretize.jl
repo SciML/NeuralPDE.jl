@@ -368,11 +368,12 @@ a weighted sum. Parameters of the `PDESystem` without a value in
 value` pairs.
 """
 function SciMLBase.discretize(
-        pdesys::PDESystem, disc::PhysicsInformedNN; adtype = default_adtype(), p = (),
+        pdesys::PDESystem, disc::PhysicsInformedNN; adtype = nothing, p = (),
         kwargs...
     )
     sys = symbolic_discretize(pdesys, disc)
     md = pinn_metadata(sys)
+    adtype = isnothing(adtype) ? default_adtype(md) : adtype
     csys = complete(sys)
     PDEBase.add_metadata!(md, csys)
     op = operating_point(md, disc.rng)
@@ -380,6 +381,11 @@ function SciMLBase.discretize(
         op[k] = val
     end
     return OptimizationProblem(csys, op; adtype, u0_eltype = _param_eltype(disc), kwargs...)
+end
+
+function default_adtype(md::PINNMetadata)
+    any(b -> !isempty(b.extra_params), md.blocks) && return AutoZygote()
+    return default_adtype()
 end
 
 """
