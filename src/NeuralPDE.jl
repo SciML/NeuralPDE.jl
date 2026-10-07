@@ -19,7 +19,7 @@ using Lux: FromFluxAdaptor, recursive_eltype
 using NeuralOperators: DeepONet
 using LuxCore: LuxCore, AbstractLuxContainerLayer, AbstractLuxLayer, AbstractLuxWrapperLayer
 using MLDataDevices: CPUDevice, get_device
-using ModelingToolkitNeuralNets: ModelingToolkitNeuralNets, SymbolicNeuralNetwork
+using ModelingToolkitNeuralNets: ModelingToolkitNeuralNets, SymbolicNeuralNetwork, get_network
 using Optimisers: Optimisers, Adam
 using Optimization: Optimization
 using OptimizationOptimisers: OptimizationOptimisers

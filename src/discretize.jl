@@ -185,6 +185,9 @@ parameter vector per network: a flat vector, a Lux parameter `NamedTuple` or a
 flat_init_params(x::Union{AbstractVector{<:Number}, NamedTuple}) = [flat_params(x)]
 flat_init_params(x::AbstractVector) = map(flat_params, x)
 
+per_network_states(x::NamedTuple) = [x]
+per_network_states(x::AbstractVector) = collect(x)
+
 function _pdesys_params(pdesys)
     ps = get_ps(pdesys)
     ps isa SciMLBase.NullParameters && return Num[]
@@ -218,9 +221,13 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
     )
     shared = !(disc.chain isa AbstractArray) && ndv > 1
     init = disc.init_params === nothing ? nothing : flat_init_params(disc.init_params)
+    states = disc.init_states === nothing ? nothing : per_network_states(disc.init_states)
     nnets = shared ? 1 : ndv
     init === nothing || length(init) == nnets || throw(
         ArgumentError("`init_params` must have one entry per network, got $(length(init)).")
+    )
+    states === nothing || length(states) == nnets || throw(
+        ArgumentError("`init_states` must have one entry per network, got $(length(states)).")
     )
     networks = TrialNetwork[]
     shared_net = nothing
@@ -243,7 +250,8 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
                     )
                 )
                 shared_net = symbolic_network(
-                    chains[1], :NN, n_in, ndv, T, init === nothing ? nothing : init[1], disc.rng
+                    chains[1], :NN, n_in, ndv, T, init === nothing ? nothing : init[1],
+                    states === nothing ? nothing : states[1], disc.rng
                 )
             end
             NN, θ = shared_net
@@ -255,7 +263,8 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
         else
             name = nameof(op)
             NN, θ = symbolic_network(
-                chains[i], name, n_in, 1, T, init === nothing ? nothing : init[i], disc.rng
+                chains[i], name, n_in, 1, T, init === nothing ? nothing : init[i],
+                states === nothing ? nothing : states[i], disc.rng
             )
             push!(
                 networks, TrialNetwork(
@@ -267,9 +276,12 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
     return networks
 end
 
-function symbolic_network(chain, name, n_in, nout, T, init, rng)
+function symbolic_network(chain, name, n_in, nout, T, init, st, rng)
+    ps = initialparameters(rng, chain)
+    st = st === nothing ? LuxCore.initialstates(rng, chain) : st
+    model = _is_stateless(st) ? chain : FixedStateLayer(chain, st)
     NN, p = SymbolicNeuralNetwork(;
-        chain, n_input = n_in, n_output = nout, rng, eltype = T,
+        chain = model, n_input = n_in, n_output = nout, rng, init_params = ps, eltype = T,
         nn_name = Symbol(:NN_, name), nn_p_name = Symbol(:p_, name)
     )
     np = length(getdefault(p))
@@ -285,6 +297,22 @@ function symbolic_network(chain, name, n_in, nout, T, init, rng)
     θ = setdefault(θ, θ0)
     return NN, θ
 end
+
+"""
+    FixedStateLayer(layer, st)
+
+Lux layer that evaluates `layer` with the constant state `st`. It has the parameters of
+`layer` and an empty state of its own, so `LuxCore.stateless_apply` evaluates `layer`
+with `st` and `st` never enters the trainable parameters.
+"""
+struct FixedStateLayer{L <: AbstractLuxLayer, S} <: AbstractLuxLayer
+    layer::L
+    st::S
+end
+
+initialparameters(rng::AbstractRNG, l::FixedStateLayer) = initialparameters(rng, l.layer)
+parameterlength(l::FixedStateLayer) = parameterlength(l.layer)
+(l::FixedStateLayer)(x, ps, st) = (first(l.layer(x, ps, l.st)), st)
 
 function additional_loss_parameter(al::AdditionalLoss)
     al_sym = only(@parameters (additional_loss::typeof(al))(..) = al [tunable = false])
@@ -383,6 +411,8 @@ end
 
 function default_adtype(md::PINNMetadata)
     any(b -> !isempty(b.extra_params), md.blocks) && return AutoZygote()
+    any(net -> get_network(getdefault(net.NN)) isa FixedStateLayer, md.networks) &&
+        return AutoZygote()
     return default_adtype()
 end
 

@@ -206,7 +206,9 @@ otherwise. `AutoReactant()` compiles the objective and gradient through Reactant
 
 `default_adtype(md)` selects `AutoZygote()` when the lowered equations contain
 `Integral` terms, whose quadrature objective triggers Enzyme illegal-type analysis,
-and `default_adtype()` for every other objective, including `DGM` networks. An
+or when a network carries a non-empty Lux state (see `init_states` of
+[`PhysicsInformedNN`](@ref)), whose constant state arrays require Enzyme runtime
+activity. It selects `default_adtype()` for every other objective, including `DGM` networks. An
 explicit `adtype` passed to `discretize` always takes precedence.
 
 An `additional_loss` callback is differentiated with the same backend as the PDE
@@ -252,6 +254,12 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
 * `init_params`: initial network parameters as a flat vector, a Lux parameter
   `NamedTuple` or a `ComponentArray` (one network), or a vector of those (one per
   network). Defaults to `Lux.initialparameters` with `rng`.
+* `init_states`: the Lux state of the network as a `NamedTuple` (one network), or a
+  vector of those (one per network). Defaults to `Lux.initialstates` with `rng`. The
+  state is held constant in the generated objective and is not optimized, so layers that
+  store data in their state (e.g. Boltz's `PeriodicEmbedding`) can be used. It is used
+  as given; place it on the same device as the parameters. A non-empty state makes
+  [`default_adtype`](@ref) select `AutoZygote()`.
 * `rng`: the random number generator used for parameter initialization and sampling.
 * `derivative`: the [`AbstractDerivativeLowering`](@ref) used for `Differential`
   operators. Defaults to [`FiniteDifferenceDerivative`](@ref).
@@ -291,6 +299,7 @@ sol = solve(prob, Adam(0.01); maxiters = 1000)
     chain
     strategy <: AbstractTrainingStrategy
     init_params
+    init_states
     rng <: AbstractRNG
     derivative <: AbstractDerivativeLowering
     param_estim::Bool
@@ -302,7 +311,8 @@ end
 
 function PhysicsInformedNN(
         chain, strategy::AbstractTrainingStrategy; init_params = nothing,
-        rng::AbstractRNG = Random.default_rng(), derivative = FiniteDifferenceDerivative(),
+        init_states = nothing, rng::AbstractRNG = Random.default_rng(),
+        derivative = FiniteDifferenceDerivative(),
         param_estim::Bool = false, additional_loss = nothing,
         boundary_policy::Symbol = :penalty, integral_alg = nothing, eval_points::Int = 100
     )
@@ -314,8 +324,8 @@ function PhysicsInformedNN(
     _check_integral_alg(integral_alg)
     chain = chain isa AbstractArray ? map(_to_lux, chain) : _to_lux(chain)
     return PhysicsInformedNN(
-        chain, strategy, init_params, rng, derivative, param_estim, additional_loss,
-        boundary_policy, integral_alg, eval_points
+        chain, strategy, init_params, init_states, rng, derivative, param_estim,
+        additional_loss, boundary_policy, integral_alg, eval_points
     )
 end
 

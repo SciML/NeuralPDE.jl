@@ -130,6 +130,13 @@ pull request [JuliaSymbolics/Symbolics.jl#942](https://github.com/JuliaSymbolics
 is not part of the Symbolics version NeuralPDE depends on, so those operators are
 written componentwise, including `Differential.(collect(x))`.
 
+## Stateful Lux layers
+
+Layers that keep data in their Lux state, such as Boltz's `PeriodicEmbedding`, are
+evaluated with a constant state: `Lux.initialstates(rng, chain)` by default, or the
+`init_states` keyword of `PhysicsInformedNN`. The state is not part of the optimized
+parameters, and `discretize` then defaults to `AutoZygote()` (see `default_adtype`).
+
 ## The `PhysicsInformedNN` Discretizer
 
 ```@docs
