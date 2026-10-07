@@ -267,9 +267,36 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
     return networks
 end
 
+"""
+    FixedStateLayer(layer, st)
+
+Evaluate `layer` with the constant Lux state `st`. The generated objective calls networks
+through `LuxCore.stateless_apply`, which passes an empty state, so a layer that keeps data in
+its state (for example `Boltz.Layers.PeriodicEmbedding`) is wrapped with its initial state.
+"""
+@concrete struct FixedStateLayer <: AbstractLuxWrapperLayer{:layer}
+    layer
+    st
+end
+
+LuxCore.initialstates(::AbstractRNG, ::FixedStateLayer) = NamedTuple()
+# Enzyme's static activity analysis rejects constant memory stored into the layer's returned
+# state, so each call evaluates the layer on a fresh copy of the state arrays.
+(l::FixedStateLayer)(x, ps, st) = (first(l.layer(x, ps, copy_state(l.st))), st)
+
+copy_state(x::AbstractArray) = copy(x)
+copy_state(x::Union{Tuple, NamedTuple}) = map(copy_state, x)
+copy_state(x) = x
+
+function with_fixed_state(chain, rng)
+    st = LuxCore.initialstates(copy(rng), chain)
+    return _is_stateless(st) ? chain : FixedStateLayer(chain, st)
+end
+
 function symbolic_network(chain, name, n_in, nout, T, init, rng)
     NN, p = SymbolicNeuralNetwork(;
-        chain, n_input = n_in, n_output = nout, rng, eltype = T,
+        chain = with_fixed_state(chain, rng), n_input = n_in, n_output = nout, rng,
+        eltype = T,
         nn_name = Symbol(:NN_, name), nn_p_name = Symbol(:p_, name)
     )
     np = length(getdefault(p))
