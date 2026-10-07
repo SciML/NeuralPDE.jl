@@ -48,3 +48,10 @@ not in the main env).
 - Device tests and examples must select `AutoZygote()` explicitly and exercise
   `solve`, resampling, and host solution evaluation. Preserve the discretization
   element type during transfer: finite-difference steps are fixed at lowering time.
+
+## Additional-loss AD
+
+Closure field types do not determine `additional_loss` AD compatibility: callbacks
+with non-`isbits` captures can still differentiate correctly with Enzyme. Choose a
+backend explicitly at call sites with demonstrated requirements, and retain
+captured-metadata, buffer-writing callbacks in default-backend regression coverage.
