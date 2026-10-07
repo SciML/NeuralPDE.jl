@@ -25,7 +25,7 @@ periodic_chain() = Chain(PeriodicEmbedding([1], [2π]), Dense(2, 8, tanh), Dense
     @test length(prob.u0) == Lux.parameterlength(chain)
     sol = train(prob; adam_iters = 500, bfgs_iters = 500)
     xs = range(0.0, 2π; length = 50)
-    @test maximum(abs, [sol(xi; dv = uref) - sin(xi) for xi in xs]) < 0.05
+    @test maximum(abs, [sol(xi; dv = uref) - sin(xi) for xi in xs]) < 1.0e-3
 
     eprob = discretize(
         pde_system, disc; adtype = AutoEnzyme(; mode = Enzyme.set_runtime_activity(Enzyme.Reverse))
