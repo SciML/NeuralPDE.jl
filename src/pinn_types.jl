@@ -243,7 +243,9 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
 
 * `chain`: a Lux layer, or a vector with one Lux layer per dependent variable of the
   `PDESystem`. A single layer with several dependent variables is treated as one shared
-  network whose `i`-th output is the `i`-th dependent variable.
+  network whose `i`-th output is the `i`-th dependent variable. Lux state, such as the
+  periods of `Boltz.Layers.PeriodicEmbedding`, is held fixed at
+  `LuxCore.initialstates(rng, chain)`.
 * `strategy`: the [`AbstractTrainingStrategy`](@ref) that chooses the collocation points
   and the reduction of the pointwise residuals.
 
