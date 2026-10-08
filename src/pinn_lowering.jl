@@ -152,7 +152,8 @@ function _is_vacuous_derivative(ex, ctx::LoweringContext)
 end
 
 # Whether `ex` contains a dependent-variable call or a `PDESystem` parameter outside
-# vacuous derivatives; the integrand of an `Integral` uses no composition semantics.
+# vacuous derivatives, integral bounds included; the integrand of an `Integral` uses no
+# composition semantics.
 function _has_live_term(ex, ctx::LoweringContext, composed = true)
     ex = unwrap(ex)
     haskey(ctx.params, ex) && return true
@@ -160,7 +161,11 @@ function _has_live_term(ex, ctx::LoweringContext, composed = true)
     op = operation(ex)
     haskey(ctx.networks, op) && return true
     composed && _is_vacuous_derivative(ex, ctx) && return false
-    composed &= !(op isa Symbolics.Integral)
+    if op isa Symbolics.Integral
+        lbs, ubs = _integral_bounds(op.domain.domain)
+        any(b -> _has_live_term(b, ctx, false), (lbs..., ubs...)) && return true
+        composed = false
+    end
     return any(a -> _has_live_term(a, ctx, composed), arguments(ex))
 end
 

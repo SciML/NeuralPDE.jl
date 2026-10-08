@@ -234,6 +234,37 @@ end
     @test Zygote.gradient(θ -> prob.f(θ, prob.p), prob.u0)[1] isa AbstractVector
 end
 
+@testset "a parameter in an integral bound keeps a vacuous derivative's equation" begin
+    # Exact network u(s, t) = 3s + 5t; `Dx(u(y, 2y))` is zero, and the bound makes the
+    # residual depend on the estimated `a`: ∫_0^{ax} τ dτ = a²x²/2.
+    @parameters x y τ σ a = 2.0
+    @variables u(..)
+    Dx = Differential(x)
+    Ione = Integral(τ in DomainSets.ClosedInterval(0.0, 1.0))
+    Iax = Integral(τ in DomainSets.ClosedInterval(0.0, a * x))
+    Jax = Integral(σ in DomainSets.ClosedInterval(0.0, a * x))
+    @testset "$(first(eqs))" for eqs in [
+            [Dx(u(y, 2y)) + Iax(τ) ~ 2x^2, Ione(u(y, 2y)) ~ 13y],
+            [Dx(u(y, 2y)) + Ione(Jax(σ)) ~ 2x^2, Ione(u(y, 2y)) ~ 13y],
+        ]
+        sys = PDESystem(
+            eqs, [u(0.0, 0.0) ~ 0.0], [x ∈ Interval(0.0, 1.0), y ∈ Interval(0.0, 1.0)],
+            [x, y], [u(x, y)], [a]; name = :sys
+        )
+        disc = PhysicsInformedNN(
+            Chain(Dense(2, 1)), GridTraining(0.25); init_params = [3.0, 5.0, 0.0],
+            param_estim = true
+        )
+        prob = discretize(sys, disc)
+        blocks = pinn_metadata(prob).blocks
+        for b in blocks
+            @test maximum(abs, getu(prob, b.residual)(prob)) < 1.0e-8
+        end
+        prob.u0[end] = 3.0
+        @test maximum(abs, getu(prob, first(blocks).residual)(prob)) ≈ 2.5 atol = 1.0e-8
+    end
+end
+
 @testset "integral_alg validation" begin
     chain = Chain(Dense(1, 1))
     @test_throws ArgumentError PhysicsInformedNN(
