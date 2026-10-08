@@ -2,7 +2,6 @@ include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
 
 using ADTypes: AutoForwardDiff
 using OptimizationIpopt
-import Ipopt
 
 @testset "2D Poisson with exact boundary constraints" begin
     @parameters x y
@@ -46,7 +45,10 @@ import Ipopt
     constrained_sol = ipopt(constrained_prob)
     for sol in (penalty_sol, constrained_sol)
         @test sol.retcode == SciMLBase.ReturnCode.Success
-        @test Ipopt.ApplicationReturnStatus(sol.original_sol.original.status) == Ipopt.Solve_Succeeded
+        # Ipopt's documented C API status code 0 is Solve_Succeeded; 1 is
+        # Solved_To_Acceptable_Level, which OptimizationIpopt also maps to
+        # ReturnCode.Success, so only the raw code distinguishes them.
+        @test sol.original_sol.original.status == 0
         @test sol.stats.iterations > 0
     end
 

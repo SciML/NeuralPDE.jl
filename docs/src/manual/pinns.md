@@ -68,7 +68,6 @@ using NeuralPDE, ModelingToolkit, Lux, Random, SciMLBase
 using DomainSets: Interval
 using OptimizationIpopt
 using ADTypes: AutoForwardDiff
-import Ipopt
 
 @parameters x y
 @variables u(..)
@@ -95,8 +94,8 @@ optimizer = IpoptOptimizer(; acceptable_iter = 0, constr_viol_tol,
 
 results = map((:penalty, :constraints), (penalty_prob, constrained_prob)) do policy, prob
     sol = solve(prob, optimizer; maxiters = 100, reltol = 1.0e-8, verbose = 0)
-    status = Ipopt.ApplicationReturnStatus(sol.original_sol.original.status)
-    @assert status == Ipopt.Solve_Succeeded
+    status = sol.original_sol.original.status
+    @assert status == 0 # Ipopt's documented C API code for Solve_Succeeded
     residual = zeros(length(constrained_prob.lcons))
     constrained_prob.f.cons(residual, sol.original_sol.u, constrained_prob.p)
     boundary_error = maximum(abs, residual)
@@ -115,12 +114,13 @@ Install OptimizationIpopt in the environment when using this solver; it brings t
 binary, which is distributed under the Eclipse Public License 2.0.
 
 Ipopt's `acceptable_iter = 0` disables the heuristic based on consecutive
-acceptable iterates. Other termination paths can still return
-`Solved_To_Acceptable_Level`, and OptimizationIpopt maps that status to
+acceptable iterates. Other termination paths can still return status code `1`
+(`Solved_To_Acceptable_Level`), and OptimizationIpopt maps that status to
 `ReturnCode.Success`. To require strict convergence, check
-`Ipopt.ApplicationReturnStatus(sol.original_sol.original.status) == Ipopt.Solve_Succeeded`
-and evaluate the constraint residual against the configured `constr_viol_tol`.
-See [Ipopt's termination options](https://coin-or.github.io/Ipopt/OPTIONS.html#OPT_Termination).
+`sol.original_sol.original.status == 0`, Ipopt's documented C API code for
+`Solve_Succeeded`, and evaluate the constraint residual against the configured
+`constr_viol_tol`. See
+[Ipopt's termination options](https://coin-or.github.io/Ipopt/OPTIONS.html#OPT_Termination).
 
 Exact constraints hold at the boundary collocation points. They do not guarantee
 accuracy between those points or in the interior. Nonlinear networks can also have
