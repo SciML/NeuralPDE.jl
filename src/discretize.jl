@@ -285,17 +285,26 @@ LuxCore.initialstates(::AbstractRNG, ::FixedStateLayer) = NamedTuple()
 (l::FixedStateLayer)(x, ps, st) = (first(l.layer(x, ps, copy_state(l.st))), st)
 
 copy_state(x::AbstractArray) = copy(x)
+copy_state(x::AbstractRNG) = copy(x)
 copy_state(x::Union{Tuple, NamedTuple}) = map(copy_state, x)
 copy_state(x) = x
 
-function with_fixed_state(chain, rng)
-    st = LuxCore.initialstates(copy(rng), chain)
-    return _is_stateless(st) ? chain : FixedStateLayer(chain, st)
+state_eltype(::Type{T}, x::AbstractArray{<:AbstractFloat}) where {T} = convert(AbstractArray{T}, x)
+state_eltype(::Type{T}, x::Union{Tuple, NamedTuple}) where {T} = map(Base.Fix1(state_eltype, T), x)
+state_eltype(::Type, x) = x
+
+# The state is drawn after the parameters from one copy of `rng`, as `Lux.setup` does, and its
+# floating-point arrays take the parameter eltype so that the network never mixes precisions.
+function with_fixed_state(chain, rng, ::Type{T}) where {T}
+    r = copy(rng)
+    LuxCore.initialparameters(r, chain)
+    st = LuxCore.initialstates(r, chain)
+    return _is_stateless(st) ? chain : FixedStateLayer(chain, state_eltype(T, st))
 end
 
 function symbolic_network(chain, name, n_in, nout, T, init, rng)
     NN, p = SymbolicNeuralNetwork(;
-        chain = with_fixed_state(chain, rng), n_input = n_in, n_output = nout, rng,
+        chain = with_fixed_state(chain, rng, T), n_input = n_in, n_output = nout, rng,
         eltype = T,
         nn_name = Symbol(:NN_, name), nn_p_name = Symbol(:p_, name)
     )
