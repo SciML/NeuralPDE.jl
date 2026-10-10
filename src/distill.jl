@@ -196,7 +196,7 @@ function _distill_fit(X, Y, ntargets, chain; init_params, rng, adtype)
     nets = shared ? [chains[1]] : chains
     psets = map(c -> Lux.setup(rng, c), nets)
     for (i, (_, st)) in enumerate(psets)
-        _distill_stateless(st) || throw(
+        _is_stateless(st) || throw(
             ArgumentError(
                 "Student network $i carries Lux state; `distill` only supports \
                  stateless layers."
@@ -253,7 +253,7 @@ function _distill_fit(X, Y, ntargets, chain; init_params, rng, adtype)
     return OptimizationProblem(OptimizationFunction(loss, adtype), θ0)
 end
 
-function _distill_stateless(st)
+function _is_stateless(st)
     return all(Functors.fleaves(st)) do leaf
         leaf === nothing || (leaf isa AbstractArray && isempty(leaf))
     end
