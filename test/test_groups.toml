@@ -27,6 +27,7 @@ versions = ["1.11", "lts"]
 
 [DGM]
 versions = ["1.11", "lts"]
+timeout = 240
 
 [NNODE]
 versions = ["1.11", "lts"]
