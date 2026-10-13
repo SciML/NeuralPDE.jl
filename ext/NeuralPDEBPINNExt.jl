@@ -4,7 +4,8 @@ using NeuralPDE
 using NeuralPDE: NeuralPDE, AbstractTrainingStrategy, GridTraining, StochasticTraining,
     QuadratureTraining, WeightedIntervalTraining, BNNODE, BPINNstats,
     BPINNsolution, BayesianPINN, vector_to_parameters,
-    safe_get_device, safe_expand, unique_networks, pinn_metadata
+    safe_get_device, safe_expand, unique_networks, pinn_metadata,
+    check_no_integrator_callback
 
 using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, HMC, HMCDA, Hamiltonian,
     JitteredLeapfrog, Leapfrog, MassMatrixAdaptor, NUTS, StanHMCAdaptor,

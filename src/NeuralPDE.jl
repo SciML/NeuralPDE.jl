@@ -14,7 +14,7 @@ using ForwardDiff: ForwardDiff
 using Functors: Functors, fmap
 using Integrals: Integrals, CubatureJLh, GaussLegendre, QuadGKJL
 using LinearAlgebra: I
-using Lux: Lux, Chain, Dense, SkipConnection, StatefulLuxLayer
+using Lux: Lux, Chain, Dense, StatefulLuxLayer
 using Lux: FromFluxAdaptor, recursive_eltype
 using NeuralOperators: DeepONet
 using LuxCore: LuxCore, AbstractLuxContainerLayer, AbstractLuxLayer, AbstractLuxWrapperLayer
