@@ -10,6 +10,15 @@ versions = ["1"]
 os = ["ubuntu-latest"]
 arch = "x86"
 
+[InterfaceEnzyme]
+versions = ["1.11", "lts"]
+
+["InterfaceEnzyme 32-bit"]
+group = "InterfaceEnzyme"
+versions = ["1"]
+os = ["ubuntu-latest"]
+arch = "x86"
+
 [NNSDE1]
 versions = ["1.11", "lts"]
 

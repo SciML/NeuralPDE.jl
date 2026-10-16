@@ -15,6 +15,11 @@ from the root `[extras]`/`[targets]`; `Pkg.test()` resolves them — do not run
 test files with `--project=.` directly (imports like `OptimizationOptimJL` are
 not in the main env).
 
+Each folder group runs all its files in one Julia process. The `arch = "x86"`
+lanes have a 32-bit address space, so compile-heavy files (Enzyme derivative
+tests) live in their own group (`InterfaceEnzyme`) rather than sharing a process
+with the rest of `Interface`.
+
 ## Formatting and lint
 
 - Format/check with Runic.jl: `julia -m Runic -c <paths>` (the `runic` binary on
