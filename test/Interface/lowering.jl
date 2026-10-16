@@ -2,6 +2,7 @@ include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
 using ModelingToolkitBase: getdefault
 using SymbolicIndexingInterface: getu, getp
 using Zygote, ForwardDiff, Enzyme, LinearAlgebra, Statistics, ADTypes, ComponentArrays
+using StableRNGs: StableRNG
 
 @parameters x y
 @variables u(..)
@@ -296,6 +297,20 @@ end
     @test discretize(pde_system, ddisc).u0 == discretize(pde_system, ddisc).u0
     d2 = PhysicsInformedNN(chain, GridTraining(0.1); rng = RandomDevice())
     @test discretize(pde_system, d2).u0 != discretize(pde_system, ddisc).u0
+end
+
+@testset "owned generators keep the algorithm of a reseedable rng ($(nameof(R)))" for R in
+    (StableRNG, MersenneTwister)
+    newdisc() = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20); rng = R(3))
+    d = newdisc()
+    @test d.rng isa R
+    @test d.init_rng isa R
+    @test d.rng !== d.init_rng
+    p1 = discretize(pde_system, d)
+    p2 = discretize(pde_system, newdisc())
+    @test p1.u0 == p2.u0
+    @test getp(p1, pinn_metadata(p1).blocks[1].xs)(p1) ==
+        getp(p2, pinn_metadata(p2).blocks[1].xs)(p2)
 end
 
 @testset "cost weights and quadrature weights" begin

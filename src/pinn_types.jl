@@ -256,9 +256,10 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
   owned generators — a frozen one for initial parameters and one that advances
   with collocation sampling. `rng` is consumed once at construction; afterwards
   the discretization draws only from its owned generators and never from the
-  global `Random.default_rng()`. Generators that cannot be copied (for example
-  `RandomDevice`) are supported because only draws are taken, never a snapshot
-  of the state.
+  global `Random.default_rng()`. The owned generators are copies of `rng` reseeded
+  from those draws, so they keep its algorithm (a `StableRNG` stays a `StableRNG`).
+  Generators that cannot be copied and reseeded (for example `RandomDevice`) seed
+  `Xoshiro` generators instead.
 * `derivative`: the [`AbstractDerivativeLowering`](@ref) used for `Differential`
   operators. Defaults to [`FiniteDifferenceDerivative`](@ref).
 * `param_estim`: when `true`, the parameters of the `PDESystem` are added to the
@@ -286,7 +287,8 @@ produces the same initial parameters (`u0`) as `discretize(pdesys, disc)` alone.
 
 Pass a seeded `rng` (for example `Xoshiro(seed)`) for a fully reproducible run —
 the initial parameters and the collocation points both come from generators seeded
-from it. With the default `Random.default_rng()` every constructed discretization
+from it. A `StableRNG(seed)` from StableRNGs.jl also keeps those draws identical across
+Julia versions. With the default `Random.default_rng()` every constructed discretization
 draws fresh seeds, so two discretizations built back-to-back differ in weights and
 points; seeding the global generator before construction reproduces them.
 
@@ -337,12 +339,26 @@ function PhysicsInformedNN(
     # Consume `rng` once to seed two owned generators: `init_rng` stays frozen so
     # repeated `symbolic_discretize`/`discretize` calls draw the same initial
     # parameters, while `rng` advances over collocation sampling.
-    init_rng = Random.Xoshiro(rand(rng, UInt64))
-    rng = Random.Xoshiro(rand(rng, UInt64))
+    init_rng = _owned_rng(rng)
+    rng = _owned_rng(rng)
     return PhysicsInformedNN(
         chain, strategy, init_params, rng, init_rng, derivative, param_estim,
         additional_loss, boundary_policy, integral_alg, eval_points
     )
+end
+
+# A reseeded copy keeps the generator's algorithm, so a `StableRNG` stays stable across
+# Julia versions; generators without `copy`/`seed!` (`RandomDevice`) seed a `Xoshiro`.
+function _owned_rng(rng::AbstractRNG)
+    seed = rand(rng, UInt64)
+    if applicable(copy, rng)
+        owned = copy(rng)
+        if owned isa AbstractRNG && applicable(Random.seed!, owned, seed)
+            Random.seed!(owned, seed)
+            return owned
+        end
+    end
+    return Random.Xoshiro(seed)
 end
 
 _check_integral_alg(::Nothing) = nothing
