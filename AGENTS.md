@@ -20,6 +20,11 @@ measured constraint violation by the configured constraint tolerance. Optimizati
 maps acceptable-level termination to `ReturnCode.Success`; `acceptable_iter = 0`
 does not rule out every such exit. Converge both policies before comparing their errors.
 
+Each folder group runs all its files in one Julia process. The `arch = "x86"`
+lanes have a 32-bit address space, so compile-heavy files (Enzyme derivative
+tests) live in their own group (`InterfaceEnzyme`) rather than sharing a process
+with the rest of `Interface`.
+
 ## Formatting and lint
 
 - Format/check with Runic.jl: `julia -m Runic -c <paths>` (the `runic` binary on

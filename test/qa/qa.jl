@@ -45,7 +45,8 @@ run_qa(
         # that is released.
         all_explicit_imports_are_public = (;
             ignore = (
-                :AbstractTrainingStrategy, :BPINNstats, :safe_expand, :safe_get_device,
+                :AbstractTrainingStrategy, :BPINNstats, :check_no_integrator_callback,
+                :safe_expand, :safe_get_device,
                 :tovar,
             ),
         ),

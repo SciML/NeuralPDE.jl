@@ -486,6 +486,15 @@ end
 SciMLBase.interp_summary(::NNODEInterpolation) = "Trained neural network interpolation"
 SciMLBase.allowscomplex(::NNODE) = true
 
+# `solve` merges an empty `CallbackSet` into the `__solve` keyword arguments; anything
+# else cannot be honored because these solvers train a network instead of integrating.
+function check_no_integrator_callback(callback, solver::String)
+    callback === nothing && return nothing
+    callback isa SciMLBase.CallbackSet && isempty(callback.continuous_callbacks) &&
+        isempty(callback.discrete_callbacks) && return nothing
+    return error("$solver does not support DiffEq callbacks")
+end
+
 function SciMLBase.__solve(
         prob::SciMLBase.AbstractODEProblem,
         alg::NNODE,
@@ -502,16 +511,7 @@ function SciMLBase.__solve(
         tstops = nothing,
         callback = nothing
     )
-    # `solve` merges an empty `CallbackSet` into the keyword arguments; anything
-    # else cannot be honored because NNODE trains instead of integrating.
-    if callback !== nothing &&
-            !(
-            callback isa SciMLBase.CallbackSet &&
-                isempty(callback.continuous_callbacks) &&
-                isempty(callback.discrete_callbacks)
-        )
-        error("NNODE does not support ODE callbacks")
-    end
+    check_no_integrator_callback(callback, "NNODE")
     (; u0, tspan, f, p) = prob
     t0 = tspan[1]
     # add estim_collocate, dataset (or nothing) in NNODE
