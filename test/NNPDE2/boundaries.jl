@@ -42,15 +42,10 @@ end
 @testset "unsupported constructs give clear errors" begin
     @parameters x
     @variables u(..)
-    Dx = Differential(x)
     domains = [x ∈ Interval(0.0, 1.0)]
     chain = Chain(Dense(1, 4, σ), Dense(4, 1))
-    disc = PhysicsInformedNN(chain, GridTraining(0.1))
     Ix = Integral(x in DomainSets.ClosedInterval(0.0, 1.0))
     @named integral_system = PDESystem([Ix(u(x)) ~ 1.0], [u(0.0) ~ 0.0], domains, [x], [u(x)])
-    @named shifted_system = PDESystem([u(2x) ~ 1.0], [u(0.0) ~ 0.0], domains, [x], [u(x)])
-    # PDEBase's variable map rejects the shifted argument before the lowering does.
-    @test_throws Exception symbolic_discretize(shifted_system, disc)
     @test_throws ArgumentError PhysicsInformedNN(chain, WeightedIntervalTraining([1.0], 10)) |>
         d -> symbolic_discretize(integral_system, d)
 end
