@@ -35,7 +35,7 @@ using Test
     alg = SDEPINN(
         chain = chain,
         optimalg = BFGS(),
-        norm_loss_alg = HCubatureJL(),
+        norm_loss_alg = GaussLegendre(n = 32, subintervals = 4),
         initial_parameters = initial_parameters,
         x_0 = x_0,
         x_end = x_end,
