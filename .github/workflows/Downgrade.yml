@@ -10,6 +10,9 @@ on:
       - master
     paths-ignore:
       - 'docs/**'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   downgrade:
     # Runs strict (allow_reresolve=false); expected RED until MCMCChains upstream
