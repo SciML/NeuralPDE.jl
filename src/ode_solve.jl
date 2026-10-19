@@ -526,6 +526,13 @@ function SciMLBase.__solve(
         error("QuadratureTraining cannot be used with complex parameters. Use other strategies.")
 
     init_params = if alg.param_estim
+        if p isa Tuple
+            throw(ArgumentError(
+                "NNODE parameter estimation requires ODE parameters " *
+                "to be provided as an array, not a tuple."
+            ))
+        end
+
         ComponentArray(; depvar = init_params, p)
     else
         ComponentArray(; depvar = init_params)
