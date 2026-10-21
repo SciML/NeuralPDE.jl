@@ -280,26 +280,35 @@ its state (for example `Boltz.Layers.PeriodicEmbedding`) is wrapped with its ini
 end
 
 LuxCore.initialstates(::AbstractRNG, ::FixedStateLayer) = NamedTuple()
-# Enzyme's static activity analysis rejects constant memory stored into the layer's returned
-# state, so each call evaluates the layer on a fresh copy of the state arrays.
-(l::FixedStateLayer)(x, ps, st) = (first(l.layer(x, ps, copy_state(l.st))), st)
+# Fresh input and state storage avoids constant-memory activity errors in Enzyme's
+# differentiation of layer calls.
+(l::FixedStateLayer)(x, ps, st) = (first(l.layer(copy(x), ps, copy_state(l.st))), st)
 
-copy_state(x::AbstractArray) = copy(x)
-copy_state(x::AbstractRNG) = copy(x)
-copy_state(x::Union{Tuple, NamedTuple}) = map(copy_state, x)
-copy_state(x) = x
+@inline copy_state(x::AbstractArray) = isbitstype(eltype(x)) ? copy(x) : map(copy_state, x)
+@inline copy_state(x::Ref) = Ref(copy_state(x[]))
+@inline copy_state(x::AbstractRNG) = copy(x)
+# Copy fields before constructing tuple values to avoid boxing constant mutable leaves.
+@inline @generated function copy_state(x::T) where {T <: Tuple}
+    return Expr(:tuple, [:(copy_state(getfield(x, $i))) for i in 1:fieldcount(T)]...)
+end
+@inline @generated function copy_state(x::NamedTuple{names}) where {names}
+    fields = Expr(:tuple, [:(copy_state(getfield(x, $i))) for i in eachindex(names)]...)
+    return :(NamedTuple{$(QuoteNode(names))}($fields))
+end
+@inline copy_state(x) = x
 
 state_eltype(::Type{T}, x::AbstractArray{<:AbstractFloat}) where {T} = convert(AbstractArray{T}, x)
 state_eltype(::Type{T}, x::Union{Tuple, NamedTuple}) where {T} = map(Base.Fix1(state_eltype, T), x)
 state_eltype(::Type, x) = x
 
-# The state is drawn after the parameters from one copy of `rng`, as `Lux.setup` does, and its
-# floating-point arrays take the parameter eltype so that the network never mixes precisions.
+# State initialization follows the parameter draws and uses the parameter eltype to avoid
+# mixed precisions in layer evaluation.
 function with_fixed_state(chain, rng, ::Type{T}) where {T}
-    r = copy(rng)
+    r = applicable(copy, rng) ? copy(rng) : rng
     LuxCore.initialparameters(r, chain)
-    st = LuxCore.initialstates(r, chain)
-    return _is_stateless(st) ? chain : FixedStateLayer(chain, state_eltype(T, st))
+    st = LuxCore.testmode(LuxCore.initialstates(r, chain))
+    # Empty leaves can still be required state fields.
+    return isempty(st) ? chain : FixedStateLayer(chain, state_eltype(T, st))
 end
 
 function symbolic_network(chain, name, n_in, nout, T, init, rng)

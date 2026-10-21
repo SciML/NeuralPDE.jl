@@ -20,6 +20,10 @@ measured constraint violation by the configured constraint tolerance. Optimizati
 maps acceptable-level termination to `ReturnCode.Success`; `acceptable_iter = 0`
 does not rule out every such exit. Converge both policies before comparing their errors.
 
+Fixed Lux state regressions must compare single-point, batched, and batch-position
+values, and check stored state before and after default-backend differentiation.
+Deterministic losses alone do not establish pointwise field semantics.
+
 Each folder group runs all its files in one Julia process. The `arch = "x86"`
 lanes have a 32-bit address space, so compile-heavy files (Enzyme derivative
 tests) live in their own group (`InterfaceEnzyme`) rather than sharing a process
