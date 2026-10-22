@@ -13,6 +13,17 @@ function (::CounterStateLayer)(x, ps, st)
     return ps.weight * x .+ st.counter[], st
 end
 
+struct AliasStateLayer <: LuxCore.AbstractLuxLayer end
+LuxCore.initialparameters(::AbstractRNG, ::AliasStateLayer) = NamedTuple()
+function LuxCore.initialstates(::AbstractRNG, ::AliasStateLayer)
+    a = [0.0]
+    return (; counter = a, mirror = a)
+end
+function (::AliasStateLayer)(x, ps, st)
+    st.counter[1] += 1
+    return x .+ st.mirror, st
+end
+
 struct EmptyCacheLayer{T} <: LuxCore.AbstractLuxLayer
     cache::T
 end
@@ -52,6 +63,7 @@ end
         ps = ComponentArray(prob.u0, getaxes(ComponentArray(ps)))
         X = [0.25 0.75]
         @test phi(X) ≈ first(chain(X, ps, st))
+        @test !(NeuralPDE.with_fixed_state(chain, Xoshiro(1), Float64) isa NeuralPDE.FixedStateLayer)
     end
 
     @testset "inference field batching: $layer" for layer in (Dropout(0.5), BatchNorm(8))
@@ -103,6 +115,7 @@ end
 
     @testset "required empty cache: $cache" for cache in (nothing, Float64[])
         chain = Chain(EmptyCacheLayer(cache))
+        @test NeuralPDE.with_fixed_state(chain, Xoshiro(77), Float64) isa NeuralPDE.FixedStateLayer
         prob = discretize(
             field_system, PhysicsInformedNN(chain, GridTraining(0.25); rng = Xoshiro(77))
         )
@@ -115,6 +128,26 @@ end
         gradient = [2(0.8 - 1) * sum(abs2, xs) / length(xs)]
         @test fixed_state_default_gradient(prob) ≈ gradient
         @test ForwardDiff.gradient(w -> prob.f(w, prob.p), prob.u0) ≈ gradient
+    end
+
+    @testset "aliased state buffers" begin
+        chain = Chain(AliasStateLayer())
+        prob = discretize(
+            field_system, PhysicsInformedNN(chain, GridTraining(0.25); rng = Xoshiro(77))
+        )
+        md = pinn_metadata(prob)
+        net = only(md.networks)
+        model = getdefault(net.NN).lux_model
+        stored = model.st.layer_1
+        @test stored.counter === stored.mirror
+        @test stored.counter == [0.0]
+        wrapper = getdefault(net.NN)
+        X = fill(0.25, 1, 1)
+        @test wrapper(X, Float64[]) ≈ fill(1.25, 1, 1)
+        @test wrapper(X, Float64[]) ≈ fill(1.25, 1, 1)
+        @test stored.counter === stored.mirror
+        @test stored.counter == [0.0]
+        @test model.st.layer_1.counter == [0.0]
     end
 
     @testset "periodic analytic field and gradients" begin

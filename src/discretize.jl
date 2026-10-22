@@ -268,21 +268,41 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
 end
 
 """
-    FixedStateLayer(layer, st)
+    FixedStateLayer(layer, st, plan, uniq)
 
 Evaluate `layer` with the constant Lux state `st`. The generated objective calls networks
 through `LuxCore.stateless_apply`, which passes an empty state, so a layer that keeps data in
 its state (for example `Boltz.Layers.PeriodicEmbedding`) is wrapped with its initial state.
+`plan`/`uniq` describe the mutable leaves of `st` so each evaluation copies them once while
+preserving aliases between fields of the state tree.
 """
 @concrete struct FixedStateLayer <: AbstractLuxWrapperLayer{:layer}
     layer
     st
+    plan
+    uniq
 end
 
 LuxCore.initialstates(::AbstractRNG, ::FixedStateLayer) = NamedTuple()
 # Fresh input and state storage avoids constant-memory activity errors in Enzyme's
-# differentiation of layer calls.
-(l::FixedStateLayer)(x, ps, st) = (first(l.layer(copy(x), ps, copy_state(l.st))), st)
+# differentiation of layer calls. `Lux.Chain` is applied one sublayer at a time so the
+# per-layer states are never merged into a tuple that Enzyme marks differentiable.
+(l::FixedStateLayer)(x, ps, st) = (_stateless_apply(l.layer, copy(x), ps, fresh_state(l)), st)
+
+_stateless_apply(layer, x, ps, st) = first(LuxCore.apply(layer, x, ps, st))
+function _stateless_apply(layer::Chain, x, ps, st)
+    return _chain_stateless_apply(layer.layers, x, ps, st)
+end
+
+@generated function _chain_stateless_apply(
+        layers::NamedTuple{fields}, x, ps, st::NamedTuple{fields}
+    ) where {fields}
+    expr = :x
+    for f in fields
+        expr = :(_stateless_apply(layers.$f, $expr, ps.$f, st.$f))
+    end
+    return expr
+end
 
 @inline copy_state(x::AbstractArray) = isbitstype(eltype(x)) ? copy(x) : map(copy_state, x)
 @inline copy_state(x::Ref) = Ref(copy_state(x[]))
@@ -297,9 +317,45 @@ end
 end
 @inline copy_state(x) = x
 
+# Slot in a state copy plan; `i` indexes the buffer of per-evaluation leaf copies so
+# shared leaves reuse a single copy.
+struct _CopiedSlot{I} end
+
+function _state_plan(st)
+    uniq = Any[]
+    seen = IdDict{Any, Int}()
+    plan = _state_plan(st, seen, uniq)
+    return plan, Tuple(uniq)
+end
+
+_state_plan(x::NamedTuple, seen, uniq) = map(v -> _state_plan(v, seen, uniq), x)
+_state_plan(x::Tuple, seen, uniq) = map(v -> _state_plan(v, seen, uniq), x)
+function _state_plan(x::Union{AbstractArray, Ref, AbstractRNG}, seen, uniq)
+    i = get(seen, x, 0)
+    i == 0 || return _CopiedSlot{i}()
+    push!(uniq, x)
+    seen[x] = length(uniq)
+    return _CopiedSlot{length(uniq)}()
+end
+_state_plan(x, seen, uniq) = x
+
+fresh_state(l::FixedStateLayer) = _build_state(l.plan, map(copy_state, l.uniq))
+
+@inline _build_state(plan::NamedTuple, bufs) = map(v -> _build_state(v, bufs), plan)
+@inline _build_state(plan::Tuple, bufs) = map(v -> _build_state(v, bufs), plan)
+@inline _build_state(::_CopiedSlot{i}, bufs) where {i} = bufs[i]
+@inline _build_state(x, bufs) = x
+
 state_eltype(::Type{T}, x::AbstractArray{<:AbstractFloat}) where {T} = convert(AbstractArray{T}, x)
 state_eltype(::Type{T}, x::Union{Tuple, NamedTuple}) where {T} = map(Base.Fix1(state_eltype, T), x)
 state_eltype(::Type, x) = x
+
+# A state tree of only empty `NamedTuple`s/`Tuple`s carries no state and keeps the
+# `stateless_apply` fast path; nonempty leaves, even `nothing` or empty arrays, can be
+# required state fields.
+_has_no_state_fields(st::NamedTuple) = all(_has_no_state_fields, values(st))
+_has_no_state_fields(st::Tuple) = all(_has_no_state_fields, st)
+_has_no_state_fields(st) = false
 
 # State initialization follows the parameter draws and uses the parameter eltype to avoid
 # mixed precisions in layer evaluation.
@@ -307,8 +363,10 @@ function with_fixed_state(chain, rng, ::Type{T}) where {T}
     r = applicable(copy, rng) ? copy(rng) : rng
     LuxCore.initialparameters(r, chain)
     st = LuxCore.testmode(LuxCore.initialstates(r, chain))
-    # Empty leaves can still be required state fields.
-    return isempty(st) ? chain : FixedStateLayer(chain, state_eltype(T, st))
+    _has_no_state_fields(st) && return chain
+    st = state_eltype(T, st)
+    plan, uniq = _state_plan(st)
+    return FixedStateLayer(chain, st, plan, uniq)
 end
 
 function symbolic_network(chain, name, n_in, nout, T, init, rng)
