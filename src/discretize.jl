@@ -304,22 +304,14 @@ end
     return expr
 end
 
-@inline copy_state(x::AbstractArray) = isbitstype(eltype(x)) ? copy(x) : map(copy_state, x)
-@inline copy_state(x::Ref) = Ref(copy_state(x[]))
-@inline copy_state(x::AbstractRNG) = copy(x)
-# Copy fields before constructing tuple values to avoid boxing constant mutable leaves.
-@inline @generated function copy_state(x::T) where {T <: Tuple}
-    return Expr(:tuple, [:(copy_state(getfield(x, $i))) for i in 1:fieldcount(T)]...)
-end
-@inline @generated function copy_state(x::NamedTuple{names}) where {names}
-    fields = Expr(:tuple, [:(copy_state(getfield(x, $i))) for i in eachindex(names)]...)
-    return :(NamedTuple{$(QuoteNode(names))}($fields))
-end
-@inline copy_state(x) = x
-
-# Slot in a state copy plan; `i` indexes the buffer of per-evaluation leaf copies so
-# shared leaves reuse a single copy.
+# Slots identify unique mutable objects, ordered after their nested dependencies.
 struct _CopiedSlot{I} end
+struct _RefStatePlan{T}
+    value::T
+end
+struct _ArrayStatePlan{T}
+    values::T
+end
 
 function _state_plan(st)
     uniq = Any[]
@@ -333,29 +325,65 @@ _state_plan(x::Tuple, seen, uniq) = map(v -> _state_plan(v, seen, uniq), x)
 function _state_plan(x::Union{AbstractArray, Ref, AbstractRNG}, seen, uniq)
     i = get(seen, x, 0)
     i == 0 || return _CopiedSlot{i}()
-    push!(uniq, x)
+    entry = _state_copy_plan(x, seen, uniq)
+    push!(uniq, entry)
     seen[x] = length(uniq)
     return _CopiedSlot{length(uniq)}()
 end
 _state_plan(x, seen, uniq) = x
 
-fresh_state(l::FixedStateLayer) = _build_state(l.plan, map(copy_state, l.uniq))
+_state_copy_plan(x, seen, uniq) = x
+_state_copy_plan(x::Ref, seen, uniq) = _RefStatePlan(_state_plan(x[], seen, uniq))
+function _state_copy_plan(x::AbstractArray, seen, uniq)
+    return isbitstype(eltype(x)) ? x :
+        _ArrayStatePlan(map(v -> _state_plan(v, seen, uniq), x))
+end
+
+@inline _copy_planned_state(x, bufs) = copy(x)
+@inline _copy_planned_state(x::_RefStatePlan, bufs) = Ref(_build_state(x.value, bufs))
+@inline function _copy_planned_state(x::_ArrayStatePlan, bufs)
+    return map(v -> _build_state(v, bufs), x.values)
+end
+
+@inline @generated function _copy_state_buffers(plans::T) where {T <: Tuple}
+    copies = [gensym(:state) for _ in 1:fieldcount(T)]
+    assignments = [
+        :($(copies[i]) = _copy_planned_state(plans[$i], $(Expr(:tuple, copies[1:(i - 1)]...))))
+            for i in eachindex(copies)
+    ]
+    return Expr(:block, assignments..., Expr(:tuple, copies...))
+end
+
+fresh_state(l::FixedStateLayer) = _build_state(l.plan, _copy_state_buffers(l.uniq))
 
 @inline _build_state(plan::NamedTuple, bufs) = map(v -> _build_state(v, bufs), plan)
 @inline _build_state(plan::Tuple, bufs) = map(v -> _build_state(v, bufs), plan)
 @inline _build_state(::_CopiedSlot{i}, bufs) where {i} = bufs[i]
 @inline _build_state(x, bufs) = x
 
-state_eltype(::Type{T}, x::AbstractArray{<:AbstractFloat}) where {T} = convert(AbstractArray{T}, x)
-state_eltype(::Type{T}, x::Union{Tuple, NamedTuple}) where {T} = map(Base.Fix1(state_eltype, T), x)
-state_eltype(::Type, x) = x
+state_eltype(::Type{T}, x) where {T} = state_eltype(T, x, IdDict())
+function state_eltype(::Type{T}, x::Union{AbstractArray, Ref}, seen) where {T}
+    return get!(seen, x) do
+        _state_eltype(T, x, seen)
+    end
+end
+state_eltype(::Type{T}, x::Union{Tuple, NamedTuple}, seen) where {T} =
+    map(v -> state_eltype(T, v, seen), x)
+state_eltype(::Type, x, seen) = x
+_state_eltype(::Type{T}, x::AbstractArray{<:AbstractFloat}, seen) where {T} =
+    convert(AbstractArray{T}, x)
+_state_eltype(::Type{T}, x::AbstractArray, seen) where {T} =
+    isbitstype(eltype(x)) ? x : map(v -> state_eltype(T, v, seen), x)
+_state_eltype(::Type{T}, x::Ref, seen) where {T} = Ref(state_eltype(T, x[], seen))
 
-# A state tree of only empty `NamedTuple`s/`Tuple`s carries no state and keeps the
-# `stateless_apply` fast path; nonempty leaves, even `nothing` or empty arrays, can be
-# required state fields.
-_has_no_state_fields(st::NamedTuple) = all(_has_no_state_fields, values(st))
-_has_no_state_fields(st::Tuple) = all(_has_no_state_fields, st)
-_has_no_state_fields(st) = false
+_stateless_state(layer) = NamedTuple()
+_stateless_state(layers::NamedTuple) = map(_stateless_state, layers)
+function _stateless_state(layer::LuxCore.AbstractLuxContainerLayer{fields}) where {fields}
+    return NamedTuple{fields}(map(f -> _stateless_state(getfield(layer, f)), fields))
+end
+function _stateless_state(layer::LuxCore.AbstractLuxWrapperLayer{field}) where {field}
+    return _stateless_state(getfield(layer, field))
+end
 
 # State initialization follows the parameter draws and uses the parameter eltype to avoid
 # mixed precisions in layer evaluation.
@@ -363,7 +391,7 @@ function with_fixed_state(chain, rng, ::Type{T}) where {T}
     r = applicable(copy, rng) ? copy(rng) : rng
     LuxCore.initialparameters(r, chain)
     st = LuxCore.testmode(LuxCore.initialstates(r, chain))
-    _has_no_state_fields(st) && return chain
+    isequal(st, _stateless_state(chain)) && return chain
     st = state_eltype(T, st)
     plan, uniq = _state_plan(st)
     return FixedStateLayer(chain, st, plan, uniq)

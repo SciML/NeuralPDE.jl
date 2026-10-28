@@ -22,7 +22,9 @@ does not rule out every such exit. Converge both policies before comparing their
 
 Fixed Lux state regressions must compare single-point, batched, and batch-position
 values, and check stored state before and after default-backend differentiation.
-Deterministic losses alone do not establish pointwise field semantics.
+Deterministic losses alone do not establish pointwise field semantics. State alias
+regressions must mix floating precisions and reach shared buffers through `Ref` and
+array containers; required keys also need coverage with empty tuple values.
 
 Each folder group runs all its files in one Julia process. The `arch = "x86"`
 lanes have a 32-bit address space, so compile-heavy files (Enzyme derivative

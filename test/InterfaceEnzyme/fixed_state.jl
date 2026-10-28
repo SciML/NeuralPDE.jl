@@ -24,6 +24,23 @@ function (::AliasStateLayer)(x, ps, st)
     return x .+ st.mirror, st
 end
 
+struct NestedAliasStateLayer{T, F} <: LuxCore.AbstractLuxLayer
+    mirror::F
+end
+NestedAliasStateLayer(::Type{T}, mirror) where {T} = NestedAliasStateLayer{T, typeof(mirror)}(mirror)
+LuxCore.initialparameters(::AbstractRNG, ::NestedAliasStateLayer) = (; weight = fill(0.8, 1, 1))
+function LuxCore.initialstates(::AbstractRNG, l::NestedAliasStateLayer{T}) where {T}
+    counter = T[0]
+    return (; counter, mirror = l.mirror(counter))
+end
+alias_buffer(x::AbstractArray{<:AbstractFloat}) = x
+alias_buffer(x::Ref) = alias_buffer(x[])
+alias_buffer(x) = alias_buffer(only(x))
+function (::NestedAliasStateLayer)(x, ps, st)
+    st.counter[1] += 1
+    return ps.weight * x .+ alias_buffer(st.mirror), st
+end
+
 struct EmptyCacheLayer{T} <: LuxCore.AbstractLuxLayer
     cache::T
 end
@@ -113,7 +130,7 @@ end
         @test prob.f(prob.u0, prob.p) ≈ loss
     end
 
-    @testset "required empty cache: $cache" for cache in (nothing, Float64[])
+    @testset "required empty cache: $cache" for cache in (nothing, Float64[], (), NamedTuple())
         chain = Chain(EmptyCacheLayer(cache))
         @test NeuralPDE.with_fixed_state(chain, Xoshiro(77), Float64) isa NeuralPDE.FixedStateLayer
         prob = discretize(
@@ -148,6 +165,41 @@ end
         @test stored.counter === stored.mirror
         @test stored.counter == [0.0]
         @test model.st.layer_1.counter == [0.0]
+    end
+
+    @testset "nested aliases: $T, $mirror" for T in (Float32, Float64),
+            mirror in (identity, Ref, a -> [a], a -> (Ref(a),))
+        chain = Chain(NestedAliasStateLayer(T, mirror))
+        prob = discretize(
+            field_system, PhysicsInformedNN(chain, GridTraining(0.25); rng = Xoshiro(77))
+        )
+        md = pinn_metadata(prob)
+        net = only(md.networks)
+        model = getdefault(net.NN).lux_model
+        stored = model.st.layer_1
+        @test eltype(stored.counter) == Float64
+        @test stored.counter === alias_buffer(stored.mirror)
+        fresh = NeuralPDE.fresh_state(model).layer_1
+        @test fresh.counter === alias_buffer(fresh.mirror)
+        @test fresh.counter !== stored.counter
+        phi = NeuralPDE.trial_function(net, prob.u0)
+        X = [0.1 0.7 0.4 0.7]
+        expected = 0.8 .* X .+ 1
+        ps, st = LuxCore.setup(Xoshiro(77), chain)
+        @test first(chain(X, ps, st)) ≈ expected
+        @test phi(X) ≈ expected
+        @test phi(X) ≈ expected
+        @test phi(X) ≈ hcat((phi(X[:, i:i]) for i in axes(X, 2))...)
+        xs = vec(getp(prob, md.blocks[1].xs)(prob))
+        residual = (0.8 - 1) .* xs .+ 1
+        loss = sum(abs2, residual) / length(xs) + 1
+        gradient = [2sum(residual .* xs) / length(xs)]
+        @test prob.f(prob.u0, prob.p) ≈ loss
+        @test ForwardDiff.gradient(w -> prob.f(w, prob.p), prob.u0) ≈ gradient
+        @test fixed_state_default_gradient(prob) ≈ gradient
+        @test stored.counter === alias_buffer(stored.mirror)
+        @test stored.counter == [0.0]
+        @test phi(X) ≈ expected
     end
 
     @testset "periodic analytic field and gradients" begin
