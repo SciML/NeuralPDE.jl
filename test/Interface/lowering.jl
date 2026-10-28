@@ -2,6 +2,7 @@ include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
 using ModelingToolkitBase: getdefault
 using SymbolicIndexingInterface: getu, getp
 using Zygote, ForwardDiff, Enzyme, LinearAlgebra, Statistics, ADTypes, ComponentArrays
+using Boltz.Layers: PeriodicEmbedding
 
 @parameters x y
 @variables u(..)
@@ -212,6 +213,68 @@ end
         nprob = discretize(pde_system, PhysicsInformedNN(chain, GridTraining(0.1); init_params = init))
         @test nprob.u0 == collect(ps)
     end
+end
+
+struct RandomState <: Lux.AbstractLuxLayer end
+Lux.initialparameters(rng::AbstractRNG, ::RandomState) = (; w = rand(rng, 1, 1))
+Lux.initialstates(rng::AbstractRNG, ::RandomState) = (; z = rand(rng, 1))
+(::RandomState)(x, ps, st) = (ps.w * x .+ st.z, st)
+
+@testset "stateful Lux layers" begin
+    @parameters s
+    @variables v(..)
+    Ds = Differential(s)
+    @named periodic_system = PDESystem(
+        [Ds(v(s)) ~ cos(s)], [v(0.0) ~ 0.0], [s ∈ Interval(0.0, 2π)], [s], [v(s)]
+    )
+    pchain = Chain(PeriodicEmbedding([1], [2π]), Dense(2, 8, tanh), Dense(8, 1))
+    pdisc = PhysicsInformedNN(pchain, QuasiRandomTraining(100); rng = Xoshiro(3))
+    pprob = discretize(periodic_system, pdisc)
+    @test isfinite(pprob.f(pprob.u0, pprob.p))
+    g_fd = ForwardDiff.gradient(w -> pprob.f(w, pprob.p), pprob.u0)
+    g_default = Ref{Vector{Float64}}()
+    solve(
+        pprob, Adam(0.001); maxiters = 1, callback = function (state, l)
+            g_default[] = copy(state.grad)
+            return false
+        end
+    )
+    @test g_default[] ≈ g_fd rtol = 1.0e-6
+
+    pnet = only(pinn_metadata(pprob).networks)
+    ps0 = ComponentArray(pprob.u0, getaxes(ComponentArray(Lux.initialparameters(Xoshiro(0), pchain))))
+    st0 = Lux.initialstates(Xoshiro(0), pchain)
+    X = reshape(collect(range(0.0, 2π; length = 7)), 1, :)
+    @test NeuralPDE.trial_function(pnet, pprob.u0)(X) ≈ first(pchain(X, ps0, st0))
+    # The embedding is 2π-periodic, so the trained network must be as well
+    @test NeuralPDE.trial_function(pnet, pprob.u0)(X .+ 2π) ≈
+        NeuralPDE.trial_function(pnet, pprob.u0)(X)
+
+    ps32, st32 = Lux.setup(Xoshiro(4), pchain)
+    fprob = discretize(
+        periodic_system, PhysicsInformedNN(pchain, GridTraining(0.5); init_params = ps32)
+    )
+    fmodel = getdefault(only(pinn_metadata(fprob).networks).NN).lux_model
+    @test eltype(fprob.u0) == Float32
+    @test eltype(fmodel.st.layer_1.k) == Float32
+    @test fmodel.st.layer_1.idxs == st32.layer_1.idxs
+    g32_fd = ForwardDiff.gradient(w -> fprob.f(w, fprob.p), fprob.u0)
+    g32 = Ref{Vector{Float32}}()
+    solve(
+        fprob, Adam(0.001); maxiters = 1, callback = function (state, l)
+            g32[] = copy(state.grad)
+            return false
+        end
+    )
+    @test all(isfinite, g32[])
+    @test g32[] ≈ g32_fd rtol = 1.0f-3
+
+    rchain = Chain(RandomState())
+    rprob = discretize(periodic_system, PhysicsInformedNN(rchain, GridTraining(0.5); rng = Xoshiro(5)))
+    rmodel = getdefault(only(pinn_metadata(rprob).networks).NN).lux_model
+    rps, rst = Lux.setup(Xoshiro(5), rchain)
+    @test rprob.u0 == collect(ComponentArray(rps))
+    @test rmodel.st == rst
 end
 
 optimization_reactant_loaded = try

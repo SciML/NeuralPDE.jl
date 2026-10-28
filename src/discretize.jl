@@ -267,9 +267,140 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
     return networks
 end
 
+"""
+    FixedStateLayer(layer, st, plan, uniq)
+
+Evaluate `layer` with the constant Lux state `st`. The generated objective calls networks
+through `LuxCore.stateless_apply`, which passes an empty state, so a layer that keeps data in
+its state (for example `Boltz.Layers.PeriodicEmbedding`) is wrapped with its initial state.
+`plan`/`uniq` describe the mutable leaves of `st` so each evaluation copies them once while
+preserving aliases between fields of the state tree.
+"""
+@concrete struct FixedStateLayer <: AbstractLuxWrapperLayer{:layer}
+    layer
+    st
+    plan
+    uniq
+end
+
+LuxCore.initialstates(::AbstractRNG, ::FixedStateLayer) = NamedTuple()
+# Fresh input and state storage avoids constant-memory activity errors in Enzyme's
+# differentiation of layer calls. `Lux.Chain` is applied one sublayer at a time so the
+# per-layer states are never merged into a tuple that Enzyme marks differentiable.
+(l::FixedStateLayer)(x, ps, st) = (_stateless_apply(l.layer, copy(x), ps, fresh_state(l)), st)
+
+_stateless_apply(layer, x, ps, st) = first(LuxCore.apply(layer, x, ps, st))
+function _stateless_apply(layer::Chain, x, ps, st)
+    return _chain_stateless_apply(layer.layers, x, ps, st)
+end
+
+@generated function _chain_stateless_apply(
+        layers::NamedTuple{fields}, x, ps, st::NamedTuple{fields}
+    ) where {fields}
+    expr = :x
+    for f in fields
+        expr = :(_stateless_apply(layers.$f, $expr, ps.$f, st.$f))
+    end
+    return expr
+end
+
+# Slots identify unique mutable objects, ordered after their nested dependencies.
+struct _CopiedSlot{I} end
+struct _RefStatePlan{T}
+    value::T
+end
+struct _ArrayStatePlan{T}
+    values::T
+end
+
+function _state_plan(st)
+    uniq = Any[]
+    seen = IdDict{Any, Int}()
+    plan = _state_plan(st, seen, uniq)
+    return plan, Tuple(uniq)
+end
+
+_state_plan(x::NamedTuple, seen, uniq) = map(v -> _state_plan(v, seen, uniq), x)
+_state_plan(x::Tuple, seen, uniq) = map(v -> _state_plan(v, seen, uniq), x)
+function _state_plan(x::Union{AbstractArray, Ref, AbstractRNG}, seen, uniq)
+    i = get(seen, x, 0)
+    i == 0 || return _CopiedSlot{i}()
+    entry = _state_copy_plan(x, seen, uniq)
+    push!(uniq, entry)
+    seen[x] = length(uniq)
+    return _CopiedSlot{length(uniq)}()
+end
+_state_plan(x, seen, uniq) = x
+
+_state_copy_plan(x, seen, uniq) = x
+_state_copy_plan(x::Ref, seen, uniq) = _RefStatePlan(_state_plan(x[], seen, uniq))
+function _state_copy_plan(x::AbstractArray, seen, uniq)
+    return isbitstype(eltype(x)) ? x :
+        _ArrayStatePlan(map(v -> _state_plan(v, seen, uniq), x))
+end
+
+@inline _copy_planned_state(x, bufs) = copy(x)
+@inline _copy_planned_state(x::_RefStatePlan, bufs) = Ref(_build_state(x.value, bufs))
+@inline function _copy_planned_state(x::_ArrayStatePlan, bufs)
+    return map(v -> _build_state(v, bufs), x.values)
+end
+
+@inline @generated function _copy_state_buffers(plans::T) where {T <: Tuple}
+    copies = [gensym(:state) for _ in 1:fieldcount(T)]
+    assignments = [
+        :($(copies[i]) = _copy_planned_state(plans[$i], $(Expr(:tuple, copies[1:(i - 1)]...))))
+            for i in eachindex(copies)
+    ]
+    return Expr(:block, assignments..., Expr(:tuple, copies...))
+end
+
+fresh_state(l::FixedStateLayer) = _build_state(l.plan, _copy_state_buffers(l.uniq))
+
+@inline _build_state(plan::NamedTuple, bufs) = map(v -> _build_state(v, bufs), plan)
+@inline _build_state(plan::Tuple, bufs) = map(v -> _build_state(v, bufs), plan)
+@inline _build_state(::_CopiedSlot{i}, bufs) where {i} = bufs[i]
+@inline _build_state(x, bufs) = x
+
+state_eltype(::Type{T}, x) where {T} = state_eltype(T, x, IdDict())
+function state_eltype(::Type{T}, x::Union{AbstractArray, Ref}, seen) where {T}
+    return get!(seen, x) do
+        _state_eltype(T, x, seen)
+    end
+end
+state_eltype(::Type{T}, x::Union{Tuple, NamedTuple}, seen) where {T} =
+    map(v -> state_eltype(T, v, seen), x)
+state_eltype(::Type, x, seen) = x
+_state_eltype(::Type{T}, x::AbstractArray{<:AbstractFloat}, seen) where {T} =
+    convert(AbstractArray{T}, x)
+_state_eltype(::Type{T}, x::AbstractArray, seen) where {T} =
+    isbitstype(eltype(x)) ? x : map(v -> state_eltype(T, v, seen), x)
+_state_eltype(::Type{T}, x::Ref, seen) where {T} = Ref(state_eltype(T, x[], seen))
+
+_stateless_state(layer) = NamedTuple()
+_stateless_state(layers::NamedTuple) = map(_stateless_state, layers)
+function _stateless_state(layer::LuxCore.AbstractLuxContainerLayer{fields}) where {fields}
+    return NamedTuple{fields}(map(f -> _stateless_state(getfield(layer, f)), fields))
+end
+function _stateless_state(layer::LuxCore.AbstractLuxWrapperLayer{field}) where {field}
+    return _stateless_state(getfield(layer, field))
+end
+
+# State initialization follows the parameter draws and uses the parameter eltype to avoid
+# mixed precisions in layer evaluation.
+function with_fixed_state(chain, rng, ::Type{T}) where {T}
+    r = applicable(copy, rng) ? copy(rng) : rng
+    LuxCore.initialparameters(r, chain)
+    st = LuxCore.testmode(LuxCore.initialstates(r, chain))
+    isequal(st, _stateless_state(chain)) && return chain
+    st = state_eltype(T, st)
+    plan, uniq = _state_plan(st)
+    return FixedStateLayer(chain, st, plan, uniq)
+end
+
 function symbolic_network(chain, name, n_in, nout, T, init, rng)
     NN, p = SymbolicNeuralNetwork(;
-        chain, n_input = n_in, n_output = nout, rng, eltype = T,
+        chain = with_fixed_state(chain, rng, T), n_input = n_in, n_output = nout, rng,
+        eltype = T,
         nn_name = Symbol(:NN_, name), nn_p_name = Symbol(:p_, name)
     )
     np = length(getdefault(p))
