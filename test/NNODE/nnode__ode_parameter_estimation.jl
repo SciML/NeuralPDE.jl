@@ -33,6 +33,26 @@ using Test
         strategy = GridTraining(0.01), dataset = dataset,
         param_estim = true
     )
+
+    # Regression test for issue #1011:
+    # Tuple parameters should produce a clear error during parameter estimation.
+    prob_tuple = remake(prob, p = (1.0, 1.0, 1.0))
+
+    err = try
+        solve(prob_tuple, alg; verbose = false, maxiters = 1)
+        nothing
+    catch e
+        e
+    end
+
+    @test err isa ArgumentError
+
+    if err isa ArgumentError
+        msg = sprint(showerror, err)
+        @test occursin("tuple", msg)
+        @test occursin("array", msg)
+    end
+
     sol = solve(prob, alg; verbose = false, abstol = 1.0e-8, maxiters = 1000, saveat = t_)
 
     @test sol.k.u.p ≈ true_p atol = 1.0e-2
