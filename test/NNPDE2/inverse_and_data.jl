@@ -34,10 +34,11 @@ using ADTypes: AutoZygote
         eqs, bcs, domains, [t], [x(t), y(t), z(t)], [σ_, ρ, β];
         initial_conditions = Dict(σ_ => 9.0, ρ => 27.0, β => 3.0)
     )
-    # Every `symbolic_discretize`/`discretize` call draws fresh network weights from
-    # `disc.rng`, so train from the first draw and inspect the system afterwards.
-    # The default static-activity `AutoEnzyme()` raises `EnzymeRuntimeActivityError`
-    # in the generated objective for this data-capturing `additional_loss`.
+    # `symbolic_discretize`/`discretize` draw the same initial weights from the
+    # discretization's owned RNG, so the system inspected afterwards matches the
+    # weights the problem trains from. The default static-activity `AutoEnzyme()`
+    # raises `EnzymeRuntimeActivityError` in the generated objective for this
+    # data-capturing `additional_loss`.
     prob = discretize(pde_system, disc; adtype = AutoZygote())
     sys = symbolic_discretize(pde_system, disc)
     @test length(unknowns(sys)) == 6
