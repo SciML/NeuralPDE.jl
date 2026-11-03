@@ -64,54 +64,27 @@ end
 function lower_depvar(ex, ctx::LoweringContext, shift, directions = nothing)
     net = ctx.networks[operation(ex)]
     callargs = arguments(ex)
-    n_in = length(callargs)
-    # `iv_index` values are rows of `ctx.xs`; an integrating variable that shadows an
-    # outer variable name replaces its entry, so the row count is the largest value.
-    d = ctx.xs === nothing ? 0 : maximum(values(ctx.iv_index))
-    P = zeros(ctx.eltype, n_in, d)
-    c = zeros(ctx.eltype, n_in)
-    general = false
-    for (j, a) in enumerate(callargs)
+    rows = map(enumerate(callargs)) do (j, a)
         a = unwrap(a)
-        # A literal argument is still translated when differentiating with respect to the
-        # variable of that slot: `Dx(u(1.0))` is the derivative of `u` evaluated at `x = 1`.
         if _isnumber(a)
-            c[j] = _number(a)
+            c = ctx.eltype(_number(a))
+            # Literal arguments translate along their slot in a derivative stencil.
             slot = unwrap(net.args[j])
-            haskey(ctx.iv_global, slot) && (c[j] += shift[ctx.iv_global[slot]])
-        elseif haskey(ctx.iv_index, a)
-            P[j, ctx.iv_index[a]] = one(ctx.eltype)
-            c[j] += shift[ctx.iv_global[a]]
-        else
-            general = true
+            haskey(ctx.iv_global, slot) && (c += shift[ctx.iv_global[slot]])
+            return _constant_input_row(ctx, net, c)
         end
+        r = lower(a, ctx, shift)
+        return _isarray(r) ? r : _constant_input_row(ctx, net, r)
     end
-    X = if general
-        # A general argument such as `u(t - τ)` lowers to its own `1 × n` row; the rows
-        # are stacked lazily so the expression does not scalarize over the batch.
-        rows = map(enumerate(callargs)) do (j, a)
-            a = unwrap(a)
-            if _isnumber(a)
-                wrap(fill(ctx.eltype(0), 1, ctx.npoints))
-            elseif haskey(ctx.iv_index, a)
-                wrap(ctx.xs)[ctx.iv_index[a]:ctx.iv_index[a], :]
-            else
-                r = lower(a, ctx, shift)
-                _isarray(r) ? r : wrap(fill(unwrap(r), 1, ctx.npoints))
-            end
-        end
-        Xg = foldl(nn_vcat, rows)
-        iszero(c) ? Xg : Xg .+ reshape(c, n_in, 1)
-    elseif ctx.xs === nothing
-        reshape(c, n_in, 1)
-    elseif P == I
-        iszero(c) ? wrap(ctx.xs) : wrap(ctx.xs) .+ c
-    else
-        iszero(c) ? P * wrap(ctx.xs) : P * wrap(ctx.xs) .+ c
-    end
+    X = foldl(nn_vcat, rows)
     directions === nothing || return nn_jvp(net.NN, X, net.θ, directions, net.output)
     net.noutputs == 1 && return nn_eval(net.NN, X, net.θ)
     return nn_eval_row(net.NN, X, net.θ, net.output)
+end
+
+function _constant_input_row(ctx, net, value)
+    template = ctx.xs === nothing ? net.θ : wrap(ctx.xs)
+    return _constant_row(template, value)
 end
 
 function lower_differential(ex, ctx::LoweringContext, shift)
