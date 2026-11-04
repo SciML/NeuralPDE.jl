@@ -31,7 +31,8 @@ Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
 - `dx`: Spatial grid spacing used to evaluate the solution.
 - `σ_var_bc`: Width of the Gaussian approximation to the initial condition.
 - `λ_ic`, `λ_norm`: Initial-condition and normalization loss weights.
-- `distrib`: Initial probability distribution.
+- `distrib`: Initial probability distribution. For a scalar state, its density is enforced at
+  the `GridTraining` spatial nodes, so `dx` should be fine enough to resolve it.
 - `strategy`: Optional training strategy.
 - `autodiff`: Whether to use automatic differentiation for temporal derivatives.
 - `batch`: Whether to batch training points.
@@ -134,19 +135,26 @@ function SDEPINN(;
     )
 end
 
-function SciMLBase.__solve(
-        prob::SciMLBase.AbstractSDEProblem,
-        alg::SDEPINN,
-        args...;
-        dt = nothing,
-        abtol = 1.0f-6,
-        reltol = 1.0f-3,
-        saveat = nothing,
-        tstops = nothing,
-        maxiters = 200,
-        verbose = false,
-        kwargs...,
-    )
+# The initial density `pdf(distrib, x)` as a symbolic function of the spatial variable, so
+# that the initial condition of `SDEPINN` is enforced on the whole spatial grid. The runtime
+# method takes an untyped argument so that it is the most general method of the call.
+struct SDEInitialDensity{D}
+    distrib::D
+end
+
+function (ρ::SDEInitialDensity)(x)
+    return convert(float(typeof(x)), Distributions.pdf(ρ.distrib, x))
+end
+
+@register_symbolic (ρ::SDEInitialDensity)(x)
+
+"""
+    _sdepinn_pdesystem(prob, alg::SDEPINN)
+
+Build the Fokker-Planck `PDESystem` that `SDEPINN` trains on: the PDE in `(X, T)`, the
+initial density at `t₀` and zero-flux boundary conditions at `x_0` and `x_end`.
+"""
+function _sdepinn_pdesystem(prob, alg::SDEPINN)
     (; u0, tspan, f, g, p) = prob
     P = eltype(u0)
     t₀, t₁ = tspan
@@ -154,13 +162,7 @@ function SciMLBase.__solve(
     absorbing_bc = false
     reflective_bc = true
 
-    (;
-        x_0, x_end, Nt, dx, σ_var_bc, λ_ic, λ_norm,
-        distrib, optimalg, norm_loss_alg, initial_parameters, rng, adtype, chain,
-    ) = alg
-
-    dt = (t₁ - t₀) / Nt
-    ts = collect(t₀:dt:t₁)
+    (; x_0, x_end, distrib) = alg
 
     # Define FP PDE
     @parameters X, T
@@ -176,9 +178,10 @@ function SciMLBase.__solve(
             (p̂(X, T) * Dx((prob.g(X, p, T))^2))
     )
 
-    # IC symbolic equation form
+    # IC symbolic equation form. For a scalar state the initial density is enforced on the
+    # whole spatial domain at t₀; the point condition at `u0` alone leaves it undetermined.
     f_icloss = if u0 isa Number
-        (p̂(u0, t₀) - Distributions.pdf(distrib, u0) ~ P(0),)
+        (p̂(X, t₀) - SDEInitialDensity(distrib)(X) ~ P(0),)
     else
         (p̂(u0[i], t₀) .- Distributions.pdf(distrib[i], u0[i]) ~ P(0) for i in 1:length(u0))
     end
@@ -226,6 +229,37 @@ function SciMLBase.__solve(
 
     domains = [X ∈ (x_0, x_end), T ∈ (t₀, t₁)]
 
+    @named pdesys = PDESystem(eq, bcs, domains, [X, T], [p̂(X, T)])
+    return pdesys
+end
+
+function SciMLBase.__solve(
+        prob::SciMLBase.AbstractSDEProblem,
+        alg::SDEPINN,
+        args...;
+        dt = nothing,
+        abtol = 1.0f-6,
+        reltol = 1.0f-3,
+        saveat = nothing,
+        tstops = nothing,
+        maxiters = 200,
+        verbose = false,
+        kwargs...,
+    )
+    (; u0, tspan) = prob
+    P = eltype(u0)
+    t₀, t₁ = tspan
+
+    (;
+        x_0, x_end, Nt, dx, λ_norm, optimalg, norm_loss_alg, initial_parameters, rng,
+        adtype, chain,
+    ) = alg
+
+    dt = (t₁ - t₀) / Nt
+    ts = collect(t₀:dt:t₁)
+
+    pdesys = _sdepinn_pdesystem(prob, alg)
+
     # Additional losses
     # TODO Handle normloss and ICloss for vector NN outputs !! -> will need to adjst x0, x_end, u0 handling for this
 
@@ -258,7 +292,6 @@ function SciMLBase.__solve(
         additional_loss = combined_additional
     )
 
-    @named pdesys = PDESystem(eq, bcs, domains, [X, T], [p̂(X, T)])
     opt_prob = discretize(pdesys, discretization; adtype = adtype)
     md = pinn_metadata(opt_prob)
     net = only(md.networks)
