@@ -137,16 +137,25 @@ function SDEPINN(;
 end
 
 """
+    resolve_norm_loss_alg(norm_loss_alg)
+
+Fill in the normalization loss quadrature when the caller left it unset: a fixed
+composite Gauss-Legendre rule, which resolves a density narrow enough that a single
+panel would miss most of its mass. Call this once per solve, never inside the loss,
+because the rule builds its nodes with a mutating routine that Zygote cannot
+differentiate.
+"""
+resolve_norm_loss_alg(norm_loss_alg) =
+    something(norm_loss_alg, GaussLegendre(n = 32, subintervals = 4))
+
+"""
     normalization_mass(integrand, x_0, x_end, θ, norm_loss_alg)
 
-Integrate `integrand` over `[x_0, x_end]` for the normalization loss. A `nothing`
-algorithm selects a fixed composite Gauss-Legendre rule, which resolves a density
-narrow enough that a single panel would miss most of its mass.
+Integrate `integrand` over `[x_0, x_end]` for the normalization loss.
 """
 function normalization_mass(integrand, x_0, x_end, θ, norm_loss_alg)
-    alg = something(norm_loss_alg, GaussLegendre(n = 32, subintervals = 4))
     prob = IntegralProblem(integrand, (x_0, x_end), θ)
-    return solve(prob, alg; reltol = 1.0e-4, abstol = 1.0e-4)[1]
+    return solve(prob, norm_loss_alg; reltol = 1.0e-4, abstol = 1.0e-4)[1]
 end
 
 function SciMLBase.__solve(
@@ -173,6 +182,8 @@ function SciMLBase.__solve(
         x_0, x_end, Nt, dx, σ_var_bc, λ_ic, λ_norm,
         distrib, optimalg, norm_loss_alg, initial_parameters, rng, adtype, chain,
     ) = alg
+
+    norm_loss_alg = resolve_norm_loss_alg(norm_loss_alg)
 
     dt = (t₁ - t₀) / Nt
     ts = collect(t₀:dt:t₁)
