@@ -4,6 +4,9 @@ on:
     types: [closed]
 permissions:
   contents: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   cleanup:
     uses: "SciML/.github/.github/workflows/docs-preview-cleanup.yml@v1"

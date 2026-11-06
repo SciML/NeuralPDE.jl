@@ -27,7 +27,7 @@ function SciMLBase.PDENoTimeSolution(
     umap = Dict{Any, Any}()
     T = eltype(sol.u)
     for (dv, net) in zip(dvs, md.networks)
-        θ = getu(sol, net.θ)(sol)
+        θ = Array(getu(sol, net.θ)(sol))
         f = trial_function(net, θ)
         interp[dv] = f
         grids = [ivgrid[findfirst(y -> isequal(unwrap(y), unwrap(x)), ivs)] for x in net.args]

@@ -24,6 +24,28 @@ const REEXPORTS = (
     end
 end
 
+@testset "Bare docs @ref links only target exported names" begin
+    # A [`name`](@ref) link in a docs page resolves `name` in `Main` after
+    # `using NeuralPDE`. Julia 1.11+ `names(mod)` includes `@public` bindings, but
+    # those are not brought into `Main` by `using`, so Documenter cannot resolve a
+    # bare `@ref` to a public-but-unexported name like `default_adtype`. Qualify
+    # such links: [`default_adtype`](@ref NeuralPDE.default_adtype).
+    offenders = String[]
+    for (root, _, files) in walkdir(joinpath(pkgdir(NeuralPDE), "docs", "src")),
+            file in files
+        endswith(file, ".md") || continue
+        path = joinpath(root, file)
+        for m in eachmatch(r"\[`([^`]+)`\]\(@ref\)", read(path, String))
+            name = Symbol(m.captures[1])
+            isdefined(NeuralPDE, name) || continue
+            Base.isexported(NeuralPDE, name) && continue
+            which(NeuralPDE, name) === NeuralPDE &&
+                push!(offenders, "$path: $(m.match)")
+        end
+    end
+    @test isempty(offenders)
+end
+
 run_qa(
     NeuralPDE;
     reexports_allow = REEXPORTS,
@@ -45,8 +67,9 @@ run_qa(
         # that is released.
         all_explicit_imports_are_public = (;
             ignore = (
-                :AbstractTrainingStrategy, :BPINNstats, :safe_expand, :safe_get_device,
-                :tovar, :warn_unsupported_callback,
+                :AbstractTrainingStrategy, :BPINNstats, :check_no_integrator_callback,
+                :safe_expand, :safe_get_device,
+                :tovar,
             ),
         ),
     ),

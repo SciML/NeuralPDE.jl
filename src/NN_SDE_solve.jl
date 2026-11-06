@@ -792,8 +792,7 @@ function SciMLBase.__solve(
         tstops = nothing,
         callback = nothing
     )
-    warn_unsupported_callback(alg, callback)
-    verbose = verbose_flag(verbose)
+    check_no_integrator_callback(callback, "NNSDE")
     (; u0, tspan, f, g, p) = prob
     # rescaling tspan discretization so KKL expansion can be applied for loss formulation
     tspan_scale = tspan ./ tspan[end]
@@ -912,7 +911,7 @@ function SciMLBase.__solve(
     optf = OptimizationFunction(total_loss, opt_algo)
 
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
-    opt_callback = function (p, l)
+    progress_callback = function (p, l)
         if verbose
             if maxiters === nothing
                 @printf("[NNSDE]\tIter: [%*d]\tLoss: %g\n", plen, p.iter, l)
@@ -924,7 +923,7 @@ function SciMLBase.__solve(
     end
 
     optprob = OptimizationProblem(optf, init_params)
-    res = solve(optprob, opt; callback = opt_callback, maxiters, alg.kwargs...)
+    res = solve(optprob, opt; callback = progress_callback, maxiters, alg.kwargs...)
 
     #solutions at timepoints
     if saveat isa Number

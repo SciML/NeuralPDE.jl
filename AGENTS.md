@@ -15,6 +15,16 @@ from the root `[extras]`/`[targets]`; `Pkg.test()` resolves them — do not run
 test files with `--project=.` directly (imports like `OptimizationOptimJL` are
 not in the main env).
 
+For constrained-solver regression tests, assert the raw solver status and bound the
+measured constraint violation by the configured constraint tolerance. OptimizationIpopt
+maps acceptable-level termination to `ReturnCode.Success`; `acceptable_iter = 0`
+does not rule out every such exit. Converge both policies before comparing their errors.
+
+Each folder group runs all its files in one Julia process. The `arch = "x86"`
+lanes have a 32-bit address space, so compile-heavy files (Enzyme derivative
+tests) live in their own group (`InterfaceEnzyme`) rather than sharing a process
+with the rest of `Interface`.
+
 ## Formatting and lint
 
 - Format/check with Runic.jl: `julia -m Runic -c <paths>` (the `runic` binary on
@@ -32,3 +42,26 @@ not in the main env).
   when accessed as `DomainSets.endpoints`. `DomainSets.infimum`/`supremum` pass
   that check but do an `a > b` emptiness test that throws on symbolic bounds.
   Read `d.left`/`d.right` on `TypedEndpointsInterval` domains instead.
+
+## Additional-loss AD
+
+Closure field types do not determine `additional_loss` AD compatibility: callbacks
+with non-`isbits` captures can still differentiate correctly with Enzyme. Choose a
+backend explicitly at call sites with demonstrated requirements, and retain
+captured-metadata, buffer-writing callbacks in default-backend regression coverage.
+
+## Device-genericity pitfalls
+
+- The generated objective must keep every reduction behind a registered
+  function (`_mean_square`, `_weighted_square_sum`) with a `ChainRulesCore.rrule`.
+  A literal `sum`/`mapreduce` over a GPU array hits `GPUArraysCore._mapreduce` →
+  `task_local_storage`, which Zygote cannot differentiate. Test devices with
+  JLArrays under `JLArrays.allowscalar(false)`, and check lowered residuals for
+  host array constants: JLArrays accepts mixed host/device arithmetic that CUDA
+  rejects. CUDA tests are required before claiming GPU support.
+- `remake(prob; u0 = dev(prob.u0), p = [block.xs => dev(X), ...])` moves the
+  collocation data and network parameters; `resample!` must write device arrays (`similar` + `copyto!`),
+  and `PDENoTimeSolution` copies `θ` back to the host with `Array`.
+- Device tests and examples must select `AutoZygote()` explicitly and exercise
+  `solve`, resampling, and host solution evaluation. Preserve the discretization
+  element type during transfer: finite-difference steps are fixed at lowering time.

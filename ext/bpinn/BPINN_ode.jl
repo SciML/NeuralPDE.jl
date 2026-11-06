@@ -29,7 +29,7 @@ function SciMLBase.__solve(
         abstol = 1.0f-6, reltol = 1.0f-3, verbose = false, saveat = 1 / 50.0,
         maxiters = nothing, callback = nothing
     )
-    warn_unsupported_callback(alg, callback)
+    check_no_integrator_callback(callback, "BNNODE")
     (; chain, param, strategy, draw_samples, numensemble, verbose) = alg
 
     # ahmc_bayesian_pinn_ode needs param=[] for easier vcat operation for full vector of parameters

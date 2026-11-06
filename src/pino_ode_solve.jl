@@ -478,8 +478,7 @@ function SciMLBase.__solve(
         maxiters = nothing,
         callback = nothing
     )
-    warn_unsupported_callback(alg, callback)
-    verbose = verbose_flag(verbose)
+    check_no_integrator_callback(callback, "PINOODE")
     (; tspan, u0, f) = prob
     (;
         chain, opt, bounds, number_of_parameters,
@@ -549,14 +548,14 @@ function SciMLBase.__solve(
     optf = OptimizationFunction(total_loss, opt_algo)
 
     iteration = 0
-    opt_callback = function (p, l)
+    progress_callback = function (p, l)
         iteration += 1
         verbose && println("Current loss is: $l, Iteration: $iteration")
         return l < abstol
     end
 
     optprob = OptimizationProblem(optf, init_params)
-    res = solve(optprob, opt; callback = opt_callback, maxiters, alg.kwargs...)
+    res = solve(optprob, opt; callback = progress_callback, maxiters, alg.kwargs...)
 
     (p, t) = get_trainset(
         strategy, phi.smodel.model, bounds, number_of_parameters, tspan; rng

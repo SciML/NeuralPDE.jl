@@ -97,8 +97,7 @@ function SciMLBase.__solve(
         tstops = nothing,
         callback = nothing
     )
-    warn_unsupported_callback(alg, callback)
-    verbose = verbose_flag(verbose)
+    check_no_integrator_callback(callback, "NNDAE")
     (; u0, tspan, f, p, differential_vars) = prob
     t0 = tspan[1]
     (; chain, opt, autodiff, init_params) = alg
@@ -119,7 +118,7 @@ function SciMLBase.__solve(
     optf = OptimizationFunction(total_loss, AutoZygote())
 
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
-    opt_callback = function (p, l)
+    progress_callback = function (p, l)
         if verbose
             if maxiters === nothing
                 @printf("[NNDAE]\tIter: [%*d]\tLoss: %g\n", plen, p.iter, l)
@@ -131,7 +130,7 @@ function SciMLBase.__solve(
     end
 
     optprob = OptimizationProblem(optf, init_params)
-    res = solve(optprob, opt; callback = opt_callback, maxiters, alg.kwargs...)
+    res = solve(optprob, opt; callback = progress_callback, maxiters, alg.kwargs...)
 
     # solutions at timepoints
     if saveat isa Number

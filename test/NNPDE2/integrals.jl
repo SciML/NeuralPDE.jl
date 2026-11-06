@@ -79,11 +79,17 @@ end
     chain = Chain(Dense(1, 1))
     cases = [
         # ∫_0^t ∫_0^τ x(σ) dσ dτ = t³ / 6
-        ("nested", Integral(tau in DomainSets.ClosedInterval(0.0, t))(
-            Integral(sigma in DomainSets.ClosedInterval(0.0, tau))(x(sigma)))),
+        (
+            "nested", Integral(tau in DomainSets.ClosedInterval(0.0, t))(
+                Integral(sigma in DomainSets.ClosedInterval(0.0, tau))(x(sigma))
+            ),
+        ),
         # ∫_0^t ∫_0^t x(σ) dσ dt = t³ / 6; the integrating variable shadows the outer t
-        ("nested shadowed bound", Integral(t in DomainSets.ClosedInterval(0.0, t))(
-            Integral(sigma in DomainSets.ClosedInterval(0.0, t))(x(sigma)))),
+        (
+            "nested shadowed bound", Integral(t in DomainSets.ClosedInterval(0.0, t))(
+                Integral(sigma in DomainSets.ClosedInterval(0.0, t))(x(sigma))
+            ),
+        ),
     ]
     for (name, term) in cases
         @testset "$name" begin
@@ -103,8 +109,11 @@ end
 @testset "multidimensional integrating variables" begin
     @parameters t tau sigma
     @variables x(..)
-    I = Integral((tau, sigma) in DomainSets.ProductDomain(
-        DomainSets.ClosedInterval(0.0, t), DomainSets.ClosedInterval(0.0, t)))
+    I = Integral(
+        (tau, sigma) in DomainSets.ProductDomain(
+            DomainSets.ClosedInterval(0.0, t), DomainSets.ClosedInterval(0.0, t)
+        )
+    )
     chain = Chain(Dense(1, 1))
     disc = PhysicsInformedNN(chain, GridTraining(0.2); init_params = LIN1)
     @named sys = PDESystem(
@@ -124,14 +133,20 @@ end
     chain = Chain(Dense(1, 1))
     cases = [
         # ∫_t^∞ τ e^{-τ} dτ = (t + 1) e^{-t}
-        ("semi-infinite upper", Integral(tau in DomainSets.ClosedInterval(t, Inf)),
-         x(tau) * exp(-tau), X -> (X .+ 1) .* exp.(-X)),
+        (
+            "semi-infinite upper", Integral(tau in DomainSets.ClosedInterval(t, Inf)),
+            x(tau) * exp(-tau), X -> (X .+ 1) .* exp.(-X),
+        ),
         # ∫_{-∞}^t τ e^{-τ²} dτ = -e^{-t²} / 2
-        ("semi-infinite lower", Integral(tau in DomainSets.ClosedInterval(-Inf, t)),
-         x(tau) * exp(-tau^2), X -> -exp.(-X .^ 2) ./ 2),
+        (
+            "semi-infinite lower", Integral(tau in DomainSets.ClosedInterval(-Inf, t)),
+            x(tau) * exp(-tau^2), X -> -exp.(-X .^ 2) ./ 2,
+        ),
         # ∫_{-∞}^{∞} τ² e^{-τ²} dτ = √π / 2
-        ("infinite", Integral(tau in DomainSets.ClosedInterval(-Inf, Inf)),
-         x(tau)^2 * exp(-tau^2), X -> fill(sqrt(pi) / 2, 1, size(X, 2))),
+        (
+            "infinite", Integral(tau in DomainSets.ClosedInterval(-Inf, Inf)),
+            x(tau)^2 * exp(-tau^2), X -> fill(sqrt(pi) / 2, 1, size(X, 2)),
+        ),
     ]
     for (name, I, integrand, expected) in cases
         @testset "$name" begin
@@ -157,7 +172,8 @@ end
     I = Integral(tau in DomainSets.ClosedInterval(0.0, t))
     chains = [Chain(Dense(1, 1)), Chain(Dense(2, 1))]
     disc = PhysicsInformedNN(
-        chains, GridTraining(0.2); init_params = [[1.0, 0.0], [1.0, 1.0, 0.0]])
+        chains, GridTraining(0.2); init_params = [[1.0, 0.0], [1.0, 1.0, 0.0]]
+    )
     @named sys = PDESystem(
         [y(0.0, t) + I(x(tau) + y(s, tau)) ~ 0], [x(0.0) ~ 0.0, y(0.0, s) ~ s],
         [t ∈ Interval(0.0, 1.0), s ∈ Interval(0.0, 1.0)], [t, s], [x(t), y(t, s)]
@@ -193,9 +209,11 @@ end
 @testset "integral_alg validation" begin
     chain = Chain(Dense(1, 1))
     @test_throws ArgumentError PhysicsInformedNN(
-        chain, GridTraining(0.1); integral_alg = Integrals.QuadGKJL())
+        chain, GridTraining(0.1); integral_alg = Integrals.QuadGKJL()
+    )
     disc = PhysicsInformedNN(
-        chain, QuadratureTraining(; quadrature_alg = GaussLegendre(n = 8)))
+        chain, QuadratureTraining(; quadrature_alg = GaussLegendre(n = 8))
+    )
     @test NeuralPDE._integral_alg(disc) isa GaussLegendre
 end
 
