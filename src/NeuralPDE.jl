@@ -24,7 +24,7 @@ using Optimisers: Optimisers, Adam
 using Optimization: Optimization
 using OptimizationOptimisers: OptimizationOptimisers
 using PDEBase: PDEBase
-using Printf: @printf
+using Printf: @sprintf
 using Random: Random, AbstractRNG
 using RecursiveArrayTools: DiffEqArray
 using RuntimeGeneratedFunctions: RuntimeGeneratedFunctions
@@ -34,6 +34,9 @@ using SciMLBase: SciMLBase, BatchIntegralFunction, DAEProblem, IntegralProblem,
     ReturnCode, SDEProblem, discretize, init, isinplace, remake, solve,
     symbolic_discretize
 using SciMLPublic: @public
+using SciMLLogging: SciMLLogging, @SciMLMessage, @verbosity_specifier, AbstractVerbosityPreset,
+    AbstractVerbositySpecifier, All, Detailed, InfoLevel, MessageLevel, Minimal, None, Silent,
+    Standard
 using Statistics: Statistics, mean
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
 using WeightInitializers: glorot_uniform, zeros32
@@ -122,6 +125,7 @@ include("discretize.jl")
 include("pde_solution.jl")
 include("distill.jl")
 
+include("verbosity.jl")
 include("ode_solve.jl")
 include("dae_solve.jl")
 include("pino_ode_solve.jl")

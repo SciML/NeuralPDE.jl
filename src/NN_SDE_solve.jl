@@ -910,15 +910,17 @@ function SciMLBase.__solve(
     opt_algo = ifelse(strategy isa QuadratureTraining, AutoForwardDiff(), AutoZygote())
     optf = OptimizationFunction(total_loss, opt_algo)
 
+    verbosity = neuralpde_verbosity(verbose)
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
     progress_callback = function (p, l)
-        if verbose
-            if maxiters === nothing
-                @printf("[NNSDE]\tIter: [%*d]\tLoss: %g\n", plen, p.iter, l)
+        @SciMLMessage(
+            () -> if maxiters === nothing
+                @sprintf("[NNSDE]\tIter: [%*d]\tLoss: %g", plen, p.iter, l)
             else
-                @printf("[NNSDE]\tIter: [%*d/%d]\tLoss: %g\n", plen, p.iter, maxiters, l)
-            end
-        end
+                @sprintf("[NNSDE]\tIter: [%*d/%d]\tLoss: %g", plen, p.iter, maxiters, l)
+            end,
+            verbosity, :training_progress
+        )
         return l < abstol
     end
 
