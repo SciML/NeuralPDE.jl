@@ -547,10 +547,13 @@ function SciMLBase.__solve(
     # Creates OptimizationFunction Object from total_loss
     optf = OptimizationFunction(total_loss, opt_algo)
 
+    verbosity = neuralpde_verbosity(verbose)
     iteration = 0
     progress_callback = function (p, l)
         iteration += 1
-        verbose && println("Current loss is: $l, Iteration: $iteration")
+        @SciMLMessage(
+            () -> "Current loss is: $l, Iteration: $iteration", verbosity, :training_progress
+        )
         return l < abstol
     end
 
