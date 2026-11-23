@@ -19,8 +19,9 @@ Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
   in sequence; each stage warm-starts from the previous stage's parameters and is given
   `maxiters` iterations (`maxiters` may itself be a vector/tuple with one entry per stage).
 - `norm_loss_alg`: Integration algorithm used by the normalization loss. Defaults to a
-  fixed composite Gauss-Legendre rule (`GaussLegendre(n = 32, subintervals = 4)`), which
-  stays accurate on peaked densities.
+  fixed composite Gauss-Legendre rule with as many panels as the width of `distrib` needs,
+  because an adaptive rule samples the whole interval first and reports a mass of zero when
+  the density is a narrow peak.
 - `initial_parameters`: Initial network parameters. NeuralPDE draws them from `rng` when
   omitted.
 - `rng`: Random number generator for network parameter initialization when
@@ -137,16 +138,24 @@ function SDEPINN(;
 end
 
 """
-    resolve_norm_loss_alg(norm_loss_alg)
+    resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
 
-Fill in the normalization loss quadrature when the caller left it unset: a fixed
-composite Gauss-Legendre rule, which resolves a density narrow enough that a single
-panel would miss most of its mass. Call this once per solve, never inside the loss,
-because the rule builds its nodes with a mutating routine that Zygote cannot
-differentiate.
+Fill in the normalization loss quadrature when the caller left it unset: a fixed composite
+Gauss-Legendre rule with enough panels that one panel is narrow next to `distrib`. An
+adaptive rule does not work here, because it samples the whole interval first, and on a
+density that is a narrow peak every sample is near zero, so it reports a mass of zero and
+stops. Call this once per solve, never inside the loss, because the rule builds its nodes
+with a mutating routine that Zygote cannot differentiate.
 """
-resolve_norm_loss_alg(norm_loss_alg) =
-    something(norm_loss_alg, GaussLegendre(n = 32, subintervals = 4))
+function resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
+    norm_loss_alg === nothing || return norm_loss_alg
+    # A 32 node panel is exact on a Gaussian to machine precision while the panel spans
+    # about ten standard deviations or fewer, so 1024 panels reach a standard deviation of
+    # (x_end - x_0) / 10240. Narrower than that the caller passes a rule of their own.
+    width = 10 * Distributions.std(distrib)
+    panels = isfinite(width) && width > 0 ? ceil(Int, (x_end - x_0) / width) : 4
+    return GaussLegendre(n = 32, subintervals = clamp(panels, 4, 1024))
+end
 
 """
     normalization_mass(integrand, x_0, x_end, θ, norm_loss_alg)
@@ -183,7 +192,7 @@ function SciMLBase.__solve(
         distrib, optimalg, norm_loss_alg, initial_parameters, rng, adtype, chain,
     ) = alg
 
-    norm_loss_alg = resolve_norm_loss_alg(norm_loss_alg)
+    norm_loss_alg = resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
 
     dt = (t₁ - t₀) / Nt
     ts = collect(t₀:dt:t₁)
