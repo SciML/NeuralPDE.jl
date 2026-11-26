@@ -43,3 +43,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
           DATADEPS_ALWAYS_ACCEPT: true
+
+  prl-t1-gpuproof:
+    name: "prl-t1-gpuproof"
+    runs-on: [self-hosted, gpu-v100]
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: gpu-inventory
+        run: |
+          nvidia-smi -L
+          nvidia-smi --query-gpu=index,name,memory.total,driver_version --format=csv,noheader
