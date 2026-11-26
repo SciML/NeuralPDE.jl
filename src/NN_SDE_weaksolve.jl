@@ -19,9 +19,9 @@ Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
   in sequence; each stage warm-starts from the previous stage's parameters and is given
   `maxiters` iterations (`maxiters` may itself be a vector/tuple with one entry per stage).
 - `norm_loss_alg`: Integration algorithm used by the normalization loss. Defaults to a
-  fixed composite Gauss-Legendre rule with as many panels as the width of `distrib` needs,
-  because an adaptive rule samples the whole interval first and reports a mass of zero when
-  the density is a narrow peak.
+  quantile-partitioned adaptive Gauss-Kronrod rule based on `distrib`. Each time slice is
+  integrated between the distribution's tail, quartile, and median quantiles, so narrow
+  peaks are resolved without making the training work depend on the initial scale.
 - `initial_parameters`: Initial network parameters. NeuralPDE draws them from `rng` when
   omitted.
 - `rng`: Random number generator for network parameter initialization when
@@ -140,21 +140,61 @@ end
 """
     resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
 
-Fill in the normalization loss quadrature when the caller left it unset: a fixed composite
-Gauss-Legendre rule with enough panels that one panel is narrow next to `distrib`. An
-adaptive rule does not work here, because it samples the whole interval first, and on a
-density that is a narrow peak every sample is near zero, so it reports a mass of zero and
-stops. Call this once per solve, never inside the loss, because the rule builds its nodes
-with a mutating routine that Zygote cannot differentiate.
+Fill in the normalization loss quadrature when the caller left it unset. The initial
+distribution's quantiles partition the interval, and an adaptive Gauss-Kronrod rule is
+applied separately on each partition for every time slice. Call this once per solve so
+the quantile breakpoints are prepared outside automatic differentiation.
 """
+struct _NormLossAlg{A, T}
+    alg::A
+    breakpoints::Vector{T}
+end
+
 function resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
     norm_loss_alg === nothing || return norm_loss_alg
-    # A 32 node panel is exact on a Gaussian to machine precision while the panel spans
-    # about ten standard deviations or fewer, so 1024 panels reach a standard deviation of
-    # (x_end - x_0) / 10240. Narrower than that the caller passes a rule of their own.
-    width = 10 * Distributions.std(distrib)
-    panels = isfinite(width) && width > 0 ? ceil(Int, (x_end - x_0) / width) : 4
-    return GaussLegendre(n = 32, subintervals = clamp(panels, 4, 1024))
+    tail_probability = 1.0e-8 # 1e-4 mass tolerance divided by 10,000
+    probabilities = (
+        tail_probability, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75,
+        0.875, 1 - tail_probability,
+    )
+    quantiles = map(probabilities) do probability
+        try
+            Distributions.quantile(distrib, probability)
+        catch err
+            throw(
+                ArgumentError(
+                    "could not select the default normalization quadrature for initial " *
+                        "distribution $(repr(distrib)) ($(typeof(distrib))); " *
+                        "pass `norm_loss_alg` explicitly " *
+                        "($(sprint(showerror, err)))"
+                )
+            )
+        end
+    end
+    all(isfinite, quantiles) || throw(
+        ArgumentError(
+            "could not select the default normalization quadrature for initial " *
+                "distribution $(repr(distrib)) ($(typeof(distrib))); " *
+                "pass `norm_loss_alg` explicitly because " *
+                "its quantiles are nonfinite"
+        )
+    )
+    length(unique(quantiles)) == length(quantiles) || throw(
+        ArgumentError(
+            "could not resolve the quantiles of initial distribution " *
+                "$(repr(distrib)) ($(typeof(distrib))) " *
+                "at floating-point precision; pass `norm_loss_alg` explicitly"
+        )
+    )
+
+    breakpoints = sort!(
+        unique!(
+            vcat(
+                [x_0, x_end], clamp.(collect(quantiles), x_0, x_end)
+            )
+        )
+    )
+    return _NormLossAlg(QuadGKJL(), breakpoints)
 end
 
 """
@@ -163,6 +203,14 @@ end
 Integrate `integrand` over `[x_0, x_end]` for the normalization loss.
 """
 function normalization_mass(integrand, x_0, x_end, θ, norm_loss_alg)
+    if norm_loss_alg isa _NormLossAlg
+        (; alg, breakpoints) = norm_loss_alg
+        masses = map(1:(length(breakpoints) - 1)) do i
+            prob = IntegralProblem(integrand, (breakpoints[i], breakpoints[i + 1]), θ)
+            solve(prob, alg; reltol = 1.0e-4, abstol = 1.0e-4)[1]
+        end
+        return sum(masses)
+    end
     prob = IntegralProblem(integrand, (x_0, x_end), θ)
     return solve(prob, norm_loss_alg; reltol = 1.0e-4, abstol = 1.0e-4)[1]
 end
