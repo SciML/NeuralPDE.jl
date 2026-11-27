@@ -63,11 +63,9 @@ dataset = [u1_, u2_, t_, W]
 Now, let's define a neural network for the PINN using [Lux.jl](https://lux.csail.mit.edu/).
 
 ```@example improv_param_estim
-rng = Random.default_rng()
-Random.seed!(rng, 0)
 n = 7
 chain = Chain(Dense(1, n, tanh), Dense(n, n, tanh), Dense(n, 2))
-ps, st = Lux.setup(rng, chain) |> f64
+ps, _ = Lux.setup(Xoshiro(1), chain) |> f64
 ```
 
 !!! note
@@ -75,27 +73,36 @@ ps, st = Lux.setup(rng, chain) |> f64
     While solving Inverse problems, when we specify `param_estim = true` in [`NNODE`](@ref) or [`BNNODE`](@ref), an L2 loss function measuring how the neural network's predictions fit the provided `dataset` is used internally during Maximum Likelihood Estimation.
     Therefore, the `additional_loss` mentioned in the [ODE parameter estimation tutorial](https://docs.sciml.ai/NeuralPDE/stable/tutorials/ode_parameter_estimation/) is not limited to an L2 loss function against data.
 
-We now define the optimizer and [`NNODE`](@ref) - the ODE solving PINN algorithm, for the old PINN model and the proposed new PINN formulation which uses a Data Quadrature loss.
-This optimizer and respective algorithms are plugged into the `solve` calls for comparing results between the new and old PINN models.
+Both fits use the same optimizer, starting ODE parameters, and seeded network weights. Each [`NNODE`](@ref) gets its own copy of the weights.
+
+To illustrate parameter recovery with a sparse physics grid, we use a grid step longer than the time span. The grid evaluates the ODE residual at the initial state, where the four rates appear only through $\alpha - 5\beta$ and $5\delta - \gamma$. Both fits use all 20 observations. The data-collocation fit also evaluates the ODE at the measured states, whose different populations help distinguish the rates.
 
 ```@example improv_param_estim
 opt = LBFGS(linesearch = BackTracking())
+strategy = GridTraining(6.0)
 
 alg_old = NNODE(
-    chain, opt; strategy = GridTraining(0.01), dataset = dataset, param_estim = true)
+    chain, opt, deepcopy(ps); strategy, dataset, param_estim = true
+)
 
-alg_new = NNODE(chain, opt; strategy = GridTraining(0.01), param_estim = true,
-    dataset = dataset, estim_collocate = true)
+alg_new = NNODE(
+    chain, opt, deepcopy(ps); strategy, dataset, param_estim = true,
+    estim_collocate = true
+)
 ```
 
-Now we have all the pieces to solve the optimization problem.
+We give both fits a budget of 5,000 optimizer iterations. A fit can finish successfully before the limit or use the full budget.
 
 ```@example improv_param_estim
-sol_old = solve(
-    prob, alg_old; verbose = true, abstol = 1e-12, maxiters = 5000, saveat = 0.01)
+maxiters = 5000
+sol_old = solve(prob, alg_old; verbose = false, abstol = 1.0e-12, maxiters, saveat = 0.01)
+sol_new = solve(prob, alg_new; verbose = false, abstol = 1.0e-12, maxiters, saveat = 0.01)
 
-sol_new = solve(
-    prob, alg_new; verbose = true, abstol = 1e-12, maxiters = 5000, saveat = 0.01)
+for fit in (sol_old, sol_new) # hide
+    result = fit.k # hide
+    @test result.retcode == ReturnCode.Success || # hide
+        (result.retcode == ReturnCode.MaxIters && result.stats.iterations == maxiters) # hide
+end # hide
 
 sol = solve(prob_data, Tsit5(); saveat = 0.01)
 sol_points = hcat(sol.u...)
@@ -112,9 +119,7 @@ plot!(sol_old, labels = ["u1_pinn_old" "u2_pinn_old"])
 scatter!(sol_data, labels = ["u1_data" "u2_data"])
 ```
 
-Clearly the old model cannot optimize given a realistic, tougher initialization of parameters especially with such limited data. It only seems to work when initial values are close to `true_p` and we have around `500` points for our `tspan`, as seen in the [ODE parameter estimation tutorial](https://docs.sciml.ai/NeuralPDE/stable/tutorials/ode_parameter_estimation/).
-
-Lets move on to the proposed new model...
+Now plot the data-collocation fit against the same observations and reference solution.
 
 ```@example improv_param_estim
 plot(sol, labels = ["u1" "u2"])
@@ -122,27 +127,33 @@ plot!(sol_new, labels = ["u1_pinn_new" "u2_pinn_new"])
 scatter!(sol_data, labels = ["u1_data" "u2_data"])
 ```
 
-We can see that it is a good fit! Now let's examine what the estimated parameters of the equation tell us in both cases. We also test for the following: the old model's estimates have at least one parameter value deviating from it's true value by more than `50%` while all the new model's estimates must be within `2%` of the `true_p` values.
+At this budget and initialization, the baseline misses at least one parameter by more than `50%`, while the data-collocation fit recovers each parameter within `2%`. We measure the absolute relative error for each parameter against `true_p` and require all estimates to be finite.
 
 ```@example improv_param_estim
 sol_old.k.u.p
 ```
 
 ```@example improv_param_estim
-@test any(true_p .- sol_old.k.u.p .> 0.5 .* true_p) # hide
+max_relative_parameter_error(estimate) = maximum(abs.((estimate .- true_p) ./ true_p)) # hide
+baseline_has_gap(estimate) = all(isfinite, estimate) && max_relative_parameter_error(estimate) > 0.5 # hide
+collocation_recovers(estimate) = all(isfinite, estimate) && max_relative_parameter_error(estimate) <= 0.02 # hide
+@test baseline_has_gap(sol_old.k.u.p) # hide
 ```
 
-This is nowhere near the true [1.5, 1.0, 3.0, 1.0]. But the new model gives :
+The data-collocation parameter estimates are shown below.
 
 ```@example improv_param_estim
 sol_new.k.u.p
 ```
 
 ```@example improv_param_estim
-@test sol_new.k.u.p≈true_p rtol=2e-2 norm=Base.Fix1(maximum, abs) # hide
+@test collocation_recovers(sol_new.k.u.p) # hide
+with_second_parameter(value) = setindex!(copy(true_p), value, 2) # hide
+@test !baseline_has_gap(with_second_parameter(Inf)) # hide
+@test !baseline_has_gap(with_second_parameter(0.89)) # hide
+@test baseline_has_gap(with_second_parameter(1.6)) # hide
+@test !collocation_recovers(with_second_parameter(1.05)) # hide
 ```
-
-This is indeed very close to the true ODE parameter values [1.5, 1.0, 3.0, 1.0].
 
 !!! note
     
