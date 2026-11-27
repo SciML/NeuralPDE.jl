@@ -527,10 +527,12 @@ function SciMLBase.__solve(
 
     init_params = if alg.param_estim
         if p isa Tuple
-            throw(ArgumentError(
-                "NNODE parameter estimation requires ODE parameters " *
-                "to be provided as an array, not a tuple."
-            ))
+            throw(
+                ArgumentError(
+                    "NNODE received tuple parameters for parameter estimation. " *
+                        "Pass a numeric vector such as [a, b] as the ODEProblem parameters."
+                )
+            )
         end
 
         ComponentArray(; depvar = init_params, p)
