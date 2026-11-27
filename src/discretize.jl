@@ -460,7 +460,7 @@ function operating_point(md::PINNMetadata, rng)
 end
 
 """
-    resample!(p, md::PINNMetadata; rng = md.disc.rng)
+    resample!(p, md::PINNMetadata; rng = nothing)
 
 Draw new collocation points for every residual block whose training strategy resamples
 (`StochasticTraining` and `QuasiRandomTraining` with `resampling = true`) and store
@@ -480,10 +480,13 @@ explicit seeded generator to resample deterministically and independently of tha
 resample!(p, md; rng = Xoshiro(seed))
 ```
 
-For `QuasiRandomTraining`, built-in randomized samplers such as `LatinHypercubeSample`
-and built-in randomizations such as `OwenScramble` or `Shift` use the same generator.
-Custom samplers and randomizations manage their own randomness. With `R = NoRand()`,
-`SobolSample`, `LatticeRuleSample` and `HaltonSample` redraw the same points on every call.
+For `QuasiRandomTraining`, omitting `rng` uses the generator configured on the built-in
+sampler or randomization. If that generator is the default task RNG, the discretization's
+sampling generator supplies the draw. The discretization's generator also draws the base
+`GridSample` points. An explicit `rng` supplies all built-in draws, including the base grid
+and its built-in randomization. Custom samplers and randomizations manage their own
+randomness. With `R = NoRand()`, `SobolSample`, `LatticeRuleSample` and `HaltonSample`
+redraw the same points on every call.
 
 !!! warning
 
@@ -494,13 +497,15 @@ Custom samplers and randomizations manage their own randomness. With `R = NoRand
     interleaving resamples with quasi-Newton steps; see the
     [training strategies manual](@ref training_strategies).
 """
-function resample!(p, md::PINNMetadata; rng = md.disc.rng)
+function resample!(p, md::PINNMetadata; rng = nothing)
     sys = md.metadata[]
     sys === nothing && throw(ArgumentError("`resample!` needs metadata from `discretize`."))
     resamples(md.disc.strategy) || return p
+    override = rng !== nothing
+    sampling_rng = override ? rng : md.disc.rng
     for b in md.blocks
         b.xs === nothing && continue
-        X, W = sample_points(md.disc.strategy, b, rng)
+        X, W = _sample_points(md.disc.strategy, b, sampling_rng, override)
         setp(sys, b.xs)(p, _similar_array(getp(sys, b.xs)(p), X))
         if b.w !== nothing
             setp(sys, b.w)(p, _similar_array(getp(sys, b.w)(p), W))

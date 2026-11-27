@@ -135,9 +135,11 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
 
 * `bcs_points`: the number of quasi-random points in a sample for boundary conditions
   (by default, it equals `points`),
-* `sampling_alg`: the quasi-Monte Carlo sampling algorithm. For PDEs, built-in randomized
-  samplers such as `LatinHypercubeSample` and built-in randomizations such as `Shift`
-  use the discretization's `rng` (or the `rng` passed to [`resample!`](@ref)).
+* `sampling_alg`: the quasi-Monte Carlo sampling algorithm. For PDEs, built-in samplers
+  and randomizations use their configured generators for initial points and ordinary
+  resampling. A default task RNG uses the [`PhysicsInformedNN`](@ref) sampling stream
+  instead. That stream also draws the base `GridSample` points. An explicit `rng`
+  passed to [`resample!`](@ref) supplies every built-in draw.
   Custom samplers and randomizations manage their own randomness.
 * `resampling`: whether [`resample!`](@ref) draws a new sample for PDE problems. For the
   ODE solvers, `false` generates `minibatch` samples in advance and selects one of them at
@@ -399,39 +401,69 @@ function collocation_count(strategy::QuasiRandomTraining, kind, ivpos, bounds, p
 end
 
 function sample_points(strategy::QuasiRandomTraining, block::ResidualBlock, rng)
+    return _sample_points(strategy, block, rng, false)
+end
+
+_sample_points(strategy, block, rng, _) = sample_points(strategy, block, rng)
+
+function _sample_points(strategy::QuasiRandomTraining, block::ResidualBlock, rng, override)
     lb, ub = block.bounds
     X = QuasiMonteCarlo.sample(
-        block.npoints, lb, ub, _seed_sampling_alg(strategy.sampling_alg, rng)
+        block.npoints, lb, ub, _seed_sampling_alg(strategy.sampling_alg, rng, override)
     )
     return Matrix{eltype(lb)}(reshape(X, length(lb), block.npoints)), nothing
 end
 
-_seed_sampling_alg(alg, rng) = alg
-_seed_sampling_alg(::LatinHypercubeSample, rng) = LatinHypercubeSample(; rng)
-_seed_sampling_alg(::RandomSample, rng) = RandomSample(; rng)
-_seed_sampling_alg(::RandomizedHaltonSample, rng) = RandomizedHaltonSample(; rng)
+function _qmc_rng(configured, rng, override)
+    override && return rng
+    # QuasiMonteCarlo 0.3 can use Julia 1.10's legacy wrapper for the task RNG.
+    use_default = configured === Random.default_rng() || configured === LatinHypercubeSample().rng
+    return use_default ? rng : configured
+end
 
-for Sampler in (FaureSample, GridSample, HaltonSample, LatticeRuleSample, SobolSample)
-    @eval function _seed_sampling_alg(alg::$Sampler, rng)
-        R = _seed_randomization(alg.R, rng)
+_seed_sampling_alg(alg, rng, override) = alg
+for Sampler in (LatinHypercubeSample, RandomSample, RandomizedHaltonSample)
+    @eval _seed_sampling_alg(alg::$Sampler, rng, override) =
+        $Sampler(; rng = _qmc_rng(alg.rng, rng, override))
+end
+
+struct _RNGGridSample{R, RNG} <: QuasiMonteCarlo.SamplingAlgorithm
+    R::R
+    rng::RNG
+end
+
+function QuasiMonteCarlo.sample(n::Integer, d::Integer, alg::_RNGGridSample, ::Type{T}) where {T}
+    grid = range(zero(T), one(T); length = n + 1)
+    samples = [rand(alg.rng, grid, n) for _ in 1:d]
+    return QuasiMonteCarlo.randomize(mapreduce(permutedims, vcat, samples), alg.R)
+end
+
+function _seed_sampling_alg(alg::GridSample, rng, override)
+    return _RNGGridSample(_seed_randomization(alg.R, rng, override), rng)
+end
+
+for Sampler in (FaureSample, HaltonSample, LatticeRuleSample, SobolSample)
+    @eval function _seed_sampling_alg(alg::$Sampler, rng, override)
+        R = _seed_randomization(alg.R, rng, override)
         return R === alg.R ? alg : $Sampler(; R)
     end
 end
 
-function _seed_sampling_alg(alg::KroneckerSample, rng)
-    R = _seed_randomization(alg.R, rng)
+function _seed_sampling_alg(alg::KroneckerSample, rng, override)
+    R = _seed_randomization(alg.R, rng, override)
     return R === alg.R ? alg : KroneckerSample(; alg.generator, R)
 end
 
-function _seed_sampling_alg(alg::VanDerCorputSample, rng)
-    R = _seed_randomization(alg.R, rng)
+function _seed_sampling_alg(alg::VanDerCorputSample, rng, override)
+    R = _seed_randomization(alg.R, rng, override)
     return R === alg.R ? alg : VanDerCorputSample(; alg.base, R)
 end
 
-_seed_randomization(R, rng) = R
-_seed_randomization(::Shift, rng) = Shift(; rng)
+_seed_randomization(R, rng, override) = R
+_seed_randomization(R::Shift, rng, override) = Shift(; rng = _qmc_rng(R.rng, rng, override))
 for Randomization in (DigitalShift, MatousekScramble, OwenScramble)
-    @eval _seed_randomization(R::$Randomization, rng) = $Randomization(; R.base, R.pad, rng)
+    @eval _seed_randomization(R::$Randomization, rng, override) =
+        $Randomization(; R.base, R.pad, rng = _qmc_rng(R.rng, rng, override))
 end
 
 resamples(strategy::QuasiRandomTraining) = strategy.resampling

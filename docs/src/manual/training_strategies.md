@@ -38,10 +38,13 @@ Stochastic training uses the sampling generator owned by [`PhysicsInformedNN`](@
 Pass `rng = Xoshiro(seed)` to [`resample!`](@ref) for a reproducible draw independent
 of that stream.
 
-`QuasiRandomTraining` uses the same generator for built-in randomized samplers such as
-`LatinHypercubeSample`, `RandomSample` and `RandomizedHaltonSample`, and built-in
-randomizations such as `OwenScramble` or `Shift` on a `SobolSample`. Custom samplers and
-randomizations manage their own randomness. With the default
+`QuasiRandomTraining` uses the generator configured on the built-in sampler or
+randomization for initial points and ordinary resampling. Built-ins with a default task
+RNG use the discretization's sampling generator, which also draws the base `GridSample`
+points. An explicit `rng` passed to [`resample!`](@ref) supplies all built-in draws for
+that call, including the base grid and any built-in randomization. Pass a separate generator
+to leave the discretization and configured generators at their current states. Custom
+samplers and randomizations manage their own randomness. With the default
 `R = NoRand()`, `SobolSample`, `LatticeRuleSample` and `HaltonSample` draw the same
 points on every `resample!` call, so resampling has no effect on them. `GridTraining`
 and `QuadratureTraining` never resample.

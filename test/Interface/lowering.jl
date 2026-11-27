@@ -274,6 +274,72 @@ end
     @test getp(oprob2, pinn_metadata(oprob2).blocks[1].xs)(oprob2) == Xo0
 end
 
+@testset "GridSample RNG ownership ($(typeof(sampler.R)))" for sampler in
+    (GridSample(), GridSample(R = QuasiMonteCarlo.Shift()))
+    strategy = QuasiRandomTraining(16; sampling_alg = sampler)
+    function grid_draws(task_seed, pinn_seed, resample_seed)
+        Random.seed!(task_seed)
+        grid_prob = discretize(pde_system, PhysicsInformedNN(chain, strategy; rng = Xoshiro(pinn_seed)))
+        read_points = getp(grid_prob, first(pinn_metadata(grid_prob).blocks).xs)
+        initial_points = copy(read_points(grid_prob))
+        task_state = copy(Random.default_rng())
+        resample!(grid_prob; rng = Xoshiro(resample_seed))
+        @test copy(Random.default_rng()) == task_state
+        return initial_points, copy(read_points(grid_prob))
+    end
+    initial, resampled = grid_draws(10, 20, 30)
+    other_initial, other_resampled = grid_draws(11, 20, 30)
+    @test other_initial == initial
+    @test other_resampled == resampled
+    changed_initial, changed_resampled = grid_draws(10, 21, 31)
+    @test changed_initial != initial
+    @test changed_resampled != resampled
+end
+
+@testset "configured QMC RNG precedence" begin
+    for make_sampler in (
+            rng -> LatinHypercubeSample(; rng), rng -> RandomSample(; rng),
+            rng -> RandomizedHaltonSample(; rng), rng -> SobolSample(R = QuasiMonteCarlo.Shift(; rng)),
+        )
+        @testset "$(nameof(typeof(make_sampler(Xoshiro(10)))))" begin
+            sampler_rng = Xoshiro(10)
+            expected_rng = copy(sampler_rng)
+            make_disc(rng) = PhysicsInformedNN(
+                chain, QuasiRandomTraining(16; sampling_alg = make_sampler(rng)); rng = Xoshiro(2)
+            )
+            qdisc = make_disc(sampler_rng)
+            pinn_state = copy(qdisc.rng)
+            qprob = discretize(pde_system, qdisc)
+            qmd = pinn_metadata(qprob)
+            read_points(block) = getp(qprob, block.xs)(qprob)
+            function check_draws(rng)
+                sampler = make_sampler(rng)
+                for block in qmd.blocks
+                    @test read_points(block) == QuasiMonteCarlo.sample(block.npoints, block.bounds..., sampler)
+                end
+            end
+            check_draws(expected_rng)
+            @test sampler_rng == expected_rng
+            @test qdisc.rng == pinn_state
+            other = discretize(pde_system, make_disc(Xoshiro(11)))
+            other_block = first(pinn_metadata(other).blocks)
+            @test read_points(first(qmd.blocks)) != getp(other, other_block.xs)(other)
+
+            resample!(qprob)
+            check_draws(expected_rng)
+            @test sampler_rng == expected_rng
+            @test qdisc.rng == pinn_state
+
+            for _ in 1:2
+                resample!(qprob; rng = Xoshiro(42))
+                check_draws(Xoshiro(42))
+                @test sampler_rng == expected_rng
+                @test qdisc.rng == pinn_state
+            end
+        end
+    end
+end
+
 struct PositionalSampler <: QuasiMonteCarlo.SamplingAlgorithm
     rng::Xoshiro
 end
