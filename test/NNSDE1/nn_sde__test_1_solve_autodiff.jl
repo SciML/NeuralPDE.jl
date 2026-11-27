@@ -32,4 +32,7 @@ using Test
             sol = solve(prob, NNSDE(luxchain, opt; autodiff); kwargs...)
         end
     end
+
+    sol = solve(prob, NNSDE(luxchain, Adam(0.1)); dt = 1 / 20.0f0, maxiters = 1)
+    @test !isempty(sol.timepoints)
 end
