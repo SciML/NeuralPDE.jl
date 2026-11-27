@@ -252,14 +252,13 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
 * `init_params`: initial network parameters as a flat vector, a Lux parameter
   `NamedTuple` or a `ComponentArray` (one network), or a vector of those (one per
   network). Defaults to `Lux.initialparameters` with `rng`.
-* `rng`: the random number generator whose draws seed the discretization's two
-  owned generators — a frozen one for initial parameters and one that advances
-  with collocation sampling. `rng` is consumed once at construction; afterwards
-  the discretization draws only from its owned generators and never from the
-  global `Random.default_rng()`. The owned generators are copies of `rng` reseeded
-  from those draws, so they keep its algorithm (a `StableRNG` stays a `StableRNG`).
-  Generators that cannot be copied and reseeded (for example `RandomDevice`) seed
-  `Xoshiro` generators instead.
+* `rng`: the random number generator used to construct two owned generators, one
+  frozen for initial parameters and one that advances with collocation sampling.
+  Construction draws one `UInt64` per generator. A copyable `rng` retains its algorithm
+  (for example, a `StableRNG` stays a `StableRNG`). Each copy is reseeded with its draw
+  when supported. Copyable generators without reseeding use snapshots after each draw,
+  so their streams are offset by one draw. A generator such as `RandomDevice` that
+  does not support copying supplies seeds for two `Xoshiro` generators.
 * `derivative`: the [`AbstractDerivativeLowering`](@ref) used for `Differential`
   operators. Defaults to [`FiniteDifferenceDerivative`](@ref).
 * `param_estim`: when `true`, the parameters of the `PDESystem` are added to the
@@ -279,18 +278,17 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
 
 ## Reproducibility
 
-When `init_params` is not given, the initial network parameters are drawn from the
-generator seeded at construction. The drawn parameters are therefore independent of
+When `init_params` is not given, the initial network parameters are drawn from a copy
+of the frozen generator. The drawn parameters are therefore independent of
 how many times `symbolic_discretize` or `discretize` has been called before:
 `symbolic_discretize(pdesys, disc)` followed by `discretize(pdesys, disc)`
 produces the same initial parameters (`u0`) as `discretize(pdesys, disc)` alone.
 
-Pass a seeded `rng` (for example `Xoshiro(seed)`) for a fully reproducible run —
-the initial parameters and the collocation points both come from generators seeded
-from it. A `StableRNG(seed)` from StableRNGs.jl also keeps those draws identical across
-Julia versions. With the default `Random.default_rng()` every constructed discretization
-draws fresh seeds, so two discretizations built back-to-back differ in weights and
-points; seeding the global generator before construction reproduces them.
+Pass a seeded `rng` (for example `Xoshiro(seed)`) to reproduce the initial parameters
+and collocation points drawn from the owned generators. A `StableRNG(seed)` from
+StableRNGs.jl keeps the RNG stream stable across Julia versions. The default
+`Random.default_rng()` supplies fresh seeds to each discretization. Seeding the
+global generator before construction reproduces those seeds.
 
 ## Example
 
@@ -336,9 +334,6 @@ function PhysicsInformedNN(
     )
     _check_integral_alg(integral_alg)
     chain = chain isa AbstractArray ? map(_to_lux, chain) : _to_lux(chain)
-    # Consume `rng` once to seed two owned generators: `init_rng` stays frozen so
-    # repeated `symbolic_discretize`/`discretize` calls draw the same initial
-    # parameters, while `rng` advances over collocation sampling.
     init_rng = _owned_rng(rng)
     rng = _owned_rng(rng)
     return PhysicsInformedNN(
@@ -347,18 +342,21 @@ function PhysicsInformedNN(
     )
 end
 
-# A reseeded copy keeps the generator's algorithm, so a `StableRNG` stays stable across
-# Julia versions; generators without `copy`/`seed!` (`RandomDevice`) seed a `Xoshiro`.
 function _owned_rng(rng::AbstractRNG)
     seed = rand(rng, UInt64)
-    if applicable(copy, rng)
-        owned = copy(rng)
-        if owned isa AbstractRNG && applicable(Random.seed!, owned, seed)
-            Random.seed!(owned, seed)
-            return owned
-        end
+    owned = applicable(copy, rng) ? copy(rng) : nothing
+    owned isa AbstractRNG && owned !== rng || return Random.Xoshiro(seed)
+    applicable(Random.seed!, owned, seed) || return owned
+    try
+        Random.seed!(owned, seed)
+    catch err
+        # Random can dispatch through a generic seed! method before discovering it is unsupported.
+        missing_seed = err isa MethodError && err.f === Random.seed! &&
+            !isempty(err.args) && first(err.args) === owned
+        (missing_seed || err isa Union{ArgumentError, ErrorException}) || rethrow()
+        return copy(rng)
     end
-    return Random.Xoshiro(seed)
+    return owned
 end
 
 _check_integral_alg(::Nothing) = nothing

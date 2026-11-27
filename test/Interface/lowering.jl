@@ -355,6 +355,43 @@ end
         getp(p2, pinn_metadata(p2).blocks[1].xs)(p2)
 end
 
+struct DrawOnlyRNG{RejectSeed} <: AbstractRNG
+    inner::Xoshiro
+end
+
+Base.copy(rng::R) where {R <: DrawOnlyRNG} = R(copy(rng.inner))
+Random.rand(rng::DrawOnlyRNG, ::Type{T}) where {T} = rand(rng.inner, T)
+Random.rand(rng::DrawOnlyRNG, ::Type{T}, dims::Dims) where {T} = rand(rng.inner, T, dims)
+
+function Random.seed!(rng::DrawOnlyRNG{true}, ::UInt64)
+    rand(rng, UInt64)
+    error("This RNG cannot be reseeded")
+end
+
+@testset "owned generators copy a non-reseedable rng (explicit rejection = $reject)" for reject in (false, true)
+    layer = Dense(2, 1; init_weight = (rng, dims...) -> rand(rng, Float32, dims))
+    R = DrawOnlyRNG{reject}
+    source = R(Xoshiro(3))
+    strategy = StochasticTraining(16)
+    d = PhysicsInformedNN(layer, strategy; rng = source)
+    @test d.init_rng isa R
+    @test d.rng isa R
+    @test d.init_rng !== d.rng
+    @test d.rng !== source
+    expected = Xoshiro(3)
+    rand(expected, UInt64)
+    @test d.init_rng isa R && d.init_rng.inner == expected
+    rand(expected, UInt64)
+    @test d.rng isa R && d.rng.inner == expected
+    p1 = discretize(pde_system, d)
+    p2 = discretize(pde_system, d)
+    fresh = discretize(pde_system, PhysicsInformedNN(layer, strategy; rng = R(Xoshiro(3))))
+    @test p1.u0 == p2.u0 == fresh.u0
+    xs(p) = getp(p, first(pinn_metadata(p).blocks).xs)(p)
+    @test xs(p1) == xs(fresh)
+    @test xs(p1) != xs(p2)
+end
+
 @testset "cost weights and quadrature weights" begin
     wprob = discretize(pde_system, disc; weights = [1.0, 10.0, 10.0, 10.0, 10.0])
     costs = [mean(abs2, getu(prob, b.residual)(prob)) for b in md.blocks]
