@@ -46,6 +46,12 @@ end
     @test occursin("pass `norm_loss_alg` explicitly", sprint(showerror, err))
 end
 
+@testset "default normalization rule resolves a translated peak" begin
+    check_default_mass_and_amplitude_gradient(
+        Normal(0.8, 0.001), Normal(0.375, 0.001), 0.0, 1.0
+    )
+end
+
 @testset "default normalization rule supports Cauchy priors" begin
     truncated_cauchy = truncated(Cauchy(0.375, 0.01), 0.0, 1.0)
     check_default_mass_and_amplitude_gradient(

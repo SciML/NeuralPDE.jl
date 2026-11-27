@@ -18,10 +18,12 @@ Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
 - `optimalg`: Optimizer used to train the network, or a vector/tuple of optimizers run
   in sequence; each stage warm-starts from the previous stage's parameters and is given
   `maxiters` iterations (`maxiters` may itself be a vector/tuple with one entry per stage).
-- `norm_loss_alg`: Integration algorithm used by the normalization loss. Defaults to a
-  quantile-partitioned adaptive Gauss-Kronrod rule based on `distrib`. Each time slice is
-  integrated between the distribution's tail, quartile, and median quantiles, so narrow
-  peaks are resolved without making the training work depend on the initial scale.
+- `norm_loss_alg`: Integration algorithm used by the normalization loss. The default
+  applies adaptive Gauss-Kronrod quadrature on uniform spatial panels split further at
+  quantiles of `distrib`. The uniform panel width targets at most about ten standard
+  deviations of a Gaussian with the same interquartile range as `distrib`, with at most
+  1,024 uniform panels. Pass `norm_loss_alg` explicitly if peaks can move away from the
+  initial quantiles and are narrower than this resolution supports.
 - `initial_parameters`: Initial network parameters. NeuralPDE draws them from `rng` when
   omitted.
 - `rng`: Random number generator for network parameter initialization when
@@ -140,10 +142,10 @@ end
 """
     resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
 
-Fill in the normalization loss quadrature when the caller left it unset. The initial
-distribution's quantiles partition the interval, and an adaptive Gauss-Kronrod rule is
-applied separately on each partition for every time slice. Call this once per solve so
-the quantile breakpoints are prepared outside automatic differentiation.
+Fill in the normalization loss quadrature when the caller left it unset. Uniform panels
+sample the full domain and the initial distribution's quantiles add local breakpoints.
+Prepare the breakpoints once per solve, outside automatic differentiation, and reuse
+them on each time slice.
 """
 struct _NormLossAlg{A, T}
     alg::A
@@ -187,13 +189,11 @@ function resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
         )
     )
 
-    breakpoints = sort!(
-        unique!(
-            vcat(
-                [x_0, x_end], clamp.(collect(quantiles), x_0, x_end)
-            )
-        )
-    )
+    interquartile_range = quantiles[7] - quantiles[3]
+    # Seven interquartile ranges span about 9.4 standard deviations for a Gaussian.
+    panel_count = ceil(Int, clamp((x_end - x_0) / (7 * interquartile_range), 4, 1024))
+    uniform_breakpoints = range(x_0, x_end; length = panel_count + 1)
+    breakpoints = sort!(unique!(vcat(uniform_breakpoints, clamp.(collect(quantiles), x_0, x_end))))
     return _NormLossAlg(QuadGKJL(), breakpoints)
 end
 
