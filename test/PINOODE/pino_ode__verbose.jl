@@ -1,5 +1,4 @@
 using NeuralPDE, SciMLBase, Lux, Optimisers, StableRNGs, Test
-using Logging: Logging
 
 include(joinpath(@__DIR__, "..", "helpers", "verbosity.jl"))
 
@@ -25,6 +24,5 @@ include(joinpath(@__DIR__, "..", "helpers", "verbosity.jl"))
     @testset "verbose = true" begin
         c = solve_captured(verbose = true)
         @test progress_counters(c, "PINOODE", "Callback") == [1, 2, 3]
-        @test all(r -> r.level == Logging.Info, c.records)
     end
 end

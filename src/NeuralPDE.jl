@@ -36,7 +36,7 @@ using SciMLBase: SciMLBase, BatchIntegralFunction, DAEProblem, IntegralProblem,
 using SciMLPublic: @public
 using SciMLLogging: SciMLLogging, @SciMLMessage, @verbosity_specifier, AbstractVerbosityPreset,
     AbstractVerbositySpecifier, All, Detailed, ErrorLevel, InfoLevel, MessageLevel, Minimal, None, Silent,
-    Standard
+    Standard, verbosity_to_int
 using Statistics: Statistics, mean
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
 using WeightInitializers: glorot_uniform, zeros32

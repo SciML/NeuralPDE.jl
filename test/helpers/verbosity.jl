@@ -1,5 +1,6 @@
 using Logging: Logging, with_logger
 using NeuralPDE: NeuralPDE
+using SciMLLogging: get_logging_backend
 using Test: Test
 
 const PROGRESS_MARKER = "Verbosity toggle: training_progress"
@@ -19,14 +20,19 @@ function capture_progress(f)
     return (; result, records, printed)
 end
 
-function progress_counters(c, solver, label = "Iter")
+function progress_counters(c, solver, label = "Iter"; backend = get_logging_backend())
+    messages = if backend == "core"
+        (c.printed,)
+    else
+        all(r -> r.level == Logging.Info, c.records) || return Int[]
+        (string(r.message) for r in c.records)
+    end
     pattern = Regex(
         PROGRESS_MARKER * raw"[^\S\n]*\n[^\S\n]*\[" * solver * raw"\]\s+" * label *
             raw": \[ *(\d+)(?:/\d+)?\]\s+Loss: (\S+)$", "m"
     )
-    messages = join((string.(getproperty.(c.records, :message))..., c.printed), '\n')
     counters = Int[]
-    for m in eachmatch(pattern, messages)
+    for message in messages, m in eachmatch(pattern, message)
         loss = tryparse(Float64, m[2])
         if loss !== nothing && isfinite(loss)
             push!(counters, parse(Int, m[1]))
@@ -35,7 +41,9 @@ function progress_counters(c, solver, label = "Iter")
     return counters
 end
 
-progress_shown(c, solver) = !isempty(progress_counters(c, solver))
+function progress_shown(c, solver; backend = get_logging_backend())
+    return !isempty(progress_counters(c, solver; backend))
+end
 
 function progress_hidden(c)
     return isempty(c.records) &&

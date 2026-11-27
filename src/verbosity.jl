@@ -21,6 +21,7 @@ Verbosity specifier for the `verbose` keyword of `solve` with [`NNODE`](@ref),
   - `training_progress`: report the loss on optimizer callbacks. An optimizer may call
     back more than once for the same iteration. This toggle is `Silent()` in the
     `None`, `Minimal` and `Standard` presets and `InfoLevel()` in `Detailed` and `All`.
+    The numeric severity must fit in `Int32`.
     Passing `ErrorLevel()` for this toggle causes `solve` to throw an
     `ArgumentError` before training setup.
 
@@ -48,6 +49,9 @@ function neuralpde_verbosity(verbose::NeuralPDEVerbosity)
     verbose.training_progress == ErrorLevel() && throw(
         ArgumentError("ErrorLevel() throws on emission. Choose a non-throwing message level for training_progress.")
     )
+    severity = verbosity_to_int(verbose.training_progress)
+    typemin(Int32) <= severity <= typemax(Int32) ||
+        throw(ArgumentError("training_progress log severity must fit in Int32."))
     return verbose
 end
 
