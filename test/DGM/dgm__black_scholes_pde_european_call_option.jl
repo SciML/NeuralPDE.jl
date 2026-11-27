@@ -23,7 +23,7 @@ using Test
     domains = [t ∈ Interval(0.0, T), x ∈ Interval(0.0, S * S_multiplier)]
 
     strategy = QuasiRandomTraining(128, minibatch = 32)
-    discretization = DeepGalerkin(2, 1, 16, 2, tanh, tanh, identity, strategy)
+    discretization = DeepGalerkin(2, 1, 40, 3, tanh, tanh, identity, strategy)
 
     @named pde_system = PDESystem(eq, bcs, domains, [t, x], [g(t, x)])
     prob = discretize(pde_system, discretization)

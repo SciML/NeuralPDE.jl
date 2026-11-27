@@ -49,7 +49,7 @@ const BURGER_REF_U = [
 
     # NeuralPDE
     strategy = QuasiRandomTraining(256, minibatch = 32)
-    discretization = DeepGalerkin(2, 1, 16, 2, tanh, tanh, identity, strategy)
+    discretization = DeepGalerkin(2, 1, 50, 5, tanh, tanh, identity, strategy)
     @named pde_system = PDESystem(eq, bcs, domains, [t, x], [u(t, x)])
     prob = discretize(pde_system, discretization)
 

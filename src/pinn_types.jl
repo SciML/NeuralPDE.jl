@@ -90,6 +90,21 @@ function SymbolicUtils.promote_shape(
 end
 nn_eval(f, X, θ) = f(X, θ)
 
+# Registration keeps symbolic simplification from materializing a host constant array.
+function _constant_row end
+Symbolics.@register_array_symbolic _constant_row(X::AbstractArray, value::Number) begin
+    size = (1, ndims(X) == 1 ? 1 : size(X, 2))
+    eltype = Real
+end false
+SymbolicUtils.promote_symtype(::typeof(_constant_row), X, value) = Array{Real, 2}
+function SymbolicUtils.promote_shape(
+        ::typeof(_constant_row), shX::SymbolicUtils.ShapeT, shvalue::SymbolicUtils.ShapeT
+    )
+    shX isa SymbolicUtils.Unknown && return SymbolicUtils.Unknown(2)
+    return SymbolicUtils.ShapeVecT([1:1, 1:(length(shX) == 1 ? 1 : length(shX[2]))])
+end
+_constant_row(X, value) = zero.(X[1:1, :]) .+ value
+
 """
     nn_eval_row(NN, X, θ, k)
 
