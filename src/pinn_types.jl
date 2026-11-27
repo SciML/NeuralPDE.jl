@@ -273,7 +273,9 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
   (for example, a `StableRNG` stays a `StableRNG`). Each copy is reseeded with its draw
   when supported. Copyable generators without reseeding use snapshots after each draw,
   so their streams are offset by one draw. A generator such as `RandomDevice` that
-  does not support copying supplies seeds for two `Xoshiro` generators.
+  does not support copying supplies seeds for two `Xoshiro` generators. RNG types can
+  signal an unsupported `copy(rng)` or `Random.seed!(rng, seed)` by leaving the method
+  undefined or throwing a `MethodError` for that exact call. Other errors propagate.
 * `derivative`: the [`AbstractDerivativeLowering`](@ref) used for `Differential`
   operators. Defaults to [`FiniteDifferenceDerivative`](@ref).
 * `param_estim`: when `true`, the parameters of the `PDESystem` are added to the
@@ -359,16 +361,17 @@ end
 
 function _owned_rng(rng::AbstractRNG)
     seed = rand(rng, UInt64)
-    owned = applicable(copy, rng) ? copy(rng) : nothing
+    owned = try
+        copy(rng)
+    catch err
+        err isa MethodError && err.f === copy && err.args === (rng,) || rethrow()
+        return Random.Xoshiro(seed)
+    end
     owned isa AbstractRNG && owned !== rng || return Random.Xoshiro(seed)
-    applicable(Random.seed!, owned, seed) || return owned
     try
         Random.seed!(owned, seed)
     catch err
-        # Random can dispatch through a generic seed! method before discovering it is unsupported.
-        missing_seed = err isa MethodError && err.f === Random.seed! &&
-            !isempty(err.args) && first(err.args) === owned
-        (missing_seed || err isa Union{ArgumentError, ErrorException}) || rethrow()
+        err isa MethodError && err.f === Random.seed! && err.args === (owned, seed) || rethrow()
         return copy(rng)
     end
     return owned

@@ -429,9 +429,9 @@ Base.copy(rng::R) where {R <: DrawOnlyRNG} = R(copy(rng.inner))
 Random.rand(rng::DrawOnlyRNG, ::Type{T}) where {T} = rand(rng.inner, T)
 Random.rand(rng::DrawOnlyRNG, ::Type{T}, dims::Dims) where {T} = rand(rng.inner, T, dims)
 
-function Random.seed!(rng::DrawOnlyRNG{true}, ::UInt64)
+function Random.seed!(rng::DrawOnlyRNG{true}, seed::UInt64)
     rand(rng, UInt64)
-    error("This RNG cannot be reseeded")
+    throw(MethodError(Random.seed!, (rng, seed)))
 end
 
 @testset "owned generators copy a non-reseedable rng (explicit rejection = $reject)" for reject in (false, true)
@@ -456,6 +456,38 @@ end
     xs(p) = getp(p, first(pinn_metadata(p).blocks).xs)(p)
     @test xs(p1) == xs(fresh)
     @test xs(p1) != xs(p2)
+end
+
+struct RejectCopyRNG{Unsupported} <: AbstractRNG
+    inner::Xoshiro
+end
+
+Random.rand(rng::RejectCopyRNG, ::Type{UInt64}) = rand(rng.inner, UInt64)
+Base.copy(rng::RejectCopyRNG{true}) = throw(MethodError(copy, (rng,)))
+Base.copy(::RejectCopyRNG{false}) = throw(ArgumentError("invalid copy state"))
+
+struct RejectSeedRNG <: AbstractRNG
+    inner::Xoshiro
+end
+
+Random.rand(rng::RejectSeedRNG, ::Type{UInt64}) = rand(rng.inner, UInt64)
+Base.copy(rng::RejectSeedRNG) = RejectSeedRNG(copy(rng.inner))
+Random.seed!(::RejectSeedRNG, ::UInt64) = throw(ArgumentError("invalid reseed state"))
+
+@testset "owned generator capability failures" begin
+    strategy = StochasticTraining(16)
+    @test_throws ArgumentError("invalid reseed state") PhysicsInformedNN(
+        chain, strategy; rng = RejectSeedRNG(Xoshiro(3))
+    )
+    @test_throws ArgumentError("invalid copy state") PhysicsInformedNN(
+        chain, strategy; rng = RejectCopyRNG{false}(Xoshiro(3))
+    )
+    source = RejectCopyRNG{true}(Xoshiro(3))
+    expected = copy(source.inner)
+    d = PhysicsInformedNN(chain, strategy; rng = source)
+    @test d.init_rng == Xoshiro(rand(expected, UInt64))
+    @test d.rng == Xoshiro(rand(expected, UInt64))
+    @test source.inner == expected
 end
 
 @testset "cost weights and quadrature weights" begin
