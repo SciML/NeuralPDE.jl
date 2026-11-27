@@ -23,9 +23,10 @@ Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
   up to nine quantiles of `distrib` and up to nine per positive-weight mixture component.
   The uniform panel width targets about ten standard deviations of a Gaussian with the
   same interquartile range as `distrib`, with limits of 1,024 uniform panels and 1,032
-  panels in total after clamping and deduplicating knots. The automatic rule checks
-  the integrated initial PDF mass against the enclosed CDF probability at relative
-  tolerance `1e-4` and tightens quadrature tolerances if needed. If it cannot construct
+  panels in total after clamping and deduplicating knots. The automatic rule divides
+  an absolute error budget of `1e-4` equally among the panels. It tightens this budget
+  if needed to match the enclosed CDF probability of the initial PDF at relative
+  tolerance `1e-4`. If it cannot construct
   or validate the rule, the solve throws an `ArgumentError` with instructions to pass
   `norm_loss_alg` explicitly. An explicit algorithm bypasses automatic validation and
   can resolve narrow peaks that move away from the initial quantiles.
@@ -147,7 +148,6 @@ end
 struct _NormLossAlg{A, T}
     alg::A
     breakpoints::Vector{T}
-    reltol::Float64
     abstol::Float64
 end
 
@@ -205,7 +205,12 @@ function resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
     sorted_breakpoints = sort!(collect(breakpoints))
 
     expected_mass = try
-        Distributions.cdf(distrib, x_end) - Distributions.cdf(distrib, x_0)
+        lower_cdf = Distributions.cdf(distrib, x_0)
+        if lower_cdf > 0.5
+            Distributions.ccdf(distrib, x_0) - Distributions.ccdf(distrib, x_end)
+        else
+            Distributions.cdf(distrib, x_end) - lower_cdf
+        end
     catch err
         err isa InterruptException && rethrow()
         throw(invalid_rule("could not compute enclosed CDF probability ($(sprint(showerror, err)))"))
@@ -213,7 +218,7 @@ function resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
     initial_pdf(x, d) = Distributions.pdf(d, x)
     alg = QuadGKJL()
     for tolerance in (mass_tolerance, mass_tolerance / 10, mass_tolerance / 100)
-        rule = _NormLossAlg(alg, sorted_breakpoints, tolerance, tolerance)
+        rule = _NormLossAlg(alg, sorted_breakpoints, tolerance)
         mass = try
             normalization_mass(initial_pdf, x_0, x_end, distrib, rule)
         catch err
@@ -237,12 +242,12 @@ Integrate `integrand` over `[x_0, x_end]` for the normalization loss.
 """
 function normalization_mass(integrand, x_0, x_end, θ, norm_loss_alg)
     if norm_loss_alg isa _NormLossAlg
-        (; alg, breakpoints, reltol, abstol) = norm_loss_alg
+        (; alg, breakpoints, abstol) = norm_loss_alg
         panel_count = length(breakpoints) - 1
         panel_abstol = abstol / panel_count
         masses = map(1:panel_count) do i
             prob = IntegralProblem(integrand, (breakpoints[i], breakpoints[i + 1]), θ)
-            solve(prob, alg; reltol, abstol = panel_abstol)[1]
+            solve(prob, alg; reltol = 0, abstol = panel_abstol)[1]
         end
         return sum(masses)
     end

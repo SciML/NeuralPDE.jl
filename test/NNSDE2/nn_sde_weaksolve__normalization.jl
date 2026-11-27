@@ -88,6 +88,21 @@ end
     @test evaluations[] <= 1755
 end
 
+@testset "default normalization rule integrates signed functions" begin
+    rule = resolve_norm_loss_alg(nothing, 0.0, 1.0, Normal(0.5, 1.0))
+    integrand(x, p) = p[1] * (1 + 10 * (x - 0.5) + 0.02 * cospi(136 * x))
+    mass(a) = normalization_mass(integrand, 0.0, 1.0, [a], rule)
+    @test mass(1.0) ≈ 1.0 atol = 1.0e-4
+    @test only(Zygote.gradient(mass, 1.0)) ≈ 1.0 atol = 1.0e-4
+end
+
+@testset "default normalization rule validates upper-tail mass" begin
+    d = Normal()
+    rule = resolve_norm_loss_alg(nothing, 9.0, 10.0, d)
+    mass = normalization_mass((x, p) -> pdf(p, x), 9.0, 10.0, d, rule)
+    @test mass ≈ exp(logdiffcdf(d, 10.0, 9.0)) rtol = 1.0e-4
+end
+
 @testset "default normalization rule supports Cauchy priors" begin
     truncated_cauchy = truncated(Cauchy(0.375, 0.01), 0.0, 1.0)
     check_default_mass_and_amplitude_gradient(truncated_cauchy, truncated_cauchy, 0.0, 1.0)
