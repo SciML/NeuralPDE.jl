@@ -49,7 +49,7 @@ function neuralpde_verbosity(verbose::NeuralPDEVerbosity)
     verbose.training_progress == ErrorLevel() && throw(
         ArgumentError("ErrorLevel() throws on emission. Choose a non-throwing message level for training_progress.")
     )
-    severity = verbosity_to_int(verbose.training_progress)
+    severity = SciMLLogging.verbosity_to_int(verbose.training_progress)
     typemin(Int32) <= severity <= typemax(Int32) ||
         throw(ArgumentError("training_progress log severity must fit in Int32."))
     return verbose

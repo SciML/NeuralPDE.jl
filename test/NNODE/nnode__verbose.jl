@@ -8,6 +8,20 @@ include(joinpath(@__DIR__, "..", "helpers", "verbosity.jl"))
 
 struct ForeignPreset <: AbstractVerbosityPreset end
 
+@testset "Training progress severity validation" begin
+    verbosity(level) = NeuralPDE.NeuralPDEVerbosity(; training_progress = level)
+    for severity in (typemin(Int32), typemax(Int32))
+        verbose = verbosity(MessageLevel(severity))
+        @test NeuralPDE.neuralpde_verbosity(verbose) === verbose
+    end
+    @test_throws ArgumentError NeuralPDE.neuralpde_verbosity(verbosity(ErrorLevel()))
+    if Sys.WORD_SIZE == 64
+        for severity in (Int64(typemin(Int32)) - 1, Int64(typemax(Int32)) + 1)
+            @test_throws ArgumentError NeuralPDE.neuralpde_verbosity(verbosity(MessageLevel(severity)))
+        end
+    end
+end
+
 @testset "training progress capture channels" begin
     stdout_only = capture_progress() do
         println(PROGRESS_MARKER, "\n [NNODE]\tIter: [1/2]\tLoss: 0.5")
