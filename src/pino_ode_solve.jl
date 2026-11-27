@@ -479,6 +479,7 @@ function SciMLBase.__solve(
         callback = nothing
     )
     check_no_integrator_callback(callback, "PINOODE")
+    verbosity = neuralpde_verbosity(verbose)
     (; tspan, u0, f) = prob
     (;
         chain, opt, bounds, number_of_parameters,
@@ -547,12 +548,11 @@ function SciMLBase.__solve(
     # Creates OptimizationFunction Object from total_loss
     optf = OptimizationFunction(total_loss, opt_algo)
 
-    verbosity = neuralpde_verbosity(verbose)
-    iteration = 0
+    callback_count = 0
     progress_callback = function (p, l)
-        iteration += 1
+        callback_count += 1
         @SciMLMessage(
-            () -> "Current loss is: $l, Iteration: $iteration", verbosity, :training_progress
+            () -> "[PINOODE]\tCallback: [$callback_count]\tLoss: $l", verbosity, :training_progress
         )
         return l < abstol
     end

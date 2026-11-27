@@ -18,29 +18,51 @@ Verbosity specifier for the `verbose` keyword of `solve` with [`NNODE`](@ref),
 
 ## Toggles
 
-  - `training_progress`: the loss reported once per optimizer iteration. `Silent()` in the
-    `None`, `Minimal` and `Standard` presets, `InfoLevel()` in `Detailed` and `All`.
+  - `training_progress`: report the loss on optimizer callbacks. An optimizer may call
+    back more than once for the same iteration. This toggle is `Silent()` in the
+    `None`, `Minimal` and `Standard` presets and `InfoLevel()` in `Detailed` and `All`.
+    Passing `ErrorLevel()` for this toggle causes `solve` to throw an
+    `ArgumentError` before training setup.
 
 ## Constructors
 
-    NeuralPDEVerbosity(preset::AbstractVerbosityPreset)
-    NeuralPDEVerbosity(; preset = nothing, kwargs...)
+    NeuralPDEVerbosity(preset::Union{None, Minimal, Standard, Detailed, All})
+    NeuralPDEVerbosity(; preset = nothing, training_progress = ...)
 
-Toggles are set by keyword, e.g. `NeuralPDEVerbosity(; training_progress = InfoLevel())`.
-`NeuralPDEVerbosity()` uses the `Standard` preset.
+Both constructors accept the five SciMLLogging presets listed above. The keyword
+constructor defaults to `Standard()`. The `training_progress` keyword overrides
+the selected preset's level.
 
 ## Accepted `verbose` values
 
   - omitted or `false`: no training progress.
   - `true`: training progress at `InfoLevel()`.
-  - A `NeuralPDEVerbosity` or an `AbstractVerbosityPreset` such as `Detailed()`.
+  - A `NeuralPDEVerbosity` or one of `None()`, `Minimal()`, `Standard()`,
+    `Detailed()` or `All()`. Other preset types raise an `ArgumentError`.
   - Any other `AbstractVerbositySpecifier`, such as the `DEVerbosity` that
     `DiffEqBase.solve` passes when `verbose` is omitted, configures other packages' messages
     and is treated as `NeuralPDEVerbosity()`.
 """ NeuralPDEVerbosity
 
-neuralpde_verbosity(verbose::NeuralPDEVerbosity) = verbose
-neuralpde_verbosity(verbose::AbstractVerbosityPreset) = NeuralPDEVerbosity(verbose)
+function neuralpde_verbosity(verbose::NeuralPDEVerbosity)
+    verbose.training_progress == ErrorLevel() && throw(
+        ArgumentError("ErrorLevel() throws on emission. Choose a non-throwing message level for training_progress.")
+    )
+    return verbose
+end
+
+function neuralpde_verbosity(preset::Union{None, Minimal, Standard, Detailed, All})
+    return NeuralPDEVerbosity(preset)
+end
+
+function neuralpde_verbosity(preset::AbstractVerbosityPreset)
+    throw(
+        ArgumentError(
+            "Unsupported verbosity preset $(nameof(typeof(preset))). Use None(), Minimal(), Standard(), Detailed(), or All()."
+        )
+    )
+end
+
 function neuralpde_verbosity(verbose::Bool)
     return verbose ? NeuralPDEVerbosity(; training_progress = InfoLevel()) :
         NeuralPDEVerbosity(None())

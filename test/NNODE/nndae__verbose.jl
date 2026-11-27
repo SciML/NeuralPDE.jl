@@ -21,7 +21,7 @@ include(joinpath(@__DIR__, "..", "helpers", "verbosity.jl"))
 
     @testset "verbose = true" begin
         c = solve_captured(verbose = true)
-        @test progress_shown(c)
+        @test progress_shown(c, "NNDAE")
         @test all(r -> r.level == Logging.Info, c.records)
     end
 end

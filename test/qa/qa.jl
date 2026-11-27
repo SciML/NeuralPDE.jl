@@ -52,7 +52,7 @@ run_qa(
     ei_kwargs = (;
         # Used only by the code `@verbosity_specifier` generates in src/verbosity.jl.
         no_stale_explicit_imports = (;
-            ignore = (:All, :Detailed, :MessageLevel, :Minimal, :Standard),
+            ignore = (:MessageLevel,),
         ),
         # Retain the reviewed Base.mapany, Base.Broadcast.dottable,
         # SymbolicUtils._iszero, and Symbolics.variables calls. ForwardDiff does not

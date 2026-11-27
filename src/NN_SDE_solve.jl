@@ -793,6 +793,7 @@ function SciMLBase.__solve(
         callback = nothing
     )
     check_no_integrator_callback(callback, "NNSDE")
+    verbosity = neuralpde_verbosity(verbose)
     (; u0, tspan, f, g, p) = prob
     # rescaling tspan discretization so KKL expansion can be applied for loss formulation
     tspan_scale = tspan ./ tspan[end]
@@ -910,7 +911,6 @@ function SciMLBase.__solve(
     opt_algo = ifelse(strategy isa QuadratureTraining, AutoForwardDiff(), AutoZygote())
     optf = OptimizationFunction(total_loss, opt_algo)
 
-    verbosity = neuralpde_verbosity(verbose)
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
     progress_callback = function (p, l)
         @SciMLMessage(

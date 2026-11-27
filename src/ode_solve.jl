@@ -512,6 +512,7 @@ function SciMLBase.__solve(
         callback = nothing
     )
     check_no_integrator_callback(callback, "NNODE")
+    verbosity = neuralpde_verbosity(verbose)
     (; u0, tspan, f, p) = prob
     t0 = tspan[1]
     # add estim_collocate, dataset (or nothing) in NNODE
@@ -600,7 +601,6 @@ function SciMLBase.__solve(
     opt_algo = ifelse(strategy isa QuadratureTraining, AutoForwardDiff(), AutoZygote())
     optf = OptimizationFunction(total_loss, opt_algo)
 
-    verbosity = neuralpde_verbosity(verbose)
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
     progress_callback = function (p, l)
         @SciMLMessage(

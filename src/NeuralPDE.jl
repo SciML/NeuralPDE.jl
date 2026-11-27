@@ -35,7 +35,7 @@ using SciMLBase: SciMLBase, BatchIntegralFunction, DAEProblem, IntegralProblem,
     symbolic_discretize
 using SciMLPublic: @public
 using SciMLLogging: SciMLLogging, @SciMLMessage, @verbosity_specifier, AbstractVerbosityPreset,
-    AbstractVerbositySpecifier, All, Detailed, InfoLevel, MessageLevel, Minimal, None, Silent,
+    AbstractVerbositySpecifier, All, Detailed, ErrorLevel, InfoLevel, MessageLevel, Minimal, None, Silent,
     Standard
 using Statistics: Statistics, mean
 using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
@@ -162,7 +162,7 @@ export ModelingToolkit, Differential, Integral, PDESystem, mtkcompile, unknowns,
 
 @public AbstractDerivativeLowering, PINNMetadata, ResidualBlock, TrialNetwork,
     AdditionalLoss, nn_eval, nn_eval_row, nn_jvp, nn_vcat, nn_veccat, quadrature,
-    QuadratureIntegrand,
+    QuadratureIntegrand, NeuralPDEVerbosity,
     default_adtype, lower, lower_derivative, trial_function,
     collocation_count, sample_points, resamples, uses_quadrature_weights
 

@@ -19,10 +19,25 @@ function capture_progress(f)
     return (; result, records, printed)
 end
 
-progress_shown(c) = !isempty(c.records) || occursin(PROGRESS_MARKER, c.printed)
+function progress_counters(c, solver, label = "Iter")
+    pattern = Regex(
+        PROGRESS_MARKER * raw"[^\S\n]*\n[^\S\n]*\[" * solver * raw"\]\s+" * label *
+            raw": \[ *(\d+)(?:/\d+)?\]\s+Loss: (\S+)$", "m"
+    )
+    messages = join((string.(getproperty.(c.records, :message))..., c.printed), '\n')
+    counters = Int[]
+    for m in eachmatch(pattern, messages)
+        loss = tryparse(Float64, m[2])
+        if loss !== nothing && isfinite(loss)
+            push!(counters, parse(Int, m[1]))
+        end
+    end
+    return counters
+end
 
-# Also rejects the pre-SciMLLogging `@printf`/`println` progress lines.
+progress_shown(c, solver) = !isempty(progress_counters(c, solver))
+
 function progress_hidden(c)
     return isempty(c.records) &&
-        !occursin(r"Verbosity toggle: training_progress|Iter: \[|Current loss is", c.printed)
+        !occursin(r"Verbosity toggle: training_progress|Iter: \[|Callback: \[", c.printed)
 end
