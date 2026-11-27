@@ -51,9 +51,10 @@ using Test
         dataset = [dataset, nothing]
     )
 
+    σ_prior = Normal(12.0, 2)
     @named pde_system = PDESystem(
         eqs, bcs, domains,
-        [t], [x(t), y(t), z(t)], [σ_], initial_conditions = Dict([p => 1.0 for p in [σ_]])
+        [t], [x(t), y(t), z(t)], [σ_]; initial_conditions = Dict(σ_ => mean(σ_prior))
     )
 
     sol1 = ahmc_bayesian_pinn_pde(
@@ -65,7 +66,7 @@ using Test
         l2std = [1, 1, 1],
         priorsNNw = (0.0, 1.0),
         saveats = [0.01],
-        param = [Normal(12.0, 2)]
+        param = [σ_prior]
     )
 
     idealp = 10.0
