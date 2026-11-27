@@ -48,6 +48,33 @@ using Test
         return X -> only(first(chain(X, ComponentArray(θnn, ax), st)))
     end
 
+    @testset "Masked derivative coordinates" begin
+        data = [0.0 0.5 0.2; 0.0 0.8 0.3]
+        dataset = [data]
+        chain = Lux.Chain(Lux.Dense(2, 1, abs2; use_bias = false))
+        disc = BayesianPINN(
+            chain, GridTraining(0.5); dataset = [dataset, nothing], rng = Random.Xoshiro(6)
+        )
+        θ = [0.5, 0.25]
+        σ = 0.3
+        for (term, residual) in (
+                (Dt(u(0.0, t)), (a, b, x, t) -> 2b^2 * t),
+                (Dt(u(t, x)), (a, b, x, t) -> 2a * (a * t + b * x)),
+            )
+            @named sys = PDESystem(
+                term ~ 0.0, [u(x, 0.0) ~ 0.0],
+                [x ∈ Interval(0.0, 1.0), t ∈ Interval(0.0, 1.0)], [x, t], [u(x, t)]
+            )
+            D = Dict(term => Symbolics.variable(:diff_1))
+            quadrature(θ) = quadrature_likelihood(sys, disc, D, dataset, chain, θ, σ)
+            reference(θ) = sum(
+                logpdf(Normal(0, σ), residual(θ..., x, t)) for (_, x, t) in eachrow(data)
+            )
+            @test quadrature(θ) ≈ reference(θ) atol = 1.0e-10 rtol = 0
+            @test ForwardDiff.gradient(quadrature, θ) ≈ ForwardDiff.gradient(reference, θ) atol = 1.0e-10 rtol = 0
+        end
+    end
+
     @testset "forcing = $forcing" for forcing in (zero, cos)
         @parameters t p
         @variables u(..)

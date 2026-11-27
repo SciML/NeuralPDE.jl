@@ -161,22 +161,24 @@ function _net_index(net_of, dep_op)
 end
 
 """
-Batched central finite-difference `∂ⁿ/∂X_dimⁿ` of `eval_at`, which maps a `d × n`
-coordinate batch to a length-`n` vector of network outputs. Primal steps in `X` keep
-the outer AdvancedHMC `ForwardDiff` seed on `θ` propagating through the network.
+Batched central finite difference of `eval_at` along the direction that shifts all
+coordinate rows in `dims` together. Primal steps in `X` keep the outer AdvancedHMC
+`ForwardDiff` seed on `θ` propagating through the network.
 """
-function _batched_nth(eval_at, Xbatch, dim::Int, n::Int; ε = 1.0e-3)
+function _batched_nth(eval_at, Xbatch, dims, n::Int; ε = 1.0e-3)
     n == 0 && return eval_at(Xbatch)
     Xp = copy(Xbatch)
     Xm = copy(Xbatch)
-    @views Xp[dim, :] .+= ε
-    @views Xm[dim, :] .-= ε
+    for dim in dims
+        @views Xp[dim, :] .+= ε
+        @views Xm[dim, :] .-= ε
+    end
     if n == 1
         return (eval_at(Xp) .- eval_at(Xm)) ./ (2ε)
     end
     return (
-        _batched_nth(eval_at, Xp, dim, n - 1; ε = ε) .-
-            _batched_nth(eval_at, Xm, dim, n - 1; ε = ε)
+        _batched_nth(eval_at, Xp, dims, n - 1; ε = ε) .-
+            _batched_nth(eval_at, Xm, dims, n - 1; ε = ε)
     ) ./ (2ε)
 end
 
@@ -225,6 +227,41 @@ function _term_coords(args, X, iv_index)
         k === nothing ? fill(_as_float(a), n) : X[k, :]
     end
     return reduce(vcat, (reshape(r, 1, :) for r in rows); init = zeros(0, n))
+end
+
+function _point_term_spec(term, X, setup)
+    (; iv_index, net_of, nets) = setup
+    if !(operation(term) isa ModelingToolkit.Differential)
+        ni = _net_index(net_of, operation(term))
+        return (; ni, coords = _term_coords(arguments(term), X, iv_index), dim_orders = ())
+    end
+
+    dep_op, orders, inner = _diff_spec(term)
+    ni = _net_index(net_of, dep_op)
+    args = arguments(inner)
+    coords = _term_coords(args, X, iv_index)
+    # A symbolic argument follows its own variable, while a literal follows the network slot.
+    directions = map(enumerate(args)) do (i, arg)
+        get(iv_index, unwrap(arg)) do
+            iv_index[unwrap(nets[ni].args[i])]
+        end
+    end
+    dim_orders = Tuple(findall(==(iv_index[iv]), directions) => ord for (iv, ord) in orders)
+    return (; ni, coords, dim_orders)
+end
+
+function _eval_point_term(spec, network_fns, nnθ, offsets)
+    ni = spec.ni
+    θi = nnθ[(offsets[ni] + 1):offsets[ni + 1]]
+    Φ = network_fns[ni]
+    f = X -> vec(Φ(X, θi))
+    for (dims, ord) in spec.dim_orders
+        f = let f_prev = f, dims = dims, ord = ord
+            X -> _batched_nth(f_prev, X, dims, ord)
+        end
+    end
+    T = eltype(nnθ)
+    return f(T.(spec.coords))
 end
 
 function _param_value(ics, p)
@@ -284,17 +321,10 @@ function build_data_quadrature(
         pde_system, Dict_differentials, dataset, network_fns, net_lengths, md
     )
     eqs = ModelingToolkit.get_eqs(pde_system)
-    (;
-        depvar_syms, depvar_set, iv_index, ninv, ps, offsets, net_of,
-    ) = _point_eval_setup(pde_system, md, net_lengths)
+    setup = _point_eval_setup(pde_system, md, net_lengths)
+    (; depvar_syms, depvar_set, iv_index, ninv, ps, offsets) = setup
     param_syms = [unwrap(p) for p in ps]
     ics = initial_conditions(md.pdesys)
-
-    diff_specs = Dict{Any, Any}()
-    for (diff_term, placeholder) in Dict_differentials
-        dep_op, orders, = _diff_spec(diff_term)
-        diff_specs[unwrap(placeholder)] = (dep_op, orders)
-    end
 
     eqs_masked = [SymbolicUtils.substitute(eq, Dict_differentials) for eq in eqs]
     call_map = _depvar_call_map(eqs, depvar_syms)
@@ -313,6 +343,10 @@ function build_data_quadrature(
     # `d × n` collocation matrix of independent-variable coordinates.
     coords = Matrix(transpose(dataset[1][:, 2:end]))
 
+    diff_specs = Dict(
+        unwrap(placeholder) => _point_term_spec(unwrap(term), coords, setup)
+            for (term, placeholder) in Dict_differentials
+    )
     placeholder_syms = collect(keys(diff_specs))
     u_syms = [call_map[name] for name in depvar_syms if haskey(call_map, name)]
     u_names = [name for name in depvar_syms if haskey(call_map, name)]
@@ -340,23 +374,9 @@ function build_data_quadrature(
         end
         Xbatch = T.(coords)
 
-        diff_batches = Dict{Any, Any}()
-        for (placeholder, (dep_op, orders)) in diff_specs
-            ni = _net_index(net_of, dep_op)
-            Φ = network_fns[ni]
-            θi = nnθ[(offsets[ni] + 1):offsets[ni + 1]]
-            eval_at = X -> vec(Φ(X, θi))
-            f = eval_at
-            for (iv, ord) in orders
-                dim = iv_index[unwrap(iv)]
-                f_prev = f
-                f = let f_prev = f_prev, dim = dim, ord = ord
-                    X -> _batched_nth(f_prev, X, dim, ord)
-                end
-            end
-            diff_batches[placeholder] = f(Xbatch)
+        diff_mat = map(placeholder_syms) do placeholder
+            _eval_point_term(diff_specs[placeholder], network_fns, nnθ, offsets)
         end
-        diff_mat = ntuple(i -> diff_batches[placeholder_syms[i]], length(placeholder_syms))
 
         for j in 1:n_rows
             dvals = ntuple(i -> diff_mat[i][j], length(placeholder_syms))
@@ -388,9 +408,8 @@ function build_physics_at_points(
         pde_system, dataset_pde, dataset_bc, network_fns, net_lengths, md,
         phystd, bcstd
     )
-    (;
-        depvar_set, nets, net_of, ps, ninv, iv_index, offsets,
-    ) = _point_eval_setup(pde_system, md, net_lengths)
+    setup = _point_eval_setup(pde_system, md, net_lengths)
+    (; depvar_set, ps, ninv, iv_index, offsets) = setup
     param_syms = [unwrap(p) for p in ps]
     ics = initial_conditions(md.pdesys)
 
@@ -408,30 +427,7 @@ function build_physics_at_points(
         rfn = Symbolics.build_function(
             expr_sub, phs..., freeivs..., param_syms...; expression = Val{false}
         )
-        specs = map(terms) do term
-            if operation(term) isa ModelingToolkit.Differential
-                dep_op, orders, inner = _diff_spec(term)
-                ni = _net_index(net_of, dep_op)
-                net_args = [unwrap(a) for a in nets[ni].args]
-                dim_orders = map(collect(orders)) do (iv, ord)
-                    dim = findfirst(a -> isequal(a, unwrap(iv)), net_args)
-                    dim === nothing && error(
-                        "Derivative with respect to $iv is not an input of $inner"
-                    )
-                    dim => ord
-                end
-                (;
-                    ni, coords = _term_coords(arguments(inner), coords, iv_index),
-                    dim_orders = Tuple(dim_orders),
-                )
-            else
-                (;
-                    ni = _net_index(net_of, operation(term)),
-                    coords = _term_coords(arguments(term), coords, iv_index),
-                    dim_orders = (),
-                )
-            end
-        end
+        specs = map(term -> _point_term_spec(term, coords, setup), terms)
         return (; rfn, specs, freeivs, coords, σ)
     end
 
@@ -465,16 +461,7 @@ function build_physics_at_points(
         end
         for p in preps
             termvals = map(p.specs) do spec
-                θi = nnθ[(offsets[spec.ni] + 1):offsets[spec.ni + 1]]
-                Φ = network_fns[spec.ni]
-                f = X -> vec(Φ(X, θi))
-                for (dim, ord) in spec.dim_orders
-                    f_prev = f
-                    f = let f_prev = f_prev, dim = dim, ord = ord
-                        X -> _batched_nth(f_prev, X, dim, ord)
-                    end
-                end
-                f(T.(spec.coords))
+                _eval_point_term(spec, network_fns, nnθ, offsets)
             end
             X = T.(p.coords)
             rvec = map(1:size(X, 2)) do j
