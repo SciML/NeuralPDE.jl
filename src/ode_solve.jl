@@ -512,6 +512,7 @@ function SciMLBase.__solve(
         callback = nothing
     )
     check_no_integrator_callback(callback, "NNODE")
+    verbosity = neuralpde_verbosity(verbose)
     (; u0, tspan, f, p) = prob
     t0 = tspan[1]
     # add estim_collocate, dataset (or nothing) in NNODE
@@ -611,13 +612,14 @@ function SciMLBase.__solve(
 
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
     progress_callback = function (p, l)
-        if verbose
-            if maxiters === nothing
-                @printf("[NNODE]\tIter: [%*d]\tLoss: %g\n", plen, p.iter, l)
+        @SciMLMessage(
+            () -> if maxiters === nothing
+                @sprintf("[NNODE]\tIter: [%*d]\tLoss: %g", plen, p.iter, l)
             else
-                @printf("[NNODE]\tIter: [%*d/%d]\tLoss: %g\n", plen, p.iter, maxiters, l)
-            end
-        end
+                @sprintf("[NNODE]\tIter: [%*d/%d]\tLoss: %g", plen, p.iter, maxiters, l)
+            end,
+            verbosity, :training_progress
+        )
         return l < abstol
     end
 

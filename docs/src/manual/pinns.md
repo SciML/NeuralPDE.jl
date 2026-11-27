@@ -257,6 +257,9 @@ worked out in the [transfer-learning tutorial](../tutorials/transfer_learning.md
 
 ## SDE Solvers
 
+For `NNSDE`, the `verbose` keyword of `solve` controls
+[training progress](@ref NeuralPDE.NeuralPDEVerbosity).
+
 ```@docs
 NeuralPDE.NNSDE
 NeuralPDE.SDEPINN

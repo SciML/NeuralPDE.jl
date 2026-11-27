@@ -4,6 +4,12 @@
 NNODE
 ```
 
+## Training progress
+
+```@docs
+NeuralPDE.NeuralPDEVerbosity
+```
+
 # Bayesian inference with PINNs
 
 !!! note "Loading the Bayesian PINN extension"

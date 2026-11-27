@@ -98,6 +98,7 @@ function SciMLBase.__solve(
         callback = nothing
     )
     check_no_integrator_callback(callback, "NNDAE")
+    verbosity = neuralpde_verbosity(verbose)
     (; u0, tspan, f, p, differential_vars) = prob
     t0 = tspan[1]
     (; chain, opt, autodiff, init_params) = alg
@@ -119,13 +120,14 @@ function SciMLBase.__solve(
 
     plen = maxiters === nothing ? 6 : ndigits(maxiters)
     progress_callback = function (p, l)
-        if verbose
-            if maxiters === nothing
-                @printf("[NNDAE]\tIter: [%*d]\tLoss: %g\n", plen, p.iter, l)
+        @SciMLMessage(
+            () -> if maxiters === nothing
+                @sprintf("[NNDAE]\tIter: [%*d]\tLoss: %g", plen, p.iter, l)
             else
-                @printf("[NNDAE]\tIter: [%*d/%d]\tLoss: %g\n", plen, p.iter, maxiters, l)
-            end
-        end
+                @sprintf("[NNDAE]\tIter: [%*d/%d]\tLoss: %g", plen, p.iter, maxiters, l)
+            end,
+            verbosity, :training_progress
+        )
         return l < abstol
     end
 
