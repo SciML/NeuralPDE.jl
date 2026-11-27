@@ -75,9 +75,17 @@ end
 end
 
 @testset "default normalization rule resolves a translated peak" begin
-    check_default_mass_and_amplitude_gradient(
-        Normal(0.8, 0.001), Normal(0.375, 0.001), 0.0, 1.0
-    )
+    density = Normal(0.8, 0.001)
+    rule = resolve_norm_loss_alg(nothing, 0.0, 1.0, Normal(0.375, 0.001))
+    check_mass_and_amplitude_gradient(density, 0.0, 1.0, rule)
+
+    evaluations = Ref(0)
+    function counted_pdf(x, d)
+        evaluations[] += 1
+        return pdf(d, x)
+    end
+    normalization_mass(counted_pdf, 0.0, 1.0, density, rule)
+    @test evaluations[] <= 1755
 end
 
 @testset "default normalization rule supports Cauchy priors" begin

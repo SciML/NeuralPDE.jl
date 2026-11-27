@@ -171,12 +171,11 @@ function resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
             "distribution $(repr(distrib)): $reason; pass `norm_loss_alg` explicitly"
     )
     function quantiles_for(d)
-        quantiles = map(probabilities) do probability
-            try
-                Distributions.quantile(d, probability)
-            catch err
-                throw(invalid_rule("could not compute quantiles of $(repr(d)) ($(sprint(showerror, err)))"))
-            end
+        quantiles = try
+            map(p -> Distributions.quantile(d, p), probabilities)
+        catch err
+            err isa InterruptException && rethrow()
+            throw(invalid_rule("could not compute quantiles of $(repr(d)) ($(sprint(showerror, err)))"))
         end
         all(isfinite, quantiles) || throw(invalid_rule("nonfinite quantiles of $(repr(d))"))
         allunique(quantiles) || throw(
@@ -187,7 +186,7 @@ function resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
 
     quantiles = quantiles_for(distrib)
     knots = [x_0, x_end, quantiles...]
-    if distrib isa Distributions.MixtureModel
+    if distrib isa Distributions.AbstractMixtureModel
         for (component, weight) in zip(Distributions.components(distrib), Distributions.probs(distrib))
             weight > 0 || continue
             append!(knots, quantiles_for(component))
@@ -199,23 +198,28 @@ function resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
     uniform_limit = min(1024, max_panels - (length(breakpoints) - 2))
     uniform_limit >= 1 || throw(invalid_rule("quantile knots exceed the $max_panels-panel limit"))
     interquartile_range = quantiles[7] - quantiles[3]
-    # Seven interquartile ranges span about 9.4 standard deviations for a Gaussian.
-    panel_count = min(
-        ceil(Int, clamp((x_end - x_0) / (7 * interquartile_range), 4, 1024)), uniform_limit
-    )
+    gaussian_iqr = 2 * Distributions.quantile(Distributions.Normal(), 0.75)
+    panel_width = 10 * (interquartile_range / gaussian_iqr)
+    panel_count = min(ceil(Int, clamp((x_end - x_0) / panel_width, 4, 1024)), uniform_limit)
     union!(breakpoints, range(x_0, x_end; length = panel_count + 1))
     sorted_breakpoints = sort!(collect(breakpoints))
 
     expected_mass = try
         Distributions.cdf(distrib, x_end) - Distributions.cdf(distrib, x_0)
     catch err
+        err isa InterruptException && rethrow()
         throw(invalid_rule("could not compute enclosed CDF probability ($(sprint(showerror, err)))"))
     end
     initial_pdf(x, d) = Distributions.pdf(d, x)
     alg = QuadGKJL()
     for tolerance in (mass_tolerance, mass_tolerance / 10, mass_tolerance / 100)
         rule = _NormLossAlg(alg, sorted_breakpoints, tolerance, tolerance)
-        mass = normalization_mass(initial_pdf, x_0, x_end, distrib, rule)
+        mass = try
+            normalization_mass(initial_pdf, x_0, x_end, distrib, rule)
+        catch err
+            err isa InterruptException && rethrow()
+            throw(invalid_rule("could not integrate the initial PDF ($(sprint(showerror, err)))"))
+        end
         isapprox(mass, expected_mass; rtol = mass_tolerance) && return rule
     end
     throw(
