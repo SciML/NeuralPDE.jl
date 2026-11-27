@@ -24,6 +24,7 @@ using MCMCChains: MCMCChains, Chains, sample
 using MonteCarloMeasurements: Particles
 using Printf: @printf
 using Random: Random
+using Statistics: quantile
 using Integrals: IntegralProblem, QuadGKJL
 using SciMLBase: SciMLBase, isinplace, solve, remake
 using SymbolicIndexingInterface: observed, parameter_values, state_values,

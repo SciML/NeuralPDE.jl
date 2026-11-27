@@ -588,6 +588,19 @@ function inference(samples, md, saveats, numensemble, ℓπ)
     return ensemblecurves, estimatedLuxparams, estimated_params, timepoints
 end
 
+function _initial_coefficient(value, prior, parameter)
+    isfinite(value) && isfinite(logpdf(prior, value)) && return value
+    candidate = Float64(quantile(prior, 0.5))
+    isfinite(candidate) && isfinite(logpdf(prior, candidate)) && return candidate
+    throw(
+        ArgumentError(
+            "Cannot initialize estimated PDE parameter `$parameter`: its initial value and " *
+                "prior median must provide at least one finite value with finite prior log density. " *
+                "Set a valid PDESystem initial condition or choose a different prior in `param`."
+        )
+    )
+end
+
 """
     ahmc_bayesian_pinn_pde(pde_system, discretization;
         draw_samples = 1000, bcstd = [0.01], l2std = [0.05], phystd = [0.05],
@@ -627,7 +640,9 @@ configured derivative method used by the discretized `System` costs.
 
 ## Keyword Arguments
 
-* `draw_samples`: number of MCMC samples (warmup is ~2/3 of this).
+* `draw_samples`: Number of MCMC iterations passed to AdvancedHMC. The sampler uses
+  AdvancedHMC's default adaptation schedule and retains adaptation draws in
+  `original.samples`.
 * `bcstd`: noise std of each boundary-condition residual batch.
 * `phystd`: noise std of each PDE residual batch.
 * `l2std`: one observation noise standard deviation per dependent variable.
@@ -639,6 +654,9 @@ configured derivative method used by the discretized `System` costs.
   from the trial network.
 * `priorsNNw`: `(mean, std)` of the isotropic Normal prior on network weights.
 * `param`: prior distributions of estimated PDE parameters (`param_estim = true`).
+  Each coefficient starts at its discretized initial value if both the value and its
+  prior log density are finite, and otherwise at a finite prior median with finite
+  prior log density.
 * `nchains`: number of MCMC chains.
 * `Kernel`, `Adaptorkwargs`, `Integratorkwargs`: AdvancedHMC sampling controls.
 * `saveats`: grid spacing per independent variable for the ensemble solution.
@@ -648,8 +666,8 @@ configured derivative method used by the discretized `System` costs.
   Set to `0` to sample directly from the network initialization. The objective
   contains physics/BC residuals, not the data likelihood or priors. Inverse problems
   default to a cold start because this objective can favor degenerate parameter
-  values. With explicit pretraining, estimated PDE parameters are reset to their
-  prior means before sampling.
+  values. With explicit pretraining, estimated PDE parameters are reset to the same
+  starting values selected by the `param` initialization rule before sampling.
 * `progress`, `verbose`: AdvancedHMC verbosity.
 
 Returns a [`BPINNsolution`](@ref) (or a vector of them when `nchains > 1`).
@@ -721,10 +739,10 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
     ninv == (pinn.param_estim ? length(md.ps) : 0) || error(
         "`param` length $ninv does not match number of estimated PDE parameters $(length(md.ps))"
     )
-    if ninv > 0
-        initial_θ[(end - ninv + 1):end] .=
-            Float64[Distributions.params(param[i])[1] for i in 1:ninv]
-    end
+    initial_coefficients = Float64[
+        _initial_coefficient(initial_θ[n_nn + i], param[i], md.ps[i]) for i in 1:ninv
+    ]
+    initial_θ[(n_nn + 1):end] .= initial_coefficients
 
     phystd_f = Float64.(phystd)
     bcstd_f = Float64.(bcstd)
@@ -795,10 +813,7 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
             # minimizer lives on `original_sol`.
             optsol = hasproperty(tres, :original_sol) ? tres.original_sol : tres
             θ0 = collect(Float64, optsol.u)
-            if ninv > 0
-                θ0[(end - ninv + 1):end] .=
-                    Float64[Distributions.params(param[i])[1] for i in 1:ninv]
-            end
+            θ0[(n_nn + 1):end] .= initial_coefficients
             if verbose
                 @printf(
                     "Pretrain objective after %d Adam steps: %g\n",
@@ -813,6 +828,14 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
                 "Current SSE against dataset Log-likelihood : %g\n", L2LossData(ℓπ, θ0)
             )
         end
+        initial_logdensity = LogDensityProblems.logdensity(ℓπ, θ0)
+        isfinite(initial_logdensity) || throw(
+            ArgumentError(
+                "Bayesian PDE initial log density is $initial_logdensity. Check that the " *
+                    "initial network and PDE coefficients produce finite residuals, the " *
+                    "priors have finite log density there, and the noise scales are positive and finite."
+            )
+        )
         initial_ϵ = find_good_stepsize(hamiltonian, θ0)
         integrator = integratorchoice(Integratorkwargs, initial_ϵ)
         adaptor = adaptorchoice(
@@ -838,7 +861,7 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
     if nchains != 1
         bpinnsols = Vector{Any}(undef, nchains)
         Threads.@threads for i in 1:nchains
-            θ0 = vcat(randn(nparameters - ninv), initial_θ[(nparameters - ninv + 1):end])
+            θ0 = vcat(randn(n_nn), initial_coefficients)
             bpinnsols[i] = _run_chain(θ0)
         end
         return bpinnsols
