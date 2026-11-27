@@ -73,6 +73,24 @@ end
     end
 end
 
+@testset "pure integral equation without boundary conditions" begin
+    @parameters t tau
+    @variables u(..)
+    I = Integral(tau in DomainSets.ClosedInterval(0.0, t))
+    eq = u(t) + I(u(tau)) ~ t + t^2 / 2
+    @named sys = PDESystem(
+        [eq], Equation[], [t ∈ Interval(0.0, 1.0)], [t], [u(t)]
+    )
+    disc = PhysicsInformedNN(Chain(Dense(1, 1)), GridTraining(0.2); init_params = LIN1)
+    rep = symbolic_discretize(sys, disc)
+    @test length(pinn_metadata(rep).blocks) == 1
+
+    prob = discretize(sys, disc)
+    @test prob.f(prob.u0, prob.p) ≈ 0.0 atol = 1.0e-16
+    sol = solve(remake(prob; u0 = zeros(2)), BFGS(); maxiters = 100)
+    @test maximum(abs(sol(v; dv = u(t)) - v) for v in (0.0, 0.35, 1.0)) < 1.0e-7
+end
+
 @testset "nested integrals" begin
     @parameters t tau sigma
     @variables x(..)
