@@ -24,7 +24,8 @@ reduced into a cost:
 `QuasiRandomTraining` with its default `LatinHyperCubeSample()` is a well-rounded training
 strategy which can be used for most situations. It scales well for high dimensional
 spaces and is GPU-compatible. `QuadratureTraining` can lead to faster or more robust
-convergence on smooth low-dimensional problems.
+convergence on smooth low-dimensional problems. Its quadrature nodes and weights are
+generated on the CPU, while residual evaluation follows the parameter device.
 
 `GridTraining` should only be used for testing purposes and should not be relied upon for real
 training cases. `StochasticTraining` achieves a lower convergence rate in the quasi-Monte Carlo
