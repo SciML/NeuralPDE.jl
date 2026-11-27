@@ -33,8 +33,38 @@ using Test
         strategy = GridTraining(0.01), dataset = dataset,
         param_estim = true
     )
+
     sol = solve(prob, alg; verbose = false, abstol = 1.0e-8, maxiters = 1000, saveat = t_)
 
     @test sol.k.u.p ≈ true_p atol = 1.0e-2
     @test reduce(hcat, sol.u) ≈ sol_points atol = 1.0e-2
+end
+
+@testset "NNODE parameter containers" begin
+    using Random, Lux, OptimizationOptimJL, LineSearches
+    using Optim: BFGS
+
+    luxchain = Chain(Dense(1, 1))
+    init_params, _ = Lux.setup(MersenneTwister(100), luxchain)
+    alg = NNODE(
+        luxchain, BFGS(linesearch = BackTracking()), init_params;
+        strategy = GridTraining(0.25), dataset = [[0.0, 2.0], [0.0, 1.0], [1.0, 1.0]],
+        param_estim = true
+    )
+
+    @testset "$kind" for (kind, p, rate) in (
+            ("scalar", 1.0, identity),
+            ("numeric vector", [1.0], only),
+            ("named tuple", (rate = 1.0,), p -> p.rate),
+        )
+        prob = ODEProblem((u, p, t) -> rate(p), 0.0, (0.0, 1.0), p)
+        sol = solve(prob, alg; verbose = false, abstol = 1.0e-12, maxiters = 100, saveat = [0.0, 1.0])
+        @test rate(sol.k.u.p) ≈ 2.0 atol = 1.0e-5
+    end
+
+    prob = ODEProblem((u, p, t) -> only(p), 0.0, (0.0, 1.0), (1.0,))
+    @test_throws ArgumentError(
+        "NNODE received tuple parameters for parameter estimation. " *
+            "Pass a numeric vector such as [a, b] as the ODEProblem parameters."
+    ) solve(prob, alg; verbose = false, maxiters = 1)
 end
