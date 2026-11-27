@@ -430,23 +430,17 @@ cb = (state, loss) -> (resample!(state.p, md); false)
 solve(prob, Adam(); callback = cb, maxiters = 1000)
 ```
 
-The points are drawn from the discretization's own `rng` (a generator seeded at
-construction from the `rng` passed to [`PhysicsInformedNN`](@ref)), not from the
-global `Random.default_rng()`, so a seeded discretization resamples reproducibly.
-Pass an explicit seeded generator to resample deterministically and independently
-of the discretization's stream:
+Stochastic training uses the discretization's sampling generator by default. Pass an
+explicit seeded generator to resample deterministically and independently of that stream:
 
 ```julia
 resample!(p, md; rng = Xoshiro(seed))
 ```
 
-For `QuasiRandomTraining` the generator seeds randomized sampling algorithms —
-those carrying an `rng` field (for example `LatinHypercubeSample`) and nested
-`R`-randomizations such as `OwenScramble` or `Shift` on `SobolSample` /
-`LatticeRuleSample` / `HaltonSample`. It replaces any generator already stored
-on the sampler. With the default `R = NoRand()`, `SobolSample`,
-`LatticeRuleSample` and `HaltonSample` draw the same points on every call, so
-`resample!` leaves them unchanged.
+For `QuasiRandomTraining`, built-in randomized samplers such as `LatinHypercubeSample`
+and built-in randomizations such as `OwenScramble` or `Shift` use the same generator.
+Custom samplers and randomizations manage their own randomness. With `R = NoRand()`,
+`SobolSample`, `LatticeRuleSample` and `HaltonSample` redraw the same points on every call.
 
 !!! warning
 

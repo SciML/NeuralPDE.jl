@@ -135,10 +135,10 @@ that accelerate the convergence in high dimensional spaces over pure random sequ
 
 * `bcs_points`: the number of quasi-random points in a sample for boundary conditions
   (by default, it equals `points`),
-* `sampling_alg`: the quasi-Monte Carlo sampling algorithm. When the discretization's
-  `rng` (or an explicit `rng` passed to [`resample!`](@ref)) is applied, it replaces any
-  generator already stored on the sampler or on its nested randomization (`R.rng`), so a
-  user-supplied `LatinHypercubeSample(Xoshiro(99))` is overridden by the discretization.
+* `sampling_alg`: the quasi-Monte Carlo sampling algorithm. For PDEs, built-in randomized
+  samplers such as `LatinHypercubeSample` and built-in randomizations such as `Shift`
+  use the discretization's `rng` (or the `rng` passed to [`resample!`](@ref)).
+  Custom samplers and randomizations manage their own randomness.
 * `resampling`: whether [`resample!`](@ref) draws a new sample for PDE problems. For the
   ODE solvers, `false` generates `minibatch` samples in advance and selects one of them at
   random on every objective evaluation.
@@ -406,25 +406,32 @@ function sample_points(strategy::QuasiRandomTraining, block::ResidualBlock, rng)
     return Matrix{eltype(lb)}(reshape(X, length(lb), block.npoints)), nothing
 end
 
-# Rebuild `x` with `rng` while keeping every other field (needed for
-# `OwenScramble(base, pad, rng)` and any future sampler with settings beyond `rng`).
-function _with_rng(x, rng)
-    return typeof(x)(; (; (k => getfield(x, k) for k in fieldnames(typeof(x)))..., rng)...)
+_seed_sampling_alg(alg, rng) = alg
+_seed_sampling_alg(::LatinHypercubeSample, rng) = LatinHypercubeSample(; rng)
+_seed_sampling_alg(::RandomSample, rng) = RandomSample(; rng)
+_seed_sampling_alg(::RandomizedHaltonSample, rng) = RandomizedHaltonSample(; rng)
+
+for Sampler in (FaureSample, GridSample, HaltonSample, LatticeRuleSample, SobolSample)
+    @eval function _seed_sampling_alg(alg::$Sampler, rng)
+        R = _seed_randomization(alg.R, rng)
+        return R === alg.R ? alg : $Sampler(; R)
+    end
 end
 
-# Randomized samplers (`LatinHypercubeSample`, `RandomSample`, ...) carry a top-level
-# `rng`. Deterministic QMC bases (`SobolSample`, `LatticeRuleSample`, `HaltonSample`)
-# with `R = NoRand()` ignore `rng`; with an `R`-randomization (`OwenScramble`, `Shift`)
-# the generator lives on `alg.R.rng` and must be re-seeded as well.
-function _seed_sampling_alg(alg, rng)
-    if hasproperty(alg, :R) && hasproperty(alg.R, :rng)
-        R = _with_rng(alg.R, rng)
-        return typeof(alg)(; (; (k => getfield(alg, k) for k in fieldnames(typeof(alg)))..., R)...)
-    elseif hasproperty(alg, :rng)
-        return _with_rng(alg, rng)
-    else
-        return alg
-    end
+function _seed_sampling_alg(alg::KroneckerSample, rng)
+    R = _seed_randomization(alg.R, rng)
+    return R === alg.R ? alg : KroneckerSample(; alg.generator, R)
+end
+
+function _seed_sampling_alg(alg::VanDerCorputSample, rng)
+    R = _seed_randomization(alg.R, rng)
+    return R === alg.R ? alg : VanDerCorputSample(; alg.base, R)
+end
+
+_seed_randomization(R, rng) = R
+_seed_randomization(::Shift, rng) = Shift(; rng)
+for Randomization in (DigitalShift, MatousekScramble, OwenScramble)
+    @eval _seed_randomization(R::$Randomization, rng) = $Randomization(; R.base, R.pad, rng)
 end
 
 resamples(strategy::QuasiRandomTraining) = strategy.resampling

@@ -33,20 +33,15 @@ methods and thus `QuasiRandomTraining` should be preferred in most cases. `Weigh
 ## Resampling and quasi-Newton optimizers
 
 `StochasticTraining` and `QuasiRandomTraining` (with `resampling = true`) redraw their
-collocation points when [`resample!`](@ref) is called from a `solve` callback. The points
-are drawn from the discretization's own random number generator (seeded from the `rng`
-passed to [`PhysicsInformedNN`](@ref), not the global `Random.default_rng()`), so a seeded
-discretization resamples reproducibly; passing `rng = Xoshiro(seed)` to [`resample!`](@ref)
-draws deterministically and independently of the discretization's stream. That generator
-also replaces any `rng` already stored on a `QuasiRandomTraining` sampling algorithm (or
-on its nested `R` randomization), so `LatinHypercubeSample(Xoshiro(99))` is overridden by
-the discretization's stream.
+collocation points when [`resample!`](@ref) is called from a `solve` callback.
+Stochastic training uses the sampling generator owned by [`PhysicsInformedNN`](@ref).
+Pass `rng = Xoshiro(seed)` to [`resample!`](@ref) for a reproducible draw independent
+of that stream.
 
-For `QuasiRandomTraining`, seeded draws are reproducible for randomized sampling
-algorithms — those carrying an `rng` field, such as `LatinHypercubeSample`,
-`RandomSample` and `RandomizedHaltonSample` — and for QMC bases with an
-`R`-randomization whose generator lives on `R.rng` (for example
-`SobolSample(R = OwenScramble(...))` or `SobolSample(R = Shift())`). With the default
+`QuasiRandomTraining` uses the same generator for built-in randomized samplers such as
+`LatinHypercubeSample`, `RandomSample` and `RandomizedHaltonSample`, and built-in
+randomizations such as `OwenScramble` or `Shift` on a `SobolSample`. Custom samplers and
+randomizations manage their own randomness. With the default
 `R = NoRand()`, `SobolSample`, `LatticeRuleSample` and `HaltonSample` draw the same
 points on every `resample!` call, so resampling has no effect on them. `GridTraining`
 and `QuadratureTraining` never resample.

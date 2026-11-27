@@ -274,6 +274,48 @@ end
     @test getp(oprob2, pinn_metadata(oprob2).blocks[1].xs)(oprob2) == Xo0
 end
 
+struct PositionalSampler <: QuasiMonteCarlo.SamplingAlgorithm
+    rng::Xoshiro
+end
+
+function QuasiMonteCarlo.sample(n::Integer, d::Integer, sampler::PositionalSampler, T = Float64)
+    return rand(sampler.rng, T, d, n)
+end
+
+struct PositionalRandomizedSampler{R} <: QuasiMonteCarlo.SamplingAlgorithm
+    R::R
+end
+
+function QuasiMonteCarlo.sample(
+        n::Integer, d::Integer, sampler::PositionalRandomizedSampler, T = Float64
+    )
+    return QuasiMonteCarlo.sample(n, d, SobolSample(; sampler.R), T)
+end
+
+@testset "positional QMC sampler (nested randomization = $nested)" for nested in (false, true)
+    make_sampler(rng) =
+        nested ? PositionalRandomizedSampler(QuasiMonteCarlo.Shift(; rng)) : PositionalSampler(rng)
+    sampler_rng = Xoshiro(10)
+    qdisc = PhysicsInformedNN(
+        chain, QuasiRandomTraining(16; sampling_alg = make_sampler(sampler_rng));
+        rng = Xoshiro(2)
+    )
+    expected = make_sampler(copy(sampler_rng))
+    qprob = discretize(pde_system, qdisc)
+    qmd = pinn_metadata(qprob)
+    for block in qmd.blocks
+        X = QuasiMonteCarlo.sample(block.npoints, block.bounds..., expected)
+        @test getp(qprob, block.xs)(qprob) == X
+    end
+    explicit_rng = Xoshiro(42)
+    resample!(qprob.p, qmd; rng = explicit_rng)
+    for block in qmd.blocks
+        X = QuasiMonteCarlo.sample(block.npoints, block.bounds..., expected)
+        @test getp(qprob, block.xs)(qprob) == X
+    end
+    @test explicit_rng == Xoshiro(42)
+end
+
 @testset "unseeded discretizations draw distinct weights and points" begin
     d1 = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20))
     d2 = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20))
