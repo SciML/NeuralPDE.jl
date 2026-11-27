@@ -399,7 +399,10 @@ function normalize_state(::Type{T}, x::Union{AbstractArray, Ref}, seen) where {T
 end
 function normalize_state(::Type{T}, x::NamedTuple{names}, seen) where {T, names}
     normalized = map(names, values(x)) do name, value
-        return name === :training ? Val(false) : normalize_state(T, value, seen)
+        if name === :training && value isa Union{Bool, Val{true}, Val{false}}
+            return Val(false)
+        end
+        return normalize_state(T, value, seen)
     end
     return NamedTuple{names}(normalized)
 end

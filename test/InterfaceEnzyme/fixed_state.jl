@@ -143,23 +143,36 @@ end
     end
 
     @testset "inference field batching: $layer" for layer in (Dropout(0.5), BatchNorm(8))
-        chain = Chain(; input = Dense(1, 8, tanh), inference = layer, output = Dense(8, 1))
+        chain = Chain(; input = Dense(1, 8, tanh), training = layer, output = Dense(8, 1))
         prob = discretize(
             field_system, PhysicsInformedNN(chain, GridTraining(0.25); rng = Xoshiro(77))
         )
-        phi = NeuralPDE.trial_function(only(pinn_metadata(prob).networks), prob.u0)
+        net = only(pinn_metadata(prob).networks)
+        phi = NeuralPDE.trial_function(net, prob.u0)
+        model = ModelingToolkitNeuralNets.get_network(getdefault(net.NN))
         ps, st = LuxCore.setup(Xoshiro(77), chain)
         ps = ComponentArray{Float64}(ps)
+        st = LuxCore.testmode(st)
+        stored = model.st.training
+        initial_state = deepcopy(stored)
         X = [0.1 0.7 0.4 0.7]
-        expected = first(chain(X, ps, LuxCore.testmode(st)))
+        expected = first(chain(X, ps, st))
         @test phi(X) == expected
+        @test stored.training === Val(false)
+        if layer isa BatchNorm
+            @test stored.running_mean == st.training.running_mean
+            @test stored.running_var == st.training.running_var
+        end
         @test phi(fill(0.7, 1, 8)) ≈ fill(only(phi(fill(0.7, 1, 1))), 1, 8)
-        @test phi(X) ≈ hcat((phi(X[:, i:i]) for i in axes(X, 2))...)
+        for i in axes(X, 2)
+            @test phi(X[:, i:i]) ≈ expected[:, i:i]
+        end
         loss = prob.f(prob.u0, prob.p)
         @test isfinite(loss)
         @test prob.f(prob.u0, prob.p) == loss
         @test fixed_state_default_gradient(prob) ≈
             ForwardDiff.gradient(w -> prob.f(w, prob.p), prob.u0) rtol = 1.0e-6
+        @test model.st.training == initial_state
         @test phi(X) ≈ expected
     end
 
