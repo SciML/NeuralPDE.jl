@@ -72,7 +72,7 @@ end
 
 @views function L2LossData(ltd::PDELogTargetDensity, θ)
     dataset = ltd.dataset
-    (dataset === nothing || ltd.extraparams ≤ 0) && return zero(eltype(θ))
+    dataset === nothing && return zero(eltype(θ))
     T = eltype(θ)
     sumt = zero(T)
     nnθ = θ[1:(end - ltd.extraparams)]
@@ -636,7 +636,7 @@ configured derivative method used by the discretized `System` costs.
 * `draw_samples`: number of MCMC samples (warmup is ~2/3 of this).
 * `bcstd`: noise std of each boundary-condition residual batch.
 * `phystd`: noise std of each PDE residual batch.
-* `l2std`: noise std of the observational L2 likelihood (inverse problems).
+* `l2std`: one observation noise standard deviation per dependent variable.
 * `phynewstd`: noise std of the data-quadrature / operator-masking likelihood built
   from `Dict_differentials` (ignored when that keyword is `nothing`).
 * `Dict_differentials`: optional `Dict` mapping Differential trees in the PDE to
@@ -698,7 +698,7 @@ function NeuralPDE.ahmc_bayesian_pinn_pde(
                 `param_estim = true`."
             )
         )
-    elseif pinn.param_estim && length(l2std) != length(md.networks)
+    elseif dataset !== nothing && length(l2std) != length(md.networks)
         error("L2 stds length must match number of dependent variables")
     end
 

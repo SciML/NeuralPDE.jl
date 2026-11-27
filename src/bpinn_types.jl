@@ -182,13 +182,13 @@ parameters (and of estimated PDE parameters when `param_estim = true`).
 
 `BayesianPINN` is a thin wrapper around [`PhysicsInformedNN`](@ref): all positional and
 keyword arguments are forwarded except `dataset`, which stores optional observational
-data for inverse problems. Prefer this type over adding Bayesian-only keywords to
-`PhysicsInformedNN`, so the optimization and Bayesian paths stay distinct while sharing
-the same residual lowering.
+data. The observations inform the likelihood for both fixed and estimated PDE parameters.
+Prefer this type over adding Bayesian-only keywords to `PhysicsInformedNN`, so the
+optimization and Bayesian paths stay distinct while sharing the same residual lowering.
 
 ## Keyword Arguments
 
-* `dataset`: `nothing` (forward problems) or a pair
+* `dataset`: `nothing` or a pair
   `(dataset_pde, dataset_bc)` where each entry is `nothing` or a vector of matrices.
   Matrix `i` has the observed values of the `i`-th dependent variable in column 1 and
   the corresponding independent-variable coordinates in the remaining columns.
