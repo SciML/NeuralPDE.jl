@@ -91,6 +91,39 @@ end
     @test maximum(abs(sol(v; dv = u(t)) - v) for v in (0.0, 0.35, 1.0)) < 1.0e-7
 end
 
+@testset "complex Volterra integral equation" begin
+    @parameters t tau
+    @variables u(..)::Complex
+    I = Integral(tau in DomainSets.ClosedInterval(0.0, t))
+    eqs = [
+        real(u(t)) + I(real(u(tau))) ~ t + t^2 / 2,
+        imag(u(t)) + I(imag(u(tau))) ~ 2t + t^2,
+    ]
+    chains = [Chain(Dense(1, 1)), Chain(Dense(1, 1))]
+    disc = PhysicsInformedNN(chains, GridTraining(0.2); init_params = [LIN1, [2.0, 0.0]])
+    for (label, bcs) in (
+            ("with endpoint conditions", [real(u(0.0)) ~ 0.0, imag(u(0.0)) ~ 0.0]),
+            ("without endpoint conditions", Equation[]),
+        )
+        @testset "$label" begin
+            @named sys = PDESystem(eqs, bcs, [t ∈ Interval(0.0, 1.0)], [t], [u(t)])
+            prob = discretize(sys, disc)
+            blocks = pinn_metadata(prob).blocks
+            pde_blocks = filter(block -> block.kind == :pde, blocks)
+            @test length(pde_blocks) == 2
+            @test count(block -> block.kind == :bc, blocks) == length(bcs)
+
+            zero_prob = remake(prob; u0 = zeros(length(prob.u0)))
+            for (block, scale) in zip(pde_blocks, (1, 2))
+                ts = getp(zero_prob, block.xs)(zero_prob)
+                residual = getu(zero_prob, block.residual)(zero_prob)
+                @test residual ≈ -scale .* (ts .+ ts .^ 2 ./ 2) atol = 1.0e-8
+            end
+            @test prob.f(prob.u0, prob.p) ≈ 0.0 atol = 1.0e-16
+        end
+    end
+end
+
 @testset "nested integrals" begin
     @parameters t tau sigma
     @variables x(..)
