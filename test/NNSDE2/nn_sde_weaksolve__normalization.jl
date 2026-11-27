@@ -11,15 +11,17 @@ enclosed(mu) = cdf(Normal(mu, 0.01), 4.0) - cdf(Normal(mu, 0.01), -4.0)
 lorentz(x, p) = (p[1] / pi) / ((x - 0.5)^2 + p[1]^2)
 exact_lorentz_mass(c) = (2 / pi) * atan(0.5 / c)
 
-function check_default_mass_and_amplitude_gradient(d, initial, lo, hi; check_gradient = true)
-    alg = resolve_norm_loss_alg(nothing, lo, hi, initial)
+function check_mass_and_amplitude_gradient(d, lo, hi, alg)
     exact = cdf(d, hi) - cdf(d, lo)
     density(x, p) = p[1] * pdf(d, x)
     mass(a) = normalization_mass(density, lo, hi, [a], alg)
     @test mass(1.0) ≈ exact rtol = 1.0e-4
-    return if check_gradient
-        @test Zygote.gradient(mass, 1.0)[1] ≈ exact rtol = 1.0e-4
-    end
+    return @test Zygote.gradient(mass, 1.0)[1] ≈ exact rtol = 1.0e-4
+end
+
+function check_default_mass_and_amplitude_gradient(d, initial, lo, hi)
+    alg = resolve_norm_loss_alg(nothing, lo, hi, initial)
+    return check_mass_and_amplitude_gradient(d, lo, hi, alg)
 end
 
 @testset "default normalization rule tracks quantiles" begin
@@ -36,14 +38,40 @@ end
     capped = Normal(0.50048828125, 1.0e-6)
     check_default_mass_and_amplitude_gradient(capped, capped, 0.0, 1.0)
 
+    coincident = Normal(0.5, 1.0e-20)
     err = try
-        resolve_norm_loss_alg(nothing, 0.0, 1.0, Normal(0.5, 1.0e-20))
+        resolve_norm_loss_alg(nothing, 0.0, 1.0, coincident)
         nothing
     catch e
         e
     end
     @test err isa ArgumentError
     @test occursin("pass `norm_loss_alg` explicitly", sprint(showerror, err))
+    explicit_rule = QuadGKJL()
+    @test resolve_norm_loss_alg(explicit_rule, 0.0, 1.0, coincident) === explicit_rule
+end
+
+@testset "default normalization rule resolves uneven mixture weights" begin
+    mixture = MixtureModel([Normal(-1.0, 1.0e-6), Normal(1.0, 1.0e-6)], [0.99, 0.01])
+    alg = resolve_norm_loss_alg(nothing, -2.0, 2.0, mixture)
+    @test length(alg.breakpoints) - 1 <= 1032
+    check_mass_and_amplitude_gradient(mixture, -2.0, 2.0, alg)
+end
+
+@testset "default normalization rule validates distinct knots near machine precision" begin
+    normal = Normal(0.5, 1.0e-14)
+    rule = try
+        resolve_norm_loss_alg(nothing, 0.0, 1.0, normal)
+    catch err
+        err isa ArgumentError || rethrow()
+        err
+    end
+    if rule isa ArgumentError
+        @test occursin("enclosed CDF probability", sprint(showerror, rule))
+        @test occursin("pass `norm_loss_alg` explicitly", sprint(showerror, rule))
+    else
+        check_mass_and_amplitude_gradient(normal, 0.0, 1.0, rule)
+    end
 end
 
 @testset "default normalization rule resolves a translated peak" begin
@@ -54,13 +82,9 @@ end
 
 @testset "default normalization rule supports Cauchy priors" begin
     truncated_cauchy = truncated(Cauchy(0.375, 0.01), 0.0, 1.0)
-    check_default_mass_and_amplitude_gradient(
-        truncated_cauchy, truncated_cauchy, 0.0, 1.0; check_gradient = false
-    )
+    check_default_mass_and_amplitude_gradient(truncated_cauchy, truncated_cauchy, 0.0, 1.0)
     cauchy = Cauchy(0.375, 0.001)
-    check_default_mass_and_amplitude_gradient(
-        cauchy, cauchy, 0.0, 1.0; check_gradient = false
-    )
+    check_default_mass_and_amplitude_gradient(cauchy, cauchy, 0.0, 1.0)
 end
 
 @testset "narrow peak with the default rule" begin

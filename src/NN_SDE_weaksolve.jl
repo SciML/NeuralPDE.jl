@@ -20,10 +20,15 @@ Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
   `maxiters` iterations (`maxiters` may itself be a vector/tuple with one entry per stage).
 - `norm_loss_alg`: Integration algorithm used by the normalization loss. The default
   applies adaptive Gauss-Kronrod quadrature on uniform spatial panels split further at
-  quantiles of `distrib`. The uniform panel width targets at most about ten standard
-  deviations of a Gaussian with the same interquartile range as `distrib`, with at most
-  1,024 uniform panels. Pass `norm_loss_alg` explicitly if peaks can move away from the
-  initial quantiles and are narrower than this resolution supports.
+  up to nine quantiles of `distrib` and up to nine per positive-weight mixture component.
+  The uniform panel width targets about ten standard deviations of a Gaussian with the
+  same interquartile range as `distrib`, with limits of 1,024 uniform panels and 1,032
+  panels in total after clamping and deduplicating knots. The automatic rule checks
+  the integrated initial PDF mass against the enclosed CDF probability at relative
+  tolerance `1e-4` and tightens quadrature tolerances if needed. If it cannot construct
+  or validate the rule, the solve throws an `ArgumentError` with instructions to pass
+  `norm_loss_alg` explicitly. An explicit algorithm bypasses automatic validation and
+  can resolve narrow peaks that move away from the initial quantiles.
 - `initial_parameters`: Initial network parameters. NeuralPDE draws them from `rng` when
   omitted.
 - `rng`: Random number generator for network parameter initialization when
@@ -139,62 +144,86 @@ function SDEPINN(;
     )
 end
 
-"""
-    resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
-
-Fill in the normalization loss quadrature when the caller left it unset. Uniform panels
-sample the full domain and the initial distribution's quantiles add local breakpoints.
-Prepare the breakpoints once per solve, outside automatic differentiation, and reuse
-them on each time slice.
-"""
 struct _NormLossAlg{A, T}
     alg::A
     breakpoints::Vector{T}
+    reltol::Float64
+    abstol::Float64
 end
 
+"""
+    resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
+
+Prepare and validate the automatic normalization quadrature before automatic
+differentiation, then reuse it on each time slice.
+"""
 function resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
     norm_loss_alg === nothing || return norm_loss_alg
-    tail_probability = 1.0e-8 # 1e-4 mass tolerance divided by 10,000
+    mass_tolerance = 1.0e-4
+    tail_probability = mass_tolerance / 10_000
     probabilities = (
         tail_probability, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75,
         0.875, 1 - tail_probability,
     )
-    quantiles = map(probabilities) do probability
-        try
-            Distributions.quantile(distrib, probability)
-        catch err
-            throw(
-                ArgumentError(
-                    "could not select the default normalization quadrature for initial " *
-                        "distribution $(repr(distrib)) ($(typeof(distrib))); " *
-                        "pass `norm_loss_alg` explicitly " *
-                        "($(sprint(showerror, err)))"
-                )
-            )
+
+    invalid_rule(reason) = ArgumentError(
+        "could not select the default normalization quadrature for initial " *
+            "distribution $(repr(distrib)): $reason; pass `norm_loss_alg` explicitly"
+    )
+    function quantiles_for(d)
+        quantiles = map(probabilities) do probability
+            try
+                Distributions.quantile(d, probability)
+            catch err
+                throw(invalid_rule("could not compute quantiles of $(repr(d)) ($(sprint(showerror, err)))"))
+            end
+        end
+        all(isfinite, quantiles) || throw(invalid_rule("nonfinite quantiles of $(repr(d))"))
+        allunique(quantiles) || throw(
+            invalid_rule("could not resolve the quantiles of $(repr(d)) at floating-point precision")
+        )
+        return quantiles
+    end
+
+    quantiles = quantiles_for(distrib)
+    knots = [x_0, x_end, quantiles...]
+    if distrib isa Distributions.MixtureModel
+        for (component, weight) in zip(Distributions.components(distrib), Distributions.probs(distrib))
+            weight > 0 || continue
+            append!(knots, quantiles_for(component))
         end
     end
-    all(isfinite, quantiles) || throw(
-        ArgumentError(
-            "could not select the default normalization quadrature for initial " *
-                "distribution $(repr(distrib)) ($(typeof(distrib))); " *
-                "pass `norm_loss_alg` explicitly because " *
-                "its quantiles are nonfinite"
-        )
-    )
-    length(unique(quantiles)) == length(quantiles) || throw(
-        ArgumentError(
-            "could not resolve the quantiles of initial distribution " *
-                "$(repr(distrib)) ($(typeof(distrib))) " *
-                "at floating-point precision; pass `norm_loss_alg` explicitly"
-        )
-    )
 
+    breakpoints = Set(clamp.(knots, x_0, x_end))
+    max_panels = 1032
+    uniform_limit = min(1024, max_panels - (length(breakpoints) - 2))
+    uniform_limit >= 1 || throw(invalid_rule("quantile knots exceed the $max_panels-panel limit"))
     interquartile_range = quantiles[7] - quantiles[3]
     # Seven interquartile ranges span about 9.4 standard deviations for a Gaussian.
-    panel_count = ceil(Int, clamp((x_end - x_0) / (7 * interquartile_range), 4, 1024))
-    uniform_breakpoints = range(x_0, x_end; length = panel_count + 1)
-    breakpoints = sort!(unique!(vcat(uniform_breakpoints, clamp.(collect(quantiles), x_0, x_end))))
-    return _NormLossAlg(QuadGKJL(), breakpoints)
+    panel_count = min(
+        ceil(Int, clamp((x_end - x_0) / (7 * interquartile_range), 4, 1024)), uniform_limit
+    )
+    union!(breakpoints, range(x_0, x_end; length = panel_count + 1))
+    sorted_breakpoints = sort!(collect(breakpoints))
+
+    expected_mass = try
+        Distributions.cdf(distrib, x_end) - Distributions.cdf(distrib, x_0)
+    catch err
+        throw(invalid_rule("could not compute enclosed CDF probability ($(sprint(showerror, err)))"))
+    end
+    initial_pdf(x, d) = Distributions.pdf(d, x)
+    alg = QuadGKJL()
+    for tolerance in (mass_tolerance, mass_tolerance / 10, mass_tolerance / 100)
+        rule = _NormLossAlg(alg, sorted_breakpoints, tolerance, tolerance)
+        mass = normalization_mass(initial_pdf, x_0, x_end, distrib, rule)
+        isapprox(mass, expected_mass; rtol = mass_tolerance) && return rule
+    end
+    throw(
+        invalid_rule(
+            "integrated initial PDF mass does not match the enclosed CDF probability " *
+                "$expected_mass within relative tolerance $mass_tolerance"
+        )
+    )
 end
 
 """
@@ -204,10 +233,12 @@ Integrate `integrand` over `[x_0, x_end]` for the normalization loss.
 """
 function normalization_mass(integrand, x_0, x_end, θ, norm_loss_alg)
     if norm_loss_alg isa _NormLossAlg
-        (; alg, breakpoints) = norm_loss_alg
-        masses = map(1:(length(breakpoints) - 1)) do i
+        (; alg, breakpoints, reltol, abstol) = norm_loss_alg
+        panel_count = length(breakpoints) - 1
+        panel_abstol = abstol / panel_count
+        masses = map(1:panel_count) do i
             prob = IntegralProblem(integrand, (breakpoints[i], breakpoints[i + 1]), θ)
-            solve(prob, alg; reltol = 1.0e-4, abstol = 1.0e-4)[1]
+            solve(prob, alg; reltol, abstol = panel_abstol)[1]
         end
         return sum(masses)
     end
