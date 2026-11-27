@@ -54,9 +54,10 @@ run_qa(
         # SymbolicUtils._iszero, and Symbolics.variables calls. ForwardDiff does not
         # declare its derivative entry points public, and AdvancedHMC has no public
         # equivalent for constructing a kernel from its public sampler specifications.
+        # Julia's Ref(array, i) has no public accessor for the array and index.
         all_qualified_accesses_are_public = (;
             ignore = (
-                :_iszero, :derivative, :dottable, :jacobian, :make_kernel, :mapany,
+                :RefArray, :_iszero, :derivative, :dottable, :jacobian, :make_kernel, :mapany,
                 :variables,
             ),
         ),

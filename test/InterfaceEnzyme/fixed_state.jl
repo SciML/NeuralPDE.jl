@@ -34,11 +34,23 @@ function LuxCore.initialstates(::AbstractRNG, l::NestedAliasStateLayer{T}) where
     return (; counter, mirror = l.mirror(counter))
 end
 alias_buffer(x::AbstractArray{<:AbstractFloat}) = x
+alias_buffer(x::Ref{<:AbstractFloat}) = x
 alias_buffer(x::Ref) = alias_buffer(x[])
 alias_buffer(x) = alias_buffer(only(x))
+function alias_matches(counter, mirror)
+    increment_alias!(alias_buffer(mirror))
+    aliased = counter[1] == 1
+    reset_alias!(alias_buffer(mirror))
+    return aliased
+end
+increment_alias!(buffer) = (buffer[1] += 1)
+increment_alias!(buffer::Ref) = (buffer[] += 1)
+reset_alias!(buffer) = (buffer[1] = 0)
+reset_alias!(buffer::Ref) = (buffer[] = 0)
 function (::NestedAliasStateLayer)(x, ps, st)
-    st.counter[1] += 1
-    return ps.weight * x .+ alias_buffer(st.mirror), st
+    mirror = alias_buffer(st.mirror)
+    increment_alias!(mirror)
+    return ps.weight * x .+ st.counter, st
 end
 
 struct EmptyCacheLayer{T} <: LuxCore.AbstractLuxLayer
@@ -168,7 +180,7 @@ end
     end
 
     @testset "nested aliases: $T, $mirror" for T in (Float32, Float64),
-            mirror in (identity, Ref, a -> [a], a -> (Ref(a),))
+            mirror in (identity, Ref, a -> [a], a -> (Ref(a),), a -> view(a, :), a -> Ref(a, 1))
         chain = Chain(NestedAliasStateLayer(T, mirror))
         prob = discretize(
             field_system, PhysicsInformedNN(chain, GridTraining(0.25); rng = Xoshiro(77))
@@ -178,9 +190,9 @@ end
         model = getdefault(net.NN).lux_model
         stored = model.st.layer_1
         @test eltype(stored.counter) == Float64
-        @test stored.counter === alias_buffer(stored.mirror)
+        @test alias_matches(stored.counter, stored.mirror)
         fresh = NeuralPDE.fresh_state(model).layer_1
-        @test fresh.counter === alias_buffer(fresh.mirror)
+        @test alias_matches(fresh.counter, fresh.mirror)
         @test fresh.counter !== stored.counter
         phi = NeuralPDE.trial_function(net, prob.u0)
         X = [0.1 0.7 0.4 0.7]
@@ -197,7 +209,7 @@ end
         @test prob.f(prob.u0, prob.p) ≈ loss
         @test ForwardDiff.gradient(w -> prob.f(w, prob.p), prob.u0) ≈ gradient
         @test fixed_state_default_gradient(prob) ≈ gradient
-        @test stored.counter === alias_buffer(stored.mirror)
+        @test alias_matches(stored.counter, stored.mirror)
         @test stored.counter == [0.0]
         @test phi(X) ≈ expected
     end

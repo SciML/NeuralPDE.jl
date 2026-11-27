@@ -312,6 +312,17 @@ end
 struct _ArrayStatePlan{T}
     values::T
 end
+struct _StateAliasPlan{F, P, I}
+    rebuild::F
+    parent::P
+    indices::I
+end
+
+# Ref(array, i) has no public accessor for its backing array or index.
+const _StateElementRef = Base.RefArray{T, A, Nothing} where {T, A <: AbstractArray{T}}
+_state_alias(x::SubArray) = (view, parent(x), parentindices(x))
+_state_alias(x::_StateElementRef) = (_state_element_ref, getfield(x, :x), (getfield(x, :i),))
+_state_element_ref(array, i) = Ref(array, i)
 
 function _state_plan(st)
     uniq = Any[]
@@ -334,6 +345,14 @@ _state_plan(x, seen, uniq) = x
 
 _state_copy_plan(x, seen, uniq) = x
 _state_copy_plan(x::Ref, seen, uniq) = _RefStatePlan(_state_plan(x[], seen, uniq))
+_state_copy_plan(x::SubArray, seen, uniq) = _state_alias_plan(x, seen, uniq)
+_state_copy_plan(x::_StateElementRef, seen, uniq) = _state_alias_plan(x, seen, uniq)
+function _state_alias_plan(x, seen, uniq)
+    rebuild, array, indices = _state_alias(x)
+    return _StateAliasPlan(
+        rebuild, _state_plan(array, seen, uniq), _state_plan(indices, seen, uniq)
+    )
+end
 function _state_copy_plan(x::AbstractArray, seen, uniq)
     return isbitstype(eltype(x)) ? x :
         _ArrayStatePlan(map(v -> _state_plan(v, seen, uniq), x))
@@ -343,6 +362,10 @@ end
 @inline _copy_planned_state(x::_RefStatePlan, bufs) = Ref(_build_state(x.value, bufs))
 @inline function _copy_planned_state(x::_ArrayStatePlan, bufs)
     return map(v -> _build_state(v, bufs), x.values)
+end
+
+@inline function _copy_planned_state(x::_StateAliasPlan, bufs)
+    return x.rebuild(_build_state(x.parent, bufs), _build_state(x.indices, bufs)...)
 end
 
 @inline @generated function _copy_state_buffers(plans::T) where {T <: Tuple}
@@ -370,11 +393,17 @@ end
 state_eltype(::Type{T}, x::Union{Tuple, NamedTuple}, seen) where {T} =
     map(v -> state_eltype(T, v, seen), x)
 state_eltype(::Type, x, seen) = x
-_state_eltype(::Type{T}, x::AbstractArray{<:AbstractFloat}, seen) where {T} =
-    convert(AbstractArray{T}, x)
-_state_eltype(::Type{T}, x::AbstractArray, seen) where {T} =
-    isbitstype(eltype(x)) ? x : map(v -> state_eltype(T, v, seen), x)
+function _state_eltype(::Type{T}, x::AbstractArray, seen) where {T}
+    eltype(x) <: AbstractFloat && return convert(AbstractArray{T}, x)
+    return isbitstype(eltype(x)) ? x : map(v -> state_eltype(T, v, seen), x)
+end
 _state_eltype(::Type{T}, x::Ref, seen) where {T} = Ref(state_eltype(T, x[], seen))
+_state_eltype(::Type{T}, x::SubArray, seen) where {T} = _state_alias_eltype(T, x, seen)
+_state_eltype(::Type{T}, x::_StateElementRef, seen) where {T} = _state_alias_eltype(T, x, seen)
+function _state_alias_eltype(::Type{T}, x, seen) where {T}
+    rebuild, array, indices = _state_alias(x)
+    return rebuild(state_eltype(T, array, seen), state_eltype(T, indices, seen)...)
+end
 
 _stateless_state(layer) = NamedTuple()
 _stateless_state(layers::NamedTuple) = map(_stateless_state, layers)
