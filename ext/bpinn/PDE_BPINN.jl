@@ -50,6 +50,13 @@ function residual_logpdf(r, σ::Real)
     )
 end
 
+function residual_logpdf(r::Real, σ::Real)
+    r = float(r)
+    T = typeof(r)
+    (isfinite(r) && isfinite(σ) && σ > zero(σ)) || return T(-Inf)
+    return logpdf(Distributions.Normal(zero(r), T(σ)), r)
+end
+
 function physics_loglikelihood(ltd::PDELogTargetDensity, θ)
     pθ = remake(ltd.prob; u0 = θ)
     u, p = state_values(pθ), parameter_values(pθ)

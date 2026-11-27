@@ -1,6 +1,8 @@
 using NeuralPDE, ModelingToolkit, SciMLBase, Lux, Random, Distributions,
     AdvancedHMC, MCMCChains, LogDensityProblems, ForwardDiff, Test
 using DomainSets: Interval
+using LinearAlgebra: I
+using SymbolicIndexingInterface: observed, symbolic_container
 ext = Base.get_extension(NeuralPDE, :NeuralPDEBPINNExt)
 @parameters x p
 @variables u(..)
@@ -32,6 +34,39 @@ end
 @testset "Dataset-point physics analytic reference" begin
     @test ll(θ) ≈ reference(θ) rtol = 1.0e-8
     @test ForwardDiff.gradient(ll, θ) ≈ ForwardDiff.gradient(reference, θ) rtol = 1.0e-7
+end
+
+@testset "Scalar residual in Bayesian PDE target" begin
+    @parameters x t k
+    @variables u(..)
+    pde = Differential(t)(u(x, t)) ~ k * x
+    disc = PhysicsInformedNN(
+        Lux.Chain(Lux.Dense(2, 1; use_bias = false)), GridTraining(0.5); rng = Xoshiro(102)
+    )
+    σ = 0.4
+    function target(eqs, phystd)
+        @named sys = PDESystem(
+            eqs, [u(x, 0.0) ~ 0.0],
+            [x ∈ Interval(0.0, 1.0), t ∈ Interval(0.0, 1.0)], [x, t], [u(x, t)],
+            [k]; initial_conditions = Dict(k => 1.75)
+        )
+        prob = SciMLBase.discretize(sys, disc)
+        md = NeuralPDE.pinn_metadata(prob)
+        stds = ext._block_stds(md.blocks, phystd, [0.6])
+        fns = [observed(symbolic_container(prob), block.residual) for block in md.blocks]
+        return ext.PDELogTargetDensity(
+            2, prob, fns, stds, [MvNormal(zeros(2), I)], 0,
+            nothing, Float64[], (), [2], Float64[], nothing, nothing
+        )
+    end
+    batch_target = target([pde], [0.3])
+    scalar_target = target([pde, k ~ 1.75], [0.3, σ])
+    batch_density(θ) = LogDensityProblems.logdensity(batch_target, θ)
+    scalar_density(θ) = LogDensityProblems.logdensity(scalar_target, θ)
+    θ = [0.5, 0.25]
+    @test scalar_density(θ) - batch_density(θ) ≈ logpdf(Normal(0, σ), 0)
+    @test ForwardDiff.gradient(scalar_density, θ) ≈ ForwardDiff.gradient(batch_density, θ)
+    @test ForwardDiff.derivative(r -> ext.residual_logpdf(r, σ), 0.25) ≈ -0.25 / σ^2
 end
 
 @testset "Observational dataset validation" begin
