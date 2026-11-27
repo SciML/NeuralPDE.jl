@@ -1,9 +1,41 @@
 include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
 using ComponentArrays, ForwardDiff
 import LuxCore
+import ModelingToolkitNeuralNets
 using ModelingToolkitBase: getdefault
 using SymbolicIndexingInterface: getp
 using Boltz.Layers: PeriodicEmbedding
+
+mutable struct ParameterDrawRNG <: AbstractRNG
+    draws::Int
+end
+
+Random.rand(rng::ParameterDrawRNG, ::Type{Float64}) = Float64(rng.draws += 1)
+
+struct DrawInitLayer{stateful} <: LuxCore.AbstractLuxLayer end
+LuxCore.initialparameters(rng::AbstractRNG, ::DrawInitLayer) = (; weight = rand(rng, Float64))
+LuxCore.initialstates(::AbstractRNG, ::DrawInitLayer{false}) = NamedTuple()
+LuxCore.initialstates(rng::AbstractRNG, ::DrawInitLayer{true}) = (; offset = rand(rng, Float64))
+function (::DrawInitLayer)(x, ps, st)
+    return ps.weight .* x .+ get(st, :offset, 0.0), st
+end
+
+struct RefCacheLayer{F, V} <: LuxCore.AbstractLuxLayer
+    new_cache::F
+    values::V
+end
+
+LuxCore.initialparameters(::AbstractRNG, ::RefCacheLayer) = (; weight = fill(0.8, 1, 1))
+function LuxCore.initialstates(::AbstractRNG, l::RefCacheLayer)
+    cache = l.new_cache()
+    return (; primary = cache, mirror = cache)
+end
+function (l::RefCacheLayer)(x, ps, st)
+    st.primary[] = first(l.values)
+    @assert st.mirror[] == first(l.values)
+    st.mirror[] = last(l.values)
+    return ps.weight * x .+ st.primary[], st
+end
 
 struct CounterStateLayer <: LuxCore.AbstractLuxLayer end
 LuxCore.initialparameters(::AbstractRNG, ::CounterStateLayer) = (; weight = fill(0.8, 1, 1))
@@ -95,8 +127,22 @@ end
         @test !(NeuralPDE.with_fixed_state(chain, Xoshiro(1), Float64) isa NeuralPDE.FixedStateLayer)
     end
 
+    @testset "non-copyable RNG with stateful = $stateful" for stateful in (false, true)
+        chain = Chain(DrawInitLayer{stateful}())
+        rng = ParameterDrawRNG(0)
+        @test !applicable(copy, rng)
+        prob = discretize(
+            field_system, PhysicsInformedNN(chain, GridTraining(0.25); rng)
+        )
+        @test rng.draws == 1 + stateful
+        @test prob.u0 == [1.0]
+        phi = NeuralPDE.trial_function(only(pinn_metadata(prob).networks), prob.u0)
+        X = [0.25 0.75]
+        @test phi(X) == X .+ (stateful ? 2.0 : 0.0)
+    end
+
     @testset "inference field batching: $layer" for layer in (Dropout(0.5), BatchNorm(8))
-        chain = Chain(Dense(1, 8, tanh), layer, Dense(8, 1))
+        chain = Chain(; input = Dense(1, 8, tanh), inference = layer, output = Dense(8, 1))
         prob = discretize(
             field_system, PhysicsInformedNN(chain, GridTraining(0.25); rng = Xoshiro(77))
         )
@@ -105,7 +151,7 @@ end
         ps = ComponentArray{Float64}(ps)
         X = [0.1 0.7 0.4 0.7]
         expected = first(chain(X, ps, LuxCore.testmode(st)))
-        @test phi(X) ≈ expected
+        @test phi(X) == expected
         @test phi(fill(0.7, 1, 8)) ≈ fill(only(phi(fill(0.7, 1, 1))), 1, 8)
         @test phi(X) ≈ hcat((phi(X[:, i:i]) for i in axes(X, 2))...)
         loss = prob.f(prob.u0, prob.p)
@@ -116,6 +162,33 @@ end
         @test phi(X) ≈ expected
     end
 
+    @testset "typed cache aliases: $values" for (new_cache, values) in (
+            (() -> Ref{Union{Nothing, Float64}}(nothing), (1.0, 2.0)),
+            (() -> Ref{Vector{Float64}}(), ([1.0], [2.0])),
+        )
+        chain = Chain(RefCacheLayer(new_cache, values))
+        prob = discretize(
+            field_system, PhysicsInformedNN(chain, GridTraining(0.25); rng = Xoshiro(77))
+        )
+        net = only(pinn_metadata(prob).networks)
+        model = ModelingToolkitNeuralNets.get_network(getdefault(net.NN))
+        stored = model.st.layer_1
+        phi = NeuralPDE.trial_function(net, prob.u0)
+        X = [0.25 0.75]
+        ps, st = LuxCore.setup(Xoshiro(77), chain)
+        was_assigned = isassigned(st.layer_1.primary)
+        expected = first(chain(X, ps, st))
+        @test expected ≈ 0.8 .* X .+ last(values)
+        @test phi(X) == expected
+        @test phi(X) == expected
+        @test stored.primary === stored.mirror
+        @test eltype(stored.primary) === eltype(st.layer_1.primary)
+        @test isassigned(stored.primary) == was_assigned
+        if was_assigned
+            @test stored.primary[] === nothing
+        end
+    end
+
     @testset "isolated Ref state" begin
         prob = discretize(
             field_system,
@@ -123,7 +196,7 @@ end
         )
         md = pinn_metadata(prob)
         net = only(md.networks)
-        model = getdefault(net.NN).lux_model
+        model = ModelingToolkitNeuralNets.get_network(getdefault(net.NN))
         phi = NeuralPDE.trial_function(net, prob.u0)
         X = [0.1 0.7 0.4]
         expected = 0.8 .* X .+ 1
@@ -166,7 +239,7 @@ end
         )
         md = pinn_metadata(prob)
         net = only(md.networks)
-        model = getdefault(net.NN).lux_model
+        model = ModelingToolkitNeuralNets.get_network(getdefault(net.NN))
         stored = model.st.layer_1
         @test stored.counter === stored.mirror
         @test stored.counter == [0.0]
@@ -187,7 +260,7 @@ end
         )
         md = pinn_metadata(prob)
         net = only(md.networks)
-        model = getdefault(net.NN).lux_model
+        model = ModelingToolkitNeuralNets.get_network(getdefault(net.NN))
         stored = model.st.layer_1
         @test eltype(stored.counter) == Float64
         @test alias_matches(stored.counter, stored.mirror)

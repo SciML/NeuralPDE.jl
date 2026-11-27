@@ -260,12 +260,14 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
   `PDESystem`. A single layer with several dependent variables is treated as one shared
   network whose `i`-th output is the `i`-th dependent variable. Lux state, such as the
   periods of `Boltz.Layers.PeriodicEmbedding`, is held fixed in inference mode
-  (`LuxCore.testmode`) at the state that `LuxCore.setup(rng, chain)` returns, with
+  (`training = Val(false)`) at the state that `LuxCore.setup(rng, chain)` returns, with
   floating-point arrays converted to the parameter eltype. Dropout is disabled and
   BatchNorm uses its initial running statistics. Every evaluation copies arrays, `Ref`
   values, and random number generators in nested tuples and named tuples. Views and
   element references share their backing array's copy. Other state leaves must be
-  immutable metadata.
+  immutable metadata. Fixed Lux state is copied on its setup device. When collocation
+  points move to a device, layer inference must accept the setup-device state with
+  those inputs.
 * `strategy`: the [`AbstractTrainingStrategy`](@ref) that chooses the collocation points
   and the reduction of the pointwise residuals.
 

@@ -1,4 +1,5 @@
 include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
+import ModelingToolkitNeuralNets
 using ModelingToolkitBase: getdefault
 using SymbolicIndexingInterface: getu, getp
 using Zygote, ForwardDiff, Enzyme, LinearAlgebra, Statistics, ADTypes, ComponentArrays
@@ -254,7 +255,7 @@ Lux.initialstates(rng::AbstractRNG, ::RandomState) = (; z = rand(rng, 1))
     fprob = discretize(
         periodic_system, PhysicsInformedNN(pchain, GridTraining(0.5); init_params = ps32)
     )
-    fmodel = getdefault(only(pinn_metadata(fprob).networks).NN).lux_model
+    fmodel = ModelingToolkitNeuralNets.get_network(getdefault(only(pinn_metadata(fprob).networks).NN))
     @test eltype(fprob.u0) == Float32
     @test eltype(fmodel.st.layer_1.k) == Float32
     @test fmodel.st.layer_1.idxs == st32.layer_1.idxs
@@ -271,7 +272,7 @@ Lux.initialstates(rng::AbstractRNG, ::RandomState) = (; z = rand(rng, 1))
 
     rchain = Chain(RandomState())
     rprob = discretize(periodic_system, PhysicsInformedNN(rchain, GridTraining(0.5); rng = Xoshiro(5)))
-    rmodel = getdefault(only(pinn_metadata(rprob).networks).NN).lux_model
+    rmodel = ModelingToolkitNeuralNets.get_network(getdefault(only(pinn_metadata(rprob).networks).NN))
     rps, rst = Lux.setup(Xoshiro(5), rchain)
     @test rprob.u0 == collect(ComponentArray(rps))
     @test rmodel.st == rst

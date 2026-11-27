@@ -47,7 +47,9 @@ prob = discretize(pde_system, discretization; adtype = AutoZygote())
 nothing # hide
 ```
 
-The remaining steps require a CUDA-capable GPU:
+The remaining steps require a CUDA-capable GPU. Fixed Lux state is copied on its setup
+device. When collocation points move to a device, layer inference must accept the
+setup-device state with those inputs.
 
 ```julia
 using LuxCUDA
