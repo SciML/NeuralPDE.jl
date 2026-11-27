@@ -18,7 +18,18 @@ Fokker-Planck equation over the spatial interval from `x_0` to `x_end`.
 - `optimalg`: Optimizer used to train the network, or a vector/tuple of optimizers run
   in sequence; each stage warm-starts from the previous stage's parameters and is given
   `maxiters` iterations (`maxiters` may itself be a vector/tuple with one entry per stage).
-- `norm_loss_alg`: Integration algorithm used by the normalization loss.
+- `norm_loss_alg`: Integration algorithm used by the normalization loss. The default
+  applies adaptive Gauss-Kronrod quadrature on uniform spatial panels split further at
+  up to nine quantiles of `distrib` and up to nine per positive-weight mixture component.
+  The uniform panel width targets about ten standard deviations of a Gaussian with the
+  same interquartile range as `distrib`, with limits of 1,024 uniform panels and 1,032
+  panels in total after clamping and deduplicating knots. The automatic rule divides
+  an absolute error budget of `1e-4` equally among the panels. It tightens this budget
+  if needed to match the enclosed CDF probability of the initial PDF at relative
+  tolerance `1e-4`. If it cannot construct
+  or validate the rule, the solve throws an `ArgumentError` with instructions to pass
+  `norm_loss_alg` explicitly. An explicit algorithm bypasses automatic validation and
+  can resolve narrow peaks that move away from the initial quantiles.
 - `initial_parameters`: Initial network parameters. NeuralPDE draws them from `rng` when
   omitted.
 - `rng`: Random number generator for network parameter initialization when
@@ -134,6 +145,116 @@ function SDEPINN(;
     )
 end
 
+struct _NormLossAlg{A, T}
+    alg::A
+    breakpoints::Vector{T}
+    abstol::Float64
+end
+
+"""
+    resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
+
+Prepare and validate the automatic normalization quadrature before automatic
+differentiation, then reuse it on each time slice.
+"""
+function resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
+    norm_loss_alg === nothing || return norm_loss_alg
+    mass_tolerance = 1.0e-4
+    tail_probability = mass_tolerance / 10_000
+    probabilities = (
+        tail_probability, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75,
+        0.875, 1 - tail_probability,
+    )
+
+    invalid_rule(reason) = ArgumentError(
+        "could not select the default normalization quadrature for initial " *
+            "distribution $(repr(distrib)): $reason; pass `norm_loss_alg` explicitly"
+    )
+    function quantiles_for(d)
+        quantiles = try
+            map(p -> Distributions.quantile(d, p), probabilities)
+        catch err
+            err isa InterruptException && rethrow()
+            throw(invalid_rule("could not compute quantiles of $(repr(d)) ($(sprint(showerror, err)))"))
+        end
+        all(isfinite, quantiles) || throw(invalid_rule("nonfinite quantiles of $(repr(d))"))
+        allunique(quantiles) || throw(
+            invalid_rule("could not resolve the quantiles of $(repr(d)) at floating-point precision")
+        )
+        return quantiles
+    end
+
+    quantiles = quantiles_for(distrib)
+    knots = [x_0, x_end, quantiles...]
+    if distrib isa Distributions.AbstractMixtureModel
+        for (component, weight) in zip(Distributions.components(distrib), Distributions.probs(distrib))
+            weight > 0 || continue
+            append!(knots, quantiles_for(component))
+        end
+    end
+
+    breakpoints = Set(clamp.(knots, x_0, x_end))
+    max_panels = 1032
+    uniform_limit = min(1024, max_panels - (length(breakpoints) - 2))
+    uniform_limit >= 1 || throw(invalid_rule("quantile knots exceed the $max_panels-panel limit"))
+    interquartile_range = quantiles[7] - quantiles[3]
+    gaussian_iqr = 2 * Distributions.quantile(Distributions.Normal(), 0.75)
+    panel_width = 10 * (interquartile_range / gaussian_iqr)
+    panel_count = min(ceil(Int, clamp((x_end - x_0) / panel_width, 4, 1024)), uniform_limit)
+    union!(breakpoints, range(x_0, x_end; length = panel_count + 1))
+    sorted_breakpoints = sort!(collect(breakpoints))
+
+    expected_mass = try
+        lower_cdf = Distributions.cdf(distrib, x_0)
+        if lower_cdf > 0.5
+            Distributions.ccdf(distrib, x_0) - Distributions.ccdf(distrib, x_end)
+        else
+            Distributions.cdf(distrib, x_end) - lower_cdf
+        end
+    catch err
+        err isa InterruptException && rethrow()
+        throw(invalid_rule("could not compute enclosed CDF probability ($(sprint(showerror, err)))"))
+    end
+    initial_pdf(x, d) = Distributions.pdf(d, x)
+    alg = QuadGKJL()
+    for tolerance in (mass_tolerance, mass_tolerance / 10, mass_tolerance / 100)
+        rule = _NormLossAlg(alg, sorted_breakpoints, tolerance)
+        mass = try
+            normalization_mass(initial_pdf, x_0, x_end, distrib, rule)
+        catch err
+            err isa InterruptException && rethrow()
+            throw(invalid_rule("could not integrate the initial PDF ($(sprint(showerror, err)))"))
+        end
+        isapprox(mass, expected_mass; rtol = mass_tolerance) && return rule
+    end
+    throw(
+        invalid_rule(
+            "integrated initial PDF mass does not match the enclosed CDF probability " *
+                "$expected_mass within relative tolerance $mass_tolerance"
+        )
+    )
+end
+
+"""
+    normalization_mass(integrand, x_0, x_end, θ, norm_loss_alg)
+
+Integrate `integrand` over `[x_0, x_end]` for the normalization loss.
+"""
+function normalization_mass(integrand, x_0, x_end, θ, norm_loss_alg)
+    if norm_loss_alg isa _NormLossAlg
+        (; alg, breakpoints, abstol) = norm_loss_alg
+        panel_count = length(breakpoints) - 1
+        panel_abstol = abstol / panel_count
+        masses = map(1:panel_count) do i
+            prob = IntegralProblem(integrand, (breakpoints[i], breakpoints[i + 1]), θ)
+            solve(prob, alg; reltol = 0, abstol = panel_abstol)[1]
+        end
+        return sum(masses)
+    end
+    prob = IntegralProblem(integrand, (x_0, x_end), θ)
+    return solve(prob, norm_loss_alg; reltol = 1.0e-4, abstol = 1.0e-4)[1]
+end
+
 function SciMLBase.__solve(
         prob::SciMLBase.AbstractSDEProblem,
         alg::SDEPINN,
@@ -158,6 +279,8 @@ function SciMLBase.__solve(
         x_0, x_end, Nt, dx, σ_var_bc, λ_ic, λ_norm,
         distrib, optimalg, norm_loss_alg, initial_parameters, rng, adtype, chain,
     ) = alg
+
+    norm_loss_alg = resolve_norm_loss_alg(norm_loss_alg, x_0, x_end, distrib)
 
     dt = (t₁ - t₀) / Nt
     ts = collect(t₀:dt:t₁)
@@ -236,10 +359,7 @@ function SciMLBase.__solve(
             # define integrand as a function of x only (t fixed)
             # perform ∫ f(x) dx over [x_0, x_end]
             phi_normloss(x, θ) = u0 isa Number ? first(phi([x, t], θ)) : phi([x, t], θ)
-            I_est = solve(
-                IntegralProblem(phi_normloss, (x_0, x_end), θ), norm_loss_alg,
-                reltol = 1.0e-4, abstol = 1.0e-4, maxiters = 10
-            )[1]
+            I_est = normalization_mass(phi_normloss, x_0, x_end, θ, norm_loss_alg)
             loss += abs2(I_est - P(1))
         end
         return loss

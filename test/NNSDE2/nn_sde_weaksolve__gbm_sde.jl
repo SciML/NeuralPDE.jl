@@ -35,10 +35,6 @@ using Test
     alg = SDEPINN(
         chain = chain,
         optimalg = (Adam(0.01), BFGS(linesearch = BackTracking())),
-        # `norm_loss` caps quadrature at maxiters = 10, where HCubatureJL
-        # applies a single 15-point rule that misses most of the narrow
-        # initial density; Gauss-Legendre on subintervals resolves it.
-        norm_loss_alg = GaussLegendre(n = 32, subintervals = 4),
         rng = Xoshiro(100),
         x_0 = x_0,
         x_end = x_end,
