@@ -269,13 +269,14 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
   network). Defaults to `Lux.initialparameters` with `rng`.
 * `rng`: the random number generator used to construct two owned generators, one
   frozen for initial parameters and one that advances with collocation sampling.
-  Construction draws one `UInt64` per generator. A copyable `rng` retains its algorithm
-  (for example, a `StableRNG` stays a `StableRNG`). Each copy is reseeded with its draw
-  when supported. Copyable generators without reseeding use snapshots after each draw,
-  so their streams are offset by one draw. A generator such as `RandomDevice` that
-  does not support copying supplies seeds for two `Xoshiro` generators. RNG types can
-  signal an unsupported `copy(rng)` or `Random.seed!(rng, seed)` by leaving the method
-  undefined or throwing a `MethodError` for that exact call. Other errors propagate.
+  Construction combines two uniform `Float64` draws into a `UInt64` seed per generator.
+  A copyable `rng` retains its algorithm (for example, a `StableRNG` stays a `StableRNG`).
+  Each copy is reseeded when supported. Copyable generators without reseeding use
+  snapshots after each pair of draws, so their streams are offset by two draws.
+  A generator such as `RandomDevice` that does not support copying supplies seeds for
+  two `Xoshiro` generators. RNG types can signal an unsupported `copy(rng)` or
+  `Random.seed!(rng, seed)` by leaving the method undefined or throwing a `MethodError`
+  for that exact call. Other errors propagate.
 * `derivative`: the [`AbstractDerivativeLowering`](@ref) used for `Differential`
   operators. Defaults to [`FiniteDifferenceDerivative`](@ref).
 * `param_estim`: when `true`, the parameters of the `PDESystem` are added to the
@@ -360,7 +361,9 @@ function PhysicsInformedNN(
 end
 
 function _owned_rng(rng::AbstractRNG)
-    seed = rand(rng, UInt64)
+    high = floor(UInt64, rand(rng) * 2.0^32)
+    low = floor(UInt64, rand(rng) * 2.0^32)
+    seed = (high << 32) | low
     owned = try
         copy(rng)
     catch err

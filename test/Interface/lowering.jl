@@ -421,22 +421,25 @@ end
         getp(p2, pinn_metadata(p2).blocks[1].xs)(p2)
 end
 
-struct DrawOnlyRNG{RejectSeed} <: AbstractRNG
+struct FloatOnlyRNG{RejectSeed} <: AbstractRNG
     inner::Xoshiro
 end
 
-Base.copy(rng::R) where {R <: DrawOnlyRNG} = R(copy(rng.inner))
-Random.rand(rng::DrawOnlyRNG, ::Type{T}) where {T} = rand(rng.inner, T)
-Random.rand(rng::DrawOnlyRNG, ::Type{T}, dims::Dims) where {T} = rand(rng.inner, T, dims)
+Base.copy(rng::R) where {R <: FloatOnlyRNG} = R(copy(rng.inner))
+Random.rand(rng::FloatOnlyRNG) = rand(rng.inner)
+Random.rand(rng::FloatOnlyRNG, ::Type{Float32}) = rand(rng.inner, Float32)
+function Random.rand(rng::FloatOnlyRNG, ::Type{T}, dims::Dims) where {T <: Union{Float32, Float64}}
+    return rand(rng.inner, T, dims)
+end
 
-function Random.seed!(rng::DrawOnlyRNG{true}, seed::UInt64)
-    rand(rng, UInt64)
+function Random.seed!(rng::FloatOnlyRNG{true}, seed::UInt64)
+    rand(rng)
     throw(MethodError(Random.seed!, (rng, seed)))
 end
 
-@testset "owned generators copy a non-reseedable rng (explicit rejection = $reject)" for reject in (false, true)
-    layer = Dense(2, 1; init_weight = (rng, dims...) -> rand(rng, Float32, dims))
-    R = DrawOnlyRNG{reject}
+@testset "owned generators copy a Float-only RNG (explicit rejection = $reject)" for reject in (false, true)
+    layer = Dense(2, 1; use_bias = false, init_weight = (rng, dims...) -> rand(rng, Float32, dims))
+    R = FloatOnlyRNG{reject}
     source = R(Xoshiro(3))
     strategy = StochasticTraining(16)
     d = PhysicsInformedNN(layer, strategy; rng = source)
@@ -445,24 +448,33 @@ end
     @test d.init_rng !== d.rng
     @test d.rng !== source
     expected = Xoshiro(3)
-    rand(expected, UInt64)
+    rand(expected, Float64)
+    rand(expected, Float64)
     @test d.init_rng isa R && d.init_rng.inner == expected
-    rand(expected, UInt64)
+    rand(expected, Float64)
+    rand(expected, Float64)
     @test d.rng isa R && d.rng.inner == expected
     p1 = discretize(pde_system, d)
     p2 = discretize(pde_system, d)
     fresh = discretize(pde_system, PhysicsInformedNN(layer, strategy; rng = R(Xoshiro(3))))
+    @test length(p1.u0) == 2
+    @test all(isfinite, p1.u0)
     @test p1.u0 == p2.u0 == fresh.u0
     xs(p) = getp(p, first(pinn_metadata(p).blocks).xs)(p)
-    @test xs(p1) == xs(fresh)
-    @test xs(p1) != xs(p2)
+    initial = copy(xs(p1))
+    @test size(initial) == (2, 16)
+    @test all(isfinite, initial)
+    @test initial == xs(fresh)
+    @test initial != xs(p2)
+    resample!(p1.p, pinn_metadata(p1))
+    @test xs(p1) != initial
 end
 
 struct RejectCopyRNG{Unsupported} <: AbstractRNG
     inner::Xoshiro
 end
 
-Random.rand(rng::RejectCopyRNG, ::Type{UInt64}) = rand(rng.inner, UInt64)
+Random.rand(rng::RejectCopyRNG, ::Type{Float64}) = rand(rng.inner, Float64)
 Base.copy(rng::RejectCopyRNG{true}) = throw(MethodError(copy, (rng,)))
 Base.copy(::RejectCopyRNG{false}) = throw(ArgumentError("invalid copy state"))
 
@@ -470,7 +482,7 @@ struct RejectSeedRNG <: AbstractRNG
     inner::Xoshiro
 end
 
-Random.rand(rng::RejectSeedRNG, ::Type{UInt64}) = rand(rng.inner, UInt64)
+Random.rand(rng::RejectSeedRNG, ::Type{Float64}) = rand(rng.inner, Float64)
 Base.copy(rng::RejectSeedRNG) = RejectSeedRNG(copy(rng.inner))
 Random.seed!(::RejectSeedRNG, ::UInt64) = throw(ArgumentError("invalid reseed state"))
 
@@ -485,8 +497,10 @@ Random.seed!(::RejectSeedRNG, ::UInt64) = throw(ArgumentError("invalid reseed st
     source = RejectCopyRNG{true}(Xoshiro(3))
     expected = copy(source.inner)
     d = PhysicsInformedNN(chain, strategy; rng = source)
-    @test d.init_rng == Xoshiro(rand(expected, UInt64))
-    @test d.rng == Xoshiro(rand(expected, UInt64))
+    for owned in (d.init_rng, d.rng)
+        high, low = ntuple(_ -> floor(UInt64, ldexp(rand(expected), 32)), 2)
+        @test owned == Xoshiro((high << 32) | low)
+    end
     @test source.inner == expected
 end
 
