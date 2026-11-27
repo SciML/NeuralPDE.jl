@@ -10,7 +10,11 @@ end
 Wrap the trained network parameters into a `PDENoTimeSolution`. `sol[u(x, t)]` evaluates
 the trial function of `u` on the tensor product of the evaluation grids of its arguments
 (`sol[x]` returns the grid of `x`), and `sol(x, t; dv = u(x, t))` evaluates it at
-arbitrary points. For an array argument, `u(t, x)` with `x` of length `d`, the network
+arbitrary points. For an array-valued dependent variable declared with
+`@variables u(..)[1:2]`, `sol[u(x)[i]]` gives the grid values of component `i`, and
+`sol(x₀; dv = u(x)[i])` evaluates it at `x₀`.
+
+For an array argument, `u(t, x)` with `x` of length `d`, the network
 input is the packed vector `[t; vec(x)]`: `sol[u(t, x)]` is the tensor product of the
 component grids (shape `(n_t, n_x₁, …, n_x_d)`), and `sol(t, xvec; dv = u(t, x))`
 evaluates one scalar `t` and one length-`d` vector `xvec`. `sol.original_sol` is the
@@ -71,8 +75,17 @@ function _matching_network(sol, dv)
     return nothing
 end
 
+function _flattened_variable(sol, sym)
+    target = unwrap(sym)
+    for (flat, original) in PDEBase.replaced_vars(sol.disc_data.varmap)
+        isequal(target, unwrap(original)) && return flat
+    end
+    return sym
+end
+
 function _pinn_call(sol, args...; dv = nothing)
     if dv !== nothing
+        dv = _flattened_variable(sol, dv)
         net = _matching_network(sol, dv)
         if net !== nothing && _is_grouped_call(net.groups, args)
             return _eval_grouped(sol.interp[net.original], net.groups, args, sol)
@@ -132,6 +145,7 @@ function (sol::SciMLBase.PDENoTimeSolution{T, N, S, D})(
 end
 
 function _pinn_getindex(A, sym)
+    sym = _flattened_variable(A, sym)
     iiv = findfirst(x -> isequal(unwrap(x), unwrap(sym)), A.ivs)
     iiv === nothing || return A.ivdomain[iiv]
     idv = findfirst(x -> isequal(unwrap(x), unwrap(sym)), A.dvs)
