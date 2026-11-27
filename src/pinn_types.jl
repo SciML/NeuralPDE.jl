@@ -532,9 +532,10 @@ function AdditionalLoss(f, names::Tuple{Vararg{Symbol}}, wrappers, outputs)
     )
 end
 
-function (al::AdditionalLoss{names})(args...) where {names}
+# Expose the parameter copies to Enzyme before dynamic dispatch on the callback.
+@inline function (al::AdditionalLoss{names})(args...) where {names}
     nnets = length(names)
-    θs = NamedTuple{names}(ntuple(i -> args[i], nnets))
+    θs = NamedTuple{names}(ntuple(i -> copy(args[i]), nnets))
     phi = NamedTuple{names}(
         ntuple(nnets) do i
             w = al.wrappers[i]

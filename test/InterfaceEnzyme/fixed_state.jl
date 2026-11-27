@@ -1,5 +1,6 @@
 include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
 using ComponentArrays, ForwardDiff
+using ADTypes: AutoEnzyme
 import LuxCore
 import ModelingToolkitNeuralNets
 using ModelingToolkitBase: getdefault
@@ -319,5 +320,35 @@ end
         @test prob.f(prob.u0, prob.p) ≈ loss
         @test ForwardDiff.gradient(w -> prob.f(w, prob.p), prob.u0) ≈ gradient
         @test fixed_state_default_gradient(prob) ≈ gradient
+    end
+
+    @testset "captured-data loss for multi-network parameter estimation" begin
+        @parameters t rate
+        @variables u(..) v(..)
+        Dt = Differential(t)
+        @named inverse_system = PDESystem(
+            [Dt(u(t)) ~ rate * v(t), Dt(v(t)) ~ u(t) - v(t)],
+            [u(0.0) ~ 1.0, v(0.0) ~ 0.0], [t ∈ Interval(0.0, 1.0)], [t], [u(t), v(t)],
+            [rate]; initial_conditions = Dict(rate => 1.25)
+        )
+        chains = [Chain(Dense(1, 3, tanh), Dense(3, 1)) for _ in 1:2]
+        additional_loss = let X = [0.25 0.5 0.75], data = [1.0 1.5 2.0; 0.25 0.5 1.0]
+            function (phi, θ, p)
+                @assert parent(θ.u) === θ.u && parent(θ.v) === θ.v
+                return sum(abs2, phi.u(X, θ.u) .- data[1:1, :]) +
+                    sum(abs2, p[1] .* phi.v(X, θ.v) .- data[2:2, :])
+            end
+        end
+        prob = discretize(
+            inverse_system,
+            PhysicsInformedNN(
+                chains, GridTraining(0.25); rng = Xoshiro(81), param_estim = true, additional_loss
+            )
+        )
+        @test prob.f.adtype isa AutoEnzyme
+        expected = ForwardDiff.gradient(w -> prob.f(w, prob.p), prob.u0)
+        @test any(!iszero, expected[1:(end - 1)])
+        @test !iszero(last(expected))
+        @test fixed_state_default_gradient(prob) ≈ expected rtol = 1.0e-6
     end
 end
