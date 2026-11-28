@@ -45,7 +45,7 @@ using SymbolicIndexingInterface: getp
     end
 
     lower, upper = Float32[-2, 1], Float32[3, 5]
-    matrices = generate_design_matrices(16, lower, upper, LatinHypercubeSample(Xoshiro(19)), 4)
+    matrices = QuasiMonteCarlo.generate_design_matrices(16, lower, upper, LatinHypercubeSample(Xoshiro(19)), 4)
     @test length(matrices) == 4
     for matrix in matrices
         check_latin_hypercube(matrix, lower, upper, 16, Float32)
