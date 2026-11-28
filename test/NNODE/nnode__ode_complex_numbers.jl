@@ -27,7 +27,7 @@ using Test
     problem = ODEProblem(bloch_equations, u0, time_span, parameters)
 
     chain = Chain(
-        Dense(1, 16, tanh; init_weight = kaiming_normal(ComplexF64)),
+        Dense(1, 16, tanh; init_weight = glorot_normal(ComplexF64)),
         Dense(16, 4; init_weight = kaiming_normal(ComplexF64))
     )
 
@@ -47,6 +47,7 @@ using Test
         alg = NNODE(chain, Adam(0.01), init_params; strategy)
         sol = solve(problem, alg; verbose = false, maxiters = 10000, saveat = 0.01)
         @test sol.u ≈ ground_truth.u rtol = 2.0e-1
+        @test sol.u[end] ≈ ground_truth.u[end] rtol = 2.0e-1
     end
 
     alg = NNODE(chain, Adam(0.01); strategy = QuadratureTraining())
