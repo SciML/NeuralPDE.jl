@@ -35,7 +35,9 @@ using SciMLBase: SciMLBase, BatchIntegralFunction, DAEProblem, IntegralProblem,
     symbolic_discretize
 using SciMLPublic: @public
 using Statistics: Statistics, mean
-using QuasiMonteCarlo: QuasiMonteCarlo, LatinHypercubeSample
+using QuasiMonteCarlo: QuasiMonteCarlo, DigitalShift, FaureSample, GridSample, HaltonSample,
+    KroneckerSample, LatinHypercubeSample, LatticeRuleSample, MatousekScramble, OwenScramble,
+    RandomSample, RandomizedHaltonSample, Shift, SobolSample, VanDerCorputSample
 using WeightInitializers: glorot_uniform, zeros32
 using Zygote: Zygote
 

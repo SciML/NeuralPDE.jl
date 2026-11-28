@@ -2,6 +2,7 @@ include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
 using ModelingToolkitBase: getdefault
 using SymbolicIndexingInterface: getu, getp
 using Zygote, ForwardDiff, Enzyme, LinearAlgebra, Statistics, ADTypes, ComponentArrays
+using StableRNGs: StableRNG
 
 @parameters x y
 @variables u(..)
@@ -180,6 +181,327 @@ end
     res = solve(prob, Adam(0.01); maxiters = 20)
     wprob = remake(prob; u0 = res.original_sol.u)
     @test wprob.u0 == res.original_sol.u
+end
+
+@testset "discretize is reproducible regardless of a preceding symbolic_discretize" begin
+    rdisc = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20); rng = Xoshiro(7))
+    prob_alone = discretize(pde_system, rdisc)
+
+    sdisc = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20); rng = Xoshiro(7))
+    sys = symbolic_discretize(pde_system, sdisc)
+    prob_after = discretize(pde_system, sdisc)
+
+    @test prob_after.u0 == prob_alone.u0
+    amd = pinn_metadata(prob_alone)
+    bmd = pinn_metadata(prob_after)
+    @test getp(prob_after, bmd.blocks[1].xs)(prob_after) ==
+        getp(prob_alone, amd.blocks[1].xs)(prob_alone)
+end
+
+@testset "seeded deterministic resample!" begin
+    sdisc = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20); rng = Xoshiro(2))
+    sprob = discretize(pde_system, sdisc)
+    smd = pinn_metadata(sprob)
+    X0 = copy(getp(sprob, smd.blocks[1].xs)(sprob))
+    saved_rng = copy(sdisc.rng)
+    p1 = copy(sprob.p)
+    p2 = copy(sprob.p)
+    resample!(p1, smd; rng = Xoshiro(42))
+    resample!(p2, smd; rng = Xoshiro(42))
+    @test getp(sprob, smd.blocks[1].xs)(p1) == getp(sprob, smd.blocks[1].xs)(p2)
+    @test getp(sprob, smd.blocks[1].xs)(p1) != X0
+    # an explicit `rng` leaves the discretization's own stream untouched
+    @test sdisc.rng == saved_rng
+    @test getp(sprob, smd.blocks[1].xs)(sprob) == X0
+end
+
+@testset "seeded resample! drives randomized quasi-random sampling" begin
+    qdisc = PhysicsInformedNN(
+        chain, QuasiRandomTraining(50; bcs_points = 20, resampling = true);
+        rng = Xoshiro(2)
+    )
+    qprob = discretize(pde_system, qdisc)
+    qmd = pinn_metadata(qprob)
+    X0 = copy(getp(qprob, qmd.blocks[1].xs)(qprob))
+    p1 = copy(qprob.p)
+    p2 = copy(qprob.p)
+    resample!(p1, qmd; rng = Xoshiro(42))
+    resample!(p2, qmd; rng = Xoshiro(42))
+    X1 = getp(qprob, qmd.blocks[1].xs)(p1)
+    @test X1 == getp(qprob, qmd.blocks[1].xs)(p2)
+    @test X1 != X0
+    # identically seeded discretizations draw identical initial QMC points
+    qdisc2 = PhysicsInformedNN(
+        chain, QuasiRandomTraining(50; bcs_points = 20, resampling = true);
+        rng = Xoshiro(2)
+    )
+    qprob2 = discretize(pde_system, qdisc2)
+    @test getp(qprob2, pinn_metadata(qprob2).blocks[1].xs)(qprob2) == X0
+    # deterministic bases with R = NoRand() ignore `rng` and redraw the same points
+    sdisc = PhysicsInformedNN(
+        chain,
+        QuasiRandomTraining(50; bcs_points = 20, sampling_alg = SobolSample());
+        rng = Xoshiro(2)
+    )
+    sprob = discretize(pde_system, sdisc)
+    smd = pinn_metadata(sprob)
+    Xs = copy(getp(sprob, smd.blocks[1].xs)(sprob))
+    resample!(sprob)
+    @test getp(sprob, smd.blocks[1].xs)(sprob) == Xs
+    # R-randomized Sobol (power-of-two counts) re-seeds alg.R.rng
+    owen = SobolSample(R = OwenScramble(base = 2, pad = 32))
+    odisc = PhysicsInformedNN(
+        chain,
+        QuasiRandomTraining(64; bcs_points = 32, sampling_alg = owen, resampling = true);
+        rng = Xoshiro(2)
+    )
+    oprob = discretize(pde_system, odisc)
+    omd = pinn_metadata(oprob)
+    Xo0 = copy(getp(oprob, omd.blocks[1].xs)(oprob))
+    op1 = copy(oprob.p)
+    op2 = copy(oprob.p)
+    resample!(op1, omd; rng = Xoshiro(42))
+    resample!(op2, omd; rng = Xoshiro(42))
+    Xo1 = getp(oprob, omd.blocks[1].xs)(op1)
+    @test Xo1 == getp(oprob, omd.blocks[1].xs)(op2)
+    @test Xo1 != Xo0
+    odisc2 = PhysicsInformedNN(
+        chain,
+        QuasiRandomTraining(64; bcs_points = 32, sampling_alg = owen, resampling = true);
+        rng = Xoshiro(2)
+    )
+    oprob2 = discretize(pde_system, odisc2)
+    @test getp(oprob2, pinn_metadata(oprob2).blocks[1].xs)(oprob2) == Xo0
+end
+
+@testset "GridSample RNG ownership ($(typeof(sampler.R)))" for sampler in
+    (GridSample(), GridSample(R = QuasiMonteCarlo.Shift()))
+    strategy = QuasiRandomTraining(16; sampling_alg = sampler)
+    function grid_draws(task_seed, pinn_seed, resample_seed)
+        Random.seed!(task_seed)
+        grid_prob = discretize(pde_system, PhysicsInformedNN(chain, strategy; rng = Xoshiro(pinn_seed)))
+        read_points = getp(grid_prob, first(pinn_metadata(grid_prob).blocks).xs)
+        initial_points = copy(read_points(grid_prob))
+        task_state = copy(Random.default_rng())
+        resample!(grid_prob; rng = Xoshiro(resample_seed))
+        @test copy(Random.default_rng()) == task_state
+        return initial_points, copy(read_points(grid_prob))
+    end
+    initial, resampled = grid_draws(10, 20, 30)
+    other_initial, other_resampled = grid_draws(11, 20, 30)
+    @test other_initial == initial
+    @test other_resampled == resampled
+    changed_initial, changed_resampled = grid_draws(10, 21, 31)
+    @test changed_initial != initial
+    @test changed_resampled != resampled
+end
+
+@testset "configured QMC RNG precedence" begin
+    for make_sampler in (
+            rng -> LatinHypercubeSample(; rng), rng -> RandomSample(; rng),
+            rng -> RandomizedHaltonSample(; rng), rng -> SobolSample(R = QuasiMonteCarlo.Shift(; rng)),
+        )
+        @testset "$(nameof(typeof(make_sampler(Xoshiro(10)))))" begin
+            sampler_rng = Xoshiro(10)
+            expected_rng = copy(sampler_rng)
+            make_disc(rng) = PhysicsInformedNN(
+                chain, QuasiRandomTraining(16; sampling_alg = make_sampler(rng)); rng = Xoshiro(2)
+            )
+            qdisc = make_disc(sampler_rng)
+            pinn_state = copy(qdisc.rng)
+            qprob = discretize(pde_system, qdisc)
+            qmd = pinn_metadata(qprob)
+            read_points(block) = getp(qprob, block.xs)(qprob)
+            function check_draws(rng)
+                sampler = make_sampler(rng)
+                for block in qmd.blocks
+                    @test read_points(block) == QuasiMonteCarlo.sample(block.npoints, block.bounds..., sampler)
+                end
+            end
+            check_draws(expected_rng)
+            @test sampler_rng == expected_rng
+            @test qdisc.rng == pinn_state
+            other = discretize(pde_system, make_disc(Xoshiro(11)))
+            other_block = first(pinn_metadata(other).blocks)
+            @test read_points(first(qmd.blocks)) != getp(other, other_block.xs)(other)
+
+            resample!(qprob)
+            check_draws(expected_rng)
+            @test sampler_rng == expected_rng
+            @test qdisc.rng == pinn_state
+
+            for _ in 1:2
+                resample!(qprob; rng = Xoshiro(42))
+                check_draws(Xoshiro(42))
+                @test sampler_rng == expected_rng
+                @test qdisc.rng == pinn_state
+            end
+        end
+    end
+end
+
+struct PositionalSampler <: QuasiMonteCarlo.SamplingAlgorithm
+    rng::Xoshiro
+end
+
+function QuasiMonteCarlo.sample(n::Integer, d::Integer, sampler::PositionalSampler, T = Float64)
+    return rand(sampler.rng, T, d, n)
+end
+
+struct PositionalRandomizedSampler{R} <: QuasiMonteCarlo.SamplingAlgorithm
+    R::R
+end
+
+function QuasiMonteCarlo.sample(
+        n::Integer, d::Integer, sampler::PositionalRandomizedSampler, T = Float64
+    )
+    return QuasiMonteCarlo.sample(n, d, SobolSample(; sampler.R), T)
+end
+
+@testset "positional QMC sampler (nested randomization = $nested)" for nested in (false, true)
+    make_sampler(rng) =
+        nested ? PositionalRandomizedSampler(QuasiMonteCarlo.Shift(; rng)) : PositionalSampler(rng)
+    sampler_rng = Xoshiro(10)
+    qdisc = PhysicsInformedNN(
+        chain, QuasiRandomTraining(16; sampling_alg = make_sampler(sampler_rng));
+        rng = Xoshiro(2)
+    )
+    expected = make_sampler(copy(sampler_rng))
+    qprob = discretize(pde_system, qdisc)
+    qmd = pinn_metadata(qprob)
+    for block in qmd.blocks
+        X = QuasiMonteCarlo.sample(block.npoints, block.bounds..., expected)
+        @test getp(qprob, block.xs)(qprob) == X
+    end
+    explicit_rng = Xoshiro(42)
+    resample!(qprob.p, qmd; rng = explicit_rng)
+    for block in qmd.blocks
+        X = QuasiMonteCarlo.sample(block.npoints, block.bounds..., expected)
+        @test getp(qprob, block.xs)(qprob) == X
+    end
+    @test explicit_rng == Xoshiro(42)
+end
+
+@testset "unseeded discretizations draw distinct weights and points" begin
+    d1 = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20))
+    d2 = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20))
+    p1 = discretize(pde_system, d1)
+    p2 = discretize(pde_system, d2)
+    @test p1.u0 != p2.u0
+    @test getp(p1, pinn_metadata(p1).blocks[1].xs)(p1) !=
+        getp(p2, pinn_metadata(p2).blocks[1].xs)(p2)
+    Random.seed!(11)
+    pa = discretize(pde_system, PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20)))
+    Random.seed!(11)
+    pb = discretize(pde_system, PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20)))
+    @test pa.u0 == pb.u0
+    @test getp(pa, pinn_metadata(pa).blocks[1].xs)(pa) ==
+        getp(pb, pinn_metadata(pb).blocks[1].xs)(pb)
+end
+
+@testset "non-copyable rng seeds the owned streams once" begin
+    ddisc = PhysicsInformedNN(chain, GridTraining(0.1); rng = RandomDevice())
+    @test ddisc.rng !== ddisc.init_rng
+    @test discretize(pde_system, ddisc).u0 == discretize(pde_system, ddisc).u0
+    d2 = PhysicsInformedNN(chain, GridTraining(0.1); rng = RandomDevice())
+    @test discretize(pde_system, d2).u0 != discretize(pde_system, ddisc).u0
+end
+
+@testset "owned generators keep the algorithm of a reseedable rng ($(nameof(R)))" for R in
+    (StableRNG, MersenneTwister)
+    newdisc() = PhysicsInformedNN(chain, StochasticTraining(50; bcs_points = 20); rng = R(3))
+    d = newdisc()
+    @test d.rng isa R
+    @test d.init_rng isa R
+    @test d.rng !== d.init_rng
+    p1 = discretize(pde_system, d)
+    p2 = discretize(pde_system, newdisc())
+    @test p1.u0 == p2.u0
+    @test getp(p1, pinn_metadata(p1).blocks[1].xs)(p1) ==
+        getp(p2, pinn_metadata(p2).blocks[1].xs)(p2)
+end
+
+struct FloatOnlyRNG{RejectSeed} <: AbstractRNG
+    inner::Xoshiro
+end
+
+Base.copy(rng::R) where {R <: FloatOnlyRNG} = R(copy(rng.inner))
+Random.rand(rng::FloatOnlyRNG) = rand(rng.inner)
+Random.rand(rng::FloatOnlyRNG, ::Type{Float32}) = rand(rng.inner, Float32)
+function Random.rand(rng::FloatOnlyRNG, ::Type{T}, dims::Dims) where {T <: Union{Float32, Float64}}
+    return rand(rng.inner, T, dims)
+end
+
+function Random.seed!(rng::FloatOnlyRNG{true}, seed::UInt64)
+    rand(rng)
+    throw(MethodError(Random.seed!, (rng, seed)))
+end
+
+@testset "owned generators copy a Float-only RNG (explicit rejection = $reject)" for reject in (false, true)
+    layer = Dense(2, 1; use_bias = false, init_weight = (rng, dims...) -> rand(rng, Float32, dims))
+    R = FloatOnlyRNG{reject}
+    source = R(Xoshiro(3))
+    strategy = StochasticTraining(16)
+    d = PhysicsInformedNN(layer, strategy; rng = source)
+    @test d.init_rng isa R
+    @test d.rng isa R
+    @test d.init_rng !== d.rng
+    @test d.rng !== source
+    expected = Xoshiro(3)
+    rand(expected, Float64)
+    rand(expected, Float64)
+    @test d.init_rng isa R && d.init_rng.inner == expected
+    rand(expected, Float64)
+    rand(expected, Float64)
+    @test d.rng isa R && d.rng.inner == expected
+    p1 = discretize(pde_system, d)
+    p2 = discretize(pde_system, d)
+    fresh = discretize(pde_system, PhysicsInformedNN(layer, strategy; rng = R(Xoshiro(3))))
+    @test length(p1.u0) == 2
+    @test all(isfinite, p1.u0)
+    @test p1.u0 == p2.u0 == fresh.u0
+    xs(p) = getp(p, first(pinn_metadata(p).blocks).xs)(p)
+    initial = copy(xs(p1))
+    @test size(initial) == (2, 16)
+    @test all(isfinite, initial)
+    @test initial == xs(fresh)
+    @test initial != xs(p2)
+    resample!(p1.p, pinn_metadata(p1))
+    @test xs(p1) != initial
+end
+
+struct RejectCopyRNG{Unsupported} <: AbstractRNG
+    inner::Xoshiro
+end
+
+Random.rand(rng::RejectCopyRNG, ::Type{Float64}) = rand(rng.inner, Float64)
+Base.copy(rng::RejectCopyRNG{true}) = throw(MethodError(copy, (rng,)))
+Base.copy(::RejectCopyRNG{false}) = throw(ArgumentError("invalid copy state"))
+
+struct RejectSeedRNG <: AbstractRNG
+    inner::Xoshiro
+end
+
+Random.rand(rng::RejectSeedRNG, ::Type{Float64}) = rand(rng.inner, Float64)
+Base.copy(rng::RejectSeedRNG) = RejectSeedRNG(copy(rng.inner))
+Random.seed!(::RejectSeedRNG, ::UInt64) = throw(ArgumentError("invalid reseed state"))
+
+@testset "owned generator capability failures" begin
+    strategy = StochasticTraining(16)
+    @test_throws ArgumentError("invalid reseed state") PhysicsInformedNN(
+        chain, strategy; rng = RejectSeedRNG(Xoshiro(3))
+    )
+    @test_throws ArgumentError("invalid copy state") PhysicsInformedNN(
+        chain, strategy; rng = RejectCopyRNG{false}(Xoshiro(3))
+    )
+    source = RejectCopyRNG{true}(Xoshiro(3))
+    expected = copy(source.inner)
+    d = PhysicsInformedNN(chain, strategy; rng = source)
+    for owned in (d.init_rng, d.rng)
+        high, low = ntuple(_ -> floor(UInt64, ldexp(rand(expected), 32)), 2)
+        @test owned == Xoshiro((high << 32) | low)
+    end
+    @test source.inner == expected
 end
 
 @testset "cost weights and quadrature weights" begin

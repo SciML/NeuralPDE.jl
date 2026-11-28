@@ -30,6 +30,40 @@ convergence on smooth low-dimensional problems.
 training cases. `StochasticTraining` achieves a lower convergence rate in the quasi-Monte Carlo
 methods and thus `QuasiRandomTraining` should be preferred in most cases. `WeightedIntervalTraining` can only be used with ODEs (`NNODE`).
 
+## Resampling and quasi-Newton optimizers
+
+`StochasticTraining` and `QuasiRandomTraining` (with `resampling = true`) redraw their
+collocation points when [`resample!`](@ref) is called from a `solve` callback.
+Stochastic training uses the sampling generator owned by [`PhysicsInformedNN`](@ref).
+Pass `rng = Xoshiro(seed)` to [`resample!`](@ref) for a reproducible draw independent
+of that stream.
+
+`QuasiRandomTraining` uses the generator configured on the built-in sampler or
+randomization for initial points and ordinary resampling. Built-ins with a default task
+RNG use the discretization's sampling generator, which also draws the base `GridSample`
+points. An explicit `rng` passed to [`resample!`](@ref) supplies all built-in draws for
+that call, including the base grid and any built-in randomization. Pass a separate generator
+to leave the discretization and configured generators at their current states. Custom
+samplers and randomizations manage their own randomness. With the default
+`R = NoRand()`, `SobolSample`, `LatticeRuleSample` and `HaltonSample` draw the same
+points on every `resample!` call, so resampling has no effect on them. `GridTraining`
+and `QuadratureTraining` never resample.
+
+Quasi-Newton optimizers (`BFGS`/`LBFGS`) build up an approximation of the curvature of
+the loss (the Hessian or its inverse) across iterations. Resampling the collocation
+points replaces the objective the curvature was estimated for, so the accumulated
+history is stale and the next quasi-Newton step can be worse than a fresh first-order
+step. Resampling therefore belongs in a first-order phase: run `Adam` (or another
+first-order optimizer) with a resampling callback, then switch to `BFGS`/`LBFGS` on
+fixed collocation points for the final refinement:
+
+```julia
+md = pinn_metadata(prob)
+cb = (state, loss) -> (resample!(state.p, md); false)
+sol1 = solve(prob, Adam(0.01); callback = cb, maxiters = 500)
+sol2 = solve(remake(prob; u0 = sol1.original_sol.u), BFGS(); maxiters = 500)
+```
+
 ## API
 
 ```@docs

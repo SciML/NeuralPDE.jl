@@ -224,6 +224,7 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
     )
     networks = TrialNetwork[]
     shared_net = nothing
+    init_rng = copy(disc.init_rng)
     for (i, op) in enumerate(dvs)
         args = get(() -> v.args[op], declared, unwrap(op))
         n_in = length(args)
@@ -243,7 +244,8 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
                     )
                 )
                 shared_net = symbolic_network(
-                    chains[1], :NN, n_in, ndv, T, init === nothing ? nothing : init[1], disc.rng
+                    chains[1], :NN, n_in, ndv, T, init === nothing ? nothing : init[1],
+                    init_rng
                 )
             end
             NN, θ = shared_net
@@ -255,7 +257,7 @@ function build_networks(disc::PhysicsInformedNN, v, pdesys, T)
         else
             name = nameof(op)
             NN, θ = symbolic_network(
-                chains[i], name, n_in, 1, T, init === nothing ? nothing : init[i], disc.rng
+                chains[i], name, n_in, 1, T, init === nothing ? nothing : init[i], init_rng
             )
             push!(
                 networks, TrialNetwork(
@@ -458,7 +460,7 @@ function operating_point(md::PINNMetadata, rng)
 end
 
 """
-    resample!(p, md::PINNMetadata; rng = md.disc.rng)
+    resample!(p, md::PINNMetadata; rng = nothing)
 
 Draw new collocation points for every residual block whose training strategy resamples
 (`StochasticTraining` and `QuasiRandomTraining` with `resampling = true`) and store
@@ -470,14 +472,40 @@ md = pinn_metadata(prob)
 cb = (state, loss) -> (resample!(state.p, md); false)
 solve(prob, Adam(); callback = cb, maxiters = 1000)
 ```
+
+Stochastic training uses the discretization's sampling generator by default. Pass an
+explicit seeded generator to resample deterministically and independently of that stream:
+
+```julia
+resample!(p, md; rng = Xoshiro(seed))
+```
+
+For `QuasiRandomTraining`, omitting `rng` uses the generator configured on the built-in
+sampler or randomization. If that generator is the default task RNG, the discretization's
+sampling generator supplies the draw. The discretization's generator also draws the base
+`GridSample` points. An explicit `rng` supplies all built-in draws, including the base grid
+and its built-in randomization. Custom samplers and randomizations manage their own
+randomness. With `R = NoRand()`, `SobolSample`, `LatticeRuleSample` and `HaltonSample`
+redraw the same points on every call.
+
+!!! warning
+
+    Quasi-Newton optimizers (for example `BFGS`/`LBFGS`) accumulate curvature history
+    (approximate Hessian/inverse-Hessian) across iterations. Resampling the collocation
+    points between iterations invalidates that history, so follow a resampling phase
+    (typically with `Adam`) by a quasi-Newton refinement on fixed points rather than
+    interleaving resamples with quasi-Newton steps; see the
+    [training strategies manual](@ref training_strategies).
 """
-function resample!(p, md::PINNMetadata; rng = md.disc.rng)
+function resample!(p, md::PINNMetadata; rng = nothing)
     sys = md.metadata[]
     sys === nothing && throw(ArgumentError("`resample!` needs metadata from `discretize`."))
     resamples(md.disc.strategy) || return p
+    override = rng !== nothing
+    sampling_rng = override ? rng : md.disc.rng
     for b in md.blocks
         b.xs === nothing && continue
-        X, W = sample_points(md.disc.strategy, b, rng)
+        X, W = _sample_points(md.disc.strategy, b, sampling_rng, override)
         setp(sys, b.xs)(p, _similar_array(getp(sys, b.xs)(p), X))
         if b.w !== nothing
             setp(sys, b.w)(p, _similar_array(getp(sys, b.w)(p), W))

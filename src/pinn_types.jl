@@ -267,7 +267,16 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
 * `init_params`: initial network parameters as a flat vector, a Lux parameter
   `NamedTuple` or a `ComponentArray` (one network), or a vector of those (one per
   network). Defaults to `Lux.initialparameters` with `rng`.
-* `rng`: the random number generator used for parameter initialization and sampling.
+* `rng`: the random number generator used to construct two owned generators, one
+  frozen for initial parameters and one that advances with collocation sampling.
+  Construction combines two uniform `Float64` draws into a `UInt64` seed per generator.
+  A copyable `rng` retains its algorithm (for example, a `StableRNG` stays a `StableRNG`).
+  Each copy is reseeded when supported. Copyable generators without reseeding use
+  snapshots after each pair of draws, so their streams are offset by two draws.
+  A generator such as `RandomDevice` that does not support copying supplies seeds for
+  two `Xoshiro` generators. RNG types can signal an unsupported `copy(rng)` or
+  `Random.seed!(rng, seed)` by leaving the method undefined or throwing a `MethodError`
+  for that exact call. Other errors propagate.
 * `derivative`: the [`AbstractDerivativeLowering`](@ref) used for `Differential`
   operators. Defaults to [`FiniteDifferenceDerivative`](@ref).
 * `param_estim`: when `true`, the parameters of the `PDESystem` are added to the
@@ -284,6 +293,20 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
   `quadrature_alg` of `strategy` when it is a [`QuadratureTraining`](@ref).
 * `eval_points`: number of points per independent variable in the evaluation grid used by
   the solution interface (`sol[u(x, t)]`).
+
+## Reproducibility
+
+When `init_params` is not given, the initial network parameters are drawn from a copy
+of the frozen generator. The drawn parameters are therefore independent of
+how many times `symbolic_discretize` or `discretize` has been called before:
+`symbolic_discretize(pdesys, disc)` followed by `discretize(pdesys, disc)`
+produces the same initial parameters (`u0`) as `discretize(pdesys, disc)` alone.
+
+Pass a seeded `rng` (for example `Xoshiro(seed)`) to reproduce the initial parameters
+and collocation points drawn from the owned generators. A `StableRNG(seed)` from
+StableRNGs.jl keeps the RNG stream stable across Julia versions. The default
+`Random.default_rng()` supplies fresh seeds to each discretization. Seeding the
+global generator before construction reproduces those seeds.
 
 ## Example
 
@@ -307,6 +330,7 @@ sol = solve(prob, Adam(0.01); maxiters = 1000)
     strategy <: AbstractTrainingStrategy
     init_params
     rng <: AbstractRNG
+    init_rng <: AbstractRNG
     derivative <: AbstractDerivativeLowering
     param_estim::Bool
     additional_loss
@@ -328,10 +352,32 @@ function PhysicsInformedNN(
     )
     _check_integral_alg(integral_alg)
     chain = chain isa AbstractArray ? map(_to_lux, chain) : _to_lux(chain)
+    init_rng = _owned_rng(rng)
+    rng = _owned_rng(rng)
     return PhysicsInformedNN(
-        chain, strategy, init_params, rng, derivative, param_estim, additional_loss,
-        boundary_policy, integral_alg, eval_points
+        chain, strategy, init_params, rng, init_rng, derivative, param_estim,
+        additional_loss, boundary_policy, integral_alg, eval_points
     )
+end
+
+function _owned_rng(rng::AbstractRNG)
+    high = floor(UInt64, rand(rng) * 2.0^32)
+    low = floor(UInt64, rand(rng) * 2.0^32)
+    seed = (high << 32) | low
+    owned = try
+        copy(rng)
+    catch err
+        err isa MethodError && err.f === copy && err.args === (rng,) || rethrow()
+        return Random.Xoshiro(seed)
+    end
+    owned isa AbstractRNG && owned !== rng || return Random.Xoshiro(seed)
+    try
+        Random.seed!(owned, seed)
+    catch err
+        err isa MethodError && err.f === Random.seed! && err.args === (owned, seed) || rethrow()
+        return copy(rng)
+    end
+    return owned
 end
 
 _check_integral_alg(::Nothing) = nothing
