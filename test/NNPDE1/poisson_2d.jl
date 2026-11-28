@@ -11,6 +11,7 @@ using SymbolicIndexingInterface: getp
     domains = [x ∈ Interval(-2.0, 3.0), y ∈ Interval(1.0, 5.0)]
     @named pdesys = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
     chain = Chain(Dense(2, 4, σ), Dense(4, 1))
+    point_set(X) = Set(Tuple.(eachcol(X)))
 
     function check_latin_hypercube(X, lower, upper, n, T)
         @test size(X) == (length(lower), n)
@@ -43,7 +44,7 @@ using SymbolicIndexingInterface: getp
         end
         @test all((a != b) == refresh for (a, b) in zip(before, after))
         if refresh
-            @test Set(Tuple.(eachcol(before[1]))) != Set(Tuple.(eachcol(after[1])))
+            @test point_set(before[1]) != point_set(after[1])
         end
     end
 
@@ -54,6 +55,7 @@ using SymbolicIndexingInterface: getp
         check_latin_hypercube(matrix, lower, upper, 16, Float32)
     end
     @test length(unique(matrices)) == 4
+    @test length(unique(point_set.(matrices))) == 4
 
     function batch_trace(seed)
         seen = AbstractMatrix[]
@@ -61,7 +63,8 @@ using SymbolicIndexingInterface: getp
             16; sampling_alg = LatinHypercubeSample(Xoshiro(19)), resampling = false, minibatch = 4
         )
         loss = NeuralPDE.get_loss_function(
-            Float32[0], (X, θ) -> (push!(seen, copy(X)); X), (lower, upper), Float32, strategy
+            Float32[0], (X, θ) -> (push!(seen, copy(X)); X),
+            (Float64.(lower), Float64.(upper)), Float32, strategy
         )
         @sync @async begin
             Random.seed!(seed)
@@ -77,6 +80,7 @@ using SymbolicIndexingInterface: getp
     @test seen != batch_trace(21)
     batches = unique(seen)
     @test length(batches) == 4
+    @test length(unique(point_set.(batches))) == 4
     for matrix in batches
         check_latin_hypercube(matrix, lower, upper, 16, Float32)
     end
