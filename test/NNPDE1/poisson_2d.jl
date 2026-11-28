@@ -42,6 +42,9 @@ using SymbolicIndexingInterface: getp
             end
         end
         @test all((a != b) == refresh for (a, b) in zip(before, after))
+        if refresh
+            @test Set(Tuple.(eachcol(before[1]))) != Set(Tuple.(eachcol(after[1])))
+        end
     end
 
     lower, upper = Float32[-2, 1], Float32[3, 5]
@@ -52,19 +55,26 @@ using SymbolicIndexingInterface: getp
     end
     @test length(unique(matrices)) == 4
 
-    seen = Matrix{Float32}[]
-    strategy = QuasiRandomTraining(
-        16; sampling_alg = LatinHypercubeSample(Xoshiro(19)), resampling = false, minibatch = 4
-    )
-    loss = NeuralPDE.get_loss_function(
-        Float32[0], (X, θ) -> (push!(seen, copy(X)); X), (lower, upper), Float32, strategy
-    )
-    @sync @async begin
-        Random.seed!(20)
-        for _ in 1:64
-            loss(Float32[0])
+    function batch_trace(seed)
+        seen = AbstractMatrix[]
+        strategy = QuasiRandomTraining(
+            16; sampling_alg = LatinHypercubeSample(Xoshiro(19)), resampling = false, minibatch = 4
+        )
+        loss = NeuralPDE.get_loss_function(
+            Float32[0], (X, θ) -> (push!(seen, copy(X)); X), (lower, upper), Float32, strategy
+        )
+        @sync @async begin
+            Random.seed!(seed)
+            for _ in 1:64
+                loss(Float32[0])
+            end
         end
+        @test all(X -> eltype(X) === Float32, seen)
+        return seen
     end
+    seen = batch_trace(20)
+    @test seen == batch_trace(20)
+    @test seen != batch_trace(21)
     batches = unique(seen)
     @test length(batches) == 4
     for matrix in batches
