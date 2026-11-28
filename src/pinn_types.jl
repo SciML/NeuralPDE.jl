@@ -258,7 +258,16 @@ network and lowers the PDE residuals and boundary conditions into an optimizatio
 
 * `chain`: a Lux layer, or a vector with one Lux layer per dependent variable of the
   `PDESystem`. A single layer with several dependent variables is treated as one shared
-  network whose `i`-th output is the `i`-th dependent variable.
+  network whose `i`-th output is the `i`-th dependent variable. Lux state, such as the
+  periods of `Boltz.Layers.PeriodicEmbedding`, is held fixed in inference mode
+  (`training = Val(false)`) at the state that `LuxCore.setup(rng, chain)` returns, with
+  floating-point arrays converted to the parameter eltype. Dropout is disabled and
+  BatchNorm uses its initial running statistics. Every evaluation copies arrays, `Ref`
+  values, and random number generators in nested tuples and named tuples. Views and
+  element references share their backing array's copy. Other state leaves must be
+  immutable metadata. Fixed Lux state is copied on its setup device. When collocation
+  points move to a device, layer inference must accept the setup-device state with
+  those inputs.
 * `strategy`: the [`AbstractTrainingStrategy`](@ref) that chooses the collocation points
   and the reduction of the pointwise residuals.
 
@@ -523,9 +532,10 @@ function AdditionalLoss(f, names::Tuple{Vararg{Symbol}}, wrappers, outputs)
     )
 end
 
-function (al::AdditionalLoss{names})(args...) where {names}
+# Expose the parameter copies to Enzyme before dynamic dispatch on the callback.
+@inline function (al::AdditionalLoss{names})(args...) where {names}
     nnets = length(names)
-    θs = NamedTuple{names}(ntuple(i -> args[i], nnets))
+    θs = NamedTuple{names}(ntuple(i -> copy(args[i]), nnets))
     phi = NamedTuple{names}(
         ntuple(nnets) do i
             w = al.wrappers[i]
