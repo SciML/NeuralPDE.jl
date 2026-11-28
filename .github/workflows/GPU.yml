@@ -2,6 +2,7 @@ name: "GPU Tests"
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - master
       - 'release-'
@@ -23,7 +24,7 @@ jobs:
   # only builds the GPU documentation.
   gpu-docs:
     name: "Documentation"
-    runs-on: [self-hosted, gpu-v100]
+    runs-on: [self-hosted, gpu-t4]
     timeout-minutes: 360
     if: github.event_name == 'push' || !github.event.pull_request.draft
     steps:
@@ -38,7 +39,13 @@ jobs:
           Pkg.develop(PackageSpec(path=pwd()))
           Pkg.instantiate()
       - name: Building documentation
-        run: julia --color=yes --project=docs docs/make.jl
+        shell: julia --color=yes --project=docs {0}
+        run: |
+          using Reactant, Test
+          Reactant.set_default_backend("cuda")
+          x = Reactant.to_rarray(Float32[1, 2])
+          @test Array(Reactant.@jit(x + x)) == Float32[2, 4]
+          include(joinpath(pwd(), "docs", "make.jl"))
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
