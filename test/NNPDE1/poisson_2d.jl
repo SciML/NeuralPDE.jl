@@ -1,4 +1,76 @@
 include(joinpath(@__DIR__, "..", "helpers", "pinn_setup.jl"))
+using SymbolicIndexingInterface: getp
+
+@testset "Latin hypercube collocation" begin
+    @parameters x y
+    @variables u(..)
+    Dxx = Differential(x)^2
+    Dyy = Differential(y)^2
+    eq = Dxx(u(x, y)) + Dyy(u(x, y)) ~ 0.0
+    bcs = [u(-2, y) ~ 0.0, u(3, y) ~ 0.0, u(x, 1) ~ 0.0, u(x, 5) ~ 0.0]
+    domains = [x ∈ Interval(-2.0, 3.0), y ∈ Interval(1.0, 5.0)]
+    @named pdesys = PDESystem(eq, bcs, domains, [x, y], [u(x, y)])
+    chain = Chain(Dense(2, 4, σ), Dense(4, 1))
+
+    function check_latin_hypercube(X, lower, upper, n, T)
+        @test size(X) == (length(lower), n)
+        @test eltype(X) == T
+        for i in eachindex(lower)
+            @test all(lower[i] .<= X[i, :] .< upper[i])
+            strata = floor.(Int, n .* (X[i, :] .- lower[i]) ./ (upper[i] - lower[i]))
+            @test sort(strata) == 0:(n - 1)
+        end
+    end
+
+    for refresh in (false, true)
+        strategy = QuasiRandomTraining(
+            16; bcs_points = 8, sampling_alg = LatinHypercubeSample(Xoshiro(17)),
+            resampling = refresh
+        )
+        prob = discretize(pdesys, PhysicsInformedNN(chain, strategy; rng = Xoshiro(18)))
+        blocks = pinn_metadata(prob).blocks
+        @test length(blocks) == 5
+        coordinates() = [copy(getp(prob, block.xs)(prob)) for block in blocks]
+        before = coordinates()
+        resample!(prob)
+        after = coordinates()
+        for draws in (before, after)
+            check_latin_hypercube(draws[1], [-2.0, 1.0], [3.0, 5.0], 16, Float64)
+            for i in 2:5
+                lo, hi = i <= 3 ? ([1.0], [5.0]) : ([-2.0], [3.0])
+                check_latin_hypercube(draws[i], lo, hi, 8, Float64)
+            end
+        end
+        @test all((a != b) == refresh for (a, b) in zip(before, after))
+    end
+
+    lower, upper = Float32[-2, 1], Float32[3, 5]
+    matrices = generate_design_matrices(16, lower, upper, LatinHypercubeSample(Xoshiro(19)), 4)
+    @test length(matrices) == 4
+    for matrix in matrices
+        check_latin_hypercube(matrix, lower, upper, 16, Float32)
+    end
+    @test length(unique(matrices)) == 4
+
+    seen = Matrix{Float32}[]
+    strategy = QuasiRandomTraining(
+        16; sampling_alg = LatinHypercubeSample(Xoshiro(19)), resampling = false, minibatch = 4
+    )
+    loss = NeuralPDE.get_loss_function(
+        Float32[0], (X, θ) -> (push!(seen, copy(X)); X), (lower, upper), Float32, strategy
+    )
+    @sync @async begin
+        Random.seed!(20)
+        for _ in 1:64
+            loss(Float32[0])
+        end
+    end
+    batches = unique(seen)
+    @test length(batches) == 4
+    for matrix in batches
+        check_latin_hypercube(matrix, lower, upper, 16, Float32)
+    end
+end
 
 @testset "2D Poisson" begin
     @parameters x y
